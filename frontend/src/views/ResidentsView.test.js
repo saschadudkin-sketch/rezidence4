@@ -21,6 +21,7 @@ jest.mock('../store/AppStore', () => ({
     u3: [],
     g1: [],
   }),
+  useAllPerms: () => ({}),
 }));
 
 jest.mock('../hooks/useDebounce', () => ({
@@ -99,11 +100,11 @@ describe('ResidentsView', () => {
     expect(screen.getByText(/ничего не найдено/i)).toBeInTheDocument();
   });
 
-  test('кнопка ✕ очищает поиск', () => {
+  test('кнопка очистки очищает поиск', () => {
     render(<ResidentsView user={user} />);
     const input = screen.getByPlaceholderText(/апарт/i);
     fireEvent.change(input, { target: { value: 'Анна' } });
-    fireEvent.click(screen.getByText('✕'));
+    fireEvent.click(screen.getByLabelText('Очистить поиск'));
     expect(input.value).toBe('');
   });
 });

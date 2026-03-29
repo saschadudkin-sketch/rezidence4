@@ -2,7 +2,7 @@
 const express  = require('express');
 const logger   = require('../logger');
 const jwt      = require('jsonwebtoken');
-const bcrypt   = require('bcrypt');
+const passwordHasher = require('../utils/passwordHasher');
 const fetch    = require('node-fetch');
 const { v4: uuid } = require('uuid');
 const db       = require('../db');
@@ -131,7 +131,7 @@ router.post('/send-otp', async (req, res, next) => {
     //   Хешируем только когда точно знаем, что SMS ушёл.
     await sendSms(phone, code); // бросает при ошибке SMS → hash и INSERT не выполняются
 
-    const hash = await bcrypt.hash(code, 10);
+    const hash = await passwordHasher.hash(code);
 
     await db.query(
       `INSERT INTO otp_codes(phone, code, expires_at) VALUES($1,$2,$3)`,
@@ -152,7 +152,7 @@ router.post('/verify-otp', async (req, res, next) => {
 
     // FIX [КРИТ-4]: счётчик попыток — brute-force защита для /verify-otp
     // FIX [КРИТ-5]: атомарный UPDATE RETURNING — защита от race condition TOCTOU
-    //   Берём все активные НЕиспользованные коды, проверяем bcrypt, атомарно помечаем.
+    //   Берём все активные НЕиспользованные коды, проверяем хэш, атомарно помечаем.
     const { rows: candidates } = await db.query(
       `SELECT id, code FROM otp_codes
        WHERE phone=$1 AND expires_at > NOW() AND used=FALSE AND attempts < 5
@@ -162,7 +162,7 @@ router.post('/verify-otp', async (req, res, next) => {
 
     let matchedId = null;
     for (const row of candidates) {
-      const ok = await bcrypt.compare(code, row.code);
+      const ok = await passwordHasher.compare(code, row.code);
       if (ok) { matchedId = row.id; break; }
     }
 

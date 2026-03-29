@@ -53,7 +53,7 @@ describe('verifyCsrf', () => {
   });
 
   it('skips exempt paths (client-logs)', () => {
-    const req = mockReq('POST', '/api/v1/client-logs', {}, {});
+    const req = mockReq('POST', '/v1/client-logs', {}, {});
     const res = mockRes();
     const next = jest.fn();
     verifyCsrf(req, res, next);
