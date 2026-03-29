@@ -112,7 +112,7 @@ export const canEditMessage = (user, msg) =>
 
 /** Может ли удалить сообщение — своё или администратор */
 export const canDeleteMessage = (user, msg) =>
-  msg.uid === user.uid;
+  msg.uid === user.uid || user.role === ROLES.ADMIN;
 
 // ─── Пользователи и роли ─────────────────────────────────────────────────────
 
