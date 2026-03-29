@@ -126,7 +126,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     <div className={'guard-card' + (blMatch ? ' bl-flagged' : '')} role="article">
       {blMatch && (
         <div className="bl-warning">
-          <span style={{ fontSize: 22 }}>🚫</span>
+          <span className="u-inline-icon"><AppIcon name="denied" size={22} /></span>
           <div>
             <div className="bl-warning-text">ЧЁРНЫЙ СПИСОК</div>
             <div className="bl-warning-detail">
