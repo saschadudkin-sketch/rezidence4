@@ -5,12 +5,10 @@
  * Охранник сканирует → система показывает данные пропуска и кнопку «Пропустить».
  */
 
-import QRCode from 'qrcode';
-
 /**
- * Генерирует data-URL QR-кода для пропуска.
+ * Генерирует URL QR-кода для пропуска.
  * @param {Object} req — объект заявки
- * @returns {Promise<string>} data:image/png;base64,...
+ * @returns {Promise<string>} URL картинки QR
  */
 export async function generatePassQR(req) {
   const payload = JSON.stringify({
@@ -26,15 +24,8 @@ export async function generatePassQR(req) {
     createdAt:    req.createdAt instanceof Date ? req.createdAt.toISOString() : req.createdAt,
   });
 
-  return QRCode.toDataURL(payload, {
-    width: 256,
-    margin: 2,
-    color: {
-      dark:  '#1C1A16',
-      light: '#FAF8F4',
-    },
-    errorCorrectionLevel: 'M',
-  });
+  const encoded = encodeURIComponent(payload);
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&margin=2&data=${encoded}`;
 }
 
 /**

@@ -1,7 +1,7 @@
 /**
  * services/providers/backendProvider.js
  * Провайдер для нашего собственного Node.js + PostgreSQL backend.
- * Заменяет firebaseProvider.js — интерфейс одинаковый.
+ * Основной live-провайдер для деплоя на VPS.
  *
  * Активируется через: REACT_APP_PROVIDER=backend в .env
  */
@@ -150,7 +150,7 @@ export const authProvider = {
     // FIX [AUDIT-5 #6]: сбрасываем _refreshFailed при новом логине.
     // Без этого: временный 503 при refresh → _refreshFailed=true →
     // новый пользователь не может обновить access token даже после успешного входа.
-    resetRefreshState();
+    if (typeof resetRefreshState === 'function') resetRefreshState();
     // FIX [DATA-1]: передаём uid чтобы SSE мог корректно обработать смену пользователя
     sseManager.connect(user.uid);
     return user;

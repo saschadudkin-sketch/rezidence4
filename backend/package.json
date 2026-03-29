@@ -7,7 +7,7 @@
     "start":   "node src/index.js",
     "migrate": "node src/migrate.js",
     "dev":     "nodemon src/index.js",
-    "test":    "jest --testPathPattern=__tests__ --forceExit"
+    "test":    "jest --forceExit"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -19,7 +19,6 @@
     "node-fetch": "^2.7.0",
     "pg": "^8.12.0",
     "uuid": "^9.0.1",
-    "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",
     "express-rate-limit": "^7.3.1",
     "pino": "^9.2.0",
