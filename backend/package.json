@@ -7,7 +7,7 @@
     "start":   "node src/index.js",
     "migrate": "node src/migrate.js",
     "dev":     "nodemon src/index.js",
-    "test":    "jest --testPathPattern=__tests__ --forceExit"
+    "test":    "jest --forceExit"
   },
   "dependencies": {
     "cors": "^2.8.5",

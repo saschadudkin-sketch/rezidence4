@@ -4,6 +4,7 @@
  * Запуск: npm test
  */
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 
 // ── Mock db перед импортом app ──────────────────────────────────────────────
 jest.mock('../db');
@@ -29,6 +30,10 @@ const app = buildApp();
 const VALID_PHONE = '+79001234567';
 const VALID_CODE  = '123456';
 
+beforeAll(() => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
+});
+
 describe('POST /api/auth/send-otp', () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
@@ -40,13 +45,14 @@ describe('POST /api/auth/send-otp', () => {
     expect(res.body.error).toMatch(/номер/i);
   });
 
-  it('404 когда номер не зарегистрирован', async () => {
+  it('200 когда номер не зарегистрирован (защита от user-enumeration)', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [] }); // SELECT uid FROM users
     const res = await request(app)
       .post('/api/auth/send-otp')
       .send({ phone: VALID_PHONE });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
   });
 
   it('429 при 3+ активных кодах', async () => {
@@ -100,7 +106,8 @@ describe('POST /api/auth/verify-otp', () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] })        // candidates
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })                     // atomic UPDATE RETURNING
-      .mockResolvedValueOnce({ rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }] }); // user
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }] }) // user
+      .mockResolvedValueOnce({ rows: [] }); // insert refresh token
 
     const res = await request(app)
       .post('/api/auth/verify-otp')
@@ -135,7 +142,15 @@ describe('POST /api/auth/verify-otp', () => {
 
 describe('POST /api/auth/logout', () => {
   it('сбрасывает cookie token', async () => {
-    const res = await request(app).post('/api/auth/logout');
+    const token = jwt.sign(
+      { uid: 'u1', role: 'owner', name: 'Test', jti: 'jti-1' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+    db.query.mockResolvedValue({ rows: [] });
+    const res = await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', [`token=${token}`]);
     expect(res.status).toBe(200);
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
