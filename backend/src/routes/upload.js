@@ -20,9 +20,10 @@ fs.promises.mkdir(UPLOAD_DIR, { recursive: true }).catch(err => {
   // Только если это не "уже существует" — fatal
   if (err.code !== 'EEXIST') {
     logger.error('Failed to create UPLOAD_DIR', err);
-    process.exit(1);
+    uploadDirReady = false;
   }
 });
+let uploadDirReady = true;
 
 // Разрешённые MIME-типы изображений с их расширениями
 const ALLOWED_TYPES = new Map([
@@ -35,6 +36,9 @@ const ALLOWED_TYPES = new Map([
 // POST /api/upload/photo — raw binary body
 router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, res, next) => {
   try {
+    if (!uploadDirReady) {
+      return res.status(503).json({ error: 'Upload storage is temporarily unavailable' });
+    }
     const MAX_PHOTOS_PER_USER = 200;
     const { rows: countRows } = await db.query(
       `SELECT COALESCE(SUM(array_length(photos, 1)), 0)::int AS cnt

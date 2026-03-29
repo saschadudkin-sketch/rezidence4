@@ -40,7 +40,7 @@ export const isStaff = (role) => STAFF_ROLES_SET.has(role);
 /** Видит все заявки + получает уведомления о новых */
 export const canManageRequests = (role) => MANAGE_ROLES_SET.has(role);
 
-/** Может одобрять/отклонять заявки (НЕ консьерж) */
+/** Может одобрять/отклонять заявки */
 export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
 
 // ─── Заявки ──────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export const canDeleteRequest = (user, req) =>
 
 /**
  * Может ли пользователь одобрить заявку
- * Только охрана и администратор (НЕ консьерж)
+ * Только роли из canApproveRequests
  */
 export const canApproveRequest = (user, req) =>
   canApproveRequests(user.role) && req.status === 'pending';

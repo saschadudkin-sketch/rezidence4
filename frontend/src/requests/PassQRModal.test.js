@@ -7,6 +7,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PassQRModal } from './PassQRModal';
 
 jest.mock('../services/qrService', () => ({
+  __esModule: true,
   generatePassQR: jest.fn().mockResolvedValue('data:image/png;base64,abc123'),
 }));
 
