@@ -2,7 +2,7 @@ jest.mock('../config/runtimeMode', () => ({
   isLiveMode: jest.fn(),
 }));
 
-jest.mock('./firebaseService', () => ({
+jest.mock('./localService', () => ({
   savePerms: jest.fn(),
   saveUser: jest.fn(),
   removeUser: jest.fn(),
@@ -10,7 +10,7 @@ jest.mock('./firebaseService', () => ({
 
 import { isLiveMode } from '../config/runtimeMode';
 import { SYNC_STATUS } from '../constants/syncStatuses';
-import { savePerms, saveUser, removeUser } from './firebaseService';
+import { savePerms, saveUser, removeUser } from './localService';
 import { savePermsEverywhere, saveUserEverywhere, removeUserEverywhere } from './adminGateway';
 
 describe('adminGateway', () => {
