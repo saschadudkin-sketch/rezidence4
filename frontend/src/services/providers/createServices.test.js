@@ -16,7 +16,7 @@ describe('createServices factory', () => {
   test('creates service container for live mode', () => {
     const s = createServices('live');
     expect(s.mode).toBe('live');
-    expect(s.provider).toBe('firebase');
+    expect(s.provider).toBe('backend');
   });
 
   test('falls back to demo provider for unsupported mode', () => {
@@ -28,7 +28,7 @@ describe('createServices factory', () => {
   test('normalizes mode input (trim + lowercase)', () => {
     const s = createServices('  LIVE ');
     expect(s.mode).toBe('live');
-    expect(s.provider).toBe('firebase');
+    expect(s.provider).toBe('backend');
   });
 
   test('uses MODE from runtimeMode when mode argument is omitted', () => {
@@ -39,7 +39,7 @@ describe('createServices factory', () => {
     const s = createServicesWithMockedMode();
 
     expect(s.mode).toBe('live');
-    expect(s.provider).toBe('firebase');
+    expect(s.provider).toBe('backend');
   });
 
   test('uses MODE=demo from runtimeMode when mode argument is omitted', () => {

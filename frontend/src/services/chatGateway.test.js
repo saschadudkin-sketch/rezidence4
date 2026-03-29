@@ -2,13 +2,13 @@ jest.mock('../config/runtimeMode', () => ({
   isLiveMode: jest.fn(),
 }));
 
-jest.mock('./firebaseService', () => ({
+jest.mock('./localService', () => ({
   sendMessage: jest.fn(),
 }));
 
 import { isLiveMode } from '../config/runtimeMode';
 import { SYNC_STATUS } from '../constants/syncStatuses';
-import { sendMessage as fbSendMessage } from './firebaseService';
+import { sendMessage as fbSendMessage } from './localService';
 import { sendChatMessage } from './chatGateway';
 
 describe('chatGateway.sendChatMessage', () => {

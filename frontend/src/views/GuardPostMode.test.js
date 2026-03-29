@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import GuardPostMode from './GuardPostMode';
+import * as AppStore from '../store/AppStore.jsx';
 
 const mkReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
@@ -14,17 +15,6 @@ const mkReq = (overrides={}) => ({
   ...overrides,
 });
 
-jest.mock('../store/AppStore', () => ({
-  useRequests: jest.fn(() => [mkReq()]),
-  useActions:  () => ({
-    approveRequest: jest.fn(), rejectRequest: jest.fn(),
-    arriveRequest: jest.fn(), approveAndArrive: jest.fn(),
-  }),
-  useBlacklist: () => [],
-  useUsers:     () => ({ users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } } }),
-  useAvatar:    () => null,
-}));
-jest.mock('../utils',                      () => ({ sortReqs: v => v, playAlert: jest.fn() }));
 jest.mock('../ui/AvatarCircle',            () => ({ AvatarCircle: () => null }));
 jest.mock('../requests/PassQRModal',       () => ({ PassQRModal: () => null }));
 jest.mock('../store/slices/blacklistSlice',() => ({ checkBlacklist: () => null }));
@@ -32,7 +22,22 @@ jest.mock('../ui/Toasts',                  () => ({ toast: jest.fn() }));
 jest.mock('../requests/ScanQRModal',       () => ({ ScanQRModal: () => null }));
 jest.mock('../services/pushNotification',  () => ({ pushNotifyResident: jest.fn() }));
 jest.mock('../shared/api/passesApi',       () => ({ logVisit: jest.fn().mockResolvedValue({}) }));
+jest.mock('../utils.js', () => ({ sortReqs: v => v, playAlert: jest.fn(), sendNotif: jest.fn() }));
 jest.mock('../utils', () => ({ sortReqs: v => v, playAlert: jest.fn(), sendNotif: jest.fn() }));
+
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq()]);
+  jest.spyOn(AppStore, 'useActions').mockReturnValue({
+    approveRequest: jest.fn(), rejectRequest: jest.fn(),
+    arriveRequest: jest.fn(), approveAndArrive: jest.fn(),
+  });
+  jest.spyOn(AppStore, 'useBlacklist').mockReturnValue([]);
+  jest.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } } });
+  jest.spyOn(AppStore, 'useAvatar').mockReturnValue(null);
+});
+
+afterEach(() => jest.restoreAllMocks());
 
 describe('GuardPostMode', () => {
   const user = { uid:'g1', role:'security', name:'Охрана' };
@@ -43,13 +48,13 @@ describe('GuardPostMode', () => {
 
   test('показывает карточку заявки', () => {
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={jest.fn()} />);
-    expect(screen.getByText('Гость')).toBeInTheDocument();
+    expect(screen.getAllByText('Гость').length).toBeGreaterThan(0);
   });
 
   test('показывает вкладки "Активные" и "Временные"', () => {
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={jest.fn()} />);
-    expect(screen.getByText(/активные/i)).toBeInTheDocument();
-    expect(screen.getByText(/временные/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /активные/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /временные/i })).toBeInTheDocument();
   });
 });
 

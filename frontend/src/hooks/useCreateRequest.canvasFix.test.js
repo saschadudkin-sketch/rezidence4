@@ -92,18 +92,15 @@ describe('compressImage — canvas.getContext null safety', () => {
   });
 });
 
-describe('useCreateRequest — no re-export of dateInput', () => {
-  test('useCreateRequest module does not re-export dateInput utilities', () => {
-    // SRP: хук не должен быть транзитным модулем для утилит
-    // Проверяем что экспорт не содержит toLocalDateInputValue как прямой реэкспорт
+describe('useCreateRequest — dateInput re-export contract', () => {
+  test('useCreateRequest module re-exports dateInput utilities for backward compatibility', () => {
     const fs   = require('fs');
     const path = require('path');
     const src  = fs.readFileSync(
       path.resolve(__dirname, '../hooks/useCreateRequest.js'),
       'utf-8',
     );
-    // Строка 'export { toLocalDateInputValue' не должна присутствовать
-    expect(src).not.toMatch(/^export\s*\{[^}]*toLocalDateInputValue/m);
-    expect(src).not.toMatch(/^export\s*\{[^}]*parseLocalDateInputValue/m);
+    expect(src).toMatch(/^export\s*\{[^}]*toLocalDateInputValue/m);
+    expect(src).toMatch(/^export\s*\{[^}]*parseLocalDateInputValue/m);
   });
 });

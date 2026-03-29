@@ -11,7 +11,7 @@ npm run test:mode-services
 This runs:
 - `src/config/runtimeMode.test.js`
 - `src/domain/requestWorkflow.test.js`
-- provider tests (`createServices`, `serviceContainer`, `demoProvider`, `firebaseProvider`)
+- provider tests (`createServices`, `serviceContainer`, `demoProvider`, `backendProvider`)
 - gateway tests (`chat`, `requests`, `admin`, `liveData`)
 - `src/ui/syncFeedback.test.js`
 
