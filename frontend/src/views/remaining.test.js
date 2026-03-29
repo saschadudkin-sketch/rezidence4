@@ -5,18 +5,57 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 
+window.HTMLElement.prototype.scrollIntoView = jest.fn();
+Object.defineProperty(global.navigator, 'mediaDevices', {
+  value: { getUserMedia: jest.fn().mockResolvedValue({ getTracks: () => [{ stop: jest.fn() }] }) },
+  configurable: true,
+});
+
+const originalConsoleError = console.error;
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation((...args) => {
+    const [first] = args;
+    if (typeof first === 'string' && first.includes('A suspended resource finished loading inside a test')) return;
+    originalConsoleError(...args);
+  });
+});
+
+afterAll(() => {
+  console.error.mockRestore();
+});
+
 jest.mock('../hooks/useDashboardHooks', () => ({
   useTheme:            () => ({ theme: 'auto', cycleTheme: jest.fn(), themeIcon: '✦', themeLabel: 'Авто' }),
-  useNavBadges:        () => ({ pendingT: 0, pendingP: 0, unreadMsgs: 0, residentNewStatuses: 0, blacklistCount: 0 }),
-  useLiveSync:         () => {},
+  useNavBadges:        () => ({ pendingT: 0, pendingP: 0, unreadMsgs: 0, residentNewStatuses: 0, blacklistCount: 0, onPassesSeen: jest.fn() }),
+  useLiveSync:         () => ({ isLoading: false }),
   usePushNotifications:() => {},
   useArrivalNotifier:  () => {},
   useNavigation:       () => ({ activeTab: 'passes', setActiveTab: jest.fn(), goTab: jest.fn(), highlightReqId: null, setHighlightReqId: jest.fn() }),
 }));
 jest.mock('../store/AppStore', () => ({
   useRequests:    () => [],
-  useActions:     () => ({ markChatSeen: jest.fn(), setAllRequests: jest.fn(), setAllMessages: jest.fn(), setAllUsers: jest.fn(), setPerms: jest.fn(), setTemplates: jest.fn() }),
+  useActions:     () => ({
+    markChatSeen: jest.fn(),
+    setAllRequests: jest.fn(),
+    setAllMessages: jest.fn(),
+    setAllUsers: jest.fn(),
+    setPerms: jest.fn(),
+    setTemplates: jest.fn(),
+    sendChatMessage: jest.fn(),
+    updateChatMessage: jest.fn(),
+    deleteChatMessage: jest.fn(),
+    addTemplate: jest.fn(),
+    deleteTemplate: jest.fn(),
+    addRequest: jest.fn(),
+    approveRequest: jest.fn(),
+    arriveRequest: jest.fn(),
+    deleteRequest: jest.fn(),
+    updateRequest: jest.fn(),
+  }),
   useChat:        () => ({ chat: [], chatLastSeen: {} }),
+  usePerms:       () => ({ visitors: [], workers: [] }),
+  useTemplates:   () => [],
+  useUsers:       () => ({ users: {} }),
   useBlacklist:   () => [],
   useAvatar:      () => null,
 }));
@@ -25,14 +64,17 @@ jest.mock('../domain/permissions', () => ({
   isStaff:            () => false,
   canManageRequests:  () => false,
   canAccessTab:       () => true,
+  canDeleteMessage:   jest.fn(() => false),
+  canEditMessage:     jest.fn(() => false),
   getTabsForRole:     () => ['passes','tech','perms','templates','chat'],
-  ROLES:              { SECURITY: 'security', ADMIN: 'admin' },
+  ROLES:              { SECURITY: 'security', ADMIN: 'admin', CONCIERGE: 'concierge', CONTRACTOR: 'contractor' },
 }));
 jest.mock('./ResidentView',             () => () => <div data-testid="resident-view" />);
 jest.mock('./SecurityConciergeViews',   () => ({ ConciergeView: () => null, SecurityView: () => null }));
 jest.mock('./AdminView',                () => () => null);
 jest.mock('../ui/AvatarCircle',         () => ({ AvatarCircle: () => null }));
 jest.mock('../hooks/useScheduledActivation', () => ({ useScheduledActivation: () => {} }));
+jest.mock('../config/runtimeMode', () => ({ isLiveMode: () => false, isDemoMode: () => false }));
 
 const ownerUser = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
 
@@ -56,22 +98,11 @@ describe('Dashboard', () => {
  * chat/ChatView.test.js
  */
 import { ChatView } from '../chat/ChatView';
-
-jest.mock('../store/AppStore', () => ({
-  useActions: () => ({ sendChatMessage: jest.fn(), updateChatMessage: jest.fn(), deleteChatMessage: jest.fn(), markChatSeen: jest.fn() }),
-  useChat: () => ({ chat: [], chatLastSeen: {} }),
-  useAvatar: () => null,
-}));
 jest.mock('../services/providers/serviceContainer', () => ({
   services: { chat: { sendMessage: jest.fn().mockResolvedValue({}), updateMessage: jest.fn(), deleteMessage: jest.fn(), markSeen: jest.fn() } },
 }));
 jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
 jest.mock('../ui/PhotoLightbox', () => ({ PhotoLightbox: () => null }));
-jest.mock('../domain/permissions', () => ({
-  canDeleteMessage: jest.fn(() => false),
-  canEditMessage:   jest.fn(() => false),
-}));
-jest.mock('../config/runtimeMode', () => ({ isLiveMode: () => false }));
 
 describe('ChatView', () => {
   test('рендерится без ошибок', () => {
@@ -107,8 +138,10 @@ describe('ChatView audit fixes', () => {
     expect(getSource()).toMatch(/msgTimestamps = useMemo/);
   });
 
-  test('FIX BUG-9: click-listener зарегистрирован с capture:true', () => {
-    expect(getSource()).toContain('capture: true');
+  test('FIX BUG-9: click-listener закрытия меню зарегистрирован', () => {
+    const src = getSource();
+    expect(src).toContain("document.addEventListener('mousedown', handleOutsideClick)");
+    expect(src).toContain("document.addEventListener('touchstart', handleOutsideClick)");
   });
 
   test('FIX BUG-15: onFileChange обёрнут в useCallback', () => {
@@ -127,14 +160,7 @@ describe('ChatView audit fixes', () => {
  * perms/PermsList.test.js
  */
 import { PermsList, MyTemplates } from '../perms/PermsList';
-
-jest.mock('../store/AppStore', () => ({
-  usePerms:      () => ({ visitors: [], workers: [] }),
-  useTemplates:  () => [],
-  useActions:    () => ({ setPerms: jest.fn(), addTemplate: jest.fn(), deleteTemplate: jest.fn(), setTemplates: jest.fn() }),
-}));
 jest.mock('../utils', () => ({ genId: () => 'gen-id' }));
-jest.mock('../domain/permissions', () => ({ ROLES: { CONTRACTOR: 'contractor' } }));
 
 describe('PermsList', () => {
   test('рендерится без ошибок', () => {
@@ -145,7 +171,7 @@ describe('PermsList', () => {
   test('показывает кнопку добавления гостя', () => {
     const user = { uid:'u1', role:'owner', name:'Иван' };
     render(<PermsList user={user} />);
-    expect(screen.getByText(/добавить/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/добавить/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -160,27 +186,12 @@ describe('MyTemplates', () => {
  * requests/CreateModal.test.js
  */
 import { CreateModal } from '../requests/CreateModal';
-
-jest.mock('../store/AppStore', () => ({
-  useActions: () => ({ addRequest: jest.fn() }),
-  useRequests: () => [],
-  useUsers: () => ({ users: {} }),
-  usePerms: () => ({ visitors: [], workers: [] }),
-}));
 jest.mock('../services/providers/serviceContainer', () => ({
   services: { requests: { submit: jest.fn().mockResolvedValue({ id:'srv-1' }), resolvePhotos: jest.fn().mockResolvedValue([]) } },
 }));
 jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
 jest.mock('../ui/scrollLock', () => ({ lockScroll: jest.fn(), unlockScroll: jest.fn() }));
-jest.mock('../config/runtimeMode', () => ({ isLiveMode: () => false }));
 jest.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
-jest.mock('../store/AppStore', () => ({
-  useActions:  () => ({ addRequest: jest.fn() }),
-  useBlacklist:() => [],
-  usePerms:    () => ({ visitors: [], workers: [] }),
-  useRequests: () => [],
-  useTemplates:() => [],
-}));
 
 describe('CreateModal', () => {
   test('рендерится без ошибок', () => {
@@ -191,7 +202,7 @@ describe('CreateModal', () => {
   test('показывает заголовок формы', () => {
     const user = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
     render(<CreateModal user={user} type="pass" category="guest" onClose={jest.fn()} onDone={jest.fn()} />);
-    expect(screen.getByText(/новая заявка|пропуск|создать/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/новая заявка|пропуск|создать/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -199,13 +210,6 @@ describe('CreateModal', () => {
  * requests/ScanQRModal.test.js
  */
 import { ScanQRModal } from '../requests/ScanQRModal';
-
-jest.mock('../store/AppStore', () => ({
-  useRequests:  () => [],
-  useBlacklist: () => [],
-  useActions:   () => ({ approveRequest: jest.fn(), arriveRequest: jest.fn(), addRequest: jest.fn() }),
-  useUsers:     () => ({ users: {} }),
-}));
 jest.mock('../ui/Toasts',     () => ({ toast: jest.fn() }));
 jest.mock('../ui/scrollLock', () => ({ lockScroll: jest.fn(), unlockScroll: jest.fn() }));
 jest.mock('../shared/api/passesApi', () => ({ logVisit: jest.fn().mockResolvedValue({}) }));

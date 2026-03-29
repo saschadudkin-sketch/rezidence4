@@ -10,14 +10,20 @@ import { AppProvider, useActions, useRequests } from '../store/AppStore';
 const wrapper = ({ children }) => <AppProvider>{children}</AppProvider>;
 
 describe('Integration: флоу создания и одобрения заявки', () => {
-  it('заявка создаётся, одобряется и отмечается как arrived', () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+  function useFlow() {
+    return {
+      actions: useActions(),
+      requests: useRequests(),
+    };
+  }
 
-    const find = (id) => reqResult.current.find(r => r.id === id);
+  it('заявка создаётся, одобряется и отмечается как arrived', () => {
+    const { result } = renderHook(() => useFlow(), { wrapper });
+
+    const find = (id) => result.current.requests.find(r => r.id === id);
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'test-flow-1',
         type: 'pass',
         status: 'pending',
@@ -39,21 +45,20 @@ describe('Integration: флоу создания и одобрения заяв�
 
     expect(find('test-flow-1').status).toBe('pending');
 
-    act(() => { actResult.current.approveRequest('test-flow-1', 'Охранник', 'security'); });
+    act(() => { result.current.actions.approveRequest('test-flow-1', 'Охранник', 'security'); });
     expect(find('test-flow-1').status).toBe('approved');
 
-    act(() => { actResult.current.arriveRequest('test-flow-1', 'Охранник', 'security'); });
+    act(() => { result.current.actions.arriveRequest('test-flow-1', 'Охранник', 'security'); });
     const arrived = find('test-flow-1');
     expect(arrived.status).toBe('arrived');
     expect(arrived.arrivedAt).toBeInstanceOf(Date);
   });
 
   it('заявка отклоняется охранником', () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => useFlow(), { wrapper });
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'test-flow-2',
         type: 'pass',
         status: 'pending',
@@ -73,16 +78,15 @@ describe('Integration: флоу создания и одобрения заяв�
       });
     });
 
-    act(() => { actResult.current.rejectRequest('test-flow-2', 'Охранник', 'security'); });
-    expect(reqResult.current.find(r => r.id === 'test-flow-2').status).toBe('rejected');
+    act(() => { result.current.actions.rejectRequest('test-flow-2', 'Охранник', 'security'); });
+    expect(result.current.requests.find(r => r.id === 'test-flow-2').status).toBe('rejected');
   });
 
   it('техзаявка принимается в работу', () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => useFlow(), { wrapper });
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'test-flow-3',
         type: 'tech',
         status: 'pending',
@@ -102,18 +106,17 @@ describe('Integration: флоу создания и одобрения заяв�
       });
     });
 
-    act(() => { actResult.current.acceptRequest('test-flow-3', 'Консьерж', 'concierge'); });
-    expect(reqResult.current.find(r => r.id === 'test-flow-3').status).toBe('accepted');
+    act(() => { result.current.actions.acceptRequest('test-flow-3', 'Консьерж', 'concierge'); });
+    expect(result.current.requests.find(r => r.id === 'test-flow-3').status).toBe('accepted');
   });
 
   it('запланированная заявка активируется', () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => useFlow(), { wrapper });
 
     const pastDate = new Date(Date.now() - 60_000); // минута назад
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'test-flow-4',
         type: 'pass',
         status: 'scheduled',
@@ -133,7 +136,7 @@ describe('Integration: флоу создания и одобрения заяв�
       });
     });
 
-    act(() => { actResult.current.activateScheduled(); });
-    expect(reqResult.current.find(r => r.id === 'test-flow-4').status).toBe('pending');
+    act(() => { result.current.actions.activateScheduled(); });
+    expect(result.current.requests.find(r => r.id === 'test-flow-4').status).toBe('pending');
   });
 });

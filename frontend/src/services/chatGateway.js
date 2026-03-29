@@ -1,6 +1,6 @@
 import { isLiveMode } from '../config/runtimeMode';
 import { SYNC_STATUS } from '../constants/syncStatuses';
-import { sendMessage as fbSendMessage } from './firebaseService';
+import { sendMessage as sendRemoteMessage } from './localService';
 import { logger } from './logger';
 
 /**
@@ -10,7 +10,7 @@ import { logger } from './logger';
 export async function sendChatMessage({ remotePayload, localMessage, sendLocal }) {
   if (isLiveMode()) {
     try {
-      await fbSendMessage(remotePayload);
+      await sendRemoteMessage(remotePayload);
       return SYNC_STATUS.REMOTE;
     } catch (e) {
       logger.warn('[chatGateway] sendMessage failed, falling back to local', e.message);

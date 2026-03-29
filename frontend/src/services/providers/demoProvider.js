@@ -33,7 +33,7 @@ export function createDemoProvider() {
        * сохранённых заявок (currentRequests пришли из INITIAL_STATE — пустой массив).
        * Если пользователь уже работал с приложением — его данные сохраняются.
        */
-      startSync: ({ setAllRequests, currentRequests }) => {
+      startSync: ({ setAllRequests, currentRequests } = {}) => {
         if (setAllRequests && (!currentRequests || currentRequests.length === 0)) {
           // FIX: вызываем фабрику — получаем свежие даты, а не замороженные при импорте
           setAllRequests(makeDemoRequests());
