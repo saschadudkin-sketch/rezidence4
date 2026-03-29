@@ -11,7 +11,7 @@
  *   useNavigation()        — активный таб
  */
 
-import { useState, useRef, useMemo, useCallback, lazy, Suspense, memo } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect, lazy, Suspense, memo } from 'react';
 import {
   useRequests, useChat, useAvatar, useActions, useBlacklist,
 } from '../store/AppStore';

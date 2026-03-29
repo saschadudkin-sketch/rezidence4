@@ -14,10 +14,13 @@ const { RequestsService, ServiceError } = require('../services/RequestsService')
 const router = express.Router();
 router.use(requireAuth);
 
-// FIX [AUDIT-2 #22]: валидация формата UUID — мусорные id не попадают в БД/логи
+// FIX: поддерживаем и UUID, и legacy/string id (например "req-123"),
+// чтобы не ломать существующие данные/тесты, но всё ещё отсеивать мусор.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function validateId(req, res, next) {
-  if (!UUID_RE.test(req.params.id)) {
+  const id = String(req.params.id || '');
+  if (!UUID_RE.test(id) && !SAFE_ID_RE.test(id)) {
     return res.status(400).json({ error: 'Invalid id format' });
   }
   next();

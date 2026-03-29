@@ -1,6 +1,6 @@
 /**
  * shared/api/passesApi.js — API для пропусков и журнала посещений.
- * Firebase убран. В demo-режиме — localStorage.
+ * Облачный realtime-провайдер убран. В demo-режиме — localStorage.
  * В production — данные идут через backendProvider → Node.js backend.
  *
  * Исправлено: module-level mutable arrays заменены на фабрику состояния.

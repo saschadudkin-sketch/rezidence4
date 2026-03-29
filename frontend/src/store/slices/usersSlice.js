@@ -31,9 +31,12 @@ export function usersReducer(state, action) {
     }
 
     case 'USER_UPDATE': {
-      const { uid, patch, oldPhone } = action;
+      const uid = action.uid || action.user?.uid;
+      const patch = action.patch || action.user || {};
+      const { oldPhone } = action;
+      if (!uid) return state;
       const updated = { ...state.users[uid], ...patch };
-      const newNorm = normalizePhone(patch.phone || updated.phone);
+      const newNorm = normalizePhone((patch && patch.phone) || updated.phone);
       const oldNorm = oldPhone ? normalizePhone(oldPhone) : null;
 
       const newPhoneDb = { ...state.phoneDb };
@@ -61,7 +64,7 @@ export function usersReducer(state, action) {
     }
 
     case 'USERS_SET_ALL': {
-      // Не стираем store при пустом ответе от Firebase
+      // Не стираем store при пустом ответе от удалённого источника
       if (!action.users || action.users.length === 0) return state;
       const incoming = Object.fromEntries(action.users.map(u => [u.uid, u]));
       const incomingPh = Object.fromEntries(action.users.map(u => [normalizePhone(u.phone), u]));

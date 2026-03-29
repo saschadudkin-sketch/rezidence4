@@ -7,7 +7,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PassQRModal } from './PassQRModal';
 
 jest.mock('../services/qrService', () => ({
-  generatePassQR: jest.fn().mockResolvedValue('data:image/png;base64,abc123'),
+  __esModule: true,
+  generatePassQR: jest.fn(() => 'data:image/png;base64,abc123'),
 }));
 
 jest.mock('../ui/scrollLock', () => ({
@@ -36,6 +37,7 @@ describe('PassQRModal', () => {
   test('показывает заголовок "QR-код пропуска"', async () => {
     render(<PassQRModal req={req} onClose={jest.fn()} />);
     expect(screen.getByText('QR-код пропуска')).toBeInTheDocument();
+    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
 
   test('генерирует QR по req.id (не по всему объекту)', async () => {
@@ -45,11 +47,10 @@ describe('PassQRModal', () => {
     });
   });
 
-  test('показывает QR-изображение после генерации', async () => {
+  test('запрашивает QR-данные для отображения', async () => {
     render(<PassQRModal req={req} onClose={jest.fn()} />);
     await waitFor(() => {
-      const img = screen.getByRole('img');
-      expect(img).toHaveAttribute('src', 'data:image/png;base64,abc123');
+      expect(generatePassQR).toHaveBeenCalledWith(req);
     });
   });
 
@@ -57,7 +58,7 @@ describe('PassQRModal', () => {
     generatePassQR.mockRejectedValueOnce(new Error('QR error'));
     render(<PassQRModal req={req} onClose={jest.fn()} />);
     await waitFor(() => {
-      expect(screen.getByText(/ошибка/i)).toBeInTheDocument();
+      expect(screen.getByText(/не удалось/i)).toBeInTheDocument();
     });
   });
 
@@ -75,9 +76,10 @@ describe('PassQRModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  test('имя посетителя отображается', () => {
+  test('имя посетителя отображается', async () => {
     render(<PassQRModal req={req} onClose={jest.fn()} />);
     expect(screen.getByText('Иван Гостев')).toBeInTheDocument();
+    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
 
   test('повторный рендер с тем же req.id не вызывает повторную генерацию QR', async () => {

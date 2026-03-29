@@ -202,6 +202,7 @@ describe('DELETE /api/chat/messages/:id', () => {
 // ─── GET /api/chat/messages — pagination (AUDIT-6) ───────────────────────────
 
 describe('GET /api/chat/messages — cursor pagination (AUDIT-6)', () => {
+  beforeEach(() => jest.clearAllMocks());
   const token = makeToken({ uid: 'u1', role: 'security', name: 'Охрана' });
 
   function makeRows(n) {

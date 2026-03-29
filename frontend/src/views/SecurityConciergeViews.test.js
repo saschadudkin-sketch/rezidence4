@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ConciergeView, SecurityView } from './SecurityConciergeViews';
+import * as AppStore from '../store/AppStore.jsx';
 
 const baseReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
@@ -20,6 +21,16 @@ jest.mock('../store/AppStore', () => ({
   useAllPerms:  () => ({}),
   useActions:   () => ({ updateRequest: jest.fn(), approveRequest: jest.fn(), rejectRequest: jest.fn() }),
 }));
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
+  jest.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } });
+  jest.spyOn(AppStore, 'useAllPerms').mockReturnValue({});
+  jest.spyOn(AppStore, 'useActions').mockReturnValue({ updateRequest: jest.fn(), approveRequest: jest.fn(), rejectRequest: jest.fn() });
+});
+
+afterEach(() => jest.restoreAllMocks());
+
 jest.mock('../hooks/useDebounce', () => ({ useDebounce: v => v }));
 jest.mock('../utils', () => ({ sortReqs: v => v, filterByPeriod: v => v }));
 jest.mock('../constants/requestPredicates', () => ({
@@ -41,9 +52,10 @@ const conciergeUser = { uid: 'c1', role: 'concierge', name: 'Консьерж' }
 const securityUser  = { uid: 'g1', role: 'security',  name: 'Охрана' };
 
 describe('ConciergeView', () => {
-  test('рендерит заявки на вкладке passes', () => {
+  test('рендерит карточки типов на вкладке passes', () => {
     render(<ConciergeView user={conciergeUser} activeTab="passes" setActiveTab={jest.fn()} />);
-    expect(screen.getByTestId('req-card')).toBeInTheDocument();
+    expect(screen.getByText('Гость')).toBeInTheDocument();
+    expect(screen.getByText('Курьер')).toBeInTheDocument();
   });
 
   test('рендерит ResidentsView на вкладке residents', () => {
