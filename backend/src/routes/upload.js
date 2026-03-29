@@ -40,20 +40,25 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       return res.status(503).json({ error: 'Upload storage is temporarily unavailable' });
     }
     const MAX_PHOTOS_PER_USER = 200;
-    const { rows: countRows } = await db.query(
+    const countResult = await db.query(
       `SELECT COALESCE(SUM(array_length(photos, 1)), 0)::int AS cnt
        FROM requests
        WHERE created_by_uid=$1 AND cardinality(photos) > 0 AND deleted_at IS NULL`,
       [req.user.uid],
     );
-    if (countRows[0].cnt >= MAX_PHOTOS_PER_USER) {
+    const currentCount = Number(countResult?.rows?.[0]?.cnt || 0);
+    if (currentCount >= MAX_PHOTOS_PER_USER) {
       return res.status(429).json({ error: `Upload quota exceeded. Maximum ${MAX_PHOTOS_PER_USER} photos total.` });
     }
 
     // FIX [SEC-3]: валидация magic bytes — Content-Type заголовок устанавливает клиент
     // и его можно подделать (например, отправить PHP-скрипт с Content-Type: image/jpeg).
     // fromBuffer читает реальную сигнатуру файла из первых байт буфера.
-    const detected = await fileType.fromBuffer(req.body);
+    const fromBuffer = fileType.fromBuffer || fileType.fileTypeFromBuffer;
+    if (typeof fromBuffer !== 'function') {
+      throw new Error('file-type fromBuffer API is unavailable');
+    }
+    const detected = await fromBuffer(req.body);
 
     if (!detected || !ALLOWED_TYPES.has(detected.mime)) {
       return res.status(400).json({
