@@ -277,7 +277,7 @@ describe('FIX-4: OTP insert happens AFTER SMS send', () => {
     jest.mock('node-fetch', () => () => {
       throw new Error('SMS service unavailable');
     });
-    jest.mock('bcrypt', () => ({ hash: async () => '$2b$hashed' }));
+    jest.mock('../utils/passwordHasher', () => ({ hash: async () => '$2b$hashed' }));
 
     const authRouter = require('../routes/auth');
     const app = require('express')();
@@ -305,7 +305,7 @@ describe('FIX-5: RequestsService.list uses single query with COUNT(*) OVER()', (
   test('list calls db.query exactly once for staff', async () => {
     jest.resetModules();
 
-    const querySpy = jest.fn().mockResolvedValue({
+    const mockQuery = jest.fn().mockResolvedValue({
       rows: [
         {
           id: 'r1', type: 'pass', category: 'guest', status: 'pending',
@@ -318,31 +318,31 @@ describe('FIX-5: RequestsService.list uses single query with COUNT(*) OVER()', (
         },
       ],
     });
-    jest.mock('../db', () => ({ query: querySpy, pool: {} }));
+    jest.mock('../db', () => ({ query: mockQuery, pool: {} }));
     jest.mock('../logger', () => require('../__mocks__/logger'));
 
     const { RequestsService } = require('../services/RequestsService');
     const result = await RequestsService.list({ uid: 'u1', role: 'admin' });
 
     // Один запрос вместо двух
-    expect(querySpy).toHaveBeenCalledTimes(1);
-    expect(querySpy.mock.calls[0][0]).toContain('COUNT(*) OVER()');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls[0][0]).toContain('COUNT(*) OVER()');
     expect(result.total).toBe(3);
   });
 
   test('list calls db.query exactly once for resident', async () => {
     jest.resetModules();
 
-    const querySpy = jest.fn().mockResolvedValue({ rows: [] });
-    jest.mock('../db', () => ({ query: querySpy, pool: {} }));
+    const mockQuery = jest.fn().mockResolvedValue({ rows: [] });
+    jest.mock('../db', () => ({ query: mockQuery, pool: {} }));
     jest.mock('../logger', () => require('../__mocks__/logger'));
 
     const { RequestsService } = require('../services/RequestsService');
     await RequestsService.list({ uid: 'u1', role: 'owner' });
 
-    expect(querySpy).toHaveBeenCalledTimes(1);
-    expect(querySpy.mock.calls[0][0]).toContain('COUNT(*) OVER()');
-    expect(querySpy.mock.calls[0][0]).toContain('created_by_uid=$1');
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls[0][0]).toContain('COUNT(*) OVER()');
+    expect(mockQuery.mock.calls[0][0]).toContain('created_by_uid=$1');
   });
 });
 
@@ -364,7 +364,7 @@ describe('AUDIT-2: send-otp does not reveal whether phone is registered', () => 
     jest.mock('../logger', () => require('../__mocks__/logger'));
     jest.mock('../lib/redisClient', () => ({ getRedis: () => null }));
     jest.mock('node-fetch', () => () => {});
-    jest.mock('bcrypt', () => ({ hash: async () => '$2b$hashed' }));
+    jest.mock('../utils/passwordHasher', () => ({ hash: async () => '$2b$hashed' }));
 
     app = require('express')();
     app.use(require('express').json());

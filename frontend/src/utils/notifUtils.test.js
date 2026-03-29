@@ -8,7 +8,7 @@
 jest.mock('./swUtils', () => ({ getSwReg: jest.fn(() => null) }));
 
 import { getSwReg } from './swUtils';
-import { requestNotifPerm, sendNotif, playAlert } from './notifUtils';
+import { requestNotifPerm, sendNotif } from './notifUtils';
 
 // ─── requestNotifPerm ─────────────────────────────────────────────────────────
 
@@ -118,20 +118,28 @@ describe('sendNotif', () => {
 
 describe('playAlert', () => {
   let origAudioContext;
+  let origWebkitAudioContext;
+  let playAlertFresh;
 
   beforeEach(() => {
     origAudioContext = global.AudioContext;
+    origWebkitAudioContext = global.webkitAudioContext;
     jest.clearAllMocks();
+    jest.resetModules();
+    jest.isolateModules(() => {
+      ({ playAlert: playAlertFresh } = require('./notifUtils'));
+    });
   });
 
   afterEach(() => {
     global.AudioContext = origAudioContext;
+    global.webkitAudioContext = origWebkitAudioContext;
   });
 
   it('не падает если AudioContext недоступен', () => {
     delete global.AudioContext;
     delete global.webkitAudioContext;
-    expect(() => playAlert('pass')).not.toThrow();
+    expect(() => playAlertFresh('pass')).not.toThrow();
   });
 
   it('не падает при вызове с типом "pass"', () => {
@@ -154,7 +162,7 @@ describe('playAlert', () => {
     };
     global.AudioContext = jest.fn(() => mockCtx);
 
-    expect(() => playAlert('pass')).not.toThrow();
+    expect(() => playAlertFresh('pass')).not.toThrow();
     expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
   });
 
@@ -175,7 +183,7 @@ describe('playAlert', () => {
     };
     global.AudioContext = jest.fn(() => mockCtx);
 
-    expect(() => playAlert('tech')).not.toThrow();
+    expect(() => playAlertFresh('tech')).not.toThrow();
     expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
   });
 
@@ -197,7 +205,7 @@ describe('playAlert', () => {
     };
     global.AudioContext = jest.fn(() => mockCtx);
 
-    playAlert('pass');
+    playAlertFresh('pass');
     expect(mockResume).toHaveBeenCalled();
   });
 });

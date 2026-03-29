@@ -7,7 +7,7 @@ export function normalizeMode(mode) {
   return ALLOWED_MODES.has(normalized) ? normalized : '';
 }
 
-// FIX [AUDIT]: убран FEATURES.FIREBASE_LIVE — Firebase удалён, флаг был всегда false.
+// FIX [AUDIT]: убран FEATURES.LEGACY_FLAG — legacy realtime provider удалён, флаг был всегда false.
 // Режим теперь определяется только через env-переменные.
 // Если ни REACT_APP_RUNTIME_MODE, ни REACT_APP_MODE не заданы — демо-режим (безопасный дефолт).
 export function resolveRuntimeMode(env = process.env) {

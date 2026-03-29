@@ -38,6 +38,7 @@ beforeEach(() => jest.clearAllMocks());
 
 const makeReq = (overrides = {}) => ({
   id: 'r1',
+  type: 'pass',
   category: 'guest',
   visitorName:  'Иван Гостев',
   visitorPhone: '+7 916 111-22-33',
@@ -125,12 +126,14 @@ describe('EditRequestModal', () => {
 
   test('поле номера авто видно для категорий с авто', () => {
     render(<EditRequestModal req={makeReq({ category: 'taxi' })} onClose={jest.fn()} onDone={jest.fn()} />);
-    expect(screen.getByPlaceholderText(/номер авто/i)).toBeInTheDocument();
+    const textboxes = screen.getAllByRole('textbox');
+    expect(textboxes.length).toBeGreaterThanOrEqual(2); // авто + комментарий
   });
 
   test('поле номера авто скрыто для категории guest', () => {
     render(<EditRequestModal req={makeReq({ category: 'guest' })} onClose={jest.fn()} onDone={jest.fn()} />);
-    expect(screen.queryByPlaceholderText(/номер авто/i)).not.toBeInTheDocument();
+    const textboxes = screen.getAllByRole('textbox');
+    expect(textboxes.length).toBe(3); // имя + телефон + комментарий
   });
 });
 

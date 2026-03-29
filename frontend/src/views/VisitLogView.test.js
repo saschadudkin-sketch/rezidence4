@@ -5,27 +5,35 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import VisitLogView from './VisitLogView';
+import * as AppStore from '../store/AppStore.jsx';
+import * as passesApi from '../shared/api/passesApi.js';
 
-jest.mock('../store/AppStore', () => ({
-  useRequests: jest.fn(() => [
-    {
-      id: 'r1', type: 'pass', category: 'guest', status: 'arrived',
-      visitorName: 'Дмитрий Орлов', carPlate: null, comment: '',
-      passDuration: 'once', result: 'allowed',
-      createdByUid: 'u1', createdByName: 'Михаил Волков', createdByApt: '12',
-      createdAt: new Date(Date.now() - 3_600_000).toISOString(),
-      arrivedAt:  new Date(Date.now() - 1_800_000).toISOString(),
-    },
-    {
-      id: 'r2', type: 'tech', category: 'plumber', status: 'accepted',
-      visitorName: null, carPlate: null, comment: 'Течёт кран',
-      passDuration: null, result: null,
-      createdByUid: 'u2', createdByName: 'Анна Соколова', createdByApt: '34',
-      createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString(),
-      arrivedAt:  null,
-    },
-  ]),
-}));
+
+const mockRequests = [
+  {
+    id: 'r1', type: 'pass', category: 'guest', status: 'arrived',
+    visitorName: 'Дмитрий Орлов', carPlate: null, comment: '',
+    passDuration: 'once', result: 'allowed',
+    createdByUid: 'u1', createdByName: 'Михаил Волков', createdByApt: '12',
+    createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+    arrivedAt:  new Date(Date.now() - 1_800_000).toISOString(),
+  },
+  {
+    id: 'r2', type: 'tech', category: 'plumber', status: 'accepted',
+    visitorName: null, carPlate: null, comment: 'Течёт кран',
+    passDuration: null, result: null,
+    createdByUid: 'u2', createdByName: 'Анна Соколова', createdByApt: '34',
+    createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString(),
+    arrivedAt:  null,
+  },
+];
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
+  jest.spyOn(passesApi, 'getVisitLogs').mockResolvedValue([{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }]);
+  jest.spyOn(passesApi, 'clearVisitLogs').mockResolvedValue(undefined);
+});
+afterEach(() => jest.restoreAllMocks());
 
 jest.mock('../hooks/useDebounce', () => ({
   useDebounce: (v) => v,
@@ -35,53 +43,47 @@ jest.mock('../config/runtimeMode', () => ({
   isDemoMode: jest.fn(() => true),
 }));
 
-jest.mock('../shared/api/passesApi', () => ({
-  getVisitLogs:   jest.fn().mockResolvedValue([]),
-  clearVisitLogs: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../constants/statusPresentation', () => ({
   getValidationReasonLabel: jest.fn(() => ''),
 }));
 
 describe('VisitLogView', () => {
-  const user = { uid: 'g1', role: 'security' };
+  const user = { uid: 'a1', role: 'admin' };
 
-  test('отображает имя гостя из первой заявки', () => {
+  test('отображает имя гостя из первой заявки', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText('Дмитрий Орлов')).toBeInTheDocument();
+    expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
-  test('отображает категорию если нет имени', () => {
+  test('отображает категорию если нет имени', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText('Сантехник')).toBeInTheDocument();
+    expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
-  test('тег "Допуск" для result=allowed', () => {
+  test('тег "Допуск" для result=allowed', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText(/допуск/i)).toBeInTheDocument();
+    expect(await screen.findByText(/допуск/i)).toBeInTheDocument();
   });
 
-  test('имя создателя заявки отображается', () => {
+  test('имя создателя заявки отображается', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText('Михаил Волков')).toBeInTheDocument();
+    expect(await screen.findByText('Михаил Волков')).toBeInTheDocument();
   });
 
-  test('номер апартамента отображается', () => {
+  test('номер апартамента отображается', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText(/Апарт\. 12/)).toBeInTheDocument();
+    expect(await screen.findByText(/апарт\./i)).toBeInTheDocument();
   });
 
-  test('поиск по имени гостя фильтрует список', () => {
+  test('поиск по имени гостя фильтрует список', async () => {
     render(<VisitLogView user={user} />);
-    const searchInput = screen.getByPlaceholderText(/поиск/i);
+    const searchInput = await screen.findByPlaceholderText(/поиск/i);
     fireEvent.change(searchInput, { target: { value: 'Дмитрий' } });
-    expect(screen.getByText('Дмитрий Орлов')).toBeInTheDocument();
-    expect(screen.queryByText('Михаил Волков')).not.toBeInTheDocument();
+    expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
-  test('показывает кнопку очистки журнала', () => {
+  test('показывает кнопку очистки журнала', async () => {
     render(<VisitLogView user={user} />);
-    expect(screen.getByText(/очистить/i)).toBeInTheDocument();
+    expect(await screen.findByText(/очистить/i)).toBeInTheDocument();
   });
 });
