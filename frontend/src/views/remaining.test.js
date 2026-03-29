@@ -6,6 +6,23 @@ import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
+Object.defineProperty(global.navigator, 'mediaDevices', {
+  value: { getUserMedia: jest.fn().mockResolvedValue({ getTracks: () => [{ stop: jest.fn() }] }) },
+  configurable: true,
+});
+
+const originalConsoleError = console.error;
+beforeAll(() => {
+  jest.spyOn(console, 'error').mockImplementation((...args) => {
+    const [first] = args;
+    if (typeof first === 'string' && first.includes('A suspended resource finished loading inside a test')) return;
+    originalConsoleError(...args);
+  });
+});
+
+afterAll(() => {
+  console.error.mockRestore();
+});
 
 jest.mock('../hooks/useDashboardHooks', () => ({
   useTheme:            () => ({ theme: 'auto', cycleTheme: jest.fn(), themeIcon: '✦', themeLabel: 'Авто' }),
