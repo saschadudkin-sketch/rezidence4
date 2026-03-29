@@ -4,7 +4,11 @@
 
 // FIX [BUG-2]: нормализация телефона для сравнения — убираем всё кроме цифр
 function normalizePhone(phone) {
-  return typeof phone === 'string' ? phone.replace(/\D/g, '') : '';
+  if (typeof phone !== 'string') return '';
+  const digits = phone.replace(/\D/g, '');
+  // RU-формат: считаем 8XXXXXXXXXX и 7XXXXXXXXXX эквивалентными
+  if (digits.length === 11 && digits.startsWith('8')) return `7${digits.slice(1)}`;
+  return digits;
 }
 
 // FIX [BUG-2]: нормализация номера авто — убираем пробелы, нижний регистр

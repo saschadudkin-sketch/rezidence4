@@ -1,13 +1,10 @@
 'use strict';
 /**
  * __tests__/db.test.js
- * Покрывает: db.query (connect/release паттерн), db.migrate вызывает нужные DDL
- *
- * db.js импортирует pg.Pool и logger при загрузке — мокируем до require.
+ * Покрывает: db.query (pool.query passthrough), db.migrate (versioned migrations)
  */
 
-// ── Моки до любого require ────────────────────────────────────────────────────
-
+const mockPoolQuery = jest.fn().mockResolvedValue({ rows: [] });
 const mockRelease = jest.fn();
 const mockClientQuery = jest.fn().mockResolvedValue({ rows: [] });
 const mockClient = { query: mockClientQuery, release: mockRelease };
@@ -15,77 +12,56 @@ const mockConnect = jest.fn().mockResolvedValue(mockClient);
 
 jest.mock('pg', () => ({
   Pool: jest.fn().mockImplementation(() => ({
+    query: mockPoolQuery,
     connect: mockConnect,
     on: jest.fn(),
   })),
 }));
 
 jest.mock('../logger', () => ({
-  info:  jest.fn(),
+  info: jest.fn(),
   error: jest.fn(),
-  warn:  jest.fn(),
+  warn: jest.fn(),
   fatal: jest.fn(),
 }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPoolQuery.mockResolvedValue({ rows: [] });
   mockConnect.mockResolvedValue(mockClient);
   mockClientQuery.mockResolvedValue({ rows: [] });
 });
-
-// ── Тесты ────────────────────────────────────────────────────────────────────
 
 describe('db.query', () => {
   let db;
 
   beforeAll(() => {
     jest.resetModules();
-    // Повторно регистрируем моки после resetModules
-    jest.mock('pg', () => ({
-      Pool: jest.fn().mockImplementation(() => ({
-        connect: mockConnect,
-        on: jest.fn(),
-      })),
-    }));
-    jest.mock('../logger', () => ({
-      info: jest.fn(), error: jest.fn(), warn: jest.fn(), fatal: jest.fn(),
-    }));
     db = require('../db');
   });
 
-  test('вызывает pool.connect()', async () => {
+  test('вызывает pool.query()', async () => {
     await db.query('SELECT 1');
-    expect(mockConnect).toHaveBeenCalledTimes(1);
+    expect(mockPoolQuery).toHaveBeenCalledTimes(1);
   });
 
-  test('выполняет SQL через client.query', async () => {
-    const sql    = 'SELECT * FROM users WHERE uid=$1';
+  test('прокидывает SQL и параметры в pool.query', async () => {
+    const sql = 'SELECT * FROM users WHERE uid=$1';
     const params = ['u1'];
     await db.query(sql, params);
-    expect(mockClientQuery).toHaveBeenCalledWith(sql, params);
+    expect(mockPoolQuery).toHaveBeenCalledWith(sql, params);
   });
 
-  test('вызывает client.release() после успешного запроса', async () => {
-    await db.query('SELECT 1');
-    expect(mockRelease).toHaveBeenCalledTimes(1);
-  });
-
-  test('вызывает client.release() даже при ошибке (finally)', async () => {
-    mockClientQuery.mockRejectedValueOnce(new Error('DB error'));
-    await expect(db.query('BAD SQL')).rejects.toThrow('DB error');
-    expect(mockRelease).toHaveBeenCalledTimes(1);
-  });
-
-  test('возвращает результат от client.query', async () => {
+  test('возвращает результат от pool.query', async () => {
     const mockResult = { rows: [{ uid: 'u1' }], rowCount: 1 };
-    mockClientQuery.mockResolvedValueOnce(mockResult);
+    mockPoolQuery.mockResolvedValueOnce(mockResult);
     const result = await db.query('SELECT uid FROM users');
     expect(result).toBe(mockResult);
   });
 
-  test('пробрасывает исключение если pool.connect() падает', async () => {
-    mockConnect.mockRejectedValueOnce(new Error('Connection refused'));
-    await expect(db.query('SELECT 1')).rejects.toThrow('Connection refused');
+  test('пробрасывает исключение если pool.query падает', async () => {
+    mockPoolQuery.mockRejectedValueOnce(new Error('DB error'));
+    await expect(db.query('SELECT 1')).rejects.toThrow('DB error');
   });
 });
 
@@ -94,25 +70,13 @@ describe('db.migrate', () => {
 
   beforeAll(() => {
     jest.resetModules();
-    jest.mock('pg', () => ({
-      Pool: jest.fn().mockImplementation(() => ({
-        connect: mockConnect,
-        on: jest.fn(),
-      })),
-    }));
-    jest.mock('../logger', () => ({
-      info: jest.fn(), error: jest.fn(), warn: jest.fn(), fatal: jest.fn(),
-    }));
     db = require('../db');
   });
 
   test('вызывает несколько CREATE TABLE и CREATE INDEX', async () => {
     await db.migrate();
-
-    // Все вызовы client.query
     const calls = mockClientQuery.mock.calls.map(c => c[0]);
 
-    // Основные таблицы
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS users'))).toBe(true);
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS requests'))).toBe(true);
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS chat_messages'))).toBe(true);
@@ -120,8 +84,6 @@ describe('db.migrate', () => {
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS templates'))).toBe(true);
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS blacklist'))).toBe(true);
     expect(calls.some(sql => sql.includes('CREATE TABLE IF NOT EXISTS visit_logs'))).toBe(true);
-
-    // Индексы
     expect(calls.some(sql => sql.includes('CREATE INDEX IF NOT EXISTS'))).toBe(true);
   });
 
@@ -131,10 +93,8 @@ describe('db.migrate', () => {
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('migration'));
   });
 
-  test('вызывает release() для каждого запроса в migrate', async () => {
-    const releaseCount = mockRelease.mock.calls.length;
+  test('после миграции освобождает client', async () => {
     await db.migrate();
-    // Каждый query → один connect → один release
-    expect(mockRelease.mock.calls.length).toBeGreaterThan(releaseCount);
+    expect(mockRelease).toHaveBeenCalled();
   });
 });

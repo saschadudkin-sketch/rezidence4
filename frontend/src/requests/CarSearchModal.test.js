@@ -60,7 +60,8 @@ describe('CarSearchModal', () => {
   test('показывает парковочное место если задано', () => {
     render(<CarSearchModal onClose={jest.fn()} />);
     fireEvent.change(screen.getByPlaceholderText(/номер/i), { target: { value: 'А1' } });
-    expect(screen.getByText(/А1/)).toBeInTheDocument(); // parkingSpot
+    expect(screen.getByText(/Парковка:/i)).toBeInTheDocument();
+    expect(screen.getByText('А1', { selector: 'strong' })).toBeInTheDocument();
   });
 
   test('показывает марку авто', () => {
