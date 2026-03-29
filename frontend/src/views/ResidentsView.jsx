@@ -51,7 +51,7 @@ export default function ResidentsView({ user }) {
       if (residents.some(u => getCars(u.uid).some(c => c.plate.toLowerCase().includes(q)))) return true;
       return false;
     });
-  }, [aptGroups, dq, garage, getCars]);
+  }, [aptGroups, dq, getCars]);
 
   return (
     <div className="residents-view">
