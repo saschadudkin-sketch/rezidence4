@@ -94,8 +94,8 @@ describe('POST /api/auth/verify-otp', () => {
   });
 
   it('устанавливает HttpOnly cookie при успехе', async () => {
-    const bcrypt = require('bcrypt');
-    const hash   = await bcrypt.hash(VALID_CODE, 10);
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash   = await passwordHasher.hash(VALID_CODE);
 
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] })        // candidates
@@ -115,8 +115,8 @@ describe('POST /api/auth/verify-otp', () => {
   });
 
   it('инкрементирует attempts при неверном коде', async () => {
-    const bcrypt = require('bcrypt');
-    const hash   = await bcrypt.hash('999999', 10); // другой код
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash   = await passwordHasher.hash('999999'); // другой код
 
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] }) // кандидат

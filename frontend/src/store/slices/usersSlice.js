@@ -61,7 +61,7 @@ export function usersReducer(state, action) {
     }
 
     case 'USERS_SET_ALL': {
-      // Не стираем store при пустом ответе от Firebase
+      // Не стираем store при пустом ответе от удалённого источника
       if (!action.users || action.users.length === 0) return state;
       const incoming = Object.fromEntries(action.users.map(u => [u.uid, u]));
       const incomingPh = Object.fromEntries(action.users.map(u => [normalizePhone(u.phone), u]));
