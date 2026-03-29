@@ -130,7 +130,7 @@ describe('requestsProvider', () => {
   test('getAll → GET /api/requests, возвращает массив из res.data', async () => {
     apiClient.get.mockResolvedValueOnce({ data: [{ id: 'r1' }], total: 1 });
     const result = await requestsProvider.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith('/api/requests');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/requests?limit=200&page=1');
     expect(result).toEqual([{ id: 'r1' }]);
   });
 
@@ -145,7 +145,11 @@ describe('requestsProvider', () => {
     const serverReq = { id: 'server-uuid', ...req };
     apiClient.post.mockResolvedValueOnce(serverReq);
     const result = await requestsProvider.create(req);
-    expect(apiClient.post).toHaveBeenCalledWith('/api/requests', req);
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/requests',
+      req,
+      expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }) }),
+    );
     expect(result.id).toBe('server-uuid');
   });
 
@@ -267,7 +271,11 @@ describe('createBackendProvider', () => {
     const p = createBackendProvider();
     apiClient.post.mockResolvedValueOnce({ id: 'srv-1', type: 'pass' });
     await p.requests.submit({ request: { type: 'pass' } });
-    expect(apiClient.post).toHaveBeenCalledWith('/api/requests', { type: 'pass' });
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/requests',
+      { type: 'pass' },
+      expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }) }),
+    );
   });
 
   test('admin.saveUserEverywhere вызывает PATCH /api/users/:uid', async () => {

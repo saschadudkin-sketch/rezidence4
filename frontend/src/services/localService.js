@@ -1,6 +1,6 @@
 /**
- * services/firebaseService.js
- * Заглушки сервисного слоя для demo-режима.
+ * services/localService.js
+ * Локальные заглушки сервисного слоя для demo-режима.
  * В production используется backendProvider.js → apiClient.js → VPS API.
  */
 
