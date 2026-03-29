@@ -289,10 +289,10 @@ describe('GET /api/requests — DATA-3 + изоляция', () => {
   it('житель видит только свои заявки + total в ответе', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    // Первый вызов — данные, второй — count
-    db.query
-      .mockResolvedValueOnce({ rows: [makeReqRow()] })
-      .mockResolvedValueOnce({ rows: [{ count: '1' }] });
+    // Один запрос с window COUNT(*) OVER()
+    db.query.mockResolvedValueOnce({
+      rows: [{ ...makeReqRow(), total_count: '1' }],
+    });
 
     const res = await supertest(app)
       .get('/api/requests')
@@ -313,9 +313,7 @@ describe('GET /api/requests — DATA-3 + изоляция', () => {
   it('охрана видит все заявки без фильтра по uid', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    db.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ count: '0' }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await supertest(app)
       .get('/api/requests')
@@ -323,16 +321,14 @@ describe('GET /api/requests — DATA-3 + изоляция', () => {
 
     expect(res.status).toBe(200);
     const sql = db.query.mock.calls[0][0];
-    expect(sql).not.toMatch(/created_by_uid/);
+    expect(sql).toMatch(/FROM requests WHERE deleted_at IS NULL/);
     expect(sql).toMatch(/LIMIT/);
   });
 
   it('пагинация — page=2&limit=10 правильно вычисляет offset', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    db.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ count: '55' }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await supertest(app)
       .get('/api/requests?page=2&limit=10')

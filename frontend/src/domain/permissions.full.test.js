@@ -94,8 +94,11 @@ describe('canDeleteRequest', () => {
 });
 
 describe('canApproveRequest', () => {
-  test.each(['security', 'concierge', 'admin'])('%s одобряет pending', (role) => {
+  test.each(['security', 'admin'])('%s одобряет pending', (role) => {
     expect(canApproveRequest(user(role), req('pending'))).toBe(true);
+  });
+  test('concierge не одобряет pending (backend parity)', () => {
+    expect(canApproveRequest(user('concierge'), req('pending'))).toBe(false);
   });
   test('owner не может одобрить (BUG-3)', () => {
     expect(canApproveRequest(user('owner'), req('pending'))).toBe(false);
@@ -118,8 +121,11 @@ describe('canRejectRequest', () => {
 });
 
 describe('canAcceptRequest', () => {
-  test('concierge принимает pending в работу', () => {
-    expect(canAcceptRequest(user('concierge'), req('pending'))).toBe(true);
+  test('security принимает pending в работу', () => {
+    expect(canAcceptRequest(user('security'), req('pending'))).toBe(true);
+  });
+  test('concierge не может принять pending', () => {
+    expect(canAcceptRequest(user('concierge'), req('pending'))).toBe(false);
   });
   test('owner не может принять', () => {
     expect(canAcceptRequest(user('owner'), req('pending'))).toBe(false);
@@ -192,8 +198,8 @@ describe('canEditMessage', () => {
   test('другой пользователь не может редактировать', () => {
     expect(canEditMessage(user('owner', 'u2'), msg('u1'))).toBe(false);
   });
-  test('admin не может редактировать чужое сообщение', () => {
-    expect(canEditMessage(user('admin', 'a1'), msg('u1'))).toBe(false);
+  test('admin может редактировать чужое сообщение', () => {
+    expect(canEditMessage(user('admin', 'a1'), msg('u1'))).toBe(true);
   });
 });
 

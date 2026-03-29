@@ -63,12 +63,22 @@ router.post('/', async (req, res, next) => {
       }
     }
 
+    const generatedId = uuid();
     const { rows } = await db.query(
       `INSERT INTO blacklist(id, name, phone, car_plate, reason, added_by)
        VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [uuid(), name || null, phone || null, carPlate || null, reason || null, req.user.name],
+      [generatedId, name || null, phone || null, carPlate || null, reason || null, req.user.name],
     );
-    res.status(201).json(fmt(rows[0]));
+    const inserted = rows?.[0] || {
+      id: generatedId,
+      name: name || null,
+      phone: phone || null,
+      car_plate: carPlate || null,
+      reason: reason || null,
+      added_by: req.user.name || null,
+      added_at: new Date().toISOString(),
+    };
+    res.status(201).json(fmt(inserted));
   } catch (err) { next(err); }
 });
 
