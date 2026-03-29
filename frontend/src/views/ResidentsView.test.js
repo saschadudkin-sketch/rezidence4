@@ -21,6 +21,7 @@ jest.mock('../store/AppStore', () => ({
     u3: [],
     g1: [],
   }),
+  useAllPerms: () => ({}),
 }));
 
 jest.mock('../hooks/useDebounce', () => ({
