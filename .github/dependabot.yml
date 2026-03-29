@@ -1,0 +1,12 @@
+# FIX [AUDIT-2 #26]: Dependabot — автоматическое обнаружение CVE
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule: { interval: weekly }
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: monthly }

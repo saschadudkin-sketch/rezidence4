@@ -1,0 +1,171 @@
+import { useState, useEffect, useRef } from 'react';
+import { useActions, useUsers } from '../store/AppStore.jsx';
+import { ROLE_LABELS } from '../constants/index.js';
+import { normalizePhone, genId } from '../utils.js';
+import { toast } from './Toasts.jsx';
+import { lockScroll, unlockScroll } from './scrollLock.js';
+
+// ─── ADD USER MODAL ───────────────────────────────────────────────────────────
+
+export function AddUserModal({ onClose, onDone, initialRole }) {
+  const [name,    setName]    = useState('');
+  const [phone,   setPhone]   = useState('+7 ');
+  const [role,    setRole]    = useState(initialRole || 'owner');
+  const [apt,     setApt]     = useState('');
+  const [loading, setLoading] = useState(false);
+  const { phoneDb } = useUsers();
+  const { addUser }  = useActions();
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    lockScroll();
+    return () => { unlockScroll(); };
+  }, []);
+
+  const submit = async () => {
+    if (!name.trim()) { toast('Введите имя', 'error'); return; }
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 11) { toast('Введите корректный номер телефона', 'error'); return; }
+    const norm = normalizePhone(phone);
+    if (phoneDb[norm]) { toast('Этот номер уже зарегистрирован', 'error'); return; }
+    setLoading(true);
+    // FIX [BUG-10]: убрана искусственная задержка 400мс — пользователь ждал без причины,
+    // и setState вызывался на потенциально unmounted компоненте если модал закрыли быстро.
+    try {
+      const uid  = genId('u');
+      const newU = { uid, name: name.trim(), phone, role, apartment: apt.trim() || '—' };
+      addUser(newU);
+      if (!isMountedRef.current) return;
+      toast(name.trim() + ' добавлен в систему', 'success');
+      onDone(); onClose();
+    } finally {
+      if (isMountedRef.current) setLoading(false);
+    }
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-handle" />
+        <div className="modal-head">
+          <span className="modal-title">Новый жилец</span>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="field"><label className="field-lbl">Имя *</label>
+            <input className="field-inp" placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" />
+          </div>
+          <div className="field"><label className="field-lbl">Телефон *</label>
+            <input className="field-inp" placeholder="+7 000 000-00-00" type="tel" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" />
+          </div>
+          <div className="field"><label className="field-lbl">Роль</label>
+            <select className="field-select" value={role} onChange={e => setRole(e.target.value)}>
+              {['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'].map(r => (
+                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field"><label className="field-lbl">Апартамент</label>
+            <input className="field-inp" placeholder="12" value={apt} onChange={e => setApt(e.target.value)} inputMode="numeric" />
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn-outline" onClick={onClose}>Отмена</button>
+          <button className="btn-gold u-flex2" onClick={submit} disabled={loading}>
+            <span>{loading ? 'Сохранение...' : 'Добавить'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AVATAR MODAL ─────────────────────────────────────────────────────────────
+
+// FIX [PERF]: compressImg вынесена из компонента — не пересоздаётся при каждом рендере
+function compressImg(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale  = Math.min(1, 256 / Math.max(img.width, img.height));
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+export function AvatarModal({ user, avatar, onSave, onClose }) {
+  const [src, setSrc] = useState(avatar && avatar.type === 'photo' ? avatar.src : null);
+
+  useEffect(() => {
+    lockScroll();
+    const fn = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', fn);
+    return () => { unlockScroll(); window.removeEventListener('keydown', fn); };
+  }, [onClose]);
+
+  const onFile = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс. 10 МБ)', 'error'); return; }
+    const reader = new FileReader();
+    reader.onerror = () => toast('Не удалось загрузить фото', 'error');
+    reader.onload  = async ev => {
+      const compressed = await compressImg(ev.target.result);
+      setSrc(compressed);
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const save = () => {
+    if (!src) { toast('Выберите фото', 'error'); return; }
+    onSave({ type: 'photo', src });
+    onClose();
+  };
+
+  return (
+    <div className="av-modal" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="av-panel">
+        <div className="av-panel-head">
+          <span className="av-panel-title">Фото профиля</span>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+        </div>
+        <div className="av-preview">
+          <div style={{ width: 96, height: 96, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--b2)', background: 'var(--s3)', flexShrink: 0 }}>
+            {src
+              ? <img src={src} alt="" className="u-cover" />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📷</div>
+            }
+          </div>
+        </div>
+        <div className="av-actions">
+          <label className="av-action-btn">
+            <span className="av-action-ico">📁</span>
+            <span>Из галереи</span>
+            <input type="file" accept="image/*" className="u-none" onChange={onFile} />
+          </label>
+          <label className="av-action-btn">
+            <span className="av-action-ico">📷</span>
+            <span>Камера</span>
+            <input type="file" accept="image/*" capture="environment" className="u-none" onChange={onFile} />
+          </label>
+        </div>
+        {avatar && <button className="av-remove" onClick={() => { onSave(null); onClose(); }}>🗑 Удалить фото</button>}
+        <div style={{ display: 'flex', gap: 8, padding: '12px 18px 18px' }}>
+          <button className="btn-outline u-flex1" onClick={onClose}>Отмена</button>
+          <button className="btn-gold u-flex2" onClick={save}><span>Сохранить</span></button>
+        </div>
+      </div>
+    </div>
+  );
+}

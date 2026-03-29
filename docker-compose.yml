@@ -1,0 +1,159 @@
+# docker-compose.yml
+# Примечание: поле `version` удалено — оно устарело в Docker Compose v2.
+# Compose v2 определяет синтаксис автоматически без него.
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       residenze
+      POSTGRES_USER:     residenze
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U residenze"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (SSE pub/sub + idempotency cache + token revocation) ────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # FIX [AUDIT]: добавлен пароль для Redis.
+    # Без пароля любой процесс в docker-сети (или при случайном проросе порта)
+    # может читать/очищать кеш отозванных токенов — что обходит logout.
+    # REDIS_PASSWORD задаётся в .env (не менее 32 символов).
+    command: >
+      redis-server
+      --maxmemory 64mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── Backend (Node.js API) ─────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: sh -c "node src/migrate.js && node src/index.js"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:  postgresql://residenze:${DB_PASSWORD}@db:5432/residenze
+      # FIX [AUDIT]: Redis URL теперь содержит пароль
+      REDIS_URL:     redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET:    ${JWT_SECRET}
+      JWT_EXPIRES:   30d
+      SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
+      BACKEND_URL:   ${BACKEND_URL:-http://localhost:3001}
+      # FIX [SEC-4]: FRONTEND_URL обязателен в production.
+      # Сервер завершится с ошибкой если не задан при NODE_ENV=production.
+      FRONTEND_URL:  ${FRONTEND_URL:?FRONTEND_URL must be set}
+      PORT:          3001
+      UPLOAD_DIR:    /app/uploads
+      NODE_ENV:      ${NODE_ENV:-production}
+    volumes:
+      - uploads:/app/uploads
+    # Порт 3001 НЕ пробрасывается наружу — backend доступен только через nginx.
+    # Раскомментируйте только для локальной отладки:
+    # ports:
+    #   - "127.0.0.1:3001:3001"
+    # FIX [AUDIT]: ротация логов — без неё при длительной работе диск переполняется.
+    # pino пишет в stdout → Docker json-file driver. max-size 50m × 5 файлов = 250MB макс.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/api/health', r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Frontend (React + nginx) ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_RUNTIME_MODE: live
+        REACT_APP_API_URL: ${BACKEND_URL:-http://localhost:3001}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # FIX [AUDIT]: BACKEND_URL и YOUR_DOMAIN подставляются envsubst в nginx CSP-заголовок.
+      # docker-entrypoint.sh читает эти переменные и генерирует nginx.conf из шаблона.
+      BACKEND_URL: ${BACKEND_URL:?BACKEND_URL must be set}
+      YOUR_DOMAIN: ${YOUR_DOMAIN:?YOUR_DOMAIN must be set}
+    ports:
+      - "80:80"
+      # Раскомментируйте для HTTPS (требуется certbot + nginx.prod.conf):
+      # - "443:443"
+
+  # ── Резервное копирование БД ──────────────────────────────────────────────────
+  # FIX [AUDIT]: заменён sleep-цикл на настоящий cron через busybox crond.
+  #
+  # ПРОБЛЕМА с sleep: при рестарте контейнера в момент 23:58 следующий бэкап
+  # будет через 24ч + время до рестарта. При сбое сервера в нужный момент —
+  # данные за день могут потеряться.
+  #
+  # РЕШЕНИЕ: busybox crond (встроен в alpine) запускает задачу по расписанию
+  # независимо от времени старта контейнера. При рестарте — следующий запуск
+  # будет в ближайшее время по расписанию (03:00), не через 24ч.
+  #
+  # Расписание: каждый день в 03:00 UTC.
+  # Ротация: хранятся последние 7 бэкапов (файлы старше 7 дней удаляются).
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./backups:/backups
+      - ./backup.sh:/backup.sh:ro
+    # busybox crond: -f (foreground), -d 8 (log level: notice)
+    # crontab передаётся через stdin — не нужен отдельный файл
+    entrypoint:
+      - sh
+      - -c
+      - |
+        chmod +x /backup.sh
+        # Создаём crontab: 03:00 UTC каждый день
+        echo "0 3 * * * /backup.sh >> /var/log/backup.log 2>&1" | crontab -
+        echo "[backup] cron scheduled: daily at 03:00 UTC"
+        # Запускаем crond в foreground
+        exec crond -f -d 8
+
+volumes:
+  db_data:
+  uploads:
+
+# ── HTTPS (SEC-3) ─────────────────────────────────────────────────────────────
+# Перед production обязательно включить HTTPS:
+#
+#   1. Установить certbot:
+#      docker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt \
+#        certbot/certbot certonly --standalone -d yourdomain.com
+#
+#   2. Раскомментировать порт 443 в секции frontend
+#
+#   3. Убедиться что nginx.prod.conf.template монтируется в контейнер
+#      (см. комментарии в frontend/nginx.prod.conf)
+
