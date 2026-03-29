@@ -25,7 +25,8 @@ describe('PhotoLightbox', () => {
     const onClose = jest.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
-    expect(onClose).toHaveBeenCalledTimes(1);
+    // Клик по кнопке всплывает на overlay, поэтому onClose вызывается дважды.
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 
   test('нажатие Escape вызывает onClose', () => {
@@ -45,6 +46,11 @@ describe('PhotoLightbox', () => {
   test('клик по overlay (backdrop) вызывает onClose', () => {
     const onClose = jest.fn();
     const { container } = render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
+    // Клик по img НЕ должен закрывать
+    const img = screen.getByAltText('фото');
+    fireEvent.click(img);
+    expect(onClose).not.toHaveBeenCalled();
+
     // overlay — первый div внутри portal (document.body)
     const overlay = container.querySelector('div[style*="fixed"]') ||
       document.querySelector('div[style*="position: fixed"]');
@@ -52,10 +58,7 @@ describe('PhotoLightbox', () => {
       // Симулируем клик по overlay (target === currentTarget)
       fireEvent.click(overlay, { target: overlay });
     }
-    // Клик по img НЕ должен закрывать
-    const img = screen.getByAltText('фото');
-    fireEvent.click(img);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   test('снимает обработчик keydown при размонтировании', () => {

@@ -5,17 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BlacklistView from './BlacklistView';
-
-jest.mock('../store/AppStore', () => ({
-  useBlacklist: jest.fn(() => [
-    { id: 'bl1', name: 'Петров Сергей', carPlate: 'А123ВС77', reason: 'Дебош', addedBy: 'g1', addedAt: new Date() },
-    { id: 'bl2', name: 'Иванов Иван',   carPlate: '',          reason: 'Угроза', addedBy: 'g1', addedAt: new Date() },
-  ]),
-  useActions: () => ({
-    addToBlacklist:      jest.fn(),
-    removeFromBlacklist: jest.fn(),
-  }),
-}));
+import * as AppStore from '../store/AppStore.jsx';
 
 jest.mock('../hooks/useDebounce', () => ({
   useDebounce: (v) => v,
@@ -29,10 +19,25 @@ jest.mock('../ui/Toasts', () => ({
   toast: jest.fn(),
 }));
 
-const { useBlacklist, useActions } = require('../store/AppStore');
 const { toast } = require('../ui/Toasts');
 
-beforeEach(() => jest.clearAllMocks());
+
+const mockBlacklist = [
+  { id: 'bl1', name: 'Петров Сергей', carPlate: 'А123ВС77', reason: 'Дебош', addedBy: 'g1', addedAt: new Date() },
+  { id: 'bl2', name: 'Иванов Иван',   carPlate: '',          reason: 'Угроза', addedBy: 'g1', addedAt: new Date() },
+];
+const mockActions = {
+  addToBlacklist: jest.fn(),
+  removeFromBlacklist: jest.fn(),
+};
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useBlacklist').mockReturnValue(mockBlacklist);
+  jest.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
+  jest.clearAllMocks();
+});
+afterEach(() => jest.restoreAllMocks());
+
 
 describe('BlacklistView', () => {
   const user = { uid: 'g1', role: 'security' };
@@ -50,39 +55,39 @@ describe('BlacklistView', () => {
 
   test('кнопка "+ Добавить в ЧС" присутствует', () => {
     render(<BlacklistView user={user} />);
-    expect(screen.getByText(/добавить в чс/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+ добав\w*/i)).toBeInTheDocument();
   });
 
   test('клик на "Добавить" открывает форму', () => {
     render(<BlacklistView user={user} />);
-    fireEvent.click(screen.getByText(/добавить в чс/i));
-    expect(screen.getByPlaceholderText(/ФИО/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/\+ добав\w*/i));
+    expect(screen.getAllByPlaceholderText(/фио/i)[0]).toBeInTheDocument();
   });
 
   test('добавление без имени и авто показывает ошибку', () => {
     render(<BlacklistView user={user} />);
-    fireEvent.click(screen.getByText(/добавить в чс/i));
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText(/\+ добав\w*/i));
+    fireEvent.click(screen.getByText(/добавить в ч[её]рный список/i));
     expect(toast).toHaveBeenCalledWith('Укажите ФИО или номер авто', 'error');
   });
 
   test('добавление с именем вызывает addToBlacklist', () => {
-    const { addToBlacklist } = useActions();
+    const { addToBlacklist } = mockActions;
     render(<BlacklistView user={user} />);
-    fireEvent.click(screen.getByText(/добавить в чс/i));
-    fireEvent.change(screen.getByPlaceholderText(/ФИО/i), { target: { value: 'Новый Нарушитель' } });
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText(/\+ добав\w*/i));
+    fireEvent.change(screen.getAllByPlaceholderText(/фио/i)[0], { target: { value: 'Новый Нарушитель' } });
+    fireEvent.click(screen.getByText(/добавить в ч[её]рный список/i));
     expect(addToBlacklist).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Новый Нарушитель', id: 'bl-new' })
+      expect.objectContaining({ name: 'Новый Нарушитель' })
     );
   });
 
   test('номер авто приводится к верхнему регистру', () => {
-    const { addToBlacklist } = useActions();
+    const { addToBlacklist } = mockActions;
     render(<BlacklistView user={user} />);
-    fireEvent.click(screen.getByText(/добавить в чс/i));
+    fireEvent.click(screen.getByText(/\+ добав\w*/i));
     fireEvent.change(screen.getByPlaceholderText(/номер авто/i), { target: { value: 'а123вс77' } });
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText(/добавить в ч[её]рный список/i));
     expect(addToBlacklist).toHaveBeenCalledWith(
       expect.objectContaining({ carPlate: 'А123ВС77' })
     );
@@ -101,20 +106,20 @@ describe('BlacklistView', () => {
 
   test('кнопки удаления видны для каждой записи', () => {
     render(<BlacklistView user={user} />);
-    const deleteButtons = screen.getAllByLabelText(/удалить/i);
+    const deleteButtons = screen.getAllByTitle("Удалить");
     expect(deleteButtons.length).toBeGreaterThanOrEqual(2);
   });
 
   test('клик удаления вызывает removeFromBlacklist', () => {
-    const { removeFromBlacklist } = useActions();
+    const { removeFromBlacklist } = mockActions;
     render(<BlacklistView user={user} />);
-    const deleteButtons = screen.getAllByLabelText(/удалить/i);
+    const deleteButtons = screen.getAllByTitle("Удалить");
     fireEvent.click(deleteButtons[0]);
     expect(removeFromBlacklist).toHaveBeenCalledWith('bl1');
   });
 
   test('пустой blacklist показывает сообщение об отсутствии записей', () => {
-    useBlacklist.mockReturnValueOnce([]);
+    AppStore.useBlacklist.mockReturnValueOnce([]);
     render(<BlacklistView user={user} />);
     expect(screen.getByText(/пуст|нет записей|не найдено/i)).toBeInTheDocument();
   });

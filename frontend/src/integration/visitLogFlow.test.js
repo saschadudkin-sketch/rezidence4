@@ -7,10 +7,10 @@
 import { createPassesApiState } from '../shared/api/passesApi';
 
 // Мокаем runtimeMode — тест проверяет оба режима
-let _mockLiveMode = false;
+let mockLiveMode = false;
 jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: () => _mockLiveMode,
-  isDemoMode: () => !_mockLiveMode,
+  isLiveMode: () => mockLiveMode,
+  isDemoMode: () => !mockLiveMode,
   LIVE_MODE: 'live',
   DEMO_MODE: 'demo',
   MODE: 'demo',
@@ -31,7 +31,7 @@ jest.mock('../services/providers/backendProvider', () => ({
 
 describe('passesApi: mode-aware visit logging', () => {
   beforeEach(() => {
-    _mockLiveMode = false;
+    mockLiveMode = false;
     mockAdd.mockClear();
     mockGetAll.mockClear();
     mockClear.mockClear();
@@ -56,12 +56,13 @@ describe('passesApi: mode-aware visit logging', () => {
   describe('createPassesApiState (unit)', () => {
     it('logVisit создаёт запись с уникальным id', async () => {
       const state = createPassesApiState();
+      const before = await state.getVisitLogs();
 
       await state.logVisit({ userId: 'u1', result: 'allowed' });
       await state.logVisit({ userId: 'u1', result: 'denied' });
 
       const logs = await state.getVisitLogs();
-      expect(logs).toHaveLength(2);
+      expect(logs).toHaveLength(before.length + 2);
       expect(logs[0].id).not.toBe(logs[1].id);
     });
 

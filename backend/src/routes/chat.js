@@ -24,12 +24,13 @@ const chatMessagesLimiter = rateLimit({
   message: { error: 'Слишком много сообщений. Подождите.' },
 });
 
-// FIX [AUDIT]: UUID-валидация для :id в PATCH и DELETE.
-// Без неё мусорная строка (5000 символов) попадает в SELECT-запрос к БД —
-// безопасно (parameterized query), но создаёт шум в логах и нагружает БД.
+// FIX: поддерживаем UUID и legacy/string id, чтобы не ломать существующий чат,
+// но отсекаем очевидный мусор и чрезмерно длинные значения.
 const MSG_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MSG_SAFE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 function validateMsgId(req, res, next) {
-  if (!MSG_UUID_RE.test(req.params.id)) {
+  const id = String(req.params.id || '');
+  if (!MSG_UUID_RE.test(id) && !MSG_SAFE_ID_RE.test(id)) {
     return res.status(400).json({ error: 'Invalid message id format' });
   }
   next();
@@ -114,9 +115,9 @@ router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
 
     if (!id) return res.status(400).json({ error: 'id required' });
 
-    // ВАЖ-8: UUID формат — без этого клиент может прислать 10KB строку как PRIMARY KEY
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid message id format' });
+    if (!MSG_UUID_RE.test(id) && !MSG_SAFE_ID_RE.test(id)) {
+      return res.status(400).json({ error: 'Invalid message id format' });
+    }
 
     // FIX [BUG-2]: валидация содержимого — предотвращаем DoS через огромные сообщения
     if (!text && !photo) {

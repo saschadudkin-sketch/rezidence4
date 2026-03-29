@@ -68,13 +68,13 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    fireEvent.click(screen.getByText('Попробовать снова'));
-
+    // Меняем пропсы ДО сброса, чтобы после reset boundary смонтировал уже "здорового" ребёнка.
     rerender(
       <ErrorBoundary name="Тест">
         <Bomb shouldThrow={false} />
       </ErrorBoundary>
     );
+    fireEvent.click(screen.getByText('Попробовать снова'));
 
     expect(screen.getByText('Всё хорошо')).toBeInTheDocument();
   });
