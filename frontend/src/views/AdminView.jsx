@@ -12,6 +12,7 @@ import VisitLogView  from './VisitLogView';
 import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -102,7 +103,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
     <>
       <div className="admin-toolbar">
         <div className="search-wrap u-mb0">
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><AppIcon name="search" size={13} /></span>
           <input className="search-inp"
             placeholder={contractorOnly ? 'Поиск подрядчика...' : 'Поиск по имени, телефону, апарт...'}
             value={query} onChange={e => setQuery(e.target.value)} />
@@ -156,7 +157,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     <>
       <div className="admin-toolbar">
         <div className="search-wrap u-mb0">
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><AppIcon name="search" size={13} /></span>
           <input className="search-inp" placeholder="Поиск по имени, апарт., авто..." value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
         </div>
         <div className="date-pills u-mb0">
