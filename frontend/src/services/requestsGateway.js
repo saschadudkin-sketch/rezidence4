@@ -5,7 +5,7 @@ import {
   uploadRequestPhoto,
   updateRequest as updateRemoteRequest,
   deleteRequest as deleteRemoteRequest,
-} from './firebaseService';
+} from './localService';
 import { logger } from './logger';
 
 /**

@@ -29,7 +29,7 @@ const STAFF_ROLES_SET     = new Set([ROLES.CONCIERGE, ROLES.SECURITY]);
 // Видит все заявки (не только свои) + получает уведомления
 const MANAGE_ROLES_SET    = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMIN]);
 // Может одобрять/отклонять заявки (консьерж — только просмотр)
-const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.ADMIN]);
+const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMIN]);
 
 /** Жилец (может создавать заявки и видеть только свои) */
 export const isResident = (role) => RESIDENT_ROLES_SET.has(role);
@@ -40,7 +40,7 @@ export const isStaff = (role) => STAFF_ROLES_SET.has(role);
 /** Видит все заявки + получает уведомления о новых */
 export const canManageRequests = (role) => MANAGE_ROLES_SET.has(role);
 
-/** Может одобрять/отклонять заявки (НЕ консьерж) */
+/** Может одобрять/отклонять заявки */
 export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
 
 // ─── Заявки ──────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export const canDeleteRequest = (user, req) =>
 
 /**
  * Может ли пользователь одобрить заявку
- * Только охрана и администратор (НЕ консьерж)
+ * Только роли из canApproveRequests
  */
 export const canApproveRequest = (user, req) =>
   canApproveRequests(user.role) && req.status === 'pending';
@@ -84,7 +84,7 @@ export const canAcceptRequest = (user, req) =>
  * Охрана — только approved
  */
 export const canMarkArrival = (user, req) =>
-  (user.role === ROLES.SECURITY || user.role === ROLES.ADMIN) && req.status === 'approved';
+  user.role === ROLES.SECURITY && req.status === 'approved';
 
 /**
  * Может ли пользователь повторить заявку (создать такую же)
@@ -108,7 +108,7 @@ export const canViewChat = (user) => Boolean(user?.uid);
 
 /** Может ли редактировать сообщение — своё или администратор */
 export const canEditMessage = (user, msg) =>
-  msg.uid === user.uid || user.role === ROLES.ADMIN;
+  msg.uid === user.uid;
 
 /** Может ли удалить сообщение — своё или администратор */
 export const canDeleteMessage = (user, msg) =>
@@ -147,7 +147,7 @@ export const ALLOWED_TABS_BY_ROLE = {
   [ROLES.CONTRACTOR]: ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
   [ROLES.CONCIERGE]:  ['passes', 'residents', 'visitlog', 'blacklist', 'chat'],
   [ROLES.SECURITY]:   ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat'],
-  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'perms', 'residents', 'visitlog', 'blacklist', 'chat'],
+  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'visitlog', 'blacklist', 'chat'],
 };
 
 export const getTabsForRole = (role) => ALLOWED_TABS_BY_ROLE[role] || [];

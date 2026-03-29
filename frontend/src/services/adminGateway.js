@@ -4,7 +4,7 @@ import {
   savePerms as saveRemotePerms,
   saveUser as saveRemoteUser,
   removeUser as removeRemoteUser,
-} from './firebaseService';
+} from './localService';
 import { logger } from './logger';
 
 export async function savePermsEverywhere({ uid, perms, saveLocal }) {

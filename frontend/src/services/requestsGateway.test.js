@@ -2,7 +2,7 @@ jest.mock('../config/runtimeMode', () => ({
   isLiveMode: jest.fn(),
 }));
 
-jest.mock('./firebaseService', () => ({
+jest.mock('./localService', () => ({
   createRequest: jest.fn(),
   uploadRequestPhoto: jest.fn(),
   updateRequest: jest.fn(),
@@ -11,7 +11,7 @@ jest.mock('./firebaseService', () => ({
 
 import { isLiveMode } from '../config/runtimeMode';
 import { SYNC_STATUS } from '../constants/syncStatuses';
-import { createRequest, uploadRequestPhoto, updateRequest, deleteRequest } from './firebaseService';
+import { createRequest, uploadRequestPhoto, updateRequest, deleteRequest } from './localService';
 import { resolveRequestPhotos, submitRequest, updateRequestEverywhere, deleteRequestEverywhere } from './requestsGateway';
 
 describe('requestsGateway', () => {

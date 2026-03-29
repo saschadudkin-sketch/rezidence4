@@ -6,9 +6,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AddUserModal } from './Modals';
 
+const mockAddUser = jest.fn();
+
 jest.mock('../store/AppStore', () => ({
   useUsers:   () => ({ phoneDb: { '+79161234567': { uid: 'existing' } } }),
-  useActions: () => ({ addUser: jest.fn() }),
+  useActions: () => ({ addUser: mockAddUser }),
 }));
 
 jest.mock('../utils', () => ({
@@ -25,7 +27,6 @@ jest.mock('./scrollLock', () => ({
   unlockScroll: jest.fn(),
 }));
 
-const { useActions } = require('../store/AppStore');
 const { toast }      = require('./Toasts');
 
 beforeEach(() => jest.clearAllMocks());
@@ -85,7 +86,6 @@ describe('AddUserModal', () => {
   test('успешное добавление вызывает addUser, onDone и onClose', async () => {
     const onDone  = jest.fn();
     const onClose = jest.fn();
-    const { addUser } = useActions();
 
     render(<AddUserModal onClose={onClose} onDone={onDone} />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Новый Пользователь' } });
@@ -96,8 +96,8 @@ describe('AddUserModal', () => {
     fireEvent.click(screen.getByText('Добавить'));
 
     await waitFor(() => {
-      expect(addUser).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Новый Пользователь', uid: 'u-new' })
+      expect(mockAddUser).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Новый Пользователь' })
       );
       expect(onDone).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();

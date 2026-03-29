@@ -22,7 +22,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm test
+      - run: npm run test:ci
+      - run: npm run test:detect-open-handles
 
   frontend-test:
     runs-on: ubuntu-latest

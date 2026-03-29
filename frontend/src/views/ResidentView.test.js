@@ -5,6 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ResidentView from './ResidentView';
+import * as AppStore from '../store/AppStore.jsx';
 
 const baseReq = (overrides = {}) => ({
   id: 'r1', type: 'pass', status: 'pending', category: 'guest',
@@ -15,29 +16,36 @@ const baseReq = (overrides = {}) => ({
   ...overrides,
 });
 
-jest.mock('../store/AppStore', () => ({
-  useRequests: jest.fn(() => [baseReq()]),
-  useActions:  () => ({ deleteRequest: jest.fn(), updateRequest: jest.fn() }),
-}));
-jest.mock('../config/runtimeMode',          () => ({ isLiveMode: () => false }));
+jest.mock('../config/runtimeMode', () => ({ isLiveMode: () => false }));
 jest.mock('../services/providers/serviceContainer', () => ({
   services: { requests: { deleteEverywhere: jest.fn().mockResolvedValue('local'), updateEverywhere: jest.fn().mockResolvedValue('local') } },
 }));
-jest.mock('../ui/Toasts',       () => ({ toast: jest.fn() }));
+jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
 jest.mock('../domain/permissions', () => ({
+  ROLES: { CONTRACTOR: 'contractor' },
   can: () => ({ editRequest: () => false, deleteRequest: () => true, repeatRequest: () => false }),
   isResident: () => true,
 }));
 jest.mock('../requests/ReqCard', () => ({
-  GroupedReqList: ({ requests }) => <div data-testid="req-list">{requests.length} заявок</div>,
+  GroupedReqList: ({ reqs }) => <div data-testid="req-list">{reqs.length} заявок</div>,
 }));
-jest.mock('../requests/CreateModal',     () => ({ CreateModal:      () => <div data-testid="create-modal" /> }));
-jest.mock('../requests/EditRequestModal',() => ({ EditRequestModal: () => <div data-testid="edit-modal" /> }));
-jest.mock('../perms/PermsList',          () => ({ PermsList: () => <div data-testid="perms-list" />, MyTemplates: () => null }));
-jest.mock('../chat/ChatView',            () => ({ ChatView: () => <div data-testid="chat" /> }));
-jest.mock('./GarageView',               () => () => <div data-testid="garage" />);
+jest.mock('../requests/CreateModal',      () => ({ CreateModal:      () => <div data-testid="create-modal" /> }));
+jest.mock('../requests/EditRequestModal', () => ({ EditRequestModal: () => <div data-testid="edit-modal" /> }));
+jest.mock('../perms/PermsList',           () => ({ PermsList: () => <div data-testid="perms-list" />, MyTemplates: () => null }));
+jest.mock('../chat/ChatView',             () => ({ ChatView: () => <div data-testid="chat" /> }));
+jest.mock('./GarageView',                 () => () => <div data-testid="garage" />);
 
 const user = { uid: 'u1', role: 'owner', name: 'Иван' };
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
+  jest.spyOn(AppStore, 'useActions').mockReturnValue({
+    deleteRequest: jest.fn(),
+    updateRequest: jest.fn(),
+  });
+});
+
+afterEach(() => jest.restoreAllMocks());
 
 describe('ResidentView', () => {
   test('показывает список заявок на вкладке passes', () => {
@@ -55,14 +63,15 @@ describe('ResidentView', () => {
     expect(screen.getByTestId('chat')).toBeInTheDocument();
   });
 
-  test('кнопка "Новый пропуск" видна на вкладке passes', () => {
+  test('на вкладке passes отображаются карточки типов пропуска', () => {
     render(<ResidentView user={user} activeTab="passes" setActiveTab={jest.fn()} />);
-    expect(screen.getByText(/новый пропуск/i)).toBeInTheDocument();
+    expect(screen.getByText('Гость')).toBeInTheDocument();
+    expect(screen.getByText('Курьер')).toBeInTheDocument();
   });
 
-  test('клик "Новый пропуск" открывает CreateModal', () => {
+  test('клик по карточке типа открывает CreateModal', () => {
     render(<ResidentView user={user} activeTab="passes" setActiveTab={jest.fn()} />);
-    fireEvent.click(screen.getByText(/новый пропуск/i));
+    fireEvent.click(screen.getByText('Гость'));
     expect(screen.getByTestId('create-modal')).toBeInTheDocument();
   });
 });
