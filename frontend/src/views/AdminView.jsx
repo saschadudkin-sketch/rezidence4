@@ -11,7 +11,6 @@ import AdminPermsView from './admin/AdminPermsView';
 import VisitLogView  from './VisitLogView';
 import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
-import GarageView    from './GarageView';
 import { ChatView }  from '../chat/ChatView';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────

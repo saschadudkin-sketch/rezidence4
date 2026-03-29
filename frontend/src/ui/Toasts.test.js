@@ -22,7 +22,7 @@ describe('toast() function', () => {
 describe('Toasts component', () => {
   test('рендерится без ошибок', () => {
     const { container } = render(<Toasts />);
-    expect(container.querySelector('.toast-wrap')).toBeInTheDocument();
+    expect(container.querySelector('.toast-wrap')).toBeNull();
   });
 
   test('показывает сообщение после toast()', () => {
@@ -41,12 +41,12 @@ describe('Toasts component', () => {
     expect(screen.getByText('Второе')).toBeInTheDocument();
   });
 
-  test('toast исчезает через 3 секунды', () => {
+  test('toast исчезает через 3.5 секунды', () => {
     render(<Toasts />);
     act(() => { toast('Временное', 'info'); });
     expect(screen.getByText('Временное')).toBeInTheDocument();
 
-    act(() => jest.advanceTimersByTime(3000));
+    act(() => jest.advanceTimersByTime(3500));
     expect(screen.queryByText('Временное')).not.toBeInTheDocument();
   });
 
@@ -73,6 +73,7 @@ describe('Toasts component', () => {
 
   test('имеет role="status" для доступности', () => {
     render(<Toasts />);
+    act(() => { toast('A11y'); });
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 

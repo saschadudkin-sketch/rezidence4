@@ -31,7 +31,7 @@ export function PassQRModal({ req, onClose }) {
   }, [onClose]);
 
   useEffect(() => {
-    generatePassQR(req)
+    Promise.resolve(generatePassQR(req))
       .then(setQrUrl)
       .catch(() => setError(true));
   // FIX [PERF]: зависим только от req.id — QR меняется только при смене заявки,
