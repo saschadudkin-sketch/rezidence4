@@ -13,7 +13,7 @@
 
 jest.mock('../db');
 
-const db  = require('../db');
+let db  = require('../db');
 const jwt = require('jsonwebtoken');
 
 process.env.JWT_SECRET = 'test-secret-key-32-chars-long-xx';
@@ -25,6 +25,7 @@ let requireAuth;
 beforeEach(() => {
   jest.resetModules();
   delete process.env.REDIS_URL;
+  db = require('../db');
   requireAuth = require('../middleware/auth');
 });
 

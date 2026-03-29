@@ -58,7 +58,7 @@ export function pushNotifyResident(req) {
 /**
  * Подписывает текущего пользователя на push-уведомления.
  * Вызывается при входе жильца в приложение.
- * Сохраняет FCM-токен в Firebase для дальнейшей отправки.
+ * Сохраняет FCM-токен в backend для дальнейшей отправки.
  *
  * @param {string} uid — uid текущего пользователя
  */
@@ -82,14 +82,14 @@ export async function subscribePush(uid) {
       vibrate: [100],
     });
 
-    // ── Live: получаем FCM токен и сохраняем в Firebase ──────────────────────
-    // Раскомментировать при наличии Firebase Cloud Messaging:
+    // ── Live: получаем push-токен и сохраняем в backend ──────────────────────
+    // Пример для интеграции push-SDK (при необходимости):
     //
-    // import { getMessaging, getToken } from 'firebase/messaging';
+    // import { getMessaging, getToken } from 'some-push-sdk';
     // const messaging = getMessaging();
     // const token = await getToken(messaging, { vapidKey: process.env.REACT_APP_VAPID_KEY });
     // if (token && uid) {
-    //   await saveFcmToken(uid, token); // firebaseService.js
+    //   await saveFcmToken(uid, token); // backend API endpoint
     // }
 
   } catch (e) {

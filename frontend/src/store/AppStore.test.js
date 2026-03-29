@@ -32,13 +32,12 @@ beforeEach(() => {
 
 describe('AppStore — localStorage round-trip', () => {
   it('заявка сохраняется и восстанавливается с корректными Date объектами', async () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => ({ actions: useActions(), requests: useRequests() }), { wrapper });
 
     const createdAt = new Date('2026-01-01T10:00:00.000Z');
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'r_ls_test',
         type: 'pass',
         category: 'guest',
@@ -62,20 +61,19 @@ describe('AppStore — localStorage round-trip', () => {
     await act(async () => { await new Promise(r => setTimeout(r, 600)); });
 
     // Проверяем что заявка в сторе
-    const req = reqResult.current.find(r => r.id === 'r_ls_test');
+    const req = result.current.requests.find(r => r.id === 'r_ls_test');
     expect(req).toBeTruthy();
     expect(req.createdAt).toBeInstanceOf(Date);
     expect(req.createdAt.toISOString()).toBe('2026-01-01T10:00:00.000Z');
   });
 
   it('photo сохраняется в отдельном ключе и восстанавливается', async () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => ({ actions: useActions(), requests: useRequests() }), { wrapper });
 
     const photoData = 'data:image/jpeg;base64,/9j/4AAQfakedata';
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'r_photo_test',
         type: 'pass',
         category: 'guest',
@@ -97,7 +95,7 @@ describe('AppStore — localStorage round-trip', () => {
 
     await act(async () => { await new Promise(r => setTimeout(r, 600)); });
 
-    const req = reqResult.current.find(r => r.id === 'r_photo_test');
+    const req = result.current.requests.find(r => r.id === 'r_photo_test');
     expect(req?.photo).toBe(photoData);
     expect(req?.photos[0]).toBe(photoData);
   });
@@ -105,11 +103,10 @@ describe('AppStore — localStorage round-trip', () => {
 
 describe('AppStore — request workflow', () => {
   it('заявка создаётся → одобряется → arrivedAt устанавливается', () => {
-    const { result: actResult } = renderHook(() => useActions(), { wrapper });
-    const { result: reqResult } = renderHook(() => useRequests(), { wrapper });
+    const { result } = renderHook(() => ({ actions: useActions(), requests: useRequests() }), { wrapper });
 
     act(() => {
-      actResult.current.addRequest({
+      result.current.actions.addRequest({
         id: 'r_flow_1',
         type: 'pass',
         category: 'guest',
@@ -129,13 +126,13 @@ describe('AppStore — request workflow', () => {
       });
     });
 
-    expect(reqResult.current.find(r => r.id === 'r_flow_1').status).toBe('pending');
+    expect(result.current.requests.find(r => r.id === 'r_flow_1').status).toBe('pending');
 
-    act(() => { actResult.current.approveRequest('r_flow_1', 'Охранник', 'security'); });
-    expect(reqResult.current.find(r => r.id === 'r_flow_1').status).toBe('approved');
+    act(() => { result.current.actions.approveRequest('r_flow_1', 'Охранник', 'security'); });
+    expect(result.current.requests.find(r => r.id === 'r_flow_1').status).toBe('approved');
 
-    act(() => { actResult.current.arriveRequest('r_flow_1', 'Охранник', 'security'); });
-    const arrived = reqResult.current.find(r => r.id === 'r_flow_1');
+    act(() => { result.current.actions.arriveRequest('r_flow_1', 'Охранник', 'security'); });
+    const arrived = result.current.requests.find(r => r.id === 'r_flow_1');
     expect(arrived.status).toBe('arrived');
     expect(arrived.arrivedAt).toBeInstanceOf(Date);
   });
