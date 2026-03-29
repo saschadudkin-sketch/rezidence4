@@ -4,13 +4,13 @@
 import { FEATURES } from './features';
 
 describe('FEATURES', () => {
-  test('FIREBASE_LIVE является булевым', () => {
-    expect(typeof FEATURES.FIREBASE_LIVE).toBe('boolean');
+  test('объект features существует', () => {
+    expect(FEATURES).toBeDefined();
+    expect(typeof FEATURES).toBe('object');
   });
 
-  test('FIREBASE_LIVE = false (Firebase убран, используется backendProvider)', () => {
-    // Это важная проверка регрессии: случайное включение Firebase в production
-    // сломает аутентификацию через backendProvider
-    expect(FEATURES.FIREBASE_LIVE).toBe(false);
+  test('legacy-флагов больше нет', () => {
+    const keys = Object.keys(FEATURES);
+    expect(keys.some((k) => k.includes('LIVE'))).toBe(false);
   });
 });

@@ -30,7 +30,10 @@ jest.mock('../../store/AppStore', () => ({
     },
   }),
   usePerms: (uid) => uid === 'u1'
-    ? { visitors: [{ id: 'pv1', name: 'Гость Волков', phone: '' }], workers: [] }
+    ? {
+      visitors: [{ id: 'pv1', name: 'Гость Волков', phone: '' }],
+      workers: [{ id: 'pw1', name: 'Слесарь Иванов', phone: '+7 903 000-00-01', carPlate: 'А111ВС77' }],
+    }
     : { visitors: [], workers: [] },
 }));
 
@@ -50,8 +53,8 @@ describe('AdminPermsView', () => {
 
   test('показывает список жильцов с перм-списками', () => {
     render(<AdminPermsView user={user} />);
-    expect(screen.getByText('Иван Петров')).toBeInTheDocument();
-    expect(screen.getByText('Анна Соколова')).toBeInTheDocument();
+    expect(screen.getByText(/Иван Петров/)).toBeInTheDocument();
+    expect(screen.getByText(/Анна Соколова/)).toBeInTheDocument();
   });
 
   test('охранник не отображается (не resident)', () => {
@@ -66,19 +69,21 @@ describe('AdminPermsView', () => {
 
   test('отображает рабочих жильца', () => {
     render(<AdminPermsView user={user} />);
+    fireEvent.click(screen.getByRole('button', { name: /рабочие/i }));
     expect(screen.getByText('Слесарь Иванов')).toBeInTheDocument();
   });
 
   test('отображает номер авто рабочего', () => {
     render(<AdminPermsView user={user} />);
-    expect(screen.getByText('А111ВС77')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /рабочие/i }));
+    expect(screen.getByText(/А111ВС77/)).toBeInTheDocument();
   });
 
   test('поиск по имени жильца фильтрует список', () => {
     render(<AdminPermsView user={user} />);
     fireEvent.change(screen.getByPlaceholderText(/поиск/i), { target: { value: 'Анна' } });
-    expect(screen.queryByText('Иван Петров')).not.toBeInTheDocument();
-    expect(screen.getByText('Анна Соколова')).toBeInTheDocument();
+    expect(screen.queryByText(/Иван Петров/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Анна Соколова/)).toBeInTheDocument();
   });
 
   test('кнопка редактирования записи открывает форму', () => {

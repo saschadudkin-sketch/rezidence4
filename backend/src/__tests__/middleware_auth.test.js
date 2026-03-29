@@ -140,7 +140,7 @@ describe('requireAuth middleware', () => {
   });
 
   test('req.user содержит все поля из payload', () => {
-    const payload = { uid: 'u99', role: 'admin', name: 'Адм', iat: undefined };
+    const payload = { uid: 'u99', role: 'admin', name: 'Адм' };
     const token   = jwt.sign(payload, 'test-secret-key-16chars');
     const req     = makeReq({ cookie: token });
     const res     = makeRes();
