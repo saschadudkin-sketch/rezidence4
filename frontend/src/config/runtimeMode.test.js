@@ -84,8 +84,8 @@ describe('runtimeMode', () => {
   });
 
   test('resolveRuntimeMode falls back to demo when both env vars absent', () => {
-    // FIX [AUDIT]: FEATURES.FIREBASE_LIVE удалён — тест обновлён.
-    // Ранее: resolveRuntimeMode({}, { FIREBASE_LIVE: true }) → 'live'
+    // FIX [AUDIT]: FEATURES.LEGACY_FLAG удалён — тест обновлён.
+    // Ранее: resolveRuntimeMode({}, { LEGACY_FLAG: true }) → 'live'
     // Теперь: fallback без env vars всегда → 'demo' (безопасный дефолт)
     const runtimeMode = loadRuntimeMode();
     const mode = runtimeMode.resolveRuntimeMode(

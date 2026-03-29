@@ -26,7 +26,7 @@ export function garageReducer(state, action) {
         ...state,
         garage: {
           ...state.garage,
-          [action.uid]: cars.map(c => c.id === action.carId ? { ...c, ...action.patch } : c),
+          [action.uid]: cars.map(c => c.id === action.carId ? { ...c, ...(action.patch || action.data || {}) } : c),
         },
       };
     }

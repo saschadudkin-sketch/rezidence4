@@ -4,7 +4,6 @@
  * QR содержит JSON: { id, type, visitorName, createdByApt, validUntil }
  * Охранник сканирует → система показывает данные пропуска и кнопку «Пропустить».
  */
-
 import QRCode from 'qrcode';
 
 /**
@@ -29,11 +28,11 @@ export async function generatePassQR(req) {
   return QRCode.toDataURL(payload, {
     width: 256,
     margin: 2,
+    errorCorrectionLevel: 'M',
     color: {
-      dark:  '#1C1A16',
+      dark: '#1C1A16',
       light: '#FAF8F4',
     },
-    errorCorrectionLevel: 'M',
   });
 }
 
