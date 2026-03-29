@@ -29,7 +29,7 @@ const STAFF_ROLES_SET     = new Set([ROLES.CONCIERGE, ROLES.SECURITY]);
 // Видит все заявки (не только свои) + получает уведомления
 const MANAGE_ROLES_SET    = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMIN]);
 // Может одобрять/отклонять заявки (консьерж — только просмотр)
-const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMIN]);
+const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.ADMIN]);
 
 /** Жилец (может создавать заявки и видеть только свои) */
 export const isResident = (role) => RESIDENT_ROLES_SET.has(role);
@@ -108,7 +108,7 @@ export const canViewChat = (user) => Boolean(user?.uid);
 
 /** Может ли редактировать сообщение — своё или администратор */
 export const canEditMessage = (user, msg) =>
-  msg.uid === user.uid;
+  msg.uid === user.uid || user.role === ROLES.ADMIN;
 
 /** Может ли удалить сообщение — своё или администратор */
 export const canDeleteMessage = (user, msg) =>
@@ -147,7 +147,7 @@ export const ALLOWED_TABS_BY_ROLE = {
   [ROLES.CONTRACTOR]: ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
   [ROLES.CONCIERGE]:  ['passes', 'residents', 'visitlog', 'blacklist', 'chat'],
   [ROLES.SECURITY]:   ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat'],
-  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'visitlog', 'blacklist', 'chat'],
+  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat'],
 };
 
 export const getTabsForRole = (role) => ALLOWED_TABS_BY_ROLE[role] || [];

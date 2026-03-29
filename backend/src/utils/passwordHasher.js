@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 const KEYLEN = 64;
 const VERSION = 'v1';
@@ -26,6 +27,10 @@ async function hash(value) {
 async function compare(value, encoded) {
   try {
     if (!encoded || typeof encoded !== 'string') return false;
+    // backward-compat: OTP hashes from pre-scrypt versions ($2b$ / $2a$ / $2y$)
+    if (encoded.startsWith('$2')) {
+      return bcrypt.compare(String(value), encoded);
+    }
     const parts = encoded.split('$');
     if (parts[0] !== 'scrypt') return false;
     if (parts.length !== 3 && parts.length !== 4) return false;

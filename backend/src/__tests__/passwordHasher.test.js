@@ -1,5 +1,6 @@
 'use strict';
 
+const bcrypt = require('bcryptjs');
 const passwordHasher = require('../utils/passwordHasher');
 
 describe('passwordHasher', () => {
@@ -24,5 +25,11 @@ describe('passwordHasher', () => {
     expect(version).toBe('v1');
     const legacy = `scrypt$${salt}$${hash}`;
     await expect(passwordHasher.compare('654321', legacy)).resolves.toBe(true);
+  });
+
+  test('supports legacy bcrypt hashes from v3 deployment', async () => {
+    const legacy = await bcrypt.hash('777888', 10);
+    await expect(passwordHasher.compare('777888', legacy)).resolves.toBe(true);
+    await expect(passwordHasher.compare('000000', legacy)).resolves.toBe(false);
   });
 });
