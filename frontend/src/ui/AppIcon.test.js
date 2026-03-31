@@ -1,9 +1,10 @@
 import { render } from '@testing-library/react';
-import { AppIcon, APP_ICON_NAMES } from './AppIcon';
+import { AppIcon, APP_ICON_NAMES, __resetAppIconWarningsForTests } from './AppIcon';
 
 describe('AppIcon', () => {
   let warnSpy;
   beforeEach(() => {
+    __resetAppIconWarningsForTests();
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => {

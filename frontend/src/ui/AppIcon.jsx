@@ -30,6 +30,9 @@ const PATHS = {
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));
 const warnedUnknownIcons = new Set();
+export function __resetAppIconWarningsForTests() {
+  warnedUnknownIcons.clear();
+}
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
   const path = PATHS[name] || PATHS.list;
