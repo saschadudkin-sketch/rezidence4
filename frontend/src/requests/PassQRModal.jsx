@@ -4,6 +4,7 @@ import { generatePassQR } from '../services/qrService';
 import { CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON } from '../constants/index.js';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { toast } from '../ui/Toasts.jsx';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 /**
  * PassQRModal — показывает QR-код пропуска для предъявления охране.
@@ -50,7 +51,7 @@ export function PassQRModal({ req, onClose }) {
               Покажите охране для быстрого прохода
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body" style={{ textAlign: 'center' }}>
           {error && (
@@ -118,7 +119,7 @@ export function PassQRModal({ req, onClose }) {
                 } catch {
                   toast('Не удалось скопировать', 'error');
                 }
-              }}><span>📋 Копировать</span></button>
+              }}><span className="u-inline-icon"><AppIcon name="list" size={14} /> Копировать</span></button>
               <button className="btn-outline u-flex1" onClick={() => {
                 try {
                   const blob = dataUrlToBlob(qrUrl);
@@ -131,7 +132,7 @@ export function PassQRModal({ req, onClose }) {
                 } catch {
                   toast('Не удалось скачать', 'error');
                 }
-              }}><span>💾 Скачать</span></button>
+              }}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Скачать</span></button>
             </div>
           )}
           <button className="btn-gold" style={{ width: '100%' }} onClick={onClose}><span>Закрыть</span></button>

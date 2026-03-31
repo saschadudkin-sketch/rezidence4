@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useUsers, useAllGarage, useAllPerms } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce.js';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
+import { AppIcon } from '../ui/AppIcon.jsx';
 import { isResident, ROLES } from '../domain/permissions.js';
 import GarageView from './GarageView.jsx';
 
@@ -56,8 +57,8 @@ export default function ResidentsView({ user }) {
   return (
     <div className="residents-view">
       {/* Поиск */}
-      <div className="search-wrap" style={{ marginBottom: 12 }}>
-        <span className="search-icon">🔍</span>
+      <div className="search-wrap residents-search-wrap">
+        <span className="search-icon"><AppIcon name="search" size={14} /></span>
         <input
           className="search-inp"
           placeholder="Апарт., имя, авто, парковка..."
@@ -65,7 +66,11 @@ export default function ResidentsView({ user }) {
           onChange={e => setQuery(e.target.value)}
           autoComplete="off"
         />
-        {query && <button className="search-clear" onClick={() => setQuery('')}>✕</button>}
+        {query && (
+          <button className="search-clear" onClick={() => setQuery('')} aria-label="Очистить поиск">
+            <AppIcon name="close" size={14} />
+          </button>
+        )}
       </div>
 
       {/* Итог */}
@@ -83,7 +88,7 @@ export default function ResidentsView({ user }) {
       {/* Список апартаментов */}
       {filtered.length === 0 && (
         <div className="empty-state">
-          <div className="empty-icon">🏠</div>
+          <div className="empty-icon"><AppIcon name="residents" size={28} /></div>
           <div className="empty-title">Ничего не найдено</div>
           <div className="empty-sub">Попробуйте другой запрос</div>
         </div>
@@ -105,12 +110,12 @@ export default function ResidentsView({ user }) {
                 onClick={() => setExpandedApt(isOpen ? null : apt)}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setExpandedApt(isOpen ? null : apt))}>
                 <div className="apt-num">
-                  <span className="apt-num-ico">🏠</span>
+                  <span className="apt-num-ico"><AppIcon name="residents" size={14} /></span>
                   <span className="apt-num-val">Апарт. {apt}</span>
                 </div>
                 <div className="apt-meta">
                   <span className="apt-chip">{residents.length} жил.</span>
-                  {allCars.length > 0 && <span className="apt-chip car">🚗 {allCars.length}</span>}
+                  {allCars.length > 0 && <span className="apt-chip car"><AppIcon name="car" size={12} /> {allCars.length}</span>}
                   {parkingSpots.length > 0 && <span className="apt-chip park">🅿 {parkingSpots.join(', ')}</span>}
                 </div>
                 <span className="apt-chevron">{isOpen ? '▲' : '▼'}</span>
@@ -131,7 +136,7 @@ export default function ResidentsView({ user }) {
                           <div className="resident-name">{u.name}</div>
                           <div className="resident-meta">
                             <a href={'tel:' + u.phone.replace(/\s/g, '')} className="resident-phone">
-                              📞 {u.phone}
+                              {u.phone}
                             </a>
                             {u.parkingSpot && (
                               <span className="resident-parking">🅿 {u.parkingSpot}</span>
@@ -151,7 +156,7 @@ export default function ResidentsView({ user }) {
                           {/* Постоянные посетители */}
                           {visitors.length > 0 && (
                             <div className="perm-section">
-                              <div className="perm-section-title">👤 Постоянные посетители</div>
+                              <div className="perm-section-title">Постоянные посетители</div>
                               {visitors.map((v, i) => (
                                 <div key={v.id || i} className="perm-entry">
                                   <span className="perm-name">{v.name}</span>
@@ -167,7 +172,7 @@ export default function ResidentsView({ user }) {
                           {/* Постоянные рабочие */}
                           {workers.length > 0 && (
                             <div className="perm-section">
-                              <div className="perm-section-title">🔧 Постоянные рабочие</div>
+                              <div className="perm-section-title">Постоянные рабочие</div>
                               {workers.map((w, i) => (
                                 <div key={w.id || i} className="perm-entry">
                                   <span className="perm-name">{w.name}</span>
@@ -176,7 +181,7 @@ export default function ResidentsView({ user }) {
                                       {w.phone}
                                     </a>
                                   )}
-                                  {w.carPlate && <span className="perm-car">🚗 {w.carPlate}</span>}
+                                  {w.carPlate && <span className="perm-car"><AppIcon name="car" size={12} /> {w.carPlate}</span>}
                                 </div>
                               ))}
                             </div>

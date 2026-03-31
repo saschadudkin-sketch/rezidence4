@@ -20,6 +20,7 @@ import {
 import { fmtDate, fmtTime, groupReqs } from '../utils.js';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import { PhotoLightbox } from '../ui/PhotoLightbox.jsx';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── Toast (глобальный синглтон) ────────────────────────────────────────────
 
@@ -199,7 +200,9 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
               {req.createdByName}
             </div>
             <div className="req-meta">
-              <span style={{ opacity: .55, marginRight: 4 }}>{req.type === 'tech' ? '🔧' : '🎫'}</span>
+              <span className="u-inline-icon u-mr6" style={{ opacity: .7 }}>
+                <AppIcon name={req.type === 'tech' ? 'tools' : 'ticket'} size={12} />
+              </span>
               {CAT_LABEL[req.category] || req.category}
               {req.passDuration && req.passDuration !== 'once' && (
                 <span className={'pass-dur-tag ' + req.passDuration}>{PASS_DURATION_ICON[req.passDuration]} {PASS_DURATION_LABEL[req.passDuration]}</span>
@@ -247,7 +250,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
 
         {req.type === 'pass' && (req.status === 'approved' || req.status === 'pending') && (
           <button className="qr-pass-btn" onClick={() => setShowQR(true)}>
-            <span style={{ fontSize: 18 }}>📱</span>
+            <span className="u-inline-icon"><AppIcon name="phone" size={18} /></span>
             <div>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>QR-код пропуска</div>
               <div style={{ fontSize: 11, color: 'var(--t4)' }}>
@@ -270,7 +273,10 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         )}
         {onRepeat && req.status !== 'pending' && (
-          <button className="tpl-save-btn" style={{ marginTop: 8, fontSize: 11 }} onClick={() => onRepeat(req)}>↩ Повторить заявку</button>
+          <button className="tpl-save-btn" style={{ marginTop: 8, fontSize: 11 }} onClick={() => onRepeat(req)}>
+            <span className="u-inline-icon u-mr6"><AppIcon name="undo" size={12} /></span>
+            Повторить заявку
+          </button>
         )}
         {(onEdit || onDelete) && isPendingRequest(req) && (
           <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
@@ -279,15 +285,28 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
               <button className="btn-del-sm" onClick={() => onDelete(req.id)}>Да</button>
               <button className="btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setConfirmDel(false)}>Нет</button>
             </> : <>
-              {onEdit   && <button className="btn-edit"   onClick={() => onEdit(req)}>✏️ Редактировать</button>}
-              {onDelete && <button className="btn-del-sm" onClick={() => setConfirmDel(true)}>🗑 Удалить</button>}
+              {onEdit && (
+                <button className="btn-edit" onClick={() => onEdit(req)}>
+                  <span className="u-inline-icon u-mr6"><AppIcon name="edit" size={12} /></span>
+                  Редактировать
+                </button>
+              )}
+              {onDelete && (
+                <button className="btn-del-sm" onClick={() => setConfirmDel(true)}>
+                  <span className="u-inline-icon u-mr6"><AppIcon name="trash" size={12} /></span>
+                  Удалить
+                </button>
+              )}
             </>}
           </div>
         )}
         {onCancel && (req.status === 'pending' || req.status === 'approved') && !isStaffRole && (
           <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn-outline" style={{ fontSize: 12, padding: '5px 12px', color: 'var(--err-t)', borderColor: 'var(--err)' }}
-              onClick={() => onCancel(req.id)}>✕ Отменить заявку</button>
+              onClick={() => onCancel(req.id)}>
+              <span className="u-inline-icon u-mr6"><AppIcon name="close" size={12} /></span>
+              Отменить заявку
+            </button>
           </div>
         )}
       </>)}

@@ -62,16 +62,18 @@ describe('PassQRModal', () => {
     });
   });
 
-  test('Escape вызывает onClose', () => {
+  test('Escape вызывает onClose', async () => {
     const onClose = jest.fn();
     render(<PassQRModal req={req} onClose={onClose} />);
+    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  test('кнопка ✕ вызывает onClose', () => {
+  test('кнопка ✕ вызывает onClose', async () => {
     const onClose = jest.fn();
     render(<PassQRModal req={req} onClose={onClose} />);
+    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByLabelText('Закрыть'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

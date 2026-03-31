@@ -33,8 +33,16 @@ jest.mock('../ui/scrollLock', () => ({
 
 const { services } = require('../services/providers/serviceContainer');
 const { toast } = require('../ui/Toasts');
+let consoleWarnSpy;
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleWarnSpy?.mockRestore();
+});
 
 const makeReq = (overrides = {}) => ({
   id: 'r1',

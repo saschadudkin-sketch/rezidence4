@@ -19,6 +19,7 @@ import { ROLE_LABELS } from '../constants';
 import { canManageRequests } from '../constants/requestPredicates';
 import { ROLES, getTabsForRole } from '../domain/permissions';
 import { AvatarCircle } from '../ui/AvatarCircle';
+import { AppIcon } from '../ui/AppIcon';
 import { AvatarModal } from '../ui/Modals';
 import { toast } from '../ui/Toasts';
 import ErrorBoundary from '../ui/ErrorBoundary';
@@ -43,9 +44,6 @@ const AdminView = lazy(() => import('./AdminView'));
 
 // ─── Статичные стили (вне компонента — не пересоздаются при рендере) ─────────
 // REACT-3: inline-объекты в JSX заменены на константы
-const HEADER_ACTIONS_STYLE = {
-  display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end',
-};
 const BADGE_STYLE = {
   position: 'absolute', top: -3, right: -3,
   background: 'var(--err)', color: 'var(--err-t)',
@@ -167,24 +165,24 @@ export default function Dashboard({ user, onLogout }) {
 
   // ── Навигация ─────────────────────────────────────────────────────────────
   const NAV_META = useMemo(() => ({
-    passes:    ['🎫', user.role === ROLES.SECURITY || user.role === ROLES.CONCIERGE ? 'Заявки' : 'Пропуска',
+    passes:    ['ticket', user.role === ROLES.SECURITY || user.role === ROLES.CONCIERGE ? 'Заявки' : 'Пропуска',
                 user.role === ROLES.SECURITY ? pendingP + pendingT : user.role === ROLES.CONCIERGE ? pendingT : residentNewStatuses],
-    tech:      ['🔧', 'Техслужба', 0],
-    perms:     ['📋', 'Список', 0],
-    templates: ['📄', 'Шаблоны', 0],
-    history:   ['📜', 'История', 0],
-    chat:      ['💬', 'Чат', unreadMsgs],
-    visitlog:  ['📖', 'Журнал', 0],
-    residents: ['🏠', 'Жильцы', 0],
-    blacklist: ['🚫', 'ЧС', blacklistCount],
-    guardpost: ['🛡️', 'Пост', pendingP],
-    stats:     ['📊', 'Аналитика', 0],
-    requests:  ['📋', 'Заявки', pendingP + pendingT],
-    users:     ['👥', 'Резиденты', 0],
+    tech:      ['tools', 'Техслужба', 0],
+    perms:     ['list', 'Список', 0],
+    templates: ['file', 'Шаблоны', 0],
+    history:   ['history', 'История', 0],
+    chat:      ['chat', 'Чат', unreadMsgs],
+    visitlog:  ['history', 'Журнал', 0],
+    residents: ['residents', 'Жильцы', 0],
+    blacklist: ['ban', 'ЧС', blacklistCount],
+    guardpost: ['shield', 'Пост', pendingP],
+    stats:     ['chart', 'Аналитика', 0],
+    requests:  ['list', 'Заявки', pendingP + pendingT],
+    users:     ['users', 'Резиденты', 0],
   }), [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
 
   const NAV = useMemo(
-    () => getTabsForRole(user.role).map(tab => [tab, ...(NAV_META[tab] || ['•', tab, 0])]),
+    () => getTabsForRole(user.role).map(tab => [tab, ...(NAV_META[tab] || ['list', tab, 0])]),
     [user.role, NAV_META],
   );
 
@@ -221,10 +219,10 @@ export default function Dashboard({ user, onLogout }) {
   // Ранее: пустые списки ~300-600мс без индикации — выглядело как баг.
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
-        <div style={{ textAlign: 'center', color: 'var(--t4)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⟳</div>
-          <div style={{ fontSize: 14 }}>Загрузка данных…</div>
+      <div className="screen-loading">
+        <div className="screen-loading-inner">
+          <div className="screen-loading-spinner"><AppIcon name="history" size={28} /></div>
+          <div className="screen-loading-label">Загрузка данных…</div>
         </div>
       </div>
     );
@@ -240,7 +238,7 @@ export default function Dashboard({ user, onLogout }) {
               <span className="header-wordmark">Резиденции Замоскворечья</span>
               {isDemoMode() && <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>}
             </div>
-            <div style={HEADER_ACTIONS_STYLE}>
+            <div className="header-actions">
               <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={'Тема: ' + themeLabel}>
                 <span>{themeIcon}</span>
                 <span>{themeLabel}</span>
@@ -275,7 +273,7 @@ export default function Dashboard({ user, onLogout }) {
                       >
                         <div className="dd-avatar-big" style={AVATAR_STYLE}>
                           <AvatarCircle avData={avData} role={user.role} name={user.name} size={56} fontSize={22} />
-                          <div className="dd-avatar-overlay">📷</div>
+                          <div className="dd-avatar-overlay"><AppIcon name="camera" size={14} /></div>
                         </div>
                       </div>
                       <div className="dd-user-info">
@@ -283,7 +281,7 @@ export default function Dashboard({ user, onLogout }) {
                         <div className="dd-user-phone">{user.phone}</div>
                       </div>
                       <button className="dd-upload-btn" onClick={() => { setMenuOpen(false); setAvOpen(true); }}>
-                        🎨 Настроить аватарку
+                        Настроить аватарку
                       </button>
                     </div>
                     <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
@@ -298,7 +296,7 @@ export default function Dashboard({ user, onLogout }) {
           <nav className="top-nav">
             {NAV.map(([k, icon, label, badge]) => (
               <button key={k} className={navBtnClass(k)} onClick={() => goTab(k)}>
-                <span className="tn-icon">{icon}</span>
+                <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
                 <span>{label}</span>
                 {badge > 0 && <span className="tn-badge">{badge}</span>}
               </button>
@@ -328,7 +326,7 @@ export default function Dashboard({ user, onLogout }) {
         <nav className="mobile-nav">
           {NAV.map(([k, icon, label, badge]) => (
             <button key={k} className={navBtnClassMn(k)} onClick={() => goTab(k)}>
-              <span className="mn-icon">{icon}</span>
+              <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
               <span className="mn-label">{label}</span>
               {badge > 0 && <span className="mn-dot" />}
             </button>
