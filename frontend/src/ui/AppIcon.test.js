@@ -45,4 +45,14 @@ describe('APP_ICON_NAMES', () => {
     expect(APP_ICON_NAMES).toContain('users');
     expect(Object.isFrozen(APP_ICON_NAMES)).toBe(true);
   });
+
+  test('каждое имя из реестра успешно рендерится', () => {
+    APP_ICON_NAMES.forEach((iconName) => {
+      const { container, unmount } = render(<AppIcon name={iconName} />);
+      const path = container.querySelector('path');
+      expect(path).toBeTruthy();
+      expect(path.getAttribute('d')).toBeTruthy();
+      unmount();
+    });
+  });
 });
