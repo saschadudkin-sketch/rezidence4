@@ -192,8 +192,8 @@ export function AppProvider({ children }) {
 
 // ─── Публичные хуки (API не изменился) ───────────────────────────────────────
 
-// FIX [AUDIT-3 #12]: useAppState() бросает в production — предотвращает молчаливую регрессию.
-// В dev — подробное предупреждение. В prod — throw, чтобы ErrorBoundary поймал.
+// FIX [AUDIT-3 #12]: useAppState() помечен deprecated.
+// В dev/prod логируем предупреждение, но не роняем приложение для безопасной миграции.
 /** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
 export function useAppState() {
   if (process.env.NODE_ENV === 'production') {
