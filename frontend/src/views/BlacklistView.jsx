@@ -3,6 +3,7 @@ import { useBlacklist, useActions } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
 import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts.jsx';
+import { AppIcon } from '../ui/AppIcon';
 
 export default function BlacklistView({ user }) {
   const blacklist = useBlacklist();
@@ -52,11 +53,11 @@ export default function BlacklistView({ user }) {
     <div>
       <div className="bl-header">
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)' }}>🚫 Чёрный список</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)' }}><AppIcon name="ban" className="u-inline-icon" /> Чёрный список</span>
           <span className="bl-count">{blacklist.length}</span>
         </div>
         <button className="btn-gold u-pad-icon-btn" onClick={() => setAdding(a => !a)}>
-          <span>{adding ? '✕ Отмена' : '+ Добавить'}</span>
+          <span>{adding ? <><AppIcon name="close" className="u-inline-icon" /> Отмена</> : '+ Добавить'}</span>
         </button>
       </div>
 
@@ -71,20 +72,20 @@ export default function BlacklistView({ user }) {
           <input className="field-inp" placeholder="Причина (необязательно)" value={reason}
             onChange={e => setReason(e.target.value)} />
           <button className="btn-gold" onClick={handleAdd} style={{ marginTop: 8 }}>
-            <span>🚫 Добавить в чёрный список</span>
+            <span><AppIcon name="ban" className="u-inline-icon" /> Добавить в чёрный список</span>
           </button>
         </div>
       )}
 
       <div className="search-wrap u-mb16">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" /></span>
         <input className="search-inp" placeholder="Поиск по ФИО, номеру авто..."
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>
 
       {filtered.length === 0 && (
         <div className="empty">
-          <div style={{ fontSize: 36, marginBottom: 12, opacity: .15 }}>🚫</div>
+          <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="ban" size={36} /></div>
           <div className="empty-title">{q ? 'Ничего не найдено' : 'Список пуст'}</div>
           <div className="empty-sub">{q ? 'Попробуйте другой запрос' : 'Нажмите «+ Добавить» чтобы внести запись'}</div>
         </div>
@@ -94,7 +95,7 @@ export default function BlacklistView({ user }) {
         {filtered.map(entry => (
           <div key={entry.id} className="bl-entry">
             <div className="bl-entry-main">
-              <div className="bl-entry-icon">🚫</div>
+              <div className="bl-entry-icon"><AppIcon name="ban" /></div>
               <div className="bl-entry-info">
                 {entry.name && <div className="bl-entry-name">{entry.name}</div>}
                 {entry.carPlate && <div className="bl-entry-plate">{entry.carPlate}</div>}
@@ -103,7 +104,7 @@ export default function BlacklistView({ user }) {
                   {entry.addedAt ? new Date(entry.addedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                 </div>
               </div>
-              <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить">✕</button>
+              <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
             </div>
           </div>
         ))}

@@ -9,6 +9,7 @@ import { normalizeValidationResult } from '../domain/validationResult';
 import { getScanDecision } from '../domain/scanDecision';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { toast } from '../ui/Toasts.jsx';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 /**
  * ScanQRModal — сканер QR-кода для охраны.
@@ -281,6 +282,13 @@ export function ScanQRModal({ user, onClose }) {
   });
   const actionLabel = scannedReq?.status === 'approved' ? 'Отметить вход' : 'Пропустить';
   const validationReason = getValidationReasonLabel(validation?.reason);
+  const statusIconName = checking
+    ? 'history'
+    : canApprove
+      ? 'check'
+      : deniedByValidation || scannedReq?.status === 'rejected'
+        ? 'denied'
+        : 'alert';
 
   return createPortal(
     <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -288,7 +296,7 @@ export function ScanQRModal({ user, onClose }) {
         <div className="modal-handle" />
         <div className="modal-head">
           <span className="modal-title">{scanning ? 'Сканировать QR' : 'Результат проверки'}</span>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
           {scanning && (
@@ -296,7 +304,7 @@ export function ScanQRModal({ user, onClose }) {
               <div className="qr-scanner-viewport">
                 {camError ? (
                   <div className="qr-scanner-fallback">
-                    <div style={{ fontSize: 36, marginBottom: 12, opacity: .3 }}>📷</div>
+                    <div className="u-inline-icon" style={{ marginBottom: 12, opacity: .3 }}><AppIcon name="camera" size={30} /></div>
                     <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 4 }}>Камера недоступна</div>
                     <div style={{ fontSize: 11, color: 'var(--t4)' }}>Используйте поиск ниже</div>
                   </div>
@@ -333,7 +341,9 @@ export function ScanQRModal({ user, onClose }) {
           {scannedReq && (
             <div className="qr-result">
               <div className={'qr-result-status ' + getStatusToneClass(scannedReq.status, validation?.status)}>
-                {checking ? '⏳' : canApprove ? '✅' : deniedByValidation || scannedReq.status === 'rejected' ? '🚫' : '⚠️'}
+                <span className="u-inline-icon">
+                  <AppIcon name={statusIconName} size={16} />
+                </span>
                 <span>
                   {checking
                     ? 'Проверяем пропуск...'
