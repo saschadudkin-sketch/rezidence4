@@ -7,7 +7,7 @@ const nextUnknown = (prefix = 'unknown') => `${prefix}-${unknownSeq++}`;
 describe('AppIcon', () => {
   let warnSpy;
   beforeEach(() => {
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => {
     warnSpy.mockRestore();

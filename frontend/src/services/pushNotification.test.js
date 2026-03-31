@@ -1,25 +1,21 @@
-/**
- * services/pushNotification.test.js
- * Покрывает: pushNotifyResident, subscribePush
- */
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-jest.mock('../utils', () => ({
-  sendNotif: jest.fn(),
+vi.mock('../utils.js', () => ({
+  sendNotif: vi.fn(),
 }));
-jest.mock('../constants', () => ({
+
+vi.mock('../constants', () => ({
   CAT_LABEL: {
-    guest:   'Гость',
+    guest: 'Гость',
     courier: 'Курьер',
     plumber: 'Сантехник',
   },
 }));
 
 import { sendNotif } from '../utils.js';
-import { pushNotifyResident, subscribePush } from './pushNotification';
+import { pushNotifyResident, subscribePush } from './pushNotification.js';
 
-beforeEach(() => jest.clearAllMocks());
-
-// ─── pushNotifyResident ───────────────────────────────────────────────────────
+beforeEach(() => vi.clearAllMocks());
 
 describe('pushNotifyResident', () => {
   const baseReq = {
@@ -84,8 +80,6 @@ describe('pushNotifyResident', () => {
   });
 });
 
-// ─── subscribePush ────────────────────────────────────────────────────────────
-
 describe('subscribePush', () => {
   let origNotification;
 
@@ -103,15 +97,15 @@ describe('subscribePush', () => {
   });
 
   test('ничего не делает если разрешение denied', async () => {
-    global.Notification = { permission: 'denied', requestPermission: jest.fn() };
+    global.Notification = { permission: 'denied', requestPermission: vi.fn() };
     await subscribePush('u1');
     expect(global.Notification.requestPermission).not.toHaveBeenCalled();
   });
 
   test('запрашивает разрешение если default', async () => {
-    const mockShowNotification = jest.fn();
+    const mockShowNotification = vi.fn();
     const mockReady = Promise.resolve({ showNotification: mockShowNotification });
-    const mockRequestPermission = jest.fn().mockResolvedValue('granted');
+    const mockRequestPermission = vi.fn().mockResolvedValue('granted');
 
     global.Notification = { permission: 'default', requestPermission: mockRequestPermission };
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -126,16 +120,16 @@ describe('subscribePush', () => {
   test('не падает при отклонении разрешения', async () => {
     global.Notification = {
       permission: 'default',
-      requestPermission: jest.fn().mockResolvedValue('denied'),
+      requestPermission: vi.fn().mockResolvedValue('denied'),
     };
     await expect(subscribePush('u1')).resolves.toBeUndefined();
   });
 
   test('не падает при ошибке SW', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     global.Notification = {
       permission: 'default',
-      requestPermission: jest.fn().mockRejectedValue(new Error('SW error')),
+      requestPermission: vi.fn().mockRejectedValue(new Error('SW error')),
     };
     await expect(subscribePush('u1')).resolves.toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith('[push] subscribe failed:', expect.any(Error));
