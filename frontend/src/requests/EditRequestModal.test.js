@@ -4,40 +4,41 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { EditRequestModal } from './EditRequestModal';
+import { EditRequestModal } from './EditRequestModal.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-jest.mock('../store/AppStore', () => ({
-  useActions: () => ({ updateRequest: jest.fn() }),
+vi.mock('../store/AppStore.jsx', () => ({
+  useActions: () => ({ updateRequest: vi.fn() }),
 }));
 
-jest.mock('../services/providers/serviceContainer', () => ({
+vi.mock('../services/providers/serviceContainer', () => ({
   services: {
     requests: {
-      updateEverywhere: jest.fn().mockResolvedValue('local'),
+      updateEverywhere: vi.fn().mockResolvedValue('local'),
     },
   },
 }));
 
-jest.mock('../ui/syncFeedback', () => ({
-  toastBySyncResult: jest.fn(),
+vi.mock('../ui/syncFeedback', () => ({
+  toastBySyncResult: vi.fn(),
 }));
 
-jest.mock('../ui/Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('../ui/Toasts.jsx', () => ({
+  toast: vi.fn(),
 }));
 
-jest.mock('../ui/scrollLock', () => ({
-  lockScroll:   jest.fn(),
-  unlockScroll: jest.fn(),
+vi.mock('../ui/scrollLock.js', () => ({
+  lockScroll:   vi.fn(),
+  unlockScroll: vi.fn(),
 }));
 
-const { services } = require('../services/providers/serviceContainer');
-const { toast } = require('../ui/Toasts.jsx');
+import { services } from '../services/providers/serviceContainer';
+import { toast } from '../ui/Toasts.jsx';
 let consoleWarnSpy;
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.clearAllMocks();
+  consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -57,32 +58,32 @@ const makeReq = (overrides = {}) => ({
 
 describe('EditRequestModal', () => {
   test('предзаполняет форму из props req', () => {
-    render(<EditRequestModal req={makeReq()} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getByDisplayValue('Иван Гостев')).toBeInTheDocument();
     expect(screen.getByDisplayValue('+7 916 111-22-33')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Привет')).toBeInTheDocument();
   });
 
   test('заголовок "Редактировать заявку"', () => {
-    render(<EditRequestModal req={makeReq()} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getByText('Редактировать заявку')).toBeInTheDocument();
   });
 
   test('категория отображается в заголовке', () => {
-    render(<EditRequestModal req={makeReq({ category: 'guest' })} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq({ category: 'guest' })} onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getByText(/гость/i)).toBeInTheDocument();
   });
 
   test('кнопка закрытия вызывает onClose', () => {
-    const onClose = jest.fn();
-    render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={jest.fn()} />);
+    const onClose = vi.fn();
+    render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={vi.fn()} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   test('успешное сохранение вызывает updateEverywhere и onDone', async () => {
-    const onDone  = jest.fn();
-    const onClose = jest.fn();
+    const onDone  = vi.fn();
+    const onClose = vi.fn();
     render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={onDone} />);
 
     const nameInput = screen.getByDisplayValue('Иван Гостев');
@@ -102,7 +103,7 @@ describe('EditRequestModal', () => {
   });
 
   test('trim пробелов в полях при сохранении', async () => {
-    render(<EditRequestModal req={makeReq({ visitorName: '  Пробелы  ' })} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq({ visitorName: '  Пробелы  ' })} onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.click(screen.getByText('Сохранить'));
     await waitFor(() => {
       expect(services.requests.updateEverywhere).toHaveBeenCalledWith(
@@ -114,7 +115,7 @@ describe('EditRequestModal', () => {
   });
 
   test('пустое имя → patch.visitorName = null', async () => {
-    render(<EditRequestModal req={makeReq()} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByDisplayValue('Иван Гостев'), { target: { value: '' } });
     fireEvent.click(screen.getByText('Сохранить'));
     await waitFor(() => {
@@ -125,7 +126,7 @@ describe('EditRequestModal', () => {
 
   test('ошибка при сохранении показывает toast error', async () => {
     services.requests.updateEverywhere.mockRejectedValueOnce(new Error('Network error'));
-    render(<EditRequestModal req={makeReq()} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.click(screen.getByText('Сохранить'));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Не удалось сохранить изменения', 'error');
@@ -133,13 +134,13 @@ describe('EditRequestModal', () => {
   });
 
   test('поле номера авто видно для категорий с авто', () => {
-    render(<EditRequestModal req={makeReq({ category: 'taxi' })} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq({ category: 'taxi' })} onClose={vi.fn()} onDone={vi.fn()} />);
     const textboxes = screen.getAllByRole('textbox');
     expect(textboxes.length).toBeGreaterThanOrEqual(2); // авто + комментарий
   });
 
   test('поле номера авто скрыто для категории guest', () => {
-    render(<EditRequestModal req={makeReq({ category: 'guest' })} onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<EditRequestModal req={makeReq({ category: 'guest' })} onClose={vi.fn()} onDone={vi.fn()} />);
     const textboxes = screen.getAllByRole('textbox');
     expect(textboxes.length).toBe(3); // имя + телефон + комментарий
   });
@@ -149,20 +150,20 @@ describe('EditRequestModal', () => {
 describe('EditRequestModal BUG-22 fix', () => {
   test('isMountedRef присутствует в исходном коде', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.jsx'), 'utf8');
     expect(src).toContain('isMountedRef');
   });
 
   test('setLoading защищён isMountedRef в finally', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.jsx'), 'utf8');
     // finally должен содержать isMountedRef.current перед setLoading
     expect(src).toMatch(/finally\s*\{[\s\S]{0,200}isMountedRef\.current[\s\S]{0,50}setLoading/);
   });
 
   test('lockScroll и isMountedRef объединены в один useEffect', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.jsx'), 'utf8');
     // Только один useEffect в файле
     const effectCount = (src.match(/useEffect\(/g) || []).length;
     expect(effectCount).toBe(1);
@@ -174,8 +175,8 @@ describe('EditRequestModal BUG-22 fix', () => {
     services.requests.updateEverywhere.mockReturnValueOnce(
       new Promise(r => { resolveUpdate = r; })
     );
-    const onClose = jest.fn();
-    const { unmount } = render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={jest.fn()} />);
+    const onClose = vi.fn();
+    const { unmount } = render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={vi.fn()} />);
 
     // Начинаем сохранение
     fireEvent.click(screen.getByText('Сохранить'));

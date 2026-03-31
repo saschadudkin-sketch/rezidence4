@@ -7,7 +7,7 @@
  *   isCompletedRequest(req)
  */
 
-import { canManageRequests, canApproveRequests, isResident as isResidentRole } from '../domain/permissions';
+import { canManageRequests, canApproveRequests, isResident as isResidentRole } from '../domain/permissions.js';
 
 // ─── Статусы ─────────────────────────────────────────────────────────────────
 

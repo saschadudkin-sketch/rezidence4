@@ -6,23 +6,23 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAuth, PHASE } from './useAuth';
 
-jest.mock('../services/logger', () => ({
+vi.mock('../services/logger', () => ({
   logger: {
-    action: jest.fn(),
-    error: jest.fn(),
-    setContext: jest.fn(),
-    clearContext: jest.fn(),
+    action: vi.fn(),
+    error: vi.fn(),
+    setContext: vi.fn(),
+    clearContext: vi.fn(),
   },
 }));
 
 describe('useAuth', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    act(() => { jest.runOnlyPendingTimers(); });
-    jest.useRealTimers();
+    act(() => { vi.runOnlyPendingTimers(); });
+    vi.useRealTimers();
   });
 
   it('начинает с фазы LOADING', () => {
@@ -32,13 +32,13 @@ describe('useAuth', () => {
 
   it('переходит в LOGIN после splash delay', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { jest.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(1200); });
     expect(result.current.phase).toBe(PHASE.LOGIN);
   });
 
   it('login устанавливает user и фазу DASHBOARD', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { jest.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(1200); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     expect(result.current.phase).toBe(PHASE.DASHBOARD);
     expect(result.current.user.uid).toBe('u1');
@@ -46,7 +46,7 @@ describe('useAuth', () => {
 
   it('logout сбрасывает user и возвращает в LOGIN', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { jest.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(1200); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     act(() => { result.current.logout(); });
     expect(result.current.user).toBeNull();
@@ -55,7 +55,7 @@ describe('useAuth', () => {
 
   it('rz:unauthorized событие сбрасывает сессию', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { jest.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(1200); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     act(() => { window.dispatchEvent(new CustomEvent('rz:unauthorized')); });
     expect(result.current.user).toBeNull();

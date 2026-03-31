@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { isResident } from '../domain/permissions';
+import { isResident } from '../domain/permissions.js';
 import { canManageRequests } from '../constants/requestPredicates.js';
-import { subscribePush } from '../services/pushNotification';
+import { subscribePush } from '../services/pushNotification.js';
 
 /**
  * usePushNotifications — подписка на Web Push и обновление PWA App Badge.

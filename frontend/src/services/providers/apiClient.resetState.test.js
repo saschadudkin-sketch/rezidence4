@@ -6,21 +6,21 @@
  */
 
 // Мокаем fetch глобально
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('apiClient — _resetApiState изоляция', () => {
   let apiClient, _resetApiState, resetRefreshState;
 
   beforeEach(() => {
-    jest.resetModules();
-    global.fetch = jest.fn();
+    vi.resetModules();
+    global.fetch = vi.fn();
     // Убираем window.dispatchEvent чтобы не было ошибки в jsdom
-    jest.spyOn(window, 'dispatchEvent').mockImplementation(() => {});
+    vi.spyOn(window, 'dispatchEvent').mockImplementation(() => {});
     ({ apiClient, _resetApiState, resetRefreshState } = require('./apiClient'));
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   test('успешный запрос сбрасывает _refreshFailed', async () => {
