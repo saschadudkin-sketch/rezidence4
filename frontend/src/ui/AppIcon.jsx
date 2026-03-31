@@ -1,4 +1,5 @@
 import React from 'react';
+import { env } from '../config/env';
 
 const PATHS = {
   ticket: 'M3 10h18v4a2 2 0 0 1 0 4v4H3v-4a2 2 0 0 1 0-4v-4zM8 10v12m8-12v12',
@@ -29,13 +30,14 @@ const PATHS = {
 };
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));
+
 const warnedUnknownIcons = new Set();
 const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
   const hasExplicitName = typeof name === 'string' && name.trim().length > 0;
   const path = PATHS[name] || PATHS.list;
-  if (hasExplicitName && !PATHS[name] && process.env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
+  if (hasExplicitName && !PATHS[name] && env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
     if (warnedUnknownIcons.size > MAX_UNKNOWN_ICON_WARN_CACHE) warnedUnknownIcons.clear();
     // eslint-disable-next-line no-console

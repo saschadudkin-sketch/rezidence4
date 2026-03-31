@@ -1,3 +1,5 @@
+import { env } from '../config/env';
+
 /**
  * services/logger.js — централизованный логгер
  *
@@ -18,7 +20,7 @@
  *   logger.error('API error', err);
  */
 
-const IS_DEV = process.env.NODE_ENV !== 'production';
+const IS_DEV = env.NODE_ENV !== 'production';
 
 export function createLogger() {
   // Контекст живёт в замыкании — изолирован от других экземпляров
@@ -42,8 +44,8 @@ export function createLogger() {
   function _flushErrors() {
     if (_errorBuffer.length === 0) return;
     const batch = _errorBuffer.splice(0, MAX_BUFFER);
-    const BASE = typeof process !== 'undefined' && process.env?.REACT_APP_API_URL
-      ? process.env.REACT_APP_API_URL : '';
+    const BASE = typeof process !== 'undefined' && env.REACT_APP_API_URL
+      ? env.REACT_APP_API_URL : '';
     const url = `${BASE}/api/v1/client-logs`;
     const body = JSON.stringify({ errors: batch });
 
