@@ -22,7 +22,7 @@ export function useTheme() {
     [],
   );
 
-  const themeIcon  = theme === 'light' ? '☀️' : theme === 'dark' ? '🌙' : '✦';
+  const themeIcon  = theme === 'light' ? 'alert' : theme === 'dark' ? 'history' : 'chart';
   const themeLabel = theme === 'light' ? 'Светлая' : theme === 'dark' ? 'Тёмная' : 'Авто';
 
   return { theme, cycleTheme, themeIcon, themeLabel };

@@ -240,7 +240,7 @@ export default function Dashboard({ user, onLogout }) {
             </div>
             <div className="header-actions">
               <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={'Тема: ' + themeLabel}>
-                <span>{themeIcon}</span>
+                <span><AppIcon name={themeIcon} size={14} /></span>
                 <span>{themeLabel}</span>
               </button>
               <div
