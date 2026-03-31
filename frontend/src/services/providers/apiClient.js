@@ -9,7 +9,12 @@
  *   ретраются автоматически с экспоненциальным backoff.
  */
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const FALLBACK_BASE_URL = 'http://localhost:3001';
+const BASE_URL = process.env.REACT_APP_API_URL || FALLBACK_BASE_URL;
+
+if (process.env.NODE_ENV === 'production' && BASE_URL === FALLBACK_BASE_URL) {
+  throw new Error('REACT_APP_API_URL must be set for production build');
+}
 
 /** Статусы, при которых ретрай бессмысленен */
 const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 409, 422]);
