@@ -6,6 +6,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { toast } from '../../ui/Toasts';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { services } from '../../services/providers/serviceContainer';
+import { AppIcon } from '../../ui/AppIcon';
 
 // ─── AdminPermsItemRow ────────────────────────────────────────────────────────
 
@@ -56,9 +57,9 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
         </div>
         <div className="u-row-g4-fs0">
           <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
-            {editing ? '✕' : '✏️'}
+            <AppIcon name={editing ? 'close' : 'edit'} />
           </button>
-          <button className="perm-del" onClick={onDel} title="Удалить">🗑</button>
+          <button className="perm-del" onClick={onDel} title="Удалить" aria-label="Удалить"><AppIcon name="trash" /></button>
         </div>
       </div>
       {editing && (
@@ -239,10 +240,10 @@ export default function AdminPermsView() {
     <div>
       <div className="tabs u-mb10">
         <button className={'tab-btn ' + (tab === 'visitors' ? 'active' : '')} onClick={() => setTab('visitors')}>
-          👤 Посетители ({visCount})
+          <AppIcon name="users" className="u-inline-icon" /> Посетители ({visCount})
         </button>
         <button className={'tab-btn ' + (tab === 'workers' ? 'active' : '')} onClick={() => setTab('workers')}>
-          👷 Рабочие ({wrkCount})
+          <AppIcon name="tools" className="u-inline-icon" /> Рабочие ({wrkCount})
         </button>
       </div>
       <div className="date-pills u-mb10">
@@ -251,7 +252,7 @@ export default function AdminPermsView() {
         ))}
       </div>
       <div className="search-wrap u-mb16">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" /></span>
         <input className="search-inp" placeholder="Поиск по апарт., ФИО, телефону..."
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>

@@ -4,6 +4,7 @@ import { ROLE_LABELS } from '../constants/index.js';
 import { normalizePhone, genId } from '../utils.js';
 import { toast } from './Toasts.jsx';
 import { lockScroll, unlockScroll } from './scrollLock.js';
+import { AppIcon } from './AppIcon.jsx';
 
 // ─── ADD USER MODAL ───────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
         <div className="modal-handle" />
         <div className="modal-head">
           <span className="modal-title">Новый жилец</span>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="field"><label className="field-lbl">Имя *</label>
@@ -138,30 +139,30 @@ export function AvatarModal({ user, avatar, onSave, onClose }) {
       <div className="av-panel">
         <div className="av-panel-head">
           <span className="av-panel-title">Фото профиля</span>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="av-preview">
-          <div style={{ width: 96, height: 96, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--b2)', background: 'var(--s3)', flexShrink: 0 }}>
+          <div className="av-preview-circle">
             {src
               ? <img src={src} alt="" className="u-cover" />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📷</div>
+              : <div className="av-preview-empty"><AppIcon name="camera" size={28} /></div>
             }
           </div>
         </div>
         <div className="av-actions">
           <label className="av-action-btn">
-            <span className="av-action-ico">📁</span>
+            <span className="av-action-ico"><AppIcon name="file" size={14} /></span>
             <span>Из галереи</span>
             <input type="file" accept="image/*" className="u-none" onChange={onFile} />
           </label>
           <label className="av-action-btn">
-            <span className="av-action-ico">📷</span>
+            <span className="av-action-ico"><AppIcon name="camera" size={14} /></span>
             <span>Камера</span>
             <input type="file" accept="image/*" capture="environment" className="u-none" onChange={onFile} />
           </label>
         </div>
-        {avatar && <button className="av-remove" onClick={() => { onSave(null); onClose(); }}>🗑 Удалить фото</button>}
-        <div style={{ display: 'flex', gap: 8, padding: '12px 18px 18px' }}>
+        {avatar && <button className="av-remove" onClick={() => { onSave(null); onClose(); }}>Удалить фото</button>}
+        <div className="av-foot-actions">
           <button className="btn-outline u-flex1" onClick={onClose}>Отмена</button>
           <button className="btn-gold u-flex2" onClick={save}><span>Сохранить</span></button>
         </div>

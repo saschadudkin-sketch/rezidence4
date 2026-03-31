@@ -9,7 +9,9 @@
  *   ретраются автоматически с экспоненциальным backoff.
  */
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+import { API_BASE_URL } from '../../config/apiBaseUrl';
+
+const BASE_URL = API_BASE_URL;
 
 /** Статусы, при которых ретрай бессмысленен */
 const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 409, 422]);

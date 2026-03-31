@@ -6,6 +6,7 @@ import Toasts, { toast } from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
 import { useAuth, PHASE } from './hooks/useAuth';
 import { LOGO } from './constants/logo';
+import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
 import './styles/theme.css';
 
@@ -73,6 +74,19 @@ const LoadingScreen = memo(function LoadingScreen() {
 // FIX [MEMO]: AppInner memo — предотвращает ре-рендер при любом изменении
 // AppProvider контекста не связанного с auth (requests, chat обновления).
 const AppInner = memo(function AppInner() {
+  if (API_CONFIG_ERROR) {
+    return (
+      <>
+        <div className="loading">
+          <img src={LOGO} alt="" className="loading-logo" />
+          <div className="loading-name">Ошибка конфигурации</div>
+          <div style={{ color: 'var(--danger, #dc3c3c)', marginTop: 8 }}>{API_CONFIG_ERROR}</div>
+        </div>
+        <Toasts />
+      </>
+    );
+  }
+
   const { phase, user, login, logout } = useAuth();
   const isOnline = useOnlineStatus();
 

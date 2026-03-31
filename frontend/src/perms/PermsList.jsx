@@ -6,6 +6,7 @@ import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts.jsx';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
+import { AppIcon } from '../ui/AppIcon';
 
 // ─── PermsList ────────────────────────────────────────────────────────────────
 
@@ -110,8 +111,8 @@ export function PermsList({ user }) {
                       <div className="perm-name">{v.name}</div>
                       {v.phone && <div className="perm-meta">{v.phone}</div>}
                     </div>
-                    <button className="btn-edit u-mr6" onClick={() => startEdit(v, 'visitor')} aria-label="Редактировать">✏️</button>
-                    <button className="perm-del" onClick={() => delVisitor(v.id)}>✕</button>
+                    <button className="btn-edit u-mr6" onClick={() => startEdit(v, 'visitor')} aria-label="Редактировать"><AppIcon name="edit" /></button>
+                    <button className="perm-del" onClick={() => delVisitor(v.id)} aria-label="Удалить"><AppIcon name="close" /></button>
                   </div>
                 )
               }
@@ -161,8 +162,8 @@ export function PermsList({ user }) {
                     <div className="perm-name">{w.name}</div>
                     <div className="perm-meta">{[w.phone, w.carPlate].filter(Boolean).join(' · ')}</div>
                   </div>
-                  <button className="btn-edit u-mr6" onClick={() => startEdit(w, 'worker')} aria-label="Редактировать">✏️</button>
-                  <button className="perm-del" onClick={() => delWorker(w.id)}>✕</button>
+                  <button className="btn-edit u-mr6" onClick={() => startEdit(w, 'worker')} aria-label="Редактировать"><AppIcon name="edit" /></button>
+                  <button className="perm-del" onClick={() => delWorker(w.id)} aria-label="Удалить"><AppIcon name="close" /></button>
                 </div>
               )
             }
@@ -201,7 +202,7 @@ export function MyTemplates({ user, onUse }) {
 
   if (tpls.length === 0) return (
     <div className="empty">
-      <div style={{ fontSize: 36, marginBottom: 16, opacity: .15 }}>📑</div>
+      <div style={{ marginBottom: 16, opacity: .15 }}><AppIcon name="file" size={36} /></div>
       <div className="empty-title">Шаблонов нет</div>
       <div className="empty-sub">При создании пропуска или заявки нажмите<br />«💾 Сохранить как шаблон»</div>
     </div>
@@ -214,16 +215,16 @@ export function MyTemplates({ user, onUse }) {
     <div>
       {passes.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div className="tpl-section-hdr">🎫 Пропуска</div>
+          <div className="tpl-section-hdr"><AppIcon name="ticket" className="u-inline-icon" /> Пропуска</div>
           <div className="tpl-list">
             {passes.map(t => (
               <div key={t.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => onUse(t)}>
-                <span className="tpl-ico">🎫</span>
+                <span className="tpl-ico"><AppIcon name="ticket" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{t.name}</div>
                   <div className="tpl-meta">{CAT_LABEL[t.category]}{t.visitorName ? ' · ' + t.visitorName : ''}{t.comment ? ' · ' + t.comment : ''}</div>
                 </div>
-                <button className="tpl-del" onClick={e => { e.stopPropagation(); del(t.id); }} title="Удалить">✕</button>
+                <button className="tpl-del" onClick={e => { e.stopPropagation(); del(t.id); }} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
               </div>
             ))}
           </div>
@@ -231,16 +232,16 @@ export function MyTemplates({ user, onUse }) {
       )}
       {tech.length > 0 && (
         <div>
-          <div className="tpl-section-hdr">🔧 Техслужба</div>
+          <div className="tpl-section-hdr"><AppIcon name="tools" className="u-inline-icon" /> Техслужба</div>
           <div className="tpl-list">
             {tech.map(t => (
               <div key={t.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => onUse(t)}>
-                <span className="tpl-ico">🔧</span>
+                <span className="tpl-ico"><AppIcon name="tools" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{t.name}</div>
                   <div className="tpl-meta">{CAT_LABEL[t.category]}{t.comment ? ' · ' + t.comment : ''}</div>
                 </div>
-                <button className="tpl-del" onClick={e => { e.stopPropagation(); del(t.id); }} title="Удалить">✕</button>
+                <button className="tpl-del" onClick={e => { e.stopPropagation(); del(t.id); }} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
               </div>
             ))}
           </div>

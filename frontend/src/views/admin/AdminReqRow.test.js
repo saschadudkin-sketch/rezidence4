@@ -62,20 +62,20 @@ describe('AdminReqRow', () => {
 
   test('показывает кнопки "Ред." и "Удалить"', () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    expect(screen.getByText('✏️ Ред.')).toBeInTheDocument();
-    expect(screen.getByText('🗑 Удалить')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /редактировать/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^удалить$/i })).toBeInTheDocument();
   });
 
   test('клик на "Ред." открывает форму редактирования', () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByText('✏️ Ред.'));
+    fireEvent.click(screen.getByRole('button', { name: /редактировать/i }));
     expect(screen.getByText('Сохранить')).toBeInTheDocument();
     expect(screen.getByText('Отмена')).toBeInTheDocument();
   });
 
-  test('кнопка "✕" в режиме редактирования закрывает форму', () => {
+  test('кнопка закрытия в режиме редактирования закрывает форму', () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByText('✏️ Ред.'));
+    fireEvent.click(screen.getByRole('button', { name: /редактировать/i }));
     expect(screen.getByText('Сохранить')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Отмена'));
     expect(screen.queryByText('Сохранить')).not.toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('AdminReqRow', () => {
 
   test('клик "Удалить" вызывает deleteEverywhere', async () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByText('🗑 Удалить'));
+    fireEvent.click(screen.getByRole('button', { name: /^удалить$/i }));
     await waitFor(() => {
       expect(services.requests.deleteEverywhere).toHaveBeenCalledWith(
         expect.objectContaining({ requestId: 'r1' })
@@ -94,7 +94,7 @@ describe('AdminReqRow', () => {
   test('ошибка при удалении показывает toast error', async () => {
     services.requests.deleteEverywhere.mockRejectedValueOnce(new Error('Сбой'));
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByText('🗑 Удалить'));
+    fireEvent.click(screen.getByRole('button', { name: /^удалить$/i }));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Ошибка удаления', 'error');
     });
@@ -110,7 +110,7 @@ describe('AdminReqRow', () => {
 
   test('статус НЕ синхронизируется из props пока идёт редактирование', () => {
     const { rerender } = render(<AdminReqRow r={makeReq({ status: 'pending' })} adminUid="a1" />);
-    fireEvent.click(screen.getByText('✏️ Ред.')); // открываем редактирование
+    fireEvent.click(screen.getByRole('button', { name: /редактировать/i })); // открываем редактирование
     // Обновляем props снаружи
     rerender(<AdminReqRow r={makeReq({ status: 'approved' })} adminUid="a1" />);
     // ReqCard всё ещё показывает старый статус (форма не обновилась)
@@ -121,7 +121,7 @@ describe('AdminReqRow', () => {
 
   test('сохранение вызывает updateEverywhere с patch', async () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByText('✏️ Ред.'));
+    fireEvent.click(screen.getByRole('button', { name: /редактировать/i }));
 
     const commentInput = screen.getByPlaceholderText('Комментарий');
     fireEvent.change(commentInput, { target: { value: 'Новый комментарий' } });
