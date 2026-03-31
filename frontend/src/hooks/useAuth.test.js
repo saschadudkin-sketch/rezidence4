@@ -6,13 +6,22 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAuth, PHASE } from './useAuth';
 
+jest.mock('../services/logger', () => ({
+  logger: {
+    action: jest.fn(),
+    error: jest.fn(),
+    setContext: jest.fn(),
+    clearContext: jest.fn(),
+  },
+}));
+
 describe('useAuth', () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => { jest.runOnlyPendingTimers(); });
     jest.useRealTimers();
   });
 

@@ -14,6 +14,7 @@ import {
   CATS_PASS_RESIDENT, CATS_PASS_CONTRACTOR,
   CONTACT_EMAIL,
 } from './index';
+import { APP_ICON_NAMES } from '../ui/AppIcon';
 
 describe('ROLE_LABELS', () => {
   const roles = ['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'];
@@ -32,6 +33,7 @@ describe('ROLE_ICONS', () => {
   test('каждая роль имеет иконку', () => {
     ['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'].forEach(role => {
       expect(ROLE_ICONS[role]).toBeDefined();
+      expect(APP_ICON_NAMES).toContain(ROLE_ICONS[role]);
     });
   });
 });
@@ -60,6 +62,7 @@ describe('CAT_ICON', () => {
   test('каждая категория имеет иконку', () => {
     ['guest', 'courier', 'taxi', 'car', 'master', 'worker', 'team', 'delivery', 'electrician', 'plumber'].forEach(cat => {
       expect(CAT_ICON[cat]).toBeDefined();
+      expect(APP_ICON_NAMES).toContain(CAT_ICON[cat]);
     });
   });
 });
@@ -94,6 +97,9 @@ describe('PASS_DURATION', () => {
     expect(PASS_DURATION_ICON.once).toBeDefined();
     expect(PASS_DURATION_ICON.temporary).toBeDefined();
     expect(PASS_DURATION_ICON.permanent).toBeDefined();
+    Object.values(PASS_DURATION_ICON).forEach(iconName => {
+      expect(APP_ICON_NAMES).toContain(iconName);
+    });
   });
 
   test('PASS_DURATION_DESC содержит описания', () => {
