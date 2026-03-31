@@ -2,6 +2,14 @@ import { render } from '@testing-library/react';
 import { AppIcon, APP_ICON_NAMES } from './AppIcon';
 
 describe('AppIcon', () => {
+  let warnSpy;
+  beforeEach(() => {
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
   test('рендерит svg с ожидаемыми атрибутами', () => {
     const { container } = render(<AppIcon name="shield" size={20} className="custom-ico" />);
     const svg = container.querySelector('svg');
@@ -19,6 +27,13 @@ describe('AppIcon', () => {
     const path = container.querySelector('path');
     expect(path).toBeTruthy();
     expect(path.getAttribute('d')).toBeTruthy();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test('для одного неизвестного имени предупреждение выводится только один раз', () => {
+    render(<AppIcon name="same-unknown-icon" />);
+    render(<AppIcon name="same-unknown-icon" />);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });
 

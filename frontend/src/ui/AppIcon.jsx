@@ -29,9 +29,15 @@ const PATHS = {
 };
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));
+const warnedUnknownIcons = new Set();
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
   const path = PATHS[name] || PATHS.list;
+  if (!PATHS[name] && process.env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
+    warnedUnknownIcons.add(name);
+    // eslint-disable-next-line no-console
+    console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);
+  }
   return (
     <svg
       className={`app-icon ${className}`.trim()}
