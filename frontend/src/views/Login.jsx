@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUsers } from '../store/AppStore';
-import { findByPhone } from '../utils';
+import { findByPhone } from '../utils.js';
 import { toast } from '../ui/Toasts';
-import { isLiveMode, isDemoMode } from '../config/runtimeMode';
+import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';
 import { authProvider } from '../services/providers/backendProvider';
 import { AppIcon } from '../ui/AppIcon';

@@ -20,7 +20,7 @@ FROM nginx:alpine
 # gettext предоставляет envsubst — нужен для подстановки переменных в nginx конфиг
 RUN apk add --no-cache gettext
 
-COPY --from=build /app/build /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # FIX [AUDIT]: ОБА nginx конфига копируются как шаблоны — docker-entrypoint.sh
 # запускает envsubst для каждого, подставляя $BACKEND_URL и $YOUR_DOMAIN.

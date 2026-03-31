@@ -3,7 +3,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
 import { ROLE_LABELS, ROLE_COLOR } from '../constants';
-import { filterByPeriod } from '../utils';
+import { filterByPeriod } from '../utils.js';
 import { AddUserModal } from '../ui/Modals';
 import AdminUserRow   from './admin/AdminUserRow';
 import AdminReqRow    from './admin/AdminReqRow';

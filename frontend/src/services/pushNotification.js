@@ -8,7 +8,7 @@
  * 4. В live-режиме — отправка через push сервер (настраивается отдельно)
  */
 
-import { sendNotif } from '../utils';
+import { sendNotif } from '../utils.js';
 import { CAT_LABEL } from '../constants';
 
 /** Возвращает читаемое имя гостя */
@@ -41,7 +41,7 @@ export function pushNotifyResident(req) {
   // При наличии сервера — раскомментировать и реализовать:
   //
   // // getFcmToken — placeholder for live FCM implementation
-  // import { isLiveMode } from '../config/runtimeMode';
+  // import { isLiveMode } from '../config/runtimeMode.js';
   // if (isLiveMode()) {
   //   getFcmToken(req.createdByUid).then(token => {
   //     if (!token) return;

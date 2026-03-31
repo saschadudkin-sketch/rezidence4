@@ -1,4 +1,4 @@
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { SYNC_STATUS } from '../constants/syncStatuses';
 import {
   savePerms as saveRemotePerms,

@@ -16,7 +16,7 @@ import {
   isActiveRequest, isPendingRequest,
   isApprovedRequest, isScheduledRequest,
   canManageRequests, canApproveRequests, shouldShowActions,
-} from '../constants/requestPredicates';
+} from '../constants/requestPredicates.js';
 import { fmtDate, fmtTime, groupReqs } from '../utils.js';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import { PhotoLightbox } from '../ui/PhotoLightbox.jsx';

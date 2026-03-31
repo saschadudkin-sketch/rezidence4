@@ -4,21 +4,24 @@
  *            permsProvider, blacklistProvider, createBackendProvider
  */
 
-jest.mock('./apiClient', () => ({
+vi.mock('./apiClient', () => ({
   __esModule: true,
   default: {
-    get:         jest.fn(),
-    post:        jest.fn(),
-    patch:       jest.fn(),
-    delete:      jest.fn(),
-    uploadPhoto: jest.fn(),
+    get:         vi.fn(),
+    post:        vi.fn(),
+    patch:       vi.fn(),
+    delete:      vi.fn(),
+    uploadPhoto: vi.fn(),
+    resetRefreshState: vi.fn(),
   },
+  resetRefreshState: vi.fn(),
   apiClient: {
-    get:         jest.fn(),
-    post:        jest.fn(),
-    patch:       jest.fn(),
-    delete:      jest.fn(),
-    uploadPhoto: jest.fn(),
+    get:         vi.fn(),
+    post:        vi.fn(),
+    patch:       vi.fn(),
+    delete:      vi.fn(),
+    uploadPhoto: vi.fn(),
+    resetRefreshState: vi.fn(),
   },
 }));
 
@@ -31,9 +34,9 @@ import {
   permsProvider,
   blacklistProvider,
   createBackendProvider,
-} from './backendProvider';
+} from './backendProvider.js';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 // ─── authProvider ─────────────────────────────────────────────────────────────
 

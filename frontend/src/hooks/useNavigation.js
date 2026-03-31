@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { canManageRequests } from '../constants/requestPredicates';
+import { canManageRequests } from '../constants/requestPredicates.js';
 import { canAccessTab, getTabsForRole } from '../domain/permissions';
 
 /**

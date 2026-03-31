@@ -3,7 +3,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers, useAllPerms } from '../store/AppStore.jsx';
 import { ROLE_COLOR, ROLE_LABELS } from '../constants/index.js';
 import { sortReqs, filterByPeriod } from '../utils.js';
-import { isPassRequest, isTechRequest } from '../constants/requestPredicates';
+import { isPassRequest, isTechRequest } from '../constants/requestPredicates.js';
 import { ReqCard } from '../requests/ReqCard.jsx';
 import { CreateModal } from '../requests/CreateModal.jsx';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';

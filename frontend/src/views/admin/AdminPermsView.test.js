@@ -5,12 +5,13 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AdminPermsView from './AdminPermsView';
+import { toast } from '../../ui/Toasts';
 
-jest.mock('../../hooks/useDebounce', () => ({ useDebounce: v => v }));
+vi.mock('../../hooks/useDebounce', () => ({ useDebounce: v => v }));
 
-jest.mock('../../store/AppStore', () => ({
+vi.mock('../../store/AppStore', () => ({
   useActions: () => ({
-    setPerms: jest.fn(),
+    setPerms: vi.fn(),
   }),
   useUsers: () => ({
     users: {
@@ -37,16 +38,16 @@ jest.mock('../../store/AppStore', () => ({
     : { visitors: [], workers: [] },
 }));
 
-jest.mock('../../services/providers/serviceContainer', () => ({
+vi.mock('../../services/providers/serviceContainer', () => ({
   services: {
     admin: {
-      savePermsEverywhere: jest.fn().mockResolvedValue('local'),
+      savePermsEverywhere: vi.fn().mockResolvedValue('local'),
     },
   },
 }));
 
-jest.mock('../../ui/syncFeedback', () => ({ toastBySyncResult: jest.fn() }));
-jest.mock('../../ui/Toasts',       () => ({ toast: jest.fn() }));
+vi.mock('../../ui/syncFeedback', () => ({ toastBySyncResult: vi.fn() }));
+vi.mock('../../ui/Toasts',       () => ({ toast: vi.fn() }));
 
 describe('AdminPermsView', () => {
   const user = { uid: 'a1', role: 'admin' };
@@ -94,7 +95,6 @@ describe('AdminPermsView', () => {
   });
 
   test('пустое ФИО при сохранении показывает ошибку', async () => {
-    const { toast } = require('../../ui/Toasts');
     render(<AdminPermsView user={user} />);
     const editBtns = screen.getAllByLabelText('Редактировать');
     fireEvent.click(editBtns[0]);
