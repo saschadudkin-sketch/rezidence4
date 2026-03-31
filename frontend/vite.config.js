@@ -13,5 +13,27 @@ export default defineConfig(({ mode }) => {
         NODE_ENV: nodeEnv,
       }),
     },
+    resolve: {
+      extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json'],
+    },
+    esbuild: {
+      loader: 'jsx',
+      include: /src\/.*\.[jt]sx?$/,
+      exclude: [],
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/setupTests.js',
+      css: true,
+      include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],
+      deps: {
+        optimizer: {
+          web: {
+            include: ['react', 'react-dom'],
+          },
+        },
+      },
+    },
   };
 });

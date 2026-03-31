@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useGarage, useActions } from '../store/AppStore';
-import { genId } from '../utils';
+import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 

@@ -1,4 +1,4 @@
-import { makeDemoRequests } from '../../fixtures/demoData';
+import { makeDemoRequests } from '../../fixtures/demoData.js';
 
 export function createDemoProvider() {
   return {

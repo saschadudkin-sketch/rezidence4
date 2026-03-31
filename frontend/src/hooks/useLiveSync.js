@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { canManageRequests } from '../constants/requestPredicates';
+import { canManageRequests } from '../constants/requestPredicates.js';
 import { ROLES } from '../domain/permissions';
-import { sendNotif, playAlert } from '../utils';
-import { isLiveMode, isDemoMode } from '../config/runtimeMode';
+import { sendNotif, playAlert } from '../utils.js';
+import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer';
 
 /**

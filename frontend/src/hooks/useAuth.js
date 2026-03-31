@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { requestNotifPerm } from '../utils';
+import { requestNotifPerm } from '../utils.js';
 import { logger } from '../services/logger';
 import { toast } from '../ui/Toasts';
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { authProvider } from '../services/providers/backendProvider';
 
 // ─── Config ──────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@
  *   ретраются автоматически с экспоненциальным backoff.
  */
 
-import { API_BASE_URL } from '../../config/apiBaseUrl';
+import { API_BASE_URL } from '../../config/apiBaseUrl.js';
 
 const BASE_URL = API_BASE_URL;
 

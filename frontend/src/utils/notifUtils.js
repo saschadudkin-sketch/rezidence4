@@ -1,4 +1,4 @@
-import { getSwReg } from './swUtils';
+import { getSwReg } from './swUtils.js';
 
 /** Запрашивает разрешение на push-уведомления */
 export const requestNotifPerm = () => {

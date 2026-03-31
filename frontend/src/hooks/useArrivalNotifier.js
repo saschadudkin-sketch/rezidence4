@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { isStaff } from '../domain/permissions';
-import { sendNotif, playAlert } from '../utils';
+import { sendNotif, playAlert } from '../utils.js';
 
 /**
  * useArrivalNotifier — уведомляет жильца когда охрана отметила приход его гостя.

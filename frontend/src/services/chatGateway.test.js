@@ -1,12 +1,12 @@
-jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: jest.fn(),
+vi.mock('../config/runtimeMode', () => ({
+  isLiveMode: vi.fn(),
 }));
 
-jest.mock('./localService', () => ({
-  sendMessage: jest.fn(),
+vi.mock('./localService', () => ({
+  sendMessage: vi.fn(),
 }));
 
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { SYNC_STATUS } from '../constants/syncStatuses';
 import { sendMessage as fbSendMessage } from './localService';
 import { sendChatMessage } from './chatGateway';
@@ -15,8 +15,8 @@ describe('chatGateway.sendChatMessage', () => {
   let warnSpy;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.clearAllMocks();
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -25,7 +25,7 @@ describe('chatGateway.sendChatMessage', () => {
 
   test('demo mode sends locally', async () => {
     isLiveMode.mockReturnValue(false);
-    const sendLocal = jest.fn();
+    const sendLocal = vi.fn();
 
     const mode = await sendChatMessage({
       remotePayload: { text: 'hello' },
@@ -41,7 +41,7 @@ describe('chatGateway.sendChatMessage', () => {
   test('live mode sends remotely', async () => {
     isLiveMode.mockReturnValue(true);
     fbSendMessage.mockResolvedValue(undefined);
-    const sendLocal = jest.fn();
+    const sendLocal = vi.fn();
 
     const mode = await sendChatMessage({
       remotePayload: { text: 'hello' },
@@ -57,7 +57,7 @@ describe('chatGateway.sendChatMessage', () => {
   test('live mode falls back to local on remote error', async () => {
     isLiveMode.mockReturnValue(true);
     fbSendMessage.mockRejectedValue(new Error('network'));
-    const sendLocal = jest.fn();
+    const sendLocal = vi.fn();
 
     const mode = await sendChatMessage({
       remotePayload: { text: 'hello' },

@@ -22,8 +22,8 @@
  */
 
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
-import { sendNotif } from '../utils';
-import { isLiveMode } from '../config/runtimeMode';
+import { sendNotif } from '../utils.js';
+import { isLiveMode } from '../config/runtimeMode.js';
 import {
   setStatusWithHistory,
   arriveWithHistory,
@@ -224,25 +224,25 @@ export function useAppState() {
 export function useAppDispatch()        { return useContext(DispatchContext); }
 
 // Оптимизированные хуки — подписываются только на нужный контекст
-export function useRequests()           { return useContext(RequestsContext).requests; }
-export function useChat()               { return useContext(ChatContext); }
-export function useUsers()              { const { users, phoneDb } = useContext(UsersContext); return { users, phoneDb }; }
-export function useAvatar(uid)          { const { avatars, users } = useContext(UsersContext); return avatars[uid] || users[uid]?.avatar || null; }
-export function usePerms(uid)           { return useContext(PermsContext).perms[uid]     || { visitors: [], workers: [] }; }
-export function useTemplates(uid)       { return useContext(PermsContext).templates[uid] || []; }
-export function useRequestHistory(reqId){ return useContext(RequestsContext).history[reqId] || []; }
+export function useRequests()           { return useContext(RequestsContext)?.requests || []; }
+export function useChat()               { return useContext(ChatContext) || { chat: [], unreadByUid: {}, chatLastSeen: {} }; }
+export function useUsers()              { const c = useContext(UsersContext) || { users: {}, phoneDb: {}, avatars: {} }; return { users: c.users || {}, phoneDb: c.phoneDb || {} }; }
+export function useAvatar(uid)          { const c = useContext(UsersContext) || { avatars: {}, users: {} }; return c.avatars?.[uid] || c.users?.[uid]?.avatar || null; }
+export function usePerms(uid)           { return useContext(PermsContext)?.perms?.[uid]     || { visitors: [], workers: [] }; }
+export function useTemplates(uid)       { return useContext(PermsContext)?.templates?.[uid] || []; }
+export function useRequestHistory(reqId){ return useContext(RequestsContext)?.history?.[reqId] || []; }
 export function useBlacklist()          { return useContext(BlacklistContext) || []; }
 export function useGarage(uid)          { return (useContext(GarageContext) ?? {})[uid] || []; }
 
 // Специализированные хуки для компонентов, которым нужен весь объект perms/garage
 // Подписываются только на свой контекст — не перерендерятся от чата или заявок
-export function useAllPerms()           { return useContext(PermsContext).perms; }
+export function useAllPerms()           { return useContext(PermsContext)?.perms || {}; }
 export function useAllGarage()          { return useContext(GarageContext) ?? {}; }
 
 // ─── useActions — стабильный объект действий ─────────────────────────────────
 
 export function useActions() {
-  const dispatch = useContext(DispatchContext);
+  const dispatch = useContext(DispatchContext) || (() => {});
 
   return useMemo(() => ({
     // ── Заявки

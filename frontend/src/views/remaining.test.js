@@ -5,15 +5,15 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 
-window.HTMLElement.prototype.scrollIntoView = jest.fn();
+window.HTMLElement.prototype.scrollIntoView = vi.fn();
 Object.defineProperty(global.navigator, 'mediaDevices', {
-  value: { getUserMedia: jest.fn().mockResolvedValue({ getTracks: () => [{ stop: jest.fn() }] }) },
+  value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
   configurable: true,
 });
 
 const originalConsoleError = console.error;
 beforeAll(() => {
-  jest.spyOn(console, 'error').mockImplementation((...args) => {
+  vi.spyOn(console, 'error').mockImplementation((...args) => {
     const [first] = args;
     if (typeof first === 'string' && first.includes('A suspended resource finished loading inside a test')) return;
     originalConsoleError(...args);
@@ -24,33 +24,33 @@ afterAll(() => {
   console.error.mockRestore();
 });
 
-jest.mock('../hooks/useDashboardHooks', () => ({
-  useTheme:            () => ({ theme: 'auto', cycleTheme: jest.fn(), themeIcon: 'chart', themeLabel: 'Авто' }),
-  useNavBadges:        () => ({ pendingT: 0, pendingP: 0, unreadMsgs: 0, residentNewStatuses: 0, blacklistCount: 0, onPassesSeen: jest.fn() }),
+vi.mock('../hooks/useDashboardHooks', () => ({
+  useTheme:            () => ({ theme: 'auto', cycleTheme: vi.fn(), themeIcon: 'chart', themeLabel: 'Авто' }),
+  useNavBadges:        () => ({ pendingT: 0, pendingP: 0, unreadMsgs: 0, residentNewStatuses: 0, blacklistCount: 0, onPassesSeen: vi.fn() }),
   useLiveSync:         () => ({ isLoading: false }),
   usePushNotifications:() => {},
   useArrivalNotifier:  () => {},
-  useNavigation:       () => ({ activeTab: 'passes', setActiveTab: jest.fn(), goTab: jest.fn(), highlightReqId: null, setHighlightReqId: jest.fn() }),
+  useNavigation:       () => ({ activeTab: 'passes', setActiveTab: vi.fn(), goTab: vi.fn(), highlightReqId: null, setHighlightReqId: vi.fn() }),
 }));
-jest.mock('../store/AppStore', () => ({
+vi.mock('../store/AppStore', () => ({
   useRequests:    () => [],
   useActions:     () => ({
-    markChatSeen: jest.fn(),
-    setAllRequests: jest.fn(),
-    setAllMessages: jest.fn(),
-    setAllUsers: jest.fn(),
-    setPerms: jest.fn(),
-    setTemplates: jest.fn(),
-    sendChatMessage: jest.fn(),
-    updateChatMessage: jest.fn(),
-    deleteChatMessage: jest.fn(),
-    addTemplate: jest.fn(),
-    deleteTemplate: jest.fn(),
-    addRequest: jest.fn(),
-    approveRequest: jest.fn(),
-    arriveRequest: jest.fn(),
-    deleteRequest: jest.fn(),
-    updateRequest: jest.fn(),
+    markChatSeen: vi.fn(),
+    setAllRequests: vi.fn(),
+    setAllMessages: vi.fn(),
+    setAllUsers: vi.fn(),
+    setPerms: vi.fn(),
+    setTemplates: vi.fn(),
+    sendChatMessage: vi.fn(),
+    updateChatMessage: vi.fn(),
+    deleteChatMessage: vi.fn(),
+    addTemplate: vi.fn(),
+    deleteTemplate: vi.fn(),
+    addRequest: vi.fn(),
+    approveRequest: vi.fn(),
+    arriveRequest: vi.fn(),
+    deleteRequest: vi.fn(),
+    updateRequest: vi.fn(),
   }),
   useChat:        () => ({ chat: [], chatLastSeen: {} }),
   usePerms:       () => ({ visitors: [], workers: [] }),
@@ -59,37 +59,37 @@ jest.mock('../store/AppStore', () => ({
   useBlacklist:   () => [],
   useAvatar:      () => null,
 }));
-jest.mock('../domain/permissions', () => ({
+vi.mock('../domain/permissions', () => ({
   isResident:         () => true,
   isStaff:            () => false,
   canManageRequests:  () => false,
   canAccessTab:       () => true,
-  canDeleteMessage:   jest.fn(() => false),
-  canEditMessage:     jest.fn(() => false),
+  canDeleteMessage:   vi.fn(() => false),
+  canEditMessage:     vi.fn(() => false),
   getTabsForRole:     () => ['passes','tech','perms','templates','chat'],
   ROLES:              { SECURITY: 'security', ADMIN: 'admin', CONCIERGE: 'concierge', CONTRACTOR: 'contractor' },
 }));
-jest.mock('./ResidentView',             () => () => <div data-testid="resident-view" />);
-jest.mock('./SecurityConciergeViews',   () => ({ ConciergeView: () => null, SecurityView: () => null }));
-jest.mock('./AdminView',                () => () => null);
-jest.mock('../ui/AvatarCircle',         () => ({ AvatarCircle: () => null }));
-jest.mock('../hooks/useScheduledActivation', () => ({ useScheduledActivation: () => {} }));
-jest.mock('../config/runtimeMode', () => ({ isLiveMode: () => false, isDemoMode: () => false }));
+vi.mock('./ResidentView',             () => ({ default: () => <div data-testid="resident-view" /> }));
+vi.mock('./SecurityConciergeViews',   () => ({ ConciergeView: () => null, SecurityView: () => null }));
+vi.mock('./AdminView',                () => () => null);
+vi.mock('../ui/AvatarCircle',         () => ({ AvatarCircle: () => null }));
+vi.mock('../hooks/useScheduledActivation', () => ({ useScheduledActivation: () => {} }));
+vi.mock('../config/runtimeMode', () => ({ isLiveMode: () => false, isDemoMode: () => false }));
 
 const ownerUser = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
 
 describe('Dashboard', () => {
   test('рендерится без ошибок для owner', () => {
-    expect(() => render(<Dashboard user={ownerUser} onLogout={jest.fn()} />)).not.toThrow();
+    expect(() => render(<Dashboard user={ownerUser} onLogout={vi.fn()} />)).not.toThrow();
   });
 
   test('показывает ResidentView для owner', () => {
-    render(<Dashboard user={ownerUser} onLogout={jest.fn()} />);
+    render(<Dashboard user={ownerUser} onLogout={vi.fn()} />);
     expect(screen.getByTestId('resident-view')).toBeInTheDocument();
   });
 
   test('показывает имя пользователя', () => {
-    render(<Dashboard user={ownerUser} onLogout={jest.fn()} />);
+    render(<Dashboard user={ownerUser} onLogout={vi.fn()} />);
     expect(screen.getByText('Иван')).toBeInTheDocument();
   });
 });
@@ -98,11 +98,11 @@ describe('Dashboard', () => {
  * chat/ChatView.test.js
  */
 import { ChatView } from '../chat/ChatView';
-jest.mock('../services/providers/serviceContainer', () => ({
-  services: { chat: { sendMessage: jest.fn().mockResolvedValue({}), updateMessage: jest.fn(), deleteMessage: jest.fn(), markSeen: jest.fn() } },
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: { chat: { sendMessage: vi.fn().mockResolvedValue({}), updateMessage: vi.fn(), deleteMessage: vi.fn(), markSeen: vi.fn() } },
 }));
-jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
-jest.mock('../ui/PhotoLightbox', () => ({ PhotoLightbox: () => null }));
+vi.mock('../ui/Toasts', () => ({ toast: vi.fn() }));
+vi.mock('../ui/PhotoLightbox', () => ({ PhotoLightbox: () => null }));
 
 describe('ChatView', () => {
   test('рендерится без ошибок', () => {
@@ -122,7 +122,7 @@ describe('ChatView audit fixes', () => {
   const getSource = () => {
     const fs = require('fs');
     return fs.readFileSync(
-      require.resolve('../chat/ChatView'),
+      require.resolve('../chat/ChatView.jsx'),
       'utf8'
     );
   };
@@ -160,7 +160,7 @@ describe('ChatView audit fixes', () => {
  * perms/PermsList.test.js
  */
 import { PermsList, MyTemplates } from '../perms/PermsList';
-jest.mock('../utils', () => ({ genId: () => 'gen-id' }));
+vi.mock('../utils', () => ({ genId: () => 'gen-id' }));
 
 describe('PermsList', () => {
   test('рендерится без ошибок', () => {
@@ -178,7 +178,7 @@ describe('PermsList', () => {
 describe('MyTemplates', () => {
   test('рендерится без ошибок', () => {
     const user = { uid:'u1', role:'owner', name:'Иван' };
-    expect(() => render(<MyTemplates user={user} onUse={jest.fn()} />)).not.toThrow();
+    expect(() => render(<MyTemplates user={user} onUse={vi.fn()} />)).not.toThrow();
   });
 });
 
@@ -186,22 +186,22 @@ describe('MyTemplates', () => {
  * requests/CreateModal.test.js
  */
 import { CreateModal } from '../requests/CreateModal';
-jest.mock('../services/providers/serviceContainer', () => ({
-  services: { requests: { submit: jest.fn().mockResolvedValue({ id:'srv-1' }), resolvePhotos: jest.fn().mockResolvedValue([]) } },
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: { requests: { submit: vi.fn().mockResolvedValue({ id:'srv-1' }), resolvePhotos: vi.fn().mockResolvedValue([]) } },
 }));
-jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
-jest.mock('../ui/scrollLock', () => ({ lockScroll: jest.fn(), unlockScroll: jest.fn() }));
-jest.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
+vi.mock('../ui/Toasts', () => ({ toast: vi.fn() }));
+vi.mock('../ui/scrollLock', () => ({ lockScroll: vi.fn(), unlockScroll: vi.fn() }));
+vi.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
 
 describe('CreateModal', () => {
   test('рендерится без ошибок', () => {
     const user = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
-    expect(() => render(<CreateModal user={user} type="pass" category="guest" onClose={jest.fn()} onDone={jest.fn()} />)).not.toThrow();
+    expect(() => render(<CreateModal user={user} type="pass" category="guest" onClose={vi.fn()} onDone={vi.fn()} />)).not.toThrow();
   });
 
   test('показывает заголовок формы', () => {
     const user = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
-    render(<CreateModal user={user} type="pass" category="guest" onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<CreateModal user={user} type="pass" category="guest" onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getAllByText(/новая заявка|пропуск|создать/i).length).toBeGreaterThan(0);
   });
 });
@@ -210,24 +210,24 @@ describe('CreateModal', () => {
  * requests/ScanQRModal.test.js
  */
 import { ScanQRModal } from '../requests/ScanQRModal';
-jest.mock('../ui/Toasts',     () => ({ toast: jest.fn() }));
-jest.mock('../ui/scrollLock', () => ({ lockScroll: jest.fn(), unlockScroll: jest.fn() }));
-jest.mock('../shared/api/passesApi', () => ({ logVisit: jest.fn().mockResolvedValue({}) }));
-jest.mock('../services/pushNotification', () => ({ pushNotifyResident: jest.fn() }));
-jest.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
-jest.mock('../services/providers/serviceContainer', () => ({
-  services: { requests: { updateEverywhere: jest.fn().mockResolvedValue('local') } },
+vi.mock('../ui/Toasts',     () => ({ toast: vi.fn() }));
+vi.mock('../ui/scrollLock', () => ({ lockScroll: vi.fn(), unlockScroll: vi.fn() }));
+vi.mock('../shared/api/passesApi', () => ({ logVisit: vi.fn().mockResolvedValue({}) }));
+vi.mock('../services/pushNotification', () => ({ pushNotifyResident: vi.fn() }));
+vi.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: { requests: { updateEverywhere: vi.fn().mockResolvedValue('local') } },
 }));
 
 describe('ScanQRModal', () => {
   test('рендерится без ошибок', () => {
     const user = { uid:'g1', role:'security', name:'Охрана' };
-    expect(() => render(<ScanQRModal user={user} onClose={jest.fn()} />)).not.toThrow();
+    expect(() => render(<ScanQRModal user={user} onClose={vi.fn()} />)).not.toThrow();
   });
 
   test('показывает заголовок сканирования', () => {
     const user = { uid:'g1', role:'security', name:'Охрана' };
-    render(<ScanQRModal user={user} onClose={jest.fn()} />);
+    render(<ScanQRModal user={user} onClose={vi.fn()} />);
     expect(screen.getByText(/сканир|qr/i)).toBeInTheDocument();
   });
 });

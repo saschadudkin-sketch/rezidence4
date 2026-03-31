@@ -36,7 +36,7 @@ jest.mock('../../ui/AvatarCircle', () => ({
 }));
 
 const { services } = require('../../services/providers/serviceContainer');
-const { toast } = require('../../ui/Toasts');
+const { toast } = require('../../ui/Toasts.jsx');
 
 beforeEach(() => jest.clearAllMocks());
 

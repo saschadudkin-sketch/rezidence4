@@ -1,5 +1,5 @@
-jest.mock('./Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('./Toasts', () => ({
+  toast: vi.fn(),
 }));
 
 import { toast } from './Toasts';
@@ -13,7 +13,7 @@ import { SYNC_STATUS } from '../constants/syncStatuses';
 
 describe('syncFeedback', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test.each([SYNC_STATUS.REMOTE, SYNC_STATUS.LOCAL])(

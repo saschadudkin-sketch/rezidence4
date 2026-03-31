@@ -5,61 +5,60 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AddUserModal } from './Modals';
+import { toast } from './Toasts';
 
-const mockAddUser = jest.fn();
+const mockAddUser = vi.fn();
 
-jest.mock('../store/AppStore', () => ({
+vi.mock('../store/AppStore', () => ({
   useUsers:   () => ({ phoneDb: { '+79161234567': { uid: 'existing' } } }),
   useActions: () => ({ addUser: mockAddUser }),
 }));
 
-jest.mock('../utils', () => ({
-  normalizePhone: jest.fn(p => '+7' + p.replace(/\D/g, '').slice(-10)),
-  genId:          jest.fn(() => 'u-new'),
+vi.mock('../utils', () => ({
+  normalizePhone: vi.fn(p => '+7' + p.replace(/\D/g, '').slice(-10)),
+  genId:          vi.fn(() => 'u-new'),
 }));
 
-jest.mock('./Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('./Toasts', () => ({
+  toast: vi.fn(),
 }));
 
-jest.mock('./scrollLock', () => ({
-  lockScroll:   jest.fn(),
-  unlockScroll: jest.fn(),
+vi.mock('./scrollLock', () => ({
+  lockScroll:   vi.fn(),
+  unlockScroll: vi.fn(),
 }));
 
-const { toast }      = require('./Toasts');
-
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 describe('AddUserModal', () => {
   test('рендерится с заголовком "Новый жилец"', () => {
-    render(<AddUserModal onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getByText('Новый жилец')).toBeInTheDocument();
   });
 
   test('поля Имя, Телефон, Роль, Апартамент присутствуют', () => {
-    render(<AddUserModal onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     expect(screen.getByPlaceholderText('Иван Иванов')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('+7 000 000-00-00')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('12')).toBeInTheDocument();
   });
 
   test('кнопка закрытия вызывает onClose', () => {
-    const onClose = jest.fn();
-    render(<AddUserModal onClose={onClose} onDone={jest.fn()} />);
+    const onClose = vi.fn();
+    render(<AddUserModal onClose={onClose} onDone={vi.fn()} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
     expect(onClose).toHaveBeenCalled();
   });
 
   test('кнопка "Отмена" вызывает onClose', () => {
-    const onClose = jest.fn();
-    render(<AddUserModal onClose={onClose} onDone={jest.fn()} />);
+    const onClose = vi.fn();
+    render(<AddUserModal onClose={onClose} onDone={vi.fn()} />);
     fireEvent.click(screen.getByText('Отмена'));
     expect(onClose).toHaveBeenCalled();
   });
 
   test('пустое имя показывает toast error', async () => {
-    render(<AddUserModal onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 777-88-99' } });
     fireEvent.click(screen.getByText('Добавить'));
     await waitFor(() => {
@@ -68,7 +67,7 @@ describe('AddUserModal', () => {
   });
 
   test('некорректный телефон показывает toast error', async () => {
-    render(<AddUserModal onClose={jest.fn()} onDone={jest.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Иван' } });
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916' } });
     fireEvent.click(screen.getByText('Добавить'));
@@ -78,14 +77,14 @@ describe('AddUserModal', () => {
   });
 
   test('initialRole предустанавливает роль', () => {
-    render(<AddUserModal onClose={jest.fn()} onDone={jest.fn()} initialRole="security" />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="security" />);
     const select = screen.getByRole('combobox');
     expect(select.value).toBe('security');
   });
 
   test('успешное добавление вызывает addUser, onDone и onClose', async () => {
-    const onDone  = jest.fn();
-    const onClose = jest.fn();
+    const onDone  = vi.fn();
+    const onClose = vi.fn();
 
     render(<AddUserModal onClose={onClose} onDone={onDone} />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Новый Пользователь' } });

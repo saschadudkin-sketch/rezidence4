@@ -1,14 +1,14 @@
-jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: jest.fn(),
+vi.mock('../config/runtimeMode', () => ({
+  isLiveMode: vi.fn(),
 }));
 
-jest.mock('./localService', () => ({
-  savePerms: jest.fn(),
-  saveUser: jest.fn(),
-  removeUser: jest.fn(),
+vi.mock('./localService', () => ({
+  savePerms: vi.fn(),
+  saveUser: vi.fn(),
+  removeUser: vi.fn(),
 }));
 
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { SYNC_STATUS } from '../constants/syncStatuses';
 import { savePerms, saveUser, removeUser } from './localService';
 import { savePermsEverywhere, saveUserEverywhere, removeUserEverywhere } from './adminGateway';
@@ -17,8 +17,8 @@ describe('adminGateway', () => {
   let warnSpy;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.clearAllMocks();
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -27,7 +27,7 @@ describe('adminGateway', () => {
 
   test('savePermsEverywhere: demo local only', async () => {
     isLiveMode.mockReturnValue(false);
-    const saveLocal = jest.fn();
+    const saveLocal = vi.fn();
 
     const mode = await savePermsEverywhere({ uid: 'u1', perms: { visitors: [] }, saveLocal });
 
@@ -39,7 +39,7 @@ describe('adminGateway', () => {
   test('savePermsEverywhere: live local + remote', async () => {
     isLiveMode.mockReturnValue(true);
     savePerms.mockResolvedValue(undefined);
-    const saveLocal = jest.fn();
+    const saveLocal = vi.fn();
 
     const mode = await savePermsEverywhere({ uid: 'u1', perms: { visitors: [] }, saveLocal });
 
@@ -50,7 +50,7 @@ describe('adminGateway', () => {
 
   test('saveUserEverywhere: demo local only', async () => {
     isLiveMode.mockReturnValue(false);
-    const updateLocal = jest.fn();
+    const updateLocal = vi.fn();
 
     const mode = await saveUserEverywhere({ uid: 'u2', patch: { name: 'A' }, updateLocal, oldPhone: '+7' });
 
@@ -62,7 +62,7 @@ describe('adminGateway', () => {
   test('saveUserEverywhere: live remote failure returns local_fallback', async () => {
     isLiveMode.mockReturnValue(true);
     saveUser.mockRejectedValueOnce(new Error('offline'));
-    const updateLocal = jest.fn();
+    const updateLocal = vi.fn();
 
     const mode = await saveUserEverywhere({ uid: 'u2f', patch: { name: 'B' }, updateLocal, oldPhone: '+7' });
 
@@ -73,7 +73,7 @@ describe('adminGateway', () => {
   test('removeUserEverywhere: live local + remote', async () => {
     isLiveMode.mockReturnValue(true);
     removeUser.mockResolvedValue(undefined);
-    const removeLocal = jest.fn();
+    const removeLocal = vi.fn();
 
     const mode = await removeUserEverywhere({ uid: 'u3', removeLocal });
 
@@ -85,7 +85,7 @@ describe('adminGateway', () => {
   test('removeUserEverywhere: live remote failure returns local_fallback', async () => {
     isLiveMode.mockReturnValue(true);
     removeUser.mockRejectedValueOnce(new Error('offline'));
-    const removeLocal = jest.fn();
+    const removeLocal = vi.fn();
 
     const mode = await removeUserEverywhere({ uid: 'u3f', removeLocal });
 

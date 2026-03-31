@@ -1,4 +1,4 @@
-import { createServices } from './createServices';
+import { createServices } from './createServices.js';
 
 /**
  * Единый сервис-контейнер приложения.

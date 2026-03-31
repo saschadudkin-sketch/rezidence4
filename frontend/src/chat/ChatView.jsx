@@ -9,7 +9,7 @@ import { PhotoLightbox } from '../ui/PhotoLightbox.jsx';
 import { toast } from '../ui/Toasts.jsx';
 import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────

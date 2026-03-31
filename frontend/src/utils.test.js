@@ -9,7 +9,7 @@ import {
   fmtDate, fmtTime, filterByPeriod, groupReqs, sortReqs,
   requestNotifPerm, sendNotif, playAlert,
   registerSW,
-} from './utils';
+} from './utils.js';
 
 // Мокируем notifUtils / swUtils чтобы не трогать реальный браузер API
 jest.mock('./utils/notifUtils', () => ({

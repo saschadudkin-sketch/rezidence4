@@ -7,7 +7,7 @@
 // Мокируем swUtils чтобы управлять getSwReg
 jest.mock('./swUtils', () => ({ getSwReg: jest.fn(() => null) }));
 
-import { getSwReg } from './swUtils';
+import { getSwReg } from './swUtils.js';
 import { requestNotifPerm, sendNotif } from './notifUtils';
 
 // ─── requestNotifPerm ─────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ jest.mock('../constants', () => ({
   },
 }));
 
-import { sendNotif } from '../utils';
+import { sendNotif } from '../utils.js';
 import { pushNotifyResident, subscribePush } from './pushNotification';
 
 beforeEach(() => jest.clearAllMocks());

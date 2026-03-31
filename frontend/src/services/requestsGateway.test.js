@@ -1,15 +1,15 @@
-jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: jest.fn(),
+vi.mock('../config/runtimeMode', () => ({
+  isLiveMode: vi.fn(),
 }));
 
-jest.mock('./localService', () => ({
-  createRequest: jest.fn(),
-  uploadRequestPhoto: jest.fn(),
-  updateRequest: jest.fn(),
-  deleteRequest: jest.fn(),
+vi.mock('./localService', () => ({
+  createRequest: vi.fn(),
+  uploadRequestPhoto: vi.fn(),
+  updateRequest: vi.fn(),
+  deleteRequest: vi.fn(),
 }));
 
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { SYNC_STATUS } from '../constants/syncStatuses';
 import { createRequest, uploadRequestPhoto, updateRequest, deleteRequest } from './localService';
 import { resolveRequestPhotos, submitRequest, updateRequestEverywhere, deleteRequestEverywhere } from './requestsGateway';
@@ -18,9 +18,9 @@ describe('requestsGateway', () => {
   let warnSpy;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     createRequest.mockResolvedValue(undefined);
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -48,7 +48,7 @@ describe('requestsGateway', () => {
 
   test('submitRequest sends remote in live mode', async () => {
     isLiveMode.mockReturnValue(true);
-    const addLocal = jest.fn();
+    const addLocal = vi.fn();
 
     const mode = await submitRequest({ request: { id: 'r3' }, addLocal });
 
@@ -60,7 +60,7 @@ describe('requestsGateway', () => {
   test('submitRequest falls back to local when remote fails in live mode', async () => {
     isLiveMode.mockReturnValue(true);
     createRequest.mockRejectedValueOnce(new Error('offline'));
-    const addLocal = jest.fn();
+    const addLocal = vi.fn();
 
     const mode = await submitRequest({ request: { id: 'r3f' }, addLocal });
 
@@ -70,7 +70,7 @@ describe('requestsGateway', () => {
 
   test('submitRequest sends local in demo mode', async () => {
     isLiveMode.mockReturnValue(false);
-    const addLocal = jest.fn();
+    const addLocal = vi.fn();
 
     const mode = await submitRequest({ request: { id: 'r4' }, addLocal });
 
@@ -80,7 +80,7 @@ describe('requestsGateway', () => {
 
   test('updateRequestEverywhere updates local only in demo mode', async () => {
     isLiveMode.mockReturnValue(false);
-    const updateLocal = jest.fn();
+    const updateLocal = vi.fn();
 
     const mode = await updateRequestEverywhere({ requestId: 'r5', patch: { comment: 'x' }, updateLocal });
 
@@ -91,7 +91,7 @@ describe('requestsGateway', () => {
 
   test('updateRequestEverywhere updates local + remote in live mode', async () => {
     isLiveMode.mockReturnValue(true);
-    const updateLocal = jest.fn();
+    const updateLocal = vi.fn();
     updateRequest.mockResolvedValue(undefined);
 
     const mode = await updateRequestEverywhere({ requestId: 'r6', patch: { comment: 'y' }, updateLocal });
@@ -103,7 +103,7 @@ describe('requestsGateway', () => {
 
   test('updateRequestEverywhere falls back to local when remote update fails', async () => {
     isLiveMode.mockReturnValue(true);
-    const updateLocal = jest.fn();
+    const updateLocal = vi.fn();
     updateRequest.mockRejectedValueOnce(new Error('offline'));
 
     const mode = await updateRequestEverywhere({ requestId: 'r6f', patch: { comment: 'y' }, updateLocal });
@@ -114,7 +114,7 @@ describe('requestsGateway', () => {
 
   test('deleteRequestEverywhere removes local only in demo mode', async () => {
     isLiveMode.mockReturnValue(false);
-    const deleteLocal = jest.fn();
+    const deleteLocal = vi.fn();
 
     const mode = await deleteRequestEverywhere({ requestId: 'r7', deleteLocal });
 
@@ -125,7 +125,7 @@ describe('requestsGateway', () => {
 
   test('deleteRequestEverywhere removes local + remote in live mode', async () => {
     isLiveMode.mockReturnValue(true);
-    const deleteLocal = jest.fn();
+    const deleteLocal = vi.fn();
     deleteRequest.mockResolvedValue(undefined);
 
     const mode = await deleteRequestEverywhere({ requestId: 'r8', deleteLocal });
@@ -137,7 +137,7 @@ describe('requestsGateway', () => {
 
   test('deleteRequestEverywhere falls back to local when remote delete fails', async () => {
     isLiveMode.mockReturnValue(true);
-    const deleteLocal = jest.fn();
+    const deleteLocal = vi.fn();
     deleteRequest.mockRejectedValueOnce(new Error('offline'));
 
     const mode = await deleteRequestEverywhere({ requestId: 'r8f', deleteLocal });
