@@ -1,24 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useActions } from '../store/AppStore.jsx';
-import { CAT_LABEL } from '../constants/index.js';
+import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
 import { toastBySyncResult } from '../ui/syncFeedback';
 import { toast } from '../ui/Toasts.jsx';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
-
-const CAT_ICON_NAME = {
-  guest: 'users',
-  courier: 'file',
-  taxi: 'car',
-  car: 'car',
-  master: 'tools',
-  worker: 'tools',
-  team: 'users',
-  electrician: 'alert',
-  plumber: 'tools',
-  delivery: 'car',
-};
 
 export function EditRequestModal({ req, onClose, onDone }) {
   const [vName,    setVName]    = useState(req.visitorName  || '');
@@ -72,7 +59,7 @@ export function EditRequestModal({ req, onClose, onDone }) {
           <div>
             <span className="modal-title">Редактировать заявку</span>
             <div style={{ fontSize: 11, color: 'var(--g2)', marginTop: 2 }}>
-              <span className="u-inline-icon"><AppIcon name={CAT_ICON_NAME[req.category] || 'users'} size={12} /> {CAT_LABEL[req.category]}</span>
+              <span className="u-inline-icon"><AppIcon name={CAT_ICON[req.category] || 'users'} size={12} /> {CAT_LABEL[req.category]}</span>
             </div>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>

@@ -6,31 +6,12 @@
 import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { useRequests } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
-import { CAT_LABEL, PASS_DURATION_LABEL, ROLE_LABELS } from '../constants/index.js';
+import { CAT_ICON, CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON, ROLE_LABELS } from '../constants/index.js';
 import { getValidationReasonLabel } from '../constants/statusPresentation';
 import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils.js';
 import { clearVisitLogs, getVisitLogs } from '../shared/api/passesApi';
 import { AppIcon } from '../ui/AppIcon';
-
-const CAT_ICON_NAME = {
-  guest: 'users',
-  courier: 'file',
-  taxi: 'car',
-  car: 'car',
-  master: 'tools',
-  worker: 'tools',
-  team: 'users',
-  electrician: 'alert',
-  plumber: 'tools',
-  delivery: 'car',
-};
-
-const PASS_DURATION_ICON_NAME = {
-  once: 'ticket',
-  temporary: 'history',
-  permanent: 'shield',
-};
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -77,14 +58,14 @@ const VisitCard = memo(function VisitCard({ r }) {
     <div className="vlog-card">
       <div className="vlog-card-left">
         <div className="vlog-card-time">{fmtTime(r.arrivedAt || r.createdAt)}</div>
-        <div className="vlog-card-icon"><AppIcon name={CAT_ICON_NAME[r.category] || 'users'} /></div>
+        <div className="vlog-card-icon"><AppIcon name={CAT_ICON[r.category] || 'users'} /></div>
       </div>
       <div className="vlog-card-body">
         <div className="vlog-card-row1">
           <span className="vlog-card-name">{r.visitorName || CAT_LABEL[r.category]}</span>
           {r.passDuration && r.passDuration !== 'once' && (
             <span className={'pass-dur-tag ' + r.passDuration}>
-              <AppIcon name={PASS_DURATION_ICON_NAME[r.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[r.passDuration]}
+              <AppIcon name={PASS_DURATION_ICON[r.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[r.passDuration]}
             </span>
           )}
         </div>
