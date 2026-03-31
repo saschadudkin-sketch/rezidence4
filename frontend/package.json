@@ -10,15 +10,19 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0"
+    "@testing-library/react": "^16.3.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "vite": "^7.1.11"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "vite",
+    "build": "vite build",
     "test": "react-scripts test",
-    "test:mode-services": "react-scripts test --watchAll=false --runTestsByPath src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/services/liveDataGateway.test.js src/ui/syncFeedback.test.js",
+    "test:mode-services": "react-scripts test --watchAll=false --runTestsByPath src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/ui/syncFeedback.test.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "react-scripts test --watchAll=false && npm run build"
+    "verify:all": "react-scripts test --watchAll=false && npm run build",
+    "dev": "vite",
+    "test:watch": "react-scripts test"
   },
   "browserslist": {
     "production": [
