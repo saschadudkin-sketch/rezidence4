@@ -5,25 +5,24 @@
   "dependencies": {
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "vite": "^7.1.11",
-    "vitest": "^3.2.4",
-    "jsdom": "^26.1.0"
+    "vite": "^7.1.11"
   },
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "test": "vitest run",
-    "test:mode-services": "vitest run src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/services/liveDataGateway.test.js src/ui/syncFeedback.test.js",
+    "test": "react-scripts test",
+    "test:mode-services": "react-scripts test --watchAll=false --runTestsByPath src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/ui/syncFeedback.test.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "npm run test && npm run build",
+    "verify:all": "react-scripts test --watchAll=false && npm run build",
     "dev": "vite",
-    "test:watch": "vitest"
+    "test:watch": "react-scripts test"
   },
   "browserslist": {
     "production": [
