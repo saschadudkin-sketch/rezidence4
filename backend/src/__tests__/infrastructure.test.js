@@ -49,6 +49,13 @@ describe('logger (pino wrapper)', () => {
   test('warn вызывается без ошибок', () => {
     expect(() => logger.warn('warning')).not.toThrow();
   });
+
+  test('в test-окружении уровень логирования по умолчанию = warn', () => {
+    const pino = require('pino');
+    expect(pino).toHaveBeenCalled();
+    const config = pino.mock.calls[0][0];
+    expect(config.level).toBe('warn');
+  });
 });
 
 // ── index.js — проверяем guards ───────────────────────────────────────────────

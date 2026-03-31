@@ -14,6 +14,7 @@ import BlacklistView from './BlacklistView.jsx';
 import VisitLogView from './VisitLogView.jsx';
 import ResidentsView from './ResidentsView.jsx';
 import { CarSearchModal } from '../requests/CarSearchModal.jsx';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── CONCIERGE VIEW ───────────────────────────────────────────────────────────
 
@@ -42,22 +43,22 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
     [requests, matchQ]
   );
 
-  const pIcons = [['guest','👤','Гость'],['courier','📦','Курьер'],['taxi','🚕','Такси'],['car','🚗','Авто'],['master','🔨','Мастер']];
+  const pIcons = [['guest', 'users', 'Гость'], ['courier', 'file', 'Курьер'], ['taxi', 'car', 'Такси'], ['car', 'car', 'Авто'], ['master', 'tools', 'Мастер']];
 
   return (<>
     {activeTab === 'passes' && (<>
       <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-        <span style={{ fontSize: 20 }}>📷</span>
+        <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
         <span>Сканировать QR-код</span>
       </button>
       <div className="search-wrap">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       <div className="type-grid">
-        {pIcons.map(([k, i, l]) => (
+        {pIcons.map(([k, iconName, l]) => (
           <div key={k} className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setModal({ type: 'pass', cat: k })}>
-            <div className="type-icon">{i}</div>
+            <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
             <div className="type-label">{l}</div>
           </div>
         ))}
@@ -69,25 +70,25 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       </div>
       {showAll && allP.length > 0 && <div className="req-list">{allP.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>}
       {showAll && allP.length === 0 && (
-        <div className="empty"><div className="empty-ico">📋</div><div className="empty-title">Пропусков нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки на пропуск не найдены'}</div></div>
+        <div className="empty"><div className="empty-ico"><AppIcon name="list" size={26} /></div><div className="empty-title">Пропусков нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки на пропуск не найдены'}</div></div>
       )}
     </>)}
 
     {activeTab === 'tech' && (<>
       <div className="type-grid">
-        {[['electrician','⚡','Электрик'],['plumber','🔧','Сантехник']].map(([k, i, l]) => (
+        {[['electrician', 'chart', 'Электрик'], ['plumber', 'tools', 'Сантехник']].map(([k, iconName, l]) => (
           <div key={k} className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setModal({ type: 'tech', cat: k })}>
-            <div className="type-icon">{i}</div>
+            <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
             <div className="type-label">{l}</div>
           </div>
         ))}
         <div className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setActiveTab('templates')} style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
-          <div className="type-icon">📑</div>
+          <div className="type-icon"><AppIcon name="file" size={20} /></div>
           <div className="type-label">Шаблоны</div>
         </div>
       </div>
       <div className="search-wrap">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {allT.length > 0 && <>
@@ -95,7 +96,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <div className="req-list">{allT.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>
       </>}
       {allT.length === 0 && (
-        <div className="empty"><div className="empty-ico">🔧</div><div className="empty-title">Техзаявок нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки в техслужбу не найдены'}</div></div>
+        <div className="empty"><div className="empty-ico"><AppIcon name="tools" size={26} /></div><div className="empty-title">Техзаявок нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки в техслужбу не найдены'}</div></div>
       )}
     </>)}
 
@@ -160,11 +161,11 @@ const SecurityPermsList = memo(function SecurityPermsList() {
   return (
     <div>
       <div className="tabs u-mb10">
-        <button className={'tab-btn ' + (tab === 'visitors' ? 'active' : '')} onClick={() => handleSetTab('visitors')}>👤 Посетители</button>
-        <button className={'tab-btn ' + (tab === 'workers'  ? 'active' : '')} onClick={() => handleSetTab('workers')}>👷 Рабочие</button>
+        <button className={'tab-btn ' + (tab === 'visitors' ? 'active' : '')} onClick={() => handleSetTab('visitors')}>Посетители</button>
+        <button className={'tab-btn ' + (tab === 'workers'  ? 'active' : '')} onClick={() => handleSetTab('workers')}>Рабочие</button>
       </div>
       <div className="search-wrap u-mb16">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input className="search-inp" placeholder="Поиск по апартаменту или ФИО..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {residentItems.length === 0 && (
@@ -247,18 +248,18 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
     {activeTab === 'passes' && (<>
       <div className="security-action-btns">
         <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-          <span style={{ fontSize: 20 }}>📷</span>
+          <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
           <span>Сканировать QR</span>
         </button>
         <button className="scan-qr-btn car-search-trigger" onClick={() => setShowCarSearch(true)}>
-          <span style={{ fontSize: 20 }}>🚗</span>
+          <span className="u-inline-icon"><AppIcon name="car" size={18} /></span>
           <span>Поиск авто</span>
         </button>
       </div>
       <div className="sec-filters">
         <div className="sec-filters-row">
           <div className="search-wrap u-search-sm">
-            <span className="search-ico">🔍</span>
+            <span className="search-ico"><AppIcon name="search" size={14} /></span>
             <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
           </div>
           <div className="date-pills u-mb0">
@@ -268,15 +269,15 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
         <div className="sec-filters-row">
           {[
             ['all', 'Все', 0],
-            ['pass', '🎫 Пропуска', pendingPassCount],
-            ['tech', '🔧 Техслужба', pendingTechCount],
+            ['pass', 'Пропуска', pendingPassCount],
+            ['tech', 'Техслужба', pendingTechCount],
           ].map(([k, l, cnt]) => (
             <button key={k} className={'date-pill ' + (typeFilter === k ? 'active' : '') + (cnt > 0 && k !== 'all' ? ' has-pending' : '')} onClick={() => setTypeFilter(k)}>
               {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
             </button>
           ))}
           <span className="sec-filter-sep">│</span>
-          {[['all','Все'],['pending','⏳'],['approved','✅'],['rejected','❌'],['arrived','🚪'],['expired','⏰']].map(([k, l]) => (
+          {[['all', 'Все'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
             <button key={k} className={'date-pill sm ' + (statusFilter === k ? 'active' : '')} onClick={() => setStatusFilter(k)} title={{'all':'Все статусы','pending':'В ожидании','approved':'Одобрены','rejected':'Отклонены','arrived':'Вошли','expired':'Истёкшие'}[k]}>{l}</button>
           ))}
           {typeFilter !== 'tech' && <>
@@ -288,7 +289,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
         </div>
       </div>
       {shown.length === 0
-        ? <div className="empty"><div className="empty-ico">📋</div><div className="empty-title">{query ? 'Ничего не найдено' : 'Заявок нет'}</div><div className="empty-sub">{query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}</div></div>
+        ? <div className="empty"><div className="empty-ico"><AppIcon name="list" size={26} /></div><div className="empty-title">{query ? 'Ничего не найдено' : 'Заявок нет'}</div><div className="empty-sub">{query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}</div></div>
         : <div className="req-list">{shown.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} highlightId={highlightReqId} onHighlighted={() => setHighlightReqId && setHighlightReqId(null)} />)}</div>}
     </>)}
 

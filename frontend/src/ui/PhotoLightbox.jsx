@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { AppIcon } from './AppIcon.jsx';
 
 export function PhotoLightbox({ src, onClose }) {
   // FIX [UX]: Escape закрывает лайтбокс — стандартное поведение модалок
@@ -32,7 +33,7 @@ export function PhotoLightbox({ src, onClose }) {
           width: 36, height: 36, borderRadius: '50%', fontSize: 18, cursor: 'pointer',
         }}
         aria-label="Закрыть"
-      >✕</button>
+      ><AppIcon name="close" size={16} /></button>
     </div>,
     document.body
   );
