@@ -25,5 +25,6 @@
     "dev": "vite",
     "test:watch": "vitest",
     "preview": "vite preview"
-  }
+  },
+  "type": "module"
 }
