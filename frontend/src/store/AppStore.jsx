@@ -24,6 +24,7 @@
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
 import { sendNotif } from '../utils';
 import { isLiveMode } from '../config/runtimeMode';
+import { env } from '../config/env';
 import {
   setStatusWithHistory,
   arriveWithHistory,
@@ -198,7 +199,7 @@ export function AppProvider({ children }) {
 /** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
 export function useAppState() {
   if (!hasWarnedUseAppState) {
-    if (process.env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production') {
       console.error(
         '[AppStore] useAppState() deprecated in production. ' +
         'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
