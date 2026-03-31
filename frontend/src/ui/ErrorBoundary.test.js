@@ -100,13 +100,13 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText(/Компонент не смог загрузиться/)).toBeInTheDocument();
   });
 
-  test('иконка ⚠️ отображается при ошибке', () => {
+  test('иконка ошибки отображается при ошибке', () => {
     suppressErrors();
-    render(
+    const { container } = render(
       <ErrorBoundary name="Тест">
         <Bomb shouldThrow />
       </ErrorBoundary>
     );
-    expect(screen.getByText('⚠️')).toBeInTheDocument();
+    expect(container.querySelector('.app-icon')).toBeInTheDocument();
   });
 });

@@ -55,17 +55,17 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('auto');
   });
 
-  test('themeIcon: light=☀️, dark=🌙, auto=✦', () => {
+  test('themeIcon: light=alert, dark=history, auto=chart', () => {
     const { result } = renderHook(() => useTheme());
 
     act(() => result.current.cycleTheme()); // → light
-    expect(result.current.themeIcon).toBe('☀️');
+    expect(result.current.themeIcon).toBe('alert');
 
     act(() => result.current.cycleTheme()); // → dark
-    expect(result.current.themeIcon).toBe('🌙');
+    expect(result.current.themeIcon).toBe('history');
 
     act(() => result.current.cycleTheme()); // → auto
-    expect(result.current.themeIcon).toBe('✦');
+    expect(result.current.themeIcon).toBe('chart');
   });
 
   test('themeLabel: light=Светлая, dark=Тёмная, auto=Авто', () => {
