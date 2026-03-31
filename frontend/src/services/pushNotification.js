@@ -9,7 +9,7 @@
  */
 
 import { sendNotif } from '../utils.js';
-import { CAT_LABEL } from '../constants';
+import { CAT_LABEL } from '../constants/index.js';
 
 /** Возвращает читаемое имя гостя */
 function getGuestLabel(req) {

@@ -3,8 +3,9 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import GuardPostMode from './GuardPostMode';
+import GuardPostMode from './GuardPostMode.jsx';
 import * as AppStore from '../store/AppStore.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mkReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
@@ -15,44 +16,44 @@ const mkReq = (overrides={}) => ({
   ...overrides,
 });
 
-jest.mock('../ui/AvatarCircle',            () => ({ AvatarCircle: () => null }));
-jest.mock('../requests/PassQRModal',       () => ({ PassQRModal: () => null }));
-jest.mock('../store/slices/blacklistSlice',() => ({ checkBlacklist: () => null }));
-jest.mock('../ui/Toasts',                  () => ({ toast: jest.fn() }));
-jest.mock('../requests/ScanQRModal',       () => ({ ScanQRModal: () => null }));
-jest.mock('../services/pushNotification',  () => ({ pushNotifyResident: jest.fn() }));
-jest.mock('../shared/api/passesApi',       () => ({ logVisit: jest.fn().mockResolvedValue({}) }));
-jest.mock('../utils.js', () => ({ sortReqs: v => v, playAlert: jest.fn(), sendNotif: jest.fn() }));
-jest.mock('../utils', () => ({ sortReqs: v => v, playAlert: jest.fn(), sendNotif: jest.fn() }));
+vi.mock('../ui/AvatarCircle.jsx',            () => ({ AvatarCircle: () => null }));
+vi.mock('../requests/PassQRModal.jsx',       () => ({ PassQRModal: () => null }));
+vi.mock('../store/slices/blacklistSlice.js',() => ({ checkBlacklist: () => null }));
+vi.mock('../ui/Toasts.jsx',                  () => ({ toast: vi.fn() }));
+vi.mock('../requests/ScanQRModal.jsx',       () => ({ ScanQRModal: () => null }));
+vi.mock('../services/pushNotification.js',  () => ({ pushNotifyResident: vi.fn() }));
+vi.mock('../shared/api/passesApi.js',       () => ({ logVisit: vi.fn().mockResolvedValue({}) }));
+vi.mock('../utils.js', () => ({ sortReqs: v => v, playAlert: vi.fn(), sendNotif: vi.fn() }));
+vi.mock('../utils', () => ({ sortReqs: v => v, playAlert: vi.fn(), sendNotif: vi.fn() }));
 
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq()]);
-  jest.spyOn(AppStore, 'useActions').mockReturnValue({
-    approveRequest: jest.fn(), rejectRequest: jest.fn(),
-    arriveRequest: jest.fn(), approveAndArrive: jest.fn(),
+  vi.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq()]);
+  vi.spyOn(AppStore, 'useActions').mockReturnValue({
+    approveRequest: vi.fn(), rejectRequest: vi.fn(),
+    arriveRequest: vi.fn(), approveAndArrive: vi.fn(),
   });
-  jest.spyOn(AppStore, 'useBlacklist').mockReturnValue([]);
-  jest.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } } });
-  jest.spyOn(AppStore, 'useAvatar').mockReturnValue(null);
+  vi.spyOn(AppStore, 'useBlacklist').mockReturnValue([]);
+  vi.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } } });
+  vi.spyOn(AppStore, 'useAvatar').mockReturnValue(null);
 });
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe('GuardPostMode', () => {
   const user = { uid:'g1', role:'security', name:'Охрана' };
 
   test('рендерится без ошибок', () => {
-    expect(() => render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={jest.fn()} />)).not.toThrow();
+    expect(() => render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />)).not.toThrow();
   });
 
   test('показывает карточку заявки', () => {
-    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={jest.fn()} />);
+    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getAllByText('Гость').length).toBeGreaterThan(0);
   });
 
   test('показывает вкладки "Активные" и "Временные"', () => {
-    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={jest.fn()} />);
+    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getByRole('button', { name: /активные/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /временные/i })).toBeInTheDocument();
   });
@@ -62,7 +63,7 @@ describe('GuardPostMode', () => {
 describe('GuardPostMode audit fixes', () => {
   const getSource = () => {
     const fs = require('fs');
-    return fs.readFileSync(require.resolve('./GuardPostMode'), 'utf8');
+    return fs.readFileSync(require.resolve('./GuardPostMode.jsx'), 'utf8');
   };
 
   test('FIX BUG-5: GuardCard обёрнут в memo', () => {

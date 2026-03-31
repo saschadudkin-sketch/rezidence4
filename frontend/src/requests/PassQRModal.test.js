@@ -1,26 +1,23 @@
-/**
- * requests/PassQRModal.test.js
- * Покрывает: PassQRModal — генерация QR, Escape, закрытие, ошибка генерации
- */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { PassQRModal } from './PassQRModal';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { PassQRModal } from './PassQRModal.jsx';
+import { generatePassQR } from '../services/qrService.js';
 
-jest.mock('../services/qrService', () => ({
-  __esModule: true,
-  generatePassQR: jest.fn(() => 'data:image/png;base64,abc123'),
+vi.mock('../services/qrService.js', () => ({
+  generatePassQR: vi.fn(() => 'data:image/png;base64,abc123'),
 }));
 
-jest.mock('../ui/scrollLock', () => ({
-  lockScroll:   jest.fn(),
-  unlockScroll: jest.fn(),
+vi.mock('../ui/scrollLock.js', () => ({
+  lockScroll: vi.fn(),
+  unlockScroll: vi.fn(),
 }));
 
-jest.mock('../ui/Toasts', () => ({ toast: jest.fn() }));
+vi.mock('../ui/Toasts.jsx', () => ({
+  toast: vi.fn(),
+}));
 
-const { generatePassQR } = require('../services/qrService');
-
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 const req = {
   id: 'r1',
@@ -35,20 +32,20 @@ const req = {
 
 describe('PassQRModal', () => {
   test('показывает заголовок "QR-код пропуска"', async () => {
-    render(<PassQRModal req={req} onClose={jest.fn()} />);
+    render(<PassQRModal req={req} onClose={vi.fn()} />);
     expect(screen.getByText('QR-код пропуска')).toBeInTheDocument();
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
 
   test('генерирует QR по req.id (не по всему объекту)', async () => {
-    render(<PassQRModal req={req} onClose={jest.fn()} />);
+    render(<PassQRModal req={req} onClose={vi.fn()} />);
     await waitFor(() => {
       expect(generatePassQR).toHaveBeenCalledTimes(1);
     });
   });
 
   test('запрашивает QR-данные для отображения', async () => {
-    render(<PassQRModal req={req} onClose={jest.fn()} />);
+    render(<PassQRModal req={req} onClose={vi.fn()} />);
     await waitFor(() => {
       expect(generatePassQR).toHaveBeenCalledWith(req);
     });
@@ -56,14 +53,14 @@ describe('PassQRModal', () => {
 
   test('ошибка генерации QR показывает сообщение об ошибке', async () => {
     generatePassQR.mockRejectedValueOnce(new Error('QR error'));
-    render(<PassQRModal req={req} onClose={jest.fn()} />);
+    render(<PassQRModal req={req} onClose={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText(/не удалось/i)).toBeInTheDocument();
     });
   });
 
   test('Escape вызывает onClose', async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PassQRModal req={req} onClose={onClose} />);
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -71,7 +68,7 @@ describe('PassQRModal', () => {
   });
 
   test('кнопка закрытия вызывает onClose', async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PassQRModal req={req} onClose={onClose} />);
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByLabelText('Закрыть'));
@@ -79,17 +76,16 @@ describe('PassQRModal', () => {
   });
 
   test('имя посетителя отображается', async () => {
-    render(<PassQRModal req={req} onClose={jest.fn()} />);
+    render(<PassQRModal req={req} onClose={vi.fn()} />);
     expect(screen.getByText('Иван Гостев')).toBeInTheDocument();
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
 
   test('повторный рендер с тем же req.id не вызывает повторную генерацию QR', async () => {
-    const { rerender } = render(<PassQRModal req={req} onClose={jest.fn()} />);
+    const { rerender } = render(<PassQRModal req={req} onClose={vi.fn()} />);
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
 
-    // Меняем только onClose, req.id остаётся прежним
-    rerender(<PassQRModal req={req} onClose={jest.fn()} />);
-    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1)); // не вызван повторно
+    rerender(<PassQRModal req={req} onClose={vi.fn()} />);
+    await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
 });

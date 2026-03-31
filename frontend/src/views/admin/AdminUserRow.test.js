@@ -4,41 +4,42 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import AdminUserRow from './AdminUserRow';
+import AdminUserRow from './AdminUserRow.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-jest.mock('../../store/AppStore', () => ({
+vi.mock('../../store/AppStore', () => ({
   useActions: () => ({
-    updateUser: jest.fn(),
-    deleteUser: jest.fn(),
+    updateUser: vi.fn(),
+    deleteUser: vi.fn(),
   }),
   useAvatar: () => null,
 }));
 
-jest.mock('../../services/providers/serviceContainer', () => ({
+vi.mock('../../services/providers/serviceContainer', () => ({
   services: {
     admin: {
-      saveUserEverywhere:   jest.fn().mockResolvedValue('local'),
-      removeUserEverywhere: jest.fn().mockResolvedValue('local'),
+      saveUserEverywhere:   vi.fn().mockResolvedValue('local'),
+      removeUserEverywhere: vi.fn().mockResolvedValue('local'),
     },
   },
 }));
 
-jest.mock('../../ui/syncFeedback', () => ({
-  toastBySyncResult: jest.fn(),
+vi.mock('../../ui/syncFeedback', () => ({
+  toastBySyncResult: vi.fn(),
 }));
 
-jest.mock('../../ui/Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('../../ui/Toasts.jsx', () => ({
+  toast: vi.fn(),
 }));
 
-jest.mock('../../ui/AvatarCircle', () => ({
+vi.mock('../../ui/AvatarCircle.jsx', () => ({
   AvatarCircle: ({ name }) => <div data-testid="avatar">{name[0]}</div>,
 }));
 
-const { services } = require('../../services/providers/serviceContainer');
-const { toast } = require('../../ui/Toasts.jsx');
+import { services } from '../../services/providers/serviceContainer';
+import { toast } from '../../ui/Toasts.jsx';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 const adminUser = { uid: 'a1', role: 'admin', name: 'Администратор' };
 const targetUser = {

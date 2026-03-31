@@ -12,13 +12,13 @@ import {
 } from './utils.js';
 
 // Мокируем notifUtils / swUtils чтобы не трогать реальный браузер API
-jest.mock('./utils/notifUtils', () => ({
-  requestNotifPerm: jest.fn(),
-  sendNotif:        jest.fn(),
-  playAlert:        jest.fn(),
+vi.mock('./utils/notifUtils', () => ({
+  requestNotifPerm: vi.fn(),
+  sendNotif:        vi.fn(),
+  playAlert:        vi.fn(),
 }));
-jest.mock('./utils/swUtils', () => ({
-  registerSW: jest.fn(),
+vi.mock('./utils/swUtils', () => ({
+  registerSW: vi.fn(),
 }));
 
 describe('utils.js barrel exports', () => {

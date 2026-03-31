@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 /**
  * hooks/splitHooks.test.js
  * Проверяет что разбивка useDashboardHooks на отдельные файлы не сломала
@@ -5,19 +6,19 @@
  */
 
 // Мокируем тяжёлые зависимости
-jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: jest.fn(() => false),
-  isDemoMode: jest.fn(() => false),
+vi.mock('../config/runtimeMode.js', () => ({
+  isLiveMode: vi.fn(() => false),
+  isDemoMode: vi.fn(() => false),
 }));
-jest.mock('../services/providers/serviceContainer', () => ({
-  services: { liveData: { startSync: jest.fn() } },
+vi.mock('../services/providers/serviceContainer.js', () => ({
+  services: { liveData: { startSync: vi.fn() } },
 }));
-jest.mock('../services/pushNotification', () => ({ subscribePush: jest.fn() }));
-jest.mock('../utils', () => ({ sendNotif: jest.fn(), playAlert: jest.fn() }));
+vi.mock('../services/pushNotification.js', () => ({ subscribePush: vi.fn() }));
+vi.mock('../utils.js', () => ({ sendNotif: vi.fn(), playAlert: vi.fn() }));
 
 describe('useDashboardHooks barrel re-exports', () => {
-  test('all 6 hooks exported from barrel', () => {
-    const barrel = require('./useDashboardHooks');
+  test('all 6 hooks exported from barrel', async () => {
+    const barrel = await import('./useDashboardHooks.js');
     expect(typeof barrel.useTheme).toBe('function');
     expect(typeof barrel.useNavBadges).toBe('function');
     expect(typeof barrel.useLiveSync).toBe('function');
@@ -26,42 +27,36 @@ describe('useDashboardHooks barrel re-exports', () => {
     expect(typeof barrel.useNavigation).toBe('function');
   });
 
-  test('hooks are importable directly from their own files', () => {
-    expect(typeof require('./useTheme').useTheme).toBe('function');
-    expect(typeof require('./useNavBadges').useNavBadges).toBe('function');
-    expect(typeof require('./useLiveSync').useLiveSync).toBe('function');
-    expect(typeof require('./usePushNotifications').usePushNotifications).toBe('function');
-    expect(typeof require('./useArrivalNotifier').useArrivalNotifier).toBe('function');
-    expect(typeof require('./useNavigation').useNavigation).toBe('function');
+  test('hooks are importable directly from their own files', async () => {
+    expect(typeof (await import('./useTheme.js')).useTheme).toBe('function');
+    expect(typeof (await import('./useNavBadges.js')).useNavBadges).toBe('function');
+    expect(typeof (await import('./useLiveSync.js')).useLiveSync).toBe('function');
+    expect(typeof (await import('./usePushNotifications.js')).usePushNotifications).toBe('function');
+    expect(typeof (await import('./useArrivalNotifier.js')).useArrivalNotifier).toBe('function');
+    expect(typeof (await import('./useNavigation.js')).useNavigation).toBe('function');
   });
 
-  test('barrel and direct import resolve to the same function', () => {
-    const barrel  = require('./useDashboardHooks');
-    const direct  = require('./useTheme');
+  test('barrel and direct import resolve to the same function', async () => {
+    const barrel  = await import('./useDashboardHooks.js');
+    const direct  = await import('./useTheme.js');
     expect(barrel.useTheme).toBe(direct.useTheme);
   });
 });
 
 describe('useLiveSync — isLoading state', () => {
-  const { renderHook, act } = require('@testing-library/react');
-  const { useLiveSync }     = require('./useLiveSync');
+  const { renderHook } = require('@testing-library/react');
+  const { useLiveSync } = require('./useLiveSync.js');
 
-  const mockServices = require('../services/providers/serviceContainer');
+  const { services: mockServices } = require('../services/providers/serviceContainer.js');
 
   test('isLoading starts true and becomes false after data arrives', async () => {
-    let onRequestsCallback;
-    mockServices.services.liveData.startSync.mockImplementation(({ onRequests }) => {
-      onRequestsCallback = onRequests;
-      return jest.fn(); // cleanup
-    });
-
     const { result } = renderHook(() =>
       useLiveSync(
         { uid: 'u1', role: 'owner' },
         {
-          setAllRequests: jest.fn(), setAllMessages: jest.fn(),
-          setAllUsers: jest.fn(), setPerms: jest.fn(),
-          setTemplates: jest.fn(), setBlacklist: jest.fn(),
+          setAllRequests: vi.fn(), setAllMessages: vi.fn(),
+          setAllUsers: vi.fn(), setPerms: vi.fn(),
+          setTemplates: vi.fn(), setBlacklist: vi.fn(),
           prevPendingP: { current: 0 },
           prevPendingT: { current: 0 },
           prevMsgs:     { current: 0 },
