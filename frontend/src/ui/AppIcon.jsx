@@ -31,9 +31,6 @@ const PATHS = {
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));
 const warnedUnknownIcons = new Set();
 const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
-export function __resetAppIconWarningsForTests() {
-  warnedUnknownIcons.clear();
-}
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
   const hasExplicitName = typeof name === 'string' && name.trim().length > 0;

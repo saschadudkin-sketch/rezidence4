@@ -1,10 +1,12 @@
 import { render } from '@testing-library/react';
-import { AppIcon, APP_ICON_NAMES, __resetAppIconWarningsForTests } from './AppIcon';
+import { AppIcon, APP_ICON_NAMES } from './AppIcon';
+
+let unknownSeq = 0;
+const nextUnknown = (prefix = 'unknown') => `${prefix}-${unknownSeq++}`;
 
 describe('AppIcon', () => {
   let warnSpy;
   beforeEach(() => {
-    __resetAppIconWarningsForTests();
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => {
@@ -24,7 +26,7 @@ describe('AppIcon', () => {
   });
 
   test('для неизвестного имени использует fallback и не падает', () => {
-    const { container } = render(<AppIcon name="unknown-icon-name" />);
+    const { container } = render(<AppIcon name={nextUnknown()} />);
     const path = container.querySelector('path');
     expect(path).toBeTruthy();
     expect(path.getAttribute('d')).toBeTruthy();
@@ -32,16 +34,10 @@ describe('AppIcon', () => {
   });
 
   test('для одного неизвестного имени предупреждение выводится только один раз', () => {
-    render(<AppIcon name="same-unknown-icon" />);
-    render(<AppIcon name="same-unknown-icon" />);
+    const name = nextUnknown('same-unknown');
+    render(<AppIcon name={name} />);
+    render(<AppIcon name={name} />);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test('после сброса тестового кеша предупреждение может появиться снова', () => {
-    render(<AppIcon name="resettable-unknown-icon" />);
-    __resetAppIconWarningsForTests();
-    render(<AppIcon name="resettable-unknown-icon" />);
-    expect(warnSpy).toHaveBeenCalledTimes(2);
   });
 
   test('без имени и с пустым именем работает без предупреждений', () => {
@@ -56,10 +52,13 @@ describe('AppIcon', () => {
   });
 
   test('после переполнения кеша предупреждений старые имена снова предупреждаются', () => {
+    const names = [];
     for (let i = 0; i <= 200; i += 1) {
-      render(<AppIcon name={`overflow-unknown-${i}`} />);
+      const name = nextUnknown('overflow-unknown');
+      names.push(name);
+      render(<AppIcon name={name} />);
     }
-    render(<AppIcon name="overflow-unknown-0" />);
+    render(<AppIcon name={names[0]} />);
     expect(warnSpy).toHaveBeenCalledTimes(202);
   });
 });
@@ -70,6 +69,36 @@ describe('APP_ICON_NAMES', () => {
     expect(APP_ICON_NAMES).toContain('ticket');
     expect(APP_ICON_NAMES).toContain('users');
     expect(Object.isFrozen(APP_ICON_NAMES)).toBe(true);
+  });
+
+  test('реестр иконок остаётся стабильным (контракт)', () => {
+    expect(APP_ICON_NAMES).toEqual([
+      'ticket',
+      'tools',
+      'list',
+      'file',
+      'history',
+      'chat',
+      'residents',
+      'ban',
+      'shield',
+      'chart',
+      'users',
+      'car',
+      'alert',
+      'check',
+      'denied',
+      'edit',
+      'trash',
+      'undo',
+      'phone',
+      'info',
+      'door',
+      'search',
+      'camera',
+      'close',
+      'chevronRight',
+    ]);
   });
 
   test('каждое имя из реестра успешно рендерится', () => {
