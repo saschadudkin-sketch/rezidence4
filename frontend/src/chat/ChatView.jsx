@@ -426,7 +426,7 @@ export function ChatView({ user }) {
                 opacity: loadingOlder ? 0.6 : 1,
               }}
             >
-              {loadingOlder ? '⏳ Загрузка...' : '↑ Загрузить ещё'}
+              {loadingOlder ? 'Загрузка...' : '↑ Загрузить ещё'}
             </button>
           </div>
         )}
@@ -563,10 +563,12 @@ export function ChatView({ user }) {
           <AppIcon name="search" size={16} />
         </button>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange}/>
-        <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">{photoSending ? '⏳' : '📎'}</button>
+        <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">
+          {photoSending ? <AppIcon name="history" size={16} /> : <AppIcon name="file" size={16} />}
+        </button>
         <button className="chat-photo-btn" onClick={() => setShowEmoji(s => !s)} aria-label="Emoji"
           style={{ background: showEmoji ? 'var(--g-bg)' : 'var(--s2)', borderColor: showEmoji ? 'var(--g1)' : 'var(--b1)' }}>
-          😊
+          <AppIcon name="chat" size={16} />
         </button>
         <textarea ref={inputRef} className="chat-inp" rows={1}
           placeholder="Напишите сообщение..." value={text}
