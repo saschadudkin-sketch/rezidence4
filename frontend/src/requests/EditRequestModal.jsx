@@ -5,7 +5,7 @@ import { toastBySyncResult } from '../ui/syncFeedback';
 import { toast } from '../ui/Toasts.jsx';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { services } from '../services/providers/serviceContainer';
-
+import { AppIcon } from '../ui/AppIcon';
 
 export function EditRequestModal({ req, onClose, onDone }) {
   const [vName,    setVName]    = useState(req.visitorName  || '');
@@ -59,10 +59,10 @@ export function EditRequestModal({ req, onClose, onDone }) {
           <div>
             <span className="modal-title">Редактировать заявку</span>
             <div style={{ fontSize: 11, color: 'var(--g2)', marginTop: 2 }}>
-              {CAT_ICON[req.category]} {CAT_LABEL[req.category]}
+              <span className="u-inline-icon"><AppIcon name={CAT_ICON[req.category] || 'users'} size={12} /> {CAT_LABEL[req.category]}</span>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
           {req.type === 'pass' && req.category !== 'taxi' && (

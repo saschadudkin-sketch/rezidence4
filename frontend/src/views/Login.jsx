@@ -5,6 +5,7 @@ import { toast } from '../ui/Toasts';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode';
 import { LOGO } from '../constants/logo';
 import { authProvider } from '../services/providers/backendProvider';
+import { AppIcon } from '../ui/AppIcon';
 
 // FIX [AUDIT-2 #15]: демо-данные с телефонами НЕ попадают в production JS-бандл
 const HINTS = isDemoMode() ? [
@@ -94,21 +95,21 @@ export default function Login({ onLogin }) {
           <div className="login-art-headline">Умное управление<br />доступом в ваш дом</div>
           <ul className="login-art-features">
             <li className="login-art-feature">
-              <div className="login-art-feature-icon">🎫</div>
+              <div className="login-art-feature-icon"><AppIcon name="ticket" /></div>
               <div>
                 <div className="login-art-feature-title">Пропуска за секунды</div>
                 <div className="login-art-feature-desc">Создавайте и отправляйте гостевые пропуска прямо с телефона</div>
               </div>
             </li>
             <li className="login-art-feature">
-              <div className="login-art-feature-icon">🔔</div>
+              <div className="login-art-feature-icon"><AppIcon name="alert" /></div>
               <div>
                 <div className="login-art-feature-title">Уведомления в реальном времени</div>
                 <div className="login-art-feature-desc">Охрана получает пуш-уведомления на заблокированный экран</div>
               </div>
             </li>
             <li className="login-art-feature">
-              <div className="login-art-feature-icon">📋</div>
+              <div className="login-art-feature-icon"><AppIcon name="list" /></div>
               <div>
                 <div className="login-art-feature-title">Постоянные списки</div>
                 <div className="login-art-feature-desc">Сохраняйте частых гостей и шаблоны заявок</div>

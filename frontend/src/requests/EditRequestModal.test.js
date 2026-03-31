@@ -33,8 +33,16 @@ jest.mock('../ui/scrollLock', () => ({
 
 const { services } = require('../services/providers/serviceContainer');
 const { toast } = require('../ui/Toasts');
+let consoleWarnSpy;
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleWarnSpy?.mockRestore();
+});
 
 const makeReq = (overrides = {}) => ({
   id: 'r1',
@@ -65,7 +73,7 @@ describe('EditRequestModal', () => {
     expect(screen.getByText(/гость/i)).toBeInTheDocument();
   });
 
-  test('кнопка ✕ вызывает onClose', () => {
+  test('кнопка закрытия вызывает onClose', () => {
     const onClose = jest.fn();
     render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={jest.fn()} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));

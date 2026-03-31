@@ -10,6 +10,7 @@ import { can, ROLES } from '../domain/permissions';
 import GarageView from './GarageView.jsx';
 import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // FIX [PERF]: Set.has() O(1) вместо Array.includes() O(n) — вызывается при каждом фильтре
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
@@ -105,8 +106,8 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   // FIX [PERF]: passIcons мемоизирован — массив не пересоздаётся при каждом рендере
   const passIcons = useMemo(() =>
     user.role === 'contractor'
-      ? [['worker','👷','Рабочий'],['team','👷','Бригада'],['delivery','🚚','Доставка'],['car','🚗','Авто']]
-      : [['guest','👤','Гость'],['courier','📦','Курьер'],['taxi','🚕','Такси'],['car','🚗','Авто'],['master','🔨','Мастер']],
+      ? [['worker','tools','Рабочий'],['team','users','Бригада'],['delivery','car','Доставка'],['car','car','Авто']]
+      : [['guest','users','Гость'],['courier','file','Курьер'],['taxi','car','Такси'],['car','car','Авто'],['master','tools','Мастер']],
   [user.role]);
 
   return (
@@ -114,11 +115,11 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       {activeTab === 'passes' && (
         <>
           <div className="type-grid">
-            {passIcons.map(([k, i, l]) => (
+            {passIcons.map(([k, iconName, l]) => (
               <div key={k} className="type-card" role="button" tabIndex={0}
                 onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
                 onClick={() => setModal({ type: 'pass', cat: k })}>
-                <div className="type-icon">{i}</div>
+                <div className="type-icon"><AppIcon name={iconName} /></div>
                 <div className="type-label">{l}</div>
               </div>
             ))}
@@ -126,7 +127,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
               onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
               onClick={() => setActiveTab('templates')}
               style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
-              <div className="type-icon">📑</div>
+              <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
             </div>
           </div>
@@ -134,10 +135,10 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
             <div className="pass-filter-pills">
               {[
                 ['active',    'Активные',           0],
-                ['scheduled', '⏰ Запланированные', scheduledCount],
+                ['scheduled', 'Запланированные', scheduledCount],
                 ['all',       'Все',                myPasses.length],
-                ['temporary', '📅 Временные',       tempCount],
-                ['permanent', '♾ Постоянные',       permCount],
+                ['temporary', 'Временные',       tempCount],
+                ['permanent', 'Постоянные',       permCount],
                 ['once',      'Разовые',             myPasses.length - tempCount - permCount],
               ].map(([k, l, c]) =>
                 c > 0 || k === 'all' || k === 'active' ? (
@@ -152,7 +153,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
           )}
           {filteredPasses.length === 0 && myPasses.length === 0
             ? <div className="empty">
-                <div style={{ fontSize: 36, marginBottom: 12, opacity: .15 }}>🎫</div>
+                <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="ticket" size={36} /></div>
                 <div className="empty-title">Пропусков пока нет</div>
                 <div className="empty-sub">Нажмите на категорию выше, чтобы создать первый пропуск</div>
               </div>
@@ -161,7 +162,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
               : <>
                   {scheduledPasses.length > 0 && passFilter !== 'scheduled' && (
                     <div style={{ marginBottom: 12 }}>
-                      <div className="sec-divider-label">📅 Запланированные ({scheduledPasses.length})</div>
+                      <div className="sec-divider-label"><AppIcon name="history" className="u-inline-icon" /> Запланированные ({scheduledPasses.length})</div>
                       <GroupedReqList reqs={scheduledPasses} userRole={user.role} userName={user.name} userId={user.uid}
                         onRepeat={onRepeatPass}
                         onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
@@ -181,11 +182,11 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       {activeTab === 'tech' && (
         <>
           <div className="type-grid">
-            {[['electrician','⚡','Электрик'],['plumber','🔧','Сантехник']].map(([k, i, l]) => (
+            {[['electrician','alert','Электрик'],['plumber','tools','Сантехник']].map(([k, iconName, l]) => (
               <div key={k} className="type-card" role="button" tabIndex={0}
                 onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
                 onClick={() => setModal({ type: 'tech', cat: k })}>
-                <div className="type-icon">{i}</div>
+                <div className="type-icon"><AppIcon name={iconName} /></div>
                 <div className="type-label">{l}</div>
               </div>
             ))}
@@ -193,7 +194,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
               onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
               onClick={() => setActiveTab('templates')}
               style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
-              <div className="type-icon">📑</div>
+              <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
             </div>
           </div>
@@ -204,7 +205,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
           </div>
           {filteredTech.length === 0
             ? <div className="empty">
-                <div style={{ fontSize: 36, marginBottom: 12, opacity: .15 }}>🔧</div>
+                <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="tools" size={36} /></div>
                 <div className="empty-title">Заявок нет</div>
                 <div className="empty-sub">Нажмите на категорию выше, чтобы вызвать техслужбу</div>
               </div>
@@ -240,7 +241,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         <div>
           {completedRequests.length === 0 ? (
             <div className="empty-state" style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ fontSize: 48, opacity: 0.15, marginBottom: 16 }}>📜</div>
+              <div style={{ opacity: 0.15, marginBottom: 16 }}><AppIcon name="history" size={48} /></div>
               <div style={{ fontSize: 18, color: 'var(--t3)', marginBottom: 8 }}>Нет завершённых заявок</div>
               <div style={{ fontSize: 13, color: 'var(--t4)' }}>Здесь появятся завершённые, отклонённые и отменённые заявки</div>
             </div>

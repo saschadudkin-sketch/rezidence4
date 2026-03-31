@@ -25,7 +25,7 @@ afterAll(() => {
 });
 
 jest.mock('../hooks/useDashboardHooks', () => ({
-  useTheme:            () => ({ theme: 'auto', cycleTheme: jest.fn(), themeIcon: '✦', themeLabel: 'Авто' }),
+  useTheme:            () => ({ theme: 'auto', cycleTheme: jest.fn(), themeIcon: 'chart', themeLabel: 'Авто' }),
   useNavBadges:        () => ({ pendingT: 0, pendingP: 0, unreadMsgs: 0, residentNewStatuses: 0, blacklistCount: 0, onPassesSeen: jest.fn() }),
   useLiveSync:         () => ({ isLoading: false }),
   usePushNotifications:() => {},

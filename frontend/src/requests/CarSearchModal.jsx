@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useUsers, useAllGarage } from '../store/AppStore.jsx';
 import { isResident } from '../domain/permissions.js';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 /**
  * CarSearchModal — быстрый поиск авто по номеру.
@@ -41,8 +42,8 @@ export function CarSearchModal({ onClose }) {
       <div className="modal">
         <div className="modal-handle" />
         <div className="modal-head">
-          <span className="modal-title">🚗 Поиск по номеру авто</span>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <span className="modal-title"><AppIcon name="car" size={16} /> Поиск по номеру авто</span>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
           <div className="field">
@@ -59,9 +60,9 @@ export function CarSearchModal({ onClose }) {
 
           {query.trim().length >= 2 && results.length === 0 && (
             <div className="car-search-empty">
-              <div style={{ fontSize: 32, opacity: .3 }}>🔍</div>
-              <div style={{ fontSize: 14, color: 'var(--t3)', marginTop: 8 }}>Автомобиль не найден</div>
-              <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 4 }}>
+              <div className="car-search-empty-icon"><AppIcon name="search" size={30} /></div>
+              <div className="car-search-empty-title">Автомобиль не найден</div>
+              <div className="car-search-empty-sub">
                 Машина не добавлена в систему жильцом
               </div>
             </div>
@@ -82,7 +83,7 @@ export function CarSearchModal({ onClose }) {
                       <div className="car-search-parking">🅿 Парковка: <strong>{u.parkingSpot}</strong></div>
                     )}
                     <a href={'tel:' + u.phone.replace(/\s/g, '')} className="car-search-phone">
-                      📞 {u.phone}
+                      {u.phone}
                     </a>
                   </div>
                 </div>
@@ -91,7 +92,7 @@ export function CarSearchModal({ onClose }) {
           )}
 
           {query.trim().length < 2 && (
-            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t4)', fontSize: 13 }}>
+            <div className="car-search-hint">
               Введите минимум 2 символа для поиска
             </div>
           )}
