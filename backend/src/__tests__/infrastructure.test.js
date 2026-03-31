@@ -95,6 +95,21 @@ describe('logger (pino wrapper) — приоритет LOG_LEVEL', () => {
       expect(config.level).toBe('info');
     });
   });
+
+  test('в development включается pretty transport', () => {
+    process.env = { ...originalEnv, NODE_ENV: 'development' };
+    delete process.env.LOG_LEVEL;
+    jest.resetModules();
+
+    jest.isolateModules(() => {
+      jest.doMock('pino', () => jest.fn(() => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn(), fatal: jest.fn() })));
+      require('../logger');
+      const pino = require('pino');
+      expect(pino).toHaveBeenCalled();
+      const config = pino.mock.calls[0][0];
+      expect(config.transport).toEqual(expect.objectContaining({ target: 'pino-pretty' }));
+    });
+  });
 });
 
 // ── index.js — проверяем guards ───────────────────────────────────────────────
