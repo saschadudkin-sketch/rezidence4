@@ -6,11 +6,12 @@
 import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { useRequests } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
-import { CAT_LABEL, CAT_ICON, PASS_DURATION_ICON, PASS_DURATION_LABEL, ROLE_LABELS } from '../constants/index.js';
+import { CAT_ICON, CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON, ROLE_LABELS } from '../constants/index.js';
 import { getValidationReasonLabel } from '../constants/statusPresentation';
 import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils.js';
 import { clearVisitLogs, getVisitLogs } from '../shared/api/passesApi';
+import { AppIcon } from '../ui/AppIcon';
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -57,14 +58,14 @@ const VisitCard = memo(function VisitCard({ r }) {
     <div className="vlog-card">
       <div className="vlog-card-left">
         <div className="vlog-card-time">{fmtTime(r.arrivedAt || r.createdAt)}</div>
-        <div className="vlog-card-icon">{CAT_ICON[r.category] || '👤'}</div>
+        <div className="vlog-card-icon"><AppIcon name={CAT_ICON[r.category] || 'users'} /></div>
       </div>
       <div className="vlog-card-body">
         <div className="vlog-card-row1">
           <span className="vlog-card-name">{r.visitorName || CAT_LABEL[r.category]}</span>
           {r.passDuration && r.passDuration !== 'once' && (
             <span className={'pass-dur-tag ' + r.passDuration}>
-              {PASS_DURATION_ICON[r.passDuration]} {PASS_DURATION_LABEL[r.passDuration]}
+              <AppIcon name={PASS_DURATION_ICON[r.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[r.passDuration]}
             </span>
           )}
         </div>
@@ -76,10 +77,10 @@ const VisitCard = memo(function VisitCard({ r }) {
         </div>
         <div className="vlog-card-tags">
           <span className="vlog-tag cat">{CAT_LABEL[r.category]}</span>
-          {r.result === 'allowed' && <span className="vlog-tag ok">✅ Допуск</span>}
-          {r.result === 'denied' && <span className="vlog-tag bad">🚫 Отказ</span>}
-          {r.carPlate && <span className="vlog-tag car">🚗 {r.carPlate}</span>}
-          {duration && <span className="vlog-tag dur">⏱ {duration}</span>}
+          {r.result === 'allowed' && <span className="vlog-tag ok"><AppIcon name="check" className="u-inline-icon" /> Допуск</span>}
+          {r.result === 'denied' && <span className="vlog-tag bad"><AppIcon name="denied" className="u-inline-icon" /> Отказ</span>}
+          {r.carPlate && <span className="vlog-tag car"><AppIcon name="car" className="u-inline-icon" /> {r.carPlate}</span>}
+          {duration && <span className="vlog-tag dur"><AppIcon name="history" className="u-inline-icon" /> {duration}</span>}
           {r.status === 'expired' && <span className="vlog-tag expired">Истёк</span>}
         </div>
         {r.actorName && (
@@ -225,7 +226,7 @@ export default function VisitLogView({ user }) {
       {!isLoading && (
       <>
       <div className="vlog-header">
-        <span className="vlog-title">📖 Журнал посещений</span>
+        <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал посещений</span>
         <div className="u-row-g8">
           <span className="vlog-total">{totalCount} {totalCount === 1 ? 'визит' : totalCount < 5 ? 'визита' : 'визитов'}</span>
           {canExport && (
@@ -255,20 +256,27 @@ export default function VisitLogView({ user }) {
       </div>
 
       <div className="date-pills date-pills-row">
-        {[['all', 'Все решения'], ['allowed', '✅ Допущены'], ['denied', '🚫 Отказы']].map(([k, l]) => (
-          <button key={k} className={'date-pill' + (decision === k ? ' active' : '')} onClick={() => setDecision(k)}>{l}</button>
+        {[
+          ['all', null, 'Все решения'],
+          ['allowed', 'check', 'Допущены'],
+          ['denied', 'denied', 'Отказы'],
+        ].map(([k, iconName, l]) => (
+          <button key={k} className={'date-pill' + (decision === k ? ' active' : '')} onClick={() => setDecision(k)}>
+            {iconName ? <AppIcon name={iconName} className="u-inline-icon" /> : null}
+            {l}
+          </button>
         ))}
       </div>
 
       <div className="search-wrap u-mb16">
-        <span className="search-ico">🔍</span>
+        <span className="search-ico"><AppIcon name="search" /></span>
         <input className="search-inp" placeholder="Поиск по имени, авто, квартире, комментарию..."
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>
 
       {visits.length === 0 && (
         <div className="empty">
-          <div style={{ fontSize: 36, marginBottom: 12, opacity: .15 }}>📖</div>
+          <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="history" size={36} /></div>
           <div className="empty-title">{q ? 'Ничего не найдено' : 'Посещений нет'}</div>
           <div className="empty-sub">{q ? 'Попробуйте другой запрос' : 'Входы посетителей будут отображаться здесь'}</div>
         </div>

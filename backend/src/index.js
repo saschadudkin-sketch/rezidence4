@@ -25,14 +25,16 @@ const requireAuth     = require('./middleware/auth');
 
 const app  = express();
 
-// FIX [AUDIT-3 #2]: КРИТИЧНО — trust proxy для корректного rate limiting за nginx.
-// Без этого все запросы видны с IP docker bridge (172.17.0.x), rate limiter
-// считает лимит на весь nginx, а не на отдельного клиента.
-// '1' = доверяем одному hop (nginx → backend).
-app.set('trust proxy', 1);
-
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
+// FIX [AUDIT]: trust proxy должен быть явно управляем окружением.
+// По умолчанию доверяем 1 proxy hop только в production (типично nginx → backend).
+// В non-prod default=false, чтобы не принимать spoofed X-Forwarded-* при прямом доступе.
+const trustProxyHops = process.env.TRUST_PROXY_HOPS;
+const trustProxyValue = trustProxyHops != null
+  ? Number.parseInt(trustProxyHops, 10)
+  : (isProd ? 1 : false);
+app.set('trust proxy', Number.isInteger(trustProxyValue) && trustProxyValue >= 0 ? trustProxyValue : false);
 
 // ─── FIX [SEC-4]: Production guard ───────────────────────────────────────────
 // Если в production не задан FRONTEND_URL — стартуем с ошибкой,
@@ -85,6 +87,13 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const clientLogsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много client logs. Подождите.' },
+});
 // FIX [AUDIT]: отдельный лимит для загрузки файлов — 20 фото/мин.
 // Без него авторизованный пользователь загружает 200 файлов × 10MB = 2GB/мин на диск,
 // исчерпывая дисковое пространство и пропускную способность сети.
@@ -132,7 +141,6 @@ app.use(pinoHttp({
     res(res) { return { statusCode: res.statusCode }; },
   },
 }));
-app.use('/api/auth', authLimiter);
 app.use('/api/',     globalLimiter);
 
 // NOTE: chatLimiter применяется внутри routes/chat.js на POST /messages
@@ -169,9 +177,9 @@ app.use('/api/v1/templates',   templatesRouter);
 app.use('/api/v1/blacklist',   blacklistRouter);
 app.use('/api/v1/visit-logs',  visitLogsRouter);
 app.use('/api/v1/upload',      uploadLimiter, uploadRouter);
-// FIX [AUDIT-6 #4]: client error reporting — no auth (errors before login), rate limited
-app.use('/api/v1/client-logs', globalLimiter, clientLogsRouter);
-app.use('/api/client-logs',    globalLimiter, clientLogsRouter);
+// FIX [AUDIT-6 #4]: client error reporting — no auth (errors before login), отдельный limiter
+app.use('/api/v1/client-logs', clientLogsLimiter, clientLogsRouter);
+app.use('/api/client-logs',    clientLogsLimiter, clientLogsRouter);
 
 // FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation заголовок.
 // Rate limiter на /api/auth теперь также покрывает /api/v1/auth через явный middleware.

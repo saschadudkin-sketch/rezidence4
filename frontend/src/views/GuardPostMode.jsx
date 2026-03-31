@@ -19,6 +19,7 @@ import { pushNotifyResident } from '../services/pushNotification';
 import { sendNotif } from '../utils';
 import { logVisit } from '../shared/api/passesApi';
 import ErrorBoundary from '../ui/ErrorBoundary';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── Карточка пропуска ───────────────────────────────────────────────────────
 
@@ -90,14 +91,14 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     } else {
       act('approve', () => {
         approveRequest(req.id, userName, 'security');
-        sendNotif('✅ Допуск открыт', (req.visitorName || 'Гость') + ' — пропуск одобрен', 'status-' + req.id);
+        sendNotif('Допуск открыт', (req.visitorName || 'Гость') + ' — пропуск одобрен', 'status-' + req.id);
       }, 'Допуск открыт', 'success');
     }
   };
   const doReject = () => {
     act('reject', () => {
       rejectRequest(req.id, userName, 'security');
-      sendNotif('❌ В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
+      sendNotif('В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
     }, 'В допуске отказано', 'error');
     setConfirmReject(false);
     setConfirmApprove(false);
@@ -125,7 +126,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     <div className={'guard-card' + (blMatch ? ' bl-flagged' : '')} role="article">
       {blMatch && (
         <div className="bl-warning">
-          <span style={{ fontSize: 22 }}>🚫</span>
+          <span className="u-inline-icon"><AppIcon name="denied" size={22} /></span>
           <div>
             <div className="bl-warning-text">ЧЁРНЫЙ СПИСОК</div>
             <div className="bl-warning-detail">
@@ -154,7 +155,11 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
           <div className="guard-cat">{CAT_LABEL[req.category] || req.category}</div>
           
         </div>
-        {onViewDetails && <button className="guard-detail-btn" onClick={() => onViewDetails(req.id)} title="Подробнее">ℹ️</button>}
+        {onViewDetails && (
+          <button className="guard-detail-btn" onClick={() => onViewDetails(req.id)} title="Подробнее">
+            <AppIcon name="info" size={14} />
+          </button>
+        )}
       </div>
 
       {(req.visitorName || req.carPlate || req.comment) && (
@@ -167,7 +172,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
 
       {req.status === 'approved' && (
         <button className="qr-pass-btn" onClick={() => setShowQR(true)} style={{ marginBottom: 0 }}>
-          <span style={{ fontSize: 18 }}>📱</span>
+          <span className="u-inline-icon"><AppIcon name="phone" size={18} /></span>
           <div><div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>Показать QR-код</div></div>
         </button>
       )}
@@ -191,36 +196,36 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
           <>
             {confirmApprove ? (
               <button className="guard-btn approve confirm" onClick={doPass} disabled={!!loading}>
-                {loading === 'approve' ? <span className="btn-spin" /> : '✓'}
+                {loading === 'approve' ? <span className="btn-spin" /> : <AppIcon name="check" size={14} />}
                 <span>Точно пропустить?</span>
               </button>
             ) : (
               <button className="guard-btn approve" onClick={() => setConfirmApprove(true)} disabled={!!loading}>
-                <span>✓</span><span>Пропустить</span>
+                <span className="u-inline-icon"><AppIcon name="check" size={14} /></span><span>Пропустить</span>
               </button>
             )}
             {confirmReject ? (
               <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
-                {loading === 'reject' ? <span className="btn-spin" /> : '⚠️'}
+                {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
                 <span>Точно отказать?</span>
               </button>
             ) : (
               <button className="guard-btn reject" onClick={() => setConfirmReject(true)} disabled={!!loading}>
-                <span>✕</span><span>Отказать</span>
+                <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
               </button>
             )}
           </>
         )}
         {req.status === 'approved' && (req.passDuration === 'permanent' || req.passDuration === 'temporary') && (
           <button className="guard-btn arrive" onClick={doArrive} disabled={!!loading}>
-            {loading === 'arrive' ? <span className="btn-spin" /> : '🚪'}
+            {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
             <span>Отметить вход</span>
           </button>
         )}
         {/* FIX [BUG]: дубликат блока фото удалён — фото уже рендерятся в guard-photos выше */}
         {residentPhone && (
           <a href={'tel:' + residentPhone.replace(/\s/g, '')} className="guard-btn call">
-            📞 <span>Позвонить жильцу</span>
+            <AppIcon name="phone" size={14} /> <span>Позвонить жильцу</span>
           </a>
         )}
       </div>
@@ -237,7 +242,7 @@ function GuardSection({ title, icon, count, children }) {
   return (
     <div className="guard-section">
       <div className="guard-section-head">
-        <span>{icon} {title}</span>
+        <span className="u-inline-icon">{icon} <span>{title}</span></span>
         <span className="guard-section-count">{count}</span>
       </div>
       <div className="guard-list">{children}</div>
@@ -299,7 +304,7 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
     <div className={'guard-card' + (expired ? ' expired' : '') + (blMatch ? ' bl-flagged' : '')}>
       {blMatch && (
         <div className="bl-warning">
-          <span style={{ fontSize: 22 }}>🚫</span>
+          <span className="u-inline-icon"><AppIcon name="denied" size={22} /></span>
           <div><div className="bl-warning-text">ЧЁРНЫЙ СПИСОК</div></div>
         </div>
       )}
@@ -315,19 +320,22 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
           <div className="guard-cat">{req.visitorName || CAT_LABEL[req.category] || req.category}</div>
         </div>
         <div className={'guard-temp-expiry' + (expired ? ' expired' : diff < 3600000 ? ' soon' : '')}>
-          {expired ? '⛔' : diff < 3600000 ? '⚠️' : '📅'} {timeLeft}
+          <span className="u-inline-icon">
+            <AppIcon name={expired ? 'denied' : diff < 3600000 ? 'alert' : 'history'} size={13} />
+          </span>{' '}
+          {timeLeft}
         </div>
       </div>
 
       {req.status === 'approved' && !expired && (
         <div className="guard-actions">
           <button className="guard-btn arrive" onClick={doArrive} disabled={loading}>
-            {loading ? <span className="btn-spin" /> : '🚪'}
+            {loading ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
             <span>Отметить вход</span>
           </button>
           {residentPhone && (
             <a href={'tel:' + residentPhone.replace(/\s/g, '')} className="guard-btn call">
-              📞 <span>Позвонить</span>
+              <AppIcon name="phone" size={14} /> <span>Позвонить</span>
             </a>
           )}
         </div>
@@ -382,7 +390,7 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
           <div className="guard-cat">{CAT_LABEL[req.category] || req.category}</div>
         </div>
         <div className={'guard-tech-status ' + req.status}>
-          {req.status === 'pending' ? '⏳ Новая' : req.status === 'accepted' ? '🔧 В работе' : '✅ Готово'}
+          {req.status === 'pending' ? 'Новая' : req.status === 'accepted' ? 'В работе' : 'Готово'}
         </div>
       </div>
 
@@ -395,13 +403,13 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
       <div className="guard-actions">
         {req.status === 'pending' && (
           <button className="guard-btn approve" onClick={doAccept} disabled={!!loading}>
-            {loading === 'accept' ? <span className="btn-spin" /> : '🔧'}
+            {loading === 'accept' ? <span className="btn-spin" /> : <AppIcon name="tools" size={14} />}
             <span>Принять в работу</span>
           </button>
         )}
         {residentPhone && (
           <a href={'tel:' + residentPhone.replace(/\s/g, '')} className="guard-btn call">
-            📞 <span>Позвонить жильцу</span>
+            <AppIcon name="phone" size={14} /> <span>Позвонить жильцу</span>
           </a>
         )}
       </div>
@@ -478,22 +486,22 @@ export default function GuardPostMode({ user, onViewDetails }) {
 
       {/* QR сканирование */}
       <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-        <span style={{ fontSize: 20 }}>📷</span>
+        <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
         <span>Сканировать QR-код пропуска</span>
       </button>
 
       {/* Подвкладки */}
       <div className="guard-subtabs">
         <button className={'guard-subtab' + (subTab === 'active' ? ' active' : '')} onClick={() => setSubTab('active')}>
-          🛡️ Активные
+          <span className="u-inline-icon"><AppIcon name="shield" size={14} /></span> Активные
           {(pending.length + approved.length) > 0 && <span className="guard-subtab-badge">{pending.length + approved.length}</span>}
         </button>
         <button className={'guard-subtab' + (subTab === 'temp' ? ' active' : '')} onClick={() => setSubTab('temp')}>
-          📅 Временные
+          <span className="u-inline-icon"><AppIcon name="history" size={14} /></span> Временные
           {temporary.length > 0 && <span className="guard-subtab-badge">{temporary.length}</span>}
         </button>
         <button className={'guard-subtab' + (subTab === 'tech' ? ' active' : '') + (techPending.length > 0 ? ' has-new' : '')} onClick={() => setSubTab('tech')}>
-          🔧 Техслужба
+          <span className="u-inline-icon"><AppIcon name="tools" size={14} /></span> Техслужба
           {techActive.length > 0 && <span className="guard-subtab-badge">{techActive.length}</span>}
         </button>
       </div>
@@ -503,19 +511,19 @@ export default function GuardPostMode({ user, onViewDetails }) {
         <>
           {pending.length === 0 && approved.length === 0 && (
             <div className="guard-empty">
-              <div style={{ fontSize: 48, opacity: .15, marginBottom: 16 }}>🛡️</div>
+              <div className="guard-empty-icon"><AppIcon name="shield" size={42} /></div>
               <div style={{ fontSize: 18, color: 'var(--t3)', marginBottom: 8 }}>Всё спокойно</div>
               <div style={{ fontSize: 13, color: 'var(--t4)' }}>Нет активных пропусков</div>
             </div>
           )}
-          <GuardSection title="Ожидают решения" icon="⏳" count={pending.length}>
+          <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={pending.length}>
             {pending.map(r => (
               <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
                 <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
               </ErrorBoundary>
             ))}
           </GuardSection>
-          <GuardSection title="Допущены" icon="✅" count={approved.length}>
+          <GuardSection title="Допущены" icon={<AppIcon name="list" size={14} />} count={approved.length}>
             {approved.map(r => (
               <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
                 <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
@@ -530,7 +538,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
         <>
           {temporary.length === 0 && (
             <div className="guard-empty">
-              <div style={{ fontSize: 48, opacity: .15, marginBottom: 16 }}>📅</div>
+              <div className="guard-empty-icon"><AppIcon name="history" size={42} /></div>
               <div style={{ fontSize: 18, color: 'var(--t3)', marginBottom: 8 }}>Нет временных пропусков</div>
               <div style={{ fontSize: 13, color: 'var(--t4)' }}>Временные пропуска с открытым доступом появятся здесь</div>
             </div>
@@ -550,19 +558,19 @@ export default function GuardPostMode({ user, onViewDetails }) {
         <>
           {techActive.length === 0 && (
             <div className="guard-empty">
-              <div style={{ fontSize: 48, opacity: .15, marginBottom: 16 }}>🔧</div>
+              <div className="guard-empty-icon"><AppIcon name="tools" size={42} /></div>
               <div style={{ fontSize: 18, color: 'var(--t3)', marginBottom: 8 }}>Нет техзаявок</div>
               <div style={{ fontSize: 13, color: 'var(--t4)' }}>Заявки на электрика и сантехника появятся здесь</div>
             </div>
           )}
-          <GuardSection title="Новые заявки" icon="⏳" count={techPending.length}>
+          <GuardSection title="Новые заявки" icon={<AppIcon name="history" size={14} />} count={techPending.length}>
             {techPendingCards.map(r => (
               <ErrorBoundary key={r.id} name={`Техзаявка ${r.id}`}>
                 <TechCard req={r} userName={user.name} residentPhone={getPhone(r.createdByUid)} />
               </ErrorBoundary>
             ))}
           </GuardSection>
-          <GuardSection title="В работе" icon="🔧" count={techAcceptedCards.length}>
+          <GuardSection title="В работе" icon={<AppIcon name="tools" size={14} />} count={techAcceptedCards.length}>
             {techAcceptedCards.map(r => (
               <ErrorBoundary key={r.id} name={`Техзаявка ${r.id}`}>
                 <TechCard req={r} userName={user.name} residentPhone={getPhone(r.createdByUid)} />

@@ -107,6 +107,7 @@ const BlacklistContext = createContext(null);
 const GarageContext    = createContext(null);
 // Единый диспатч — стабильная ссылка, не вызывает ре-рендер подписчиков
 const DispatchContext  = createContext(null);
+let hasWarnedUseAppState = false;
 
 // FIX [AUDIT-2 #9]: useDebouncedSave ВЫНЕСЕН за пределы AppProvider.
 // Ранее была объявлена внутри — нарушение Rules of Hooks (React не видит top-level).
@@ -192,20 +193,23 @@ export function AppProvider({ children }) {
 
 // ─── Публичные хуки (API не изменился) ───────────────────────────────────────
 
-// FIX [AUDIT-3 #12]: useAppState() бросает в production — предотвращает молчаливую регрессию.
-// В dev — подробное предупреждение. В prod — throw, чтобы ErrorBoundary поймал.
+// FIX [AUDIT-3 #12]: useAppState() помечен deprecated.
+// В dev/prod логируем предупреждение, но не роняем приложение для безопасной миграции.
 /** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
 export function useAppState() {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      '[AppStore] useAppState() deprecated — replace with granular hooks: ' +
-      'useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
+  if (!hasWarnedUseAppState) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[AppStore] useAppState() deprecated in production. ' +
+        'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
+      );
+    }
+    console.warn(
+      '[AppStore] useAppState() DEPRECATED — subscribes to ALL 6 contexts causing re-renders. ' +
+      'Use: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
     );
+    hasWarnedUseAppState = true;
   }
-  console.warn(
-    '[AppStore] useAppState() DEPRECATED — subscribes to ALL 6 contexts causing re-renders. ' +
-    'Use: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
-  );
   const req   = useContext(RequestsContext);
   const chat  = useContext(ChatContext);
   const users = useContext(UsersContext);
@@ -251,11 +255,11 @@ export function useActions() {
 
     approveRequest: (id, byName, byRole) => {
       setStatusWithHistory(dispatch, id, 'approved', 'Допуск разрешён', byName, byRole);
-      sendNotif('✅ Пропуск одобрен', byName + ' разрешил допуск', 'approved-' + id);
+      sendNotif('Пропуск одобрен', byName + ' разрешил допуск', 'approved-' + id);
     },
     rejectRequest: (id, byName, byRole) => {
       setStatusWithHistory(dispatch, id, 'rejected', 'Отказано', byName, byRole);
-      sendNotif('❌ Пропуск отклонён', byName + ' отказал в допуске', 'rejected-' + id);
+      sendNotif('Пропуск отклонён', byName + ' отказал в допуске', 'rejected-' + id);
     },
     acceptRequest:    (id, byName, byRole) => setStatusWithHistory(dispatch, id, 'accepted', 'Принято в работу', byName, byRole),
     arriveRequest:    (id, byName, byRole) => arriveWithHistory(dispatch, id, byName, byRole),

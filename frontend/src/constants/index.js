@@ -10,12 +10,12 @@ export const ROLE_LABELS = {
 };
 
 export const ROLE_ICONS = {
-  owner:      '👤',
-  tenant:     '🏠',
-  contractor: '👷',
-  concierge:  '🛎️',
-  security:   '🛡️',
-  admin:      '⚙️',
+  owner:      'users',
+  tenant:     'door',
+  contractor: 'tools',
+  concierge:  'chat',
+  security:   'shield',
+  admin:      'chart',
 };
 
 export const ROLE_COLOR = {
@@ -30,16 +30,16 @@ export const ROLE_COLOR = {
 // ─── Категории заявок ────────────────────────────────────────────────────────
 
 export const CAT_ICON = {
-  guest:       '👤',
-  courier:     '📦',
-  taxi:        '🚕',
-  car:         '🚗',
-  master:      '🔨',
-  worker:      '👷',
-  team:        '👷',
-  delivery:    '🚚',
-  electrician: '⚡',
-  plumber:     '🔧',
+  guest:       'users',
+  courier:     'file',
+  taxi:        'car',
+  car:         'car',
+  master:      'tools',
+  worker:      'tools',
+  team:        'users',
+  delivery:    'car',
+  electrician: 'alert',
+  plumber:     'tools',
 };
 
 export const CAT_LABEL = {
@@ -83,9 +83,9 @@ export const PASS_DURATION_LABEL = {
 };
 
 export const PASS_DURATION_ICON = {
-  once:      '1️⃣',
-  temporary: '📅',
-  permanent: '♾️',
+  once:      'ticket',
+  temporary: 'history',
+  permanent: 'shield',
 };
 
 export const PASS_DURATION_DESC = {
@@ -143,4 +143,3 @@ export const CATS_PASS_RESIDENT   = ['guest', 'courier', 'taxi', 'car', 'master'
 
 /** Пропускные категории для подрядчика */
 export const CATS_PASS_CONTRACTOR = ['worker', 'team', 'delivery', 'car'];
-

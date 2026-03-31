@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useGarage, useActions } from '../store/AppStore';
 import { genId } from '../utils';
 import { toast } from '../ui/Toasts';
+import { AppIcon } from '../ui/AppIcon';
 
 /**
  * GarageView — управление машинами квартиры
@@ -51,7 +52,7 @@ export default function GarageView({ user, targetUid }) {
     <div className="garage-view">
       <div className="garage-header">
         <div className="garage-title">
-          <span style={{ fontSize: 20 }}>🚗</span>
+          <span><AppIcon name="car" size={20} /></span>
           <div>
             <div className="garage-title-text">Мои автомобили</div>
             <div className="garage-title-sub">Машины для быстрого создания пропусков</div>
@@ -97,7 +98,7 @@ export default function GarageView({ user, targetUid }) {
       {/* Список машин */}
       {cars.length === 0 && !adding && (
         <div className="empty-state">
-          <div className="empty-icon">🚗</div>
+          <div className="empty-icon"><AppIcon name="car" size={28} /></div>
           <div className="empty-title">Машины не добавлены</div>
           <div className="empty-sub">Добавьте автомобиль для быстрого создания пропусков на парковку</div>
         </div>
@@ -113,8 +114,8 @@ export default function GarageView({ user, targetUid }) {
               {car.isMain && <span className="garage-badge">Основной</span>}
             </div>
             <div className="garage-actions">
-              <button className="icon-btn" onClick={() => startEdit(car)} title="Редактировать">✏️</button>
-              <button className="icon-btn danger" onClick={() => remove(car.id)} title="Удалить">🗑</button>
+              <button className="icon-btn" onClick={() => startEdit(car)} title="Редактировать" aria-label="Редактировать"><AppIcon name="edit" /></button>
+              <button className="icon-btn danger" onClick={() => remove(car.id)} title="Удалить" aria-label="Удалить"><AppIcon name="trash" /></button>
             </div>
           </div>
         ))}

@@ -5,6 +5,7 @@ import { ReqCard } from '../../requests/ReqCard';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { toast } from '../../ui/Toasts';
 import { services } from '../../services/providers/serviceContainer';
+import { AppIcon } from '../../ui/AppIcon';
 
 export default function AdminReqRow({ r, adminUid }) {
   const [editing, setEditing] = useState(false);
@@ -48,11 +49,11 @@ export default function AdminReqRow({ r, adminUid }) {
     <div className="u-mb8">
       <ReqCard req={{ ...r, status }} userRole="admin" userId={adminUid} />
       <div style={{ display: 'flex', gap: 6, marginTop: -4, paddingBottom: 8, borderBottom: '1px solid var(--b1)', justifyContent: 'flex-end' }}>
-        <button className="btn-edit" onClick={() => setEditing(e => !e)}>
-          {editing ? '✕' : '✏️ Ред.'}
+        <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
+          <AppIcon name={editing ? 'close' : 'edit'} className="u-inline-icon" /> Ред.
         </button>
         {/* Кнопка удаления всегда видна в AdminView — admin может удалять любые заявки */}
-        <button className="btn-del-sm" onClick={del}>🗑 Удалить</button>
+        <button className="btn-del-sm" onClick={del} aria-label="Удалить"><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>
       </div>
       {editing && (
         <div className="edit-inline u-mt4">

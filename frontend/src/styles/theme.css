@@ -1,8 +1,10 @@
 
 .badge.cancelled{background:var(--s3);color:var(--t3);border:1px solid var(--b2)}
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box}
 *{-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+html,body,h1,h2,h3,h4,h5,h6,p,ul,ol{margin:0}
+ul,ol{padding:0;list-style:none}
 button,a{touch-action:manipulation;user-select:none;-webkit-user-select:none}
 input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none;outline:none}
 /* Клавиатурный фокус — только через Tab, не при клике (мышь/тач) */
@@ -37,8 +39,8 @@ input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearanc
   /* text */
   --t1: #EDE5D8;
   --t2: #C4BAA8;
-  --t3: #8E8070;
-  --t4: #5A5040;
+  --t3: #A79A8A;
+  --t4: #817463;
 
   /* gold */
   --g1: #C4963C;
@@ -86,6 +88,11 @@ input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearanc
   --expired-b:       rgba(128,128,128,.25);
 
   /* spacing scale */
+
+  /* typography scale */
+  --fs-body: 14px;
+  --fs-meta: 12px;
+  --lh-body: 1.5;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -221,6 +228,21 @@ body{
   overscroll-behavior:none;
 }
 #root{height:100%}
+
+body{font-size:var(--fs-body);line-height:var(--lh-body)}
+
+.header-wordmark,.header-role,.header-name,.mn-label,.tn-btn,.demo-badge,.dd-user-phone,.tab-btn,.req-meta,.msg-time,.msg-sender,.vlog-card-comment,.perm-meta,.apt-chip{font-size:var(--fs-meta)}
+
+.app-icon{display:inline-block;vertical-align:middle;flex-shrink:0}
+.u-inline-icon{display:inline-flex;align-items:center;justify-content:center}
+.tn-icon,.mn-icon{display:inline-flex;align-items:center;justify-content:center}
+.header-actions{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end}
+
+.screen-loading{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--s0)}
+.screen-loading-inner{text-align:center;color:var(--t3)}
+.screen-loading-spinner{display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--g2);animation:spin 1.2s linear infinite}
+.screen-loading-label{font-size:14px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 @keyframes fadeIn  {from{opacity:0}to{opacity:1}}
 @keyframes riseUp  {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -593,6 +615,14 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
   display:flex;flex-direction:column;align-items:center;
   padding:24px 18px 16px;gap:var(--space-md);
 }
+.av-preview-circle{
+  width:96px;height:96px;border-radius:50%;overflow:hidden;
+  border:2px solid var(--b2);background:var(--s3);flex-shrink:0;
+}
+.av-preview-empty{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  color:var(--t4);
+}
 
 .av-actions{
   display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);
@@ -606,7 +636,7 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
   transition:background .13s,border-color .13s;
 }
 .av-action-btn:hover,.av-action-btn:active{background:var(--g-bg);border-color:var(--b2);color:var(--g2)}
-.av-action-ico{font-size:22px;line-height:1}
+.av-action-ico{font-size:22px;line-height:1;display:inline-flex}
 
 
 
@@ -621,6 +651,7 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
   transition:background .13s;text-align:center;
 }
 .av-remove:hover{background:rgba(106,40,40,.08)}
+.av-foot-actions{display:flex;gap:8px;padding:12px 18px 18px}
 .dd-avatar-wrap{
   display:flex;flex-direction:column;align-items:center;
   padding:16px 15px 12px;border-bottom:1px solid var(--b1);gap:var(--space-sm);
@@ -898,7 +929,15 @@ html.theme-light .mn-dot{background:#C0252A}
 }
 /* ── SEARCH ── */
 .search-wrap{position:relative;margin-bottom:14px}
+.residents-search-wrap{margin-bottom:12px}
 .search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--t4);font-size:13px;pointer-events:none}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--t4);display:inline-flex;pointer-events:none}
+.search-clear{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--t3);display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:999px;cursor:pointer;
+}
+.search-clear:hover{background:var(--s3);color:var(--t1)}
 .search-inp{
   width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);
   padding:9px 12px 9px 34px;font-family:"DM Sans",sans-serif;font-size:13px;
@@ -930,7 +969,7 @@ html.theme-light .mn-dot{background:#C0252A}
   white-space:nowrap;flex-shrink:0;transition:color .13s,border-color .13s;
 }
 .tab-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:600}
-.tab-btn.sm{padding:8px 12px;font-size:10px;letter-spacing:1px}
+.tab-btn.sm{padding:8px 12px;font-size:12px;letter-spacing:1px}
 .tab-btn.has-pending{color:var(--err-t)}
 .tab-btn.has-pending.active{color:var(--err-t);border-bottom-color:var(--err-t)}
 .tab-pending-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--err);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:6px;line-height:1}
@@ -1353,6 +1392,7 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 .guard-btn.call{background:var(--s3);color:var(--t1);border:1.5px solid var(--b2);flex:0 0 auto;padding:16px 20px}
 .guard-btn.call:hover{border-color:var(--b3);background:var(--s4)}
 .guard-empty{text-align:center;padding:60px 20px}
+.guard-empty-icon{display:flex;justify-content:center;opacity:.2;margin-bottom:16px}
 @media(max-width:460px){.guard-btn{font-size:14px;min-height:52px;padding:14px 10px}.guard-apt{font-size:18px}}
 
 /* ── CHAT ── */
@@ -1747,7 +1787,7 @@ html.theme-light {
 }
 html.theme-dark {
   --s0: #13110E; --s1: #191714; --s2: #211E1A; --s3: #2C2820; --s4: #363028;
-  --t1: #EDE5D8; --t2: #C4BAA8; --t3: #8E8070; --t4: #5A5040;
+  --t1: #EDE5D8; --t2: #C4BAA8; --t3: #A79A8A; --t4: #817463;
   --g1: #C4963C; --g2: #D8AE58; --g3: #EAC878;
   --g-bg: rgba(196,150,60,.08); --g-bg2: rgba(196,150,60,.15);
   --ok: #2D6040; --ok-t: #5EAA78; --err: #6A2828; --err-t: #C06060;
@@ -2107,6 +2147,10 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 
 /* ── Поиск авто (CarSearchModal) ───────────────────────────────────────────── */
 .car-search-empty{text-align:center;padding:28px 0;color:var(--t4)}
+.car-search-empty-icon{display:flex;justify-content:center;opacity:.3}
+.car-search-empty-title{font-size:14px;color:var(--t3);margin-top:8px}
+.car-search-empty-sub{font-size:12px;color:var(--t4);margin-top:4px}
+.car-search-hint{text-align:center;padding:24px 0;color:var(--t4);font-size:13px}
 .car-search-results{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .car-search-card{
   display:flex;align-items:center;gap:12px;

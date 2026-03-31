@@ -15,13 +15,13 @@ describe('PhotoLightbox', () => {
     expect(img).toHaveAttribute('src', 'http://example.com/img.jpg');
   });
 
-  test('кнопка закрытия "✕" присутствует', () => {
+  test('кнопка закрытия присутствует', () => {
     const onClose = jest.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     expect(screen.getByLabelText('Закрыть')).toBeInTheDocument();
   });
 
-  test('клик по кнопке ✕ вызывает onClose', () => {
+  test('клик по кнопке закрытия вызывает onClose', () => {
     const onClose = jest.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
