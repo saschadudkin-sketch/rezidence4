@@ -4,13 +4,12 @@
  * QR содержит JSON: { id, type, visitorName, createdByApt, validUntil }
  * Охранник сканирует → система показывает данные пропуска и кнопку «Пропустить».
  */
-
 import QRCode from 'qrcode';
 
 /**
- * Генерирует data-URL QR-кода для пропуска.
+ * Генерирует URL QR-кода для пропуска.
  * @param {Object} req — объект заявки
- * @returns {Promise<string>} data:image/png;base64,...
+ * @returns {Promise<string>} URL картинки QR
  */
 export async function generatePassQR(req) {
   const payload = JSON.stringify({
@@ -29,11 +28,11 @@ export async function generatePassQR(req) {
   return QRCode.toDataURL(payload, {
     width: 256,
     margin: 2,
+    errorCorrectionLevel: 'M',
     color: {
-      dark:  '#1C1A16',
+      dark: '#1C1A16',
       light: '#FAF8F4',
     },
-    errorCorrectionLevel: 'M',
   });
 }
 

@@ -11,6 +11,7 @@ import {
   parseLocalDateInputValue,
   SCHEDULE_PRESETS,
 } from '../hooks/useCreateRequest';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── VisitorFields ────────────────────────────────────────────────────────────
 // FIX [PERF-19]: memo — VisitorFields не имеет внутреннего состояния, рендерится
@@ -51,7 +52,7 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
                 autoCapitalize="words" />
               {vNames.length > 1 && (
                 <button type="button" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: '1px solid var(--b2)', borderRadius: 4, color: 'var(--t3)', padding: '0 10px', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
+                  style={{ background: 'none', border: '1px solid var(--b2)', borderRadius: 4, color: 'var(--t3)', padding: '0 10px', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}><AppIcon name="close" size={12} /></button>
               )}
             </div>
           ))}
@@ -70,7 +71,7 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
             <div style={{ marginTop: 4, position: 'relative' }}>
               <button type="button" onClick={() => setShowPermsPicker(p => !p)}
                 style={{ background: 'var(--g-bg)', border: '1px solid var(--b3)', borderRadius: 4, color: 'var(--g2)', padding: '7px 12px', cursor: 'pointer', fontSize: 11, width: '100%', fontWeight: 500 }}>
-                📋 Выбрать из постоянного списка ({permsList.length})
+                <span className="u-inline-icon"><AppIcon name="list" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
               </button>
               {showPermsPicker && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--s1)', border: '1px solid var(--b2)', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.3)', marginTop: 2, maxHeight: 180, overflowY: 'auto' }}>
@@ -114,11 +115,11 @@ const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSave
           </div>
           <div className="u-row-g8-bare">
             <button className="btn-outline u-flex1" onClick={() => { setShowSaveTpl(false); setTplName(''); }}>Отмена</button>
-            <button className="btn-gold u-flex2" onClick={onSave}><span>💾 Сохранить шаблон</span></button>
+            <button className="btn-gold u-flex2" onClick={onSave}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить шаблон</span></button>
           </div>
         </>
       ) : (
-        <button className="tpl-save-btn" onClick={() => setShowSaveTpl(true)}>💾 Сохранить как шаблон</button>
+        <button className="tpl-save-btn" onClick={() => setShowSaveTpl(true)}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить как шаблон</span></button>
       )}
     </div>
   );
@@ -143,10 +144,10 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
       <button className={'schedule-toggle' + (showSchedule ? ' active' : '')}
         onClick={handleToggle}>
         <span className="u-row-g8">
-          <span className="schedule-toggle-ico">🕐</span>
+          <span className="schedule-toggle-ico"><AppIcon name="history" size={14} /></span>
           <span>{showSchedule && scheduledFor ? 'Запланировано: ' + fmtScheduled(scheduledFor) : 'Запланировать на время'}</span>
         </span>
-        <span className="u-fs11-op6">{showSchedule ? '✕' : '+'}</span>
+        <span className="u-fs11-op6">{showSchedule ? '−' : '+'}</span>
       </button>
       {showSchedule && (
         <div className="schedule-block">
@@ -160,7 +161,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
           </div>
           {scheduledFor && (
             <div className="schedule-info">
-              <span>🔔</span>
+              <span><AppIcon name="chart" size={12} /></span>
               <span>Заявка будет отправлена охране {fmtScheduled(scheduledFor)}</span>
             </div>
           )}
@@ -190,7 +191,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
               <span className="u-ls3">{CAT_LABEL[form.cat]}</span>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
 
         <div className="modal-body">
@@ -213,14 +214,14 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
                 <button type="button" className="temp-pass-toggle" onClick={() => form.setValidUntil(
                   toLocalDateInputValue(new Date(Date.now() + 7 * 86400000))
                 )}>
-                  <span>📅</span>
+                  <span><AppIcon name="history" size={14} /></span>
                   <span>Временный пропуск</span>
                 </button>
               ) : (
                 <div className="temp-pass-block">
                   <div className="temp-pass-header">
-                    <span className="temp-pass-label">📅 Временный пропуск</span>
-                    <button type="button" className="temp-pass-close" onClick={() => form.setValidUntil('')}>✕ Убрать</button>
+                    <span className="temp-pass-label"><AppIcon name="history" size={12} /> Временный пропуск</span>
+                    <button type="button" className="temp-pass-close" onClick={() => form.setValidUntil('')}><AppIcon name="close" size={12} /> Убрать</button>
                   </div>
                   <label className="field-lbl">Действует до</label>
                   <input type="date" className="field-inp"
@@ -252,7 +253,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
               value={form.comment} onChange={e => form.setComment(e.target.value)} />
           </div>
           <label className="photo-btn" style={{ flexDirection: 'column', gap: 6 }}>
-            <span className="u-row-g8">📷 <span>{form.photos.length > 0 ? `Фото: ${form.photos.length}/5` : 'Прикрепить фото'}</span></span>
+            <span className="u-row-g8"><AppIcon name="camera" size={14} /> <span>{form.photos.length > 0 ? `Фото: ${form.photos.length}/5` : 'Прикрепить фото'}</span></span>
             <input type="file" accept="image/*" multiple className="u-none" onChange={form.handlePhoto} />
           </label>
           {form.photos.length > 0 && (
@@ -262,7 +263,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
                 // key=index безопасен: фото только добавляются/удаляются, не переставляются.
                 <div key={i} className="photo-grid-item">
                   <img src={src} alt="" />
-                  <button type="button" className="photo-grid-del" onClick={() => form.removePhoto(i)}>✕</button>
+                  <button type="button" className="photo-grid-del" onClick={() => form.removePhoto(i)}><AppIcon name="close" size={12} /></button>
                 </div>
               ))}
             </div>

@@ -104,7 +104,6 @@ describe('SEC-2: broadcastRequestUpdate — фильтрация по роли',
   let sseModule;
 
   beforeEach(() => {
-    jest.resetModules();
     sseModule = require('../sse');
   });
 
@@ -137,7 +136,6 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
   let app;
 
   beforeAll(() => {
-    jest.resetModules();
     const requestsRouter = require('../routes/requests');
     app = express();
     app.use(express.json());

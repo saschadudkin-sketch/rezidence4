@@ -3,10 +3,13 @@
 // JSON-формат с полями level, time, requestId, userId, method, url, statusCode, duration
 const pino = require('pino');
 
+const usePrettyTransport = process.env.NODE_ENV === 'development';
+const defaultLevel = process.env.NODE_ENV === 'test' ? 'warn' : 'info';
+
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  // В разработке — красивый вывод, в продакшне — JSON
-  transport: process.env.NODE_ENV !== 'production'
+  level: process.env.LOG_LEVEL || defaultLevel,
+  // В development — красивый вывод, в остальных режимах (test/prod) — JSON
+  transport: usePrettyTransport
     ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:HH:MM:ss' } }
     : undefined,
   formatters: {

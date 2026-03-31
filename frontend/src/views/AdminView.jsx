@@ -11,8 +11,8 @@ import AdminPermsView from './admin/AdminPermsView';
 import VisitLogView  from './VisitLogView';
 import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
-import GarageView    from './GarageView';
 import { ChatView }  from '../chat/ChatView';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -26,12 +26,12 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests }) {
     const todayR = requests.filter(r => new Date(r.createdAt).getTime() >= todayTs);
     return {
       stats: [
-        ['👥', allUsers.length,                                         'Пользователей'],
-        ['🏗️', allUsers.filter(u => u.role === ROLES.CONTRACTOR).length, 'Подрядчиков'],
-        ['🎫', todayR.filter(r => r.type === 'pass').length,            'Пропусков сегодня'],
-        ['🔧', todayR.filter(r => r.type === 'tech').length,            'Техзаявок сегодня'],
-        ['⏳', requests.filter(r => r.status === 'pending').length,     'Ожидают решения'],
-        ['✅', requests.filter(r => r.status === 'arrived').length,     'Входов отмечено'],
+        ['users', allUsers.length,                                         'Пользователей'],
+        ['tools', allUsers.filter(u => u.role === ROLES.CONTRACTOR).length, 'Подрядчиков'],
+        ['ticket', todayR.filter(r => r.type === 'pass').length,            'Пропусков сегодня'],
+        ['tools', todayR.filter(r => r.type === 'tech').length,             'Техзаявок сегодня'],
+        ['history', requests.filter(r => r.status === 'pending').length,    'Ожидают решения'],
+        ['check', requests.filter(r => r.status === 'arrived').length,       'Входов отмечено'],
       ],
       roleCount: allUsers.reduce((acc, u) => {
         acc[u.role] = (acc[u.role] || 0) + 1;
@@ -43,9 +43,9 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests }) {
   return (
     <>
       <div className="stats-grid">
-        {stats.map(([ico, val, lbl]) => (
+        {stats.map(([icon, val, lbl]) => (
           <div key={lbl} className="stat-card">
-            <span className="stat-ico">{ico}</span>
+            <span className="stat-ico"><AppIcon name={icon} size={18} /></span>
             <div className={val === 0 ? 'stat-val zero' : 'stat-val'}>{val}</div>
             <div className="stat-lbl">{lbl}</div>
             <div className="stat-card-accent" />
@@ -103,7 +103,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
     <>
       <div className="admin-toolbar">
         <div className="search-wrap u-mb0">
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><AppIcon name="search" size={13} /></span>
           <input className="search-inp"
             placeholder={contractorOnly ? 'Поиск подрядчика...' : 'Поиск по имени, телефону, апарт...'}
             value={query} onChange={e => setQuery(e.target.value)} />
@@ -157,7 +157,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     <>
       <div className="admin-toolbar">
         <div className="search-wrap u-mb0">
-          <span className="search-ico">🔍</span>
+          <span className="search-ico"><AppIcon name="search" size={13} /></span>
           <input className="search-inp" placeholder="Поиск по имени, апарт., авто..." value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
         </div>
         <div className="date-pills u-mb0">

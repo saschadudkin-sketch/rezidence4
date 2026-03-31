@@ -1,5 +1,5 @@
 /**
- * services/firebaseService.test.js
+ * services/localService.test.js
  * Проверяет что все stub-функции возвращают ожидаемые значения
  * и не бросают исключений (заглушки для demo-режима)
  */
@@ -9,9 +9,9 @@ import {
   savePerms, saveTemplates, getTemplates, getFirestorePerms,
   subscribeRequests, subscribeChat, subscribeUsers,
   fetchAllUsers, fetchPerms, fetchTemplates,
-} from './firebaseService';
+} from './localService';
 
-describe('firebaseService stubs', () => {
+describe('localService stubs', () => {
   test('createRequest возвращает { mode: "local" }', async () => {
     await expect(createRequest()).resolves.toEqual({ mode: 'local' });
   });
