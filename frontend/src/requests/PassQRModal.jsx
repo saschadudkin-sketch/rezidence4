@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { generatePassQR } from '../services/qrService';
-import { CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON } from '../constants/index.js';
+import { CAT_LABEL, PASS_DURATION_LABEL } from '../constants/index.js';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { toast } from '../ui/Toasts.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
@@ -19,6 +19,12 @@ function dataUrlToBlob(dataUrl) {
   for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
   return new Blob([u8], { type: mime });
 }
+
+const PASS_DURATION_ICON_NAME = {
+  once: 'ticket',
+  temporary: 'history',
+  permanent: 'shield',
+};
 
 export function PassQRModal({ req, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
@@ -97,7 +103,7 @@ export function PassQRModal({ req, onClose }) {
             {req.passDuration && (
               <div className="qr-info-row">
                 <span className="qr-info-lbl">Тип пропуска</span>
-                <span className="qr-info-val">{PASS_DURATION_ICON[req.passDuration]} {PASS_DURATION_LABEL[req.passDuration]}</span>
+                <span className="qr-info-val"><AppIcon name={PASS_DURATION_ICON_NAME[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</span>
               </div>
             )}
             {req.validUntil && (
