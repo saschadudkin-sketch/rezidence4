@@ -4,7 +4,7 @@
  */
 
 // Перезагружаем модуль в каждом тесте чтобы сбросить _swReg
-beforeEach(() => jest.resetModules());
+beforeEach(() => vi.resetModules());
 
 describe('getSwReg', () => {
   it('возвращает null до регистрации SW', async () => {
@@ -25,7 +25,7 @@ describe('registerSW', () => {
 
   it('вызывает navigator.serviceWorker.register если SW доступен', async () => {
     const mockReg = {};
-    const mockRegister = jest.fn().mockResolvedValue(mockReg);
+    const mockRegister = vi.fn().mockResolvedValue(mockReg);
     Object.defineProperty(navigator, 'serviceWorker', {
       value: { register: mockRegister },
       configurable: true,
@@ -42,7 +42,7 @@ describe('registerSW', () => {
 
   it('после успешной регистрации getSwReg возвращает объект', async () => {
     const mockReg = { active: true };
-    const mockRegister = jest.fn().mockResolvedValue(mockReg);
+    const mockRegister = vi.fn().mockResolvedValue(mockReg);
     Object.defineProperty(navigator, 'serviceWorker', {
       value: { register: mockRegister },
       configurable: true,
@@ -56,8 +56,8 @@ describe('registerSW', () => {
   });
 
   it('не бросает при ошибке регистрации (catch silent)', async () => {
-    const mockRegister = jest.fn().mockRejectedValue(new Error('SW error'));
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const mockRegister = vi.fn().mockRejectedValue(new Error('SW error'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     Object.defineProperty(navigator, 'serviceWorker', {
       value: { register: mockRegister },
       configurable: true,

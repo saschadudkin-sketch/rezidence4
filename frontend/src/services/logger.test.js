@@ -4,7 +4,7 @@
  */
 
 // Перезагружаем модуль перед каждым тестом чтобы сбросить _ctx
-beforeEach(() => jest.resetModules());
+beforeEach(() => vi.resetModules());
 
 async function getLogger() {
   const { logger } = await import('./logger');
@@ -15,15 +15,15 @@ describe('logger', () => {
   let debugSpy, infoSpy, warnSpy, errorSpy, logSpy;
 
   beforeEach(() => {
-    debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
-    infoSpy  = jest.spyOn(console, 'info').mockImplementation(() => {});
-    warnSpy  = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    logSpy   = jest.spyOn(console, 'log').mockImplementation(() => {});
+    debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    infoSpy  = vi.spyOn(console, 'info').mockImplementation(() => {});
+    warnSpy  = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    logSpy   = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('setContext / clearContext', () => {

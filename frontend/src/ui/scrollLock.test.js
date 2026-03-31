@@ -5,7 +5,7 @@
 
 // Перезагружаем модуль перед каждым тестом чтобы сбросить lockCount до 0
 beforeEach(() => {
-  jest.resetModules();
+  vi.resetModules();
   document.body.style.overflow = ''; // чистим DOM
 });
 
@@ -68,7 +68,7 @@ describe('lockScroll / unlockScroll', () => {
   test('overflow: hidden устанавливается только при первом lock', async () => {
     const { lockScroll } = await getModule();
     // Следим за присваиванием
-    const setSpy = jest.fn();
+    const setSpy = vi.fn();
     Object.defineProperty(document.body.style, 'overflow', {
       get: () => '',
       set: setSpy,

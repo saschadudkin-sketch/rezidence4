@@ -8,8 +8,8 @@ import { fmtDate, fmtTime, filterByPeriod, groupReqs, sortReqs } from './dateUti
 // ─── fmtDate ──────────────────────────────────────────────────────────────────
 
 describe('fmtDate', () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('возвращает "" для null/undefined', () => {
     expect(fmtDate(null)).toBe('');
@@ -18,37 +18,37 @@ describe('fmtDate', () => {
   });
 
   it('«только что» для даты менее 1 минуты назад', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const d = new Date('2026-03-15T11:59:30'); // 30 секунд назад
     expect(fmtDate(d)).toBe('только что');
   });
 
   it('«N мин. назад» для 1–59 минут назад', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const d = new Date('2026-03-15T11:45:00'); // 15 минут назад
     expect(fmtDate(d)).toBe('15 мин. назад');
   });
 
   it('«5 мин. назад» для точно 5 минут', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:05:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:05:00'));
     const d = new Date('2026-03-15T12:00:00');
     expect(fmtDate(d)).toBe('5 мин. назад');
   });
 
   it('«сегодня» для даты в этом же дне, более 1 часа назад', () => {
-    jest.setSystemTime(new Date('2026-03-15T15:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T15:00:00'));
     const d = new Date('2026-03-15T09:00:00'); // 6 часов назад — сегодня
     expect(fmtDate(d)).toBe('сегодня');
   });
 
   it('«вчера» для вчерашней даты', () => {
-    jest.setSystemTime(new Date('2026-03-15T10:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T10:00:00'));
     const d = new Date('2026-03-14T20:00:00'); // вчера вечером
     expect(fmtDate(d)).toBe('вчера');
   });
 
   it('дд.мм для более старых дат', () => {
-    jest.setSystemTime(new Date('2026-03-15T10:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T10:00:00'));
     const d = new Date('2026-03-10T10:00:00'); // 5 дней назад
     // toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
     expect(fmtDate(d)).toMatch(/^\d{2}\.\d{2}$/);
@@ -56,7 +56,7 @@ describe('fmtDate', () => {
   });
 
   it('принимает строку ISO наравне с объектом Date', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const iso = new Date('2026-03-15T11:59:30').toISOString();
     expect(fmtDate(iso)).toBe('только что');
   });
@@ -86,8 +86,8 @@ describe('fmtTime', () => {
 // ─── filterByPeriod ───────────────────────────────────────────────────────────
 
 describe('filterByPeriod', () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   const reqs = () => {
     const now = Date.now();
@@ -99,13 +99,13 @@ describe('filterByPeriod', () => {
   };
 
   it('«all» возвращает все без фильтрации', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const arr = reqs();
     expect(filterByPeriod(arr, 'all')).toHaveLength(3);
   });
 
   it('«today» возвращает только за последние 24ч', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const arr = reqs();
     const result = filterByPeriod(arr, 'today');
     expect(result).toHaveLength(1);
@@ -113,7 +113,7 @@ describe('filterByPeriod', () => {
   });
 
   it('«week» возвращает за последние 7 дней', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const arr = reqs();
     const result = filterByPeriod(arr, 'week');
     expect(result).toHaveLength(2); // 1ч и 25ч — оба в пределах 7 дней
@@ -128,11 +128,11 @@ describe('filterByPeriod', () => {
 // ─── groupReqs ────────────────────────────────────────────────────────────────
 
 describe('groupReqs', () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('группирует по «Сегодня», «Вчера», «Ранее»', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const now = Date.now();
     const arr = [
       { id: 't', createdAt: new Date(now - 1 * 3600 * 1000).toISOString() },    // сегодня
@@ -148,7 +148,7 @@ describe('groupReqs', () => {
   });
 
   it('не создаёт пустые группы', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const now = Date.now();
     // Только сегодняшние
     const arr = [
@@ -166,7 +166,7 @@ describe('groupReqs', () => {
   });
 
   it('все элементы попадают в нужные группы без потерь', () => {
-    jest.setSystemTime(new Date('2026-03-15T12:00:00'));
+    vi.setSystemTime(new Date('2026-03-15T12:00:00'));
     const now = Date.now();
     const arr = [
       { id: 'a', createdAt: new Date(now - 2 * 3600 * 1000).toISOString() },

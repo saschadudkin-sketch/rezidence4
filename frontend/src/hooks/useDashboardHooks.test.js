@@ -6,19 +6,19 @@
 import { renderHook, act } from '@testing-library/react';
 
 // Мокируем тяжёлые зависимости которые не нужны для unit-тестов
-jest.mock('../config/runtimeMode', () => ({
-  isLiveMode: jest.fn(() => false),
-  isDemoMode:  jest.fn(() => true),
+vi.mock('../config/runtimeMode', () => ({
+  isLiveMode: vi.fn(() => false),
+  isDemoMode:  vi.fn(() => true),
 }));
-jest.mock('../services/providers/serviceContainer', () => ({
-  services: { liveData: { startSync: jest.fn(() => jest.fn()) } },
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: { liveData: { startSync: vi.fn(() => vi.fn()) } },
 }));
-jest.mock('../services/pushNotification', () => ({
-  subscribePush: jest.fn(),
+vi.mock('../services/pushNotification', () => ({
+  subscribePush: vi.fn(),
 }));
-jest.mock('../utils', () => ({
-  sendNotif: jest.fn(),
-  playAlert:  jest.fn(),
+vi.mock('../utils', () => ({
+  sendNotif: vi.fn(),
+  playAlert:  vi.fn(),
 }));
 
 import { useTheme, useNavBadges, useNavigation } from './useDashboardHooks';
@@ -242,11 +242,11 @@ describe('useNavBadges', () => {
 // ─── useNavigation ────────────────────────────────────────────────────────────
 
 describe('useNavigation', () => {
-  const markChatSeen = jest.fn();
-  const onPassesSeen = jest.fn();
+  const markChatSeen = vi.fn();
+  const onPassesSeen = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorage.clear();
   });
 
