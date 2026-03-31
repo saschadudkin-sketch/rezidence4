@@ -13,11 +13,5 @@ export default defineConfig(({ mode }) => {
         NODE_ENV: nodeEnv,
       }),
     },
-    test: {
-      globals: true,
-      environment: 'jsdom',
-      setupFiles: './src/setupTests.js',
-      css: true,
-    },
   };
 });

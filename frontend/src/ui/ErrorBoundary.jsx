@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import { AppIcon } from './AppIcon';
-import { env } from '../config/env';
 
 /**
  * ErrorBoundary — перехватывает ошибки рендера в дочерних компонентах.
@@ -49,7 +48,7 @@ export default class ErrorBoundary extends Component {
           {name} не смог загрузиться
         </div>
         <div style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 16 }}>
-          {env.NODE_ENV === 'production'
+          {process.env.NODE_ENV === 'production'
             ? 'Что-то пошло не так. Попробуйте обновить страницу.'
             : (this.state.error?.message ?? 'Неизвестная ошибка')}
         </div>
