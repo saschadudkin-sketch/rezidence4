@@ -50,6 +50,11 @@ describe('AppIcon', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
+  test('для известного имени предупреждение не выводится', () => {
+    render(<AppIcon name="ticket" />);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   test('после переполнения кеша предупреждений старые имена снова предупреждаются', () => {
     for (let i = 0; i <= 200; i += 1) {
       render(<AppIcon name={`overflow-unknown-${i}`} />);
