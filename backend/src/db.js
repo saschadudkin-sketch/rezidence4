@@ -168,12 +168,14 @@ const MIGRATIONS = [
       await client.query(`
         CREATE TABLE IF NOT EXISTS refresh_tokens (
           id          TEXT PRIMARY KEY,
+          id_hash     TEXT,
           uid         TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
           expires_at  TIMESTAMPTZ NOT NULL,
           created_at  TIMESTAMPTZ DEFAULT NOW()
         )
       `);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_refresh_uid ON refresh_tokens(uid)`);
+      await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_id_hash_unique ON refresh_tokens(id_hash) WHERE id_hash IS NOT NULL`);
       await client.query(`
         CREATE TABLE IF NOT EXISTS sse_clients (
           id         TEXT PRIMARY KEY,
@@ -191,6 +193,8 @@ const MIGRATIONS = [
       // ALTER здесь нужен только для БД, созданных старым кодом (до версионирования),
       // где таблица создавалась без колонки attempts. IF NOT EXISTS делает его safe.
       await client.query(`ALTER TABLE otp_codes   ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0`);
+      await client.query(`ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS id_hash TEXT`);
+      await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_id_hash_unique ON refresh_tokens(id_hash) WHERE id_hash IS NOT NULL`);
       await client.query(`ALTER TABLE requests    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_req_deleted    ON requests(deleted_at) WHERE deleted_at IS NULL`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_req_created_at ON requests(created_at DESC)`);

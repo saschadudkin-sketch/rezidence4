@@ -9,13 +9,13 @@ export function normalizeMode(mode) {
 
 // FIX [AUDIT]: убран FEATURES.LEGACY_FLAG — legacy realtime provider удалён, флаг был всегда false.
 // Режим теперь определяется только через env-переменные.
-// Если ни REACT_APP_RUNTIME_MODE, ни REACT_APP_MODE не заданы — демо-режим (безопасный дефолт).
-export function resolveRuntimeMode(env = process.env) {
-  // Приоритет: REACT_APP_RUNTIME_MODE → REACT_APP_MODE → demo
-  const runtimeMode = normalizeMode(env.REACT_APP_RUNTIME_MODE);
+// Если ни VITE_RUNTIME_MODE, ни VITE_MODE не заданы — демо-режим (безопасный дефолт).
+export function resolveRuntimeMode(env = (import.meta?.env ?? {})) {
+  // Приоритет: VITE_RUNTIME_MODE → VITE_MODE → demo
+  const runtimeMode = normalizeMode(env.VITE_RUNTIME_MODE);
   if (runtimeMode) return runtimeMode;
 
-  const appMode = normalizeMode(env.REACT_APP_MODE);
+  const appMode = normalizeMode(env.VITE_MODE);
   if (appMode) return appMode;
 
   return DEMO_MODE;
@@ -23,7 +23,7 @@ export function resolveRuntimeMode(env = process.env) {
 
 /**
  * Единая точка определения режима приложения.
- * live  — реальный backend (REACT_APP_RUNTIME_MODE=live в .env)
+ * live  — реальный backend (VITE_RUNTIME_MODE=live в .env)
  * demo  — локальные данные без сервера (дефолт)
  */
 export const MODE = resolveRuntimeMode();

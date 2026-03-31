@@ -58,7 +58,13 @@ if (!process.env.DATABASE_URL) {
 // Устанавливает: X-Frame-Options, X-Content-Type-Options, HSTS,
 // Referrer-Policy, Permissions-Policy и Content-Security-Policy.
 const BACKEND_URL  = process.env.BACKEND_URL  || `http://localhost:${PORT}`;
-const FRONTEND_URL = process.env.FRONTEND_URL || '*';
+const DEFAULT_DEV_FRONTEND_URLS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+].join(',');
+const FRONTEND_URL = process.env.FRONTEND_URL || (isProd ? '' : DEFAULT_DEV_FRONTEND_URLS);
 
 // FIX [AUDIT-3 #14]: Убираем CSP из helmet на backend — он API-only сервер,
 // не отдаёт HTML. CSP на /api/* бессмысленен для JSON-ответов и конфликтует
@@ -106,11 +112,11 @@ const uploadLimiter = rateLimit({
 });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim());
+const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       cb(null, true);
     } else {
       cb(new Error('CORS: not allowed'));
@@ -239,7 +245,9 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   logger.error({ err }, '[error] %s', err.message || err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  const isProdRuntime = process.env.NODE_ENV === 'production';
+  const safeErrorMessage = isProdRuntime ? 'Internal server error' : (err.message || 'Internal server error');
+  res.status(err.status || 500).json({ error: safeErrorMessage });
 });
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

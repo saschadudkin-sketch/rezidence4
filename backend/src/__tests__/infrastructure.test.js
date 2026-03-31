@@ -49,6 +49,24 @@ describe('index.js — production guards', () => {
 
     exitSpy.mockRestore();
   });
+
+  test('CORS не использует wildcard для credentials=true', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
+    expect(source).toContain('credentials: true');
+    expect(source).toContain('allowedOrigins.includes(origin)');
+    expect(source).not.toContain("allowedOrigins.includes('*')");
+  });
+
+  test('в production наружу не утекает err.message из error-handler', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
+    expect(source).toContain("process.env.NODE_ENV === 'production'");
+    expect(source).toContain("Internal server error");
+    expect(source).toContain('safeErrorMessage');
+  });
 });
 
 // ── migrate.js ────────────────────────────────────────────────────────────────

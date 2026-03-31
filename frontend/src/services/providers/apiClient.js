@@ -124,7 +124,14 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       // даже после восстановления сервера (требуется перезагрузка страницы).
       _refreshFailed = false;
 
-      return res.json();
+      if (res.status === 204) return null;
+      const contentType = (
+        typeof res.headers?.get === 'function'
+          ? (res.headers.get('content-type') || '')
+          : 'application/json'
+      ).toLowerCase();
+      if (contentType.includes('application/json')) return res.json();
+      return res.text();
 
     } catch (err) {
       // Не ретраим: 401, клиентские ошибки, AbortError (уже обработан)
