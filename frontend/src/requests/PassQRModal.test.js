@@ -70,7 +70,7 @@ describe('PassQRModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  test('кнопка ✕ вызывает onClose', async () => {
+  test('кнопка закрытия вызывает onClose', async () => {
     const onClose = jest.fn();
     render(<PassQRModal req={req} onClose={onClose} />);
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
