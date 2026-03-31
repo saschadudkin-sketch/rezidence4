@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { canManageRequests } from '../constants/requestPredicates.js';
-import { ROLES } from '../domain/permissions';
+import { ROLES } from '../domain/permissions.js';
 import { sendNotif, playAlert } from '../utils.js';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
-import { services } from '../services/providers/serviceContainer';
+import { services } from '../services/providers/serviceContainer.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.

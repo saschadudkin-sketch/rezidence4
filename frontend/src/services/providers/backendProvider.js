@@ -6,9 +6,9 @@
  * Активируется через: REACT_APP_PROVIDER=backend в .env
  */
 
-import apiClient from './apiClient';
-import { resetRefreshState } from './apiClient';
-import { logger } from '../logger';
+import apiClient from './apiClient.js';
+import { resetRefreshState } from './apiClient.js';
+import { logger } from '../logger.js';
 import { API_BASE_URL } from '../../config/apiBaseUrl.js';
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
