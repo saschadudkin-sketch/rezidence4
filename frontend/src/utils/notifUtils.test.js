@@ -1,10 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { requestNotifPerm, sendNotif } from './notifUtils.js';
-import { getSwReg } from './swUtils.js';
+/**
+ * utils/notifUtils.test.js
+ * Покрывает: requestNotifPerm, sendNotif, playAlert
+ * Все браузерные API (Notification, AudioContext) мокированы
+ */
 
-vi.mock('./swUtils.js', () => ({
-  getSwReg: vi.fn(() => null),
-}));
+// Мокируем swUtils чтобы управлять getSwReg
+vi.mock('./swUtils.js', () => ({ getSwReg: vi.fn(() => null) }));
+
+import { getSwReg } from './swUtils.js';
+import { requestNotifPerm, sendNotif } from './notifUtils';
+
+// ─── requestNotifPerm ─────────────────────────────────────────────────────────
 
 describe('requestNotifPerm', () => {
   let origNotification;
@@ -44,6 +50,8 @@ describe('requestNotifPerm', () => {
     expect(() => requestNotifPerm()).not.toThrow();
   });
 });
+
+// ─── sendNotif ────────────────────────────────────────────────────────────────
 
 describe('sendNotif', () => {
   let origNotification;
@@ -93,6 +101,7 @@ describe('sendNotif', () => {
     expect(opts.body).toBe('Тело');
     expect(opts.tag).toBe('tag-1');
     expect(opts.renotify).toBe(true);
+    // Прямой Notification создаваться не должен
     expect(mockCtor).not.toHaveBeenCalled();
   });
 
@@ -104,6 +113,8 @@ describe('sendNotif', () => {
     expect(mockShowNotification.mock.calls[0][1].tag).toBe('default');
   });
 });
+
+// ─── playAlert ────────────────────────────────────────────────────────────────
 
 describe('playAlert', () => {
   let origAudioContext;
@@ -124,8 +135,8 @@ describe('playAlert', () => {
   });
 
   it('не падает если AudioContext недоступен', () => {
-    delete global.AudioContext;
-    delete global.webkitAudioContext;
+    global.AudioContext = undefined;
+    global.webkitAudioContext = undefined;
     expect(() => playAlertFresh('pass')).not.toThrow();
   });
 
@@ -150,7 +161,7 @@ describe('playAlert', () => {
     global.AudioContext = vi.fn(() => mockCtx);
 
     expect(() => playAlertFresh('pass')).not.toThrow();
-    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3);
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
   });
 
   it('не падает при вызове с типом "tech"', () => {
@@ -171,7 +182,7 @@ describe('playAlert', () => {
     global.AudioContext = vi.fn(() => mockCtx);
 
     expect(() => playAlertFresh('tech')).not.toThrow();
-    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3);
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
   });
 
   it('возобновляет suspended контекст перед воспроизведением', () => {
