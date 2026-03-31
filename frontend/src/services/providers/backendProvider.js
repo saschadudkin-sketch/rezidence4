@@ -9,6 +9,7 @@
 import apiClient from './apiClient';
 import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
+import { API_BASE_URL } from '../../config/apiBaseUrl';
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
@@ -40,7 +41,6 @@ function createSSEManager() {
     currentUid  = uid;
     isConnected = true;
 
-    const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
     abortController = new AbortController();
     const signal    = abortController.signal;
     // FIX [AUDIT-2 #16]: передаём Last-Event-ID при переподключении
@@ -48,7 +48,7 @@ function createSSEManager() {
     if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
     try {
-      const response = await fetch(`${BASE_URL}/api/chat/stream`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
         credentials: 'include',
         signal,
         headers,

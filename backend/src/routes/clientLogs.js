@@ -15,16 +15,34 @@ const router = express.Router();
 const MAX_BATCH = 10;
 const MAX_ERROR_SIZE = 2048;
 const MAX_CONTEXT_SIZE = 4096;
+const REDACT_PATTERNS = [/token/i, /password/i, /secret/i, /cookie/i, /phone/i, /email/i];
+
+function isSensitiveKey(key) {
+  return REDACT_PATTERNS.some((rx) => rx.test(key));
+}
+
+function redactContext(input, depth = 0) {
+  if (depth > 4) return '[depth-limited]';
+  if (input == null) return input;
+  if (Array.isArray(input)) return input.map((v) => redactContext(v, depth + 1));
+  if (typeof input !== 'object') return input;
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    out[k] = isSensitiveKey(k) ? '[redacted]' : redactContext(v, depth + 1);
+  }
+  return out;
+}
 
 function sanitizeContext(context) {
   if (context == null) return {};
   try {
-    const serialized = JSON.stringify(context);
+    const redacted = redactContext(context);
+    const serialized = JSON.stringify(redacted);
     if (!serialized) return {};
     if (serialized.length > MAX_CONTEXT_SIZE) {
       return { truncatedContext: serialized.slice(0, MAX_CONTEXT_SIZE) };
     }
-    return context;
+    return redacted;
   } catch {
     return { invalidContext: true };
   }

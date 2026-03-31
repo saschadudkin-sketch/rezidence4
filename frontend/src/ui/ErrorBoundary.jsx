@@ -48,7 +48,9 @@ export default class ErrorBoundary extends Component {
           {name} не смог загрузиться
         </div>
         <div style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 16 }}>
-          {this.state.error?.message ?? 'Неизвестная ошибка'}
+          {process.env.NODE_ENV === 'production'
+            ? 'Что-то пошло не так. Попробуйте обновить страницу.'
+            : (this.state.error?.message ?? 'Неизвестная ошибка')}
         </div>
         <button
           // FIX [BUG]: сброс state без remount = повторный краш на тех же данных.
