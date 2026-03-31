@@ -37,6 +37,16 @@ describe('buildLoggerConfig', () => {
     expect(config.level).toBe('info');
     expect(config.transport).toBeUndefined();
   });
+
+  test('base.service всегда задан', () => {
+    const config = buildLoggerConfig({ NODE_ENV: 'production' });
+    expect(config.base).toEqual(expect.objectContaining({ service: 'residenze-backend' }));
+  });
+
+  test('formatter level возвращает объект с уровнем', () => {
+    const config = buildLoggerConfig({ NODE_ENV: 'production' });
+    expect(config.formatters.level('error')).toEqual({ level: 'error' });
+  });
 });
 
 describe('logger module (pino wrapper)', () => {
