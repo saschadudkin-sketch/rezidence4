@@ -36,6 +36,12 @@ describe('AppIcon', () => {
     render(<AppIcon name="same-unknown-icon" />);
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
+
+  test('без имени и с пустым именем работает без предупреждений', () => {
+    render(<AppIcon />);
+    render(<AppIcon name="" />);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('APP_ICON_NAMES', () => {

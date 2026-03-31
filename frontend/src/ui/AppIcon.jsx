@@ -35,8 +35,9 @@ export function __resetAppIconWarningsForTests() {
 }
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
+  const hasExplicitName = typeof name === 'string' && name.trim().length > 0;
   const path = PATHS[name] || PATHS.list;
-  if (!PATHS[name] && process.env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
+  if (hasExplicitName && !PATHS[name] && process.env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
     // eslint-disable-next-line no-console
     console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);
