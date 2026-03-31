@@ -6,6 +6,7 @@ import { toast } from '../../ui/Toasts';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { canDeleteUser, canChangeRole } from '../../domain/permissions';
 import { services } from '../../services/providers/serviceContainer';
+import { AppIcon } from '../../ui/AppIcon';
 
 export default function AdminUserRow({ u, currentUser }) {
   const isSelf = u.uid === currentUser.uid;
@@ -77,14 +78,14 @@ export default function AdminUserRow({ u, currentUser }) {
           <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <span>{u.phone}</span>
             {u.apartment !== '—' && <span>Апарт. {u.apartment}</span>}
-            {u.parkingSpot && <span>🅿 {u.parkingSpot}</span>}
+            {u.parkingSpot && <span><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
           </div>
         </div>
         <div className="u-row-g5-fs0">
           <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
-            {editing ? '✕' : '✏️'}
+            <AppIcon name={editing ? 'close' : 'edit'} />
           </button>
-          {canDel && <button className="btn-del-sm" onClick={del} aria-label="Удалить пользователя">🗑</button>}
+          {canDel && <button className="btn-del-sm" onClick={del} aria-label="Удалить пользователя"><AppIcon name="trash" /></button>}
         </div>
       </div>
 
