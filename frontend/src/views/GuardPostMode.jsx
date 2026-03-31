@@ -91,14 +91,14 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     } else {
       act('approve', () => {
         approveRequest(req.id, userName, 'security');
-        sendNotif('✅ Допуск открыт', (req.visitorName || 'Гость') + ' — пропуск одобрен', 'status-' + req.id);
+        sendNotif('Допуск открыт', (req.visitorName || 'Гость') + ' — пропуск одобрен', 'status-' + req.id);
       }, 'Допуск открыт', 'success');
     }
   };
   const doReject = () => {
     act('reject', () => {
       rejectRequest(req.id, userName, 'security');
-      sendNotif('❌ В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
+      sendNotif('В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
     }, 'В допуске отказано', 'error');
     setConfirmReject(false);
     setConfirmApprove(false);

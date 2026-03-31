@@ -10,6 +10,7 @@ import { toast } from '../ui/Toasts.jsx';
 import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
+import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -403,11 +404,11 @@ export function ChatView({ user }) {
     <div className="chat-wrap">
       {showSearch && (
         <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--b1)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--s0)' }}>
-          <span style={{ fontSize: 14 }}>🔍</span>
+          <span style={{ fontSize: 14 }}><AppIcon name="search" size={14} /></span>
           <input className="search-inp" style={{ flex: 1, marginBottom: 0, fontSize: 13 }}
             placeholder="Поиск в чате..." autoFocus
             value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-          <button className="modal-close" style={{ flexShrink: 0 }} onClick={() => { setShowSearch(false); setSearchQuery(''); }}>✕</button>
+          <button className="modal-close" style={{ flexShrink: 0 }} onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
         </div>
       )}
       <div className="chat-msgs" ref={msgsContainerRef}>
@@ -465,8 +466,8 @@ export function ChatView({ user }) {
                     onTouchMove={e => e.stopPropagation()}
                     onDoubleClick={e => e.stopPropagation()}>
                     <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { startReply(m); setMsgMenu(null); }}>↩ Ответить</button>
-                    {can(user).editMessage(m) && !m.photo && <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { setEditingMsg({ id: m.id, text: m.text }); setMsgMenu(null); }}>✏️ Редактировать</button>}
-                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { handleDeleteMsg(m.id); setMsgMenu(null); }}>🗑 Удалить</button>}
+                    {can(user).editMessage(m) && !m.photo && <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { setEditingMsg({ id: m.id, text: m.text }); setMsgMenu(null); }}><AppIcon name="edit" className="u-inline-icon" /> Редактировать</button>}
+                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { handleDeleteMsg(m.id); setMsgMenu(null); }}><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>}
                     <div className="msg-menu-reactions">
                       {REACTIONS.map(emoji => (
                         <button key={emoji} className="reaction-picker-btn" onMouseDown={e => e.stopPropagation()} onClick={() => { toggleReaction(m.id, emoji); setMsgMenu(null); }}>{emoji}</button>
@@ -506,7 +507,7 @@ export function ChatView({ user }) {
                           }
                         }}>
                         <div className="msg-reply-quote-name">{quotedMsg.name || m.replyTo?.name}</div>
-                        <div className="msg-reply-quote-text">{quotedMsg.photo ? '📷 Фото' : quotedMsg.text || m.replyTo?.text}</div>
+                        <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || m.replyTo?.text}</div>
                       </div>
                     )}
                     {m.photo && <img src={m.photo} className="msg-photo" alt="фото" onClick={() => setLightbox(m.photo)}/>}
@@ -551,15 +552,15 @@ export function ChatView({ user }) {
           <div className="chat-reply-bar-line"/>
           <div className="chat-reply-bar-body">
             <div className="chat-reply-bar-name">{replyTo.name}</div>
-            <div className="chat-reply-bar-text">{replyTo.photo ? '📷 Фото' : replyTo.text}</div>
+            <div className="chat-reply-bar-text">{replyTo.photo ? 'Фото' : replyTo.text}</div>
           </div>
-          <button className="chat-reply-close" onClick={() => setReplyTo(null)} aria-label="Отменить ответ">✕</button>
+          <button className="chat-reply-close" onClick={() => setReplyTo(null)} aria-label="Отменить ответ"><AppIcon name="close" size={14} /></button>
         </div>
       )}
       <div className="chat-bar">
         <button className="chat-photo-btn" title="Поиск" onClick={() => setShowSearch(s => !s)}
           style={{ background: showSearch ? 'var(--g-bg)' : 'var(--s2)', borderColor: showSearch ? 'var(--g1)' : 'var(--b1)' }}>
-          🔍
+          <AppIcon name="search" size={16} />
         </button>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange}/>
         <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">{photoSending ? '⏳' : '📎'}</button>
