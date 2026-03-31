@@ -6,20 +6,19 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BlacklistView from './BlacklistView';
 import * as AppStore from '../store/AppStore.jsx';
+import { toast } from '../ui/Toasts';
 
-jest.mock('../hooks/useDebounce', () => ({
+vi.mock('../hooks/useDebounce', () => ({
   useDebounce: (v) => v,
 }));
 
-jest.mock('../utils', () => ({
-  genId: jest.fn(() => 'bl-new'),
+vi.mock('../utils', () => ({
+  genId: vi.fn(() => 'bl-new'),
 }));
 
-jest.mock('../ui/Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('../ui/Toasts', () => ({
+  toast: vi.fn(),
 }));
-
-const { toast } = require('../ui/Toasts');
 
 
 const mockBlacklist = [
@@ -27,16 +26,16 @@ const mockBlacklist = [
   { id: 'bl2', name: 'Иванов Иван',   carPlate: '',          reason: 'Угроза', addedBy: 'g1', addedAt: new Date() },
 ];
 const mockActions = {
-  addToBlacklist: jest.fn(),
-  removeFromBlacklist: jest.fn(),
+  addToBlacklist: vi.fn(),
+  removeFromBlacklist: vi.fn(),
 };
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useBlacklist').mockReturnValue(mockBlacklist);
-  jest.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
-  jest.clearAllMocks();
+  vi.spyOn(AppStore, 'useBlacklist').mockReturnValue(mockBlacklist);
+  vi.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
+  vi.clearAllMocks();
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 
 describe('BlacklistView', () => {

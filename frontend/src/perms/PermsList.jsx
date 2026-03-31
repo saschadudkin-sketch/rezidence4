@@ -5,7 +5,7 @@ import { CAT_LABEL } from '../constants/index.js';
 import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts.jsx';
 import { services } from '../services/providers/serviceContainer';
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { AppIcon } from '../ui/AppIcon';
 
 // ─── PermsList ────────────────────────────────────────────────────────────────

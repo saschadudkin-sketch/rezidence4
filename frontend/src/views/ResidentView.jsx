@@ -8,7 +8,7 @@ import { ChatView } from '../chat/ChatView.jsx';
 import { toast } from '../ui/Toasts.jsx';
 import { can, ROLES } from '../domain/permissions';
 import GarageView from './GarageView.jsx';
-import { isLiveMode } from '../config/runtimeMode';
+import { isLiveMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon.jsx';
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { isResident } from '../domain/permissions';
-import { canManageRequests } from '../constants/requestPredicates';
+import { canManageRequests } from '../constants/requestPredicates.js';
 import { subscribePush } from '../services/pushNotification';
 
 /**

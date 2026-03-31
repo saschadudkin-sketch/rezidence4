@@ -1,6 +1,6 @@
-import * as runtimeMode from '../../config/runtimeMode';
-import { createDemoProvider } from './demoProvider';
-import { createBackendProvider } from './backendProvider';
+import * as runtimeMode from '../../config/runtimeMode.js';
+import { createDemoProvider } from './demoProvider.js';
+import { createBackendProvider } from './backendProvider.js';
 
 const LIVE_MODE = runtimeMode.LIVE_MODE || 'live';
 const DEMO_MODE = runtimeMode.DEMO_MODE || 'demo';

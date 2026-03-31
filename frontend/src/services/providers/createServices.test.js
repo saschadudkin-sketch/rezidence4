@@ -1,4 +1,4 @@
-import { createServices } from './createServices';
+import { createServices } from './createServices.js';
 
 describe('createServices factory', () => {
   test('creates service container for demo mode', () => {
@@ -31,22 +31,22 @@ describe('createServices factory', () => {
     expect(s.provider).toBe('backend');
   });
 
-  test('uses MODE from runtimeMode when mode argument is omitted', () => {
-    jest.resetModules();
-    jest.doMock('../../config/runtimeMode', () => ({ MODE: 'live' }));
+  test('uses MODE from runtimeMode when mode argument is omitted', async () => {
+    vi.resetModules();
+    vi.doMock('../../config/runtimeMode.js', () => ({ MODE: 'live', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
 
-    const { createServices: createServicesWithMockedMode } = require('./createServices');
+    const { createServices: createServicesWithMockedMode } = await import('./createServices.js');
     const s = createServicesWithMockedMode();
 
     expect(s.mode).toBe('live');
     expect(s.provider).toBe('backend');
   });
 
-  test('uses MODE=demo from runtimeMode when mode argument is omitted', () => {
-    jest.resetModules();
-    jest.doMock('../../config/runtimeMode', () => ({ MODE: 'demo' }));
+  test('uses MODE=demo from runtimeMode when mode argument is omitted', async () => {
+    vi.resetModules();
+    vi.doMock('../../config/runtimeMode.js', () => ({ MODE: 'demo', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
 
-    const { createServices: createServicesWithMockedMode } = require('./createServices');
+    const { createServices: createServicesWithMockedMode } = await import('./createServices.js');
     const s = createServicesWithMockedMode();
 
     expect(s.mode).toBe('demo');

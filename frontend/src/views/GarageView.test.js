@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import GarageView from './GarageView';
 import * as AppStore from '../store/AppStore.jsx';
+import { toast } from '../ui/Toasts';
 
 const mockCars = [
   { id: 'car1', plate: 'А123ВС77', brand: 'BMW', note: 'Основная', isMain: true,  addedAt: new Date() },
@@ -13,26 +14,24 @@ const mockCars = [
 ];
 
 const mockActions = {
-  addGarageCar:    jest.fn(),
-  updateGarageCar: jest.fn(),
-  deleteGarageCar: jest.fn(),
+  addGarageCar:    vi.fn(),
+  updateGarageCar: vi.fn(),
+  deleteGarageCar: vi.fn(),
 };
 
-jest.mock('../utils', () => ({
-  genId: jest.fn(() => 'car-new'),
+vi.mock('../utils', () => ({
+  genId: vi.fn(() => 'car-new'),
 }));
 
-jest.mock('../ui/Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('../ui/Toasts', () => ({
+  toast: vi.fn(),
 }));
-
-const { toast } = require('../ui/Toasts');
 
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useGarage').mockReturnValue(mockCars);
-  jest.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
-  jest.clearAllMocks();
+  vi.spyOn(AppStore, 'useGarage').mockReturnValue(mockCars);
+  vi.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
+  vi.clearAllMocks();
 });
 
 
@@ -135,4 +134,4 @@ describe('GarageView', () => {
   });
 });
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());

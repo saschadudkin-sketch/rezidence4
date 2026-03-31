@@ -16,7 +16,7 @@ import {
   useRequests, useChat, useAvatar, useActions, useBlacklist,
 } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants';
-import { canManageRequests } from '../constants/requestPredicates';
+import { canManageRequests } from '../constants/requestPredicates.js';
 import { ROLES, getTabsForRole } from '../domain/permissions';
 import { AvatarCircle } from '../ui/AvatarCircle';
 import { AppIcon } from '../ui/AppIcon';
@@ -24,7 +24,7 @@ import { AvatarModal } from '../ui/Modals';
 import { toast } from '../ui/Toasts';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { LOGO } from '../constants/logo';
-import { isDemoMode } from '../config/runtimeMode';
+import { isDemoMode } from '../config/runtimeMode.js';
 import { useScheduledActivation } from '../hooks/useScheduledActivation';
 import {
   useTheme,

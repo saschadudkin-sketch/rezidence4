@@ -6,7 +6,7 @@ import {
 
 describe('requestWorkflow', () => {
   test('setStatusWithHistory dispatches status + history', () => {
-    const dispatch = jest.fn();
+    const dispatch = vi.fn();
 
     setStatusWithHistory(dispatch, 'r1', 'approved', 'Допуск разрешён', 'Иван', 'security');
 
@@ -20,7 +20,7 @@ describe('requestWorkflow', () => {
   });
 
   test('arriveWithHistory dispatches arrive + history', () => {
-    const dispatch = jest.fn();
+    const dispatch = vi.fn();
 
     arriveWithHistory(dispatch, 'r2', 'Анна', 'security');
 
@@ -34,7 +34,7 @@ describe('requestWorkflow', () => {
   });
 
   test('approveAndArriveWithHistory dispatches 4 actions in order', () => {
-    const dispatch = jest.fn();
+    const dispatch = vi.fn();
 
     approveAndArriveWithHistory(dispatch, 'r3', 'Охрана', 'security');
 

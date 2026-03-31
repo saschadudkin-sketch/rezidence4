@@ -2,9 +2,9 @@ import { services } from './serviceContainer';
 
 describe('serviceContainer smoke', () => {
   afterEach(() => {
-    jest.resetModules();
-    jest.dontMock('./createServices');
-    jest.dontMock('../../config/runtimeMode');
+    vi.resetModules();
+    vi.doUnmock('./createServices.js');
+    vi.doUnmock('../../config/runtimeMode.js');
   });
 
   test('exports wired services object with expected surface', () => {
@@ -24,51 +24,51 @@ describe('serviceContainer smoke', () => {
     expect(typeof services.liveData.startSync).toBe('function');
   });
 
-  test('builds services via createServices on module init', () => {
+  test('builds services via createServices on module init', async () => {
     const fakeServices = {
       mode: 'live',
       provider: 'backend',
-      chat: { sendMessage: jest.fn() },
-      requests: { resolvePhotos: jest.fn(), submit: jest.fn(), updateEverywhere: jest.fn(), deleteEverywhere: jest.fn() },
-      admin: { savePermsEverywhere: jest.fn(), saveUserEverywhere: jest.fn(), removeUserEverywhere: jest.fn() },
-      liveData: { startSync: jest.fn() },
+      chat: { sendMessage: vi.fn() },
+      requests: { resolvePhotos: vi.fn(), submit: vi.fn(), updateEverywhere: vi.fn(), deleteEverywhere: vi.fn() },
+      admin: { savePermsEverywhere: vi.fn(), saveUserEverywhere: vi.fn(), removeUserEverywhere: vi.fn() },
+      liveData: { startSync: vi.fn() },
     };
-    const createServices = jest.fn(() => fakeServices);
+    const createServices = vi.fn(() => fakeServices);
 
-    jest.doMock('./createServices', () => ({ createServices }));
-    const { services: mockedServices } = require('./serviceContainer');
+    vi.doMock('./createServices.js', () => ({ createServices }));
+    const { services: mockedServices } = await import('./serviceContainer.js');
 
     expect(createServices).toHaveBeenCalledTimes(1);
     expect(mockedServices).toBe(fakeServices);
   });
 
-  test('keeps singleton export across repeated imports', () => {
+  test('keeps singleton export across repeated imports', async () => {
     const fakeServices = { mode: 'demo', provider: 'demo' };
-    const createServices = jest.fn(() => fakeServices);
+    const createServices = vi.fn(() => fakeServices);
 
-    jest.doMock('./createServices', () => ({ createServices }));
-    const firstImport = require('./serviceContainer');
-    const secondImport = require('./serviceContainer');
+    vi.doMock('./createServices.js', () => ({ createServices }));
+    const firstImport = await import('./serviceContainer.js');
+    const secondImport = await import('./serviceContainer.js');
 
     expect(createServices).toHaveBeenCalledTimes(1);
     expect(firstImport.services).toBe(secondImport.services);
   });
 
-  test('resolves default mode through runtimeMode -> createServices integration', () => {
-    jest.dontMock('./createServices');
-    jest.doMock('../../config/runtimeMode', () => ({ MODE: 'live' }));
+  test('resolves default mode through runtimeMode -> createServices integration', async () => {
+    vi.doUnmock('./createServices.js');
+    vi.doMock('../../config/runtimeMode.js', () => ({ MODE: 'live', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
 
-    const { services: liveServices } = require('./serviceContainer');
+    const { services: liveServices } = await import('./serviceContainer.js');
 
     expect(liveServices.mode).toBe('live');
     expect(liveServices.provider).toBe('backend');
   });
 
-  test('resolves demo mode through runtimeMode -> createServices integration', () => {
-    jest.dontMock('./createServices');
-    jest.doMock('../../config/runtimeMode', () => ({ MODE: 'demo' }));
+  test('resolves demo mode through runtimeMode -> createServices integration', async () => {
+    vi.doUnmock('./createServices.js');
+    vi.doMock('../../config/runtimeMode.js', () => ({ MODE: 'demo', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
 
-    const { services: demoServices } = require('./serviceContainer');
+    const { services: demoServices } = await import('./serviceContainer.js');
 
     expect(demoServices.mode).toBe('demo');
     expect(demoServices.provider).toBe('demo');

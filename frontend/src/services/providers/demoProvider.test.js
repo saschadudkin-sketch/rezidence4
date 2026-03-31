@@ -1,9 +1,9 @@
-import { createDemoProvider } from './demoProvider';
+import { createDemoProvider } from './demoProvider.js';
 
 describe('demoProvider', () => {
   test('chat send uses local path only', async () => {
     const provider = createDemoProvider();
-    const sendLocal = jest.fn();
+    const sendLocal = vi.fn();
 
     const mode = await provider.chat.sendMessage({
       localMessage: { text: 'hi' },
@@ -16,9 +16,9 @@ describe('demoProvider', () => {
 
   test('requests submit/update/delete use local path only', () => {
     const provider = createDemoProvider();
-    const addLocal = jest.fn();
-    const updateLocal = jest.fn();
-    const deleteLocal = jest.fn();
+    const addLocal = vi.fn();
+    const updateLocal = vi.fn();
+    const deleteLocal = vi.fn();
 
     const submitMode = provider.requests.submit({ request: { id: 'r1' }, addLocal });
     provider.requests.updateEverywhere({ requestId: 'r1', patch: { comment: 'x' }, updateLocal });

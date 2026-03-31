@@ -16,7 +16,7 @@ import { checkBlacklist } from '../store/slices/blacklistSlice';
 import { toast } from '../ui/Toasts.jsx';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';
 import { pushNotifyResident } from '../services/pushNotification';
-import { sendNotif } from '../utils';
+import { sendNotif } from '../utils.js';
 import { logVisit } from '../shared/api/passesApi';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { AppIcon } from '../ui/AppIcon.jsx';

@@ -32,7 +32,7 @@ jest.mock('../ui/scrollLock', () => ({
 }));
 
 const { services } = require('../services/providers/serviceContainer');
-const { toast } = require('../ui/Toasts');
+const { toast } = require('../ui/Toasts.jsx');
 let consoleWarnSpy;
 
 beforeEach(() => {

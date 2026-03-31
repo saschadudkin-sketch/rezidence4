@@ -5,36 +5,25 @@
   "dependencies": {
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0"
+    "@testing-library/react": "^16.3.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "vite": "^7.1.11",
+    "jsdom": "^27.0.1",
+    "vitest": "^3.2.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "test:mode-services": "react-scripts test --watchAll=false --runTestsByPath src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/services/liveDataGateway.test.js src/ui/syncFeedback.test.js",
+    "start": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "test:mode-services": "vitest run src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/ui/syncFeedback.test.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "react-scripts test --watchAll=false && npm run build"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
+    "verify:all": "vitest run && npm run build",
+    "dev": "vite",
+    "test:watch": "vitest",
+    "preview": "vite preview"
   }
 }

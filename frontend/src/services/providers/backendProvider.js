@@ -9,7 +9,7 @@
 import apiClient from './apiClient';
 import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
-import { API_BASE_URL } from '../../config/apiBaseUrl';
+import { API_BASE_URL } from '../../config/apiBaseUrl.js';
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
