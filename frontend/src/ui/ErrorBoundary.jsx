@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { AppIcon } from './AppIcon';
 
 /**
  * ErrorBoundary — перехватывает ошибки рендера в дочерних компонентах.
@@ -42,7 +43,7 @@ export default class ErrorBoundary extends Component {
         borderRadius: 'var(--r)',
         textAlign: 'center',
       }}>
-        <div style={{ fontSize: 28, marginBottom: 10 }}>⚠️</div>
+        <div style={{ marginBottom: 10 }}><AppIcon name="alert" size={28} /></div>
         <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--t1)', marginBottom: 6 }}>
           {name} не смог загрузиться
         </div>

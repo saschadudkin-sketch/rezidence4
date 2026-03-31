@@ -73,7 +73,7 @@ describe('EditRequestModal', () => {
     expect(screen.getByText(/гость/i)).toBeInTheDocument();
   });
 
-  test('кнопка ✕ вызывает onClose', () => {
+  test('кнопка закрытия вызывает onClose', () => {
     const onClose = jest.fn();
     render(<EditRequestModal req={makeReq()} onClose={onClose} onDone={jest.fn()} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));

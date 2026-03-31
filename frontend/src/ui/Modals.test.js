@@ -44,7 +44,7 @@ describe('AddUserModal', () => {
     expect(screen.getByPlaceholderText('12')).toBeInTheDocument();
   });
 
-  test('кнопка ✕ вызывает onClose', () => {
+  test('кнопка закрытия вызывает onClose', () => {
     const onClose = jest.fn();
     render(<AddUserModal onClose={onClose} onDone={jest.fn()} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));

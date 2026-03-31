@@ -5,6 +5,7 @@ import { toastBySyncResult } from '../ui/syncFeedback';
 import { toast } from '../ui/Toasts.jsx';
 import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { services } from '../services/providers/serviceContainer';
+import { AppIcon } from '../ui/AppIcon';
 
 
 export function EditRequestModal({ req, onClose, onDone }) {
@@ -62,7 +63,7 @@ export function EditRequestModal({ req, onClose, onDone }) {
               {CAT_ICON[req.category]} {CAT_LABEL[req.category]}
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
           {req.type === 'pass' && req.category !== 'taxi' && (
