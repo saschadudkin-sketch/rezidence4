@@ -5,7 +5,7 @@
  */
 
 // Мокируем swUtils чтобы управлять getSwReg
-jest.mock('./swUtils', () => ({ getSwReg: jest.fn(() => null) }));
+vi.mock('./swUtils.js', () => ({ getSwReg: vi.fn(() => null) }));
 
 import { getSwReg } from './swUtils.js';
 import { requestNotifPerm, sendNotif } from './notifUtils';
@@ -17,7 +17,7 @@ describe('requestNotifPerm', () => {
 
   beforeEach(() => {
     origNotification = global.Notification;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -25,21 +25,21 @@ describe('requestNotifPerm', () => {
   });
 
   it('запрашивает разрешение если permission === "default"', () => {
-    const mockRequest = jest.fn();
+    const mockRequest = vi.fn();
     global.Notification = { permission: 'default', requestPermission: mockRequest };
     requestNotifPerm();
     expect(mockRequest).toHaveBeenCalledTimes(1);
   });
 
   it('не запрашивает если permission уже "granted"', () => {
-    const mockRequest = jest.fn();
+    const mockRequest = vi.fn();
     global.Notification = { permission: 'granted', requestPermission: mockRequest };
     requestNotifPerm();
     expect(mockRequest).not.toHaveBeenCalled();
   });
 
   it('не запрашивает если permission "denied"', () => {
-    const mockRequest = jest.fn();
+    const mockRequest = vi.fn();
     global.Notification = { permission: 'denied', requestPermission: mockRequest };
     requestNotifPerm();
     expect(mockRequest).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe('sendNotif', () => {
 
   beforeEach(() => {
     origNotification = global.Notification;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     getSwReg.mockReturnValue(null);
   });
 
@@ -72,14 +72,14 @@ describe('sendNotif', () => {
   });
 
   it('ничего не делает если permission !== "granted"', () => {
-    const mockCtor = jest.fn();
+    const mockCtor = vi.fn();
     global.Notification = Object.assign(mockCtor, { permission: 'default' });
     sendNotif('Заголовок', 'Текст');
     expect(mockCtor).not.toHaveBeenCalled();
   });
 
   it('создаёт Notification напрямую если нет SW', () => {
-    const mockCtor = jest.fn();
+    const mockCtor = vi.fn();
     global.Notification = Object.assign(mockCtor, { permission: 'granted' });
     getSwReg.mockReturnValue(null);
     sendNotif('Заголовок', 'Текст', 'test-tag');
@@ -87,9 +87,9 @@ describe('sendNotif', () => {
   });
 
   it('использует SW.showNotification если SW доступен', () => {
-    const mockShowNotification = jest.fn();
+    const mockShowNotification = vi.fn();
     const mockSWReg = { showNotification: mockShowNotification };
-    const mockCtor = jest.fn();
+    const mockCtor = vi.fn();
     global.Notification = Object.assign(mockCtor, { permission: 'granted' });
     getSwReg.mockReturnValue(mockSWReg);
 
@@ -106,8 +106,8 @@ describe('sendNotif', () => {
   });
 
   it('использует "default" как tag если не передан', () => {
-    const mockShowNotification = jest.fn();
-    global.Notification = Object.assign(jest.fn(), { permission: 'granted' });
+    const mockShowNotification = vi.fn();
+    global.Notification = Object.assign(vi.fn(), { permission: 'granted' });
     getSwReg.mockReturnValue({ showNotification: mockShowNotification });
     sendNotif('T', 'B');
     expect(mockShowNotification.mock.calls[0][1].tag).toBe('default');
@@ -121,14 +121,12 @@ describe('playAlert', () => {
   let origWebkitAudioContext;
   let playAlertFresh;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     origAudioContext = global.AudioContext;
     origWebkitAudioContext = global.webkitAudioContext;
-    jest.clearAllMocks();
-    jest.resetModules();
-    jest.isolateModules(() => {
-      ({ playAlert: playAlertFresh } = require('./notifUtils'));
-    });
+    vi.clearAllMocks();
+    vi.resetModules();
+    ({ playAlert: playAlertFresh } = await import('./notifUtils.js'));
   });
 
   afterEach(() => {
@@ -137,8 +135,8 @@ describe('playAlert', () => {
   });
 
   it('не падает если AudioContext недоступен', () => {
-    delete global.AudioContext;
-    delete global.webkitAudioContext;
+    global.AudioContext = undefined;
+    global.webkitAudioContext = undefined;
     expect(() => playAlertFresh('pass')).not.toThrow();
   });
 
@@ -147,20 +145,20 @@ describe('playAlert', () => {
       state: 'running',
       currentTime: 0,
       destination: {},
-      createOscillator: jest.fn(() => ({
-        connect: jest.fn(),
-        start: jest.fn(),
-        stop: jest.fn(),
+      createOscillator: vi.fn(() => ({
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
         frequency: { value: 0 },
         type: 'sine',
       })),
-      createGain: jest.fn(() => ({
-        connect: jest.fn(),
-        gain: { setValueAtTime: jest.fn(), linearRampToValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() },
+      createGain: vi.fn(() => ({
+        connect: vi.fn(),
+        gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
       })),
-      resume: jest.fn(),
+      resume: vi.fn(),
     };
-    global.AudioContext = jest.fn(() => mockCtx);
+    global.AudioContext = vi.fn(() => mockCtx);
 
     expect(() => playAlertFresh('pass')).not.toThrow();
     expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
@@ -171,39 +169,39 @@ describe('playAlert', () => {
       state: 'running',
       currentTime: 0,
       destination: {},
-      createOscillator: jest.fn(() => ({
-        connect: jest.fn(), start: jest.fn(), stop: jest.fn(),
+      createOscillator: vi.fn(() => ({
+        connect: vi.fn(), start: vi.fn(), stop: vi.fn(),
         frequency: { value: 0 }, type: 'sine',
       })),
-      createGain: jest.fn(() => ({
-        connect: jest.fn(),
-        gain: { setValueAtTime: jest.fn(), linearRampToValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() },
+      createGain: vi.fn(() => ({
+        connect: vi.fn(),
+        gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
       })),
-      resume: jest.fn(),
+      resume: vi.fn(),
     };
-    global.AudioContext = jest.fn(() => mockCtx);
+    global.AudioContext = vi.fn(() => mockCtx);
 
     expect(() => playAlertFresh('tech')).not.toThrow();
     expect(mockCtx.createOscillator).toHaveBeenCalledTimes(3); // 3 ноты
   });
 
   it('возобновляет suspended контекст перед воспроизведением', () => {
-    const mockResume = jest.fn();
+    const mockResume = vi.fn();
     const mockCtx = {
       state: 'suspended',
       currentTime: 0,
       destination: {},
-      createOscillator: jest.fn(() => ({
-        connect: jest.fn(), start: jest.fn(), stop: jest.fn(),
+      createOscillator: vi.fn(() => ({
+        connect: vi.fn(), start: vi.fn(), stop: vi.fn(),
         frequency: { value: 0 }, type: 'sine',
       })),
-      createGain: jest.fn(() => ({
-        connect: jest.fn(),
-        gain: { setValueAtTime: jest.fn(), linearRampToValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() },
+      createGain: vi.fn(() => ({
+        connect: vi.fn(),
+        gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
       })),
       resume: mockResume,
     };
-    global.AudioContext = jest.fn(() => mockCtx);
+    global.AudioContext = vi.fn(() => mockCtx);
 
     playAlertFresh('pass');
     expect(mockResume).toHaveBeenCalled();
