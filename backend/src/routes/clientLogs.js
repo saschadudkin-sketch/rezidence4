@@ -15,7 +15,10 @@ const router = express.Router();
 const MAX_BATCH = 10;
 const MAX_ERROR_SIZE = 2048;
 const MAX_CONTEXT_SIZE = 4096;
-const REDACT_PATTERNS = [/token/i, /password/i, /secret/i, /cookie/i, /phone/i, /email/i];
+const REDACT_PATTERNS = [
+  /token/i, /password/i, /secret/i, /cookie/i,
+  /phone/i, /email/i, /authorization/i, /api[-_]?key/i,
+];
 
 function isSensitiveKey(key) {
   return REDACT_PATTERNS.some((rx) => rx.test(key));

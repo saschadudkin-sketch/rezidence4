@@ -107,6 +107,7 @@ const BlacklistContext = createContext(null);
 const GarageContext    = createContext(null);
 // Единый диспатч — стабильная ссылка, не вызывает ре-рендер подписчиков
 const DispatchContext  = createContext(null);
+let hasWarnedUseAppState = false;
 
 // FIX [AUDIT-2 #9]: useDebouncedSave ВЫНЕСЕН за пределы AppProvider.
 // Ранее была объявлена внутри — нарушение Rules of Hooks (React не видит top-level).
@@ -196,16 +197,19 @@ export function AppProvider({ children }) {
 // В dev/prod логируем предупреждение, но не роняем приложение для безопасной миграции.
 /** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
 export function useAppState() {
-  if (process.env.NODE_ENV === 'production') {
-    console.error(
-      '[AppStore] useAppState() deprecated in production. ' +
-      'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
+  if (!hasWarnedUseAppState) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[AppStore] useAppState() deprecated in production. ' +
+        'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
+      );
+    }
+    console.warn(
+      '[AppStore] useAppState() DEPRECATED — subscribes to ALL 6 contexts causing re-renders. ' +
+      'Use: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
     );
+    hasWarnedUseAppState = true;
   }
-  console.warn(
-    '[AppStore] useAppState() DEPRECATED — subscribes to ALL 6 contexts causing re-renders. ' +
-    'Use: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
-  );
   const req   = useContext(RequestsContext);
   const chat  = useContext(ChatContext);
   const users = useContext(UsersContext);

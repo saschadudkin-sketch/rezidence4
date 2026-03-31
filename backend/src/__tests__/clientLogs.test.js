@@ -36,6 +36,9 @@ describe('clientLogs route', () => {
         context: {
           token: 'abc',
           nested: { password: 'secret' },
+          email: 'u@example.com',
+          apiKey: 'key-123',
+          authorization: 'Bearer token',
           safe: 'ok',
         },
       }],
@@ -48,7 +51,9 @@ describe('clientLogs route', () => {
     const logged = logger.warn.mock.calls[0][0].clientError;
     expect(logged.context.token).toBe('[redacted]');
     expect(logged.context.nested.password).toBe('[redacted]');
+    expect(logged.context.email).toBe('[redacted]');
+    expect(logged.context.apiKey).toBe('[redacted]');
+    expect(logged.context.authorization).toBe('[redacted]');
     expect(logged.context.safe).toBe('ok');
   });
 });
-
