@@ -49,6 +49,14 @@ describe('AppIcon', () => {
     render(<AppIcon name="" />);
     expect(warnSpy).not.toHaveBeenCalled();
   });
+
+  test('после переполнения кеша предупреждений старые имена снова предупреждаются', () => {
+    for (let i = 0; i <= 200; i += 1) {
+      render(<AppIcon name={`overflow-unknown-${i}`} />);
+    }
+    render(<AppIcon name="overflow-unknown-0" />);
+    expect(warnSpy).toHaveBeenCalledTimes(202);
+  });
 });
 
 describe('APP_ICON_NAMES', () => {
