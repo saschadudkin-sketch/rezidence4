@@ -426,7 +426,7 @@ export function ChatView({ user }) {
                 opacity: loadingOlder ? 0.6 : 1,
               }}
             >
-              {loadingOlder ? 'Загрузка...' : '↑ Загрузить ещё'}
+              {loadingOlder ? 'Загрузка...' : <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>}
             </button>
           </div>
         )}
@@ -575,7 +575,7 @@ export function ChatView({ user }) {
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
         />
-        <button className="chat-send" onClick={send} disabled={!text.trim()} aria-label="Отправить сообщение">→</button>
+        <button className="chat-send" onClick={send} disabled={!text.trim()} aria-label="Отправить сообщение"><AppIcon name="chevronRight" size={14} /></button>
       </div>
       {showEmoji && (
         <div className="emoji-picker">
