@@ -1,18 +1,15 @@
-/**
- * views/ResidentsView.test.js
- * Покрывает: ResidentsView — группировка по апартаментам, поиск, раскрытие карточки
- */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ResidentsView from './ResidentsView';
+import { describe, expect, test, vi } from 'vitest';
+import ResidentsView from './ResidentsView.jsx';
 
-jest.mock('../store/AppStore', () => ({
+vi.mock('../store/AppStore.jsx', () => ({
   useUsers: () => ({
     users: {
-      u1: { uid: 'u1', name: 'Иван Петров',   role: 'owner',  phone: '+7 916 100-00-01', apartment: '12', parkingSpot: 'А1' },
+      u1: { uid: 'u1', name: 'Иван Петров', role: 'owner', phone: '+7 916 100-00-01', apartment: '12', parkingSpot: 'А1' },
       u2: { uid: 'u2', name: 'Анна Соколова', role: 'tenant', phone: '+7 929 200-00-02', apartment: '34', parkingSpot: null },
-      u3: { uid: 'u3', name: 'Пётр Орлов',    role: 'owner',  phone: '+7 903 300-00-03', apartment: '12', parkingSpot: null },
-      g1: { uid: 'g1', name: 'Охранник',      role: 'security', phone: '+7 917 000-00-00', apartment: null },
+      u3: { uid: 'u3', name: 'Пётр Орлов', role: 'owner', phone: '+7 903 300-00-03', apartment: '12', parkingSpot: null },
+      g1: { uid: 'g1', name: 'Охранник', role: 'security', phone: '+7 917 000-00-00', apartment: null },
     },
   }),
   useAllGarage: () => ({
@@ -24,11 +21,11 @@ jest.mock('../store/AppStore', () => ({
   useAllPerms: () => ({}),
 }));
 
-jest.mock('../hooks/useDebounce', () => ({
-  useDebounce: (v) => v, // сразу возвращает значение
+vi.mock('../hooks/useDebounce.js', () => ({
+  useDebounce: (v) => v,
 }));
 
-jest.mock('../ui/AvatarCircle', () => ({
+vi.mock('../ui/AvatarCircle.jsx', () => ({
   AvatarCircle: ({ name }) => <span data-testid="avatar">{name[0]}</span>,
 }));
 
@@ -37,13 +34,11 @@ describe('ResidentsView', () => {
 
   test('показывает количество апартаментов', () => {
     render(<ResidentsView user={user} />);
-    // Апарт. 12 и 34
     expect(screen.getByText(/2 апартамент/i)).toBeInTheDocument();
   });
 
   test('показывает количество жильцов', () => {
     render(<ResidentsView user={user} />);
-    // u1 + u2 + u3 = 3 (g1 — охрана, не резидент)
     expect(screen.getByText(/3 жильц/i)).toBeInTheDocument();
   });
 
@@ -82,7 +77,6 @@ describe('ResidentsView', () => {
   test('поиск по имени фильтрует апартаменты', () => {
     render(<ResidentsView user={user} />);
     fireEvent.change(screen.getByPlaceholderText(/апарт/i), { target: { value: 'Анна' } });
-    // Только апарт. 34
     expect(screen.queryByText('Апарт. 12')).not.toBeInTheDocument();
     expect(screen.getByText('Апарт. 34')).toBeInTheDocument();
   });
