@@ -6,8 +6,8 @@ afterEach(() => {
   cleanup();
 });
 
-const jestCompat = {
-  ...vi,
+// Legacy shim kept intentionally narrow (only APIs still used by legacy specs).
+globalThis.jest = {
   fn: vi.fn,
   spyOn: vi.spyOn,
   mock: vi.mock,
@@ -19,13 +19,11 @@ const jestCompat = {
   resetAllMocks: vi.resetAllMocks,
   restoreAllMocks: vi.restoreAllMocks,
   resetModules: vi.resetModules,
+  isolateModules: (fn) => fn(),
   useFakeTimers: vi.useFakeTimers,
   useRealTimers: vi.useRealTimers,
   runAllTimers: vi.runAllTimers,
   runOnlyPendingTimers: vi.runOnlyPendingTimers,
   advanceTimersByTime: vi.advanceTimersByTime,
   setSystemTime: vi.setSystemTime,
-  isolateModules: (fn) => fn(),
 };
-
-globalThis.jest = jestCompat;

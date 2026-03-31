@@ -4,8 +4,9 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import AdminView from './AdminView';
+import AdminView from './AdminView.jsx';
 import * as AppStore from '../store/AppStore.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 
 const mockRequests = [
@@ -22,77 +23,77 @@ const mockUsers = {
 };
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
-  jest.spyOn(AppStore, 'useUsers').mockReturnValue(mockUsers);
+  vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
+  vi.spyOn(AppStore, 'useUsers').mockReturnValue(mockUsers);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
-jest.mock('../hooks/useDebounce', () => ({ useDebounce: v => v }));
+vi.mock('../hooks/useDebounce.js', () => ({ useDebounce: v => v }));
 
-jest.mock('../utils', () => ({
-  filterByPeriod: jest.fn((arr) => arr),
+vi.mock('../utils.js', () => ({
+  filterByPeriod: vi.fn((arr) => arr),
 }));
-jest.mock('../utils.js', () => ({
-  filterByPeriod: jest.fn((arr) => arr),
+vi.mock('../utils.js', () => ({
+  filterByPeriod: vi.fn((arr) => arr),
 }));
 
-jest.mock('../domain/permissions', () => ({ ROLES: { CONTRACTOR: 'contractor' } }));
-jest.mock('../constants', () => ({
+vi.mock('../domain/permissions.js', () => ({ ROLES: { CONTRACTOR: 'contractor' } }));
+vi.mock('../constants/index.js', () => ({
   ROLE_LABELS: { owner: 'Собственник', admin: 'Администратор', contractor: 'Подрядчик' },
   ROLE_COLOR: { owner: 'var(--role-owner)', admin: 'var(--role-admin)' },
 }));
-jest.mock('../ui/Modals', () => ({
+vi.mock('../ui/Modals.jsx', () => ({
   AddUserModal: ({ onClose }) => <div data-testid="add-user-modal"><button onClick={onClose}>Закрыть</button></div>,
 }));
-jest.mock('./admin/AdminUserRow', () => ({ u }) => <div data-testid="user-row">{u.name}</div>);
-jest.mock('./admin/AdminReqRow',  () => ({ r }) => <div data-testid="req-row">{r.id}</div>);
-jest.mock('./admin/AdminPermsView', () => () => <div data-testid="perms-view" />);
-jest.mock('./VisitLogView',  () => () => <div data-testid="visit-log" />);
-jest.mock('./BlacklistView', () => () => <div data-testid="blacklist" />);
-jest.mock('../chat/ChatView', () => ({ ChatView: () => <div data-testid="chat" /> }));
+vi.mock('./admin/AdminUserRow.jsx', () => ({ default: ({ u }) => <div data-testid="user-row">{u.name}</div> }));
+vi.mock('./admin/AdminReqRow.jsx',  () => ({ default: ({ r }) => <div data-testid="req-row">{r.id}</div> }));
+vi.mock('./admin/AdminPermsView.jsx', () => ({ default: () => <div data-testid="perms-view" /> }));
+vi.mock('./VisitLogView.jsx',  () => ({ default: () => <div data-testid="visit-log" /> }));
+vi.mock('./BlacklistView.jsx', () => ({ default: () => <div data-testid="blacklist" /> }));
+vi.mock('../chat/ChatView.jsx', () => ({ ChatView: () => <div data-testid="chat" /> }));
 
 const adminUser = { uid: 'a1', role: 'admin', name: 'Администратор' };
 
 describe('AdminView', () => {
   test('по умолчанию показывает вкладку stats', () => {
-    render(<AdminView user={adminUser} activeTab="stats" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="stats" setActiveTab={vi.fn()} />);
     // Stats показывает карточки с числами
     expect(screen.getByText('Пользователей')).toBeInTheDocument();
   });
 
   test.skip('вкладка requests показывает список заявок', () => {
-    render(<AdminView user={adminUser} activeTab="requests" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="requests" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('req-row')).toBeInTheDocument();
   });
 
   test('вкладка users показывает список пользователей', () => {
-    render(<AdminView user={adminUser} activeTab="users" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="users" setActiveTab={vi.fn()} />);
     expect(screen.getAllByTestId('user-row').length).toBeGreaterThan(0);
   });
 
   test('вкладка visitlog рендерит VisitLogView', () => {
-    render(<AdminView user={adminUser} activeTab="visitlog" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="visitlog" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('visit-log')).toBeInTheDocument();
   });
 
   test('вкладка blacklist рендерит BlacklistView', () => {
-    render(<AdminView user={adminUser} activeTab="blacklist" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="blacklist" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('blacklist')).toBeInTheDocument();
   });
 
   test('вкладка chat рендерит ChatView', () => {
-    render(<AdminView user={adminUser} activeTab="chat" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="chat" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('chat')).toBeInTheDocument();
   });
 
   test('кнопка "+ Добавить" в users открывает AddUserModal', () => {
-    render(<AdminView user={adminUser} activeTab="users" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="users" setActiveTab={vi.fn()} />);
     fireEvent.click(screen.getByText(/добавить/i));
     expect(screen.getByTestId('add-user-modal')).toBeInTheDocument();
   });
 
   test('stats показывает правильный счётчик пользователей', () => {
-    render(<AdminView user={adminUser} activeTab="stats" setActiveTab={jest.fn()} />);
+    render(<AdminView user={adminUser} activeTab="stats" setActiveTab={vi.fn()} />);
     // 2 пользователя в моке
     const statVal = screen.getAllByText('2');
     expect(statVal.length).toBeGreaterThan(0);
