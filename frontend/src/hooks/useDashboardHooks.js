@@ -12,9 +12,9 @@
  *   hooks/useArrivalNotifier.js    — уведомление жильцу о входе гостя
  *   hooks/useNavigation.js         — активный таб + переход
  */
-export { useTheme }              from './useTheme';
-export { useNavBadges }          from './useNavBadges';
-export { useLiveSync }           from './useLiveSync';
-export { usePushNotifications }  from './usePushNotifications';
-export { useArrivalNotifier }    from './useArrivalNotifier';
-export { useNavigation }         from './useNavigation';
+export { useTheme }              from './useTheme.js';
+export { useNavBadges }          from './useNavBadges.js';
+export { useLiveSync }           from './useLiveSync.js';
+export { usePushNotifications }  from './usePushNotifications.js';
+export { useArrivalNotifier }    from './useArrivalNotifier.js';
+export { useNavigation }         from './useNavigation.js';

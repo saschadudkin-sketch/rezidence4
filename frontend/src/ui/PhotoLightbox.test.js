@@ -8,7 +8,7 @@ import { PhotoLightbox } from './PhotoLightbox';
 
 describe('PhotoLightbox', () => {
   test('отображает изображение по src', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PhotoLightbox src="http://example.com/img.jpg" onClose={onClose} />);
     const img = screen.getByAltText('фото');
     expect(img).toBeInTheDocument();
@@ -16,13 +16,13 @@ describe('PhotoLightbox', () => {
   });
 
   test('кнопка закрытия присутствует', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     expect(screen.getByLabelText('Закрыть')).toBeInTheDocument();
   });
 
   test('клик по кнопке закрытия вызывает onClose', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
     // Клик по кнопке всплывает на overlay, поэтому onClose вызывается дважды.
@@ -30,21 +30,21 @@ describe('PhotoLightbox', () => {
   });
 
   test('нажатие Escape вызывает onClose', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   test('нажатие другой клавиши не вызывает onClose', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Enter' });
     expect(onClose).not.toHaveBeenCalled();
   });
 
   test('клик по overlay (backdrop) вызывает onClose', () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
     const { container } = render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     // Клик по img НЕ должен закрывать
     const img = screen.getByAltText('фото');
@@ -62,8 +62,8 @@ describe('PhotoLightbox', () => {
   });
 
   test('снимает обработчик keydown при размонтировании', () => {
-    const onClose = jest.fn();
-    const removeEventListenerSpy = jest.spyOn(document, 'removeEventListener');
+    const onClose = vi.fn();
+    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
     const { unmount } = render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     unmount();
     expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));

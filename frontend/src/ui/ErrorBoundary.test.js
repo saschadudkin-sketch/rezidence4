@@ -8,7 +8,7 @@ import ErrorBoundary from './ErrorBoundary';
 
 // Подавляем console.error от React для ожидаемых ошибок в тестах
 const suppressErrors = () => {
-  const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
   return spy;
 };
 
@@ -19,7 +19,7 @@ function Bomb({ shouldThrow }) {
 }
 
 describe('ErrorBoundary', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   test('рендерит children если ошибки нет', () => {
     render(

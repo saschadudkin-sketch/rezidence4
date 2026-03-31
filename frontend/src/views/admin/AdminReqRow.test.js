@@ -4,34 +4,35 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import AdminReqRow from './AdminReqRow';
+import AdminReqRow from './AdminReqRow.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // Мокируем все зависимости компонента
-jest.mock('../../store/AppStore', () => ({
+vi.mock('../../store/AppStore', () => ({
   useActions: () => ({
-    deleteRequest: jest.fn(),
-    updateRequest: jest.fn(),
+    deleteRequest: vi.fn(),
+    updateRequest: vi.fn(),
   }),
 }));
 
-jest.mock('../../services/providers/serviceContainer', () => ({
+vi.mock('../../services/providers/serviceContainer', () => ({
   services: {
     requests: {
-      deleteEverywhere: jest.fn().mockResolvedValue('local'),
-      updateEverywhere: jest.fn().mockResolvedValue('local'),
+      deleteEverywhere: vi.fn().mockResolvedValue('local'),
+      updateEverywhere: vi.fn().mockResolvedValue('local'),
     },
   },
 }));
 
-jest.mock('../../ui/syncFeedback', () => ({
-  toastBySyncResult: jest.fn(),
+vi.mock('../../ui/syncFeedback', () => ({
+  toastBySyncResult: vi.fn(),
 }));
 
-jest.mock('../../ui/Toasts', () => ({
-  toast: jest.fn(),
+vi.mock('../../ui/Toasts.jsx', () => ({
+  toast: vi.fn(),
 }));
 
-jest.mock('../../requests/ReqCard', () => ({
+vi.mock('../../requests/ReqCard', () => ({
   ReqCard: ({ req }) => <div data-testid="req-card">{req.status}</div>,
 }));
 
@@ -49,10 +50,10 @@ const makeReq = (overrides = {}) => ({
   ...overrides,
 });
 
-const { services } = require('../../services/providers/serviceContainer');
-const { toast } = require('../../ui/Toasts.jsx');
+import { services } from '../../services/providers/serviceContainer';
+import { toast } from '../../ui/Toasts.jsx';
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => vi.clearAllMocks());
 
 describe('AdminReqRow', () => {
   test('рендерит ReqCard с текущим статусом', () => {

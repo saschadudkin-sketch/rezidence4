@@ -3,8 +3,9 @@
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { ConciergeView, SecurityView } from './SecurityConciergeViews';
+import { ConciergeView, SecurityView } from './SecurityConciergeViews.jsx';
 import * as AppStore from '../store/AppStore.jsx';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const baseReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
@@ -15,78 +16,78 @@ const baseReq = (overrides={}) => ({
   ...overrides,
 });
 
-jest.mock('../store/AppStore', () => ({
-  useRequests:  jest.fn(() => [baseReq()]),
+vi.mock('../store/AppStore.jsx', () => ({
+  useRequests:  vi.fn(() => [baseReq()]),
   useUsers:     () => ({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } }),
   useAllPerms:  () => ({}),
-  useActions:   () => ({ updateRequest: jest.fn(), approveRequest: jest.fn(), rejectRequest: jest.fn() }),
+  useActions:   () => ({ updateRequest: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn() }),
 }));
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
-  jest.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } });
-  jest.spyOn(AppStore, 'useAllPerms').mockReturnValue({});
-  jest.spyOn(AppStore, 'useActions').mockReturnValue({ updateRequest: jest.fn(), approveRequest: jest.fn(), rejectRequest: jest.fn() });
+  vi.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
+  vi.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } });
+  vi.spyOn(AppStore, 'useAllPerms').mockReturnValue({});
+  vi.spyOn(AppStore, 'useActions').mockReturnValue({ updateRequest: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn() });
 });
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
-jest.mock('../hooks/useDebounce', () => ({ useDebounce: v => v }));
-jest.mock('../utils', () => ({ sortReqs: v => v, filterByPeriod: v => v }));
-jest.mock('../constants/requestPredicates', () => ({
+vi.mock('../hooks/useDebounce.js', () => ({ useDebounce: v => v }));
+vi.mock('../utils.js', () => ({ sortReqs: v => v, filterByPeriod: v => v }));
+vi.mock('../constants/requestPredicates.js', () => ({
   isPassRequest: r => r.type === 'pass',
   isTechRequest: r => r.type === 'tech',
 }));
-jest.mock('../requests/ReqCard',      () => ({ ReqCard: ({ req }) => <div data-testid="req-card">{req.id}</div> }));
-jest.mock('../requests/CreateModal',  () => ({ CreateModal:   () => <div data-testid="create-modal" /> }));
-jest.mock('../requests/ScanQRModal',  () => ({ ScanQRModal:   () => <div data-testid="scan-modal" /> }));
-jest.mock('../chat/ChatView',         () => ({ ChatView:      () => <div data-testid="chat" /> }));
-jest.mock('../perms/PermsList',       () => ({ MyTemplates:   () => null }));
-jest.mock('./GuardPostMode',          () => () => <div data-testid="guard-post" />);
-jest.mock('./BlacklistView',          () => () => <div data-testid="blacklist" />);
-jest.mock('./VisitLogView',           () => () => <div data-testid="visit-log" />);
-jest.mock('./ResidentsView',          () => () => <div data-testid="residents" />);
-jest.mock('../requests/CarSearchModal', () => ({ CarSearchModal: () => null }));
+vi.mock('../requests/ReqCard.jsx',      () => ({ ReqCard: ({ req }) => <div data-testid="req-card">{req.id}</div> }));
+vi.mock('../requests/CreateModal.jsx',  () => ({ CreateModal:   () => <div data-testid="create-modal" /> }));
+vi.mock('../requests/ScanQRModal.jsx',  () => ({ ScanQRModal:   () => <div data-testid="scan-modal" /> }));
+vi.mock('../chat/ChatView.jsx',         () => ({ ChatView:      () => <div data-testid="chat" /> }));
+vi.mock('../perms/PermsList.jsx',       () => ({ MyTemplates:   () => null }));
+vi.mock('./GuardPostMode.jsx',          () => ({ default: () => <div data-testid="guard-post" /> }));
+vi.mock('./BlacklistView.jsx',          () => ({ default: () => <div data-testid="blacklist" /> }));
+vi.mock('./VisitLogView.jsx',           () => ({ default: () => <div data-testid="visit-log" /> }));
+vi.mock('./ResidentsView.jsx',          () => ({ default: () => <div data-testid="residents" /> }));
+vi.mock('../requests/CarSearchModal.jsx', () => ({ CarSearchModal: () => null }));
 
 const conciergeUser = { uid: 'c1', role: 'concierge', name: 'Консьерж' };
 const securityUser  = { uid: 'g1', role: 'security',  name: 'Охрана' };
 
 describe('ConciergeView', () => {
   test('рендерит карточки типов на вкладке passes', () => {
-    render(<ConciergeView user={conciergeUser} activeTab="passes" setActiveTab={jest.fn()} />);
+    render(<ConciergeView user={conciergeUser} activeTab="passes" setActiveTab={vi.fn()} />);
     expect(screen.getByText('Гость')).toBeInTheDocument();
     expect(screen.getByText('Курьер')).toBeInTheDocument();
   });
 
   test('рендерит ResidentsView на вкладке residents', () => {
-    render(<ConciergeView user={conciergeUser} activeTab="residents" setActiveTab={jest.fn()} />);
+    render(<ConciergeView user={conciergeUser} activeTab="residents" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('residents')).toBeInTheDocument();
   });
 
   test('рендерит ChatView на вкладке chat', () => {
-    render(<ConciergeView user={conciergeUser} activeTab="chat" setActiveTab={jest.fn()} />);
+    render(<ConciergeView user={conciergeUser} activeTab="chat" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('chat')).toBeInTheDocument();
   });
 
   test('рендерит VisitLogView на вкладке visitlog', () => {
-    render(<ConciergeView user={conciergeUser} activeTab="visitlog" setActiveTab={jest.fn()} />);
+    render(<ConciergeView user={conciergeUser} activeTab="visitlog" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('visit-log')).toBeInTheDocument();
   });
 });
 
 describe('SecurityView', () => {
   test('рендерит GuardPostMode на вкладке guardpost', () => {
-    render(<SecurityView user={securityUser} activeTab="guardpost" setActiveTab={jest.fn()} highlightReqId={null} setHighlightReqId={jest.fn()} />);
+    render(<SecurityView user={securityUser} activeTab="guardpost" setActiveTab={vi.fn()} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getByTestId('guard-post')).toBeInTheDocument();
   });
 
   test('рендерит BlacklistView на вкладке blacklist', () => {
-    render(<SecurityView user={securityUser} activeTab="blacklist" setActiveTab={jest.fn()} highlightReqId={null} setHighlightReqId={jest.fn()} />);
+    render(<SecurityView user={securityUser} activeTab="blacklist" setActiveTab={vi.fn()} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getByTestId('blacklist')).toBeInTheDocument();
   });
 
   test('рендерит ChatView на вкладке chat', () => {
-    render(<SecurityView user={securityUser} activeTab="chat" setActiveTab={jest.fn()} highlightReqId={null} setHighlightReqId={jest.fn()} />);
+    render(<SecurityView user={securityUser} activeTab="chat" setActiveTab={vi.fn()} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getByTestId('chat')).toBeInTheDocument();
   });
 });
