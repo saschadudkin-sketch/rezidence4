@@ -37,6 +37,13 @@ describe('AppIcon', () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
+  test('после сброса тестового кеша предупреждение может появиться снова', () => {
+    render(<AppIcon name="resettable-unknown-icon" />);
+    __resetAppIconWarningsForTests();
+    render(<AppIcon name="resettable-unknown-icon" />);
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
   test('без имени и с пустым именем работает без предупреждений', () => {
     render(<AppIcon />);
     render(<AppIcon name="" />);
