@@ -65,16 +65,13 @@ test('403 для роли owner', async () => {
 // ─── Валидные данные ──────────────────────────────────────────────────────────
 
 test('201 при корректных данных', async () => {
-  // mock: jti check → not revoked; INSERT → row
-  db.query
-    .mockResolvedValueOnce({ rows: [] }) // auth check
-    .mockResolvedValueOnce({             // INSERT
-      rows: [{
-        id: 'bl-1', name: 'Тест', phone: '+79001234567',
-        car_plate: 'А001АА77', reason: 'Нарушение', added_by: 'Охранник',
-        added_at: new Date(),
-      }],
-    });
+  db.query.mockResolvedValueOnce({
+    rows: [{
+      id: 'bl-1', name: 'Тест', phone: '+79001234567',
+      car_plate: 'А001АА77', reason: 'Нарушение', added_by: 'Охранник',
+      added_at: new Date(),
+    }],
+  });
 
   const res = await supertest(app)
     .post('/api/blacklist')
@@ -138,14 +135,12 @@ test('400 когда reason > 500 символов', async () => {
 // ─── Граничные значения (ровно на лимите) ─────────────────────────────────────
 
 test('201 когда name ровно 200 символов (граница)', async () => {
-  db.query
-    .mockResolvedValueOnce({ rows: [] }) // auth
-    .mockResolvedValueOnce({
-      rows: [{
-        id: 'bl-2', name: 'А'.repeat(200), phone: null,
-        car_plate: null, reason: null, added_by: 'Охранник', added_at: new Date(),
-      }],
-    });
+  db.query.mockResolvedValueOnce({
+    rows: [{
+      id: 'bl-2', name: 'А'.repeat(200), phone: null,
+      car_plate: null, reason: null, added_by: 'Охранник', added_at: new Date(),
+    }],
+  });
 
   const res = await supertest(app)
     .post('/api/blacklist')
@@ -158,14 +153,12 @@ test('201 когда name ровно 200 символов (граница)', asy
 // ─── Пустые поля ──────────────────────────────────────────────────────────────
 
 test('201 когда все поля null (только id и added_by заполнены)', async () => {
-  db.query
-    .mockResolvedValueOnce({ rows: [] }) // auth
-    .mockResolvedValueOnce({
-      rows: [{
-        id: 'bl-3', name: null, phone: null,
-        car_plate: null, reason: null, added_by: 'Охранник', added_at: new Date(),
-      }],
-    });
+  db.query.mockResolvedValueOnce({
+    rows: [{
+      id: 'bl-3', name: null, phone: null,
+      car_plate: null, reason: null, added_by: 'Охранник', added_at: new Date(),
+    }],
+  });
 
   const res = await supertest(app)
     .post('/api/blacklist')

@@ -49,6 +49,13 @@ describe('logger (pino wrapper)', () => {
   test('warn вызывается без ошибок', () => {
     expect(() => logger.warn('warning')).not.toThrow();
   });
+
+  test('в test-окружении уровень логирования по умолчанию = warn', () => {
+    const pino = require('pino');
+    expect(pino).toHaveBeenCalled();
+    const config = pino.mock.calls[0][0];
+    expect(config.level).toBe('warn');
+  });
 });
 
 // ── index.js — проверяем guards ───────────────────────────────────────────────
@@ -81,6 +88,7 @@ describe('index.js — production guards', () => {
     jest.mock('../routes/upload',    () => { const r = require('express').Router(); return r; });
     jest.mock('../middleware/auth',  () => (req, res, next) => next());
     jest.mock('../sse', () => ({ addClient: jest.fn(), removeClient: jest.fn() }));
+    jest.mock('pino-http', () => () => (req, res, next) => next());
 
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('process.exit'); });
 
@@ -97,20 +105,23 @@ describe('index.js — production guards', () => {
 // ── migrate.js ────────────────────────────────────────────────────────────────
 
 describe('migrate.js', () => {
-  test('модуль загружается без ошибок при наличии заглушек', () => {
+  test('модуль загружается без авто-выполнения и экспортирует run()', () => {
     jest.resetModules();
     jest.mock('dotenv', () => ({ config: jest.fn() }));
     jest.mock('../logger', () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn(), fatal: jest.fn() }));
+    const mockMigrate = jest.fn().mockResolvedValue(undefined);
     jest.mock('../db', () => ({
-      migrate: jest.fn().mockResolvedValue(undefined),
+      migrate: mockMigrate,
       query: jest.fn(),
       pool: {},
     }));
 
-    // migrate.js вызывает db.migrate().then(process.exit) — мокируем process.exit
+    // При require модуль не должен выполнять run() автоматически
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
-    // Не бросает при импорте
-    expect(() => require('../migrate')).not.toThrow();
+    const mod = require('../migrate');
+    expect(mod).toEqual(expect.objectContaining({ run: expect.any(Function) }));
+    expect(mockMigrate).not.toHaveBeenCalled();
+    expect(exitSpy).not.toHaveBeenCalled();
     exitSpy.mockRestore();
   });
 });
@@ -118,17 +129,23 @@ describe('migrate.js', () => {
 // ── seed.js ───────────────────────────────────────────────────────────────────
 
 describe('seed.js', () => {
-  test('модуль загружается без ошибок при наличии заглушек', () => {
+  test('модуль загружается без авто-выполнения и экспортирует seed()', () => {
     jest.resetModules();
     jest.mock('dotenv', () => ({ config: jest.fn() }));
+    const mockMigrate = jest.fn().mockResolvedValue(undefined);
+    const mockQuery = jest.fn().mockResolvedValue({ rows: [{ uid: 'existing-admin' }] });
     jest.mock('../db', () => ({
-      migrate: jest.fn().mockResolvedValue(undefined),
-      query: jest.fn().mockResolvedValue({ rows: [{ uid: 'existing-admin' }] }),
+      migrate: mockMigrate,
+      query: mockQuery,
       pool: {},
     }));
 
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {});
-    expect(() => require('../seed')).not.toThrow();
+    const mod = require('../seed');
+    expect(mod).toEqual(expect.objectContaining({ seed: expect.any(Function) }));
+    expect(mockMigrate).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(exitSpy).not.toHaveBeenCalled();
     exitSpy.mockRestore();
   });
 });

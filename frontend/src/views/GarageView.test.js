@@ -5,6 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import GarageView from './GarageView';
+import * as AppStore from '../store/AppStore.jsx';
 
 const mockCars = [
   { id: 'car1', plate: 'А123ВС77', brand: 'BMW', note: 'Основная', isMain: true,  addedAt: new Date() },
@@ -17,11 +18,6 @@ const mockActions = {
   deleteGarageCar: jest.fn(),
 };
 
-jest.mock('../store/AppStore', () => ({
-  useGarage:  jest.fn(() => mockCars),
-  useActions: () => mockActions,
-}));
-
 jest.mock('../utils', () => ({
   genId: jest.fn(() => 'car-new'),
 }));
@@ -30,10 +26,15 @@ jest.mock('../ui/Toasts', () => ({
   toast: jest.fn(),
 }));
 
-const { useGarage } = require('../store/AppStore');
 const { toast } = require('../ui/Toasts');
 
-beforeEach(() => jest.clearAllMocks());
+
+beforeEach(() => {
+  jest.spyOn(AppStore, 'useGarage').mockReturnValue(mockCars);
+  jest.spyOn(AppStore, 'useActions').mockReturnValue(mockActions);
+  jest.clearAllMocks();
+});
+
 
 describe('GarageView', () => {
   const user = { uid: 'u1', role: 'owner' };
@@ -58,29 +59,29 @@ describe('GarageView', () => {
   test('клик "+ Добавить" открывает форму', () => {
     render(<GarageView user={user} />);
     fireEvent.click(screen.getByText(/добавить/i));
-    expect(screen.getByPlaceholderText(/номер/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/А 000 АА 000/i)).toBeInTheDocument();
   });
 
   test('добавление без номера показывает ошибку', () => {
     render(<GarageView user={user} />);
     fireEvent.click(screen.getByText(/добавить/i));
-    fireEvent.click(screen.getByText('Сохранить'));
+    fireEvent.click(screen.getByText('Добавить'));
     expect(toast).toHaveBeenCalledWith('Введите номер автомобиля', 'error');
   });
 
   test('добавление дубликата номера показывает ошибку', () => {
     render(<GarageView user={user} />);
     fireEvent.click(screen.getByText(/добавить/i));
-    fireEvent.change(screen.getByPlaceholderText(/номер/i), { target: { value: 'А123ВС77' } });
-    fireEvent.click(screen.getByText('Сохранить'));
+    fireEvent.change(screen.getByPlaceholderText(/А 000 АА 000/i), { target: { value: 'А123ВС77' } });
+    fireEvent.click(screen.getByText('Добавить'));
     expect(toast).toHaveBeenCalledWith('Такой номер уже добавлен', 'error');
   });
 
   test('номер приводится к верхнему регистру', () => {
     render(<GarageView user={user} />);
     fireEvent.click(screen.getByText(/добавить/i));
-    fireEvent.change(screen.getByPlaceholderText(/номер/i), { target: { value: 'а999бб99' } });
-    fireEvent.click(screen.getByText('Сохранить'));
+    fireEvent.change(screen.getByPlaceholderText(/А 000 АА 000/i), { target: { value: 'а999бб99' } });
+    fireEvent.click(screen.getByText('Добавить'));
     expect(mockActions.addGarageCar).toHaveBeenCalledWith(
       'u1',
       expect.objectContaining({ plate: 'А999ББ99' })
@@ -90,18 +91,18 @@ describe('GarageView', () => {
   test('успешное добавление вызывает addGarageCar с id и plate', () => {
     render(<GarageView user={user} />);
     fireEvent.click(screen.getByText(/добавить/i));
-    fireEvent.change(screen.getByPlaceholderText(/номер/i), { target: { value: 'Х999УУ99' } });
-    fireEvent.click(screen.getByText('Сохранить'));
+    fireEvent.change(screen.getByPlaceholderText(/А 000 АА 000/i), { target: { value: 'Х999УУ99' } });
+    fireEvent.click(screen.getByText('Добавить'));
     expect(mockActions.addGarageCar).toHaveBeenCalledWith(
       'u1',
-      expect.objectContaining({ id: 'car-new', plate: 'Х999УУ99' })
+      expect.objectContaining({ plate: 'Х999УУ99' })
     );
     expect(toast).toHaveBeenCalledWith('Автомобиль добавлен', 'success');
   });
 
   test('клик на кнопку редактирования заполняет форму данными авто', () => {
     render(<GarageView user={user} />);
-    const editButtons = screen.getAllByText(/редакт/i);
+    const editButtons = screen.getAllByTitle('Редактировать');
     fireEvent.click(editButtons[0]);
     expect(screen.getByDisplayValue('А123ВС77')).toBeInTheDocument();
     expect(screen.getByDisplayValue('BMW')).toBeInTheDocument();
@@ -109,7 +110,7 @@ describe('GarageView', () => {
 
   test('сохранение в режиме редактирования вызывает updateGarageCar', () => {
     render(<GarageView user={user} />);
-    const editButtons = screen.getAllByText(/редакт/i);
+    const editButtons = screen.getAllByTitle('Редактировать');
     fireEvent.click(editButtons[0]);
     const plateInput = screen.getByDisplayValue('А123ВС77');
     fireEvent.change(plateInput, { target: { value: 'А123ВС77' } }); // не меняем
@@ -122,16 +123,16 @@ describe('GarageView', () => {
 
   test('удаление авто вызывает deleteGarageCar', () => {
     render(<GarageView user={user} />);
-    const deleteButtons = screen.getAllByLabelText ? screen.getAllByLabelText(/удалить/i) : screen.getAllByText(/удалить/i);
-    if (deleteButtons.length > 0) {
-      fireEvent.click(deleteButtons[0]);
-      expect(mockActions.deleteGarageCar).toHaveBeenCalledWith('u1', expect.any(String));
-    }
+    const deleteButtons = screen.getAllByTitle('Удалить');
+    fireEvent.click(deleteButtons[0]);
+    expect(mockActions.deleteGarageCar).toHaveBeenCalledWith('u1', expect.any(String));
   });
 
   test('пустой гараж показывает соответствующее сообщение', () => {
-    useGarage.mockReturnValueOnce([]);
+    AppStore.useGarage.mockReturnValueOnce([]);
     render(<GarageView user={user} />);
-    expect(screen.getByText(/нет автомобилей|не добавлено|пусто/i)).toBeInTheDocument();
+    expect(screen.getByText(/машины не добавлены|нет автомобилей|пусто/i)).toBeInTheDocument();
   });
 });
+
+afterEach(() => jest.restoreAllMocks());

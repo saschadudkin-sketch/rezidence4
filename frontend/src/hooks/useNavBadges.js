@@ -40,6 +40,7 @@ export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lsVersion intentionally triggers re-read
   const residentNewStatuses = useMemo(() => {
+    void lsVersion; // trigger recalculation after onPassesSeen updates localStorage marker
     if (canManageRequests(user.role)) return 0;
     let lastSeenPassesAt = 0;
     try { lastSeenPassesAt = parseInt(localStorage.getItem('rz-passes-seen') || '0'); } catch { /* ok */ }
