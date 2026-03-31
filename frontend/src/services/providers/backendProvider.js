@@ -247,10 +247,7 @@ export const requestsProvider = {
 
     const failed = results.filter(r => r.status === 'rejected').length;
     if (failed > 0) {
-      try {
-        const { toast } = await import('../../ui/Toasts');
-        toast(`Не удалось загрузить ${failed} из ${photos.length} фото`, 'warning');
-      } catch { /* toast недоступен */ }
+      logger.warn(`Не удалось загрузить ${failed} из ${photos.length} фото`);
     }
 
     return results
