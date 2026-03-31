@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { CAT_LABEL } from '../constants/index.js';
+import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
 import {
   useCreateRequest,
   hasVisitorFields,
@@ -12,19 +12,6 @@ import {
   SCHEDULE_PRESETS,
 } from '../hooks/useCreateRequest';
 import { AppIcon } from '../ui/AppIcon.jsx';
-
-const CAT_ICON_NAME = {
-  guest: 'users',
-  courier: 'file',
-  taxi: 'car',
-  car: 'car',
-  master: 'tools',
-  worker: 'tools',
-  team: 'users',
-  electrician: 'alert',
-  plumber: 'tools',
-  delivery: 'car',
-};
 
 // ─── VisitorFields ────────────────────────────────────────────────────────────
 // FIX [PERF-19]: memo — VisitorFields не имеет внутреннего состояния, рендерится
@@ -200,7 +187,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
           <div>
             <span className="modal-title">{type === 'pass' ? 'Новый пропуск' : 'Вызов техслужбы'}</span>
             <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span className="u-op7"><AppIcon name={CAT_ICON_NAME[form.cat] || 'users'} size={12} /></span>
+              <span className="u-op7"><AppIcon name={CAT_ICON[form.cat] || 'users'} size={12} /></span>
               <span className="u-ls3">{CAT_LABEL[form.cat]}</span>
             </div>
           </div>

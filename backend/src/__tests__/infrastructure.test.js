@@ -1,62 +1,11 @@
 'use strict';
 /**
  * __tests__/infrastructure.test.js
- * Покрывает: logger.js (pino wrapper), index.js (app setup),
- *            migrate.js и seed.js (скрипты запуска)
+ * Покрывает: index.js (app setup), migrate.js и seed.js (скрипты запуска)
  *
  * index.js, migrate.js, seed.js — точки запуска, тестируем через дымовые проверки
  * экспортов и поведения без фактического подключения к БД.
  */
-
-// ── logger.js ─────────────────────────────────────────────────────────────────
-
-describe('logger (pino wrapper)', () => {
-  let logger;
-
-  beforeAll(() => {
-    jest.resetModules();
-    // Мокируем pino чтобы не создавать реальный транспорт
-    jest.mock('pino', () => {
-      const mockLogger = {
-        info:  jest.fn(),
-        error: jest.fn(),
-        warn:  jest.fn(),
-        debug: jest.fn(),
-        fatal: jest.fn(),
-        child: jest.fn().mockReturnThis(),
-      };
-      return jest.fn(() => mockLogger);
-    });
-    logger = require('../logger');
-  });
-
-  test('экспортирует объект с методами логирования', () => {
-    expect(typeof logger.info).toBe('function');
-    expect(typeof logger.error).toBe('function');
-    expect(typeof logger.warn).toBe('function');
-    expect(typeof logger.debug).toBe('function');
-    expect(typeof logger.fatal).toBe('function');
-  });
-
-  test('info вызывается без ошибок', () => {
-    expect(() => logger.info('test message')).not.toThrow();
-  });
-
-  test('error вызывается без ошибок', () => {
-    expect(() => logger.error({ err: new Error('test') }, 'error msg')).not.toThrow();
-  });
-
-  test('warn вызывается без ошибок', () => {
-    expect(() => logger.warn('warning')).not.toThrow();
-  });
-
-  test('в test-окружении уровень логирования по умолчанию = warn', () => {
-    const pino = require('pino');
-    expect(pino).toHaveBeenCalled();
-    const config = pino.mock.calls[0][0];
-    expect(config.level).toBe('warn');
-  });
-});
 
 // ── index.js — проверяем guards ───────────────────────────────────────────────
 

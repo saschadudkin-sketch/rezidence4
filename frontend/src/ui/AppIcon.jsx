@@ -28,8 +28,19 @@ const PATHS = {
   chevronRight: 'm9 6 6 6-6 6',
 };
 
+export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));
+const warnedUnknownIcons = new Set();
+const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
+
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) {
+  const hasExplicitName = typeof name === 'string' && name.trim().length > 0;
   const path = PATHS[name] || PATHS.list;
+  if (hasExplicitName && !PATHS[name] && process.env.NODE_ENV !== 'production' && !warnedUnknownIcons.has(name)) {
+    warnedUnknownIcons.add(name);
+    if (warnedUnknownIcons.size > MAX_UNKNOWN_ICON_WARN_CACHE) warnedUnknownIcons.clear();
+    // eslint-disable-next-line no-console
+    console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);
+  }
   return (
     <svg
       className={`app-icon ${className}`.trim()}

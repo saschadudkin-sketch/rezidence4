@@ -5,7 +5,7 @@ import {
   useActions, useAvatar,
   useRequestHistory as useReqHistory,
 } from '../store/AppStore.jsx';
-import { CAT_LABEL, STS_LABEL, ROLE_LABELS, PASS_DURATION_LABEL } from '../constants/index.js';
+import { CAT_LABEL, STS_LABEL, ROLE_LABELS, PASS_DURATION_LABEL, PASS_DURATION_ICON } from '../constants/index.js';
 import {
   canApproveRequest as canApproveByRole,
   canRejectRequest as canRejectByRole,
@@ -21,12 +21,6 @@ import { fmtDate, fmtTime, groupReqs } from '../utils.js';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import { PhotoLightbox } from '../ui/PhotoLightbox.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
-
-const PASS_DURATION_ICON_NAME = {
-  once: 'ticket',
-  temporary: 'history',
-  permanent: 'shield',
-};
 
 // ─── Toast (глобальный синглтон) ────────────────────────────────────────────
 
@@ -211,7 +205,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
               </span>
               {CAT_LABEL[req.category] || req.category}
               {req.passDuration && req.passDuration !== 'once' && (
-                <span className={'pass-dur-tag ' + req.passDuration}><AppIcon name={PASS_DURATION_ICON_NAME[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</span>
+                <span className={'pass-dur-tag ' + req.passDuration}><AppIcon name={PASS_DURATION_ICON[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</span>
               )}
             </div>
           </div>
@@ -230,7 +224,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           <div className="req-details">
             {req.arrivedAt    && <div><div className="det-lbl">Вход отмечен</div><div className="det-val u-arrived">{new Date(req.arrivedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div></div>}
             {req.scheduledFor && isScheduledRequest(req) && <div style={{ gridColumn: '1/-1' }}><div className="det-lbl">Отправка запланирована</div><div className="det-val u-scheduled-t">{new Date(req.scheduledFor).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</div></div>}
-            {req.passDuration && <div><div className="det-lbl">Тип пропуска</div><div className="det-val"><AppIcon name={PASS_DURATION_ICON_NAME[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</div></div>}
+            {req.passDuration && <div><div className="det-lbl">Тип пропуска</div><div className="det-val"><AppIcon name={PASS_DURATION_ICON[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</div></div>}
             {req.validUntil   && <div><div className="det-lbl">Действует до</div><div className="det-val">{new Date(req.validUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>}
             {req.carPlate     && <div><div className="det-lbl">Авто</div><div className="det-val">{req.carPlate}</div></div>}
             {req.visitorName  && <div><div className="det-lbl">Посетитель</div><div className="det-val">{req.visitorName}</div></div>}
