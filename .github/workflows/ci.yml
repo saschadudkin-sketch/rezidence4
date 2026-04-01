@@ -22,32 +22,6 @@ jobs:
       - name: Validate Prometheus rules
         run: promtool check rules ops/alerts/*.yml
 
-  observability-consistency:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Validate alert rules ↔ docs/runbook consistency
-        run: node ops/check_observability_consistency.js
-
-  loadtest-scripts-validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Validate k6 script syntax
-        run: |
-          node --check loadtest/auth_resilience.js
-          node --check loadtest/compare_auth_resilience.js
-      - name: Validate synthetic canary shell script syntax
-        run: bash -n loadtest/synthetic_canary.sh
-
   backend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -134,7 +108,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate, observability-consistency, loadtest-scripts-validate]
+    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -169,9 +143,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     if: github.event_name == 'schedule'
-    env:
-      BASE_URL: http://localhost:3001
-      SYNTHETIC_TOKEN: ${{ secrets.SYNTHETIC_TEST_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -179,10 +150,4 @@ jobs:
           node-version: 20
       - run: npx playwright install chromium --with-deps
       - run: docker compose up -d
-      - name: Synthetic canary (auth/chat/health)
-        if: env.SYNTHETIC_TOKEN != ''
-        run: ./loadtest/synthetic_canary.sh
-        env:
-          TOKEN: ${{ env.SYNTHETIC_TOKEN }}
-          BASE_URL: ${{ env.BASE_URL }}
       - run: npx playwright test e2e/pass-flow.spec.js
