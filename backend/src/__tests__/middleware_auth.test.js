@@ -19,6 +19,7 @@ jest.mock('../lib/redisClient', () => ({
 const requireAuth = require('../middleware/auth');
 
 process.env.JWT_SECRET = 'test-secret-key-16chars';
+const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
 process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 
 function makeReq({ cookie, bearer } = {}) {
@@ -48,6 +49,11 @@ const expiredToken = jwt.sign(validPayload, 'test-secret-key-16chars', { expires
 const wrongSecret  = jwt.sign(validPayload, 'wrong-secret');
 
 describe('requireAuth middleware', () => {
+  afterAll(() => {
+    if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+    else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     requireAuth.__clearUserActiveFallbackCache?.();

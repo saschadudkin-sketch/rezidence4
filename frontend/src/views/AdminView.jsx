@@ -164,12 +164,15 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
 
   async function handleRestore(user) {
     if (!user?.uid) return;
-    if (restoringUids.has(user.uid)) return;
+    let canStartRestore = false;
     setRestoringUids((prev) => {
+      if (prev.has(user.uid)) return prev;
+      canStartRestore = true;
       const next = new Set(prev);
       next.add(user.uid);
       return next;
     });
+    if (!canStartRestore) return;
     try {
       await services.admin.restoreUserEverywhere({ uid: user.uid });
       addUser?.({

@@ -29,10 +29,15 @@ const app = buildApp();
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const VALID_PHONE = '+79001234567';
 const VALID_CODE  = '123456';
+const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
 
 beforeAll(() => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
   process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
+});
+afterAll(() => {
+  if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+  else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
 });
 
 describe('POST /api/auth/send-otp', () => {
