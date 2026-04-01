@@ -41,12 +41,12 @@ async function fetchWithTimeout(url, options, timeoutMs = 15_000) {
 let _refreshPromise = null;
 let _refreshFailed = false;
 
-async function tryRefreshToken() {
+async function tryRefreshToken(requestId) {
   if (_refreshFailed) return false;
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = fetchWithTimeout(
     `${BASE_URL}/api/auth/refresh`,
-    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId() } },
+    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': requestId } },
     10_000,
   ).then(res => {
     _refreshPromise = null;
@@ -83,6 +83,7 @@ function makeRequestId() {
  */
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
+  const requestId = makeRequestId();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
@@ -94,7 +95,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         `${BASE_URL}${path}`,
         {
           method,
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId(), ...extraHeaders },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': requestId, ...extraHeaders },
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
         },
@@ -104,7 +105,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
 
       // FIX [S1]: 401 — пробуем refresh token перед сбросом сессии
       if (res.status === 401 && !path.includes('/auth/refresh')) {
-        const refreshed = await tryRefreshToken();
+        const refreshed = await tryRefreshToken(requestId);
         if (refreshed) {
           // Повторяем оригинальный запрос с новым access token
           continue;

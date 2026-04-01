@@ -107,6 +107,42 @@ describe('apiClient.get', () => {
     const client = await getClient();
     await expect(client.get('/api/fail')).rejects.toThrow('Service Unavailable');
   });
+
+  test('401 -> refresh -> retry использует один X-Request-Id для операции', async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: vi.fn().mockResolvedValue({ error: 'Unauthorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: vi.fn().mockResolvedValue({ ok: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: vi.fn().mockResolvedValue({ ok: true }),
+      });
+
+    const client = await getClient();
+    const result = await client.get('/api/users');
+    expect(result).toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const firstRequestId = fetch.mock.calls[0][1].headers['X-Request-Id'];
+    const refreshRequestId = fetch.mock.calls[1][1].headers['X-Request-Id'];
+    const retryRequestId = fetch.mock.calls[2][1].headers['X-Request-Id'];
+
+    expect(firstRequestId).toBeTruthy();
+    expect(refreshRequestId).toBe(firstRequestId);
+    expect(retryRequestId).toBe(firstRequestId);
+    expect(fetch.mock.calls[1][0]).toContain('/api/auth/refresh');
+  });
 });
 
 // ─── POST ─────────────────────────────────────────────────────────────────────
