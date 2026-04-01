@@ -193,6 +193,22 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
     expect(res.status).toBe(500);
     expectTransactionRolledBack(txClient);
   });
+
+  it('400 при отсутствии полей для обновления и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-noop')
+      .set('Cookie', `token=${token}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Nothing to update');
+    expectTransactionRolledBack(txClient);
+  });
 });
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
