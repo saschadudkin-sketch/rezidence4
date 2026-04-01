@@ -241,30 +241,40 @@ describe('requireAuth middleware', () => {
   });
 
   test('AUTH_ENFORCE_ACTIVE_USER_CHECK=off отключает active-user check в test env', async () => {
+    const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
     process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = 'off';
-    const req  = makeReq({ cookie: validToken });
-    const res  = makeRes();
-    const next = jest.fn();
+    try {
+      const req  = makeReq({ cookie: validToken });
+      const res  = makeRes();
+      const next = jest.fn();
 
-    await requireAuth(req, res, next);
+      await requireAuth(req, res, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
-    const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
-    expect(userLookupCalls).toHaveLength(0);
-    process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
+      expect(next).toHaveBeenCalledTimes(1);
+      const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
+      expect(userLookupCalls).toHaveLength(0);
+    } finally {
+      if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+      else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
+    }
   });
 
   test('AUTH_ENFORCE_ACTIVE_USER_CHECK=true включает active-user check в test env', async () => {
+    const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
     process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = 'true';
-    const req  = makeReq({ cookie: validToken });
-    const res  = makeRes();
-    const next = jest.fn();
+    try {
+      const req  = makeReq({ cookie: validToken });
+      const res  = makeRes();
+      const next = jest.fn();
 
-    await requireAuth(req, res, next);
+      await requireAuth(req, res, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
-    const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
-    expect(userLookupCalls).toHaveLength(1);
-    process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
+      expect(next).toHaveBeenCalledTimes(1);
+      const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
+      expect(userLookupCalls).toHaveLength(1);
+    } finally {
+      if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+      else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
+    }
   });
 });
