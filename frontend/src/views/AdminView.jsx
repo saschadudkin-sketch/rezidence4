@@ -13,7 +13,7 @@ import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon.jsx';
-import { services } from '../services/providers/serviceContainer';
+import { services } from '../services/providers/serviceContainer.js';
 import { toast } from '../ui/Toasts';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
@@ -140,6 +140,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
 const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
   const [deletedUsers, setDeletedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [restoringUid, setRestoringUid] = useState('');
   const { addUser } = useActions();
 
   useEffect(() => {
@@ -162,13 +163,23 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
   }, []);
 
   async function handleRestore(user) {
+    if (!user?.uid || restoringUid) return;
+    setRestoringUid(user.uid);
     try {
       await services.admin.restoreUserEverywhere({ uid: user.uid });
-      addUser?.({ ...user, deletedAt: undefined });
+      addUser?.({
+        ...user,
+        deletedAt: undefined,
+        deleted_by: undefined,
+        deletedBy: undefined,
+        isDeleted: false,
+      });
       setDeletedUsers((prev) => prev.filter((u) => u.uid !== user.uid));
       toast('Пользователь восстановлен', 'success');
     } catch {
       toast('Не удалось восстановить пользователя', 'error');
+    } finally {
+      setRestoringUid('');
     }
   }
 
@@ -185,7 +196,13 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
               <div className="req-meta">{u.phone} • {u.apartment || '—'}</div>
               {u.deletedAt && <div className="req-meta">Удалён: {new Date(u.deletedAt).toLocaleString()}</div>}
             </div>
-            <button className="btn-gold u-pad-btn" onClick={() => handleRestore(u)}>Восстановить</button>
+            <button
+              className="btn-gold u-pad-btn"
+              disabled={restoringUid === u.uid}
+              onClick={() => handleRestore(u)}
+            >
+              {restoringUid === u.uid ? 'Восстановление…' : 'Восстановить'}
+            </button>
           </div>
         </div>
       ))}

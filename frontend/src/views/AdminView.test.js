@@ -114,6 +114,26 @@ describe('AdminView', () => {
     expect(await screen.findByText('Удалённых пользователей нет')).toBeInTheDocument();
   });
 
+  test('повторный клик по восстановлению блокируется пока идёт запрос', async () => {
+    let resolveRestore;
+    services.admin.listDeletedUsersEverywhere.mockResolvedValue([
+      { uid: 'd2', name: 'Удалённый #2', phone: '+7 900 000-00-00', apartment: '16', deletedAt: '2026-03-31T10:00:00.000Z' },
+    ]);
+    services.admin.restoreUserEverywhere.mockImplementation(() => new Promise((resolve) => { resolveRestore = resolve; }));
+
+    render(<AdminView user={adminUser} activeTab="users-deleted" setActiveTab={vi.fn()} />);
+
+    const restoreBtn = await screen.findByRole('button', { name: 'Восстановить' });
+    fireEvent.click(restoreBtn);
+    fireEvent.click(restoreBtn);
+
+    expect(services.admin.restoreUserEverywhere).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Восстановление…' })).toBeDisabled();
+
+    resolveRestore();
+    expect(await screen.findByText('Удалённых пользователей нет')).toBeInTheDocument();
+  });
+
   test('stats показывает правильный счётчик пользователей', () => {
     render(<AdminView user={adminUser} activeTab="stats" setActiveTab={vi.fn()} />);
     // 2 пользователя в моке
