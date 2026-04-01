@@ -1,5 +1,11 @@
 # Observability playbook
 
+## Legacy refresh fallback mode
+
+- Secure default: `REFRESH_LEGACY_FALLBACK_ENABLED=0`.
+- Temporary migration scenario: set `REFRESH_LEGACY_FALLBACK_ENABLED=1` only for the migration window to consume old refresh rows stored by raw token id.
+- Exit criteria: when `increase(rez_auth_refresh_legacy_fallback_total[1d]) == 0` for a full day, switch back to `0`.
+
 ## Prometheus alerts
 
 ### 1. Refresh failures spike
