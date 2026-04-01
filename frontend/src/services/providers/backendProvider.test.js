@@ -273,6 +273,7 @@ describe('createBackendProvider', () => {
     expect(typeof p.admin.savePermsEverywhere).toBe('function');
     expect(typeof p.admin.saveUserEverywhere).toBe('function');
     expect(typeof p.admin.removeUserEverywhere).toBe('function');
+    expect(typeof p.admin.restoreUserEverywhere).toBe('function');
     expect(typeof p.liveData.startSync).toBe('function');
   });
 
@@ -299,5 +300,12 @@ describe('createBackendProvider', () => {
     apiClient.delete.mockResolvedValueOnce({ ok: true });
     await p.admin.removeUserEverywhere({ uid: 'u1' });
     expect(apiClient.delete).toHaveBeenCalledWith('/api/users/u1');
+  });
+
+  test('admin.restoreUserEverywhere вызывает PATCH /api/users/:uid/restore', async () => {
+    const p = createBackendProvider();
+    apiClient.patch.mockResolvedValueOnce({ ok: true });
+    await p.admin.restoreUserEverywhere({ uid: 'u1' });
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/users/u1/restore');
   });
 });
