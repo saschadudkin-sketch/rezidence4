@@ -6,6 +6,16 @@
 const jwt        = require('jsonwebtoken');
 jest.mock('../db');
 const db = require('../db');
+const mockRedisGet = jest.fn();
+const mockRedisSetex = jest.fn();
+const mockRedisDel = jest.fn();
+jest.mock('../lib/redisClient', () => ({
+  getRedis: () => ({
+    get: mockRedisGet,
+    setex: mockRedisSetex,
+    del: mockRedisDel,
+  }),
+}));
 const requireAuth = require('../middleware/auth');
 
 process.env.JWT_SECRET = 'test-secret-key-16chars';
@@ -39,7 +49,11 @@ const wrongSecret  = jwt.sign(validPayload, 'wrong-secret');
 describe('requireAuth middleware', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    requireAuth.__clearUserActiveFallbackCache?.();
     db.query.mockResolvedValue({ rows: [{ '?column?': 1 }] });
+    mockRedisGet.mockResolvedValue(null);
+    mockRedisSetex.mockResolvedValue('OK');
+    mockRedisDel.mockResolvedValue(1);
   });
 
   test('401 если нет ни cookie ни Bearer', async () => {
@@ -171,5 +185,51 @@ describe('requireAuth middleware', () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res._body.error).toBe('User not found or deleted');
+  });
+
+  test('использует Redis cache hit для active-user без DB запроса users', async () => {
+    const req  = makeReq({ cookie: validToken });
+    const res  = makeRes();
+    const next = jest.fn();
+
+    mockRedisGet.mockResolvedValueOnce('1');
+    await requireAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const userLookupCall = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM users'));
+    expect(userLookupCall).toBeUndefined();
+  });
+
+  test('graceful fallback: Redis read error -> DB lookup -> next()', async () => {
+    const req  = makeReq({ cookie: validToken });
+    const res  = makeRes();
+    const next = jest.fn();
+
+    mockRedisGet.mockRejectedValueOnce(new Error('redis down'));
+    await requireAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    const userLookupCall = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM users'));
+    expect(userLookupCall).toBeDefined();
+  });
+
+  test('local fallback cache снижает DB/Redis нагрузку при кратком Redis outage', async () => {
+    const req1  = makeReq({ cookie: validToken });
+    const req2  = makeReq({ cookie: validToken });
+    const res1  = makeRes();
+    const res2  = makeRes();
+    const next1 = jest.fn();
+    const next2 = jest.fn();
+
+    mockRedisGet.mockRejectedValueOnce(new Error('redis down'));
+
+    await requireAuth(req1, res1, next1);
+    await requireAuth(req2, res2, next2);
+
+    expect(next1).toHaveBeenCalledTimes(1);
+    expect(next2).toHaveBeenCalledTimes(1);
+    // users-lookup должен произойти только один раз (на первом запросе)
+    const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
+    expect(userLookupCalls).toHaveLength(1);
   });
 });
