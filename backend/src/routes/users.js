@@ -161,4 +161,22 @@ router.delete('/:uid', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── PATCH /api/users/:uid/restore (soft-delete rollback, admin only) ───────
+router.patch('/:uid/restore', async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const { rows } = await db.query(
+      `UPDATE users
+       SET deleted_at=NULL, updated_at=NOW()
+       WHERE uid=$1 AND deleted_at IS NOT NULL
+       RETURNING uid`,
+      [req.params.uid],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
+    await invalidateUserActiveCache(req.params.uid);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

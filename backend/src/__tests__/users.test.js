@@ -397,3 +397,38 @@ describe('DELETE /api/users/:uid', () => {
     expect(sql).toMatch(/UPDATE users/i);
   });
 });
+
+describe('PATCH /api/users/:uid/restore', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('401 без токена', async () => {
+    const res = await request(app).patch('/api/users/u1/restore');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 для не-admin', async () => {
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_SECURITY}`);
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('404 если пользователь не soft-deleted', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_ADMIN}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found or not deleted/i);
+  });
+
+  it('200 восстанавливает пользователя и инвалидирует active cache', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_ADMIN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).toMatch(/SET deleted_at=NULL/i);
+  });
+});
