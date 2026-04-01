@@ -280,6 +280,7 @@ describe('createBackendProvider', () => {
     expect(typeof p.admin.saveUserEverywhere).toBe('function');
     expect(typeof p.admin.removeUserEverywhere).toBe('function');
     expect(typeof p.admin.restoreUserEverywhere).toBe('function');
+    expect(typeof p.admin.listDeletedUsersEverywhere).toBe('function');
     expect(typeof p.liveData.startSync).toBe('function');
   });
 
@@ -313,5 +314,12 @@ describe('createBackendProvider', () => {
     apiClient.patch.mockResolvedValueOnce({ ok: true });
     await p.admin.restoreUserEverywhere({ uid: 'u1' });
     expect(apiClient.patch).toHaveBeenCalledWith('/api/users/u1/restore');
+  });
+
+  test('admin.listDeletedUsersEverywhere вызывает GET /api/users/deleted', async () => {
+    const p = createBackendProvider();
+    apiClient.get.mockResolvedValueOnce([]);
+    await p.admin.listDeletedUsersEverywhere();
+    expect(apiClient.get).toHaveBeenCalledWith('/api/users/deleted');
   });
 });

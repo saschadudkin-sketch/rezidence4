@@ -403,6 +403,7 @@ export function createBackendProvider() {
       saveUserEverywhere:   (args) => usersProvider.update(args.uid, args.patch),
       removeUserEverywhere: (args) => usersProvider.delete(args.uid),
       restoreUserEverywhere: (args) => usersProvider.restore(args.uid),
+      listDeletedUsersEverywhere: () => usersProvider.getDeleted(),
     },
     liveData: {
       startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
