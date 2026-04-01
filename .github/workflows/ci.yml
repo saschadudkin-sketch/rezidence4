@@ -22,6 +22,17 @@ jobs:
       - name: Validate Prometheus rules
         run: promtool check rules ops/alerts/*.yml
 
+  observability-consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate alert rules ↔ docs/runbook consistency
+        run: node ops/check_observability_consistency.js
+
   backend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -108,7 +119,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
+    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate, observability-consistency]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
