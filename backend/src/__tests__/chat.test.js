@@ -313,6 +313,17 @@ describe('POST /api/chat/messages', () => {
     expectNoDbQuery();
   });
 
+  it('400 по id-format раньше, чем проверка photo URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', photo: 'https://evil.example/uploads/photo.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbQuery();
+  });
+
   it('201 при корректном сообщении', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
     const now = new Date();
