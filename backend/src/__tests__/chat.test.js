@@ -252,6 +252,7 @@ describe('POST /api/chat/messages', () => {
       .send({ text: 'Hello' }); // без id
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/id required/i);
+    expect(db.query).not.toHaveBeenCalled();
   });
 
   it('400 когда id в неверном формате и без обращения к БД', async () => {
