@@ -46,6 +46,12 @@ function expectTransactionClosed(client) {
   expect(client.release).toHaveBeenCalledTimes(1);
 }
 
+function expectTransactionRolledBack(client) {
+  expect(client.query).toHaveBeenCalledWith('BEGIN');
+  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  expect(client.release).toHaveBeenCalledTimes(1);
+}
+
 // ─── PATCH /api/chat/messages/:id — reactions validation ─────────────────────
 
 describe('PATCH /api/chat/messages/:id — валидация reactions', () => {
@@ -169,9 +175,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: { '👍': ['u1'] } });
 
     expect(res.status).toBe(404);
-    expect(txClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(txClient.query).toHaveBeenCalledWith('ROLLBACK');
-    expect(txClient.release).toHaveBeenCalledTimes(1);
+    expectTransactionRolledBack(txClient);
   });
 });
 
