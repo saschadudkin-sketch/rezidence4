@@ -255,6 +255,12 @@ describe('FIX-6: CSRF exempt uses exact path matching', () => {
 // ─── FIX-4: OTP ordering — INSERT after sendSms ───────────────────────────────
 
 describe('FIX-4: OTP insert happens AFTER SMS send', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   test('if sendSms throws, no OTP record is created', async () => {
     jest.resetModules();
 
@@ -274,7 +280,7 @@ describe('FIX-4: OTP insert happens AFTER SMS send', () => {
     jest.mock('../db', () => mockDb);
     jest.mock('../logger', () => require('../__mocks__/logger'));
     jest.mock('../lib/redisClient', () => ({ getRedis: () => null }));
-    jest.mock('node-fetch', () => () => {
+    global.fetch = jest.fn(() => {
       throw new Error('SMS service unavailable');
     });
     jest.mock('../utils/passwordHasher', () => ({ hash: async () => '$2b$hashed' }));
@@ -350,6 +356,7 @@ describe('FIX-5: RequestsService.list uses single query with COUNT(*) OVER()', (
 
 describe('AUDIT-2: send-otp does not reveal whether phone is registered', () => {
   let app;
+  const originalFetch = global.fetch;
 
   beforeEach(() => {
     jest.resetModules();
@@ -363,7 +370,7 @@ describe('AUDIT-2: send-otp does not reveal whether phone is registered', () => 
     jest.mock('../db', () => mockDb);
     jest.mock('../logger', () => require('../__mocks__/logger'));
     jest.mock('../lib/redisClient', () => ({ getRedis: () => null }));
-    jest.mock('node-fetch', () => () => {});
+    global.fetch = jest.fn();
     jest.mock('../utils/passwordHasher', () => ({ hash: async () => '$2b$hashed' }));
 
     app = require('express')();
@@ -371,6 +378,10 @@ describe('AUDIT-2: send-otp does not reveal whether phone is registered', () => 
     app.use(require('cookie-parser')());
     app.use('/api/auth', require('../routes/auth'));
     app.use((err, _req, res, _next) => res.status(err.status || 500).json({ error: err.message }));
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   test('unknown phone returns 200, not 404', async () => {
