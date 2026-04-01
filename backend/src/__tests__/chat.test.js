@@ -143,6 +143,16 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
     expectNoDbCalls();
   });
 
+  it('400 при невалидном формате id и без обращений к БД', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/bad id!')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbCalls();
+  });
+
   it('200 при корректных reactions', async () => {
     const now = new Date();
     txClient.query
