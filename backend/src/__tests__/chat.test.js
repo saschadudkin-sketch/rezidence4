@@ -17,6 +17,7 @@ const jwt = require('jsonwebtoken');
 const request = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.BACKEND_URL = 'http://backend.test';
 
 const chatRouter = require('../routes/chat');
 
@@ -158,6 +159,64 @@ describe('POST /api/chat/messages', () => {
     expect(res.status).toBe(201);
     expect(res.body.id).toBe('msg-new');
     expect(res.body.text).toBe('Hello');
+  });
+
+  it('201 когда photo — относительный /uploads URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const now = new Date();
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'msg-photo-1', uid: 'u1', name: 'Иванов', role: 'owner', text: null, photo: '/uploads/photo_1.jpg', reply_to: null, reactions: {}, edited: false, at: now }],
+    });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-1', photo: '/uploads/photo_1.jpg' });
+    expect(res.status).toBe(201);
+    expect(res.body.photo).toBe('/uploads/photo_1.jpg');
+  });
+
+  it('201 когда photo — абсолютный URL на BACKEND_URL/uploads', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const now = new Date();
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'msg-photo-2', uid: 'u1', name: 'Иванов', role: 'owner', text: null, photo: 'http://backend.test/uploads/photo_2.jpg', reply_to: null, reactions: {}, edited: false, at: now }],
+    });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-2', photo: 'http://backend.test/uploads/photo_2.jpg' });
+    expect(res.status).toBe(201);
+    expect(res.body.photo).toBe('http://backend.test/uploads/photo_2.jpg');
+  });
+
+  it('400 когда photo — внешний URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-bad-1', photo: 'https://evil.example/uploads/photo.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('photo must be a local upload URL');
+  });
+
+  it('400 когда photo — data: URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-bad-2', photo: 'data:image/png;base64,AAAA' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('photo must be a local upload URL');
+  });
+
+  it('400 когда photo — javascript: URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-bad-3', photo: 'javascript:alert(1)' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('photo must be a local upload URL');
   });
 });
 
