@@ -215,28 +215,6 @@ class RequestsService {
     const { uid, name, role } = user;
     const staff = isStaff(role);
 
-    const { rows: existing } = await db.query(
-      `SELECT id, status, created_by_uid FROM requests WHERE id=$1 AND deleted_at IS NULL`, [id],
-    );
-    if (!existing.length) throw new ServiceError('Not found', 404);
-
-    const currentReq = existing[0];
-
-    if (!staff && currentReq.created_by_uid !== uid) {
-      throw new ServiceError('Forbidden', 403);
-    }
-
-    if (patch.status !== undefined) {
-      if (!canTransition(role, currentReq.status, patch.status)) {
-        throw new ServiceError(
-          `Role '${role}' cannot transition status from '${currentReq.status}' to '${patch.status}'`, 403
-        );
-      }
-    }
-
-    // Валидация длины — включает historyLabel (max 200 chars)
-    validateFieldLengths(patch);
-
     const fields = [];
     const vals   = [];
     let   i      = 1;
@@ -257,11 +235,35 @@ class RequestsService {
 
     fields.push(`updated_at=$${i++}`);
     vals.push(new Date());
-    vals.push(id);
 
     const updated = await withTransaction(async (client) => {
+      const { rows: existing } = await client.query(
+        `SELECT id, status, created_by_uid
+           FROM requests
+          WHERE id=$1 AND deleted_at IS NULL
+          FOR UPDATE`,
+        [id],
+      );
+      if (!existing.length) return null;
+
+      const currentReq = existing[0];
+
+      if (!staff && currentReq.created_by_uid !== uid) {
+        throw new ServiceError('Forbidden', 403);
+      }
+
+      if (patch.status !== undefined && !canTransition(role, currentReq.status, patch.status)) {
+        throw new ServiceError(
+          `Role '${role}' cannot transition status from '${currentReq.status}' to '${patch.status}'`, 403
+        );
+      }
+
+      // Валидация длины — включает historyLabel (max 200 chars)
+      validateFieldLengths(patch);
+
       const { rows } = await client.query(
-        `UPDATE requests SET ${fields.join(',')} WHERE id=$${i} RETURNING *`, vals,
+        `UPDATE requests SET ${fields.join(',')} WHERE id=$${i} RETURNING *`,
+        [...vals, id],
       );
       if (!rows.length) return null;
 
