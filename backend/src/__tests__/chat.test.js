@@ -124,13 +124,14 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
   });
 
   it('400 когда элемент реакции не строка', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': [123, 456] } }); // числа вместо uid-строк
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Reaction value must be \[\] or \[your_uid\]/i);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда в реакции указан чужой uid', async () => {
