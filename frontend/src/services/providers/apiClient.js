@@ -16,6 +16,10 @@ const BASE_URL = API_BASE_URL;
 /** Статусы, при которых ретрай бессмысленен */
 const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 409, 422]);
 
+export function _getRetryDelayMs(attempt) {
+  return Math.min(1000 * (2 ** (attempt - 1)), 10_000);
+}
+
 /**
  * Базовый fetch с таймаутом.
  * @param {string} url
@@ -83,10 +87,11 @@ function makeRequestId() {
  */
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
+  const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 1000 * attempt));
+      await new Promise(r => setTimeout(r, _getRetryDelayMs(attempt)));
     }
 
     try {
@@ -179,10 +184,10 @@ async function uploadPhoto(blob) {
 }
 
 export const apiClient = {
-  get:         (path)              => api('GET',    path),
+  get:         (path, opts)        => api('GET',    path, undefined, opts),
   post:        (path, body, opts)  => api('POST',   path, body, opts),
-  patch:       (path, body)        => api('PATCH',  path, body),
-  delete:      (path, body)        => api('DELETE', path, body),
+  patch:       (path, body, opts)  => api('PATCH',  path, body, opts),
+  delete:      (path, body, opts)  => api('DELETE', path, body, opts),
   uploadPhoto,
 };
 
