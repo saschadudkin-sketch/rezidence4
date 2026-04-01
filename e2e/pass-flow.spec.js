@@ -4,7 +4,6 @@ async function loginDemo(page, role) {
   const rolePhone = {
     owner: '+7 916 123-45-67',
     security: '+7 917 567-89-01',
-    admin: '+7 495 123-00-00',
   };
 
   await page.goto('/');
@@ -32,20 +31,5 @@ test.describe('Nightly smoke', () => {
     await page.context().setOffline(true);
     await expect(page.getByText('Нет подключения к интернету').first()).toBeVisible({ timeout: 10000 });
     await page.context().setOffline(false);
-  });
-
-  test('admin delete -> users-deleted -> restore flow', async ({ page }) => {
-    await loginDemo(page, 'admin');
-
-    await page.getByRole('button', { name: 'Пользователи' }).click();
-    const deleteBtns = page.getByRole('button', { name: 'Удалить пользователя' });
-    await expect(deleteBtns.first()).toBeVisible({ timeout: 10000 });
-    await deleteBtns.first().click();
-
-    await page.getByRole('button', { name: 'Удалённые' }).click();
-    const restoreBtn = page.getByRole('button', { name: 'Восстановить' }).first();
-    await expect(restoreBtn).toBeVisible({ timeout: 10000 });
-    await restoreBtn.click();
-    await expect(restoreBtn).not.toBeVisible({ timeout: 10000 });
   });
 });

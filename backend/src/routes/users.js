@@ -22,13 +22,6 @@ function fmt(u) {
   };
 }
 
-function fmtDeleted(u) {
-  return {
-    ...fmt(u),
-    deletedAt: u.deleted_at,
-  };
-}
-
 // ─── GET /api/users ───────────────────────────────────────────────────────────
 
 router.get('/', async (req, res, next) => {
@@ -44,20 +37,6 @@ router.get('/', async (req, res, next) => {
        ORDER BY name`,
     );
     res.json(rows.map(fmt));
-  } catch (err) { next(err); }
-});
-
-// ─── GET /api/users/deleted (admin only) ─────────────────────────────────────
-router.get('/deleted', async (req, res, next) => {
-  try {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar, deleted_at
-       FROM users
-       WHERE deleted_at IS NOT NULL
-       ORDER BY deleted_at DESC`,
-    );
-    res.json(rows.map(fmtDeleted));
   } catch (err) { next(err); }
 });
 

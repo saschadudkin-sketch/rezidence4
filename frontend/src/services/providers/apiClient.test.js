@@ -104,8 +104,6 @@ describe('apiClient.get', () => {
   test('429 + Retry-After header -> ждёт указанную задержку перед retry', async () => {
     vi.useFakeTimers();
     const timeoutSpy = vi.spyOn(global, 'setTimeout');
-    const retrySpy = vi.fn();
-    window.addEventListener('rz:retry', retrySpy);
     try {
       global.fetch
         .mockResolvedValueOnce({
@@ -132,12 +130,7 @@ describe('apiClient.get', () => {
       await vi.advanceTimersByTimeAsync(1000);
       await expect(promise).resolves.toEqual({ ok: true });
       expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
-      expect(retrySpy).toHaveBeenCalledTimes(1);
-      const detail = retrySpy.mock.calls[0][0].detail;
-      expect(detail.reason).toBe('http_429');
-      expect(detail.delayMs).toBe(1000);
     } finally {
-      window.removeEventListener('rz:retry', retrySpy);
       timeoutSpy.mockRestore();
       vi.useRealTimers();
     }

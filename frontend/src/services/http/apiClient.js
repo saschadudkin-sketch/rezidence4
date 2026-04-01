@@ -19,12 +19,6 @@ const authSession = createAuthSession({
   makeRequestId,
 });
 
-function emitRetryTelemetry({ path, attempt, status = null, reason, delayMs }) {
-  window.dispatchEvent(new CustomEvent('rz:retry', {
-    detail: { path, attempt, status, reason, delayMs },
-  }));
-}
-
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
   let nextRetryDelayMs = null;
@@ -71,13 +65,6 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         if (NO_RETRY_STATUSES.has(res.status)) throw error;
 
         nextRetryDelayMs = getRetryAfterDelayMs(res.headers);
-        emitRetryTelemetry({
-          path,
-          attempt,
-          status: res.status,
-          reason: res.status === 429 ? 'http_429' : 'http_5xx',
-          delayMs: nextRetryDelayMs ?? getRetryDelayWithJitterMs(attempt + 1),
-        });
         lastError = error;
         continue;
       }
@@ -87,13 +74,6 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
     } catch (err) {
       if (err.status && NO_RETRY_STATUSES.has(err.status)) throw err;
       if (err.message.includes('Сессия истекла')) throw err;
-      emitRetryTelemetry({
-        path,
-        attempt,
-        status: err.status ?? null,
-        reason: 'network_error',
-        delayMs: getRetryDelayWithJitterMs(attempt + 1),
-      });
       nextRetryDelayMs = null;
       lastError = err;
     }

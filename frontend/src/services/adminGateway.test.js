@@ -6,20 +6,12 @@ vi.mock('./localService', () => ({
   savePerms: vi.fn(),
   saveUser: vi.fn(),
   removeUser: vi.fn(),
-  restoreUser: vi.fn(),
-  listDeletedUsers: vi.fn(),
 }));
 
 import { isLiveMode } from '../config/runtimeMode.js';
 import { SYNC_STATUS } from '../constants/syncStatuses';
-import { savePerms, saveUser, removeUser, restoreUser, listDeletedUsers } from './localService';
-import {
-  savePermsEverywhere,
-  saveUserEverywhere,
-  removeUserEverywhere,
-  restoreUserEverywhere,
-  listDeletedUsersEverywhere,
-} from './adminGateway';
+import { savePerms, saveUser, removeUser } from './localService';
+import { savePermsEverywhere, saveUserEverywhere, removeUserEverywhere } from './adminGateway';
 
 describe('adminGateway', () => {
   let warnSpy;
@@ -99,27 +91,5 @@ describe('adminGateway', () => {
 
     expect(mode).toBe(SYNC_STATUS.LOCAL_FALLBACK);
     expect(removeLocal).toHaveBeenCalledWith('u3f');
-  });
-
-  test('restoreUserEverywhere: live local + remote', async () => {
-    isLiveMode.mockReturnValue(true);
-    restoreUser.mockResolvedValue(undefined);
-    const restoreLocal = vi.fn();
-
-    const mode = await restoreUserEverywhere({ uid: 'u4', restoreLocal });
-
-    expect(mode).toBe(SYNC_STATUS.REMOTE);
-    expect(restoreLocal).toHaveBeenCalledWith('u4');
-    expect(restoreUser).toHaveBeenCalledWith('u4');
-  });
-
-  test('listDeletedUsersEverywhere: live remote returns list', async () => {
-    isLiveMode.mockReturnValue(true);
-    listDeletedUsers.mockResolvedValue([{ uid: 'u-del' }]);
-
-    const result = await listDeletedUsersEverywhere();
-
-    expect(result).toEqual([{ uid: 'u-del' }]);
-    expect(listDeletedUsers).toHaveBeenCalledTimes(1);
   });
 });
