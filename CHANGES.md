@@ -5,6 +5,36 @@ of what was changed and why.
 
 ---
 
+## Release Notes · 2026-04-01 · Verification Pass
+
+- **Backend**
+  - Unit tests executed via `npm test -- --runInBand`.
+  - Contract tests executed via `npm run test:contract` (pass).
+  - Current status: unit suite has failing tests in `requests.test.js` and
+    `security.test.js` around request status transitions, ownership checks,
+    and response payload invariants (`id`, `total`).
+
+- **Frontend**
+  - Full verification executed via `npm run verify:all`.
+  - Production build executed via `npm run build`.
+  - Current status:
+    - `verify:all` fails on one timed-out test:
+      `src/ui/Modals.test.js > AddUserModal > initialRole предустанавливает роль`.
+    - Standalone production build fails because `VITE_API_URL` is required for
+      production config and is not set in the environment.
+
+- **E2E smoke**
+  - Smoke run attempted for `e2e/pass-flow.spec.js`.
+  - Current status: run is blocked because `@playwright/test` is not installed
+    in the repository environment (`playwright.config.js` cannot be loaded).
+
+- **Open PRs check**
+  - GitHub CLI check attempted with `gh pr list --state open --limit 50`.
+  - Current status: `gh` is not installed in the environment, so open PR count
+    must be confirmed in GitHub UI/CI.
+
+---
+
 ## CRITICAL fixes (production-blocking)
 
 ### FIX-1 · `app.set('trust proxy', 1)` — rate limiting now works behind nginx
