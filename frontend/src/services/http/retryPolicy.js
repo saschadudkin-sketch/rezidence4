@@ -12,3 +12,17 @@ export function getRetryDelayWithJitterMs(attempt) {
   const base = getRetryDelayMs(attempt);
   return Math.floor(Math.random() * (base + 1));
 }
+
+export function getRetryAfterDelayMs(headers) {
+  const retryAfter = headers?.get?.('retry-after');
+  if (!retryAfter) return null;
+
+  const seconds = Number(retryAfter);
+  if (!Number.isNaN(seconds) && Number.isFinite(seconds) && seconds >= 0) {
+    return Math.round(seconds * 1000);
+  }
+
+  const retryAt = Date.parse(retryAfter);
+  if (Number.isNaN(retryAt)) return null;
+  return Math.max(0, retryAt - Date.now());
+}

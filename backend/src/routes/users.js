@@ -3,6 +3,7 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
+const { invalidateUserActiveCache } = requireAuth;
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
 
 const router = express.Router();
@@ -155,6 +156,7 @@ router.delete('/:uid', async (req, res, next) => {
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.params.uid],
     );
+    await invalidateUserActiveCache(req.params.uid);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

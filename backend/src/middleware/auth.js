@@ -3,6 +3,13 @@ const jwt    = require('jsonwebtoken');
 const db     = require('../db');
 const logger = require('../logger');
 const { getRedis } = require('../lib/redisClient'); // shared singleton — одно соединение на весь процесс
+const USER_ACTIVE_CACHE_TTL_SECONDS = 30;
+const USER_ACTIVE_FALLBACK_TTL_MS = 5000;
+const userActiveFallbackCache = new Map();
+
+function getUserActiveCacheKey(uid) {
+  return `user_active:${uid}`;
+}
 
 async function isTokenRevoked(jti) {
   const _redis = getRedis();
@@ -24,11 +31,65 @@ async function isTokenRevoked(jti) {
 }
 
 async function isUserActive(uid) {
+  const now = Date.now();
+  const fallbackCached = userActiveFallbackCache.get(uid);
+  if (fallbackCached && fallbackCached.expiresAt > now) {
+    return fallbackCached.value;
+  }
+  if (fallbackCached && fallbackCached.expiresAt <= now) {
+    userActiveFallbackCache.delete(uid);
+  }
+
+  const _redis = getRedis();
+  const cacheKey = getUserActiveCacheKey(uid);
+
+  if (_redis) {
+    try {
+      const cached = await _redis.get(cacheKey);
+      if (cached !== null) {
+        const value = cached === '1';
+        userActiveFallbackCache.set(uid, {
+          value,
+          expiresAt: now + USER_ACTIVE_FALLBACK_TTL_MS,
+        });
+        return value;
+      }
+    } catch (err) {
+      logger.warn({ err, uid }, '[auth] user active cache read failed, falling back to DB');
+    }
+  }
+
   const { rows } = await db.query(
     'SELECT 1 FROM users WHERE uid=$1 AND deleted_at IS NULL',
     [uid],
   );
-  return rows.length > 0;
+  const isActive = rows.length > 0;
+  userActiveFallbackCache.set(uid, {
+    value: isActive,
+    expiresAt: now + USER_ACTIVE_FALLBACK_TTL_MS,
+  });
+
+  if (_redis) {
+    try {
+      await _redis.setex(cacheKey, USER_ACTIVE_CACHE_TTL_SECONDS, isActive ? '1' : '0');
+    } catch (err) {
+      logger.warn({ err, uid }, '[auth] user active cache write failed');
+    }
+  }
+
+  return isActive;
+}
+
+async function invalidateUserActiveCache(uid) {
+  if (!uid) return;
+  userActiveFallbackCache.delete(uid);
+  const _redis = getRedis();
+  if (!_redis) return;
+  try {
+    await _redis.del(getUserActiveCacheKey(uid));
+  } catch (err) {
+    logger.warn({ err, uid }, '[auth] user active cache invalidate failed');
+  }
 }
 
 /**
@@ -86,3 +147,5 @@ module.exports = async function requireAuth(req, res, next) {
 };
 
 module.exports.markTokenRevoked = markTokenRevoked;
+module.exports.invalidateUserActiveCache = invalidateUserActiveCache;
+module.exports.__clearUserActiveFallbackCache = () => userActiveFallbackCache.clear();

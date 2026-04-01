@@ -23,6 +23,7 @@ jest.mock('../middleware/auth', () => {
     }
   };
   mw.markTokenRevoked = jest.fn().mockResolvedValue(undefined);
+  mw.invalidateUserActiveCache = jest.fn().mockResolvedValue(undefined);
   return mw;
 });
 
@@ -35,6 +36,7 @@ process.env.JWT_SECRET    = 'test-secret';
 process.env.BACKEND_URL   = 'http://localhost:3001';
 
 const usersRouter = require('../routes/users');
+const requireAuth = require('../middleware/auth');
 
 function buildApp() {
   const app = express();
@@ -380,6 +382,7 @@ describe('DELETE /api/users/:uid', () => {
     expect(sql).toMatch(/SET deleted_at=NOW\(\)/i);
     expect(sql).toMatch(/updated_at=NOW\(\)/i);
     expect(db.query.mock.calls[0][1]).toEqual(['u1']);
+    expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
   });
 
   it('не удаляет связанные данные каскадно при soft-delete', async () => {
