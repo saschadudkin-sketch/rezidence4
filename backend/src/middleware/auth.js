@@ -6,7 +6,9 @@ const { getRedis } = require('../lib/redisClient'); // shared singleton — од
 const USER_ACTIVE_CACHE_TTL_SECONDS = 30;
 const USER_ACTIVE_FALLBACK_TTL_MS = 5000;
 const USER_ACTIVE_FALLBACK_MAX_ENTRIES = 5000;
+const REDIS_WARN_THROTTLE_MS = 30_000;
 const userActiveFallbackCache = new Map();
+const redisWarnAtByScope = new Map();
 
 function getUserActiveCacheKey(uid) {
   return `user_active:${uid}`;
@@ -33,6 +35,14 @@ function setUserActiveFallback(uid, value, nowTs) {
   compactUserActiveFallbackCache(nowTs);
 }
 
+function warnRedisThrottled(scope, payload, message) {
+  const now = Date.now();
+  const lastWarnAt = redisWarnAtByScope.get(scope) || 0;
+  if (now - lastWarnAt < REDIS_WARN_THROTTLE_MS) return;
+  redisWarnAtByScope.set(scope, now);
+  logger.warn(payload, message);
+}
+
 async function isTokenRevoked(jti) {
   const _redis = getRedis();
   // ── Redis path ──
@@ -41,7 +51,7 @@ async function isTokenRevoked(jti) {
       const val = await _redis.get(`revoked:${jti}`);
       return val === '1';
     } catch (err) {
-      logger.warn({ err, jti }, '[auth] redis check failed, falling back to DB');
+      warnRedisThrottled('revoked-read', { err, jti }, '[auth] redis check failed, falling back to DB');
       // Не бросаем — падаем на DB
     }
   }
@@ -74,7 +84,7 @@ async function isUserActive(uid) {
         return value;
       }
     } catch (err) {
-      logger.warn({ err, uid }, '[auth] user active cache read failed, falling back to DB');
+      warnRedisThrottled('user-active-read', { err, uid }, '[auth] user active cache read failed, falling back to DB');
     }
   }
 
@@ -89,7 +99,7 @@ async function isUserActive(uid) {
     try {
       await _redis.setex(cacheKey, USER_ACTIVE_CACHE_TTL_SECONDS, isActive ? '1' : '0');
     } catch (err) {
-      logger.warn({ err, uid }, '[auth] user active cache write failed');
+      warnRedisThrottled('user-active-write', { err, uid }, '[auth] user active cache write failed');
     }
   }
 
@@ -104,7 +114,7 @@ async function invalidateUserActiveCache(uid) {
   try {
     await _redis.del(getUserActiveCacheKey(uid));
   } catch (err) {
-    logger.warn({ err, uid }, '[auth] user active cache invalidate failed');
+    warnRedisThrottled('user-active-del', { err, uid }, '[auth] user active cache invalidate failed');
   }
 }
 
@@ -120,7 +130,7 @@ async function markTokenRevoked(jti, expUnixSec) {
     try {
       await _redis.setex(`revoked:${jti}`, ttl, '1');
     } catch (err) {
-      logger.warn({ err, jti }, '[auth] redis write failed — token stored only in DB');
+      warnRedisThrottled('revoked-write', { err, jti }, '[auth] redis write failed — token stored only in DB');
     }
   }
   // Всегда пишем в DB как источник истины при рестарте Redis
