@@ -156,6 +156,23 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
     expect(res.status).toBe(200);
     expectTransactionClosed(txClient);
   });
+
+  it('404 при отсутствии сообщения и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // SELECT ... FOR UPDATE (not found)
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-missing')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+
+    expect(res.status).toBe(404);
+    expect(txClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(txClient.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(txClient.release).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
