@@ -43,6 +43,17 @@ function makeRes() {
   return res;
 }
 
+async function runWithAuthFlag(flagValue, fn) {
+  const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+  process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = flagValue;
+  try {
+    await fn();
+  } finally {
+    if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+    else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
+  }
+}
+
 const validPayload = { uid: 'u1', role: 'owner', name: 'Test' };
 const validToken   = jwt.sign(validPayload, 'test-secret-key-16chars', { expiresIn: '1h' });
 const expiredToken = jwt.sign(validPayload, 'test-secret-key-16chars', { expiresIn: '-1s' });
@@ -241,9 +252,7 @@ describe('requireAuth middleware', () => {
   });
 
   test('AUTH_ENFORCE_ACTIVE_USER_CHECK=off отключает active-user check в test env', async () => {
-    const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-    process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = 'off';
-    try {
+    await runWithAuthFlag('off', async () => {
       const req  = makeReq({ cookie: validToken });
       const res  = makeRes();
       const next = jest.fn();
@@ -253,16 +262,11 @@ describe('requireAuth middleware', () => {
       expect(next).toHaveBeenCalledTimes(1);
       const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
       expect(userLookupCalls).toHaveLength(0);
-    } finally {
-      if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-      else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
-    }
+    });
   });
 
   test('AUTH_ENFORCE_ACTIVE_USER_CHECK=true включает active-user check в test env', async () => {
-    const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-    process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = 'true';
-    try {
+    await runWithAuthFlag('true', async () => {
       const req  = makeReq({ cookie: validToken });
       const res  = makeRes();
       const next = jest.fn();
@@ -272,16 +276,11 @@ describe('requireAuth middleware', () => {
       expect(next).toHaveBeenCalledTimes(1);
       const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
       expect(userLookupCalls).toHaveLength(1);
-    } finally {
-      if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-      else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
-    }
+    });
   });
 
   test('AUTH_ENFORCE_ACTIVE_USER_CHECK=yes включает active-user check в test env', async () => {
-    const prev = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-    process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = 'yes';
-    try {
+    await runWithAuthFlag('yes', async () => {
       const req  = makeReq({ cookie: validToken });
       const res  = makeRes();
       const next = jest.fn();
@@ -291,9 +290,6 @@ describe('requireAuth middleware', () => {
       expect(next).toHaveBeenCalledTimes(1);
       const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
       expect(userLookupCalls).toHaveLength(1);
-    } finally {
-      if (prev === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-      else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prev;
-    }
+    });
   });
 });
