@@ -15,6 +15,7 @@ const db = require('../db');
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 const authRouter   = require('../routes/auth');
+const requireAuthMiddleware = require('../middleware/auth');
 
 function buildApp() {
   const app = express();
@@ -30,11 +31,9 @@ const app = buildApp();
 const VALID_PHONE = '+79001234567';
 const VALID_CODE  = '123456';
 const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
+process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 
-beforeAll(() => {
-  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
-  process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
-});
 afterAll(() => {
   if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
   else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
@@ -235,7 +234,11 @@ describe('POST /api/auth/refresh', () => {
 });
 
 describe('GET /api/auth/me', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.query.mockReset();
+    requireAuthMiddleware.__clearUserActiveFallbackCache?.();
+  });
 
   it('200 возвращает профиль активного пользователя', async () => {
     const token = jwt.sign(
