@@ -1,0 +1,29 @@
+route:
+  receiver: default-team
+  group_by: [alertname, service, owner]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+  routes:
+    - matchers:
+        - owner="team-platform"
+      receiver: team-platform
+    - matchers:
+        - owner="team-backend"
+      receiver: team-backend
+
+receivers:
+  - name: default-team
+    webhook_configs:
+      - url: http://alerts-router.default.svc.cluster.local/default
+        send_resolved: true
+
+  - name: team-platform
+    webhook_configs:
+      - url: http://alerts-router.default.svc.cluster.local/platform
+        send_resolved: true
+
+  - name: team-backend
+    webhook_configs:
+      - url: http://alerts-router.default.svc.cluster.local/backend
+        send_resolved: true

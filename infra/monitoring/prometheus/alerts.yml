@@ -1,0 +1,39 @@
+groups:
+  - name: rezidence-observability
+    interval: 30s
+    rules:
+      - alert: RezidenceRefreshFailSpike
+        expr: increase(rezidence_auth_refresh_fail_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+          service: frontend
+          owner: team-platform
+        annotations:
+          summary: "Refresh token failures are spiking"
+          description: "Refresh token failures exceeded 20 events during the last 5 minutes."
+          runbook_url: "https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/runbooks/refresh-fail-spike.md"
+
+      - alert: RezidenceLegacyFallbackUsed
+        expr: increase(rezidence_legacy_fallback_total[15m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: backend
+          owner: team-backend
+        annotations:
+          summary: "Legacy fallback path is being used"
+          description: "Legacy fallback code path was triggered in the last 15 minutes."
+          runbook_url: "https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/runbooks/legacy-fallback-used.md"
+
+      - alert: RezidenceDbPoolWaiting
+        expr: avg_over_time(rezidence_db_pool_waiting[5m]) > 5
+        for: 10m
+        labels:
+          severity: critical
+          service: backend
+          owner: team-backend
+        annotations:
+          summary: "DB pool wait queue is elevated"
+          description: "Average db pool waiting count is above 5 for at least 10 minutes."
+          runbook_url: "https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/runbooks/db-pool-waiting.md"

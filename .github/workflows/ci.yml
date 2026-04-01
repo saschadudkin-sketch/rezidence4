@@ -8,6 +8,16 @@ on:
   pull_request:
 
 jobs:
+
+  observability-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Prometheus alerts
+        run: docker run --rm -v "$PWD:/work" -w /work prom/prometheus:v2.54.1 promtool check rules infra/monitoring/prometheus/alerts.yml
+      - name: Validate Alertmanager config
+        run: docker run --rm -v "$PWD:/work" -w /work prom/alertmanager:v0.28.1 amtool check-config infra/monitoring/alertmanager/alertmanager.yml
   backend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -45,7 +55,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test]
+    needs: [backend-test, frontend-test, observability-lint]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
