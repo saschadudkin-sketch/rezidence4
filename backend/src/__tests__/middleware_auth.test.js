@@ -19,6 +19,7 @@ jest.mock('../lib/redisClient', () => ({
 const requireAuth = require('../middleware/auth');
 
 process.env.JWT_SECRET = 'test-secret-key-16chars';
+process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 
 function makeReq({ cookie, bearer } = {}) {
   const req = {

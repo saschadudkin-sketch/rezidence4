@@ -140,7 +140,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
 const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
   const [deletedUsers, setDeletedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [restoringUid, setRestoringUid] = useState('');
+  const [restoringUids, setRestoringUids] = useState(() => new Set());
   const { addUser } = useActions();
 
   useEffect(() => {
@@ -163,8 +163,13 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
   }, []);
 
   async function handleRestore(user) {
-    if (!user?.uid || restoringUid) return;
-    setRestoringUid(user.uid);
+    if (!user?.uid) return;
+    if (restoringUids.has(user.uid)) return;
+    setRestoringUids((prev) => {
+      const next = new Set(prev);
+      next.add(user.uid);
+      return next;
+    });
     try {
       await services.admin.restoreUserEverywhere({ uid: user.uid });
       addUser?.({
@@ -179,7 +184,11 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
     } catch {
       toast('Не удалось восстановить пользователя', 'error');
     } finally {
-      setRestoringUid('');
+      setRestoringUids((prev) => {
+        const next = new Set(prev);
+        next.delete(user.uid);
+        return next;
+      });
     }
   }
 
@@ -188,24 +197,27 @@ const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
 
   return (
     <div className="t-wrap">
-      {deletedUsers.map((u) => (
-        <div key={u.uid} className="req-card" style={{ marginBottom: 8 }}>
-          <div className="u-row-btw-gap8">
-            <div>
-              <div className="req-name">{u.name}</div>
-              <div className="req-meta">{u.phone} • {u.apartment || '—'}</div>
-              {u.deletedAt && <div className="req-meta">Удалён: {new Date(u.deletedAt).toLocaleString()}</div>}
+      {deletedUsers.map((u) => {
+        const isRestoring = restoringUids.has(u.uid);
+        return (
+          <div key={u.uid} className="req-card" style={{ marginBottom: 8 }}>
+            <div className="u-row-btw-gap8">
+              <div>
+                <div className="req-name">{u.name}</div>
+                <div className="req-meta">{u.phone} • {u.apartment || '—'}</div>
+                {u.deletedAt && <div className="req-meta">Удалён: {new Date(u.deletedAt).toLocaleString()}</div>}
+              </div>
+              <button
+                className="btn-gold u-pad-btn"
+                disabled={isRestoring}
+                onClick={() => handleRestore(u)}
+              >
+                {isRestoring ? 'Восстановление…' : 'Восстановить'}
+              </button>
             </div>
-            <button
-              className="btn-gold u-pad-btn"
-              disabled={restoringUid === u.uid}
-              onClick={() => handleRestore(u)}
-            >
-              {restoringUid === u.uid ? 'Восстановление…' : 'Восстановить'}
-            </button>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 });

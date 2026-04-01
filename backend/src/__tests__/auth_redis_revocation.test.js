@@ -17,6 +17,7 @@ let db  = require('../db');
 const jwt = require('jsonwebtoken');
 
 process.env.JWT_SECRET = 'test-secret-key-32-chars-long-xx';
+process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 // Убедимся что Redis НЕ инициализируется в тестах (нет реального Redis)
 delete process.env.REDIS_URL;
 

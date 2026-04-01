@@ -32,6 +32,7 @@ const VALID_CODE  = '123456';
 
 beforeAll(() => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
+  process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 });
 
 describe('POST /api/auth/send-otp', () => {
