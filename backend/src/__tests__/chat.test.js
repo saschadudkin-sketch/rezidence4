@@ -69,13 +69,14 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
   const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
 
   it('400 когда reactions — массив (не объект)', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] }); // existing
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: ['👍', '❤️'] }); // массив вместо объекта
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/plain object/i);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда reactions — строка', async () => {
