@@ -23,7 +23,7 @@ module.exports = defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 5'] } },
   ],
   webServer: {
-    command: 'cd frontend && npm start',
+    command: 'cd frontend && npm start -- --host 0.0.0.0 --port 3000',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
