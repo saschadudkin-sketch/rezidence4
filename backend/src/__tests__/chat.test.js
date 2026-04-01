@@ -133,7 +133,10 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
 
 describe('POST /api/chat/messages', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.BACKEND_URL;
+  });
 
   it('400 когда нет id', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
@@ -158,6 +161,52 @@ describe('POST /api/chat/messages', () => {
     expect(res.status).toBe(201);
     expect(res.body.id).toBe('msg-new');
     expect(res.body.text).toBe('Hello');
+  });
+
+  it('201 когда photo — относительный URL /uploads/...', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const now = new Date();
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'msg-photo-rel', uid: 'u1', name: 'Иванов', role: 'owner', text: null, photo: '/uploads/a.jpg', reply_to: null, reactions: {}, edited: false, at: now }],
+    });
+
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-rel', photo: '/uploads/a.jpg' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.photo).toBe('/uploads/a.jpg');
+  });
+
+  it('201 когда photo — абсолютный URL BACKEND_URL/uploads/...', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const now = new Date();
+    process.env.BACKEND_URL = 'https://api.example.com/';
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'msg-photo-abs', uid: 'u1', name: 'Иванов', role: 'owner', text: null, photo: 'https://api.example.com/uploads/a.jpg', reply_to: null, reactions: {}, edited: false, at: now }],
+    });
+
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-abs', photo: 'https://api.example.com/uploads/a.jpg' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.photo).toBe('https://api.example.com/uploads/a.jpg');
+  });
+
+  it('400 когда photo с чужого домена', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    process.env.BACKEND_URL = 'https://api.example.com';
+
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'msg-photo-bad', photo: 'https://attacker.tld/x.jpg' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('photo must be a local upload URL');
   });
 });
 
