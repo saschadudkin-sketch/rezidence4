@@ -102,6 +102,37 @@ describe('apiClient.get', () => {
     const client = await getClient();
     await expect(client.get('/api/fail')).rejects.toThrow('Service Unavailable');
   });
+
+  test('использует один X-Request-Id для 401 → refresh → retry', async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: vi.fn().mockResolvedValue({ error: 'Unauthorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ ok: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ users: ['u1'] }),
+      });
+
+    const client = await getClient();
+    const result = await client.get('/api/users');
+
+    expect(result).toEqual({ users: ['u1'] });
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const requestIds = fetch.mock.calls.map(([, opts]) => opts.headers['X-Request-Id']);
+    expect(requestIds[0]).toBeTruthy();
+    expect(requestIds[1]).toBe(requestIds[0]);
+    expect(requestIds[2]).toBe(requestIds[0]);
+  });
 });
 
 // ─── POST ─────────────────────────────────────────────────────────────────────
