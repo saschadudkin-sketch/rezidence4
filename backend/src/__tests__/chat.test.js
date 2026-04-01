@@ -18,6 +18,8 @@ const request = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.BACKEND_URL = 'http://backend.test';
+const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '0';
 
 const chatRouter = require('../routes/chat');
 
@@ -29,39 +31,72 @@ function buildApp() {
   return app;
 }
 const app = buildApp();
+afterAll(() => {
+  if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+  else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
+});
 
 function makeToken(payload) {
   return jwt.sign(payload, 'test-secret', { expiresIn: '1h' });
 }
 
+function expectTransactionClosed(client) {
+  expect(client.query).toHaveBeenCalledWith('BEGIN');
+  expect(client.query).toHaveBeenCalledWith('COMMIT');
+  expect(client.release).toHaveBeenCalledTimes(1);
+}
+
+function expectTransactionRolledBack(client) {
+  expect(client.query).toHaveBeenCalledWith('BEGIN');
+  expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  expect(client.release).toHaveBeenCalledTimes(1);
+}
+
+function expectNoDbCalls() {
+  expect(db.query).not.toHaveBeenCalled();
+  expect(db.pool.connect).not.toHaveBeenCalled();
+}
+
+function expectNoDbQuery() {
+  expect(db.query).not.toHaveBeenCalled();
+}
+
 // ─── PATCH /api/chat/messages/:id — reactions validation ─────────────────────
 
 describe('PATCH /api/chat/messages/:id — валидация reactions', () => {
-  beforeEach(() => jest.clearAllMocks());
+  let txClient;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.query.mockReset();
+    txClient = {
+      query: jest.fn(),
+      release: jest.fn(),
+    };
+    db.pool = { connect: jest.fn().mockResolvedValue(txClient) };
+  });
 
   const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
 
   it('400 когда reactions — массив (не объект)', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] }); // existing
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: ['👍', '❤️'] }); // массив вместо объекта
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/plain object/i);
+    expectNoDbCalls();
   });
 
   it('400 когда reactions — строка', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: 'invalid' });
     expect(res.status).toBe(400);
+    expectNoDbCalls();
   });
 
   it('400 когда ключей больше 20', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const tooMany = {};
     for (let i = 0; i < 21; i++) tooMany[`emoji${i}`] = ['u1'];
     const res = await request(app)
@@ -70,57 +105,103 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: tooMany });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Too many/i);
+    expectNoDbCalls();
   });
 
   it('400 когда ключ длиннее 10 символов', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { 'toolongkeyvalue': ['u1'] } }); // 15 символов
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/too long/i);
+    expectNoDbCalls();
   });
 
   it('400 когда значение не массив', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': 'not-an-array' } });
     expect(res.status).toBe(400);
+    expectNoDbCalls();
   });
 
   it('400 когда элемент реакции не строка', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': [123, 456] } }); // числа вместо uid-строк
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Invalid reaction/i);
+    expect(res.body.error).toMatch(/Reaction value must be \[\] or \[your_uid\]/i);
+    expectNoDbCalls();
+  });
+
+  it('400 когда в реакции указан чужой uid', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-1')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u2'] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/only add your own uid/i);
+    expectNoDbCalls();
+  });
+
+  it('400 при невалидном формате id и без обращений к БД', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/bad id!')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbCalls();
+  });
+
+  it('400 при невалидном формате id даже при обновлении text', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/invalid$id')
+      .set('Cookie', `token=${token}`)
+      .send({ text: 'edited text' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbCalls();
+  });
+
+  it('400 при невалидном формате id и пустом payload', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/invalid id')
+      .set('Cookie', `token=${token}`)
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbCalls();
   });
 
   it('200 при корректных reactions', async () => {
     const now = new Date();
-    db.query
-      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] }) // existing
-      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: { '👍': ['u2'] }, edited: false, at: now }] }); // UPDATE RETURNING
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: { '👍': ['u2'] } }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: { '👍': ['u2', 'u1'], '❤️': ['u1'] }, edited: false, at: now }] }) // UPDATE RETURNING
+      .mockResolvedValueOnce(undefined); // COMMIT
 
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
-      .send({ reactions: { '👍': ['u2', 'u3'], '❤️': ['u1'] } });
+      .send({ reactions: { '👍': ['u1'], '❤️': ['u1'] } });
 
     expect(res.status).toBe(200);
     expect(res.body.reactions).toBeDefined();
+    expectTransactionClosed(txClient);
   });
 
   it('200 при пустом объекте reactions (удаление всех реакций)', async () => {
     const now = new Date();
-    db.query
-      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: {}, edited: false, at: now }] });
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: {}, edited: false, at: now }] }) // UPDATE RETURNING
+      .mockResolvedValueOnce(undefined); // COMMIT
 
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
@@ -128,13 +209,64 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: {} });
 
     expect(res.status).toBe(200);
+    expectTransactionClosed(txClient);
+  });
+
+  it('404 при отсутствии сообщения и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // SELECT ... FOR UPDATE (not found)
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-missing')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+
+    expect(res.status).toBe(404);
+    expectTransactionRolledBack(txClient);
+  });
+
+  it('500 при ошибке UPDATE и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
+      .mockRejectedValueOnce(new Error('db update failed')) // UPDATE
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-err')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+
+    expect(res.status).toBe(500);
+    expectTransactionRolledBack(txClient);
+  });
+
+  it('400 при отсутствии полей для обновления и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-noop')
+      .set('Cookie', `token=${token}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Nothing to update');
+    expectTransactionRolledBack(txClient);
   });
 });
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
 
 describe('POST /api/chat/messages', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.query.mockReset();
+  });
 
   it('400 когда нет id', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
@@ -144,6 +276,70 @@ describe('POST /api/chat/messages', () => {
       .send({ text: 'Hello' }); // без id
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/id required/i);
+    expectNoDbQuery();
+  });
+
+  it('400 когда нет id даже для photo-only сообщения', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ photo: '/uploads/photo_1.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id required/i);
+    expectNoDbQuery();
+  });
+
+  it('400 когда id в неверном формате и без обращения к БД', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', text: 'Hello' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbQuery();
+  });
+
+  it('401 без токена даже при невалидном id', async () => {
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .send({ id: 'bad id!', text: 'Hello' });
+    expect(res.status).toBe(401);
+    expectNoDbQuery();
+  });
+
+  it('400 когда id в неверном формате для photo-only сообщения', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', photo: '/uploads/photo_1.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbQuery();
+  });
+
+  it('400 когда id в неверном формате для text+photo сообщения', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', text: 'Hello', photo: '/uploads/photo_1.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbQuery();
+  });
+
+  it('400 по id-format раньше, чем проверка photo URL', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', photo: 'https://evil.example/uploads/photo.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expectNoDbQuery();
   });
 
   it('201 при корректном сообщении', async () => {
@@ -223,7 +419,10 @@ describe('POST /api/chat/messages', () => {
 // ─── DELETE /api/chat/messages/:id ───────────────────────────────────────────
 
 describe('DELETE /api/chat/messages/:id', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.query.mockReset();
+  });
 
   it('403 когда не автор и не admin', async () => {
     const token = makeToken({ uid: 'u2', role: 'owner', name: 'Петров' });
@@ -261,7 +460,10 @@ describe('DELETE /api/chat/messages/:id', () => {
 // ─── GET /api/chat/messages — pagination (AUDIT-6) ───────────────────────────
 
 describe('GET /api/chat/messages — cursor pagination (AUDIT-6)', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    db.query.mockReset();
+  });
   const token = makeToken({ uid: 'u1', role: 'security', name: 'Охрана' });
 
   function makeRows(n) {

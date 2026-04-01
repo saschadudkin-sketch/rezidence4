@@ -17,6 +17,8 @@ let db  = require('../db');
 const jwt = require('jsonwebtoken');
 
 process.env.JWT_SECRET = 'test-secret-key-32-chars-long-xx';
+const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '1';
 // Убедимся что Redis НЕ инициализируется в тестах (нет реального Redis)
 delete process.env.REDIS_URL;
 
@@ -27,6 +29,10 @@ beforeEach(() => {
   delete process.env.REDIS_URL;
   db = require('../db');
   requireAuth = require('../middleware/auth');
+});
+afterAll(() => {
+  if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+  else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
 });
 
 function makeToken(payload, secret = 'test-secret-key-32-chars-long-xx', opts = {}) {

@@ -3,6 +3,7 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
+const { invalidateUserActiveCache } = requireAuth;
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
 
 const router = express.Router();
@@ -21,6 +22,13 @@ function fmt(u) {
   };
 }
 
+function fmtDeleted(u) {
+  return {
+    ...fmt(u),
+    deletedAt: u.deleted_at,
+  };
+}
+
 // ─── GET /api/users ───────────────────────────────────────────────────────────
 
 router.get('/', async (req, res, next) => {
@@ -36,6 +44,20 @@ router.get('/', async (req, res, next) => {
        ORDER BY name`,
     );
     res.json(rows.map(fmt));
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/users/deleted (admin only) ─────────────────────────────────────
+router.get('/deleted', async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    const { rows } = await db.query(
+      `SELECT uid, phone, name, role, apartment, avatar, deleted_at
+       FROM users
+       WHERE deleted_at IS NOT NULL
+       ORDER BY deleted_at DESC`,
+    );
+    res.json(rows.map(fmtDeleted));
   } catch (err) { next(err); }
 });
 
@@ -155,6 +177,25 @@ router.delete('/:uid', async (req, res, next) => {
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.params.uid],
     );
+    await invalidateUserActiveCache(req.params.uid);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ─── PATCH /api/users/:uid/restore (soft-delete rollback, admin only) ───────
+router.patch('/:uid/restore', async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const { rows } = await db.query(
+      `UPDATE users
+       SET deleted_at=NULL, updated_at=NOW()
+       WHERE uid=$1 AND deleted_at IS NOT NULL
+       RETURNING uid`,
+      [req.params.uid],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
+    await invalidateUserActiveCache(req.params.uid);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

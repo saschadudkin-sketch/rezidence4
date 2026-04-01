@@ -1,6 +1,7 @@
 'use strict';
 const express   = require('express');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const db        = require('../db');
 const requireAuth = require('../middleware/auth');
 const sse       = require('../sse');
@@ -34,8 +35,34 @@ const sseConnectLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много SSE-подключений. Подождите.' },
-  keyGenerator: (req) => req.user?.uid || req.ip,
+  keyGenerator: (req) => req.user?.uid || ipKeyGenerator(req),
 });
+
+// Дополнительный in-memory token bucket для reconnect storm (uid+ip).
+// Нужен как второй рубеж, когда клиент агрессивно переоткрывает stream.
+const SSE_BUCKET_WINDOW_MS = 60_000;
+const SSE_BUCKET_CAPACITY = 30;
+const sseReconnectBuckets = new Map();
+function sseReconnectBucketGuard(req, res, next) {
+  const uid = req.user?.uid || 'anon';
+  const ip = ipKeyGenerator(req);
+  const now = Date.now();
+  const key = `${uid}|${ip}`;
+  const current = sseReconnectBuckets.get(key);
+
+  let bucket = current;
+  if (!bucket || now - bucket.windowStart >= SSE_BUCKET_WINDOW_MS) {
+    bucket = { windowStart: now, count: 0 };
+  }
+
+  bucket.count += 1;
+  sseReconnectBuckets.set(key, bucket);
+
+  if (bucket.count > SSE_BUCKET_CAPACITY) {
+    return res.status(429).json({ error: 'Too many SSE reconnect attempts. Slow down.' });
+  }
+  next();
+}
 
 // FIX: поддерживаем UUID и legacy/string id, чтобы не ломать существующий чат,
 // но отсекаем очевидный мусор и чрезмерно длинные значения.
@@ -328,7 +355,7 @@ router.post('/seen', (req, res) => res.json({ ok: true })); // tracked client-si
 
 // ─── GET /api/chat/stream — SSE ───────────────────────────────────────────────
 
-router.get('/stream', sseConnectLimiter, (req, res) => {
+router.get('/stream', sseConnectLimiter, sseReconnectBucketGuard, (req, res) => {
   const { uid, role } = req.user; // FIX [SEC-2]: передаём роль в addClient
 
   res.setHeader('Content-Type',  'text/event-stream');

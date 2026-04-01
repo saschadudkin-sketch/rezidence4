@@ -64,10 +64,14 @@ describe('OpenAPI contract smoke', () => {
     expect(spec.openapi).toBe('3.0.3');
     expect(spec.paths['/api/v1/auth/send-otp']).toBeDefined();
     expect(spec.paths['/api/v1/auth/refresh']).toBeDefined();
+    expect(spec.paths['/api/v1/auth/me']).toBeDefined();
     expect(spec.paths['/api/v1/requests']).toBeDefined();
     expect(spec.paths['/api/v1/users']).toBeDefined();
+    expect(spec.paths['/api/v1/users/deleted']).toBeDefined();
+    expect(spec.paths['/api/v1/users/{uid}/restore']).toBeDefined();
     expect(spec.paths['/api/v1/upload/photo']).toBeDefined();
     expect(spec.paths['/api/v1/chat/messages']).toBeDefined();
+    expect(spec.paths['/api/v1/chat/stream']).toBeDefined();
   });
 
   test('all declared operations have response schema', () => {

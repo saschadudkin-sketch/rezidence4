@@ -26,6 +26,14 @@
         }
       }
     },
+    "/api/v1/auth/me": {
+      "get": {
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthRefreshSuccess" } } } },
+          "401": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
     "/api/v1/requests": {
       "get": {
         "responses": {
@@ -43,6 +51,31 @@
       "get": {
         "responses": {
           "200": { "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } }
+        }
+      }
+    },
+    "/api/v1/users/deleted": {
+      "get": {
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/UserDeleted" } } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/users/{uid}/restore": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
@@ -64,6 +97,19 @@
         "responses": {
           "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatMessage" } } } },
           "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/chat/stream": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "429": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     }
@@ -91,6 +137,18 @@
           "name": { "type": "string" },
           "role": { "type": "string" }
         }
+      },
+      "UserDeleted": {
+        "allOf": [
+          { "$ref": "#/components/schemas/User" },
+          {
+            "type": "object",
+            "required": ["deletedAt"],
+            "properties": {
+              "deletedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
       },
       "AuthRefreshSuccess": {
         "type": "object",

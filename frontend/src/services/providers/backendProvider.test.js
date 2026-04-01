@@ -180,6 +180,12 @@ describe('usersProvider', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/users');
   });
 
+  test('getDeleted → GET /api/users/deleted', async () => {
+    apiClient.get.mockResolvedValueOnce([]);
+    await usersProvider.getDeleted();
+    expect(apiClient.get).toHaveBeenCalledWith('/api/users/deleted');
+  });
+
   test('update → PATCH /api/users/:uid', async () => {
     apiClient.patch.mockResolvedValueOnce({ uid: 'u1' });
     await usersProvider.update('u1', { name: 'Новое' });
@@ -190,6 +196,12 @@ describe('usersProvider', () => {
     apiClient.delete.mockResolvedValueOnce({ ok: true });
     await usersProvider.delete('u1');
     expect(apiClient.delete).toHaveBeenCalledWith('/api/users/u1');
+  });
+
+  test('restore → PATCH /api/users/:uid/restore', async () => {
+    apiClient.patch.mockResolvedValueOnce({ ok: true });
+    await usersProvider.restore('u1');
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/users/u1/restore');
   });
 });
 
@@ -267,6 +279,8 @@ describe('createBackendProvider', () => {
     expect(typeof p.admin.savePermsEverywhere).toBe('function');
     expect(typeof p.admin.saveUserEverywhere).toBe('function');
     expect(typeof p.admin.removeUserEverywhere).toBe('function');
+    expect(typeof p.admin.restoreUserEverywhere).toBe('function');
+    expect(typeof p.admin.listDeletedUsersEverywhere).toBe('function');
     expect(typeof p.liveData.startSync).toBe('function');
   });
 
@@ -293,5 +307,19 @@ describe('createBackendProvider', () => {
     apiClient.delete.mockResolvedValueOnce({ ok: true });
     await p.admin.removeUserEverywhere({ uid: 'u1' });
     expect(apiClient.delete).toHaveBeenCalledWith('/api/users/u1');
+  });
+
+  test('admin.restoreUserEverywhere вызывает PATCH /api/users/:uid/restore', async () => {
+    const p = createBackendProvider();
+    apiClient.patch.mockResolvedValueOnce({ ok: true });
+    await p.admin.restoreUserEverywhere({ uid: 'u1' });
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/users/u1/restore');
+  });
+
+  test('admin.listDeletedUsersEverywhere вызывает GET /api/users/deleted', async () => {
+    const p = createBackendProvider();
+    apiClient.get.mockResolvedValueOnce([]);
+    await p.admin.listDeletedUsersEverywhere();
+    expect(apiClient.get).toHaveBeenCalledWith('/api/users/deleted');
   });
 });

@@ -1,6 +1,11 @@
 import { API_BASE_URL } from '../../config/apiBaseUrl.js';
 import { fetchWithTimeout, parseApiResponse } from './transport.js';
-import { NO_RETRY_STATUSES, getRetryDelayMs, getRetryDelayWithJitterMs } from './retryPolicy.js';
+import {
+  NO_RETRY_STATUSES,
+  getRetryDelayMs,
+  getRetryDelayWithJitterMs,
+  getRetryAfterDelayMs,
+} from './retryPolicy.js';
 import { getCsrfToken, makeRequestId } from './requestIdentity.js';
 import { createAuthSession } from './authSession.js';
 import { createUploadClient } from './uploadClient.js';
@@ -14,14 +19,23 @@ const authSession = createAuthSession({
   makeRequestId,
 });
 
+function emitRetryTelemetry({ path, attempt, status = null, reason, delayMs }) {
+  window.dispatchEvent(new CustomEvent('rz:retry', {
+    detail: { path, attempt, status, reason, delayMs },
+  }));
+}
+
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
+  let nextRetryDelayMs = null;
   const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
   const requestId = makeRequestId();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
-      await new Promise(r => setTimeout(r, getRetryDelayWithJitterMs(attempt)));
+      const delayMs = nextRetryDelayMs ?? getRetryDelayWithJitterMs(attempt);
+      await new Promise(r => setTimeout(r, delayMs));
+      nextRetryDelayMs = null;
     }
 
     try {
@@ -56,6 +70,14 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
 
         if (NO_RETRY_STATUSES.has(res.status)) throw error;
 
+        nextRetryDelayMs = getRetryAfterDelayMs(res.headers);
+        emitRetryTelemetry({
+          path,
+          attempt,
+          status: res.status,
+          reason: res.status === 429 ? 'http_429' : 'http_5xx',
+          delayMs: nextRetryDelayMs ?? getRetryDelayWithJitterMs(attempt + 1),
+        });
         lastError = error;
         continue;
       }
@@ -65,6 +87,14 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
     } catch (err) {
       if (err.status && NO_RETRY_STATUSES.has(err.status)) throw err;
       if (err.message.includes('Сессия истекла')) throw err;
+      emitRetryTelemetry({
+        path,
+        attempt,
+        status: err.status ?? null,
+        reason: 'network_error',
+        delayMs: getRetryDelayWithJitterMs(attempt + 1),
+      });
+      nextRetryDelayMs = null;
       lastError = err;
     }
   }

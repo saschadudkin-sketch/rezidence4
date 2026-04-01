@@ -23,6 +23,7 @@ jest.mock('../middleware/auth', () => {
     }
   };
   mw.markTokenRevoked = jest.fn().mockResolvedValue(undefined);
+  mw.invalidateUserActiveCache = jest.fn().mockResolvedValue(undefined);
   return mw;
 });
 
@@ -35,6 +36,7 @@ process.env.JWT_SECRET    = 'test-secret';
 process.env.BACKEND_URL   = 'http://localhost:3001';
 
 const usersRouter = require('../routes/users');
+const requireAuth = require('../middleware/auth');
 
 function buildApp() {
   const app = express();
@@ -116,6 +118,32 @@ describe('GET /api/users', () => {
     expect(res.body[0].password_hash).toBeUndefined();
     expect(res.body[0].otp).toBeUndefined();
     expect(res.body[0].uid).toBeDefined();
+  });
+});
+
+describe('GET /api/users/deleted', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('403 для не-admin', async () => {
+    const res = await request(app)
+      .get('/api/users/deleted').set('Cookie', `token=${T_SECURITY}`);
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('200 возвращает soft-deleted пользователей для admin', async () => {
+    db.query.mockResolvedValueOnce({
+      rows: [{ ...USER_ROW, deleted_at: new Date('2026-01-01T00:00:00.000Z') }],
+    });
+    const res = await request(app)
+      .get('/api/users/deleted').set('Cookie', `token=${T_ADMIN}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].uid).toBe('u1');
+    expect(res.body[0].deletedAt).toBeTruthy();
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).toMatch(/deleted_at IS NOT NULL/i);
   });
 });
 
@@ -380,6 +408,7 @@ describe('DELETE /api/users/:uid', () => {
     expect(sql).toMatch(/SET deleted_at=NOW\(\)/i);
     expect(sql).toMatch(/updated_at=NOW\(\)/i);
     expect(db.query.mock.calls[0][1]).toEqual(['u1']);
+    expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
   });
 
   it('не удаляет связанные данные каскадно при soft-delete', async () => {
@@ -392,5 +421,40 @@ describe('DELETE /api/users/:uid', () => {
     expect(sql).not.toMatch(/DELETE FROM users/i);
     expect(sql).not.toMatch(/DELETE FROM requests/i);
     expect(sql).toMatch(/UPDATE users/i);
+  });
+});
+
+describe('PATCH /api/users/:uid/restore', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('401 без токена', async () => {
+    const res = await request(app).patch('/api/users/u1/restore');
+    expect(res.status).toBe(401);
+  });
+
+  it('403 для не-admin', async () => {
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_SECURITY}`);
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('404 если пользователь не soft-deleted', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_ADMIN}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found or not deleted/i);
+  });
+
+  it('200 восстанавливает пользователя и инвалидирует active cache', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+    const res = await request(app)
+      .patch('/api/users/u1/restore').set('Cookie', `token=${T_ADMIN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).toMatch(/SET deleted_at=NULL/i);
   });
 });
