@@ -21,6 +21,14 @@ VITE_RUNTIME_MODE=live
 VITE_API_URL=http://localhost:3001
 ```
 
+Для Docker production-build используются те же переменные (без legacy `REACT_APP_*`):
+```bash
+docker build \
+  --build-arg VITE_RUNTIME_MODE=live \
+  --build-arg VITE_API_URL=https://api.your-domain.ru \
+  -t rezidence-frontend ./frontend
+```
+
 ## Тесты
 
 ```bash

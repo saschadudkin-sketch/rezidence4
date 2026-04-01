@@ -88,8 +88,8 @@ services:
     build:
       context: ./frontend
       args:
-        REACT_APP_RUNTIME_MODE: live
-        REACT_APP_API_URL: ${BACKEND_URL:-http://localhost:3001}
+        VITE_RUNTIME_MODE: live
+        VITE_API_URL: ${BACKEND_URL:-http://localhost:3001}
     restart: unless-stopped
     depends_on:
       backend:
