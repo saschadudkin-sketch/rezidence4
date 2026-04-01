@@ -10,18 +10,6 @@ const REDIS_WARN_THROTTLE_MS = 30_000;
 const userActiveFallbackCache = new Map();
 const redisWarnAtByScope = new Map();
 
-function shouldEnforceUserActiveCheck() {
-  const raw = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-  if (typeof raw === 'string') {
-    const v = raw.trim().toLowerCase();
-    if (['1', 'true', 'yes', 'on'].includes(v)) return true;
-    if (['0', 'false', 'no', 'off'].includes(v)) return false;
-  }
-  // Compatibility mode: by default in test env we keep legacy behavior (token verification only),
-  // unless AUTH_ENFORCE_ACTIVE_USER_CHECK is set to any supported truthy value.
-  return process.env.NODE_ENV !== 'test';
-}
-
 function getUserActiveCacheKey(uid) {
   return `user_active:${uid}`;
 }
@@ -172,11 +160,9 @@ module.exports = async function requireAuth(req, res, next) {
       if (revoked) return res.status(401).json({ error: 'Token revoked' });
     }
 
-    if (shouldEnforceUserActiveCheck()) {
-      const activeUser = await isUserActive(payload.uid);
-      if (!activeUser) {
-        return res.status(401).json({ error: 'User not found or deleted' });
-      }
+    const activeUser = await isUserActive(payload.uid);
+    if (!activeUser) {
+      return res.status(401).json({ error: 'User not found or deleted' });
     }
 
     req.user = payload;

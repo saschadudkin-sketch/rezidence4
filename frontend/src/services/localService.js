@@ -12,8 +12,6 @@ export const sendMessage         = async () => ({ mode: 'local' });
 export const getAllUsers          = async () => [];
 export const saveUser             = async () => ({ mode: 'local' });
 export const removeUser           = async () => ({ mode: 'local' });
-export const restoreUser          = async () => ({ mode: 'local' });
-export const listDeletedUsers     = async () => [];
 export const savePerms            = async () => ({ mode: 'local' });
 export const saveTemplates        = async () => ({ mode: 'local' });
 export const getTemplates         = async () => [];
