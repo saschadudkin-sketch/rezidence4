@@ -34,29 +34,18 @@ test.describe('Nightly smoke', () => {
     await page.context().setOffline(false);
   });
 
-  test('admin can restore deleted user from users-deleted tab', async ({ page }) => {
-    await page.route('**/api/users/deleted', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          { uid: 'u-del-1', name: 'Удалённый Пользователь', phone: '+7 900 123-45-67', apartment: '15', deletedAt: '2026-03-31T10:00:00.000Z' },
-        ]),
-      });
-    });
-    await page.route('**/api/users/u-del-1/restore', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ ok: true }),
-      });
-    });
-
+  test('admin delete -> users-deleted -> restore flow', async ({ page }) => {
     await loginDemo(page, 'admin');
+
+    await page.getByRole('button', { name: 'Пользователи' }).click();
+    const deleteBtns = page.getByRole('button', { name: 'Удалить пользователя' });
+    await expect(deleteBtns.first()).toBeVisible({ timeout: 10000 });
+    await deleteBtns.first().click();
+
     await page.getByRole('button', { name: 'Удалённые' }).click();
-    const restoreBtn = await page.getByRole('button', { name: 'Восстановить' });
+    const restoreBtn = page.getByRole('button', { name: 'Восстановить' }).first();
     await expect(restoreBtn).toBeVisible({ timeout: 10000 });
     await restoreBtn.click();
-    await expect(page.getByText('Удалённый Пользователь')).not.toBeVisible({ timeout: 10000 });
+    await expect(restoreBtn).not.toBeVisible({ timeout: 10000 });
   });
 });

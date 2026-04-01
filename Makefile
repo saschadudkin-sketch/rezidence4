@@ -11,6 +11,7 @@ validate-loadtest-scripts:
 	node --check loadtest/sse_reconnect_storm.js
 	node --check loadtest/compare_auth_resilience.js
 	bash -n loadtest/synthetic_canary.sh
+	bash -n loadtest/auth_degradation_redis_db.sh
 
 # Сравнение текущего auth_resilience_results с baseline
 compare-auth-baseline:

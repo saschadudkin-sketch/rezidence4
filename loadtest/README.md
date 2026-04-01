@@ -48,6 +48,18 @@ k6 run loadtest/auth_degradation.js \
   -e DEGRADED_RATIO=0.25
 ```
 
+### Инфраструктурная деградация Redis/DB (chaos-runner)
+
+Для проверки именно intermittent unavailable Redis/DB есть оркестратор:
+
+```bash
+TEST_TOKEN=<jwt> \
+BASE_URL=http://localhost:3001 \
+FLAP_REDIS=1 \
+FLAP_DB=0 \
+./loadtest/auth_degradation_redis_db.sh
+```
+
 ---
 
 ## 3) `sse_reconnect_storm.js` (k6)

@@ -48,7 +48,9 @@ jobs:
           node --check loadtest/sse_reconnect_storm.js
           node --check loadtest/compare_auth_resilience.js
       - name: Validate synthetic canary shell script syntax
-        run: bash -n loadtest/synthetic_canary.sh
+        run: |
+          bash -n loadtest/synthetic_canary.sh
+          bash -n loadtest/auth_degradation_redis_db.sh
 
   backend-test:
     runs-on: ubuntu-latest
