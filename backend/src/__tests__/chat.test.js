@@ -52,6 +52,11 @@ function expectTransactionRolledBack(client) {
   expect(client.release).toHaveBeenCalledTimes(1);
 }
 
+function expectNoDbCalls() {
+  expect(db.query).not.toHaveBeenCalled();
+  expect(db.pool.connect).not.toHaveBeenCalled();
+}
+
 // ─── PATCH /api/chat/messages/:id — reactions validation ─────────────────────
 
 describe('PATCH /api/chat/messages/:id — валидация reactions', () => {
@@ -75,8 +80,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: ['👍', '❤️'] }); // массив вместо объекта
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/plain object/i);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда reactions — строка', async () => {
@@ -85,8 +89,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .set('Cookie', `token=${token}`)
       .send({ reactions: 'invalid' });
     expect(res.status).toBe(400);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда ключей больше 20', async () => {
@@ -98,8 +101,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: tooMany });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Too many/i);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда ключ длиннее 10 символов', async () => {
@@ -109,8 +111,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: { 'toolongkeyvalue': ['u1'] } }); // 15 символов
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/too long/i);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда значение не массив', async () => {
@@ -119,8 +120,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': 'not-an-array' } });
     expect(res.status).toBe(400);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда элемент реакции не строка', async () => {
@@ -130,8 +130,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: { '👍': [123, 456] } }); // числа вместо uid-строк
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Reaction value must be \[\] or \[your_uid\]/i);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('400 когда в реакции указан чужой uid', async () => {
@@ -141,8 +140,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: { '👍': ['u2'] } });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/only add your own uid/i);
-    expect(db.query).not.toHaveBeenCalled();
-    expect(db.pool.connect).not.toHaveBeenCalled();
+    expectNoDbCalls();
   });
 
   it('200 при корректных reactions', async () => {
