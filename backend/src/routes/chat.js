@@ -108,6 +108,21 @@ router.get('/messages', async (req, res, next) => {
 const MAX_CHAT_TEXT   = 4000; // символов
 const MAX_PHOTO_URL   = 2048; // байт — только URL от нашего /uploads/
 
+function isLocalUploadPhotoUrl(photo) {
+  if (typeof photo !== 'string') return false;
+  if (photo.startsWith('/uploads/')) return true;
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) return false;
+
+  try {
+    const expectedPrefix = new URL('/uploads/', backendUrl).toString();
+    return photo.startsWith(expectedPrefix);
+  } catch {
+    return false;
+  }
+}
+
 router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
   try {
     const { uid, name, role } = req.user;
@@ -134,6 +149,9 @@ router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
     if (photo !== undefined && photo !== null) {
       if (typeof photo !== 'string' || photo.length > MAX_PHOTO_URL) {
         return res.status(400).json({ error: 'invalid photo URL' });
+      }
+      if (!isLocalUploadPhotoUrl(photo)) {
+        return res.status(400).json({ error: 'photo must be a local upload URL' });
       }
     }
 
