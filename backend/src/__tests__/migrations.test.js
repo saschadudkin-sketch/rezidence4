@@ -81,6 +81,7 @@ describe('db.migrate — versioned migrations', () => {
 
     // pool.connect не должен вызываться — нечего применять
     expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockClient.query).not.toHaveBeenCalledWith('BEGIN');
   });
 
   test('wraps each migration in a transaction (BEGIN/COMMIT)', async () => {
