@@ -59,7 +59,7 @@ if (!process.env.DATABASE_URL) {
 if (process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
   logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
 } else {
-  logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
+  logger.warn('[auth] legacy refresh fallback is enabled (temporary migration mode); disable after migration window');
 }
 
 // ─── FIX [SEC-5]: Helmet — security headers ──────────────────────────────────

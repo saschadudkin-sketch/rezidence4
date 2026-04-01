@@ -24,3 +24,10 @@ Before merging:
 
 1. `cd backend && npm test`
 2. `cd frontend && npm test -- --watchAll=false`
+
+## Legacy refresh fallback rollout
+
+- `REFRESH_LEGACY_FALLBACK_ENABLED=0` — baseline/default state (fallback fully disabled).
+- `REFRESH_LEGACY_FALLBACK_ENABLED=1` — temporary migration-only mode for legacy refresh tokens.
+- Rollout plan: enable value `1` only for a short migration window, monitor `rez_auth_refresh_legacy_fallback_total`, then switch back to `0`.
+- Full disable date (sunset): **June 1, 2026**.
