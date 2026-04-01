@@ -30,10 +30,15 @@ function buildApp() {
   return app;
 }
 
+const OPENAPI_FILE = path.resolve(__dirname, '../../../docs/openapi.json');
+
+function readOpenApiSpec() {
+  return JSON.parse(fs.readFileSync(OPENAPI_FILE, 'utf8'));
+}
+
 describe('OpenAPI contract smoke', () => {
   test('docs/openapi.json contains core contract paths', () => {
-    const file = path.resolve(__dirname, '../../../docs/openapi.json');
-    const spec = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const spec = readOpenApiSpec();
 
     expect(spec.openapi).toBe('3.0.3');
     expect(spec.paths['/api/v1/auth/send-otp']).toBeDefined();
@@ -45,8 +50,7 @@ describe('OpenAPI contract smoke', () => {
   });
 
   test('all declared operations have response schema', () => {
-    const file = path.resolve(__dirname, '../../../docs/openapi.json');
-    const spec = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const spec = readOpenApiSpec();
     for (const [, methods] of Object.entries(spec.paths)) {
       for (const [, operation] of Object.entries(methods)) {
         expect(operation.responses).toBeDefined();
