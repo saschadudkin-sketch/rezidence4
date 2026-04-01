@@ -36,6 +36,27 @@ function readOpenApiSpec() {
   return JSON.parse(fs.readFileSync(OPENAPI_FILE, 'utf8'));
 }
 
+function assertOperationResponseSchemas(operation) {
+  expect(operation.responses).toBeDefined();
+
+  for (const [statusCode, response] of Object.entries(operation.responses)) {
+    if (!response.content) {
+      // 204 No Content responses are valid without a content section.
+      expect(statusCode).toBe('204');
+      continue;
+    }
+
+    for (const [mediaType, mediaTypeSchema] of Object.entries(response.content)) {
+      // Keep strict validation for application/json and validate
+      // schema for any other declared media type as well.
+      expect(mediaTypeSchema.schema).toBeDefined();
+      if (mediaType === 'application/json') {
+        expect(mediaTypeSchema.schema).toBeDefined();
+      }
+    }
+  }
+}
+
 describe('OpenAPI contract smoke', () => {
   test('docs/openapi.json contains core contract paths', () => {
     const spec = readOpenApiSpec();
@@ -53,14 +74,34 @@ describe('OpenAPI contract smoke', () => {
     const spec = readOpenApiSpec();
     for (const [, methods] of Object.entries(spec.paths)) {
       for (const [, operation] of Object.entries(methods)) {
-        expect(operation.responses).toBeDefined();
-        for (const [, response] of Object.entries(operation.responses)) {
-          expect(response.content).toBeDefined();
-          expect(response.content['application/json']).toBeDefined();
-          expect(response.content['application/json'].schema).toBeDefined();
-        }
+        assertOperationResponseSchemas(operation);
       }
     }
+  });
+
+  test('allows 204 response without content (positive)', () => {
+    expect(() => {
+      assertOperationResponseSchemas({
+        responses: {
+          204: { description: 'No Content' },
+        },
+      });
+    }).not.toThrow();
+  });
+
+  test('fails when application/json has no schema (negative)', () => {
+    expect(() => {
+      assertOperationResponseSchemas({
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'application/json': {},
+            },
+          },
+        },
+      });
+    }).toThrow();
   });
 });
 
