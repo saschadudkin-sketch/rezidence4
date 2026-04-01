@@ -17,8 +17,8 @@ npm start
 
 Приложение запускается в demo-режиме. Для live-режима создайте `.env.local`:
 ```env
-REACT_APP_RUNTIME_MODE=live
-REACT_APP_API_URL=http://localhost:3001
+VITE_RUNTIME_MODE=live
+VITE_API_URL=http://localhost:3001
 ```
 
 ## Тесты

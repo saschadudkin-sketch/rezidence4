@@ -8,7 +8,7 @@ import { createPassesApiState } from '../shared/api/passesApi';
 
 // Мокаем runtimeMode — тест проверяет оба режима
 let mockLiveMode = false;
-jest.mock('../config/runtimeMode', () => ({
+vi.mock('../config/runtimeMode', () => ({
   isLiveMode: () => mockLiveMode,
   isDemoMode: () => !mockLiveMode,
   LIVE_MODE: 'live',
@@ -17,11 +17,11 @@ jest.mock('../config/runtimeMode', () => ({
 }));
 
 // Мокаем backendProvider для live mode
-const mockAdd = jest.fn().mockResolvedValue({ id: 'v_test', result: 'allowed' });
-const mockGetAll = jest.fn().mockResolvedValue({ data: [{ id: 'v1', result: 'allowed' }], total: 1 });
-const mockClear = jest.fn().mockResolvedValue({ ok: true });
+const mockAdd = vi.fn().mockResolvedValue({ id: 'v_test', result: 'allowed' });
+const mockGetAll = vi.fn().mockResolvedValue({ data: [{ id: 'v1', result: 'allowed' }], total: 1 });
+const mockClear = vi.fn().mockResolvedValue({ ok: true });
 
-jest.mock('../services/providers/backendProvider', () => ({
+vi.mock('../services/providers/backendProvider', () => ({
   visitLogsProvider: {
     add: (...args) => mockAdd(...args),
     getAll: (...args) => mockGetAll(...args),

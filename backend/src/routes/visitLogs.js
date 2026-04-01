@@ -1,6 +1,6 @@
 'use strict';
 const express = require('express');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const logger  = require('../logger'); // FIX [КРИТ-2]: logger был вызван без импорта
 const requireAuth = require('../middleware/auth');

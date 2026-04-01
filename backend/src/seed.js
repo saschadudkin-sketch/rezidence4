@@ -6,7 +6,7 @@
 'use strict';
 require('dotenv').config();
 
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db = require('./db');
 
 const ADMIN = {

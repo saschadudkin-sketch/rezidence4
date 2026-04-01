@@ -1,6 +1,6 @@
 'use strict';
 const express = require('express');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone

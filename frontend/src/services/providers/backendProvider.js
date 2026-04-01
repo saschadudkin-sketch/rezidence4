@@ -3,7 +3,7 @@
  * Провайдер для нашего собственного Node.js + PostgreSQL backend.
  * Основной live-провайдер для деплоя на VPS.
  *
- * Активируется через: REACT_APP_PROVIDER=backend в .env
+ * Активируется через: VITE_PROVIDER=backend в .env (если используется выбор провайдера)
  */
 
 import apiClient from './apiClient.js';
@@ -93,7 +93,8 @@ function createSSEManager() {
       abortController = null;
       isConnected     = false;
       clearTimeout(reconnectTimer);
-      const delay = _reconnectDelay;
+      const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
+      const delay = Math.round(_reconnectDelay * jitter);
       // FIX [AUDIT-2]: exponential backoff — интервал удваивается, максимум 30с
       _reconnectDelay = Math.min(_reconnectDelay * 1.5, _RECONNECT_MAX);
       reconnectTimer  = setTimeout(() => connect(currentUid), delay);
@@ -247,10 +248,7 @@ export const requestsProvider = {
 
     const failed = results.filter(r => r.status === 'rejected').length;
     if (failed > 0) {
-      try {
-        const { toast } = await import('../../ui/Toasts');
-        toast(`Не удалось загрузить ${failed} из ${photos.length} фото`, 'warning');
-      } catch { /* toast недоступен */ }
+      logger.warn(`Не удалось загрузить ${failed} из ${photos.length} фото`);
     }
 
     return results
