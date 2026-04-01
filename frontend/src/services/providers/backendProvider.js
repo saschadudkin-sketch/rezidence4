@@ -299,9 +299,6 @@ export const usersProvider = {
   async delete(uid) {
     return apiClient.delete(`/api/users/${uid}`);
   },
-  async restore(uid) {
-    return apiClient.patch(`/api/users/${uid}/restore`);
-  },
 };
 
 // ─── Blacklist ────────────────────────────────────────────────────────────────
@@ -399,7 +396,6 @@ export function createBackendProvider() {
       savePermsEverywhere:  (args) => permsProvider.savePerms(args.uid, args.perms),
       saveUserEverywhere:   (args) => usersProvider.update(args.uid, args.patch),
       removeUserEverywhere: (args) => usersProvider.delete(args.uid),
-      restoreUserEverywhere: (args) => usersProvider.restore(args.uid),
     },
     liveData: {
       startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
