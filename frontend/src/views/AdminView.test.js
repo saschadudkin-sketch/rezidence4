@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AdminView from './AdminView.jsx';
 import * as AppStore from '../store/AppStore.jsx';
+import { services } from '../services/providers/serviceContainer.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 
@@ -25,14 +26,12 @@ const mockUsers = {
 beforeEach(() => {
   vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
   vi.spyOn(AppStore, 'useUsers').mockReturnValue(mockUsers);
+  vi.spyOn(AppStore, 'useActions').mockReturnValue({ addUser: vi.fn() });
 });
 afterEach(() => vi.restoreAllMocks());
 
 vi.mock('../hooks/useDebounce.js', () => ({ useDebounce: v => v }));
 
-vi.mock('../utils.js', () => ({
-  filterByPeriod: vi.fn((arr) => arr),
-}));
 vi.mock('../utils.js', () => ({
   filterByPeriod: vi.fn((arr) => arr),
 }));
@@ -51,6 +50,14 @@ vi.mock('./admin/AdminPermsView.jsx', () => ({ default: () => <div data-testid="
 vi.mock('./VisitLogView.jsx',  () => ({ default: () => <div data-testid="visit-log" /> }));
 vi.mock('./BlacklistView.jsx', () => ({ default: () => <div data-testid="blacklist" /> }));
 vi.mock('../chat/ChatView.jsx', () => ({ ChatView: () => <div data-testid="chat" /> }));
+vi.mock('../services/providers/serviceContainer.js', () => ({
+  services: {
+    admin: {
+      listDeletedUsersEverywhere: vi.fn(),
+      restoreUserEverywhere: vi.fn(),
+    },
+  },
+}));
 
 const adminUser = { uid: 'a1', role: 'admin', name: 'Администратор' };
 
@@ -90,6 +97,21 @@ describe('AdminView', () => {
     render(<AdminView user={adminUser} activeTab="users" setActiveTab={vi.fn()} />);
     fireEvent.click(screen.getByText(/добавить/i));
     expect(screen.getByTestId('add-user-modal')).toBeInTheDocument();
+  });
+
+  test('вкладка users-deleted показывает удалённых пользователей и восстанавливает пользователя', async () => {
+    services.admin.listDeletedUsersEverywhere.mockResolvedValue([
+      { uid: 'd1', name: 'Удалённый Пользователь', phone: '+7 900 123-45-67', apartment: '15', deletedAt: '2026-03-31T10:00:00.000Z' },
+    ]);
+    services.admin.restoreUserEverywhere.mockResolvedValue(undefined);
+
+    render(<AdminView user={adminUser} activeTab="users-deleted" setActiveTab={vi.fn()} />);
+
+    expect(await screen.findByText('Удалённый Пользователь')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Восстановить' }));
+
+    expect(services.admin.restoreUserEverywhere).toHaveBeenCalledWith({ uid: 'd1' });
+    expect(await screen.findByText('Удалённых пользователей нет')).toBeInTheDocument();
   });
 
   test('stats показывает правильный счётчик пользователей', () => {
