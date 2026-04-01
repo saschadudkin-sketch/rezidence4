@@ -180,6 +180,12 @@ describe('usersProvider', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/users');
   });
 
+  test('getDeleted → GET /api/users/deleted', async () => {
+    apiClient.get.mockResolvedValueOnce([]);
+    await usersProvider.getDeleted();
+    expect(apiClient.get).toHaveBeenCalledWith('/api/users/deleted');
+  });
+
   test('update → PATCH /api/users/:uid', async () => {
     apiClient.patch.mockResolvedValueOnce({ uid: 'u1' });
     await usersProvider.update('u1', { name: 'Новое' });

@@ -293,6 +293,9 @@ export const usersProvider = {
   async getAll() {
     return apiClient.get('/api/users');
   },
+  async getDeleted() {
+    return apiClient.get('/api/users/deleted');
+  },
   async update(uid, patch) {
     return apiClient.patch(`/api/users/${uid}`, patch);
   },
