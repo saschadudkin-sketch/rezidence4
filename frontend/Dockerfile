@@ -2,11 +2,12 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Accept build-time env vars from docker-compose
-ARG REACT_APP_RUNTIME_MODE=live
-ARG REACT_APP_API_URL=http://localhost:3001
-ENV REACT_APP_RUNTIME_MODE=$REACT_APP_RUNTIME_MODE
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+# Build-time env naming convention: frontend uses only VITE_* variables.
+# No REACT_APP_* compatibility mapping is applied in this image.
+ARG VITE_RUNTIME_MODE=live
+ARG VITE_API_URL=http://localhost:3001
+ENV VITE_RUNTIME_MODE=$VITE_RUNTIME_MODE
+ENV VITE_API_URL=$VITE_API_URL
 ENV CI=true
 
 COPY package*.json ./

@@ -39,8 +39,8 @@ nano .env
 
 Заполните `.env`:
 ```env
-REACT_APP_RUNTIME_MODE=live
-REACT_APP_API_URL=https://api.your-domain.ru
+VITE_RUNTIME_MODE=live
+VITE_API_URL=https://api.your-domain.ru
 BACKEND_URL=https://api.your-domain.ru
 ```
 
