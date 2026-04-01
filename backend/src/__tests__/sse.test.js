@@ -20,6 +20,11 @@ function mockRes() {
   };
 }
 
+function extractEventId(payload) {
+  const idLine = String(payload).split('\n').find((line) => line.startsWith('id: '));
+  return idLine ? idLine.slice(4) : null;
+}
+
 // Ждём setImmediate (sse использует setImmediate для write)
 const flushImmediate = () => new Promise(r => setImmediate(r));
 
@@ -226,5 +231,51 @@ describe('broadcastToAll — устойчивость при закрытых с
     await flushImmediate();
     // goodRes должен получить сообщение несмотря на ошибку badRes
     expect(goodRes.write).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('event id regression', () => {
+  test('id имеет устойчивый формат timestamp-randomUUID (совместим с Last-Event-ID как строка)', () => {
+    const sse = getSse();
+    const res = mockRes();
+    sse.addClient('u1', res, 'owner');
+
+    sse.broadcastChatMessage({ id: 'm1', text: 'hello' });
+
+    expect(res.write).toHaveBeenCalledTimes(1);
+    const payload = res.write.mock.calls[0][0];
+    const eventId = extractEventId(payload);
+
+    expect(eventId).toMatch(/^\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    // Last-Event-ID на клиенте хранится/передаётся как opaque string.
+    expect(typeof eventId).toBe('string');
+    expect(Number.isNaN(Number(eventId))).toBe(true);
+  });
+
+  test('id уникальны и не зависят от последовательного счётчика процесса', () => {
+    jest.doMock('crypto', () => ({
+      randomUUID: jest.fn()
+        .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
+        .mockReturnValueOnce('00000000-0000-4000-8000-000000000002'),
+    }));
+
+    const realDateNow = Date.now;
+    Date.now = jest.fn(() => 1700000000000);
+
+    const sse = getSse();
+    const res = mockRes();
+    sse.addClient('u1', res, 'owner');
+    sse.broadcastChatMessage({ id: 'm1' });
+    sse.broadcastChatMessage({ id: 'm2' });
+
+    const firstId = extractEventId(res.write.mock.calls[0][0]);
+    const secondId = extractEventId(res.write.mock.calls[1][0]);
+
+    expect(firstId).toBe('1700000000000-00000000-0000-4000-8000-000000000001');
+    expect(secondId).toBe('1700000000000-00000000-0000-4000-8000-000000000002');
+    expect(firstId).not.toBe(secondId);
+
+    Date.now = realDateNow;
+    jest.dontMock('crypto');
   });
 });
