@@ -1,12 +1,14 @@
 'use strict';
 
 const { STAFF_ROLES } = require('./constants');
+const { randomUUID } = require('crypto');
 
 // In-memory map: uid -> Set<{ res, role }>
 const clients = new Map();
 
-let _eventIdCounter = Date.now();
-function nextEventId() { return String(++_eventIdCounter); }
+function nextEventId() {
+  return `${Date.now()}-${randomUUID()}`;
+}
 
 const MAX_CONNECTIONS_PER_USER = 5;
 const MAX_TOTAL_CONNECTIONS = 2000;
