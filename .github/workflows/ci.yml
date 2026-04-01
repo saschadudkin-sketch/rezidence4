@@ -10,6 +10,18 @@ on:
     - cron: '0 3 * * *'
 
 jobs:
+  alert-rules-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install promtool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y prometheus
+      - name: Validate Prometheus rules
+        run: promtool check rules ops/alerts/*.yml
+
   backend-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -96,7 +108,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard]
+    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
