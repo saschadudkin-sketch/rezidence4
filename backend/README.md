@@ -24,3 +24,9 @@ Before merging:
 
 1. `cd backend && npm test`
 2. `cd frontend && npm test -- --watchAll=false`
+
+## Refresh legacy fallback flag
+
+- `REFRESH_LEGACY_FALLBACK_ENABLED=0` is the secure default for normal operation.
+- Set `REFRESH_LEGACY_FALLBACK_ENABLED=1` only as a temporary migration mode when you still have legacy refresh rows stored as raw token ids (`id=rawToken`).
+- After migration completes, return the flag to `0` immediately. While `=1`, backend keeps a warning log on startup and can increment legacy fallback metrics during `/api/auth/refresh`.
