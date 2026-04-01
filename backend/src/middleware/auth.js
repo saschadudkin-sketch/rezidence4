@@ -5,10 +5,32 @@ const logger = require('../logger');
 const { getRedis } = require('../lib/redisClient'); // shared singleton — одно соединение на весь процесс
 const USER_ACTIVE_CACHE_TTL_SECONDS = 30;
 const USER_ACTIVE_FALLBACK_TTL_MS = 5000;
+const USER_ACTIVE_FALLBACK_MAX_ENTRIES = 5000;
 const userActiveFallbackCache = new Map();
 
 function getUserActiveCacheKey(uid) {
   return `user_active:${uid}`;
+}
+
+function compactUserActiveFallbackCache(nowTs) {
+  for (const [uid, entry] of userActiveFallbackCache.entries()) {
+    if (entry.expiresAt <= nowTs) {
+      userActiveFallbackCache.delete(uid);
+    }
+  }
+  while (userActiveFallbackCache.size > USER_ACTIVE_FALLBACK_MAX_ENTRIES) {
+    const oldestUid = userActiveFallbackCache.keys().next().value;
+    if (!oldestUid) break;
+    userActiveFallbackCache.delete(oldestUid);
+  }
+}
+
+function setUserActiveFallback(uid, value, nowTs) {
+  userActiveFallbackCache.set(uid, {
+    value,
+    expiresAt: nowTs + USER_ACTIVE_FALLBACK_TTL_MS,
+  });
+  compactUserActiveFallbackCache(nowTs);
 }
 
 async function isTokenRevoked(jti) {
@@ -48,10 +70,7 @@ async function isUserActive(uid) {
       const cached = await _redis.get(cacheKey);
       if (cached !== null) {
         const value = cached === '1';
-        userActiveFallbackCache.set(uid, {
-          value,
-          expiresAt: now + USER_ACTIVE_FALLBACK_TTL_MS,
-        });
+        setUserActiveFallback(uid, value, now);
         return value;
       }
     } catch (err) {
@@ -64,10 +83,7 @@ async function isUserActive(uid) {
     [uid],
   );
   const isActive = rows.length > 0;
-  userActiveFallbackCache.set(uid, {
-    value: isActive,
-    expiresAt: now + USER_ACTIVE_FALLBACK_TTL_MS,
-  });
+  setUserActiveFallback(uid, isActive, now);
 
   if (_redis) {
     try {
@@ -148,4 +164,6 @@ module.exports = async function requireAuth(req, res, next) {
 
 module.exports.markTokenRevoked = markTokenRevoked;
 module.exports.invalidateUserActiveCache = invalidateUserActiveCache;
-module.exports.__clearUserActiveFallbackCache = () => userActiveFallbackCache.clear();
+if (process.env.NODE_ENV === 'test') {
+  module.exports.__clearUserActiveFallbackCache = () => userActiveFallbackCache.clear();
+}
