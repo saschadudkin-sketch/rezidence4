@@ -98,3 +98,36 @@ describe('seed.js', () => {
     exitSpy.mockRestore();
   });
 });
+
+describe('deprecate middleware headers', () => {
+  test('sets Deprecation/Sunset on /api/* alias with matching calendar day and valid HTTP-date', async () => {
+    const express = require('express');
+    const request = require('supertest');
+    const { deprecate } = require('../middleware/deprecate');
+
+    const app = express();
+    app.get('/api/requests', deprecate, (_req, res) => res.json({ ok: true }));
+
+    const res = await request(app).get('/api/requests');
+
+    expect(res.status).toBe(200);
+
+    const deprecation = res.headers.deprecation;
+    const sunset = res.headers.sunset;
+
+    expect(deprecation).toBeDefined();
+    expect(sunset).toBeDefined();
+
+    const depMatch = /^version="(\d{4}-\d{2}-\d{2})"$/.exec(deprecation);
+    expect(depMatch).not.toBeNull();
+
+    const depDate = depMatch[1];
+    const sunsetDate = new Date(sunset);
+
+    expect(Number.isNaN(sunsetDate.getTime())).toBe(false);
+    expect(sunset).toBe(sunsetDate.toUTCString());
+
+    const sunsetYmd = sunsetDate.toISOString().slice(0, 10);
+    expect(sunsetYmd).toBe(depDate);
+  });
+});
