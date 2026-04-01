@@ -50,3 +50,28 @@
 - Legacy fallback usage (daily)
 - DB pool total/idle/waiting
 - Active SSE connections and reconnect trends
+
+## Alert ownership and routing
+
+| Area | Primary owner | Secondary owner | Escalation channel |
+|---|---|---|---|
+| Auth/refresh errors | Backend on-call | Platform on-call | `#inc-auth` |
+| DB saturation/latency | Platform on-call | Backend on-call | `#inc-db` |
+| SSE reconnect anomalies | Backend on-call | Frontend on-call | `#inc-realtime` |
+| Frontend retry storms | Frontend on-call | Backend on-call | `#inc-web` |
+
+### Routing conventions
+
+- `severity=critical` -> page primary owner immediately, notify secondary owner.
+- `severity=warning` -> notify owner channel and create triage task within business hours.
+- Any alert firing > 30m requires incident ticket and runbook link in timeline.
+
+## SLO references
+
+- **Auth refresh success ratio SLO:** >= 99.5% over 30d rolling window.
+- **API availability SLO (core routes):** >= 99.9% over 30d.
+- **SSE delivery health objective:** reconnect error ratio < 1% over 1h windows.
+
+When changing thresholds, update both:
+1) alert rule in `ops/alerts/*.rules.yml`, and  
+2) this file + incident runbook links.

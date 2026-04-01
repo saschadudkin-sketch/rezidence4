@@ -23,6 +23,14 @@ async function isTokenRevoked(jti) {
   return rows.length > 0;
 }
 
+async function isUserActive(uid) {
+  const { rows } = await db.query(
+    'SELECT 1 FROM users WHERE uid=$1 AND deleted_at IS NULL',
+    [uid],
+  );
+  return rows.length > 0;
+}
+
 /**
  * Записать jti как отозванный.
  * Вызывается из routes/auth.js при logout.
@@ -63,6 +71,11 @@ module.exports = async function requireAuth(req, res, next) {
     if (payload.jti) {
       const revoked = await isTokenRevoked(payload.jti);
       if (revoked) return res.status(401).json({ error: 'Token revoked' });
+    }
+
+    const activeUser = await isUserActive(payload.uid);
+    if (!activeUser) {
+      return res.status(401).json({ error: 'User not found or deleted' });
     }
 
     req.user = payload;

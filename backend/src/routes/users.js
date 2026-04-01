@@ -131,7 +131,10 @@ router.patch('/:uid', async (req, res, next) => {
 
     vals.push(req.params.uid);
     const { rows } = await db.query(
-      `UPDATE users SET ${fields.join(',')} WHERE uid=$${i} RETURNING *`,
+      `UPDATE users
+       SET ${fields.join(',')}
+       WHERE uid=$${i} AND deleted_at IS NULL
+       RETURNING *`,
       vals,
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
@@ -148,7 +151,7 @@ router.delete('/:uid', async (req, res, next) => {
 
     await db.query(
       `UPDATE users
-       SET deleted_at=NOW()
+       SET deleted_at=NOW(), updated_at=NOW()
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.params.uid],
     );

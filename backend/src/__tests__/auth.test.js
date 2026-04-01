@@ -152,7 +152,10 @@ describe('POST /api/auth/logout', () => {
       process.env.JWT_SECRET,
       { expiresIn: '15m' },
     );
-    db.query.mockResolvedValue({ rows: [] });
+    db.query
+      .mockResolvedValueOnce({ rows: [] }) // middleware isTokenRevoked (jti not revoked)
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // middleware isUserActive
+      .mockResolvedValue({ rows: [] });
     const res = await request(app)
       .post('/api/auth/logout')
       .set('Cookie', [`token=${token}`]);
@@ -168,7 +171,10 @@ describe('POST /api/auth/logout', () => {
       process.env.JWT_SECRET,
       { expiresIn: '15m' },
     );
-    db.query.mockResolvedValue({ rows: [] });
+    db.query
+      .mockResolvedValueOnce({ rows: [] }) // middleware isTokenRevoked (jti not revoked)
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // middleware isUserActive
+      .mockResolvedValue({ rows: [] });
     await request(app)
       .post('/api/auth/logout')
       .set('Cookie', [`token=${token}`, 'refreshToken=legacy-or-raw-token']);
@@ -219,5 +225,48 @@ describe('POST /api/auth/refresh', () => {
     const deleteCalls = db.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM refresh_tokens'));
     expect(deleteCalls.length).toBeGreaterThanOrEqual(2);
     expect(deleteCalls[0][0]).toContain('id_hash');
+  });
+});
+
+describe('GET /api/auth/me', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('200 возвращает профиль активного пользователя', async () => {
+    const token = jwt.sign(
+      { uid: 'u1', role: 'owner', name: 'Test' }, // без jti, чтобы пропустить revocation path
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+
+    db.query
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }) // middleware isUserActive
+      .mockResolvedValueOnce({
+        rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }],
+      }); // /me query
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', [`token=${token}`]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.uid).toBe('u1');
+  });
+
+  it('401 если пользователь soft-deleted (блокируется в middleware)', async () => {
+    const token = jwt.sign(
+      { uid: 'u-deleted', role: 'owner', name: 'Deleted' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+
+    db.query.mockResolvedValueOnce({ rows: [] }); // middleware isUserActive => false
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', [`token=${token}`]);
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('User not found or deleted');
+    expect(db.query).toHaveBeenCalledTimes(1);
   });
 });

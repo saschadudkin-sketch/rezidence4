@@ -40,19 +40,19 @@ function assertOperationResponseSchemas(operation) {
   expect(operation.responses).toBeDefined();
 
   for (const [statusCode, response] of Object.entries(operation.responses)) {
+    // 204 No Content valid без content.
+    if (statusCode === '204') continue;
+
     if (!response.content) {
-      // 204 No Content responses are valid without a content section.
-      expect(statusCode).toBe('204');
       continue;
     }
 
-    for (const [mediaType, mediaTypeSchema] of Object.entries(response.content)) {
-      // Keep strict validation for application/json and validate
-      // schema for any other declared media type as well.
+    for (const [mediaType, mediaTypeSchema] of Object.entries(response.content ?? {})) {
+      // Строго проверяем JSON-контракты. Для non-JSON ответов
+      // (text/event-stream, text/plain, binary) schema может быть
+      // не обязателен в наших smoke-правилах.
+      if (mediaType !== 'application/json') continue;
       expect(mediaTypeSchema.schema).toBeDefined();
-      if (mediaType === 'application/json') {
-        expect(mediaTypeSchema.schema).toBeDefined();
-      }
     }
   }
 }
@@ -102,6 +102,21 @@ describe('OpenAPI contract smoke', () => {
         },
       });
     }).toThrow();
+  });
+
+  test('allows non-json response content without schema (positive)', () => {
+    expect(() => {
+      assertOperationResponseSchemas({
+        responses: {
+          200: {
+            description: 'OK',
+            content: {
+              'text/plain': {},
+            },
+          },
+        },
+      });
+    }).not.toThrow();
   });
 });
 

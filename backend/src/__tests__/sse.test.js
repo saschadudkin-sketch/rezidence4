@@ -278,4 +278,32 @@ describe('event id regression', () => {
     Date.now = realDateNow;
     jest.dontMock('crypto');
   });
+
+  test('id остаются уникальными после "рестарта" процесса (resetModules)', () => {
+    // Process #1
+    jest.doMock('crypto', () => ({
+      randomUUID: jest.fn().mockReturnValue('11111111-1111-4111-8111-111111111111'),
+    }));
+    let sse = getSse();
+    let res = mockRes();
+    sse.addClient('u1', res, 'owner');
+    sse.broadcastChatMessage({ id: 'm1' });
+    const idBeforeRestart = extractEventId(res.write.mock.calls[0][0]);
+
+    // "Restart" process: новый module instance + новый crypto mock
+    jest.resetModules();
+    jest.doMock('crypto', () => ({
+      randomUUID: jest.fn().mockReturnValue('22222222-2222-4222-8222-222222222222'),
+    }));
+    sse = getSse();
+    res = mockRes();
+    sse.addClient('u1', res, 'owner');
+    sse.broadcastChatMessage({ id: 'm2' });
+    const idAfterRestart = extractEventId(res.write.mock.calls[0][0]);
+
+    expect(idBeforeRestart).toContain('11111111-1111-4111-8111-111111111111');
+    expect(idAfterRestart).toContain('22222222-2222-4222-8222-222222222222');
+    expect(idAfterRestart).not.toBe(idBeforeRestart);
+    jest.dontMock('crypto');
+  });
 });

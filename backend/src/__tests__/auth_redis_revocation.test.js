@@ -53,7 +53,9 @@ test('пропускает валидный токен (не в revocations)', a
   const token = makeToken({ uid: 'u1', role: 'owner', jti });
 
   // DB: jti не найден (не отозван)
-  db.query.mockResolvedValueOnce({ rows: [] });
+  db.query
+    .mockResolvedValueOnce({ rows: [] }) // token_revocations
+    .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }); // users active
 
   const req  = buildReq(token);
   const res  = buildRes();
@@ -92,6 +94,8 @@ test('пропускает токен без jti (legacy токен)', async () 
   // Токен без jti — нет проверки revocation
   const token = makeToken({ uid: 'u2', role: 'security' }); // без jti
 
+  db.query.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }); // users active
+
   const req  = buildReq(token);
   const res  = buildRes();
   const next = jest.fn();
@@ -99,8 +103,9 @@ test('пропускает токен без jti (legacy токен)', async () 
   await requireAuth(req, res, next);
 
   expect(next).toHaveBeenCalled();
-  // DB не должен был вызываться
-  expect(db.query).not.toHaveBeenCalled();
+  // Для legacy токена не проверяем revocation, но проверяем активность пользователя
+  expect(db.query).toHaveBeenCalledTimes(1);
+  expect(db.query.mock.calls[0][0]).toMatch(/FROM users/i);
 });
 
 // ─── 4. Невалидный JWT ────────────────────────────────────────────────────────
@@ -123,7 +128,9 @@ test('принимает токен через Bearer заголовок', async
   const jti = 'header-jti-5';
   const token = makeToken({ uid: 'u3', role: 'admin', jti });
 
-  db.query.mockResolvedValueOnce({ rows: [] }); // не отозван
+  db.query
+    .mockResolvedValueOnce({ rows: [] }) // не отозван
+    .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }); // user active
 
   const req  = buildReq(token, 'header');
   const res  = buildRes();
@@ -147,6 +154,21 @@ test('401 когда токен отсутствует', async () => {
   expect(next).not.toHaveBeenCalled();
   expect(res.status).toHaveBeenCalledWith(401);
   expect(res.json).toHaveBeenCalledWith({ error: 'No token' });
+});
+
+test('401 когда пользователь удалён (deleted_at IS NOT NULL)', async () => {
+  const token = makeToken({ uid: 'u-deleted', role: 'owner' }); // без jti
+  db.query.mockResolvedValueOnce({ rows: [] }); // user inactive
+
+  const req = buildReq(token);
+  const res = buildRes();
+  const next = jest.fn();
+
+  await requireAuth(req, res, next);
+
+  expect(next).not.toHaveBeenCalled();
+  expect(res.status).toHaveBeenCalledWith(401);
+  expect(res.json).toHaveBeenCalledWith({ error: 'User not found or deleted' });
 });
 
 // ─── 7. markTokenRevoked пишет в DB ──────────────────────────────────────────
