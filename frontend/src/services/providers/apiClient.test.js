@@ -252,6 +252,21 @@ describe('apiClient.uploadPhoto', () => {
   });
 });
 
+
+
+describe('apiClient retry backoff intervals', () => {
+  test('использует экспоненциальные задержки с потолком 10s', async () => {
+    const { _getRetryDelayMs } = await import('./apiClient');
+
+    expect(_getRetryDelayMs(1)).toBe(1000);
+    expect(_getRetryDelayMs(2)).toBe(2000);
+    expect(_getRetryDelayMs(3)).toBe(4000);
+    expect(_getRetryDelayMs(4)).toBe(8000);
+    expect(_getRetryDelayMs(5)).toBe(10000);
+    expect(_getRetryDelayMs(6)).toBe(10000);
+  });
+});
+
 // ─── Timeout + Retry (AUDIT-1, AUDIT-2) ──────────────────────────────────────
 
 describe.skip('apiClient timeout & retry', () => {

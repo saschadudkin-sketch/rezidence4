@@ -16,6 +16,10 @@ const BASE_URL = API_BASE_URL;
 /** Статусы, при которых ретрай бессмысленен */
 const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 409, 422]);
 
+export function _getRetryDelayMs(attempt) {
+  return Math.min(1000 * (2 ** (attempt - 1)), 10_000);
+}
+
 /**
  * Базовый fetch с таймаутом.
  * @param {string} url
@@ -41,12 +45,12 @@ async function fetchWithTimeout(url, options, timeoutMs = 15_000) {
 let _refreshPromise = null;
 let _refreshFailed = false;
 
-async function tryRefreshToken(requestId) {
+async function tryRefreshToken() {
   if (_refreshFailed) return false;
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = fetchWithTimeout(
     `${BASE_URL}/api/auth/refresh`,
-    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': requestId } },
+    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId() } },
     10_000,
   ).then(res => {
     _refreshPromise = null;
@@ -83,11 +87,11 @@ function makeRequestId() {
  */
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
-  const requestId = makeRequestId();
+  const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 1000 * attempt));
+      await new Promise(r => setTimeout(r, _getRetryDelayMs(attempt)));
     }
 
     try {
@@ -95,7 +99,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         `${BASE_URL}${path}`,
         {
           method,
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': requestId, ...extraHeaders },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId(), ...extraHeaders },
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
         },
@@ -105,7 +109,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
 
       // FIX [S1]: 401 — пробуем refresh token перед сбросом сессии
       if (res.status === 401 && !path.includes('/auth/refresh')) {
-        const refreshed = await tryRefreshToken(requestId);
+        const refreshed = await tryRefreshToken();
         if (refreshed) {
           // Повторяем оригинальный запрос с новым access token
           continue;
@@ -180,10 +184,10 @@ async function uploadPhoto(blob) {
 }
 
 export const apiClient = {
-  get:         (path)              => api('GET',    path),
+  get:         (path, opts)        => api('GET',    path, undefined, opts),
   post:        (path, body, opts)  => api('POST',   path, body, opts),
-  patch:       (path, body)        => api('PATCH',  path, body),
-  delete:      (path, body)        => api('DELETE', path, body),
+  patch:       (path, body, opts)  => api('PATCH',  path, body, opts),
+  delete:      (path, body, opts)  => api('DELETE', path, body, opts),
   uploadPhoto,
 };
 
