@@ -244,6 +244,20 @@ body{font-size:var(--fs-body);line-height:var(--lh-body)}
 .screen-loading-label{font-size:14px}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
+.offline-banner{
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:var(--warn, #f59e0b);color:#000;
+  text-align:center;padding:6px 12px;
+  font-size:13px;font-weight:600;
+  transform:translateY(-100%);
+  transition:transform 220ms ease;
+  pointer-events:none;
+}
+.offline-banner.is-visible{transform:translateY(0);pointer-events:auto}
+.app-content-offset{padding-top:0;transition:padding-top 220ms ease}
+.app-content-offset.has-offline-banner{padding-top:36px}
+.api-config-error{color:var(--danger, #dc3c3c);margin-top:8px}
+
 @keyframes fadeIn  {from{opacity:0}to{opacity:1}}
 @keyframes riseUp  {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes sheetUp {from{transform:translateY(100%)}to{transform:none}}

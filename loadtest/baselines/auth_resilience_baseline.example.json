@@ -1,0 +1,15 @@
+{
+  "metrics": {
+    "auth_me_latency": {
+      "values": {
+        "p(95)": 180.0,
+        "p(99)": 320.0
+      }
+    },
+    "auth_errors": {
+      "values": {
+        "rate": 0.001
+      }
+    }
+  }
+}

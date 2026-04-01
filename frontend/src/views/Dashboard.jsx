@@ -184,6 +184,7 @@ export default function Dashboard({ user, onLogout }) {
     stats:     ['chart', 'Аналитика', 0],
     requests:  ['list', 'Заявки', pendingP + pendingT],
     users:     ['users', 'Резиденты', 0],
+    'users-deleted': ['trash', 'Удалённые', 0],
   }), [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
 
   const NAV = useMemo(
