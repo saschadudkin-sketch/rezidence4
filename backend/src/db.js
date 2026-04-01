@@ -202,6 +202,13 @@ const MIGRATIONS = [
       await client.query(`CREATE INDEX IF NOT EXISTS idx_bl_added_at    ON blacklist(added_at DESC)`);
     },
   },
+  {
+    id: '003_users_soft_delete',
+    async up(client) {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NULL`);
+    },
+  },
 ];
 
 async function migrate() {

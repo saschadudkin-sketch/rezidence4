@@ -69,6 +69,7 @@ describe('db.migrate — versioned migrations', () => {
           rows: [
             { id: '001_initial_schema' },
             { id: '002_indexes_and_soft_delete' },
+            { id: '003_users_soft_delete' },
           ],
         });
       }

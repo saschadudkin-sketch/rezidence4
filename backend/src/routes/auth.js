@@ -106,7 +106,10 @@ router.post('/send-otp', async (req, res, next) => {
     const phone = normalizePhone(req.body.phone || '');
     if (phone.length < 12) return res.status(400).json({ error: 'Неверный номер телефона' });
 
-    const { rows } = await db.query('SELECT uid FROM users WHERE phone=$1', [phone]);
+    const { rows } = await db.query(
+      'SELECT uid FROM users WHERE phone=$1 AND deleted_at IS NULL',
+      [phone],
+    );
     // SECURITY FIX: не возвращаем 404 при неизвестном номере — это user enumeration.
     // Атакующий мог перебирать номера и выяснять, кто зарегистрирован в системе.
     // Теперь: одинаковый ответ 200 при известном и неизвестном номере.
@@ -202,7 +205,9 @@ router.post('/verify-otp', async (req, res, next) => {
     }
 
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar FROM users WHERE phone=$1`,
+      `SELECT uid, phone, name, role, apartment, avatar
+       FROM users
+       WHERE phone=$1 AND deleted_at IS NULL`,
       [phone],
     );
     if (!users.length) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -289,7 +294,9 @@ router.post('/refresh', async (req, res, next) => {
 
     const uid = rows[0].uid;
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar FROM users WHERE uid=$1`, [uid],
+      `SELECT uid, phone, name, role, apartment, avatar
+       FROM users
+       WHERE uid=$1 AND deleted_at IS NULL`, [uid],
     );
     if (!users.length) return res.status(404).json({ error: 'User not found' });
 
@@ -306,7 +313,9 @@ router.post('/refresh', async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar FROM users WHERE uid=$1`,
+      `SELECT uid, phone, name, role, apartment, avatar
+       FROM users
+       WHERE uid=$1 AND deleted_at IS NULL`,
       [req.user.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
