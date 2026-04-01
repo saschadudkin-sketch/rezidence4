@@ -43,14 +43,6 @@
 
 - Alert rules: [`ops/alerts/auth.rules.yml`](../ops/alerts/auth.rules.yml), [`ops/alerts/db.rules.yml`](../ops/alerts/db.rules.yml)
 - Runbook: [`docs/runbooks/alerts.md`](./runbooks/alerts.md)
-- Consistency check script: `node ops/check_observability_consistency.js`
-
-## CI enforcement
-
-- Workflow job: `observability-consistency` in `.github/workflows/ci.yml`.
-- The job fails CI if:
-  1) an alert from `ops/alerts/*.rules.yml` is missing in `docs/runbooks/alerts.md`, or
-  2) `docs/observability.md` is missing rule-file/runbook references.
 
 ## Dashboard panels
 

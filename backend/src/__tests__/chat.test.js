@@ -18,8 +18,6 @@ const request = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
 process.env.BACKEND_URL = 'http://backend.test';
-const prevAuthEnforceActive = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = '0';
 
 const chatRouter = require('../routes/chat');
 
@@ -31,10 +29,6 @@ function buildApp() {
   return app;
 }
 const app = buildApp();
-afterAll(() => {
-  if (prevAuthEnforceActive === undefined) delete process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
-  else process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK = prevAuthEnforceActive;
-});
 
 function makeToken(payload) {
   return jwt.sign(payload, 'test-secret', { expiresIn: '1h' });
@@ -43,16 +37,7 @@ function makeToken(payload) {
 // ─── PATCH /api/chat/messages/:id — reactions validation ─────────────────────
 
 describe('PATCH /api/chat/messages/:id — валидация reactions', () => {
-  let txClient;
-  beforeEach(() => {
-    jest.clearAllMocks();
-    db.query.mockReset();
-    txClient = {
-      query: jest.fn(),
-      release: jest.fn(),
-    };
-    db.pool = { connect: jest.fn().mockResolvedValue(txClient) };
-  });
+  beforeEach(() => jest.clearAllMocks());
 
   const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
 
@@ -113,34 +98,29 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': [123, 456] } }); // числа вместо uid-строк
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Reaction value must be \[\] or \[your_uid\]/i);
+    expect(res.body.error).toMatch(/Invalid reaction/i);
   });
 
   it('200 при корректных reactions', async () => {
     const now = new Date();
-    txClient.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: { '👍': ['u2'] } }] }) // SELECT ... FOR UPDATE
-      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: { '👍': ['u2', 'u1'], '❤️': ['u1'] }, edited: false, at: now }] }) // UPDATE RETURNING
-      .mockResolvedValueOnce(undefined); // COMMIT
+    db.query
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] }) // existing
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: { '👍': ['u2'] }, edited: false, at: now }] }); // UPDATE RETURNING
 
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
-      .send({ reactions: { '👍': ['u1'], '❤️': ['u1'] } });
+      .send({ reactions: { '👍': ['u2', 'u3'], '❤️': ['u1'] } });
 
     expect(res.status).toBe(200);
     expect(res.body.reactions).toBeDefined();
-    expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 
   it('200 при пустом объекте reactions (удаление всех реакций)', async () => {
     const now = new Date();
-    txClient.query
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
-      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: {}, edited: false, at: now }] }) // UPDATE RETURNING
-      .mockResolvedValueOnce(undefined); // COMMIT
+    db.query
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'msg-1', uid: 'u1', name: 'Иванов', role: 'owner', text: 'hi', photo: null, reply_to: null, reactions: {}, edited: false, at: now }] });
 
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
@@ -148,17 +128,13 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: {} });
 
     expect(res.status).toBe(200);
-    expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 });
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
 
 describe('POST /api/chat/messages', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    db.query.mockReset();
-  });
+  beforeEach(() => jest.clearAllMocks());
 
   it('400 когда нет id', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
@@ -247,10 +223,7 @@ describe('POST /api/chat/messages', () => {
 // ─── DELETE /api/chat/messages/:id ───────────────────────────────────────────
 
 describe('DELETE /api/chat/messages/:id', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    db.query.mockReset();
-  });
+  beforeEach(() => jest.clearAllMocks());
 
   it('403 когда не автор и не admin', async () => {
     const token = makeToken({ uid: 'u2', role: 'owner', name: 'Петров' });
@@ -288,10 +261,7 @@ describe('DELETE /api/chat/messages/:id', () => {
 // ─── GET /api/chat/messages — pagination (AUDIT-6) ───────────────────────────
 
 describe('GET /api/chat/messages — cursor pagination (AUDIT-6)', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    db.query.mockReset();
-  });
+  beforeEach(() => jest.clearAllMocks());
   const token = makeToken({ uid: 'u1', role: 'security', name: 'Охрана' });
 
   function makeRows(n) {
