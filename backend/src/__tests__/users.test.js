@@ -86,6 +86,8 @@ describe('GET /api/users', () => {
       .get('/api/users').set('Cookie', `token=${T_ADMIN}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).toMatch(/deleted_at IS NULL/i);
   });
 
   it('не возвращает лишних полей — только uid/phone/name/role/apartment/avatar', async () => {
@@ -346,14 +348,27 @@ describe('DELETE /api/users/:uid', () => {
     expect(db.query).not.toHaveBeenCalled();
   });
 
-  it('200 успешное удаление другого пользователя', async () => {
+  it('200 soft-delete другого пользователя', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .delete('/api/users/u1').set('Cookie', `token=${T_ADMIN}`);
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     const sql = db.query.mock.calls[0][0];
-    expect(sql).toMatch(/DELETE FROM users/i);
+    expect(sql).toMatch(/UPDATE users/i);
+    expect(sql).toMatch(/SET deleted_at=NOW\(\)/i);
     expect(db.query.mock.calls[0][1]).toEqual(['u1']);
+  });
+
+  it('не удаляет связанные данные каскадно при soft-delete', async () => {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .delete('/api/users/u1').set('Cookie', `token=${T_ADMIN}`);
+    expect(res.status).toBe(200);
+    expect(db.query).toHaveBeenCalledTimes(1);
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).not.toMatch(/DELETE FROM users/i);
+    expect(sql).not.toMatch(/DELETE FROM requests/i);
+    expect(sql).toMatch(/UPDATE users/i);
   });
 });

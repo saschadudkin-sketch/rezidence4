@@ -30,7 +30,10 @@ router.get('/', async (req, res, next) => {
     }
     // FIX [PERF-1]: явные колонки вместо SELECT *
     const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar FROM users ORDER BY name`,
+      `SELECT uid, phone, name, role, apartment, avatar
+       FROM users
+       WHERE deleted_at IS NULL
+       ORDER BY name`,
     );
     res.json(rows.map(fmt));
   } catch (err) { next(err); }
@@ -136,14 +139,19 @@ router.patch('/:uid', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── DELETE /api/users/:uid ───────────────────────────────────────────────────
+// ─── DELETE /api/users/:uid (soft-delete) ────────────────────────────────────
 
 router.delete('/:uid', async (req, res, next) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
     if (req.user.uid === req.params.uid) return res.status(400).json({ error: 'Cannot delete yourself' });
 
-    await db.query(`DELETE FROM users WHERE uid=$1`, [req.params.uid]);
+    await db.query(
+      `UPDATE users
+       SET deleted_at=NOW()
+       WHERE uid=$1 AND deleted_at IS NULL`,
+      [req.params.uid],
+    );
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

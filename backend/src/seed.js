@@ -20,7 +20,7 @@ async function seed() {
   await db.migrate();
 
   const { rows } = await db.query(
-    `SELECT uid FROM users WHERE phone=$1`, [ADMIN.phone],
+    `SELECT uid FROM users WHERE phone=$1 AND deleted_at IS NULL`, [ADMIN.phone],
   );
 
   if (rows.length) {
