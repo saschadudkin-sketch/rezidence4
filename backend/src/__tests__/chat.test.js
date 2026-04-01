@@ -254,6 +254,17 @@ describe('POST /api/chat/messages', () => {
     expect(res.body.error).toMatch(/id required/i);
   });
 
+  it('400 когда id в неверном формате и без обращения к БД', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ id: 'bad id!', text: 'Hello' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid message id format/i);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
   it('201 при корректном сообщении', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
     const now = new Date();
