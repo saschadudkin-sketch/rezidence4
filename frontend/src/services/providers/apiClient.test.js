@@ -265,6 +265,18 @@ describe('apiClient retry backoff intervals', () => {
     expect(_getRetryDelayMs(5)).toBe(10000);
     expect(_getRetryDelayMs(6)).toBe(10000);
   });
+
+  test('jitter delay остаётся в пределах [0..baseDelay]', async () => {
+    const { _getRetryDelayWithJitterMs } = await import('./apiClient');
+    const rndSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    expect(_getRetryDelayWithJitterMs(1)).toBeGreaterThanOrEqual(0);
+    expect(_getRetryDelayWithJitterMs(1)).toBeLessThanOrEqual(1000);
+    expect(_getRetryDelayWithJitterMs(4)).toBeGreaterThanOrEqual(0);
+    expect(_getRetryDelayWithJitterMs(4)).toBeLessThanOrEqual(8000);
+
+    rndSpy.mockRestore();
+  });
 });
 
 // ─── Timeout + Retry (AUDIT-1, AUDIT-2) ──────────────────────────────────────

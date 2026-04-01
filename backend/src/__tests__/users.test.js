@@ -6,6 +6,25 @@
  */
 jest.mock('../db');
 const db = require('../db');
+jest.mock('../middleware/auth', () => {
+  const jwt = require('jsonwebtoken');
+  const mw = (req, res, next) => {
+    let token = req.cookies?.token || null;
+    if (!token) {
+      const header = req.headers.authorization || '';
+      token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    }
+    if (!token) return res.status(401).json({ error: 'No token' });
+    try {
+      req.user = jwt.verify(token, process.env.JWT_SECRET);
+      next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+  };
+  mw.markTokenRevoked = jest.fn().mockResolvedValue(undefined);
+  return mw;
+});
 
 const express      = require('express');
 const cookieParser = require('cookie-parser');
@@ -320,6 +339,8 @@ describe('PATCH /api/users/:uid', () => {
       .send({ name: 'Кто-то' });
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
+    const sql = db.query.mock.calls[0][0];
+    expect(sql).toMatch(/deleted_at IS NULL/i);
   });
 });
 
@@ -357,6 +378,7 @@ describe('DELETE /api/users/:uid', () => {
     const sql = db.query.mock.calls[0][0];
     expect(sql).toMatch(/UPDATE users/i);
     expect(sql).toMatch(/SET deleted_at=NOW\(\)/i);
+    expect(sql).toMatch(/updated_at=NOW\(\)/i);
     expect(db.query.mock.calls[0][1]).toEqual(['u1']);
   });
 
