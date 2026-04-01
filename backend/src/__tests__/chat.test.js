@@ -269,6 +269,17 @@ describe('POST /api/chat/messages', () => {
     expectNoDbQuery();
   });
 
+  it('400 когда нет id даже для photo-only сообщения', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .set('Cookie', `token=${token}`)
+      .send({ photo: '/uploads/photo_1.jpg' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/id required/i);
+    expectNoDbQuery();
+  });
+
   it('400 когда id в неверном формате и без обращения к БД', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
     const res = await request(app)
