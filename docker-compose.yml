@@ -55,7 +55,8 @@ services:
       # FIX [AUDIT]: Redis URL теперь содержит пароль
       REDIS_URL:     redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET:    ${JWT_SECRET}
-      JWT_EXPIRES:   30d
+      # Время жизни access token задаётся в backend/src/routes/auth.js
+      # (ACCESS_TOKEN_EXPIRES = '15m'). JWT_EXPIRES здесь не используется — удалён.
       SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
       BACKEND_URL:   ${BACKEND_URL:-http://localhost:3001}
       # FIX [SEC-4]: FRONTEND_URL обязателен в production.

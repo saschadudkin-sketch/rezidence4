@@ -209,6 +209,34 @@ const MIGRATIONS = [
       await client.query(`CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NULL`);
     },
   },
+  {
+    id: '004_composite_indexes',
+    // FIX [PERF]: составные частичные индексы для горячих путей запросов.
+    //
+    // ПРОБЛЕМА: RequestsService.list() для жильцов (~80% запросов):
+    //   WHERE created_by_uid=$1 AND deleted_at IS NULL ORDER BY created_at DESC
+    // Раньше PostgreSQL использовал только один из двух одноколоночных индексов
+    // (idx_req_uid или idx_req_created_at) + filter/sort по второму в памяти.
+    // При 10000+ заявок — full index scan + sort = заметная деградация.
+    //
+    // РЕШЕНИЕ: составной частичный индекс покрывает весь WHERE + ORDER BY
+    // одним index range scan без дополнительной сортировки.
+    async up(client) {
+      // Для жильцов: WHERE created_by_uid=$1 AND deleted_at IS NULL ORDER BY created_at DESC
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_req_uid_active_created
+        ON requests(created_by_uid, created_at DESC)
+        WHERE deleted_at IS NULL
+      `);
+      // Для персонала: WHERE deleted_at IS NULL ORDER BY created_at DESC
+      // (уже есть idx_req_created_at, но без частичного предиката deleted_at IS NULL)
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_req_active_created
+        ON requests(created_at DESC)
+        WHERE deleted_at IS NULL
+      `);
+    },
+  },
 ];
 
 async function migrate() {

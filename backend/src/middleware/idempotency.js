@@ -31,7 +31,11 @@ async function idempotency(req, res, next) {
     return res.status(400).json({ error: 'Idempotency-Key must be a string ≤ 256 chars' });
   }
 
-  const cacheKey = `idem:${key}`;
+  // FIX [SEC]: ключ изолирован по uid пользователя.
+  // Без uid два разных пользователя с одинаковым Idempotency-Key получали бы
+  // кешированный ответ друг друга — утечка данных между аккаунтами.
+  const userScope = req.user?.uid || 'anon';
+  const cacheKey = `idem:${userScope}:${key}`;
   const redis    = getRedis(); // shared singleton — одно соединение на весь процесс
 
   try {

@@ -78,6 +78,12 @@ const LoadingScreen = memo(function LoadingScreen() {
 // FIX [MEMO]: AppInner memo — предотвращает ре-рендер при любом изменении
 // AppProvider контекста не связанного с auth (requests, chat обновления).
 const AppInner = memo(function AppInner() {
+  // FIX [HOOKS]: хуки должны вызываться БЕЗУСЛОВНО — до любого раннего возврата.
+  // Нарушение Rules of Hooks: если API_CONFIG_ERROR менялся в runtime,
+  // React падал с "Rendered more hooks than during the previous render".
+  const { phase, user, login, logout } = useAuth();
+  const isOnline = useOnlineStatus();
+
   if (API_CONFIG_ERROR) {
     return (
       <>
@@ -90,9 +96,6 @@ const AppInner = memo(function AppInner() {
       </>
     );
   }
-
-  const { phase, user, login, logout } = useAuth();
-  const isOnline = useOnlineStatus();
 
   // Защита: если phase=dashboard но user=null — fallback на логин
   const safePhase = (phase === PHASE.DASHBOARD && !user) ? PHASE.LOGIN : phase;
