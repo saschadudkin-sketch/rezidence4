@@ -19,6 +19,9 @@ function useOnlineStatus() {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const lastToastAtRef = useRef(0);
+  const lastStatusRef = useRef(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   useEffect(() => {
     const showToastThrottled = (message, level) => {
@@ -29,10 +32,14 @@ function useOnlineStatus() {
     };
 
     const goOnline = () => {
+      if (lastStatusRef.current === true) return;
+      lastStatusRef.current = true;
       setIsOnline(true);
       showToastThrottled('Соединение восстановлено', 'success');
     };
     const goOffline = () => {
+      if (lastStatusRef.current === false) return;
+      lastStatusRef.current = false;
       setIsOnline(false);
       showToastThrottled('Нет интернета — работаем офлайн', 'warning');
     };
