@@ -87,7 +87,7 @@ export async function subscribePush(uid) {
     //
     // import { getMessaging, getToken } from 'some-push-sdk';
     // const messaging = getMessaging();
-    // const token = await getToken(messaging, { vapidKey: process.env.REACT_APP_VAPID_KEY });
+    // const token = await getToken(messaging, { vapidKey: import.meta.env.VITE_VAPID_KEY });
     // if (token && uid) {
     //   await saveFcmToken(uid, token); // backend API endpoint
     // }

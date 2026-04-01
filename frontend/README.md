@@ -21,6 +21,16 @@ VITE_RUNTIME_MODE=live
 VITE_API_URL=http://localhost:3001
 ```
 
+## Docker build env convention
+
+Для frontend build/runtime в Docker используется **только** префикс `VITE_*`:
+
+- `VITE_RUNTIME_MODE`
+- `VITE_API_URL`
+
+Важно: в `frontend/Dockerfile` **нет** маппинга `REACT_APP_* -> VITE_*`, поэтому в `docker-compose.yml` и CI нужно передавать именно `VITE_*` переменные.
+
+
 ## Тесты
 
 ```bash
