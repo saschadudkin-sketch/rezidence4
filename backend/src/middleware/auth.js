@@ -11,10 +11,14 @@ const userActiveFallbackCache = new Map();
 const redisWarnAtByScope = new Map();
 
 function shouldEnforceUserActiveCheck() {
+  const raw = process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK;
+  if (typeof raw === 'string') {
+    const v = raw.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(v)) return true;
+    if (['0', 'false', 'no', 'off'].includes(v)) return false;
+  }
   // Compatibility mode: by default in test env we keep legacy behavior (token verification only),
   // unless AUTH_ENFORCE_ACTIVE_USER_CHECK=1 is explicitly enabled.
-  if (process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK === '1') return true;
-  if (process.env.AUTH_ENFORCE_ACTIVE_USER_CHECK === '0') return false;
   return process.env.NODE_ENV !== 'test';
 }
 
