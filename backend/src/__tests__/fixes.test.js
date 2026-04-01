@@ -226,7 +226,7 @@ describe('FIX-6: CSRF exempt uses exact path matching', () => {
   });
 
   test('POST with matching csrf cookie+header passes', () => {
-    const token = 'valid-csrf-token-32chars';
+    const token = 'c'.repeat(64); // valid 32-byte hex token
     const req   = mockReq(
       'POST', '/chat/messages',
       { 'rz-csrf': token },

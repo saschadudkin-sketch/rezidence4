@@ -1,6 +1,7 @@
 'use strict';
 const express   = require('express');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const db        = require('../db');
 const requireAuth = require('../middleware/auth');
 const sse       = require('../sse');
@@ -34,7 +35,7 @@ const sseConnectLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много SSE-подключений. Подождите.' },
-  keyGenerator: (req) => req.user?.uid || req.ip,
+  keyGenerator: (req) => req.user?.uid || ipKeyGenerator(req),
 });
 
 // FIX: поддерживаем UUID и legacy/string id, чтобы не ломать существующий чат,

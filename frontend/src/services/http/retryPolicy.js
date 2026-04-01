@@ -1,5 +1,6 @@
 /** Статусы, при которых ретрай бессмысленен */
 export const NO_RETRY_STATUSES = new Set([400, 401, 403, 404, 409, 422]);
+export const MAX_RETRY_AFTER_DELAY_MS = 30_000;
 
 export function getRetryDelayMs(attempt) {
   return Math.min(1000 * (2 ** (attempt - 1)), 10_000);
@@ -11,4 +12,18 @@ export function getRetryDelayMs(attempt) {
 export function getRetryDelayWithJitterMs(attempt) {
   const base = getRetryDelayMs(attempt);
   return Math.floor(Math.random() * (base + 1));
+}
+
+export function getRetryAfterDelayMs(headers) {
+  const retryAfter = headers?.get?.('retry-after');
+  if (!retryAfter) return null;
+
+  const seconds = Number(retryAfter);
+  if (!Number.isNaN(seconds) && Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(MAX_RETRY_AFTER_DELAY_MS, Math.round(seconds * 1000));
+  }
+
+  const retryAt = Date.parse(retryAfter);
+  if (Number.isNaN(retryAt)) return null;
+  return Math.min(MAX_RETRY_AFTER_DELAY_MS, Math.max(0, retryAt - Date.now()));
 }

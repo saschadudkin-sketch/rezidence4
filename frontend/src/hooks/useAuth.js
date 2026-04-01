@@ -38,7 +38,8 @@ export function useAuth() {
             setPhase(PHASE.LOGIN);
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          logger.warn('getMe failed', { message: err?.message });
           if (!cancelled) setPhase(PHASE.LOGIN);
         });
       return () => { cancelled = true; };

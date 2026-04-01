@@ -1,6 +1,6 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { useRequests, useUsers } from '../store/AppStore';
+import { useRequests, useUsers, useActions } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
 import { ROLE_LABELS, ROLE_COLOR } from '../constants';
 import { filterByPeriod } from '../utils.js';
@@ -13,6 +13,8 @@ import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import { services } from '../services/providers/serviceContainer.js';
+import { toast } from '../ui/Toasts';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -135,6 +137,94 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
   );
 });
 
+const AdminDeletedUsersView = memo(function AdminDeletedUsersView() {
+  const [deletedUsers, setDeletedUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [restoringUids, setRestoringUids] = useState(() => new Set());
+  const { addUser } = useActions();
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    services.admin.listDeletedUsersEverywhere()
+      .then((rows) => {
+        if (!mounted) return;
+        setDeletedUsers(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        toast('Не удалось загрузить удалённых пользователей', 'error');
+        setDeletedUsers([]);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  async function handleRestore(user) {
+    if (!user?.uid) return;
+    let canStartRestore = false;
+    setRestoringUids((prev) => {
+      if (prev.has(user.uid)) return prev;
+      canStartRestore = true;
+      const next = new Set(prev);
+      next.add(user.uid);
+      return next;
+    });
+    if (!canStartRestore) return;
+    try {
+      await services.admin.restoreUserEverywhere({ uid: user.uid });
+      addUser?.({
+        ...user,
+        deletedAt: undefined,
+        deleted_by: undefined,
+        deletedBy: undefined,
+        isDeleted: false,
+      });
+      setDeletedUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+      toast('Пользователь восстановлен', 'success');
+    } catch {
+      toast('Не удалось восстановить пользователя', 'error');
+    } finally {
+      setRestoringUids((prev) => {
+        const next = new Set(prev);
+        next.delete(user.uid);
+        return next;
+      });
+    }
+  }
+
+  if (loading) return <div className="empty"><div className="empty-title">Загрузка удалённых пользователей…</div></div>;
+  if (!deletedUsers.length) return <div className="empty"><div className="empty-title">Удалённых пользователей нет</div></div>;
+
+  return (
+    <div className="t-wrap">
+      {deletedUsers.map((u) => {
+        const isRestoring = restoringUids.has(u.uid);
+        return (
+          <div key={u.uid} className="req-card" style={{ marginBottom: 8 }}>
+            <div className="u-row-btw-gap8">
+              <div>
+                <div className="req-name">{u.name}</div>
+                <div className="req-meta">{u.phone} • {u.apartment || '—'}</div>
+                {u.deletedAt && <div className="req-meta">Удалён: {new Date(u.deletedAt).toLocaleString()}</div>}
+              </div>
+              <button
+                className="btn-gold u-pad-btn"
+                disabled={isRestoring}
+                onClick={() => handleRestore(u)}
+              >
+                {isRestoring ? 'Восстановление…' : 'Восстановить'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
 // ─── AdminRequestsView ────────────────────────────────────────────────────────
 
 // FIX [PERF]: memo — не ре-рендерится при переключении других вкладок
@@ -194,6 +284,7 @@ export default function AdminView({ user, activeTab }) {
     <>
       {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} />}
       {activeTab === 'users'       && <AdminUsersView    allUsers={allUsers} currentUser={user} />}
+      {activeTab === 'users-deleted' && <AdminDeletedUsersView />}
       {activeTab === 'contractors' && <AdminUsersView    allUsers={allUsers} currentUser={user} contractorOnly />}
       {activeTab === 'requests'    && <AdminRequestsView requests={requests} adminUid={user.uid} />}
       {activeTab === 'perms'       && <AdminPermsView />}

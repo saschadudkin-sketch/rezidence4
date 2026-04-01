@@ -147,7 +147,7 @@ export const ALLOWED_TABS_BY_ROLE = {
   [ROLES.CONTRACTOR]: ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
   [ROLES.CONCIERGE]:  ['passes', 'residents', 'visitlog', 'blacklist', 'chat'],
   [ROLES.SECURITY]:   ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat'],
-  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat'],
+  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'users-deleted', 'residents', 'perms', 'visitlog', 'blacklist', 'chat'],
 };
 
 export const getTabsForRole = (role) => ALLOWED_TABS_BY_ROLE[role] || [];
