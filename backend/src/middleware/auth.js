@@ -18,7 +18,7 @@ function shouldEnforceUserActiveCheck() {
     if (['0', 'false', 'no', 'off'].includes(v)) return false;
   }
   // Compatibility mode: by default in test env we keep legacy behavior (token verification only),
-  // unless AUTH_ENFORCE_ACTIVE_USER_CHECK=1 is explicitly enabled.
+  // unless AUTH_ENFORCE_ACTIVE_USER_CHECK is set to any supported truthy value.
   return process.env.NODE_ENV !== 'test';
 }
 
