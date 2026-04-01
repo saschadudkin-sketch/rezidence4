@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
 import Login from './views/Login';
@@ -14,18 +14,34 @@ import './styles/theme.css';
 // Слушает события online/offline и показывает toast + баннер при потере сети.
 // Для охранника это критично — пропуски могут не дойти до сервера.
 function useOnlineStatus() {
+  const TOAST_THROTTLE_MS = 5000;
   const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const lastToastAtRef = useRef(0);
+  const lastStatusRef = useRef(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
   useEffect(() => {
+    const showToastThrottled = (message, level) => {
+      const now = Date.now();
+      if (now - lastToastAtRef.current < TOAST_THROTTLE_MS) return;
+      lastToastAtRef.current = now;
+      toast(message, level);
+    };
+
     const goOnline = () => {
+      if (lastStatusRef.current === true) return;
+      lastStatusRef.current = true;
       setIsOnline(true);
-      toast('Соединение восстановлено', 'success');
+      showToastThrottled('Соединение восстановлено', 'success');
     };
     const goOffline = () => {
+      if (lastStatusRef.current === false) return;
+      lastStatusRef.current = false;
       setIsOnline(false);
-      toast('Нет интернета — работаем офлайн', 'warning');
+      showToastThrottled('Нет интернета — работаем офлайн', 'warning');
     };
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
@@ -40,16 +56,8 @@ function useOnlineStatus() {
 
 const OfflineBanner = memo(function OfflineBanner({ visible }) {
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-      background: 'var(--warn, #f59e0b)', color: '#000',
-      textAlign: 'center', padding: '6px 12px',
-      fontSize: 13, fontWeight: 600,
-      // FIX [AUDIT-3 #13]: плавное появление/скрытие — без резкого layout shift.
-      transform: visible ? 'translateY(0)' : 'translateY(-100%)',
-      transition: 'transform 220ms ease',
-      pointerEvents: visible ? 'auto' : 'none',
-    }}
+    <div
+      className={`offline-banner${visible ? ' is-visible' : ''}`}
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -90,7 +98,7 @@ const AppInner = memo(function AppInner() {
         <div className="loading">
           <img src={LOGO} alt="" className="loading-logo" />
           <div className="loading-name">Ошибка конфигурации</div>
-          <div style={{ color: 'var(--danger, #dc3c3c)', marginTop: 8 }}>{API_CONFIG_ERROR}</div>
+          <div className="api-config-error">{API_CONFIG_ERROR}</div>
         </div>
         <Toasts />
       </>
@@ -107,7 +115,7 @@ const AppInner = memo(function AppInner() {
           padding-top с transition компенсирует высоту баннера для контента ниже. */}
       <OfflineBanner visible={!isOnline} />
       {/* FIX [AUDIT-2 #23]: padding-top когда баннер виден, чтобы не перекрывать header */}
-      <div style={{ paddingTop: isOnline ? 0 : 36, transition: 'padding-top 220ms ease' }}>
+      <div className={`app-content-offset${isOnline ? '' : ' has-offline-banner'}`}>
       {safePhase === PHASE.LOADING && <LoadingScreen />}
       {safePhase === PHASE.LOGIN && (
         <ErrorBoundary name="Вход">
