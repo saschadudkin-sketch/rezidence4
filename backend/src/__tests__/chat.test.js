@@ -291,6 +291,14 @@ describe('POST /api/chat/messages', () => {
     expectNoDbQuery();
   });
 
+  it('401 без токена даже при невалидном id', async () => {
+    const res = await request(app)
+      .post('/api/chat/messages')
+      .send({ id: 'bad id!', text: 'Hello' });
+    expect(res.status).toBe(401);
+    expectNoDbQuery();
+  });
+
   it('400 когда id в неверном формате для photo-only сообщения', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
     const res = await request(app)
