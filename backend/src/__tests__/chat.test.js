@@ -57,6 +57,10 @@ function expectNoDbCalls() {
   expect(db.pool.connect).not.toHaveBeenCalled();
 }
 
+function expectNoDbQuery() {
+  expect(db.query).not.toHaveBeenCalled();
+}
+
 // ─── PATCH /api/chat/messages/:id — reactions validation ─────────────────────
 
 describe('PATCH /api/chat/messages/:id — валидация reactions', () => {
@@ -252,7 +256,7 @@ describe('POST /api/chat/messages', () => {
       .send({ text: 'Hello' }); // без id
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/id required/i);
-    expect(db.query).not.toHaveBeenCalled();
+    expectNoDbQuery();
   });
 
   it('400 когда id в неверном формате и без обращения к БД', async () => {
@@ -263,7 +267,7 @@ describe('POST /api/chat/messages', () => {
       .send({ id: 'bad id!', text: 'Hello' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/invalid message id format/i);
-    expect(db.query).not.toHaveBeenCalled();
+    expectNoDbQuery();
   });
 
   it('400 когда id в неверном формате для photo-only сообщения', async () => {
@@ -274,7 +278,7 @@ describe('POST /api/chat/messages', () => {
       .send({ id: 'bad id!', photo: '/uploads/photo_1.jpg' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/invalid message id format/i);
-    expect(db.query).not.toHaveBeenCalled();
+    expectNoDbQuery();
   });
 
   it('201 при корректном сообщении', async () => {
