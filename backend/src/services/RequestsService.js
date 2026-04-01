@@ -215,53 +215,55 @@ class RequestsService {
     const { uid, name, role } = user;
     const staff = isStaff(role);
 
-    const { rows: existing } = await db.query(
-      `SELECT id, status, created_by_uid FROM requests WHERE id=$1 AND deleted_at IS NULL`, [id],
-    );
-    if (!existing.length) throw new ServiceError('Not found', 404);
+    // Валидация длины — включает historyLabel (max 200 chars)
+    validateFieldLengths(patch);
 
-    const currentReq = existing[0];
+    const updated = await withTransaction(async (client) => {
+      const { rows: existing } = await client.query(
+        `SELECT id, status, created_by_uid
+         FROM requests
+         WHERE id=$1 AND deleted_at IS NULL
+         FOR UPDATE`,
+        [id],
+      );
+      if (!existing.length) return null;
 
-    if (!staff && currentReq.created_by_uid !== uid) {
-      throw new ServiceError('Forbidden', 403);
-    }
+      const currentReq = existing[0];
 
-    if (patch.status !== undefined) {
-      if (!canTransition(role, currentReq.status, patch.status)) {
+      if (!staff && currentReq.created_by_uid !== uid) {
+        throw new ServiceError('Forbidden', 403);
+      }
+
+      if (patch.status !== undefined && !canTransition(role, currentReq.status, patch.status)) {
         throw new ServiceError(
           `Role '${role}' cannot transition status from '${currentReq.status}' to '${patch.status}'`, 403
         );
       }
-    }
 
-    // Валидация длины — включает historyLabel (max 200 chars)
-    validateFieldLengths(patch);
+      const fields = [];
+      const vals   = [];
+      let   i      = 1;
 
-    const fields = [];
-    const vals   = [];
-    let   i      = 1;
+      const map = {
+        status: 'status', comment: 'comment', visitorName: 'visitor_name',
+        visitorPhone: 'visitor_phone', carPlate: 'car_plate', arrivedAt: 'arrived_at',
+        scheduledFor: 'scheduled_for', validUntil: 'valid_until',
+        passDuration: 'pass_duration', photos: 'photos',
+      };
 
-    const map = {
-      status: 'status', comment: 'comment', visitorName: 'visitor_name',
-      visitorPhone: 'visitor_phone', carPlate: 'car_plate', arrivedAt: 'arrived_at',
-      scheduledFor: 'scheduled_for', validUntil: 'valid_until',
-      passDuration: 'pass_duration', photos: 'photos',
-    };
-
-    for (const [key, col] of Object.entries(map)) {
-      if (patch[key] !== undefined) {
-        fields.push(`${col}=$${i++}`);
-        vals.push(patch[key]);
+      for (const [key, col] of Object.entries(map)) {
+        if (patch[key] !== undefined) {
+          fields.push(`${col}=$${i++}`);
+          vals.push(patch[key]);
+        }
       }
-    }
 
-    fields.push(`updated_at=$${i++}`);
-    vals.push(new Date());
-    vals.push(id);
+      fields.push(`updated_at=$${i++}`);
+      vals.push(new Date());
+      vals.push(id);
 
-    const updated = await withTransaction(async (client) => {
       const { rows } = await client.query(
-        `UPDATE requests SET ${fields.join(',')} WHERE id=$${i} RETURNING *`, vals,
+        `UPDATE requests SET ${fields.join(',')} WHERE id=$${i} AND deleted_at IS NULL RETURNING *`, vals,
       );
       if (!rows.length) return null;
 

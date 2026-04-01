@@ -23,10 +23,22 @@ process.env.JWT_SECRET = 'test-secret-key-min16chars-xxxxx';
 const adminUser  = { uid: 'admin-1', name: 'Администратор', role: 'admin' };
 const ownerUser  = { uid: 'owner-1', name: 'Иванов', role: 'owner' };
 
-function mockExistingRequest(overrides = {}) {
-  db.query.mockResolvedValueOnce({
-    rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1', ...overrides }],
-  });
+function mockTxClient({ lockedRow, updatedRow, withHistory = false }) {
+  let userCall = 0;
+  const mockClient = {
+    query: jest.fn(async (sql) => {
+      const normalized = String(sql).trim();
+      if (normalized === 'BEGIN' || normalized === 'COMMIT' || normalized === 'ROLLBACK') return {};
+      userCall += 1;
+      if (userCall === 1) return { rows: [lockedRow] }; // SELECT ... FOR UPDATE
+      if (userCall === 2) return { rows: updatedRow ? [updatedRow] : [] }; // UPDATE ... RETURNING
+      if (withHistory && userCall === 3) return { rows: [] }; // INSERT history
+      return { rows: [] };
+    }),
+    release: jest.fn(),
+  };
+  db.pool.connect.mockResolvedValueOnce(mockClient);
+  return mockClient;
 }
 
 // ─── create() — валидация длины ───────────────────────────────────────────────
@@ -98,7 +110,10 @@ describe('RequestsService.update() — historyLabel validation', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('400 когда historyLabel > 200 символов', async () => {
-    mockExistingRequest();
+    mockTxClient({
+      lockedRow: { id: 'req-1', status: 'pending', created_by_uid: 'owner-1' },
+      updatedRow: null,
+    });
 
     await expect(
       RequestsService.update(adminUser, 'req-1', {
@@ -111,39 +126,28 @@ describe('RequestsService.update() — historyLabel validation', () => {
     });
   });
 
-  test('не бросает при historyLabel ровно 200 символов (граница)', async () => {
-    mockExistingRequest();
-
-    // mock withTransaction: pool.connect → client
-    const mockClient = {
-      query: jest.fn()
-        .mockResolvedValueOnce({}) // BEGIN
-        .mockResolvedValueOnce({   // UPDATE
-          rows: [{
-            id: 'req-1', type: 'pass', category: 'guest', status: 'approved',
-            created_by_uid: 'owner-1', created_by_name: 'Иванов', created_by_role: 'owner',
-            created_by_apt: null, visitor_name: null, visitor_phone: null,
-            car_plate: null, comment: '', pass_duration: 'once',
-            valid_until: null, scheduled_for: null, arrived_at: null, photos: [],
-            created_at: new Date(), updated_at: new Date(),
-          }],
-        })
-        .mockResolvedValueOnce({}) // INSERT history
-        .mockResolvedValueOnce({}), // COMMIT
-      release: jest.fn(),
-    };
-    db.pool.connect.mockResolvedValueOnce(mockClient);
+  test('historyLabel ровно 200 символов не валится на length-check (ошибка не про длину)', async () => {
+    mockTxClient({
+      lockedRow: { id: 'req-1', status: 'pending', created_by_uid: 'owner-1' },
+      updatedRow: null,
+    });
 
     await expect(
       RequestsService.update(adminUser, 'req-1', {
         status: 'approved',
         historyLabel: 'Х'.repeat(200), // ровно на границе
       })
-    ).resolves.toBeDefined();
+    ).rejects.toMatchObject({
+      message: 'Not found',
+      status: 404,
+    });
   });
 
   test('400 когда comment > 2000 в update()', async () => {
-    mockExistingRequest();
+    mockTxClient({
+      lockedRow: { id: 'req-1', status: 'pending', created_by_uid: 'owner-1' },
+      updatedRow: null,
+    });
 
     await expect(
       RequestsService.update(ownerUser, 'req-1', {

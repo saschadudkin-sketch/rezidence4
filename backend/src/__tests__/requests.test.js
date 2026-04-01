@@ -74,10 +74,9 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('403 когда житель пытается изменить чужую заявку', async () => {
     const token = makeToken({ uid: 'user-B', role: 'owner', name: 'Петров' });
 
-    // existing lookup → не владелец
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
+    setupTransaction([
+      { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] },
+    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -91,9 +90,9 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('403 owner не может самоодобрить (pending → approved) — BUG-3', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
+    setupTransaction([
+      { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] },
+    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -107,13 +106,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 owner отменяет свою pending-заявку (pending → cancelled)', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    // db.query — для существующего запроса
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
-
-    // withTransaction: BEGIN, UPDATE RETURNING, COMMIT
     setupTransaction([
+      { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] }, // SELECT ... FOR UPDATE
       { rows: [makeReqRow({ status: 'cancelled' })] }, // UPDATE RETURNING
     ]);
 
@@ -129,12 +123,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 охрана меняет любую заявку — ownership check не вызывается', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    // existing lookup (security не проверяет ownership, но нам нужен текущий статус)
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
-
     setupTransaction([
+      { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] },
       { rows: [makeReqRow({ status: 'approved' })] },
     ]);
 
@@ -145,18 +135,15 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('approved');
-    // Первый db.query — existing lookup, только один (не ownership check)
-    expect(db.query.mock.calls.length).toBe(1);
+    // В update() больше нет pre-read через db.query: всё внутри одной транзакции
+    expect(db.query.mock.calls.length).toBe(0);
   });
 
   it('200 owner меняет comment своей заявки без смены статуса', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
-
     setupTransaction([
+      { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] },
       { rows: [makeReqRow({ comment: 'новый комментарий' })] },
     ]);
 
@@ -172,11 +159,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 admin может делать любой переход статуса', async () => {
     const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Адм' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'arrived', created_by_uid: 'user-A' }],
-    });
-
     setupTransaction([
+      { rows: [{ id: 'req-123', status: 'arrived', created_by_uid: 'user-A' }] },
       { rows: [makeReqRow({ status: 'pending' })] },
     ]);
 
@@ -191,10 +175,6 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('BUG-4: история пишется в той же транзакции что и UPDATE', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
-
     // Следим за вызовами client.query (внутри транзакции)
     db.pool.connect.mockResolvedValue(db._mockClient);
     const clientCalls = [];
@@ -202,6 +182,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
       clientCalls.push(sql.trim().split(' ')[0]); // первое слово: BEGIN/UPDATE/INSERT/COMMIT
       if (sql === 'COMMIT' || sql === 'BEGIN' || sql === 'ROLLBACK')
         return Promise.resolve({});
+      if (sql.includes('FOR UPDATE'))
+        return Promise.resolve({ rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] });
       if (sql.startsWith('UPDATE'))
         return Promise.resolve({ rows: [makeReqRow({ status: 'approved' })] });
       if (sql.startsWith('INSERT'))
@@ -214,13 +196,66 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
       .set('Cookie', `token=${token}`)
       .send({ status: 'approved', historyLabel: 'Допуск разрешён' });
 
-    // Ожидаем: BEGIN, UPDATE, INSERT, COMMIT — всё в одном соединении
+    // Ожидаем: BEGIN, SELECT, UPDATE, INSERT, COMMIT — всё в одном соединении
     expect(clientCalls).toContain('BEGIN');
+    expect(clientCalls).toContain('SELECT');
     expect(clientCalls).toContain('UPDATE');
     expect(clientCalls).toContain('INSERT');
     expect(clientCalls).toContain('COMMIT');
     // ROLLBACK не должен был вызваться
     expect(clientCalls).not.toContain('ROLLBACK');
+  });
+
+
+  it('concurrency: две параллельные смены статуса дают 1 успех и 1 отказ', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+
+    const barrier = (() => {
+      let release;
+      const wait = new Promise((resolve) => { release = resolve; });
+      return { wait, release };
+    })();
+
+    let rowLocked = false;
+    const createClient = () => ({
+      release: jest.fn(),
+      query: jest.fn(async (sql) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return {};
+        if (sql.includes('FOR UPDATE')) {
+          if (!rowLocked) {
+            rowLocked = true;
+            return { rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] };
+          }
+          await barrier.wait;
+          return { rows: [{ id: 'req-123', status: 'approved', created_by_uid: 'user-A' }] };
+        }
+        if (sql.startsWith('UPDATE')) {
+          barrier.release();
+          return { rows: [makeReqRow({ status: 'approved' })] };
+        }
+        return { rows: [] };
+      }),
+    });
+
+    db.pool.connect
+      .mockResolvedValueOnce(createClient())
+      .mockResolvedValueOnce(createClient());
+
+    const req1 = supertest(app)
+      .patch('/api/requests/req-123')
+      .set('Cookie', `token=${token}`)
+      .send({ status: 'approved' });
+
+    const req2 = supertest(app)
+      .patch('/api/requests/req-123')
+      .set('Cookie', `token=${token}`)
+      .send({ status: 'cancelled' });
+
+    const results = await Promise.all([req1, req2]);
+    const statuses = results.map((r) => r.status).sort((a, b) => a - b);
+
+    expect(statuses).toEqual([200, 403]);
+    expect(results.some((r) => /cannot transition/i.test(r.body.error || ''))).toBe(true);
   });
 });
 
