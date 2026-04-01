@@ -38,6 +38,12 @@
     summary: "PostgreSQL pool waiting queue is growing"
 ```
 
+
+## Rule files and runbook
+
+- Alert rules: [`ops/alerts/auth.rules.yml`](../ops/alerts/auth.rules.yml), [`ops/alerts/db.rules.yml`](../ops/alerts/db.rules.yml)
+- Runbook: [`docs/runbooks/alerts.md`](./runbooks/alerts.md)
+
 ## Dashboard panels
 
 - Refresh requests/success/fail rates

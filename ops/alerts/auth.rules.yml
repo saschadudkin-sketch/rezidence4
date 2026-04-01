@@ -1,0 +1,20 @@
+groups:
+  - name: rezidence.auth
+    rules:
+      - alert: RezAuthRefreshFailuresHigh
+        expr: rate(rez_auth_refresh_failed_total[5m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Auth refresh failures elevated
+          runbook_url: /docs/runbooks/alerts.md#rezauthrefreshfailureshigh
+
+      - alert: RezAuthLegacyFallbackUsed
+        expr: increase(rez_auth_refresh_legacy_fallback_total[1d]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Legacy refresh fallback still used
+          runbook_url: /docs/runbooks/alerts.md#rezauthlegacyfallbackused
