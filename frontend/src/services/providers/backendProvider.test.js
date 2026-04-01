@@ -191,6 +191,12 @@ describe('usersProvider', () => {
     await usersProvider.delete('u1');
     expect(apiClient.delete).toHaveBeenCalledWith('/api/users/u1');
   });
+
+  test('restore → PATCH /api/users/:uid/restore', async () => {
+    apiClient.patch.mockResolvedValueOnce({ ok: true });
+    await usersProvider.restore('u1');
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/users/u1/restore');
+  });
 });
 
 // ─── permsProvider ────────────────────────────────────────────────────────────

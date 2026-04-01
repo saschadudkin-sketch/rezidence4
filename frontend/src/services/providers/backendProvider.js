@@ -299,6 +299,9 @@ export const usersProvider = {
   async delete(uid) {
     return apiClient.delete(`/api/users/${uid}`);
   },
+  async restore(uid) {
+    return apiClient.patch(`/api/users/${uid}/restore`);
+  },
 };
 
 // ─── Blacklist ────────────────────────────────────────────────────────────────
