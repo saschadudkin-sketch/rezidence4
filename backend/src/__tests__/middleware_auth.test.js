@@ -212,4 +212,24 @@ describe('requireAuth middleware', () => {
     const userLookupCall = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM users'));
     expect(userLookupCall).toBeDefined();
   });
+
+  test('local fallback cache снижает DB/Redis нагрузку при кратком Redis outage', async () => {
+    const req1  = makeReq({ cookie: validToken });
+    const req2  = makeReq({ cookie: validToken });
+    const res1  = makeRes();
+    const res2  = makeRes();
+    const next1 = jest.fn();
+    const next2 = jest.fn();
+
+    mockRedisGet.mockRejectedValueOnce(new Error('redis down'));
+
+    await requireAuth(req1, res1, next1);
+    await requireAuth(req2, res2, next2);
+
+    expect(next1).toHaveBeenCalledTimes(1);
+    expect(next2).toHaveBeenCalledTimes(1);
+    // users-lookup должен произойти только один раз (на первом запросе)
+    const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
+    expect(userLookupCalls).toHaveLength(1);
+  });
 });
