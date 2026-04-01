@@ -20,6 +20,8 @@ describe('serviceContainer smoke', () => {
     expect(typeof services.admin.savePermsEverywhere).toBe('function');
     expect(typeof services.admin.saveUserEverywhere).toBe('function');
     expect(typeof services.admin.removeUserEverywhere).toBe('function');
+    expect(typeof services.admin.restoreUserEverywhere).toBe('function');
+    expect(typeof services.admin.listDeletedUsersEverywhere).toBe('function');
 
     expect(typeof services.liveData.startSync).toBe('function');
   });
@@ -30,7 +32,13 @@ describe('serviceContainer smoke', () => {
       provider: 'backend',
       chat: { sendMessage: vi.fn() },
       requests: { resolvePhotos: vi.fn(), submit: vi.fn(), updateEverywhere: vi.fn(), deleteEverywhere: vi.fn() },
-      admin: { savePermsEverywhere: vi.fn(), saveUserEverywhere: vi.fn(), removeUserEverywhere: vi.fn() },
+      admin: {
+        savePermsEverywhere: vi.fn(),
+        saveUserEverywhere: vi.fn(),
+        removeUserEverywhere: vi.fn(),
+        restoreUserEverywhere: vi.fn(),
+        listDeletedUsersEverywhere: vi.fn(),
+      },
       liveData: { startSync: vi.fn() },
     };
     const createServices = vi.fn(() => fakeServices);

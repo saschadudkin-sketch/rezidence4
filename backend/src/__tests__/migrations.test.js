@@ -70,6 +70,7 @@ describe('db.migrate — versioned migrations', () => {
             { id: '001_initial_schema' },
             { id: '002_indexes_and_soft_delete' },
             { id: '003_users_soft_delete' },
+            { id: '004_composite_indexes' },
           ],
         });
       }
@@ -80,6 +81,7 @@ describe('db.migrate — versioned migrations', () => {
 
     // pool.connect не должен вызываться — нечего применять
     expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockClient.query).not.toHaveBeenCalledWith('BEGIN');
   });
 
   test('wraps each migration in a transaction (BEGIN/COMMIT)', async () => {

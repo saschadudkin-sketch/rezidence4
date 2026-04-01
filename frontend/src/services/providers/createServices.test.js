@@ -10,6 +10,8 @@ describe('createServices factory', () => {
     expect(typeof s.requests.submit).toBe('function');
     expect(typeof s.requests.updateEverywhere).toBe('function');
     expect(typeof s.admin.saveUserEverywhere).toBe('function');
+    expect(typeof s.admin.restoreUserEverywhere).toBe('function');
+    expect(typeof s.admin.listDeletedUsersEverywhere).toBe('function');
     expect(typeof s.liveData.startSync).toBe('function');
   });
 

@@ -17,7 +17,9 @@ function mockFetchOk(body) {
   global.fetch.mockResolvedValue({
     ok: true,
     status: 200,
+    headers: { get: vi.fn((name) => (name?.toLowerCase() === 'content-type' ? 'application/json' : null)) },
     json: vi.fn().mockResolvedValue(body),
+    text: vi.fn().mockResolvedValue(JSON.stringify(body)),
   });
 }
 
@@ -27,6 +29,8 @@ function mockFetchStatus(status, body = {}) {
     status,
     statusText: `HTTP ${status}`,
     json: vi.fn().mockResolvedValue(body),
+    headers: { get: vi.fn((name) => (name?.toLowerCase() === 'content-type' ? 'application/json' : null)) },
+    text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body)),
   });
 }
 
@@ -95,6 +99,41 @@ describe('apiClient.get', () => {
     mockFetchStatus(500, { error: 'Internal Server Error' });
     const client = await getClient();
     await expect(client.get('/api/fail')).rejects.toThrow('Internal Server Error');
+  });
+
+  test('429 + Retry-After header -> ждёт указанную задержку перед retry', async () => {
+    vi.useFakeTimers();
+    const timeoutSpy = vi.spyOn(global, 'setTimeout');
+    try {
+      global.fetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          json: vi.fn().mockResolvedValue({ error: 'Rate limit' }),
+          text: vi.fn().mockResolvedValue('Rate limit'),
+          headers: {
+            get: vi.fn((name) => (name?.toLowerCase() === 'retry-after' ? '1' : 'application/json')),
+          },
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: vi.fn().mockResolvedValue({ ok: true }),
+          text: vi.fn().mockResolvedValue('{"ok":true}'),
+          headers: { get: vi.fn((name) => (name?.toLowerCase() === 'content-type' ? 'application/json' : null)) },
+        });
+
+      const client = await getClient();
+      const promise = client.get('/api/users', { maxRetries: 1 });
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(promise).resolves.toEqual({ ok: true });
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
+    } finally {
+      timeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   test('HTTP ошибка без JSON → throws с statusText', async () => {

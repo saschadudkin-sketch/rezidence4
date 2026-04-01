@@ -46,6 +46,31 @@
         }
       }
     },
+    "/api/v1/users/deleted": {
+      "get": {
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/UserDeleted" } } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/users/{uid}/restore": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
     "/api/v1/upload/photo": {
       "post": {
         "responses": {
@@ -91,6 +116,18 @@
           "name": { "type": "string" },
           "role": { "type": "string" }
         }
+      },
+      "UserDeleted": {
+        "allOf": [
+          { "$ref": "#/components/schemas/User" },
+          {
+            "type": "object",
+            "required": ["deletedAt"],
+            "properties": {
+              "deletedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
       },
       "AuthRefreshSuccess": {
         "type": "object",
