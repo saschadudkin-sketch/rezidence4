@@ -49,8 +49,12 @@ const OfflineBanner = memo(function OfflineBanner({ visible }) {
       transform: visible ? 'translateY(0)' : 'translateY(-100%)',
       transition: 'transform 220ms ease',
       pointerEvents: visible ? 'auto' : 'none',
-    }}>
-      Нет подключения к интернету
+    }}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {visible ? 'Нет подключения к интернету' : null}
     </div>
   );
 });
