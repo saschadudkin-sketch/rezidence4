@@ -4,10 +4,11 @@ const logger   = require('../logger');
 const jwt      = require('jsonwebtoken');
 const passwordHasher = require('../utils/passwordHasher');
 const fetch    = require('node-fetch');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 const db       = require('../db');
 const requireAuth = require('../middleware/auth');
 const { normalizePhone } = require('../constants');
+const appMetrics = require('../metrics');
 
 const router = express.Router();
 
@@ -25,6 +26,11 @@ function makeCode() {
 const CRYPTO = require('crypto');
 const ACCESS_TOKEN_EXPIRES  = '15m';
 const REFRESH_TOKEN_EXPIRES = 30 * 24 * 60 * 60 * 1000; // 30 дней в мс
+const REFRESH_LEGACY_FALLBACK_ENABLED = process.env.REFRESH_LEGACY_FALLBACK_ENABLED !== '0';
+
+function hashRefreshToken(rawToken) {
+  return CRYPTO.createHash('sha256').update(String(rawToken)).digest('hex');
+}
 
 function setTokenCookie(res, user) {
   const jti = uuid(); // уникальный ID токена для отзыва
@@ -43,20 +49,22 @@ function setTokenCookie(res, user) {
 }
 
 async function setRefreshTokenCookie(res, uid) {
-  const refreshId = CRYPTO.randomBytes(32).toString('hex');
+  const refreshTokenRaw = CRYPTO.randomBytes(32).toString('hex');
+  const refreshTokenHash = hashRefreshToken(refreshTokenRaw);
+  const refreshRowId = uuid();
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES);
   await db.query(
-    `INSERT INTO refresh_tokens(id, uid, expires_at) VALUES($1, $2, $3)`,
-    [refreshId, uid, expiresAt],
+    `INSERT INTO refresh_tokens(id, id_hash, uid, expires_at) VALUES($1, $2, $3, $4)`,
+    [refreshRowId, refreshTokenHash, uid, expiresAt],
   );
-  res.cookie('refreshToken', refreshId, {
+  res.cookie('refreshToken', refreshTokenRaw, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
     sameSite: 'strict', // FIX [S2]
     maxAge:   REFRESH_TOKEN_EXPIRES,
     path:     '/api/auth', // только для auth-запросов
   });
-  return refreshId;
+  return refreshTokenRaw;
 }
 
 // normalizePhone — imported from '../constants' (единая реализация)
@@ -224,6 +232,7 @@ router.post('/logout', requireAuth, async (req, res) => {
   }
 
   const refreshId  = req.cookies?.refreshToken;
+  const refreshHash = refreshId ? hashRefreshToken(refreshId) : null;
   const allDevices = req.body?.allDevices === true;
   // req.user установлен requireAuth — uid гарантированно из верифицированного токена
   const uid = req.user.uid;
@@ -231,7 +240,10 @@ router.post('/logout', requireAuth, async (req, res) => {
   if (allDevices) {
     await db.query(`DELETE FROM refresh_tokens WHERE uid=$1`, [uid]).catch(() => {});
   } else if (refreshId) {
-    await db.query(`DELETE FROM refresh_tokens WHERE id=$1`, [refreshId]).catch(() => {});
+    await db.query(
+      `DELETE FROM refresh_tokens WHERE id=$1 OR id_hash=$2`,
+      [refreshId, refreshHash],
+    ).catch(() => {});
   }
   res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
   res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/api/auth' });
@@ -243,15 +255,35 @@ router.post('/logout', requireAuth, async (req, res) => {
 // при каждом использовании старый удаляется, выдаётся новый (rotation).
 router.post('/refresh', async (req, res, next) => {
   try {
+    appMetrics.incrementCounter('authRefreshRequests');
     const refreshId = req.cookies?.refreshToken;
-    if (!refreshId) return res.status(401).json({ error: 'No refresh token' });
+    if (!refreshId) {
+      appMetrics.incrementCounter('authRefreshFailed');
+      return res.status(401).json({ error: 'No refresh token' });
+    }
+    const refreshHash = hashRefreshToken(refreshId);
 
-    // Атомарно забираем и удаляем — одноразовый токен
-    const { rows } = await db.query(
-      `DELETE FROM refresh_tokens WHERE id=$1 AND expires_at > NOW() RETURNING uid`,
-      [refreshId],
+    // Основной путь: ищем только по hash (безопасно для новых токенов).
+    let { rows } = await db.query(
+      `DELETE FROM refresh_tokens WHERE id_hash=$1 AND expires_at > NOW() RETURNING uid`,
+      [refreshHash],
     );
+
+    // Backward-compat: legacy строки со старым id=rawToken
+    if (!rows.length && REFRESH_LEGACY_FALLBACK_ENABLED) {
+      const legacy = await db.query(
+        `DELETE FROM refresh_tokens WHERE id=$1 AND expires_at > NOW() RETURNING uid`,
+        [refreshId],
+      );
+      rows = legacy.rows;
+      if (rows.length) {
+        appMetrics.incrementCounter('authRefreshLegacyFallbackUsed');
+        logger.warn('[auth/refresh] legacy refresh fallback used');
+      }
+    }
+
     if (!rows.length) {
+      appMetrics.incrementCounter('authRefreshFailed');
       res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/api/auth' });
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
@@ -265,6 +297,7 @@ router.post('/refresh', async (req, res, next) => {
     const user = users[0];
     setTokenCookie(res, user);
     await setRefreshTokenCookie(res, user.uid); // ротация — новый refresh token
+    appMetrics.incrementCounter('authRefreshSuccess');
     res.json({ user });
   } catch (err) { next(err); }
 });

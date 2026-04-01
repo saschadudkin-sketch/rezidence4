@@ -29,22 +29,22 @@ const mockRequests = [
 ];
 
 beforeEach(() => {
-  jest.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
-  jest.spyOn(passesApi, 'getVisitLogs').mockResolvedValue([{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }]);
-  jest.spyOn(passesApi, 'clearVisitLogs').mockResolvedValue(undefined);
+  vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
+  vi.spyOn(passesApi, 'getVisitLogs').mockResolvedValue([{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }]);
+  vi.spyOn(passesApi, 'clearVisitLogs').mockResolvedValue(undefined);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
-jest.mock('../hooks/useDebounce', () => ({
+vi.mock('../hooks/useDebounce', () => ({
   useDebounce: (v) => v,
 }));
 
-jest.mock('../config/runtimeMode', () => ({
-  isDemoMode: jest.fn(() => true),
+vi.mock('../config/runtimeMode', () => ({
+  isDemoMode: vi.fn(() => true),
 }));
 
-jest.mock('../constants/statusPresentation', () => ({
-  getValidationReasonLabel: jest.fn(() => ''),
+vi.mock('../constants/statusPresentation', () => ({
+  getValidationReasonLabel: vi.fn(() => ''),
 }));
 
 describe('VisitLogView', () => {

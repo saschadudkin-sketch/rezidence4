@@ -6,18 +6,18 @@
  */
 
 // Мокируем fetch глобально
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  jest.resetModules();
+  vi.clearAllMocks();
+  vi.resetModules();
 });
 
 function mockFetchOk(body) {
   global.fetch.mockResolvedValue({
     ok: true,
     status: 200,
-    json: jest.fn().mockResolvedValue(body),
+    json: vi.fn().mockResolvedValue(body),
   });
 }
 
@@ -26,7 +26,7 @@ function mockFetchStatus(status, body = {}) {
     ok: status >= 200 && status < 300,
     status,
     statusText: `HTTP ${status}`,
-    json: jest.fn().mockResolvedValue(body),
+    json: vi.fn().mockResolvedValue(body),
   });
 }
 
@@ -59,6 +59,7 @@ describe('apiClient.get', () => {
     const [, opts] = fetch.mock.calls[0];
     expect(opts.credentials).toBe('include');
     expect(opts.headers?.Authorization).toBeUndefined();
+    expect(typeof opts.headers?.['X-Request-Id']).toBe('string');
   });
 
   test('возвращает распарсенный JSON', async () => {
@@ -76,7 +77,7 @@ describe('apiClient.get', () => {
 
   test('401 → диспатчит rz:unauthorized и throws', async () => {
     mockFetchStatus(401, { error: 'Unauthorized' });
-    const eventSpy = jest.fn();
+    const eventSpy = vi.fn();
     window.addEventListener('rz:unauthorized', eventSpy);
 
     const client = await getClient();
@@ -97,7 +98,7 @@ describe('apiClient.get', () => {
       ok: false,
       status: 503,
       statusText: 'Service Unavailable',
-      json: jest.fn().mockRejectedValue(new SyntaxError('not json')),
+      json: vi.fn().mockRejectedValue(new SyntaxError('not json')),
     });
     const client = await getClient();
     await expect(client.get('/api/fail')).rejects.toThrow('Service Unavailable');
@@ -116,6 +117,7 @@ describe('apiClient.post', () => {
     expect(opts.method).toBe('POST');
     expect(JSON.parse(opts.body)).toEqual({ type: 'pass' });
     expect(opts.headers['Content-Type']).toBe('application/json');
+    expect(typeof opts.headers['X-Request-Id']).toBe('string');
   });
 
   test('credentials: include в POST запросе', async () => {
@@ -169,6 +171,7 @@ describe('apiClient.uploadPhoto', () => {
     expect(opts.method).toBe('POST');
     expect(opts.credentials).toBe('include');
     expect(opts.body).toBe(fakeBlob);
+    expect(typeof opts.headers['X-Request-Id']).toBe('string');
   });
 
   test('Content-Type берётся из blob.type', async () => {
@@ -214,15 +217,15 @@ describe('apiClient.uploadPhoto', () => {
 describe.skip('apiClient timeout & retry', () => {
   const flushAllTimers = async () => {
     // Для версии jest в CRA нет runAllTimersAsync
-    jest.runAllTimers();
+    vi.runAllTimers();
     await Promise.resolve();
   };
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   test('AbortError → throws "Сервер не отвечает"', async () => {
@@ -259,7 +262,7 @@ describe.skip('apiClient timeout & retry', () => {
 
   test('401 НЕ ретраится, диспатчит rz:unauthorized', async () => {
     mockFetchStatus(401);
-    const spy = jest.fn();
+    const spy = vi.fn();
     window.addEventListener('rz:unauthorized', spy);
     const client = await getClient();
     await expect(client.get('/api/test')).rejects.toThrow(/сессия истекла/i);
