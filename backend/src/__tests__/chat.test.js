@@ -128,6 +128,15 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
     expect(res.body.error).toMatch(/Reaction value must be \[\] or \[your_uid\]/i);
   });
 
+  it('400 когда в реакции указан чужой uid', async () => {
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-1')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u2'] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/only add your own uid/i);
+  });
+
   it('200 при корректных reactions', async () => {
     const now = new Date();
     txClient.query
