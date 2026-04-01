@@ -135,17 +135,22 @@ export default function Dashboard({ user, onLogout }) {
   // FIX [UX]: isLoading — пока SSE не прислал первый пакет, показываем skeleton.
   // Добавлен timeout 8с: если данные не пришли (сеть, ошибка соединения) —
   // снимаем skeleton принудительно, чтобы не блокировать интерфейс навсегда.
+  //
+  // FIX [REACT]: убран антипаттерн "derive state from props через useEffect".
+  // Было: useState(syncLoading) + useEffect(() => setIsLoading(syncLoading)) —
+  //   лишний рендер при каждом изменении syncLoading, дублирование состояния.
+  // Стало: timedOut флаг + вычисляемый isLoading — нет дублирования, нет лишних рендеров.
   const { isLoading: syncLoading } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
     prevPendingP, prevPendingT, prevMsgs,
   });
-  const [isLoading, setIsLoading] = useState(syncLoading);
-  useEffect(() => { setIsLoading(syncLoading); }, [syncLoading]);
+  const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!syncLoading) return;
-    const t = setTimeout(() => setIsLoading(false), 8_000);
+    const t = setTimeout(() => setTimedOut(true), 8_000);
     return () => clearTimeout(t);
   }, [syncLoading]);
+  const isLoading = syncLoading && !timedOut;
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);

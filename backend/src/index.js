@@ -363,7 +363,51 @@ async function start() {
         logger.error({ err }, '[cleanup] token_revocations failed');
       }
     }, 60 * 60 * 1000); // каждый час
-    cleanupJob.unref(); // не блокируем завершение процесса
+    cleanupJob.unref();
+
+    // FIX [ARCH]: Серверная экспирация и активация заявок — каждые 5 минут.
+    //
+    // ПРОБЛЕМА: ранее статусы 'expired' и активация 'scheduled → pending'
+    // вычислялись ТОЛЬКО на фронте (useScheduledActivation). Это означало:
+    //   - при прямых запросах к API охрана видела неактуальный статус
+    //   - заявки не истекали когда клиент offline
+    //   - другие сервисы/интеграции не получали корректный статус
+    //
+    // РЕШЕНИЕ: backend — единственный источник истины для статусов.
+    // Фронт может показывать оптимистичное состояние, но БД — авторитет.
+    const expirationJob = setInterval(async () => {
+      try {
+        // 1. Истекают разовые пропуски (once) через 24ч после создания
+        //    и временные с явным valid_until в прошлом
+        const { rowCount: expired } = await db.query(`
+          UPDATE requests
+          SET status = 'expired', updated_at = NOW()
+          WHERE status IN ('pending', 'approved')
+            AND deleted_at IS NULL
+            AND (
+              (pass_duration = 'once'
+               AND created_at < NOW() - INTERVAL '24 hours')
+              OR
+              (valid_until IS NOT NULL AND valid_until < NOW())
+            )
+        `);
+
+        // 2. Активируются запланированные заявки
+        const { rowCount: activated } = await db.query(`
+          UPDATE requests
+          SET status = 'pending', scheduled_for = NULL, updated_at = NOW()
+          WHERE status = 'scheduled'
+            AND scheduled_for <= NOW()
+            AND deleted_at IS NULL
+        `);
+
+        if (expired > 0)   logger.info(`[expiration] expired ${expired} requests`);
+        if (activated > 0) logger.info(`[expiration] activated ${activated} scheduled requests`);
+      } catch (err) {
+        logger.error({ err }, '[expiration] request status update failed');
+      }
+    }, 5 * 60 * 1000); // каждые 5 минут
+    expirationJob.unref(); // не блокируем завершение процесса
 
   } catch (err) {
     logger.fatal({ err }, '[fatal] startup failed');

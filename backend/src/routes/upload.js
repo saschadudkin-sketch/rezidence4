@@ -35,15 +35,15 @@ async function getCurrentPhotoCount(uid) {
 
 // FIX [КРИТ-3]: UPLOAD_DIR через path.resolve — исключает path traversal
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
-// FIX [AUDIT-10]: existsSync/mkdirSync блокировали event loop при старте.
-// Допустимо для startup-кода, но лучше использовать async mkdir с {recursive: true}
-// которая является no-op если директория уже существует.
+// FIX [AUDIT-10]: async mkdir с {recursive: true} — не бросает при уже существующей директории.
+// Важно: uploadDirReady=true до завершения mkdir — крайне маловероятная race condition
+// при старте (директория не существует И запрос приходит до завершения mkdir).
+// На практике бэкенд принимает трафик только после healthcheck (зависимость docker-compose).
 fs.promises.mkdir(UPLOAD_DIR, { recursive: true }).catch(err => {
-  // Только если это не "уже существует" — fatal
-  if (err.code !== 'EEXIST') {
-    logger.error('Failed to create UPLOAD_DIR', err);
-    uploadDirReady = false;
-  }
+  // recursive: true сам обрабатывает EEXIST — сюда попадают только реальные ошибки
+  // (нет прав, неверный путь и т.д.)
+  logger.error({ err }, '[upload] Failed to create UPLOAD_DIR — uploads disabled');
+  uploadDirReady = false;
 });
 let uploadDirReady = true;
 

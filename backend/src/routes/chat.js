@@ -24,6 +24,19 @@ const chatMessagesLimiter = rateLimit({
   message: { error: 'Слишком много сообщений. Подождите.' },
 });
 
+// FIX [SEC]: rate limit на SSE /stream — без него один аккаунт мог открывать
+// сотни соединений в цикле (connect/disconnect), создавая нагрузку на сервер.
+// Ключ — по uid пользователя: MAX_CONNECTIONS_PER_USER=5 ограничивает параллельно,
+// а этот лимитер ограничивает частоту ПОДКЛЮЧЕНИЙ (reconnect storms).
+const sseConnectLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20, // 20 подключений в минуту на пользователя
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много SSE-подключений. Подождите.' },
+  keyGenerator: (req) => req.user?.uid || req.ip,
+});
+
 // FIX: поддерживаем UUID и legacy/string id, чтобы не ломать существующий чат,
 // но отсекаем очевидный мусор и чрезмерно длинные значения.
 const MSG_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -175,29 +188,8 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
     const { id }        = req.params;
     const { text, reactions } = req.body;
 
-    // Only author can edit text; anyone can add reaction
-    const { rows: existing } = await db.query(
-      `SELECT uid FROM chat_messages WHERE id=$1`, [id],
-    );
-    if (!existing.length) return res.status(404).json({ error: 'Not found' });
-
-    const fields = [];
-    const vals   = [];
-    let   i      = 1;
-
-    if (text !== undefined) {
-      // Admin может редактировать любое сообщение
-      if (existing[0].uid !== uid && role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-      // FIX: edited=TRUE без параметра — безопасно (нет пользовательских данных),
-      // но нарушало нумерацию $N если после него шли reactions.
-      // Теперь text и edited идут отдельными entries, i инкрементируется только для text.
-      fields.push(`text=$${i++}`);
-      fields.push(`edited=TRUE`); // константа, не требует параметра
-      vals.push(text);
-    }
+    // Валидация reactions ДО транзакции — ранний выход при плохих данных
     if (reactions !== undefined) {
-      // FIX [BUG-5]: валидация структуры и размера reactions
-      // без этого злоумышленник может записать 5MB JSON в одно сообщение
       if (typeof reactions !== 'object' || Array.isArray(reactions) || reactions === null) {
         return res.status(400).json({ error: 'reactions must be a plain object' });
       }
@@ -209,33 +201,103 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
         if (typeof key !== 'string' || key.length > 10) {
           return res.status(400).json({ error: 'Reaction key too long (max 10 chars)' });
         }
-        if (!Array.isArray(val) || val.length > 500) {
-          return res.status(400).json({ error: 'Reaction value must be array (max 500 items)' });
+        // FIX [SEC]: reactions.value принимает ТОЛЬКО массив [uid_caller] или [].
+        // Раньше JSONB || перезаписывал весь массив emoji — пользователь B мог
+        // отправить { "👍": [] } и стереть реакции пользователя A.
+        // Теперь: допустимо только [] (убрать свою реакцию) или [uid] (добавить свою).
+        if (!Array.isArray(val) || val.length > 1) {
+          return res.status(400).json({ error: 'Reaction value must be [] or [your_uid]' });
         }
-        // каждый элемент — uid пользователя, не длиннее 64 символов
-        if (val.some(v => typeof v !== 'string' || v.length > 64)) {
-          return res.status(400).json({ error: 'Invalid reaction item format' });
+        if (val.length === 1) {
+          if (typeof val[0] !== 'string' || val[0].length > 64) {
+            return res.status(400).json({ error: 'Invalid reaction uid format' });
+          }
+          if (val[0] !== uid) {
+            return res.status(400).json({ error: 'You can only add your own uid to reactions' });
+          }
         }
       }
-      // ВАЖ-5: вместо полной замены reactions — атомарный merge через PostgreSQL jsonb ||
-      // Это предотвращает перезапись чужих реакций: каждый пользователь управляет
-      // только своим uid внутри массива каждого emoji.
-      // Полная замена reactions устанавливается отдельным UPDATE с явной проверкой.
-      fields.push(`reactions=reactions || $${i++}::jsonb`);
-      vals.push(JSON.stringify(reactions));
     }
 
-    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
+    // FIX [SEC]: используем транзакцию с FOR UPDATE для атомарного merge реакций.
+    // SELECT FOR UPDATE блокирует строку — исключает race condition при concurrent реакциях.
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    vals.push(id);
-    const { rows } = await db.query(
-      `UPDATE chat_messages SET ${fields.join(',')} WHERE id=$${i} RETURNING *`,
-      vals,
-    );
+      // Блокируем строку и читаем текущие reactions
+      const { rows: existing } = await client.query(
+        `SELECT uid, reactions FROM chat_messages WHERE id=$1 FOR UPDATE`, [id],
+      );
+      if (!existing.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Not found' });
+      }
 
-    const msg = fmt(rows[0]);
-    sse.broadcastChatUpdate(msg);
-    res.json(msg);
+      const fields = [];
+      const vals   = [];
+      let   i      = 1;
+
+      if (text !== undefined) {
+        // Admin может редактировать любое сообщение
+        if (existing[0].uid !== uid && role !== 'admin') {
+          await client.query('ROLLBACK');
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+        fields.push(`text=$${i++}`);
+        fields.push(`edited=TRUE`);
+        vals.push(text);
+      }
+
+      if (reactions !== undefined) {
+        // FIX [SEC]: атомарный per-user merge — пользователь добавляет/удаляет ТОЛЬКО свой uid.
+        // Другие uid в массиве каждого emoji остаются нетронутыми.
+        const current = existing[0].reactions || {};
+        const merged  = { ...current };
+
+        for (const [emoji, uidsPatch] of Object.entries(reactions)) {
+          const arr = Array.isArray(current[emoji]) ? [...current[emoji]] : [];
+          if (uidsPatch.includes(uid)) {
+            // Добавить uid (идемпотентно)
+            if (!arr.includes(uid)) arr.push(uid);
+            merged[emoji] = arr;
+          } else {
+            // Удалить uid (идемпотентно)
+            const filtered = arr.filter(u => u !== uid);
+            if (filtered.length === 0) {
+              delete merged[emoji]; // убираем пустой ключ
+            } else {
+              merged[emoji] = filtered;
+            }
+          }
+        }
+
+        fields.push(`reactions=$${i++}::jsonb`);
+        vals.push(JSON.stringify(merged));
+      }
+
+      if (!fields.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Nothing to update' });
+      }
+
+      vals.push(id);
+      const { rows } = await client.query(
+        `UPDATE chat_messages SET ${fields.join(',')} WHERE id=$${i} RETURNING *`,
+        vals,
+      );
+
+      await client.query('COMMIT');
+
+      const msg = fmt(rows[0]);
+      sse.broadcastChatUpdate(msg);
+      res.json(msg);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) { next(err); }
 });
 
@@ -266,7 +328,7 @@ router.post('/seen', (req, res) => res.json({ ok: true })); // tracked client-si
 
 // ─── GET /api/chat/stream — SSE ───────────────────────────────────────────────
 
-router.get('/stream', (req, res) => {
+router.get('/stream', sseConnectLimiter, (req, res) => {
   const { uid, role } = req.user; // FIX [SEC-2]: передаём роль в addClient
 
   res.setHeader('Content-Type',  'text/event-stream');

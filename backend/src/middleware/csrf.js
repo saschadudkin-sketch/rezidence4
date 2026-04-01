@@ -62,9 +62,27 @@ function verifyCsrf(req, res, next) {
   const cookieToken = req.cookies[COOKIE_NAME];
   const headerToken = req.headers[HEADER_NAME];
 
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+  if (!cookieToken || !headerToken) {
     return res.status(403).json({ error: 'CSRF token mismatch' });
   }
+
+  // FIX [SEC]: timing-safe сравнение вместо ===.
+  // Прямое === уязвимо к timing-атаке: атакующий, делая тысячи запросов,
+  // может измерить разницу во времени ответа и побайтово восстановить токен.
+  // Токены — randomBytes(32).toString('hex') = 64 hex-символа = 32 байта.
+  // timingSafeEqual требует одинаковую длину буферов, поэтому проверяем длину первой.
+  try {
+    const cookieBuf = Buffer.from(cookieToken, 'hex');
+    const headerBuf = Buffer.from(headerToken, 'hex');
+    const EXPECTED_LEN = 32; // 32 байта = 64 hex-символа
+    if (cookieBuf.length !== EXPECTED_LEN || headerBuf.length !== EXPECTED_LEN ||
+        !crypto.timingSafeEqual(cookieBuf, headerBuf)) {
+      return res.status(403).json({ error: 'CSRF token mismatch' });
+    }
+  } catch {
+    return res.status(403).json({ error: 'CSRF token mismatch' });
+  }
+
   next();
 }
 
