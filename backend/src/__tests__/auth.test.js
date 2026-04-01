@@ -119,6 +119,11 @@ describe('POST /api/auth/verify-otp', () => {
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     expect(cookies.some(c => c.startsWith('token=') && c.includes('HttpOnly'))).toBe(true);
+    expect(cookies.some(c => c.startsWith('refreshToken=') && c.includes('HttpOnly'))).toBe(true);
+
+    const refreshInsertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO refresh_tokens'));
+    expect(refreshInsertCall).toBeDefined();
+    expect(refreshInsertCall[0]).toContain('id_hash');
   });
 
   it('инкрементирует attempts при неверном коде', async () => {
@@ -155,5 +160,64 @@ describe('POST /api/auth/logout', () => {
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     expect(cookies.some(c => c.startsWith('token=;') || c.includes('Max-Age=0'))).toBe(true);
+  });
+
+  it('удаляет refresh token по id_hash или legacy id', async () => {
+    const token = jwt.sign(
+      { uid: 'u1', role: 'owner', name: 'Test', jti: 'jti-2' },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' },
+    );
+    db.query.mockResolvedValue({ rows: [] });
+    await request(app)
+      .post('/api/auth/logout')
+      .set('Cookie', [`token=${token}`, 'refreshToken=legacy-or-raw-token']);
+
+    const deleteCall = db.query.mock.calls.find(([sql]) => sql.includes('DELETE FROM refresh_tokens'));
+    expect(deleteCall).toBeDefined();
+    expect(deleteCall[0]).toContain('id_hash');
+  });
+});
+
+describe('POST /api/auth/refresh', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('ротирует refresh token и запрещает reuse старого токена', async () => {
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash = await passwordHasher.hash(VALID_CODE);
+
+    // 1) verify-otp -> выдаём refreshToken cookie
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] }) // verify candidates
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })              // verify atomic mark used
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }] }) // verify user
+      .mockResolvedValueOnce({ rows: [] }) // verify refresh insert
+      // 2) first /refresh success
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] }) // delete refresh token (one-time use)
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }] }) // user
+      .mockResolvedValueOnce({ rows: [] }) // insert new refresh token
+      // 3) second /refresh with OLD token -> denied
+      .mockResolvedValueOnce({ rows: [] });
+
+    const loginRes = await request(app)
+      .post('/api/auth/verify-otp')
+      .send({ phone: VALID_PHONE, code: VALID_CODE });
+    expect(loginRes.status).toBe(200);
+    const oldRefreshCookie = loginRes.headers['set-cookie'].find(c => c.startsWith('refreshToken='));
+    expect(oldRefreshCookie).toBeDefined();
+
+    const refreshRes = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', [oldRefreshCookie]);
+    expect(refreshRes.status).toBe(200);
+
+    const reuseRes = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', [oldRefreshCookie]);
+    expect(reuseRes.status).toBe(401);
+
+    const deleteCalls = db.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM refresh_tokens'));
+    expect(deleteCalls.length).toBeGreaterThanOrEqual(2);
+    expect(deleteCalls[0][0]).toContain('id_hash');
   });
 });

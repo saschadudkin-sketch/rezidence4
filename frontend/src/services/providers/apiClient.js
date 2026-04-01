@@ -46,7 +46,7 @@ async function tryRefreshToken() {
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = fetchWithTimeout(
     `${BASE_URL}/api/auth/refresh`,
-    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() } },
+    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId() } },
     10_000,
   ).then(res => {
     _refreshPromise = null;
@@ -71,6 +71,13 @@ function getCsrfToken() {
   } catch { return ''; }
 }
 
+function makeRequestId() {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `rz-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 /**
  * Выполняет HTTP запрос с ретраями при временных ошибках.
  */
@@ -87,7 +94,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         `${BASE_URL}${path}`,
         {
           method,
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), ...extraHeaders },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId(), ...extraHeaders },
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
         },
@@ -124,7 +131,14 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       // даже после восстановления сервера (требуется перезагрузка страницы).
       _refreshFailed = false;
 
-      return res.json();
+      if (res.status === 204) return null;
+      const contentType = (
+        typeof res.headers?.get === 'function'
+          ? (res.headers.get('content-type') || '')
+          : 'application/json'
+      ).toLowerCase();
+      if (contentType.includes('application/json')) return res.json();
+      return res.text();
 
     } catch (err) {
       // Не ретраим: 401, клиентские ошибки, AbortError (уже обработан)
@@ -146,7 +160,7 @@ async function uploadPhoto(blob) {
     `${BASE_URL}/api/upload/photo`,
     {
       method: 'POST',
-      headers: { 'Content-Type': blob.type || 'image/jpeg', 'X-CSRF-Token': getCsrfToken() },
+      headers: { 'Content-Type': blob.type || 'image/jpeg', 'X-CSRF-Token': getCsrfToken(), 'X-Request-Id': makeRequestId() },
       credentials: 'include',
       body: blob,
     },

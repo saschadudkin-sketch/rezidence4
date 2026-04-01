@@ -198,7 +198,7 @@ export function AppProvider({ children }) {
 /** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
 export function useAppState() {
   if (!hasWarnedUseAppState) {
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta?.env?.PROD === true) {
       console.error(
         '[AppStore] useAppState() deprecated in production. ' +
         'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',

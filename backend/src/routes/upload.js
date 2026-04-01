@@ -11,6 +11,28 @@ const db         = require('../db'); // moved to top
 const router = express.Router();
 router.use(requireAuth);
 
+// ─── Photo quota cache ─────────────────────────────────────────────────────────
+// Снижает нагрузку на агрегирующий COUNT-запрос в hot path upload.
+// TTL маленький (30с), поэтому риск устаревания минимальный.
+const photoCountCache = new Map(); // uid -> { count, expiresAt }
+const PHOTO_COUNT_CACHE_TTL_MS = 30_000;
+
+async function getCurrentPhotoCount(uid) {
+  const now = Date.now();
+  const cached = photoCountCache.get(uid);
+  if (cached && cached.expiresAt > now) return cached.count;
+
+  const countResult = await db.query(
+    `SELECT COALESCE(SUM(array_length(photos, 1)), 0)::int AS cnt
+     FROM requests
+     WHERE created_by_uid=$1 AND cardinality(photos) > 0 AND deleted_at IS NULL`,
+    [uid],
+  );
+  const count = Number(countResult?.rows?.[0]?.cnt || 0);
+  photoCountCache.set(uid, { count, expiresAt: now + PHOTO_COUNT_CACHE_TTL_MS });
+  return count;
+}
+
 // FIX [КРИТ-3]: UPLOAD_DIR через path.resolve — исключает path traversal
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
 // FIX [AUDIT-10]: existsSync/mkdirSync блокировали event loop при старте.
@@ -40,13 +62,7 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       return res.status(503).json({ error: 'Upload storage is temporarily unavailable' });
     }
     const MAX_PHOTOS_PER_USER = 200;
-    const countResult = await db.query(
-      `SELECT COALESCE(SUM(array_length(photos, 1)), 0)::int AS cnt
-       FROM requests
-       WHERE created_by_uid=$1 AND cardinality(photos) > 0 AND deleted_at IS NULL`,
-      [req.user.uid],
-    );
-    const currentCount = Number(countResult?.rows?.[0]?.cnt || 0);
+    const currentCount = await getCurrentPhotoCount(req.user.uid);
     if (currentCount >= MAX_PHOTOS_PER_USER) {
       return res.status(429).json({ error: `Upload quota exceeded. Maximum ${MAX_PHOTOS_PER_USER} photos total.` });
     }

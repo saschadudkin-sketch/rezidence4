@@ -59,6 +59,7 @@ describe('apiClient.get', () => {
     const [, opts] = fetch.mock.calls[0];
     expect(opts.credentials).toBe('include');
     expect(opts.headers?.Authorization).toBeUndefined();
+    expect(typeof opts.headers?.['X-Request-Id']).toBe('string');
   });
 
   test('возвращает распарсенный JSON', async () => {
@@ -116,6 +117,7 @@ describe('apiClient.post', () => {
     expect(opts.method).toBe('POST');
     expect(JSON.parse(opts.body)).toEqual({ type: 'pass' });
     expect(opts.headers['Content-Type']).toBe('application/json');
+    expect(typeof opts.headers['X-Request-Id']).toBe('string');
   });
 
   test('credentials: include в POST запросе', async () => {
@@ -169,6 +171,7 @@ describe('apiClient.uploadPhoto', () => {
     expect(opts.method).toBe('POST');
     expect(opts.credentials).toBe('include');
     expect(opts.body).toBe(fakeBlob);
+    expect(typeof opts.headers['X-Request-Id']).toBe('string');
   });
 
   test('Content-Type берётся из blob.type', async () => {
