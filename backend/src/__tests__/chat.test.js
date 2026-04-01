@@ -131,6 +131,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
 
     expect(res.status).toBe(200);
     expect(res.body.reactions).toBeDefined();
+    expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 
   it('200 при пустом объекте reactions (удаление всех реакций)', async () => {
@@ -147,6 +148,7 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: {} });
 
     expect(res.status).toBe(200);
+    expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 });
 
