@@ -1,0 +1,11 @@
+groups:
+  - name: rezidence.db
+    rules:
+      - alert: RezDbPoolWaitingHigh
+        expr: rez_db_pool_waiting > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: PostgreSQL pool waiting queue is growing
+          runbook_url: /docs/runbooks/alerts.md#rezdbpoolwaitinghigh
