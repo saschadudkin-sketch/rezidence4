@@ -26,8 +26,6 @@ export function createDemoProvider() {
       savePermsEverywhere: ({ uid, perms, saveLocal }) => saveLocal(uid, perms),
       saveUserEverywhere: ({ uid, patch, updateLocal, oldPhone }) => updateLocal(uid, patch, oldPhone),
       removeUserEverywhere: ({ uid, removeLocal }) => removeLocal(uid),
-      restoreUserEverywhere: ({ uid, restoreLocal }) => (restoreLocal ? restoreLocal(uid) : 'local'),
-      listDeletedUsersEverywhere: ({ listDeletedLocal } = {}) => (listDeletedLocal ? listDeletedLocal() : []),
     },
     liveData: {
       /**

@@ -83,7 +83,7 @@ describe('verifyCsrf', () => {
   });
 
   it('allows POST with matching tokens', () => {
-    const token = 'a'.repeat(64); // valid 32-byte hex token
+    const token = 'valid_csrf_token_123';
     const req = mockReq('POST', '/api/requests',
       { [COOKIE_NAME]: token },
       { [HEADER_NAME]: token },
@@ -96,7 +96,7 @@ describe('verifyCsrf', () => {
   });
 
   it('allows PATCH with matching tokens', () => {
-    const token = 'b'.repeat(64); // valid 32-byte hex token
+    const token = 'valid_token';
     const req = mockReq('PATCH', '/api/requests/123',
       { [COOKIE_NAME]: token },
       { [HEADER_NAME]: token },

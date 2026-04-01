@@ -121,32 +121,6 @@ describe('GET /api/users', () => {
   });
 });
 
-describe('GET /api/users/deleted', () => {
-  beforeEach(() => jest.clearAllMocks());
-
-  it('403 для не-admin', async () => {
-    const res = await request(app)
-      .get('/api/users/deleted').set('Cookie', `token=${T_SECURITY}`);
-    expect(res.status).toBe(403);
-    expect(db.query).not.toHaveBeenCalled();
-  });
-
-  it('200 возвращает soft-deleted пользователей для admin', async () => {
-    db.query.mockResolvedValueOnce({
-      rows: [{ ...USER_ROW, deleted_at: new Date('2026-01-01T00:00:00.000Z') }],
-    });
-    const res = await request(app)
-      .get('/api/users/deleted').set('Cookie', `token=${T_ADMIN}`);
-
-    expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body[0].uid).toBe('u1');
-    expect(res.body[0].deletedAt).toBeTruthy();
-    const sql = db.query.mock.calls[0][0];
-    expect(sql).toMatch(/deleted_at IS NOT NULL/i);
-  });
-});
-
 // ─── POST /api/users ──────────────────────────────────────────────────────────
 
 describe('POST /api/users', () => {

@@ -4,8 +4,6 @@ import {
   savePerms as saveRemotePerms,
   saveUser as saveRemoteUser,
   removeUser as removeRemoteUser,
-  restoreUser as restoreRemoteUser,
-  listDeletedUsers as listDeletedRemoteUsers,
 } from './localService';
 import { logger } from './logger';
 
@@ -45,28 +43,5 @@ export async function removeUserEverywhere({ uid, removeLocal }) {
   } catch (e) {
     logger.warn('[adminGateway] removeUser failed', e.message);
     return SYNC_STATUS.LOCAL_FALLBACK;
-  }
-}
-
-export async function restoreUserEverywhere({ uid, restoreLocal }) {
-  if (restoreLocal) restoreLocal(uid);
-  if (!isLiveMode()) return SYNC_STATUS.LOCAL;
-
-  try {
-    await restoreRemoteUser(uid);
-    return SYNC_STATUS.REMOTE;
-  } catch (e) {
-    logger.warn('[adminGateway] restoreUser failed', e.message);
-    return SYNC_STATUS.LOCAL_FALLBACK;
-  }
-}
-
-export async function listDeletedUsersEverywhere() {
-  if (!isLiveMode()) return [];
-  try {
-    return await listDeletedRemoteUsers();
-  } catch (e) {
-    logger.warn('[adminGateway] listDeletedUsers failed', e.message);
-    return [];
   }
 }

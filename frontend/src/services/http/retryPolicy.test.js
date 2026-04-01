@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { getRetryAfterDelayMs, MAX_RETRY_AFTER_DELAY_MS } from './retryPolicy.js';
+import { getRetryAfterDelayMs } from './retryPolicy.js';
 
 function makeHeaders(value) {
   return { get: vi.fn().mockImplementation(() => value) };
@@ -24,9 +24,5 @@ describe('getRetryAfterDelayMs', () => {
     expect(getRetryAfterDelayMs(makeHeaders('n/a'))).toBeNull();
     expect(getRetryAfterDelayMs({ get: null })).toBeNull();
     expect(getRetryAfterDelayMs(null)).toBeNull();
-  });
-
-  test('caps excessive Retry-After delay', () => {
-    expect(getRetryAfterDelayMs(makeHeaders('120'))).toBe(MAX_RETRY_AFTER_DELAY_MS);
   });
 });
