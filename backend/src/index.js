@@ -22,6 +22,7 @@ const visitLogsRouter = require('./routes/visitLogs');
 const uploadRouter    = require('./routes/upload');
 const clientLogsRouter = require('./routes/clientLogs');
 const requireAuth     = require('./middleware/auth');
+const { deprecate }   = require('./middleware/deprecate');
 
 const app  = express();
 
@@ -181,14 +182,9 @@ app.use('/api/v1/upload',      uploadLimiter, uploadRouter);
 app.use('/api/v1/client-logs', clientLogsLimiter, clientLogsRouter);
 app.use('/api/client-logs',    clientLogsLimiter, clientLogsRouter);
 
-// FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation заголовок.
+// FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation/Sunset заголовки.
 // Rate limiter на /api/auth теперь также покрывает /api/v1/auth через явный middleware.
 // Удалим алиасы после миграции фронта на /v1/.
-const deprecate = (req, res, next) => {
-  res.setHeader('Deprecation', 'version="2026-09-01"');
-  res.setHeader('Sunset', 'Sat, 01 Sep 2026 00:00:00 GMT');
-  next();
-};
 app.use('/api/auth',        deprecate, authLimiter,   authRouter);
 app.use('/api/requests',    deprecate, requestsRouter);
 app.use('/api/users',       deprecate, usersRouter);
