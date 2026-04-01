@@ -3,7 +3,6 @@ const express  = require('express');
 const logger   = require('../logger');
 const jwt      = require('jsonwebtoken');
 const passwordHasher = require('../utils/passwordHasher');
-const fetch    = require('node-fetch');
 const { randomUUID: uuid } = require('crypto');
 const db       = require('../db');
 const requireAuth = require('../middleware/auth');
