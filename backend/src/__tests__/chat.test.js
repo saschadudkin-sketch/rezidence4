@@ -114,12 +114,13 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
   });
 
   it('400 когда значение не массив', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { '👍': 'not-an-array' } });
     expect(res.status).toBe(400);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда элемент реакции не строка', async () => {
