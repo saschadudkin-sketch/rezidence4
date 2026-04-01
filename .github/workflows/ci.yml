@@ -154,6 +154,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     if: github.event_name == 'schedule'
+    env:
+      BASE_URL: http://localhost:3001
+      SYNTHETIC_TOKEN: ${{ secrets.SYNTHETIC_TEST_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -161,4 +164,10 @@ jobs:
           node-version: 20
       - run: npx playwright install chromium --with-deps
       - run: docker compose up -d
+      - name: Synthetic canary (auth/chat/health)
+        if: env.SYNTHETIC_TOKEN != ''
+        run: ./loadtest/synthetic_canary.sh
+        env:
+          TOKEN: ${{ env.SYNTHETIC_TOKEN }}
+          BASE_URL: ${{ env.BASE_URL }}
       - run: npx playwright test e2e/pass-flow.spec.js
