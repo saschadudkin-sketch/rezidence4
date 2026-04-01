@@ -80,16 +80,16 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
   });
 
   it('400 когда reactions — строка', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: 'invalid' });
     expect(res.status).toBe(400);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда ключей больше 20', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const tooMany = {};
     for (let i = 0; i < 21; i++) tooMany[`emoji${i}`] = ['u1'];
     const res = await request(app)
@@ -98,6 +98,8 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
       .send({ reactions: tooMany });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Too many/i);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда ключ длиннее 10 символов', async () => {
