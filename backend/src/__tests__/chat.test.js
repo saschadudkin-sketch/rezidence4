@@ -103,13 +103,14 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
   });
 
   it('400 когда ключ длиннее 10 символов', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/chat/messages/msg-1')
       .set('Cookie', `token=${token}`)
       .send({ reactions: { 'toolongkeyvalue': ['u1'] } }); // 15 символов
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/too long/i);
+    expect(db.query).not.toHaveBeenCalled();
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   it('400 когда значение не массив', async () => {
