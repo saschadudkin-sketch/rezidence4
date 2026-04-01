@@ -177,6 +177,22 @@ describe('PATCH /api/chat/messages/:id — валидация reactions', () => 
     expect(res.status).toBe(404);
     expectTransactionRolledBack(txClient);
   });
+
+  it('500 при ошибке UPDATE и транзакция откатывается', async () => {
+    txClient.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1', reactions: {} }] }) // SELECT ... FOR UPDATE
+      .mockRejectedValueOnce(new Error('db update failed')) // UPDATE
+      .mockResolvedValueOnce(undefined); // ROLLBACK
+
+    const res = await request(app)
+      .patch('/api/chat/messages/msg-err')
+      .set('Cookie', `token=${token}`)
+      .send({ reactions: { '👍': ['u1'] } });
+
+    expect(res.status).toBe(500);
+    expectTransactionRolledBack(txClient);
+  });
 });
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
