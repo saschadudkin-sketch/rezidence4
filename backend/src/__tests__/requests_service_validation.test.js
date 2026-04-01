@@ -24,9 +24,19 @@ const adminUser  = { uid: 'admin-1', name: 'Администратор', role: '
 const ownerUser  = { uid: 'owner-1', name: 'Иванов', role: 'owner' };
 
 function mockExistingRequest(overrides = {}) {
-  db.query.mockResolvedValueOnce({
-    rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1', ...overrides }],
-  });
+  return {
+    id: 'req-1',
+    status: 'pending',
+    created_by_uid: 'owner-1',
+    ...overrides,
+  };
+}
+
+function mockTxClient(queryImpl) {
+  return {
+    query: jest.fn(queryImpl),
+    release: jest.fn(),
+  };
 }
 
 // ─── create() — валидация длины ───────────────────────────────────────────────
@@ -98,7 +108,12 @@ describe('RequestsService.update() — historyLabel validation', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('400 когда historyLabel > 200 символов', async () => {
-    mockExistingRequest();
+    const mockClient = mockTxClient(async (sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return {};
+      if (sql.includes('FOR UPDATE')) return { rows: [mockExistingRequest()] };
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    });
+    db.pool.connect.mockResolvedValueOnce(mockClient);
 
     await expect(
       RequestsService.update(adminUser, 'req-1', {
@@ -112,12 +127,10 @@ describe('RequestsService.update() — historyLabel validation', () => {
   });
 
   test('не бросает при historyLabel ровно 200 символов (граница)', async () => {
-    mockExistingRequest();
-
-    // mock withTransaction: pool.connect → client
     const mockClient = {
       query: jest.fn()
         .mockResolvedValueOnce({}) // BEGIN
+        .mockResolvedValueOnce({ rows: [mockExistingRequest()] }) // SELECT ... FOR UPDATE
         .mockResolvedValueOnce({   // UPDATE
           rows: [{
             id: 'req-1', type: 'pass', category: 'guest', status: 'approved',
@@ -143,13 +156,80 @@ describe('RequestsService.update() — historyLabel validation', () => {
   });
 
   test('400 когда comment > 2000 в update()', async () => {
-    mockExistingRequest();
+    const mockClient = mockTxClient(async (sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return {};
+      if (sql.includes('FOR UPDATE')) return { rows: [mockExistingRequest()] };
+      throw new Error(`Unexpected SQL in test: ${sql}`);
+    });
+    db.pool.connect.mockResolvedValueOnce(mockClient);
 
     await expect(
       RequestsService.update(ownerUser, 'req-1', {
         comment: 'Y'.repeat(2001),
       })
     ).rejects.toMatchObject({ message: expect.stringContaining('comment too long'), status: 400 });
+  });
+
+  test('single-winner для двух параллельных update(status=cancelled) запросов', async () => {
+    let locked = false;
+    let status = 'pending';
+
+    const makeClient = () => {
+      const client = {
+        query: jest.fn(async (sql, params) => {
+          if (sql === 'BEGIN') return {};
+          if (sql === 'COMMIT') {
+            locked = false;
+            return {};
+          }
+          if (sql === 'ROLLBACK') {
+            locked = false;
+            return {};
+          }
+          if (sql.includes('FOR UPDATE')) {
+            while (locked) {
+              await new Promise(resolve => setTimeout(resolve, 0));
+            }
+            locked = true;
+            return { rows: [{ id: 'req-1', status, created_by_uid: 'owner-1' }] };
+          }
+          if (sql.startsWith('UPDATE requests SET')) {
+            status = params[0];
+            return {
+              rows: [{
+                id: 'req-1', type: 'pass', category: 'guest', status,
+                created_by_uid: 'owner-1', created_by_name: 'Иванов', created_by_role: 'owner',
+                created_by_apt: null, visitor_name: null, visitor_phone: null,
+                car_plate: null, comment: '', pass_duration: 'once',
+                valid_until: null, scheduled_for: null, arrived_at: null, photos: [],
+                created_at: new Date(), updated_at: new Date(),
+              }],
+            };
+          }
+          if (sql.startsWith('INSERT INTO request_history')) return {};
+          throw new Error(`Unexpected SQL in test: ${sql}`);
+        }),
+        release: jest.fn(),
+      };
+      return client;
+    };
+
+    db.pool.connect
+      .mockResolvedValueOnce(makeClient())
+      .mockResolvedValueOnce(makeClient());
+
+    const patch = { status: 'cancelled', historyLabel: 'cancel' };
+    const [first, second] = await Promise.allSettled([
+      RequestsService.update(ownerUser, 'req-1', patch),
+      RequestsService.update(ownerUser, 'req-1', patch),
+    ]);
+
+    expect(first.status).toBe('fulfilled');
+    expect(second.status).toBe('rejected');
+    expect(second.reason).toMatchObject({
+      message: expect.stringContaining("cannot transition status from 'cancelled' to 'cancelled'"),
+      status: 403,
+    });
   });
 });
 

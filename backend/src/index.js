@@ -9,6 +9,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
 const pinoHttp     = require('pino-http');
 const logger       = require('./logger');
+const appMetrics   = require('./metrics');
+const { randomUUID } = require('crypto');
 
 const db              = require('./db');
 const authRouter      = require('./routes/auth');
@@ -22,6 +24,7 @@ const visitLogsRouter = require('./routes/visitLogs');
 const uploadRouter    = require('./routes/upload');
 const clientLogsRouter = require('./routes/clientLogs');
 const requireAuth     = require('./middleware/auth');
+const { deprecate }   = require('./middleware/deprecate');
 
 const app  = express();
 
@@ -53,12 +56,23 @@ if (!process.env.DATABASE_URL) {
   logger.fatal('DATABASE_URL must be set');
   process.exit(1);
 }
+if (process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
+  logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
+} else {
+  logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
+}
 
 // ─── FIX [SEC-5]: Helmet — security headers ──────────────────────────────────
 // Устанавливает: X-Frame-Options, X-Content-Type-Options, HSTS,
 // Referrer-Policy, Permissions-Policy и Content-Security-Policy.
 const BACKEND_URL  = process.env.BACKEND_URL  || `http://localhost:${PORT}`;
-const FRONTEND_URL = process.env.FRONTEND_URL || '*';
+const DEFAULT_DEV_FRONTEND_URLS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+].join(',');
+const FRONTEND_URL = process.env.FRONTEND_URL || (isProd ? '' : DEFAULT_DEV_FRONTEND_URLS);
 
 // FIX [AUDIT-3 #14]: Убираем CSP из helmet на backend — он API-only сервер,
 // не отдаёт HTML. CSP на /api/* бессмысленен для JSON-ответов и конфликтует
@@ -106,11 +120,11 @@ const uploadLimiter = rateLimit({
 });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim());
+const allowedOrigins = FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       cb(null, true);
     } else {
       cb(new Error('CORS: not allowed'));
@@ -128,6 +142,15 @@ app.use(cors({
 app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
 
+// ─── Correlation ID ───────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const incoming = req.headers['x-request-id'];
+  const requestId = (typeof incoming === 'string' && incoming.trim()) || randomUUID();
+  req.requestId = requestId;
+  res.setHeader('X-Request-Id', requestId);
+  next();
+});
+
 // ─── FIX [AUDIT-6 #3]: CSRF protection (double-submit cookie) ────────────────
 const { setCsrfCookie, verifyCsrf } = require('./middleware/csrf');
 app.use('/api/', setCsrfCookie);  // выдаём токен при любом GET на /api/
@@ -137,7 +160,7 @@ app.use(pinoHttp({
   logger,
   customLogLevel: (_req, res) => res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
   serializers: {
-    req(req) { return { method: req.method, url: req.url, uid: req.raw?.user?.uid }; },
+    req(req) { return { method: req.method, url: req.url, uid: req.raw?.user?.uid, requestId: req.raw?.requestId }; },
     res(res) { return { statusCode: res.statusCode }; },
   },
 }));
@@ -181,14 +204,9 @@ app.use('/api/v1/upload',      uploadLimiter, uploadRouter);
 app.use('/api/v1/client-logs', clientLogsLimiter, clientLogsRouter);
 app.use('/api/client-logs',    clientLogsLimiter, clientLogsRouter);
 
-// FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation заголовок.
+// FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation/Sunset заголовки.
 // Rate limiter на /api/auth теперь также покрывает /api/v1/auth через явный middleware.
 // Удалим алиасы после миграции фронта на /v1/.
-const deprecate = (req, res, next) => {
-  res.setHeader('Deprecation', 'version="2026-09-01"');
-  res.setHeader('Sunset', 'Sat, 01 Sep 2026 00:00:00 GMT');
-  next();
-};
 app.use('/api/auth',        deprecate, authLimiter,   authRouter);
 app.use('/api/requests',    deprecate, requestsRouter);
 app.use('/api/users',       deprecate, usersRouter);
@@ -229,7 +247,39 @@ app.get('/api/metrics', requireAuth, (req, res) => {
     },
     nodeVersion: process.version,
     timestamp:   new Date().toISOString(),
+    appMetrics:  appMetrics.getSnapshot(),
   });
+});
+
+// ─── Prometheus text metrics (admin only) ─────────────────────────────────────
+app.get('/api/metrics/prometheus', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const m = appMetrics.getSnapshot();
+  const lines = [
+    '# HELP rez_auth_refresh_requests_total Total refresh endpoint requests',
+    '# TYPE rez_auth_refresh_requests_total counter',
+    `rez_auth_refresh_requests_total ${m.authRefreshRequests}`,
+    '# HELP rez_auth_refresh_success_total Total successful refresh operations',
+    '# TYPE rez_auth_refresh_success_total counter',
+    `rez_auth_refresh_success_total ${m.authRefreshSuccess}`,
+    '# HELP rez_auth_refresh_failed_total Total failed refresh operations',
+    '# TYPE rez_auth_refresh_failed_total counter',
+    `rez_auth_refresh_failed_total ${m.authRefreshFailed}`,
+    '# HELP rez_auth_refresh_legacy_fallback_total Legacy refresh fallback usage',
+    '# TYPE rez_auth_refresh_legacy_fallback_total counter',
+    `rez_auth_refresh_legacy_fallback_total ${m.authRefreshLegacyFallbackUsed}`,
+    '# HELP rez_db_pool_total Total PostgreSQL pool connections',
+    '# TYPE rez_db_pool_total gauge',
+    `rez_db_pool_total ${db.pool.totalCount}`,
+    '# HELP rez_db_pool_idle Idle PostgreSQL pool connections',
+    '# TYPE rez_db_pool_idle gauge',
+    `rez_db_pool_idle ${db.pool.idleCount}`,
+    '# HELP rez_db_pool_waiting Waiting PostgreSQL pool clients',
+    '# TYPE rez_db_pool_waiting gauge',
+    `rez_db_pool_waiting ${db.pool.waitingCount}`,
+  ];
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.send(lines.join('\n') + '\n');
 });
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
@@ -237,9 +287,11 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  logger.error({ err }, '[error] %s', err.message || err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+app.use((err, req, res, _next) => {
+  logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+  const isProdRuntime = process.env.NODE_ENV === 'production';
+  const safeErrorMessage = isProdRuntime ? 'Internal server error' : (err.message || 'Internal server error');
+  res.status(err.status || 500).json({ error: safeErrorMessage });
 });
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
