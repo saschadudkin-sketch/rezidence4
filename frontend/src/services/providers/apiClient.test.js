@@ -86,6 +86,36 @@ describe('apiClient.get', () => {
     window.removeEventListener('rz:unauthorized', eventSpy);
   });
 
+  test('401 -> refresh -> retry использует общий X-Request-Id для всех fetch в цепочке', async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: vi.fn().mockResolvedValue({ error: 'Unauthorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ ok: true }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue({ users: ['u1'] }),
+      });
+
+    const client = await getClient();
+    const result = await client.get('/api/users');
+    expect(result).toEqual({ users: ['u1'] });
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const requestIds = fetch.mock.calls.map(([, opts]) => opts.headers['X-Request-Id']);
+    expect(new Set(requestIds).size).toBe(1);
+    expect(requestIds[0]).toBeTruthy();
+    expect(fetch.mock.calls[1][0]).toContain('/api/auth/refresh');
+  });
+
   test('500 → throws с текстом ошибки из JSON', async () => {
     mockFetchStatus(500, { error: 'Internal Server Error' });
     const client = await getClient();

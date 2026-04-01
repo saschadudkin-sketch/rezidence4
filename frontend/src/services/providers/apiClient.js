@@ -41,12 +41,27 @@ async function fetchWithTimeout(url, options, timeoutMs = 15_000) {
 let _refreshPromise = null;
 let _refreshFailed = false;
 
-async function tryRefreshToken() {
+function createRequestId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function withRequestHeaders(headers = {}, requestId) {
+  return { ...headers, 'X-Request-Id': requestId };
+}
+
+async function tryRefreshToken(parentRequestId = createRequestId()) {
   if (_refreshFailed) return false;
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = fetchWithTimeout(
     `${BASE_URL}/api/auth/refresh`,
-    { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': getCsrfToken() } },
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: withRequestHeaders({ 'X-CSRF-Token': getCsrfToken() }, parentRequestId),
+    },
     10_000,
   ).then(res => {
     _refreshPromise = null;
@@ -76,6 +91,7 @@ function getCsrfToken() {
  */
 async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
   let lastError;
+  const requestId = createRequestId();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
@@ -87,7 +103,10 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         `${BASE_URL}${path}`,
         {
           method,
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), ...extraHeaders },
+          headers: withRequestHeaders(
+            { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken(), ...extraHeaders },
+            requestId,
+          ),
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
         },
@@ -97,7 +116,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
 
       // FIX [S1]: 401 — пробуем refresh token перед сбросом сессии
       if (res.status === 401 && !path.includes('/auth/refresh')) {
-        const refreshed = await tryRefreshToken();
+        const refreshed = await tryRefreshToken(requestId);
         if (refreshed) {
           // Повторяем оригинальный запрос с новым access token
           continue;
@@ -142,11 +161,15 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
  * Таймаут увеличен до 30с для медленных соединений.
  */
 async function uploadPhoto(blob) {
+  const requestId = createRequestId();
   const res = await fetchWithTimeout(
     `${BASE_URL}/api/upload/photo`,
     {
       method: 'POST',
-      headers: { 'Content-Type': blob.type || 'image/jpeg', 'X-CSRF-Token': getCsrfToken() },
+      headers: withRequestHeaders(
+        { 'Content-Type': blob.type || 'image/jpeg', 'X-CSRF-Token': getCsrfToken() },
+        requestId,
+      ),
       credentials: 'include',
       body: blob,
     },
