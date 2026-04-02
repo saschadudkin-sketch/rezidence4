@@ -26,3 +26,14 @@
 .vlog-tag.dur{background:rgba(196,150,60,.1);color:var(--g2);border:1px solid rgba(196,150,60,.2)}
 .vlog-tag.expired{background:rgba(192,60,60,.1);color:var(--err-t);border:1px solid rgba(192,60,60,.2)}
 .vlog-card-comment{font-size:11px;color:var(--t4);margin-top:6px;font-style:italic}
+
+/* ── VISIT LOG POLISH / RESPONSIVE ── */
+.vlog-card{transition:background .15s,transform .15s,box-shadow .15s}
+.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+
+@media(max-width:600px){
+  .vlog-cards{gap:8px}
+  .vlog-card{padding:10px 12px;gap:10px}
+  .vlog-card-time{font-size:12px}
+  .vlog-card-name{font-size:13px}
+}

@@ -1450,7 +1450,6 @@ html{scroll-behavior:smooth}
 /* Card hover lift */
 .req-card:hover{transform:translateY(-1px)}
 .guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
-.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
 /* Smoother button feedback */
 .btn-gold:hover{filter:brightness(1.1)}
 .btn-outline:hover{border-color:var(--g1);color:var(--g2)}
@@ -1486,9 +1485,6 @@ html{scroll-behavior:smooth}
   .guard-card-top{gap:10px}
   .guard-apt{font-size:16px}
   .guard-name{font-size:13px}
-  .vlog-card{padding:10px 12px;gap:10px}
-  .vlog-card-time{font-size:12px}
-  .vlog-card-name{font-size:13px}
   .bl-header{flex-direction:column;align-items:flex-start;gap:8px}
   .sec-filters-row{gap:4px}
   .admin-toolbar{flex-direction:column}
@@ -1520,8 +1516,6 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 .guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.4)}
 
 /* Visit log card hover */
-.vlog-card{transition:background .15s,transform .15s,box-shadow .15s}
-.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
 
 /* Buttons — subtle scale on hover */
 .guard-btn{transition:all .15s}
@@ -1588,10 +1582,6 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 /* Req cards — tighter on mobile */
 @media(max-width:600px){
   .req-list{gap:6px}
-  .vlog-cards{gap:8px}
-  .vlog-card{padding:10px 12px;gap:10px}
-  .vlog-card-time{font-size:12px}
-  .vlog-card-name{font-size:13px}
 }
 
 /* Perms list */
