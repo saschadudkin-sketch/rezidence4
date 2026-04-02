@@ -21,9 +21,29 @@ jobs:
       - name: Prepare Playwright runtime deps + browser
         run: npm run test:e2e:preflight
       - name: Run smoke (schedule flow)
+        id: nightly_smoke
+        continue-on-error: true
         run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1
+      - name: Summarize nightly smoke
+        if: always()
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          {
+            echo "## Nightly smoke status"
+            echo "- Outcome: **${{ steps.nightly_smoke.outcome }}**"
+            echo "- Spec: \`e2e/pass-flow.spec.js\`"
+            echo "- Project: \`chromium\`"
+            echo "- Command: \`npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1\`"
+            echo "- Artifact (on failure): \`playwright-nightly-report\`"
+            echo "- Run page: $RUN_URL"
+            echo "- Timestamp (UTC): \`$RUN_TS\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail nightly job if smoke failed
+        if: steps.nightly_smoke.outcome != 'success'
+        run: exit 1
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-nightly-report
           path: playwright-report/
