@@ -1720,6 +1720,19 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 .empty-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:400;color:var(--t3);margin-bottom:6px}
 .empty-hint{font-size:11px;color:var(--t4);margin-top:8px;line-height:1.5;max-width:200px;text-align:center}
 .empty-sub{font-size:11px;color:var(--t4)}
+.state-block{
+  padding:32px 20px;
+  text-align:center;
+  background:var(--s2);
+  border:1px solid var(--b1);
+  border-radius:var(--r);
+  color:var(--t3);
+}
+.state-icon{opacity:.18;margin-bottom:10px}
+.state-loading .state-icon{opacity:.4;animation:spin 1.2s linear infinite}
+.state-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--t2);margin-bottom:6px}
+.state-sub{font-size:11px;color:var(--t4)}
+.state-action{margin-top:12px;min-width:160px}
 /* ── Skeleton ── */
 .skeleton-card{background:var(--s2);border:1.5px solid var(--b1);border-left:4px solid var(--b1);border-radius:8px;padding:12px;margin-bottom:8px;overflow:hidden}
 .skeleton-row{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)}
