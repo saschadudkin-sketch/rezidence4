@@ -15,18 +15,34 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend deps
+          cache-dependency-path: package-lock.json
+      - name: Install e2e deps
         run: npm ci
-        working-directory: frontend
-      - name: Install Playwright test runner
-        run: npm install --no-save @playwright/test
-      - name: Install Chromium
-        run: npx playwright install chromium --with-deps
+      - name: Prepare Playwright runtime deps + browser
+        run: npm run test:e2e:preflight
       - name: Run smoke (schedule flow)
-        run: npx playwright test e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1
+        id: nightly_smoke
+        continue-on-error: true
+        run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1
+      - name: Summarize nightly smoke
+        if: always()
+        env:
+          SUMMARY_TITLE: Phase 1 status — nightly-smoke
+          SUMMARY_SCOPE: Playwright nightly smoke
+          SUMMARY_OUTCOME: ${{ steps.nightly_smoke.outcome }}
+          SUMMARY_SPEC: e2e/pass-flow.spec.js
+          SUMMARY_PROJECT: chromium
+          SUMMARY_COMMAND: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1
+          SUMMARY_ARTIFACT: playwright-nightly-report (on failure)
+          SUMMARY_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          SUMMARY_TIMESTAMP_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          scripts/ci/write_status_summary.sh
+      - name: Fail nightly job if smoke failed
+        if: steps.nightly_smoke.outcome != 'success'
+        run: exit 1
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-nightly-report
           path: playwright-report/

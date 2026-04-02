@@ -19,6 +19,8 @@
     "start": "vite",
     "build": "vite build",
     "test": "vitest run",
+    "test:ux-critical": "vitest run src/views/Login.test.js src/views/Dashboard.smoke.test.js src/views/VisitLogView.test.js src/views/ResidentView.test.js src/views/AdminView.test.js src/views/SecurityConciergeViews.test.js src/views/BlacklistView.test.js src/perms/PermsList.smoke.test.js",
+    "test:ux-critical:report": "vitest run src/views/Login.test.js src/views/Dashboard.smoke.test.js src/views/VisitLogView.test.js src/views/ResidentView.test.js src/views/AdminView.test.js src/views/SecurityConciergeViews.test.js src/views/BlacklistView.test.js src/perms/PermsList.smoke.test.js --reporter=default --reporter=json --outputFile=../artifacts/ux-critical-vitest.json",
     "test:mode-services": "vitest run src/config/runtimeMode.test.js src/domain/requestWorkflow.test.js src/services/providers/createServices.test.js src/services/providers/serviceContainer.test.js src/services/providers/demoProvider.test.js src/services/chatGateway.test.js src/services/requestsGateway.test.js src/services/adminGateway.test.js src/ui/syncFeedback.test.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
     "verify:all": "vitest run && npm run build",

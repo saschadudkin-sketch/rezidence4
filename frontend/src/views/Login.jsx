@@ -17,6 +17,13 @@ const HINTS = isDemoMode() ? [
   ['+7 495 123-00-00', 'Администратор'],
 ] : [];
 
+function emitLoginMetric(type, payload = {}) {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  window.dispatchEvent(new CustomEvent('rz:login-metric', {
+    detail: { type, ...payload, ts: Date.now() },
+  }));
+}
+
 export default function Login({ onLogin }) {
   const [phone,     setPhone]     = useState('+7 ');
   const [otp,       setOtp]       = useState('');
@@ -41,9 +48,11 @@ export default function Login({ onLogin }) {
   }, [step, resendIn]);
 
   const sendCode = async () => {
+    const isResend = step === 'otp';
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 10 || digits.length > 11) {
       setPhoneError('Проверьте формат номера телефона');
+      emitLoginMetric(isResend ? 'resend_rejected' : 'send_code_rejected', { reason: 'phone_format' });
       toast('Введите корректный номер', 'error');
       return;
     }
@@ -61,6 +70,7 @@ export default function Login({ onLogin }) {
         setStep('otp');
         setResendIn(30);
         setOtpError('');
+        emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'live' });
         toast('SMS-код отправлен', 'success');
       } else {
         const f = findByPhone(phone, phoneDb);
@@ -71,10 +81,12 @@ export default function Login({ onLogin }) {
         setStep('otp');
         setResendIn(30);
         setOtpError('');
+        emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'demo' });
         toast('Демо: введите любой код', 'success');
       }
     } catch(e) {
       setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
+      emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
     } finally {
       if (!signal.aborted) setLoading(false);
@@ -84,6 +96,7 @@ export default function Login({ onLogin }) {
   const verify = async () => {
     if (otp.length < 4) {
       setOtpError('Код должен содержать минимум 4 цифры');
+      emitLoginMetric('verify_rejected', { reason: 'otp_too_short' });
       toast('Введите код из SMS', 'error');
       return;
     }
@@ -98,14 +111,17 @@ export default function Login({ onLogin }) {
       if (isLiveMode()) {
         const user = await authProvider.verifyOtp(phone, otp);
         if (signal.aborted) return;
+        emitLoginMetric('verify_success', { mode: 'live' });
         onLogin(user);
       } else {
         await new Promise(r => setTimeout(r, 400));
         if (signal.aborted) return;
+        emitLoginMetric('verify_success', { mode: 'demo' });
         onLogin(found);
       }
     } catch(e) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
+      emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
     } finally {
       if (!signal.aborted) setLoading(false);
@@ -190,8 +206,12 @@ export default function Login({ onLogin }) {
                       const f = findByPhone(p, phoneDb);
                       if (f) {
                         setFound(f);
+                        setOtp('');
+                        setOtpError('');
                         setStep('otp');
+                        setResendIn(30);
                         setDemoOpen(false);
+                        emitLoginMetric('send_code_success', { mode: 'demo', source: 'demo_shortcut' });
                         toast('Демо: введите любой код', 'success');
                       } else {
                         toast('Пользователь не найден в демо-данных', 'error');
