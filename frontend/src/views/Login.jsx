@@ -24,14 +24,6 @@ function emitLoginMetric(type, payload = {}) {
   }));
 }
 
-function getResendTimeoutSeconds() {
-  if (typeof window !== 'undefined') {
-    const raw = Number(window.__RZ_E2E_LOGIN_RESEND_SECONDS__);
-    if (Number.isFinite(raw) && raw >= 0) return raw;
-  }
-  return 30;
-}
-
 export default function Login({ onLogin }) {
   const [phone,     setPhone]     = useState('+7 ');
   const [otp,       setOtp]       = useState('');
@@ -42,7 +34,6 @@ export default function Login({ onLogin }) {
   const [phoneError, setPhoneError] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
-  const resendTimeoutSeconds = getResendTimeoutSeconds();
   const { phoneDb } = useUsers();
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
@@ -77,7 +68,7 @@ export default function Login({ onLogin }) {
         await authProvider.sendOtp(phone);
         if (signal.aborted) return;
         setStep('otp');
-        setResendIn(resendTimeoutSeconds);
+        setResendIn(30);
         setOtpError('');
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'live' });
         toast('SMS-код отправлен', 'success');
@@ -88,7 +79,7 @@ export default function Login({ onLogin }) {
         if (signal.aborted) return;
         setFound(f);
         setStep('otp');
-        setResendIn(resendTimeoutSeconds);
+        setResendIn(30);
         setOtpError('');
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'demo' });
         toast('Демо: введите любой код', 'success');
