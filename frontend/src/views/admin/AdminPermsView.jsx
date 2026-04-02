@@ -7,6 +7,7 @@ import { toast } from '../../ui/Toasts';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
+import StateBlock from '../../ui/StateBlock';
 
 // ─── AdminPermsItemRow ────────────────────────────────────────────────────────
 
@@ -257,14 +258,11 @@ export default function AdminPermsView() {
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {filtered.length === 0 && (
-        <div className="empty">
-          <div className="empty-title">
-            {q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}
-          </div>
-          <div className="empty-sub">
-            {q ? 'Попробуйте другой запрос' : 'Жильцы ещё не заполнили постоянные списки'}
-          </div>
-        </div>
+        <StateBlock
+          type="empty"
+          title={q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}
+          subtitle={q ? 'Попробуйте другой запрос' : 'Жильцы ещё не заполнили постоянные списки'}
+        />
       )}
       {filtered.map(u => <AdminPermsAptGroup key={u.uid + tab} u={u} tab={tab} />)}
     </div>
