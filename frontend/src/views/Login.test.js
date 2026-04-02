@@ -132,6 +132,51 @@ describe('Login — шаг OTP', () => {
   });
 });
 
+describe('Login — retry/metrics', () => {
+  async function openOtp() {
+    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    render(<Login onLogin={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
+    fireEvent.click(screen.getByText('Получить SMS-код'));
+    await screen.findByPlaceholderText('• • • •');
+  }
+
+  test('на шаге OTP показывается таймер resend', async () => {
+    await openOtp();
+    expect(screen.getByText(/Отправить код повторно через/i)).toBeInTheDocument();
+  });
+
+  test('отправляет metric verify_rejected при коротком OTP', async () => {
+    const metricSpy = vi.fn();
+    window.addEventListener('rz:login-metric', metricSpy);
+    await openOtp();
+    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '12' } });
+    fireEvent.click(screen.getByText('Войти'));
+    await waitFor(() => expect(metricSpy).toHaveBeenCalled());
+    const last = metricSpy.mock.calls.at(-1)[0].detail;
+    expect(last.type).toBe('verify_rejected');
+    window.removeEventListener('rz:login-metric', metricSpy);
+  });
+
+  test('отправляет metric verify_success при успешном verify', async () => {
+    const onLogin = vi.fn();
+    const metricSpy = vi.fn();
+    window.addEventListener('rz:login-metric', metricSpy);
+    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    authProvider.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
+    render(<Login onLogin={onLogin} />);
+    fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
+    fireEvent.click(screen.getByText('Получить SMS-код'));
+    await screen.findByPlaceholderText('• • • •');
+    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '1234' } });
+    fireEvent.click(screen.getByText('Войти'));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
+    const types = metricSpy.mock.calls.map(([ev]) => ev.detail.type);
+    expect(types).toContain('verify_success');
+    window.removeEventListener('rz:login-metric', metricSpy);
+  });
+});
+
 describe('Login — демо-список', () => {
   test('в live-режиме демо-список отсутствует', () => {
     render(<Login onLogin={vi.fn()} />);
