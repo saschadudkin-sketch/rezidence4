@@ -13,8 +13,10 @@ import './styles/components/login-flow.css';
 import './styles/components/login-ui.css';
 import './styles/components/field-controls.css';
 import './styles/components/buttons.css';
+import './styles/components/navigation-shell.css';
 import './styles/components/mobile-nav.css';
 import './styles/components/state-block.css';
+import './styles/components/list-management.css';
 
 // ─── FIX [U1]: Offline indicator ──────────────────────────────────────────────
 // Слушает события online/offline и показывает toast + баннер при потере сети.

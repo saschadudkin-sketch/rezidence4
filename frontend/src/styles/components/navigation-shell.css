@@ -1,0 +1,88 @@
+/* ── HEADER shell ── */
+.header{
+  position:fixed;top:0;left:0;right:0;z-index:var(--z-nav);
+  height:calc(var(--header-h) + var(--sat));
+  padding-top:var(--sat);
+  background:var(--header-bg);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--b1);
+  display:flex;align-items:flex-end;
+  padding-left:max(22px,var(--sal));
+  padding-right:max(22px,var(--sar));
+}
+.header-inner{
+  display:flex;align-items:center;justify-content:space-between;
+  width:100%;height:var(--header-h);
+}
+.header-brand{display:flex;align-items:center;gap:var(--space-sm)}
+.header-logo{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(196,150,60,.55)) drop-shadow(0 1px 3px rgba(0,0,0,.3)) brightness(1.1)}
+html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) drop-shadow(0 1px 4px rgba(0,0,0,.15)) brightness(.95)}
+@media(prefers-color-scheme:light){html:not(.theme-dark) .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) drop-shadow(0 1px 4px rgba(0,0,0,.15)) brightness(.95)}}
+.header-wordmark{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);font-weight:500}
+@media(max-width:460px){.header-wordmark{display:none}}
+
+/* ── TOP NAV (desktop) ── */
+.top-nav{
+  display:flex;align-items:center;justify-content:center;gap:2px;
+  padding:0;
+  max-width:960px;margin:0 auto;
+  background:var(--topnav-bg);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);
+  position:sticky;top:calc(var(--header-h) + var(--sat));z-index:var(--z-sticky);
+  overflow-x:auto;scrollbar-width:none;
+}
+.top-nav::-webkit-scrollbar{display:none}
+@media(max-width:860px){.top-nav{display:none}}
+.tn-btn{
+  display:flex;align-items:center;gap:var(--space-sm);
+  padding:0 18px;height:44px;
+  background:none;border:none;border-bottom:2px solid transparent;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:400;
+  letter-spacing:0;color:var(--t3);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:color .13s,border-color .13s,background .13s;position:relative;
+  margin-bottom:-1px;border-radius:var(--r) var(--r) 0 0;
+}
+@media(hover:hover){.tn-btn:hover{color:var(--t1);background:rgba(196,150,60,.05)}}
+.tn-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:500;background:var(--g-bg)}
+.tn-icon{font-size:16px;line-height:1}
+.tn-badge{
+  background:var(--err);color:#fff;
+  font-size:11px;font-weight:700;
+  min-width:15px;height:15px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;
+}
+html.theme-light .tn-badge{background:#C0252A;color:#fff}
+@media(prefers-color-scheme:light){html:not(.theme-dark) .tn-badge{background:#C0252A;color:#fff}}
+.tn-btn.blink .tn-icon{animation:blink 1s ease infinite}
+.tn-btn.blink{color:var(--err-t)}
+.tn-btn.blink-y .tn-icon{animation:blink 1s ease infinite}
+.tn-btn.blink-y{color:var(--wrn-t)}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:var(--z-nav);
+  background:var(--mobnav-bg);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--b1);
+  padding-bottom:var(--sab);
+}
+@media(max-width:860px){.mobile-nav{display:flex}}
+.mn-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:var(--space-xs);padding:9px 4px;
+  background:none;border:none;cursor:pointer;
+  min-height:var(--nav-h);position:relative;
+  transition:background .13s;
+}
+.mn-btn:active{background:var(--g-bg)}
+.mn-icon{font-size:16px;line-height:1}
+.mn-label{font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--t4)}
+.mn-btn.active .mn-label{color:var(--g2)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.mn-btn.blink .mn-icon{animation:blink 1s ease infinite}
+.mn-btn.blink .mn-label{color:var(--err-t);animation:blink 1s ease infinite}
+.mn-btn.blink-y .mn-icon{animation:blink 1s ease infinite}
+.mn-btn.blink-y .mn-label{color:var(--wrn-t);animation:blink 1s ease infinite}
