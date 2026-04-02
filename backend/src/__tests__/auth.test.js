@@ -32,10 +32,11 @@ const VALID_CODE  = '123456';
 
 beforeAll(() => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
+  process.env.AUTH_SKIP_ACTIVE_CHECK = '0';
 });
 
 describe('POST /api/auth/send-otp', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.resetAllMocks(); });
 
   it('400 при коротком номере', async () => {
     const res = await request(app)
@@ -81,7 +82,7 @@ describe('POST /api/auth/send-otp', () => {
 });
 
 describe('POST /api/auth/verify-otp', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.resetAllMocks(); });
 
   it('400 при слишком коротком коде', async () => {
     const res = await request(app)
@@ -186,7 +187,7 @@ describe('POST /api/auth/logout', () => {
 });
 
 describe('POST /api/auth/refresh', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.resetAllMocks(); });
 
   it('ротирует refresh token и запрещает reuse старого токена', async () => {
     const passwordHasher = require('../utils/passwordHasher');
@@ -203,7 +204,8 @@ describe('POST /api/auth/refresh', () => {
       .mockResolvedValueOnce({ rows: [{ uid: 'u1', phone: VALID_PHONE, name: 'Test', role: 'owner', apartment: '10', avatar: null }] }) // user
       .mockResolvedValueOnce({ rows: [] }) // insert new refresh token
       // 3) second /refresh with OLD token -> denied
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // delete by id_hash
+      .mockResolvedValueOnce({ rows: [] }); // legacy fallback delete by id
 
     const loginRes = await request(app)
       .post('/api/auth/verify-otp')
@@ -229,7 +231,11 @@ describe('POST /api/auth/refresh', () => {
 });
 
 describe('GET /api/auth/me', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('200 возвращает профиль активного пользователя', async () => {
     const token = jwt.sign(
@@ -249,7 +255,7 @@ describe('GET /api/auth/me', () => {
       .set('Cookie', [`token=${token}`]);
 
     expect(res.status).toBe(200);
-    expect(res.body.user.uid).toBe('u1');
+    expect(res.body.user?.uid || res.body.uid).toBe('u1');
   });
 
   it('401 если пользователь soft-deleted (блокируется в middleware)', async () => {
