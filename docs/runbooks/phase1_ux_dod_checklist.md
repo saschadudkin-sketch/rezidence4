@@ -40,3 +40,24 @@ npm --prefix frontend run build
 npm run test:e2e:preflight
 npm run test:e2e -- --list
 ```
+
+## Summary schema (CI)
+Единый формат summary-блоков фиксируется через `scripts/ci/write_status_summary.sh`.
+
+Обязательные поля:
+- `SUMMARY_TITLE`
+- `SUMMARY_SCOPE`
+- `SUMMARY_OUTCOME`
+- `SUMMARY_COMMAND`
+- `SUMMARY_RUN_URL`
+- `SUMMARY_TIMESTAMP_UTC`
+
+Опциональные поля:
+- `SUMMARY_SPEC`
+- `SUMMARY_PROJECT`
+- `SUMMARY_ARTIFACT`
+
+Почему это важно:
+1. Одинаковый формат между `ci.yml` и `nightly-smoke.yml`.
+2. Быстрый визуальный аудит результата без чтения длинных логов.
+3. Снижение риска дрейфа summary-полей при будущих правках workflow.
