@@ -171,12 +171,14 @@ jobs:
       - name: Summarize login smoke
         if: always()
         run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "## Phase 1 status — login-e2e-smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "- Scope: Playwright login smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "- Outcome: **${{ steps.login_e2e.outcome }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Spec: \`e2e/login-flow.spec.js\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Project: \`chromium\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Command: \`npm run test:e2e -- e2e/login-flow.spec.js --project=chromium\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run page: $RUN_URL" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -204,11 +206,13 @@ jobs:
       - name: Summarize full e2e run
         if: always()
         run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "## Phase 1 status — e2e-test" >> "$GITHUB_STEP_SUMMARY"
           echo "- Scope: Full Playwright e2e suite" >> "$GITHUB_STEP_SUMMARY"
           echo "- Outcome: **${{ steps.full_e2e.outcome }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Command: \`npm run test:e2e -- e2e/\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Artifact: \`playwright-report\` (uploaded in this job)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run page: $RUN_URL" >> "$GITHUB_STEP_SUMMARY"
       - name: Fail job if full e2e failed
         if: steps.full_e2e.outcome != 'success'
         run: exit 1
@@ -228,6 +232,7 @@ jobs:
           FRONTEND_RESULT='${{ needs.frontend-test.result }}'
           LOGIN_SMOKE_RESULT='${{ needs.login-e2e-smoke.result }}'
           FULL_E2E_RESULT='${{ needs.e2e-test.result }}'
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           VERDICT='PASS'
           if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ] || [ "$FULL_E2E_RESULT" != "success" ]; then
@@ -240,6 +245,10 @@ jobs:
             echo "- frontend-test: \`$FRONTEND_RESULT\`"
             echo "- login-e2e-smoke: \`$LOGIN_SMOKE_RESULT\`"
             echo "- e2e-test: \`$FULL_E2E_RESULT\`"
+            echo "- UX report artifact: \`ux-critical-vitest-report\`"
+            echo "- Login smoke artifact (on failure): \`login-smoke-playwright-report\`"
+            echo "- Full e2e artifact: \`playwright-report\`"
+            echo "- Run page: $RUN_URL"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$VERDICT" != "PASS" ]; then
