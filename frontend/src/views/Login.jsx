@@ -206,8 +206,12 @@ export default function Login({ onLogin }) {
                       const f = findByPhone(p, phoneDb);
                       if (f) {
                         setFound(f);
+                        setOtp('');
+                        setOtpError('');
                         setStep('otp');
+                        setResendIn(30);
                         setDemoOpen(false);
+                        emitLoginMetric('send_code_success', { mode: 'demo', source: 'demo_shortcut' });
                         toast('Демо: введите любой код', 'success');
                       } else {
                         toast('Пользователь не найден в демо-данных', 'error');

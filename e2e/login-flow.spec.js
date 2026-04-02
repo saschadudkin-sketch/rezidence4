@@ -32,7 +32,7 @@ test.describe('Login flow smoke', () => {
     await openOtpStepDemo(page);
     const resendBtn = page.getByRole('button', { name: /Отправить код повторно/i });
     await expect(resendBtn).toBeDisabled();
-    await page.clock.fastForward('00:31');
+    await page.clock.runFor('00:31');
     await expect(resendBtn).toBeEnabled();
     await expect(resendBtn).toHaveText('Отправить код повторно');
   });

@@ -6,7 +6,7 @@
 
 ```bash
 npm install
-npx playwright install chromium
+npm run test:e2e:preflight
 npm run test:e2e -- e2e/login-flow.spec.js --project=chromium
 ```
 
@@ -27,7 +27,5 @@ If your environment does not allow `install-deps`, preinstall the required GTK/A
 ## Recommended CI order
 
 1. `npm ci`
-2. `npx playwright install chromium`
-3. `npx playwright install-deps chromium`
-4. `npm run test:e2e -- e2e/login-flow.spec.js --project=chromium`
-
+2. `npm run test:e2e:preflight`
+3. `npm run test:e2e -- e2e/login-flow.spec.js --project=chromium`

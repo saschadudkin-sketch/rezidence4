@@ -34,6 +34,6 @@ Phase 1 считается закрытой только если одновре
 ```bash
 npm --prefix frontend run test:ux-critical
 npm --prefix frontend run build
+npm run test:e2e:preflight
 npm run test:e2e -- --list
 ```
-

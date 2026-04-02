@@ -18,8 +18,8 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install e2e deps
         run: npm ci
-      - name: Install Chromium
-        run: npx playwright install chromium --with-deps
+      - name: Prepare Playwright runtime deps + browser
+        run: npm run test:e2e:preflight
       - name: Run smoke (schedule flow)
         run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium --workers=1 --retries=1
       - uses: actions/upload-artifact@v4

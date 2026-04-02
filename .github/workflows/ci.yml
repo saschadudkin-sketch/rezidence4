@@ -140,7 +140,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:preflight
       - run: docker compose up -d
       - run: npm run test:e2e -- e2e/
       - uses: actions/upload-artifact@v4
@@ -161,6 +161,6 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e:preflight
       - run: docker compose up -d
       - run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium
