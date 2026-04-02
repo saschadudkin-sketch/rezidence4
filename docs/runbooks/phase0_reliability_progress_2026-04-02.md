@@ -99,3 +99,32 @@ Working hypothesis:
   - `frontend:build` c env preflight,
   - `contract-pack` как required check.
 
+
+---
+
+## Phase 1 progress (current)
+
+### Уже сделано
+- Login UX uplift v1:
+  - step indicator (1/2),
+  - inline field errors,
+  - resend timer и повторная отправка кода.
+- Unified state component:
+  - создан `StateBlock`,
+  - интегрирован в `VisitLogView` для loading/empty.
+
+### Что дальше по плану (следующая итерация)
+1. **StateBlock rollout в остальные критичные потоки**
+   - requests list,
+   - chat list,
+   - минимум один admin-list экран.
+2. **Navigation semantics parity (mobile vs desktop)**
+   - заменить dot-индикаторы на count badges с cap `9+`,
+   - унифицировать приоритеты бейджей.
+3. **Login flow hardening**
+   - добавить e2e smoke на resend/invalid code/retry,
+   - ввести метрическую телеметрию: login success/fail/retry.
+4. **CI quality gates for UX changes**
+   - обязательный прогон targeted frontend tests для изменённых view-компонентов,
+   - regression checklist по loading/empty/error states.
+
