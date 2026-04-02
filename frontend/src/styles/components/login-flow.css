@@ -1,0 +1,13 @@
+.login-step{
+  font-size:11px;
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+  color:var(--t4);
+  margin-bottom:10px;
+}
+
+.field-err{
+  margin-top:6px;
+  font-size:11px;
+  color:var(--err-t);
+}

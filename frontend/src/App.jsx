@@ -9,6 +9,9 @@ import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
 import './styles/theme.css';
+import './styles/components/login-flow.css';
+import './styles/components/mobile-nav.css';
+import './styles/components/state-block.css';
 
 // ─── FIX [U1]: Offline indicator ──────────────────────────────────────────────
 // Слушает события online/offline и показывает toast + баннер при потере сети.

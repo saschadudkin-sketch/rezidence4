@@ -33,6 +33,7 @@ const request        = require('supertest');
 process.env.JWT_SECRET  = 'test-secret';
 process.env.BACKEND_URL = 'http://backend.test';
 process.env.UPLOAD_DIR  = '/tmp/test-uploads';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const uploadRouter = require('../routes/upload');
 
@@ -58,7 +59,11 @@ const FAKE_JUNK = Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
 // ─── POST /api/upload/photo ───────────────────────────────────────────────────
 
 describe('POST /api/upload/photo', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('401 без токена', async () => {
     const res = await request(app)

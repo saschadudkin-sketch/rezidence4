@@ -15,6 +15,7 @@ import VisitLogView from './VisitLogView.jsx';
 import ResidentsView from './ResidentsView.jsx';
 import { CarSearchModal } from '../requests/CarSearchModal.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import StateBlock from '../ui/StateBlock.jsx';
 
 // ─── CONCIERGE VIEW ───────────────────────────────────────────────────────────
 
@@ -70,7 +71,11 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       </div>
       {showAll && allP.length > 0 && <div className="req-list">{allP.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>}
       {showAll && allP.length === 0 && (
-        <div className="empty"><div className="empty-ico"><AppIcon name="list" size={26} /></div><div className="empty-title">Пропусков нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки на пропуск не найдены'}</div></div>
+        <StateBlock
+          type="empty"
+          title="Пропусков нет"
+          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки на пропуск не найдены'}
+        />
       )}
     </>)}
 
@@ -96,7 +101,11 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <div className="req-list">{allT.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>
       </>}
       {allT.length === 0 && (
-        <div className="empty"><div className="empty-ico"><AppIcon name="tools" size={26} /></div><div className="empty-title">Техзаявок нет</div><div className="empty-sub">{debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки в техслужбу не найдены'}</div></div>
+        <StateBlock
+          type="empty"
+          title="Техзаявок нет"
+          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки в техслужбу не найдены'}
+        />
       )}
     </>)}
 
@@ -169,10 +178,11 @@ const SecurityPermsList = memo(function SecurityPermsList() {
         <input className="search-inp" placeholder="Поиск по апартаменту или ФИО..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {residentItems.length === 0 && (
-        <div className="empty">
-          <div className="empty-title">{q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}</div>
-          <div className="empty-sub">{q ? 'Попробуйте другой запрос' : 'Резиденты ещё не добавили постоянных ' + (tab === 'visitors' ? 'посетителей' : 'рабочих')}</div>
-        </div>
+        <StateBlock
+          type="empty"
+          title={q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}
+          subtitle={q ? 'Попробуйте другой запрос' : 'Резиденты ещё не добавили постоянных ' + (tab === 'visitors' ? 'посетителей' : 'рабочих')}
+        />
       )}
       {residentItems.map(({ u, list }) => {
         const isOpen = openApts[u.uid] === true;
@@ -289,7 +299,11 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
         </div>
       </div>
       {shown.length === 0
-        ? <div className="empty"><div className="empty-ico"><AppIcon name="list" size={26} /></div><div className="empty-title">{query ? 'Ничего не найдено' : 'Заявок нет'}</div><div className="empty-sub">{query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}</div></div>
+        ? <StateBlock
+            type="empty"
+            title={query ? 'Ничего не найдено' : 'Заявок нет'}
+            subtitle={query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}
+          />
         : <div className="req-list">{shown.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} highlightId={highlightReqId} onHighlighted={() => setHighlightReqId && setHighlightReqId(null)} />)}</div>}
     </>)}
 

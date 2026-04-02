@@ -65,6 +65,7 @@ const PAGE_SUBTITLES = {
   contractor: 'Управление пропусками', concierge: 'Контроль и координация',
   security: 'Контроль доступа', admin: 'Резиденции Замоскворечья',
 };
+const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
 // ─── RenderContent — мемоизирован ─────────────────────────────────────────────
 // REACT-4: React.memo предотвращает ре-рендер при изменении несвязанного состояния
@@ -275,7 +276,7 @@ export default function Dashboard({ user, onLogout }) {
                     <AvatarCircle avData={avData} role={user.role} name={user.name} size={34} fontSize={14} />
                   </div>
                   {canManageRequests(user.role) && (pendingT + pendingP) > 0 && (
-                    <span style={BADGE_STYLE}>{pendingT + pendingP}</span>
+                    <span style={BADGE_STYLE}>{formatBadgeCount(pendingT + pendingP)}</span>
                   )}
                 </div>
                 {menuOpen && (
@@ -315,7 +316,7 @@ export default function Dashboard({ user, onLogout }) {
               <button key={k} className={navBtnClass(k)} onClick={() => goTab(k)}>
                 <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
                 <span>{label}</span>
-                {badge > 0 && <span className="tn-badge">{badge}</span>}
+                {badge > 0 && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
               </button>
             ))}
           </nav>
@@ -345,7 +346,7 @@ export default function Dashboard({ user, onLogout }) {
             <button key={k} className={navBtnClassMn(k)} onClick={() => goTab(k)}>
               <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
               <span className="mn-label">{label}</span>
-              {badge > 0 && <span className="mn-dot" />}
+              {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
             </button>
           ))}
         </nav>

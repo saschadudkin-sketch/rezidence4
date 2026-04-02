@@ -57,7 +57,39 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm test -- --watchAll=false
+      - run: mkdir -p ../artifacts
+      - run: npm run test:ux-critical:report
       - run: npm run build
+      - name: Summarize UX-critical suite
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const reportPath = 'artifacts/ux-critical-vitest.json';
+          let summary = '## Phase 1 status — frontend-test\n';
+          try {
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const total = report.numTotalTests ?? 0;
+            const passed = report.numPassedTests ?? 0;
+            const failed = report.numFailedTests ?? 0;
+            const skipped = report.numPendingTests ?? 0;
+            const files = (report.testResults || []).length;
+            summary += `- Scope: UX-critical Vitest suite\n`;
+            summary += `- Files: **${files}**\n`;
+            summary += `- Tests: **${passed} passed** / ${failed} failed / ${skipped} skipped (total ${total})\n`;
+          } catch (err) {
+            summary += `- Unable to read ${reportPath}: ${err.message}\n`;
+          }
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
+          }
+          console.log(summary);
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ux-critical-vitest-report
+          path: artifacts/ux-critical-vitest.json
 
   frontend-verify-all:
     runs-on: ubuntu-latest
@@ -108,7 +140,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
+    needs: [backend-test, frontend-test, login-e2e-smoke, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -120,6 +152,41 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json', '**/Dockerfile') }}
       - run: docker compose build
 
+  login-e2e-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [frontend-test]
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:e2e:preflight
+      - id: login_e2e
+        run: npm run test:e2e -- e2e/login-flow.spec.js --project=chromium
+      - name: Summarize login smoke
+        if: always()
+        env:
+          SUMMARY_TITLE: Phase 1 status — login-e2e-smoke
+          SUMMARY_SCOPE: Playwright login smoke
+          SUMMARY_OUTCOME: ${{ steps.login_e2e.outcome }}
+          SUMMARY_SPEC: e2e/login-flow.spec.js
+          SUMMARY_PROJECT: chromium
+          SUMMARY_COMMAND: npm run test:e2e -- e2e/login-flow.spec.js --project=chromium
+          SUMMARY_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          SUMMARY_TIMESTAMP_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          scripts/ci/write_status_summary.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: login-smoke-playwright-report
+          path: playwright-report/
+
   e2e-test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -130,14 +197,71 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx playwright install chromium --with-deps
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:e2e:preflight
       - run: docker compose up -d
-      - run: npx playwright test e2e/
+      - id: full_e2e
+        continue-on-error: true
+        run: npm run test:e2e -- e2e/
+      - name: Summarize full e2e run
+        if: always()
+        env:
+          SUMMARY_TITLE: Phase 1 status — e2e-test
+          SUMMARY_SCOPE: Full Playwright e2e suite
+          SUMMARY_OUTCOME: ${{ steps.full_e2e.outcome }}
+          SUMMARY_COMMAND: npm run test:e2e -- e2e/
+          SUMMARY_ARTIFACT: playwright-report
+          SUMMARY_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          SUMMARY_TIMESTAMP_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          scripts/ci/write_status_summary.sh
+      - name: Fail job if full e2e failed
+        if: steps.full_e2e.outcome != 'success'
+        run: exit 1
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report
           path: playwright-report/
+
+  phase1-gate-summary:
+    runs-on: ubuntu-latest
+    if: always() && github.event_name != 'schedule'
+    needs: [frontend-test, login-e2e-smoke, e2e-test]
+    steps:
+      - name: Phase 1 gate verdict
+        run: |
+          FRONTEND_RESULT='${{ needs.frontend-test.result }}'
+          LOGIN_SMOKE_RESULT='${{ needs.login-e2e-smoke.result }}'
+          FULL_E2E_RESULT='${{ needs.e2e-test.result }}'
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          VERDICT='PASS'
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ] || [ "$FULL_E2E_RESULT" != "success" ]; then
+            VERDICT='FAIL'
+          fi
+
+          {
+            echo "## Phase 1 gate verdict"
+            echo "- Verdict: **$VERDICT**"
+            echo "- frontend-test: \`$FRONTEND_RESULT\`"
+            echo "- login-e2e-smoke: \`$LOGIN_SMOKE_RESULT\`"
+            echo "- e2e-test: \`$FULL_E2E_RESULT\`"
+            echo "- UX report artifact: \`ux-critical-vitest-report\`"
+            echo "- Login smoke artifact (on failure): \`login-smoke-playwright-report\`"
+            echo "- Full e2e artifact: \`playwright-report\`"
+            echo "- Run page: $RUN_URL"
+            echo "- Timestamp (UTC): \`$RUN_TS\`"
+            echo "- Ref: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$VERDICT" != "PASS" ]; then
+            exit 1
+          fi
 
   nightly-smoke:
     runs-on: ubuntu-latest
@@ -148,6 +272,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npx playwright install chromium --with-deps
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:e2e:preflight
       - run: docker compose up -d
-      - run: npx playwright test e2e/pass-flow.spec.js
+      - run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium

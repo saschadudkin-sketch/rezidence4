@@ -13,6 +13,7 @@ import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import StateBlock from '../ui/StateBlock.jsx';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -124,10 +125,11 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
         <div style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 8 }}>Найдено: {filtered.length}</div>
       )}
       {filtered.length === 0 && (
-        <div className="empty">
-          <div className="empty-title">{query ? 'Ничего не найдено' : contractorOnly ? 'Подрядчиков нет' : 'Пользователей нет'}</div>
-          {contractorOnly && !query && <div className="empty-sub">Нажмите «+ Добавить подрядчика»</div>}
-        </div>
+        <StateBlock
+          type="empty"
+          title={query ? 'Ничего не найдено' : contractorOnly ? 'Подрядчиков нет' : 'Пользователей нет'}
+          subtitle={contractorOnly && !query ? 'Нажмите «+ Добавить подрядчика»' : (query ? 'Попробуйте изменить запрос' : undefined)}
+        />
       )}
       <div>{filtered.map(u => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />)}</div>
       {addModal && <AddUserModal initialRole={contractorOnly ? 'contractor' : undefined} onClose={handleCloseAdd} onDone={() => {}} />}
@@ -176,7 +178,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
           ))}
         </div>
       </div>
-      {filtered.length === 0 && <div className="empty"><div className="empty-title">Заявок нет</div></div>}
+      {filtered.length === 0 && <StateBlock type="empty" title="Заявок нет" subtitle="Измените фильтры или период поиска" />}
       <div>{filtered.map(r => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />)}</div>
     </>
   );
