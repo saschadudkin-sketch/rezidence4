@@ -52,6 +52,7 @@ const BADGE_STYLE = {
   justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--bg)',
 };
 const AVATAR_STYLE = { background: 'transparent', padding: 0, border: 'none' };
+const DD_AVATAR_CLICKABLE_STYLE = { cursor: 'pointer', position: 'relative' };
 const ADMIN_LOADING_STYLE = { textAlign: 'center', padding: 40, color: 'var(--t4)' };
 
 // FIX [PERF]: PAGE_T/PAGE_S как модульные константы (lookup-only, not recreated each render)
@@ -120,6 +121,7 @@ export default function Dashboard({ user, onLogout }) {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [avOpen,   setAvOpen]   = useState(false);
+  const headerUserRef = useRef(null);
 
   // ── Хуки (вся бизнес-логика здесь) ─────────────────────────────────────
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
@@ -158,6 +160,16 @@ export default function Dashboard({ user, onLogout }) {
 
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
+
+  // Закрываем dropdown по клику вне него — без wrapper div на всё приложение
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e) => {
+      if (!headerUserRef.current?.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [menuOpen]);
 
   // ── Аватарка ─────────────────────────────────────────────────────────────
   // FIX [PERF]: useCallback — saveAvatar передаётся в AvatarModal,
@@ -235,8 +247,7 @@ export default function Dashboard({ user, onLogout }) {
 
   return (
     <>
-      <div onClick={() => menuOpen && setMenuOpen(false)}>
-        <header className="header">
+      <header className="header">
           <div className="header-inner">
             <div className="header-brand">
               <img src={LOGO} alt="" className="header-logo" />
@@ -249,9 +260,10 @@ export default function Dashboard({ user, onLogout }) {
                 <span>{themeLabel}</span>
               </button>
               <div
+                ref={headerUserRef}
                 className="header-user" role="button" tabIndex={0}
                 aria-label="Меню пользователя" aria-expanded={menuOpen}
-                onClick={e => { e.stopPropagation(); setMenuOpen(o => !o); }}
+                onClick={() => setMenuOpen(o => !o)}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(o => !o))}
               >
                 <div className="header-info">
@@ -267,10 +279,10 @@ export default function Dashboard({ user, onLogout }) {
                   )}
                 </div>
                 {menuOpen && (
-                  <div className="dropdown" onClick={e => e.stopPropagation()}>
+                  <div className="dropdown">
                     <div className="dd-avatar-wrap" onClick={e => e.stopPropagation()}>
                       <div
-                        style={{ cursor: 'pointer', position: 'relative' }}
+                        style={DD_AVATAR_CLICKABLE_STYLE}
                         role="button" tabIndex={0}
                         onClick={() => { setMenuOpen(false); setAvOpen(true); }}
                         onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(false), setAvOpen(true))}
@@ -337,7 +349,6 @@ export default function Dashboard({ user, onLogout }) {
             </button>
           ))}
         </nav>
-      </div>
 
       {avOpen && <AvatarModal user={user} avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />}
     </>

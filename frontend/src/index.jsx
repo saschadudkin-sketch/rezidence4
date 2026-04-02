@@ -10,6 +10,15 @@ window.onerror = (msg, ...args) => {
   return ro ? ro(msg, ...args) : false;
 };
 
+// Логируем необработанные Promise-ошибки (SSE, lazy-chunk, API failures)
+window.addEventListener('unhandledrejection', (event) => {
+  const msg = event.reason?.message || String(event.reason);
+  // Игнорируем намеренные отмены AbortController
+  if (msg === 'AbortError' || event.reason?.name === 'AbortError') return;
+  if (msg.includes('ResizeObserver')) return;
+  console.error('[App] Unhandled rejection:', event.reason);
+});
+
 registerSW();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
