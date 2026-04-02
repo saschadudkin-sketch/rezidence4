@@ -28,6 +28,7 @@ const jwt     = require('jsonwebtoken');
 const request = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 function makeToken(payload) {
   return jwt.sign(payload, 'test-secret', { expiresIn: '1h' });
@@ -144,7 +145,9 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
     db.pool.connect.mockResolvedValue(db._mockClient);
   });
 
@@ -152,6 +155,8 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
     db._mockClient.query.mockImplementation((sql) => {
       if (!sql || sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK')
         return Promise.resolve({});
+      if (sql.trim().startsWith('SELECT'))
+        return Promise.resolve({ rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1' }] });
       if (sql.trim().startsWith('UPDATE'))
         return Promise.resolve({ rows: [updateRow] });
       if (sql.trim().startsWith('INSERT'))
@@ -172,7 +177,7 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
 
   it('owner не может самоодобрить (pending -> approved)', async () => {
     const token = makeToken({ uid: 'owner-1', role: 'owner', name: 'Test' });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1' }] });
+    setupTx(row('pending'));
     const res = await request(app)
       .patch('/api/requests/req-1')
       .set('Cookie', `token=${token}`)
@@ -183,7 +188,6 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
 
   it('owner может отменить свою pending-заявку (pending -> cancelled)', async () => {
     const token = makeToken({ uid: 'owner-1', role: 'owner', name: 'Test' });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1' }] });
     setupTx(row('cancelled'));
     const res = await request(app)
       .patch('/api/requests/req-1')
@@ -195,7 +199,6 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
 
   it('security может одобрить pending (pending -> approved)', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Test' });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1' }] });
     setupTx(row('approved'));
     const res = await request(app)
       .patch('/api/requests/req-1')
@@ -207,7 +210,7 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
 
   it('owner не может изменить чужую заявку', async () => {
     const token = makeToken({ uid: 'owner-2', role: 'owner', name: 'Test' });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 'req-1', status: 'pending', created_by_uid: 'owner-1' }] });
+    setupTx(row('cancelled'));
     const res = await request(app)
       .patch('/api/requests/req-1')
       .set('Cookie', `token=${token}`)
@@ -217,7 +220,6 @@ describe('BUG-3: PATCH /api/requests/:id — валидация статусов
 
   it('admin может делать любой переход статуса', async () => {
     const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Test' });
-    db.query.mockResolvedValueOnce({ rows: [{ id: 'req-1', status: 'arrived', created_by_uid: 'owner-1' }] });
     setupTx(row('pending'));
     const res = await request(app)
       .patch('/api/requests/req-1')
@@ -240,7 +242,11 @@ describe('BUG-2: POST /api/chat/messages — валидация длины', () 
     app.use('/api/chat', chatRouter);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('текст длиннее 4000 символов → 400', async () => {
     const token = makeToken({ uid: 'user-1', role: 'owner', name: 'Тест' });
