@@ -59,3 +59,76 @@ Working hypothesis:
    - test harness mismatch,
    - actual runtime defects.
 
+
+---
+
+## Additional Phase Updates
+
+---
+
+## Phase 0 status
+
+**Status: COMPLETED** for backend reliability gate in current repository state.
+
+### Completion criteria achieved
+- Full backend test suite green: `28/28` suites, `354/354` tests.
+- Previously unstable auth/csrf/requests/chat/perms/blacklist/upload/migrations packs now deterministic.
+
+---
+
+## Что дальше по плану (следующие 2 недели)
+
+### Week 1 — Phase 1 kickoff (UX clarity + error-state system)
+1. **Login UX uplift spec**
+   - Stepper 1/2, inline validation, resend timer, error microcopy.
+2. **StateBlock design + API**
+   - единый компонент состояния: `loading / empty / error / retry`.
+3. **Navigation parity spec**
+   - mobile badges с count-cap (`9+`) вместо бинарных dot-сигналов.
+
+### Week 2 — реализация первых product-facing изменений
+1. Внедрить `StateBlock` в:
+   - requests list,
+   - chat list,
+   - visit logs.
+2. Переписать login flow на inline-errors + retry timer.
+3. Добавить e2e smoke:
+   - login success/failure/retry,
+   - partial API failure + retry action.
+
+### Governance / CI immediately
+- Зафиксировать отдельные CI-джобы:
+  - `backend:test` (полный),
+  - `frontend:test`,
+  - `frontend:build` c env preflight,
+  - `contract-pack` как required check.
+
+
+---
+
+## Phase 1 progress (current)
+
+### Уже сделано
+- Login UX uplift v1:
+  - step indicator (1/2),
+  - inline field errors,
+  - resend timer и повторная отправка кода.
+- Unified state component:
+  - создан `StateBlock`,
+  - интегрирован в `VisitLogView` для loading/empty.
+
+### Что дальше по плану (следующая итерация)
+1. **StateBlock rollout в остальные критичные потоки**
+   - requests list,
+   - chat list,
+   - минимум один admin-list экран.
+2. **Navigation semantics parity (mobile vs desktop)**
+   - заменить dot-индикаторы на count badges с cap `9+`,
+   - унифицировать приоритеты бейджей.
+3. **Login flow hardening**
+   - добавить e2e smoke на resend/invalid code/retry,
+   - ввести метрическую телеметрию: login success/fail/retry.
+4. **CI quality gates for UX changes**
+   - обязательный прогон targeted frontend tests для изменённых view-компонентов,
+   - regression checklist по loading/empty/error states.
+
