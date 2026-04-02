@@ -172,6 +172,7 @@ jobs:
         if: always()
         run: |
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           echo "## Phase 1 status — login-e2e-smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "- Scope: Playwright login smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "- Outcome: **${{ steps.login_e2e.outcome }}**" >> "$GITHUB_STEP_SUMMARY"
@@ -233,6 +234,7 @@ jobs:
           LOGIN_SMOKE_RESULT='${{ needs.login-e2e-smoke.result }}'
           FULL_E2E_RESULT='${{ needs.e2e-test.result }}'
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           VERDICT='PASS'
           if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ] || [ "$FULL_E2E_RESULT" != "success" ]; then
@@ -249,6 +251,9 @@ jobs:
             echo "- Login smoke artifact (on failure): \`login-smoke-playwright-report\`"
             echo "- Full e2e artifact: \`playwright-report\`"
             echo "- Run page: $RUN_URL"
+            echo "- Timestamp (UTC): \`$RUN_TS\`"
+            echo "- Ref: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$VERDICT" != "PASS" ]; then
