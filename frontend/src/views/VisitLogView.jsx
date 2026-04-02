@@ -12,6 +12,7 @@ import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils.js';
 import { clearVisitLogs, getVisitLogs } from '../shared/api/passesApi';
 import { AppIcon } from '../ui/AppIcon';
+import StateBlock from '../ui/StateBlock';
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -216,12 +217,13 @@ export default function VisitLogView({ user }) {
 
   return (
     <div className="vlog-wrap">
-      {/* FIX [U2]: loading skeleton при первой загрузке */}
+      {/* Phase-1: unified loading/empty state block */}
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--t4)' }}>
-          <div style={{ fontSize: 18, marginBottom: 8 }}>Загрузка журнала...</div>
-          <div className="loading-bar" style={{ width: 120, margin: '0 auto' }} />
-        </div>
+        <StateBlock
+          type="loading"
+          title="Загрузка журнала..."
+          subtitle="Пожалуйста, подождите"
+        />
       )}
       {!isLoading && (
       <>
@@ -275,11 +277,13 @@ export default function VisitLogView({ user }) {
       </div>
 
       {visits.length === 0 && (
-        <div className="empty">
-          <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="history" size={36} /></div>
-          <div className="empty-title">{q ? 'Ничего не найдено' : 'Посещений нет'}</div>
-          <div className="empty-sub">{q ? 'Попробуйте другой запрос' : 'Входы посетителей будут отображаться здесь'}</div>
-        </div>
+        <StateBlock
+          type="empty"
+          title={q ? 'Ничего не найдено' : 'Посещений нет'}
+          subtitle={q ? 'Попробуйте другой запрос' : 'Входы посетителей будут отображаться здесь'}
+          actionLabel={q ? 'Сбросить поиск' : undefined}
+          onAction={q ? () => setQuery('') : undefined}
+        />
       )}
 
       {groups.map(g => (

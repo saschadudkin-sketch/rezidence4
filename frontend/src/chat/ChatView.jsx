@@ -11,6 +11,7 @@ import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import StateBlock from '../ui/StateBlock.jsx';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -415,25 +416,26 @@ export function ChatView({ user }) {
         {/* FIX [AUDIT]: кнопка «Загрузить ещё» — бэкенд возвращал hasMore,
             но фронт не предоставлял способа прогрузить историю старше 60 сообщений. */}
         {hasMore && (
-          <div style={{ textAlign: 'center', padding: '8px 0' }}>
-            <button
-              onClick={loadOlderMessages}
-              disabled={loadingOlder}
-              style={{
-                background: 'var(--s2)', border: '1px solid var(--b1)',
-                borderRadius: 6, color: 'var(--t2)', fontSize: 12,
-                padding: '6px 16px', cursor: loadingOlder ? 'default' : 'pointer',
-                opacity: loadingOlder ? 0.6 : 1,
-              }}
-            >
-              {loadingOlder ? 'Загрузка...' : <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>}
-            </button>
+          <div style={{ padding: '8px 0' }}>
+            {loadingOlder ? (
+              <StateBlock type="loading" title="Загрузка истории…" />
+            ) : (
+              <button
+                onClick={loadOlderMessages}
+                className="btn-outline"
+                style={{ display: 'block', margin: '0 auto', minWidth: 160 }}
+              >
+                <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
+              </button>
+            )}
           </div>
         )}
         {filteredChat.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--t3)', padding: '40px 20px', fontSize: 13 }}>
-            {searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
-          </div>
+          <StateBlock
+            type="empty"
+            title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
+            subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
+          />
         )}
         {filteredChat.map((m, i) => {
           const readStatus = getReadStatus(m);

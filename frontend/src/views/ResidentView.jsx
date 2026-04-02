@@ -11,6 +11,7 @@ import GarageView from './GarageView.jsx';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import StateBlock from '../ui/StateBlock.jsx';
 
 // FIX [PERF]: Set.has() O(1) вместо Array.includes() O(n) — вызывается при каждом фильтре
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
@@ -152,13 +153,13 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
             </div>
           )}
           {filteredPasses.length === 0 && myPasses.length === 0
-            ? <div className="empty">
-                <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="ticket" size={36} /></div>
-                <div className="empty-title">Пропусков пока нет</div>
-                <div className="empty-sub">Нажмите на категорию выше, чтобы создать первый пропуск</div>
-              </div>
+            ? <StateBlock
+                type="empty"
+                title="Пропусков пока нет"
+                subtitle="Нажмите на категорию выше, чтобы создать первый пропуск"
+              />
             : filteredPasses.length === 0
-              ? <div className="empty"><div className="empty-title">Нет пропусков в этой категории</div></div>
+              ? <StateBlock type="empty" title="Нет пропусков в этой категории" />
               : <>
                   {scheduledPasses.length > 0 && passFilter !== 'scheduled' && (
                     <div style={{ marginBottom: 12 }}>
@@ -204,11 +205,11 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
             ))}
           </div>
           {filteredTech.length === 0
-            ? <div className="empty">
-                <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="tools" size={36} /></div>
-                <div className="empty-title">Заявок нет</div>
-                <div className="empty-sub">Нажмите на категорию выше, чтобы вызвать техслужбу</div>
-              </div>
+            ? <StateBlock
+                type="empty"
+                title="Заявок нет"
+                subtitle="Нажмите на категорию выше, чтобы вызвать техслужбу"
+              />
             : <GroupedReqList
                 reqs={filteredTech} userRole={user.role} userName={user.name} userId={user.uid}
                 onRepeat={onRepeatTech}
@@ -240,11 +241,11 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       {activeTab === 'history' && (
         <div>
           {completedRequests.length === 0 ? (
-            <div className="empty-state" style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ opacity: 0.15, marginBottom: 16 }}><AppIcon name="history" size={48} /></div>
-              <div style={{ fontSize: 18, color: 'var(--t3)', marginBottom: 8 }}>Нет завершённых заявок</div>
-              <div style={{ fontSize: 13, color: 'var(--t4)' }}>Здесь появятся завершённые, отклонённые и отменённые заявки</div>
-            </div>
+            <StateBlock
+              type="empty"
+              title="Нет завершённых заявок"
+              subtitle="Здесь появятся завершённые, отклонённые и отменённые заявки"
+            />
           ) : (
             <div className="req-list">
               {completedRequests.map((r, i) => (

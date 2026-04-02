@@ -13,6 +13,7 @@ const jwt          = require('jsonwebtoken');
 const request      = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const permsRouter = require('../routes/perms');
 
@@ -35,7 +36,11 @@ const T_U2    = mk({ uid: 'u2',     role: 'tenant', name: 'Ар' });
 // ─── GET /api/perms/:uid ──────────────────────────────────────────────────────
 
 describe('GET /api/perms/:uid', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('401 без токена', async () => {
     const res = await request(app).get('/api/perms/u1');
@@ -87,7 +92,11 @@ describe('GET /api/perms/:uid', () => {
 // ─── POST /api/perms ──────────────────────────────────────────────────────────
 
 describe('POST /api/perms', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('401 без токена', async () => {
     const res = await request(app).post('/api/perms')

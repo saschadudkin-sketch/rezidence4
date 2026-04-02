@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const blacklistRouter = require('../routes/blacklist');
 
@@ -31,7 +32,11 @@ const request = require('supertest');
 // ─── GET /api/blacklist ───────────────────────────────────────────────────────
 
 describe('GET /api/blacklist — контроль доступа', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('403 для жильца (owner)', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
@@ -101,7 +106,11 @@ describe('GET /api/blacklist — контроль доступа', () => {
 // ─── POST /api/blacklist ──────────────────────────────────────────────────────
 
 describe('POST /api/blacklist', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('403 для жильца', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
@@ -129,7 +138,11 @@ describe('POST /api/blacklist', () => {
 // ─── DELETE /api/blacklist/:id ────────────────────────────────────────────────
 
 describe('DELETE /api/blacklist/:id', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('403 для жильца', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });

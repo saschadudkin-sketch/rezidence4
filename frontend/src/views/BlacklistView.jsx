@@ -4,6 +4,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts.jsx';
 import { AppIcon } from '../ui/AppIcon';
+import StateBlock from '../ui/StateBlock';
 
 export default function BlacklistView({ user }) {
   const blacklist = useBlacklist();
@@ -84,11 +85,11 @@ export default function BlacklistView({ user }) {
       </div>
 
       {filtered.length === 0 && (
-        <div className="empty">
-          <div style={{ marginBottom: 12, opacity: .15 }}><AppIcon name="ban" size={36} /></div>
-          <div className="empty-title">{q ? 'Ничего не найдено' : 'Список пуст'}</div>
-          <div className="empty-sub">{q ? 'Попробуйте другой запрос' : 'Нажмите «+ Добавить» чтобы внести запись'}</div>
-        </div>
+        <StateBlock
+          type="empty"
+          title={q ? 'Ничего не найдено' : 'Список пуст'}
+          subtitle={q ? 'Попробуйте другой запрос' : 'Нажмите «+ Добавить» чтобы внести запись'}
+        />
       )}
 
       <div className="bl-list">
