@@ -218,6 +218,34 @@ jobs:
           name: playwright-report
           path: playwright-report/
 
+  phase1-gate-summary:
+    runs-on: ubuntu-latest
+    if: always() && github.event_name != 'schedule'
+    needs: [frontend-test, login-e2e-smoke, e2e-test]
+    steps:
+      - name: Phase 1 gate verdict
+        run: |
+          FRONTEND_RESULT='${{ needs.frontend-test.result }}'
+          LOGIN_SMOKE_RESULT='${{ needs.login-e2e-smoke.result }}'
+          FULL_E2E_RESULT='${{ needs.e2e-test.result }}'
+
+          VERDICT='PASS'
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ] || [ "$FULL_E2E_RESULT" != "success" ]; then
+            VERDICT='FAIL'
+          fi
+
+          {
+            echo "## Phase 1 gate verdict"
+            echo "- Verdict: **$VERDICT**"
+            echo "- frontend-test: \`$FRONTEND_RESULT\`"
+            echo "- login-e2e-smoke: \`$LOGIN_SMOKE_RESULT\`"
+            echo "- e2e-test: \`$FULL_E2E_RESULT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$VERDICT" != "PASS" ]; then
+            exit 1
+          fi
+
   nightly-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 25
