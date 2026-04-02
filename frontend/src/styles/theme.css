@@ -189,7 +189,6 @@ html.theme-light {
 /* Light theme card enhancement */
 html.theme-light .req-card,
 html.theme-light .guard-card,
-html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
 html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:var(--b2)}
 
 /* ── Принудительная тёмная тема (класс) ──────────────────────────────────── */
@@ -799,15 +798,6 @@ html.theme-light .chat-wrap{box-shadow:var(--sh-s)}
 .bl-form-row{display:flex;gap:8px}
 @media(max-width:480px){.bl-form-row{flex-direction:column}}
 .bl-list{display:flex;flex-direction:column;gap:6px}
-.bl-entry{background:var(--s2);border:1px solid var(--b1);border-left:3px solid var(--err-t);border-radius:var(--r);overflow:hidden;transition:border-color .13s}
-.bl-entry:hover{border-color:var(--b2)}
-.bl-entry-main{display:flex;align-items:center;gap:12px;padding:12px 14px}
-.bl-entry-icon{font-size:18px;flex-shrink:0;opacity:.6}
-.bl-entry-info{flex:1;min-width:0}
-.bl-entry-name{font-size:13px;font-weight:600;color:var(--t1)}
-.bl-entry-plate{font-size:13px;font-weight:600;color:var(--err-t);letter-spacing:1px;font-family:'DM Sans',sans-serif}
-.bl-entry-reason{font-size:11px;color:var(--t3);margin-top:2px}
-.bl-entry-date{font-size:10px;color:var(--t4);margin-top:2px}
 /* ── Предупреждение чёрного списка ── */
 .bl-warning{display:flex;align-items:center;gap:10px;padding:12px 14px;margin:8px 0;background:rgba(192,60,60,.1);border:1px solid rgba(192,60,60,.3);border-radius:var(--r);animation:urgentPulse 2s ease infinite}
 .bl-flagged{border-color:var(--err) !important;box-shadow:0 0 0 1px var(--err),var(--sh-s)}

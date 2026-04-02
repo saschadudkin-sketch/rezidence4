@@ -1,0 +1,12 @@
+html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
+
+/* ── BLACKLIST ENTRY ── */
+.bl-entry{background:var(--s2);border:1px solid var(--b1);border-left:3px solid var(--err-t);border-radius:var(--r);overflow:hidden;transition:border-color .13s}
+.bl-entry:hover{border-color:var(--b2)}
+.bl-entry-main{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.bl-entry-icon{font-size:18px;flex-shrink:0;opacity:.6}
+.bl-entry-info{flex:1;min-width:0}
+.bl-entry-name{font-size:13px;font-weight:600;color:var(--t1)}
+.bl-entry-plate{font-size:13px;font-weight:600;color:var(--err-t);letter-spacing:1px;font-family:'DM Sans',sans-serif}
+.bl-entry-reason{font-size:11px;color:var(--t3);margin-top:2px}
+.bl-entry-date{font-size:10px;color:var(--t4);margin-top:2px}
