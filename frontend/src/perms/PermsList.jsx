@@ -7,6 +7,7 @@ import { toast } from '../ui/Toasts.jsx';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { AppIcon } from '../ui/AppIcon';
+import StateBlock from '../ui/StateBlock';
 
 // ─── PermsList ────────────────────────────────────────────────────────────────
 
@@ -201,11 +202,11 @@ export function MyTemplates({ user, onUse }) {
   const del = useCallback(id => { deleteTemplate(user.uid, id); toast('Шаблон удалён', 'success'); }, [deleteTemplate, user.uid]);
 
   if (tpls.length === 0) return (
-    <div className="empty">
-      <div style={{ marginBottom: 16, opacity: .15 }}><AppIcon name="file" size={36} /></div>
-      <div className="empty-title">Шаблонов нет</div>
-      <div className="empty-sub">При создании пропуска или заявки нажмите<br />«💾 Сохранить как шаблон»</div>
-    </div>
+    <StateBlock
+      type="empty"
+      title="Шаблонов нет"
+      subtitle="При создании пропуска или заявки нажмите «💾 Сохранить как шаблон»"
+    />
   );
 
   const passes = tpls.filter(t => t.type === 'pass');
