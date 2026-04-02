@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useUsers } from '../store/AppStore';
 import { findByPhone } from '../utils.js';
 import { toast } from '../ui/Toasts';
@@ -26,58 +26,62 @@ export default function Login({ onLogin }) {
   const [demoOpen,  setDemoOpen]  = useState(false);
   const { phoneDb } = useUsers();
 
-  // FIX [LEAK]: isMountedRef — sendCode/verify делают async операции (SMS API, auth).
-  // Если пользователь быстро закрыл страницу / навигировал — setState на unmounted.
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+  // AbortController — отменяет in-flight запросы при быстрой повторной отправке
+  const abortRef = useRef(null);
 
   const sendCode = async () => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 10 || digits.length > 11) { toast('Введите корректный номер', 'error'); return; }
 
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true);
     try {
       if (isLiveMode()) {
         await authProvider.sendOtp(phone);
-        if (!isMountedRef.current) return;
+        if (signal.aborted) return;
         setStep('otp');
         toast('SMS-код отправлен', 'success');
       } else {
         const f = findByPhone(phone, phoneDb);
         if (!f) { toast('Номер не найден в системе', 'error'); setLoading(false); return; }
         await new Promise(r => setTimeout(r, 600));
-        if (!isMountedRef.current) return;
+        if (signal.aborted) return;
         setFound(f);
         setStep('otp');
         toast('Демо: введите любой код', 'success');
       }
     } catch(e) {
-      if (isMountedRef.current) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
+      if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 
   const verify = async () => {
     if (otp.length < 4) { toast('Введите код из SMS', 'error'); return; }
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true);
     try {
       if (isLiveMode()) {
         const user = await authProvider.verifyOtp(phone, otp);
-        if (!isMountedRef.current) return;
+        if (signal.aborted) return;
         onLogin(user);
       } else {
         await new Promise(r => setTimeout(r, 400));
-        if (!isMountedRef.current) return;
+        if (signal.aborted) return;
         onLogin(found);
       }
     } catch(e) {
-      if (isMountedRef.current) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
+      if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 
@@ -154,9 +158,15 @@ export default function Login({ onLogin }) {
                   {HINTS.map(([p, r]) => (
                     <button key={p} className="demo-row" onClick={() => {
                       setPhone(p);
-                      setDemoOpen(false);
                       const f = findByPhone(p, phoneDb);
-                      if (f) { setFound(f); setStep('otp'); toast('Демо: введите любой код', 'success'); }
+                      if (f) {
+                        setFound(f);
+                        setStep('otp');
+                        setDemoOpen(false);
+                        toast('Демо: введите любой код', 'success');
+                      } else {
+                        toast('Пользователь не найден в демо-данных', 'error');
+                      }
                     }}>
                       <span className="demo-ph">{p}</span>
                       <span className="demo-rl">{r}</span>
