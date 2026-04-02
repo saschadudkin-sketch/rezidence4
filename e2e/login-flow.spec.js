@@ -26,4 +26,15 @@ test.describe('Login flow smoke', () => {
     await page.getByRole('button', { name: '← Изменить номер' }).click();
     await expect(page.getByPlaceholder('+7 000 000-00-00')).toBeVisible();
   });
+
+  test('enables resend after countdown ends', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__RZ_E2E_LOGIN_RESEND_SECONDS__ = 1;
+    });
+    await openOtpStepDemo(page);
+    const resendBtn = page.getByRole('button', { name: /Отправить код повторно/i });
+    await expect(resendBtn).toBeDisabled();
+    await expect(resendBtn).toBeEnabled({ timeout: 4000 });
+    await expect(resendBtn).toHaveText('Отправить код повторно');
+  });
 });
