@@ -1,0 +1,28 @@
+/* ── Журнал посещений ── */
+.vlog-wrap{max-width:720px;margin:0 auto}
+.vlog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.vlog-title{font-size:16px;font-weight:600;color:var(--t1)}
+.vlog-total{font-size:12px;color:var(--t4);font-family:'DM Sans',sans-serif;letter-spacing:.5px}
+.vlog-group{margin-bottom:24px}
+.vlog-date-label{font-size:11px;font-weight:600;color:var(--t4);letter-spacing:1.5px;text-transform:uppercase;padding:8px 0 6px;border-bottom:1px solid var(--b1);margin-bottom:10px}
+.vlog-cards{display:flex;flex-direction:column;gap:10px}
+.vlog-card{display:flex;gap:14px;padding:14px 16px;background:var(--s2);border:1px solid var(--b2);border-radius:10px;transition:background .15s,box-shadow .15s,transform .15s}
+@media(hover:hover){.vlog-card:hover{background:var(--s3);box-shadow:0 4px 16px rgba(0,0,0,.25);transform:translateY(-1px)}}
+.vlog-card-left{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:48px;flex-shrink:0}
+.vlog-card-time{font-size:14px;font-weight:700;color:var(--g2);font-family:'Playfair Display',serif}
+.vlog-card-icon{font-size:20px;opacity:.6}
+.vlog-card-body{flex:1;min-width:0}
+.vlog-card-row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.vlog-card-name{font-size:15px;font-weight:600;color:var(--t1)}
+.vlog-card-details{font-size:12px;color:var(--t3);margin-bottom:6px}
+.vlog-card-apt{font-weight:600;color:var(--g2);margin-right:6px}
+.vlog-card-who{color:var(--t3)}
+.vlog-card-tags{display:flex;gap:6px;flex-wrap:wrap}
+.vlog-tag{font-size:10px;letter-spacing:.5px;padding:2px 8px;border-radius:12px;font-weight:500;white-space:nowrap}
+.vlog-tag.cat{background:var(--s3);color:var(--t3);border:1px solid var(--b1)}
+.vlog-tag.ok{background:var(--badge-approved-bg);color:var(--ok-t);border:1px solid var(--badge-approved-b)}
+.vlog-tag.bad{background:var(--badge-rejected-bg);color:var(--err-t);border:1px solid var(--badge-rejected-b)}
+.vlog-tag.car{background:rgba(91,143,212,.12);color:var(--arrived-t);border:1px solid rgba(91,143,212,.2)}
+.vlog-tag.dur{background:rgba(196,150,60,.1);color:var(--g2);border:1px solid rgba(196,150,60,.2)}
+.vlog-tag.expired{background:rgba(192,60,60,.1);color:var(--err-t);border:1px solid rgba(192,60,60,.2)}
+.vlog-card-comment{font-size:11px;color:var(--t4);margin-top:6px;font-style:italic}

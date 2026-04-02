@@ -18,6 +18,7 @@ import './styles/components/mobile-nav.css';
 import './styles/components/state-block.css';
 import './styles/components/list-management.css';
 import './styles/components/blacklist-entry.css';
+import './styles/features/visit-log.css';
 
 // ─── FIX [U1]: Offline indicator ──────────────────────────────────────────────
 // Слушает события online/offline и показывает toast + баннер при потере сети.
