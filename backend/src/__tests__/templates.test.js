@@ -14,6 +14,7 @@ const jwt          = require('jsonwebtoken');
 const request      = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const templatesRouter = require('../routes/templates');
 

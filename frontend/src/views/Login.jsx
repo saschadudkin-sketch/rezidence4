@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useUsers } from '../store/AppStore';
 import { findByPhone } from '../utils.js';
 import { toast } from '../ui/Toasts';
@@ -24,14 +24,30 @@ export default function Login({ onLogin }) {
   const [loading,   setLoading]   = useState(false);
   const [found,     setFound]     = useState(null);
   const [demoOpen,  setDemoOpen]  = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [resendIn, setResendIn] = useState(0);
   const { phoneDb } = useUsers();
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
   const abortRef = useRef(null);
 
+  useEffect(() => {
+    if (step !== 'otp' || resendIn <= 0) return;
+    const timer = setInterval(() => {
+      setResendIn(v => (v > 0 ? v - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, resendIn]);
+
   const sendCode = async () => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10 || digits.length > 11) { toast('Введите корректный номер', 'error'); return; }
+    if (digits.length < 10 || digits.length > 11) {
+      setPhoneError('Проверьте формат номера телефона');
+      toast('Введите корректный номер', 'error');
+      return;
+    }
+    setPhoneError('');
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -43,6 +59,8 @@ export default function Login({ onLogin }) {
         await authProvider.sendOtp(phone);
         if (signal.aborted) return;
         setStep('otp');
+        setResendIn(30);
+        setOtpError('');
         toast('SMS-код отправлен', 'success');
       } else {
         const f = findByPhone(phone, phoneDb);
@@ -51,9 +69,12 @@ export default function Login({ onLogin }) {
         if (signal.aborted) return;
         setFound(f);
         setStep('otp');
+        setResendIn(30);
+        setOtpError('');
         toast('Демо: введите любой код', 'success');
       }
     } catch(e) {
+      setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
       if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
     } finally {
       if (!signal.aborted) setLoading(false);
@@ -61,7 +82,12 @@ export default function Login({ onLogin }) {
   };
 
   const verify = async () => {
-    if (otp.length < 4) { toast('Введите код из SMS', 'error'); return; }
+    if (otp.length < 4) {
+      setOtpError('Код должен содержать минимум 4 цифры');
+      toast('Введите код из SMS', 'error');
+      return;
+    }
+    setOtpError('');
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -79,6 +105,7 @@ export default function Login({ onLogin }) {
         onLogin(found);
       }
     } catch(e) {
+      setOtpError('Неверный код. Проверьте и попробуйте снова');
       if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
     } finally {
       if (!signal.aborted) setLoading(false);
@@ -132,6 +159,7 @@ export default function Login({ onLogin }) {
             <img src={LOGO} alt="" />
             <span>Резиденции Замоскворечья</span>
           </div>
+          <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
           <h1 className="login-h">Вход в систему</h1>
 
           {step === 'phone' ? (
@@ -140,10 +168,11 @@ export default function Login({ onLogin }) {
                 <label className="field-lbl">Номер телефона</label>
                 <input
                   className="field-inp" type="tel" placeholder="+7 000 000-00-00"
-                  value={phone} onChange={e => setPhone(e.target.value)}
+                  value={phone} onChange={e => { setPhone(e.target.value); if (phoneError) setPhoneError(''); }}
                   onKeyDown={e => e.key === 'Enter' && sendCode()}
                   inputMode="tel" autoComplete="tel" autoFocus
                 />
+                {phoneError && <div className="field-err">{phoneError}</div>}
               </div>
               <button className="btn-gold" onClick={sendCode} disabled={loading}>
                 <span>{loading ? 'Проверка...' : 'Получить SMS-код'}</span>
@@ -182,13 +211,17 @@ export default function Login({ onLogin }) {
                 <input
                   className="field-inp field-otp" type="text"
                   inputMode="numeric" maxLength={6} placeholder="• • • •"
-                  value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                  value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); if (otpError) setOtpError(''); }}
                   onKeyDown={e => e.key === 'Enter' && verify()}
                   autoComplete="one-time-code" autoFocus
                 />
+                {otpError && <div className="field-err">{otpError}</div>}
               </div>
               <button className="btn-gold" onClick={verify} disabled={loading}>
                 <span>{loading ? 'Проверка...' : 'Войти'}</span>
+              </button>
+              <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
+                {resendIn > 0 ? `Отправить код повторно через ${resendIn}с` : 'Отправить код повторно'}
               </button>
               <button className="btn-text" onClick={() => { setStep('phone'); setOtp(''); setFound(null); }}>
                 ← Изменить номер
