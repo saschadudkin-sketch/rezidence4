@@ -19,6 +19,20 @@ export default defineConfig(({ mode }) => {
       include: /src\/.*\.[jt]sx?$/,
       exclude: [],
     },
+    build: {
+      // A-07: bundle budget gates — warn at 300 KB, error at 600 KB per chunk.
+      // Run `VITE_API_URL=x npm run build` to check budgets locally.
+      chunkSizeWarningLimit: 300,
+      rollupOptions: {
+        output: {
+          // Explicit code-split boundaries to keep chunks under budget.
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-qr': ['qrcode'],
+          },
+        },
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',

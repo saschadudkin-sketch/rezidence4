@@ -8,6 +8,9 @@ import { useAuth, PHASE } from './hooks/useAuth';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
+/* A-02: CSS layer architecture — tokens → foundations → components/features */
+import './styles/tokens.css';
+import './styles/foundations.css';
 import './styles/theme.css';
 
 // ─── FIX [U1]: Offline indicator ──────────────────────────────────────────────

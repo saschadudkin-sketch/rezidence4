@@ -1,248 +1,15 @@
+/**
+ * theme.css — A-02: Component + feature styles layer.
+ * Design tokens → tokens.css
+ * Resets + base    → foundations.css
+ * Components/features (this file)
+ *
+ * Import order in App.jsx:
+ *   tokens.css → foundations.css → theme.css
+ */
 
+/* Component styles below — tokens and foundations are in separate files */
 .badge.cancelled{background:var(--s3);color:var(--t3);border:1px solid var(--b2)}
-
-*,*::before,*::after{box-sizing:border-box}
-*{-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
-html,body,h1,h2,h3,h4,h5,h6,p,ul,ol{margin:0}
-ul,ol{padding:0;list-style:none}
-button,a{touch-action:manipulation;user-select:none;-webkit-user-select:none}
-input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none;outline:none}
-/* Клавиатурный фокус — только через Tab, не при клике (мышь/тач) */
-*:focus{outline:none}
-*:focus-visible{outline:2px solid var(--g1);outline-offset:2px;border-radius:var(--r)}
-
-:root {
-  /* ── Цвета статусов и типов ──────────────────────── */
-  --clr-scheduled: #5B3A9B;
-  --clr-scheduled-bg: rgba(91,58,155,.12);
-  --clr-scheduled-t: #BFA0E8;
-  --clr-temporary: var(--clr-scheduled);
-  --clr-permanent: #4A90D9;
-  --clr-permanent-bg: rgba(74,144,217,.12);
-
-  /* ── Z-index система ───────────────────────────── */
-  --z-base:    1;
-  --z-sticky:  100;
-  --z-nav:     200;
-  --z-overlay: 300;
-  --z-modal:   400;
-  --z-toast:   999;
-  --z-top:     1000;
-
-  /* surfaces — тёплый почти-чёрный, без синевы */
-  --s0: #13110E;
-  --s1: #191714;
-  --s2: #211E1A;
-  --s3: #2C2820;
-  --s4: #363028;
-
-  /* text */
-  --t1: #EDE5D8;
-  --t2: #C4BAA8;
-  --t3: #A79A8A;
-  --t4: #817463;
-
-  /* gold */
-  --g1: #C4963C;
-  --g2: #D8AE58;
-  --g3: #EAC878;
-  --g-bg:  rgba(196,150,60,.08);
-  --g-bg2: rgba(196,150,60,.15);
-
-  /* status */
-  --ok:    #2D6040;
-  --ok-t:  #5EAA78;
-  --err:   #6A2828;
-  --err-t: #C06060;
-  --wrn:   #6A4818;
-  --wrn-t: #C49040;
-
-  /* borders */
-  --b1: rgba(196,150,60,.10);
-  --b2: rgba(196,150,60,.20);
-  --b3: rgba(196,150,60,.38);
-
-  /* shadows */
-  --sh-s: 0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
-  --sh-m: 0 4px 20px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.3);
-  --sh-l: 0 16px 56px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
-
-  /* role colors */
-  --role-owner:      #5B8FD4;
-  --role-tenant:     #6BAF7A;
-  --role-contractor: #C49040;
-  --role-concierge:  #C4963C;
-  --role-security:   var(--clr-scheduled);
-  --role-admin:      #5A9EBB;
-
-  /* arrived / blue accent */
-  --arrived:         #5B8FD4;
-  --arrived-t:       #82B4F0;
-  --arrived-bg:      rgba(65,110,180,.15);
-  --arrived-b:       rgba(91,143,212,.25);
-
-  /* expired / gray */
-  --expired:         #888;
-  --expired-t:       #999;
-  --expired-bg:      rgba(128,128,128,.12);
-  --expired-b:       rgba(128,128,128,.25);
-
-  /* spacing scale */
-
-  /* typography scale */
-  --fs-body: 14px;
-  --fs-meta: 12px;
-  --lh-body: 1.5;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-
-  --r: 8px;
-  --sat: env(safe-area-inset-top,0px);
-  --sab: env(safe-area-inset-bottom,0px);
-  --sal: env(safe-area-inset-left,0px);
-  --sar: env(safe-area-inset-right,0px);
-  --header-h: 64px;
-  --nav-h: 60px;
-  /* полупрозрачные поверхности */
-  --overlay-bg: rgba(0,0,0,.65);
-  --header-bg:  rgba(19,17,14,.88);
-  --topnav-bg:  rgba(19,17,14,.88);
-  --mobnav-bg:  rgba(19,17,14,.94);
-  --dd-bg:      rgba(0,0,0,.7);
-  /* badge backgrounds — меняются в светлой теме */
-  --badge-pending-bg:  rgba(106,72,24,.15);  --badge-pending-b:  rgba(196,144,64,.2);
-  --badge-approved-bg: rgba(45,96,64,.15);   --badge-approved-b: rgba(94,170,120,.2);
-  --badge-rejected-bg: rgba(106,40,40,.15);  --badge-rejected-b: rgba(192,96,96,.2);
-  /* warn / danger — для offline-баннера и ошибок конфигурации */
-  --warn:   #f59e0b;
-  --warn-t: #000000;
-  --danger: var(--err-t);
-}
-
-/* ── Светлая тема ──────────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: light) {
-  :root {
-    --s0: #FDFCFA; --s1: #F7F5F0; --s2: #FFFFFF; --s3: #EDEAE3; --s4: #DDD9CF;
-    --t1: #1A1814; --t2: #38342C; --t3: #605848; --t4: #8C8272;
-    --g1: #8C6820; --g2: #A67C2E; --g3: #C49A3A;
-    --g-bg: rgba(140,104,32,.08); --g-bg2: rgba(140,104,32,.14);
-    --ok: #1E5C38; --ok-t: #1E5C38; --err: #8B2020; --err-t: #8B2020; --wrn: #7A4A10; --wrn-t: #7A4A10;
-    --b1: rgba(100,80,40,.15); --b2: rgba(100,80,40,.25); --b3: rgba(100,80,40,.45);
-    --sh-s: 0 1px 4px rgba(0,0,0,.07), 0 2px 8px rgba(0,0,0,.05);
-    --sh-m: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
-    --sh-l: 0 12px 40px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
-    --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
-    --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
-    --overlay-bg: rgba(253,252,250,.94);
-    --header-bg: rgba(247,245,240,.95); --topnav-bg: rgba(247,245,240,.95);
-    --mobnav-bg: rgba(247,245,240,.97); --dd-bg: rgba(255,255,255,.97);
-    --badge-pending-bg: rgba(140,90,0,.10); --badge-pending-b: rgba(140,100,0,.25);
-    --badge-approved-bg: rgba(20,80,40,.10); --badge-approved-b: rgba(20,100,50,.25);
-    --badge-rejected-bg: rgba(120,20,20,.10); --badge-rejected-b: rgba(140,30,30,.25);
-    --clr-scheduled: #6B3FAF;
-    --warn: #d97706; --warn-t: #ffffff;
-    --danger: var(--err-t);
-  }
-}
-
-/* ── Принудительная светлая тема (класс) ─────────────────────────────────── */
-html.theme-light {
-  --s0: #F5F3EE;
-  --s1: #ECEAE4;
-  --s2: #FFFFFF;
-  --s3: #E2DFD7;
-  --s4: #D5D0C6;
-  --t1: #1A1814;
-  --t2: #2E2A24;
-  --t3: #55504A;
-  --t4: #7A7468;
-  --g1: #7A5A18;
-  --g2: #96701E;
-  --g3: #B8902E;
-  --g-bg:  rgba(120,88,24,.08);
-  --g-bg2: rgba(120,88,24,.15);
-  --ok: #1A6B3A; --ok-t: #1A6B3A;
-  --err: #9B2020; --err-t: #9B2020;
-  --wrn: #7A4A10; --wrn-t: #7A4A10;
-  --b1: rgba(80,60,30,.18);
-  --b2: rgba(80,60,30,.28);
-  --b3: rgba(80,60,30,.50);
-  --sh-s: 0 1px 3px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
-  --sh-m: 0 4px 16px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
-  --sh-l: 0 12px 40px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.10);
-  --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
-  --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
-  --overlay-bg: rgba(245,243,238,.94);
-  --header-bg: rgba(236,234,228,.96);
-  --topnav-bg: rgba(236,234,228,.96);
-  --mobnav-bg: rgba(236,234,228,.98);
-  --dd-bg: rgba(255,255,255,.98);
-  --badge-pending-bg: rgba(140,90,0,.12); --badge-pending-b: rgba(140,100,0,.30);
-  --badge-approved-bg: rgba(20,80,40,.12); --badge-approved-b: rgba(20,100,50,.30);
-  --badge-rejected-bg: rgba(130,20,20,.12); --badge-rejected-b: rgba(150,30,30,.30);
-  --clr-scheduled: #6B3FAF;
-  --warn: #d97706; --warn-t: #ffffff;
-  --danger: var(--err-t);
-}
-/* Light theme card enhancement */
-html.theme-light .req-card,
-html.theme-light .guard-card,
-html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
-html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:var(--b2)}
-
-/* ── Принудительная тёмная тема (класс) ──────────────────────────────────── */
-html.theme-dark {
-  --s0: #13110E;
-  --s1: #191714;
-  --s2: #211E1A;
-  --s3: #2A2620;
-  --s4: #36312A;
-  --t1: #EDE5D8;
-  --t2: #C4BAA8;
-  --t3: #8C8272;
-  --t4: #665D50;
-  --g1: #C4963C;
-  --g2: #D4A84A;
-  --g3: #B88A32;
-  --g-bg: rgba(196,150,60,.12);
-  --g-bg2: rgba(196,150,60,.22);
-  --ok: #5EAA78; --ok-t: #5EAA78;
-  --err: #C06060; --err-t: #C06060;
-  --wrn: #C49040; --wrn-t: #C49040;
-  --b1: rgba(196,150,60,.10);
-  --b2: rgba(196,150,60,.20);
-  --b3: rgba(196,150,60,.40);
-  --sh-s: 0 1px 3px rgba(0,0,0,.2), 0 4px 12px rgba(0,0,0,.15);
-  --sh-m: 0 4px 24px rgba(0,0,0,.3), 0 1px 4px rgba(0,0,0,.2);
-  --sh-l: 0 16px 56px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.3);
-  --arrived: #5A8EC8; --arrived-t: #5A8EC8;
-  --arrived-bg: rgba(90,142,200,.12); --arrived-b: rgba(90,142,200,.2);
-  --overlay-bg: rgba(19,17,14,.92);
-  --header-bg: rgba(19,17,14,.92);
-  --topnav-bg: rgba(19,17,14,.92);
-  --mobnav-bg: rgba(19,17,14,.96);
-  --dd-bg: rgba(33,30,26,.96);
-  --badge-pending-bg: rgba(196,144,64,.12); --badge-pending-b: rgba(196,144,64,.2);
-  --badge-approved-bg: rgba(45,96,64,.15); --badge-approved-b: rgba(94,170,120,.2);
-  --badge-rejected-bg: rgba(106,40,40,.15); --badge-rejected-b: rgba(192,96,96,.2);
-  --clr-scheduled: #9B7FDF;
-  --warn: #f59e0b; --warn-t: #000000;
-  --danger: var(--err-t);
-}
-
-html{height:100%;-webkit-text-size-adjust:100%}
-body{
-  height:100%;overflow-x:hidden;
-  font-family:'DM Sans',sans-serif;
-  background:var(--s0);
-  color:var(--t1);
-  overscroll-behavior:none;
-}
-#root{height:100%}
-
-body{font-size:var(--fs-body);line-height:var(--lh-body)}
 
 .header-wordmark,.header-role,.header-name,.mn-label,.tn-btn,.demo-badge,.dd-user-phone,.tab-btn,.req-meta,.msg-time,.msg-sender,.vlog-card-comment,.perm-meta,.apt-chip{font-size:var(--fs-meta)}
 
@@ -251,11 +18,16 @@ body{font-size:var(--fs-body);line-height:var(--lh-body)}
 .tn-icon,.mn-icon{display:inline-flex;align-items:center;justify-content:center}
 .header-actions{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end}
 
+/* Light theme card enhancement */
+html.theme-light .req-card,
+html.theme-light .guard-card,
+html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
+html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:var(--b2)}
+
 .screen-loading{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--s0)}
 .screen-loading-inner{text-align:center;color:var(--t3)}
 .screen-loading-spinner{display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--g2);animation:spin 1.2s linear infinite}
 .screen-loading-label{font-size:14px}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 .offline-banner{
   position:fixed;top:0;left:0;right:0;z-index:9999;
@@ -270,11 +42,6 @@ body{font-size:var(--fs-body);line-height:var(--lh-body)}
 .app-content-offset{padding-top:0;transition:padding-top 220ms ease}
 .app-content-offset.has-offline-banner{padding-top:36px}
 .api-config-error{color:var(--danger);margin-top:8px}
-
-@keyframes fadeIn  {from{opacity:0}to{opacity:1}}
-@keyframes riseUp  {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes sheetUp {from{transform:translateY(100%)}to{transform:none}}
-@keyframes shimmer {from{transform:translateX(-100%)}to{transform:translateX(300%)}}
 
 /* ── LOADING ── */
 .loading{
