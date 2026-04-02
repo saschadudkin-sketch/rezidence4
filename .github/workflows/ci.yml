@@ -66,7 +66,7 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const reportPath = 'artifacts/ux-critical-vitest.json';
-          let summary = '## Frontend UX-critical suite\n';
+          let summary = '## Phase 1 status — frontend-test\n';
           try {
             const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
             const total = report.numTotalTests ?? 0;
@@ -74,6 +74,7 @@ jobs:
             const failed = report.numFailedTests ?? 0;
             const skipped = report.numPendingTests ?? 0;
             const files = (report.testResults || []).length;
+            summary += `- Scope: UX-critical Vitest suite\n`;
             summary += `- Files: **${files}**\n`;
             summary += `- Tests: **${passed} passed** / ${failed} failed / ${skipped} skipped (total ${total})\n`;
           } catch (err) {
@@ -170,7 +171,8 @@ jobs:
       - name: Summarize login smoke
         if: always()
         run: |
-          echo "## Login E2E smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Phase 1 status — login-e2e-smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Scope: Playwright login smoke" >> "$GITHUB_STEP_SUMMARY"
           echo "- Outcome: **${{ steps.login_e2e.outcome }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Spec: \`e2e/login-flow.spec.js\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Project: \`chromium\`" >> "$GITHUB_STEP_SUMMARY"
@@ -202,9 +204,11 @@ jobs:
       - name: Summarize full e2e run
         if: always()
         run: |
-          echo "## Full E2E suite" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Phase 1 status — e2e-test" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Scope: Full Playwright e2e suite" >> "$GITHUB_STEP_SUMMARY"
           echo "- Outcome: **${{ steps.full_e2e.outcome }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Command: \`npm run test:e2e -- e2e/\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact: \`playwright-report\` (uploaded in this job)" >> "$GITHUB_STEP_SUMMARY"
       - name: Fail job if full e2e failed
         if: steps.full_e2e.outcome != 'success'
         run: exit 1
