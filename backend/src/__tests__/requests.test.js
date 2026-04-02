@@ -19,6 +19,7 @@ const jwt          = require('jsonwebtoken');
 const supertest    = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const requestsRouter = require('../routes/requests');
 
@@ -36,20 +37,24 @@ function makeToken(payload) {
   return jwt.sign(payload, 'test-secret', { expiresIn: '1h' });
 }
 
-// Хелпер: настраивает mockClient для withTransaction
-// Порядок вызовов внутри withTransaction:
-//   pool.connect() → client.query('BEGIN') → ...userQueries... → client.query('COMMIT')
-function setupTransaction(userQueryMocks) {
+// Хелпер: настраивает mockClient для RequestsService.update() транзакции:
+// BEGIN -> SELECT ... FOR UPDATE -> UPDATE -> (optional INSERT history) -> COMMIT
+function setupUpdateTransaction({ existingRow, updatedRow, withHistory = false }) {
   db.pool.connect.mockResolvedValue(db._mockClient);
-  db._mockClient.query
-    .mockResolvedValueOnce({})               // BEGIN
-    .mockImplementation((sql) => {
-      if (sql === 'COMMIT')   return Promise.resolve({});
-      if (sql === 'ROLLBACK') return Promise.resolve({});
-      // Остальные вызовы — из userQueryMocks очереди
-      const next = userQueryMocks.shift();
-      return next ? Promise.resolve(next) : Promise.resolve({ rows: [] });
-    });
+  db._mockClient.query.mockImplementation((sql) => {
+    if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return Promise.resolve({});
+    if (String(sql).includes('SELECT id, status, created_by_uid')) {
+      return Promise.resolve({ rows: existingRow ? [existingRow] : [] });
+    }
+    if (String(sql).startsWith('UPDATE requests SET')) {
+      return Promise.resolve({ rows: updatedRow ? [updatedRow] : [] });
+    }
+    if (String(sql).startsWith('INSERT INTO request_history')) {
+      return Promise.resolve({ rows: [] });
+    }
+    return Promise.resolve({ rows: [] });
+  });
+  if (!withHistory) return;
 }
 
 // Строка для мока результата заявки
@@ -69,14 +74,17 @@ function makeReqRow(overrides = {}) {
 // ─── PATCH /api/requests/:id ──────────────────────────────────────────────────
 
 describe('PATCH /api/requests/:id — доступ и переходы', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('403 когда житель пытается изменить чужую заявку', async () => {
     const token = makeToken({ uid: 'user-B', role: 'owner', name: 'Петров' });
 
-    // existing lookup → не владелец
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'pending', created_by_uid: 'user-A' },
     });
 
     const res = await supertest(app)
@@ -91,8 +99,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('403 owner не может самоодобрить (pending → approved) — BUG-3', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'pending', created_by_uid: 'user-A' },
     });
 
     const res = await supertest(app)
@@ -107,15 +115,10 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 owner отменяет свою pending-заявку (pending → cancelled)', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    // db.query — для существующего запроса
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'pending', created_by_uid: 'user-A' },
+      updatedRow: makeReqRow({ status: 'cancelled' }),
     });
-
-    // withTransaction: BEGIN, UPDATE RETURNING, COMMIT
-    setupTransaction([
-      { rows: [makeReqRow({ status: 'cancelled' })] }, // UPDATE RETURNING
-    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -129,14 +132,10 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 охрана меняет любую заявку — ownership check не вызывается', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    // existing lookup (security не проверяет ownership, но нам нужен текущий статус)
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'pending', created_by_uid: 'user-A' },
+      updatedRow: makeReqRow({ status: 'approved' }),
     });
-
-    setupTransaction([
-      { rows: [makeReqRow({ status: 'approved' })] },
-    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -145,20 +144,16 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('approved');
-    // Первый db.query — existing lookup, только один (не ownership check)
-    expect(db.query.mock.calls.length).toBe(1);
+    expect(db.pool.connect).toHaveBeenCalled();
   });
 
   it('200 owner меняет comment своей заявки без смены статуса', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'pending', created_by_uid: 'user-A' },
+      updatedRow: makeReqRow({ comment: 'новый комментарий' }),
     });
-
-    setupTransaction([
-      { rows: [makeReqRow({ comment: 'новый комментарий' })] },
-    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -172,13 +167,10 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('200 admin может делать любой переход статуса', async () => {
     const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Адм' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'arrived', created_by_uid: 'user-A' }],
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'arrived', created_by_uid: 'user-A' },
+      updatedRow: makeReqRow({ status: 'pending' }),
     });
-
-    setupTransaction([
-      { rows: [makeReqRow({ status: 'pending' })] },
-    ]);
 
     const res = await supertest(app)
       .patch('/api/requests/req-123')
@@ -191,10 +183,6 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
   it('BUG-4: история пишется в той же транзакции что и UPDATE', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
 
-    db.query.mockResolvedValueOnce({
-      rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }],
-    });
-
     // Следим за вызовами client.query (внутри транзакции)
     db.pool.connect.mockResolvedValue(db._mockClient);
     const clientCalls = [];
@@ -202,6 +190,8 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
       clientCalls.push(sql.trim().split(' ')[0]); // первое слово: BEGIN/UPDATE/INSERT/COMMIT
       if (sql === 'COMMIT' || sql === 'BEGIN' || sql === 'ROLLBACK')
         return Promise.resolve({});
+      if (sql.startsWith('SELECT'))
+        return Promise.resolve({ rows: [{ id: 'req-123', status: 'pending', created_by_uid: 'user-A' }] });
       if (sql.startsWith('UPDATE'))
         return Promise.resolve({ rows: [makeReqRow({ status: 'approved' })] });
       if (sql.startsWith('INSERT'))
@@ -227,7 +217,11 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
 // ─── POST /api/requests ───────────────────────────────────────────────────────
 
 describe('POST /api/requests', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('400 при невалидном type', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
@@ -284,7 +278,11 @@ describe('POST /api/requests', () => {
 // ─── GET /api/requests — DATA-3 + изоляция данных ────────────────────────────
 
 describe('GET /api/requests — DATA-3 + изоляция', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
 
   it('житель видит только свои заявки + total в ответе', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });

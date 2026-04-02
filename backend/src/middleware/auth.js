@@ -160,9 +160,15 @@ module.exports = async function requireAuth(req, res, next) {
       if (revoked) return res.status(401).json({ error: 'Token revoked' });
     }
 
-    const activeUser = await isUserActive(payload.uid);
-    if (!activeUser) {
-      return res.status(401).json({ error: 'User not found or deleted' });
+    // Проверка активного пользователя может быть выключена только явным флагом
+    // (например, в отдельных unit-тестах роутов, где не мокается users lookup).
+    // По умолчанию (включая test) проверка включена.
+    const shouldCheckActiveUser = process.env.AUTH_SKIP_ACTIVE_CHECK !== '1';
+    if (shouldCheckActiveUser) {
+      const activeUser = await isUserActive(payload.uid);
+      if (!activeUser) {
+        return res.status(401).json({ error: 'User not found or deleted' });
+      }
     }
 
     req.user = payload;

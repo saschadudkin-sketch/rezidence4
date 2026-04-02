@@ -20,6 +20,7 @@ const SECRET = 'test-secret-at-least-16-chars';
 process.env.JWT_SECRET    = SECRET;
 process.env.DATABASE_URL  = 'postgresql://test:test@localhost/test';
 process.env.NODE_ENV      = 'test';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 function makeToken(payload, secret = SECRET) {
   return jwt.sign({ jti: 'test-jti', ...payload }, secret, { expiresIn: '15m' });
