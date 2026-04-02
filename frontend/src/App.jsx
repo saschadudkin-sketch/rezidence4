@@ -10,6 +10,7 @@ import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
 import './styles/theme.css';
 import './styles/components/login-flow.css';
+import './styles/components/login-ui.css';
 import './styles/components/mobile-nav.css';
 import './styles/components/state-block.css';
 
