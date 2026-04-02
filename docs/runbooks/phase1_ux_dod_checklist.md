@@ -10,7 +10,10 @@
    - `npm test -- --watchAll=false`
    - `npm run test:ux-critical:report`
    - `npm run build`
-2. В каждом прогоне `frontend-test` публикуется артефакт:
+2. `login-e2e-smoke` job должен проходить:
+   - `npm run test:e2e:preflight`
+   - `npm run test:e2e -- e2e/login-flow.spec.js --project=chromium`
+3. В каждом прогоне `frontend-test` публикуется артефакт:
    - `ux-critical-vitest-report` (`artifacts/ux-critical-vitest.json`)
 
 ## UX-critical suite (минимальный охват)
