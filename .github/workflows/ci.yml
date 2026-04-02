@@ -60,6 +60,30 @@ jobs:
       - run: mkdir -p ../artifacts
       - run: npm run test:ux-critical:report
       - run: npm run build
+      - name: Summarize UX-critical suite
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const reportPath = 'artifacts/ux-critical-vitest.json';
+          let summary = '## Frontend UX-critical suite\n';
+          try {
+            const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            const total = report.numTotalTests ?? 0;
+            const passed = report.numPassedTests ?? 0;
+            const failed = report.numFailedTests ?? 0;
+            const skipped = report.numPendingTests ?? 0;
+            const files = (report.testResults || []).length;
+            summary += `- Files: **${files}**\n`;
+            summary += `- Tests: **${passed} passed** / ${failed} failed / ${skipped} skipped (total ${total})\n`;
+          } catch (err) {
+            summary += `- Unable to read ${reportPath}: ${err.message}\n`;
+          }
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
+          }
+          console.log(summary);
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -142,6 +166,13 @@ jobs:
       - run: npm ci
       - run: npm run test:e2e:preflight
       - run: npm run test:e2e -- e2e/login-flow.spec.js --project=chromium
+      - name: Summarize login smoke
+        if: always()
+        run: |
+          echo "## Login E2E smoke" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Spec: \`e2e/login-flow.spec.js\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Project: \`chromium\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Command: \`npm run test:e2e -- e2e/login-flow.spec.js --project=chromium\`" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
