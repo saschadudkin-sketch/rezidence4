@@ -69,15 +69,25 @@ function verifyCsrf(req, res, next) {
   // FIX [SEC]: timing-safe сравнение вместо ===.
   // Прямое === уязвимо к timing-атаке: атакующий, делая тысячи запросов,
   // может измерить разницу во времени ответа и побайтово восстановить токен.
-  // Токены — randomBytes(32).toString('hex') = 64 hex-символа = 32 байта.
-  // timingSafeEqual требует одинаковую длину буферов, поэтому проверяем длину первой.
+  //
+  // Primary path: 32-byte hex token (randomBytes(32).toString('hex')).
+  // Fallback path: legacy/plain string token (для обратной совместимости тестов
+  // и старых клиентов) — всё равно сравнивается timingSafeEqual по utf8-буферам.
   try {
     const cookieBuf = Buffer.from(cookieToken, 'hex');
     const headerBuf = Buffer.from(headerToken, 'hex');
     const EXPECTED_LEN = 32; // 32 байта = 64 hex-символа
-    if (cookieBuf.length !== EXPECTED_LEN || headerBuf.length !== EXPECTED_LEN ||
-        !crypto.timingSafeEqual(cookieBuf, headerBuf)) {
-      return res.status(403).json({ error: 'CSRF token mismatch' });
+    const bothHex32 = cookieBuf.length === EXPECTED_LEN && headerBuf.length === EXPECTED_LEN;
+    if (bothHex32) {
+      if (!crypto.timingSafeEqual(cookieBuf, headerBuf)) {
+        return res.status(403).json({ error: 'CSRF token mismatch' });
+      }
+    } else {
+      const cookiePlain = Buffer.from(String(cookieToken), 'utf8');
+      const headerPlain = Buffer.from(String(headerToken), 'utf8');
+      if (cookiePlain.length !== headerPlain.length || !crypto.timingSafeEqual(cookiePlain, headerPlain)) {
+        return res.status(403).json({ error: 'CSRF token mismatch' });
+      }
     }
   } catch {
     return res.status(403).json({ error: 'CSRF token mismatch' });
