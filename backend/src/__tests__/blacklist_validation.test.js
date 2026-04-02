@@ -21,6 +21,7 @@ const jwt       = require('jsonwebtoken');
 const supertest = require('supertest');
 
 process.env.JWT_SECRET = 'test-secret-key-32chars-long-xxx';
+process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const blacklistRouter = require('../routes/blacklist');
 
@@ -46,7 +47,9 @@ const SECURITY_TOKEN = makeToken('security');
 const OWNER_TOKEN    = makeToken('owner');
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
+  const authMw = require('../middleware/auth');
+  authMw.__clearUserActiveFallbackCache?.();
   // Default: DB не вызывался в mock token_revocations
   db.query.mockResolvedValue({ rows: [] });
 });
