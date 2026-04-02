@@ -29,3 +29,10 @@ If your environment does not allow `install-deps`, preinstall the required GTK/A
 1. `npm ci`
 2. `npm run test:e2e:preflight`
 3. `npm run test:e2e -- e2e/login-flow.spec.js --project=chromium`
+
+## CI summary contract
+
+Формат summary-блоков для Phase 1 gate’ов зафиксирован в:
+
+- `docs/runbooks/phase1_ux_dod_checklist.md` → раздел `Summary schema (CI)`
+- `scripts/ci/write_status_summary.sh` (единый writer для CI/nightly workflow)
