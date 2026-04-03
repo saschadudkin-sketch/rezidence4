@@ -28,6 +28,11 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .screen-loading-inner{text-align:center;color:var(--t3)}
 .screen-loading-spinner{display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--g2);animation:spin 1.2s linear infinite}
 .screen-loading-label{font-size:14px}
+/* UX-002: sub-text и retry-кнопка для состояния ошибки подключения */
+.screen-loading-sub{font-size:12px;color:var(--t4);margin-top:6px}
+.screen-loading-retry{margin-top:20px}
+/* UI-07: Suspense fallback вместо inline style в RoleContentRouter */
+.view-loading{text-align:center;padding:var(--space-2xl, 40px);color:var(--t4)}
 
 .offline-banner{
   position:fixed;top:0;left:0;right:0;z-index:9999;
@@ -72,6 +77,8 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .loading-bar::after{
   content:'';position:absolute;inset:0;width:35%;
   background:var(--g1);
+  /* UI-04: начальная позиция за левым краем, чтобы shimmer стартовал корректно */
+  transform:translateX(-100%);
 }
 @media (prefers-reduced-motion: no-preference){
   .loading-bar::after{animation:shimmer 1.8s ease infinite;}
@@ -592,10 +599,17 @@ html.theme-light .tn-badge{background:#C0252A;color:#fff}
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border-top:1px solid var(--b1);
   padding-bottom:var(--sab);
+  /* RES-01: горизонтальный скролл для admin с 7+ вкладками */
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
 }
+.mobile-nav::-webkit-scrollbar{display:none}
 @media(max-width:860px){.mobile-nav{display:flex}}
 .mn-btn{
-  flex:1;display:flex;flex-direction:column;align-items:center;
+  /* RES-01: flex-shrink:0 + min-width чтобы кнопки не сжимались при скролле */
+  flex:1;min-width:60px;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:var(--space-xs);padding:9px 4px;
   background:none;border:none;cursor:pointer;
   min-height:var(--nav-h);position:relative;
@@ -2083,6 +2097,21 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 
 /* Текст "Точно?" в двухшаговом подтверждении */
 .confirm-label{color:var(--err);font-weight:500}
+/* UX-003: confirm-диалог для деструктивных действий */
+.confirm-overlay{
+  position:fixed;inset:0;z-index:var(--z-modal);
+  background:var(--overlay-bg);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:var(--space-md);
+  animation:fadeIn .15s ease;
+}
+.confirm-panel{
+  background:var(--s1);border:1px solid var(--b2);
+  border-radius:var(--r);padding:var(--space-md) var(--space-lg);
+  max-width:340px;width:100%;box-shadow:var(--sh-m);
+}
+.confirm-msg{margin:0 0 var(--space-md);color:var(--t1);font-size:var(--fs-body);line-height:var(--lh-body)}
+.confirm-actions{display:flex;gap:var(--space-sm);justify-content:flex-end}
 
 /* Обёртка дат VisitLogView */
 .date-pills-row{margin-bottom:12px;justify-content:center}

@@ -85,16 +85,29 @@
   --expired-bg:      rgba(128,128,128,.12);
   --expired-b:       rgba(128,128,128,.25);
 
-  /* spacing scale */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
+  /* spacing scale — UI-03: добавлены xl/2xl/3xl для замены hardcoded значений */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
 
-  /* typography scale */
+  /* typography scale — UI-02: полная шкала вместо двух значений */
+  --fs-3xs: 10px;
+  --fs-2xs: 11px;
+  --fs-xs:  12px;
+  --fs-sm:  13px;
   --fs-body: 14px;
-  --fs-meta: 12px;
+  --fs-meta: 12px; /* псевдоним для обратной совместимости */
+  --fs-md:  16px;
+  --fs-lg:  18px;
+  --fs-xl:  24px;
+  --fs-2xl: 32px;
+  --lh-tight: 1.2;
   --lh-body: 1.5;
+  --lh-loose: 1.65;
 
   --r: 8px;
   --sat: env(safe-area-inset-top,0px);

@@ -4,9 +4,16 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import VisitLogView from './VisitLogView';
 import * as AppStore from '../store/AppStore.jsx';
 import * as passesApi from '../shared/api/passesApi.js';
+
+// Обёртка с QueryClientProvider нужна т.к. VisitLogView использует useVisitLogs (TanStack Query)
+const createWrapper = () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return ({ children }) => React.createElement(QueryClientProvider, { client: qc }, children);
+};
 
 
 const mockRequests = [
@@ -51,39 +58,39 @@ describe('VisitLogView', () => {
   const user = { uid: 'a1', role: 'admin' };
 
   test('отображает имя гостя из первой заявки', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
   test('отображает категорию если нет имени', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
   test('тег "Допуск" для result=allowed', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText(/допуск/i)).toBeInTheDocument();
   });
 
   test('имя создателя заявки отображается', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText('Михаил Волков')).toBeInTheDocument();
   });
 
   test('номер апартамента отображается', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText(/апарт\./i)).toBeInTheDocument();
   });
 
   test('поиск по имени гостя фильтрует список', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     const searchInput = await screen.findByPlaceholderText(/поиск/i);
     fireEvent.change(searchInput, { target: { value: 'Дмитрий' } });
     expect(await screen.findByText('Дмитрий Орлов')).toBeInTheDocument();
   });
 
   test('показывает кнопку очистки журнала', async () => {
-    render(<VisitLogView user={user} />);
+    render(<VisitLogView user={user} />, { wrapper: createWrapper() });
     expect(await screen.findByText(/очистить/i)).toBeInTheDocument();
   });
 });

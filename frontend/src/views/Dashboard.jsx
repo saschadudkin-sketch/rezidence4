@@ -72,7 +72,9 @@ export default function Dashboard({ user, onLogout }) {
     const t = setTimeout(() => setTimedOut(true), 8_000);
     return () => clearTimeout(t);
   }, [syncLoading]);
-  const isLoading = syncLoading && !timedOut;
+  const isLoading  = syncLoading && !timedOut;
+  // UX-002: таймаут соединения — явное состояние ошибки вместо пустого UI
+  const isConnErr  = syncLoading && timedOut;
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -131,6 +133,22 @@ export default function Dashboard({ user, onLogout }) {
         <div className="screen-loading-inner">
           <div className="screen-loading-spinner"><AppIcon name="history" size={28} /></div>
           <div className="screen-loading-label">Загрузка данных…</div>
+        </div>
+      </div>
+    );
+  }
+
+  // UX-002: вместо пустого UI при таймауте — понятный экран ошибки с кнопкой повтора
+  if (isConnErr) {
+    return (
+      <div className="screen-loading">
+        <div className="screen-loading-inner">
+          <div className="screen-loading-spinner"><AppIcon name="ban" size={28} /></div>
+          <div className="screen-loading-label">Не удалось подключиться к серверу</div>
+          <div className="screen-loading-sub">Проверьте соединение и попробуйте снова</div>
+          <button className="btn-outline screen-loading-retry" onClick={() => window.location.reload()}>
+            Обновить страницу
+          </button>
         </div>
       </div>
     );
