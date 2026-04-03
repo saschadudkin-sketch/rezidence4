@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, startTransition } from 'react';
-import { canManageRequests } from '../constants/requestPredicates.js';
+import { canManageRequests } from '../domain/permissions.js';
 import { ROLES } from '../domain/permissions.js';
 import { sendNotif, playAlert } from '../utils.js';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';

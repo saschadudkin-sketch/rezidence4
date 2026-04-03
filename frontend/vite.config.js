@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => {
   if (isProdBuild && !viteEnv.VITE_API_URL) {
     throw new Error('VITE_API_URL is required for production build');
   }
+  if (isProdBuild && !viteEnv.VITE_RUNTIME_MODE) {
+    throw new Error(
+      'VITE_RUNTIME_MODE is required for production build.\n' +
+      'Set VITE_RUNTIME_MODE=live to prevent demo credentials from shipping in the bundle.'
+    );
+  }
 
   return {
     plugins: [react()],

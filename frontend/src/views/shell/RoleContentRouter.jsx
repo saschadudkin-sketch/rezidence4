@@ -7,6 +7,7 @@
 import { lazy, Suspense, memo } from 'react';
 import { ROLES } from '../../domain/permissions';
 import { ReqSkeleton } from '../../requests/ReqCard';
+import ErrorBoundary from '../../ui/ErrorBoundary';
 
 const ResidentView  = lazy(() => import('../ResidentView'));
 const ConciergeView = lazy(() => import('../SecurityConciergeViews').then(m => ({ default: m.ConciergeView })));
@@ -21,34 +22,42 @@ const RoleContentRouter = memo(function RoleContentRouter({
 }) {
   if (user.role === ROLES.SECURITY) {
     return (
-      <Suspense fallback={fallback}>
-        <SecurityView
-          user={user} activeTab={activeTab} setActiveTab={setActiveTab}
-          highlightReqId={highlightReqId} setHighlightReqId={setHighlightReqId}
-        />
-      </Suspense>
+      <ErrorBoundary name="Пост охраны">
+        <Suspense fallback={fallback}>
+          <SecurityView
+            user={user} activeTab={activeTab} setActiveTab={setActiveTab}
+            highlightReqId={highlightReqId} setHighlightReqId={setHighlightReqId}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
   if (user.role === ROLES.CONCIERGE) {
     return (
-      <Suspense fallback={fallback}>
-        <ConciergeView user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
-      </Suspense>
+      <ErrorBoundary name="Рабочее место консьержа">
+        <Suspense fallback={fallback}>
+          <ConciergeView user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
   if (user.role === ROLES.ADMIN) {
     return (
-      <Suspense fallback={fallback}>
-        <AdminView user={user} activeTab={activeTab} />
-      </Suspense>
+      <ErrorBoundary name="Панель администратора">
+        <Suspense fallback={fallback}>
+          <AdminView user={user} activeTab={activeTab} />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
   // FA-06: OWNER, TENANT, CONTRACTOR — все явно получают ResidentView.
   // Новые роли не попадут сюда молча — нужно добавить явный if-блок выше.
   return (
-    <Suspense fallback={fallback}>
-      <ResidentView user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
-    </Suspense>
+    <ErrorBoundary name="Кабинет жильца">
+      <Suspense fallback={fallback}>
+        <ResidentView user={user} activeTab={activeTab} setActiveTab={setActiveTab} />
+      </Suspense>
+    </ErrorBoundary>
   );
 });
 

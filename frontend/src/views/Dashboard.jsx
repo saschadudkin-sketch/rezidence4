@@ -96,7 +96,7 @@ export default function Dashboard({ user, onLogout }) {
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!syncLoading) return;
-    const t = setTimeout(() => setTimedOut(true), 8_000);
+    const t = setTimeout(() => setTimedOut(true), 3_500);
     return () => clearTimeout(t);
   }, [syncLoading]);
   const isLoading  = syncLoading && !timedOut;
