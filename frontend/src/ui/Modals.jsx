@@ -34,6 +34,10 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
     if (digits.length < 10 || digits.length > 11) { toast('Введите корректный номер телефона', 'error'); return; }
     const norm = normalizePhone(phone);
     if (phoneDb[norm]) { toast('Этот номер уже зарегистрирован', 'error'); return; }
+    // FA-09: apartment required for roles that live in apartments
+    if ((role === 'owner' || role === 'tenant') && !apt.trim()) {
+      toast('Укажите номер апартамента', 'error'); return;
+    }
     setLoading(true);
     // FIX [BUG-10]: убрана искусственная задержка 400мс — пользователь ждал без причины,
     // и setState вызывался на потенциально unmounted компоненте если модал закрыли быстро.
@@ -71,7 +75,10 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
               ))}
             </select>
           </div>
-          <div className="field"><label className="field-lbl">Апартамент</label>
+          <div className="field">
+            <label className="field-lbl">
+              Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}
+            </label>
             <input className="field-inp" placeholder="12" value={apt} onChange={e => setApt(e.target.value)} inputMode="numeric" />
           </div>
         </div>

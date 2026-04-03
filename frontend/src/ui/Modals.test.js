@@ -89,6 +89,7 @@ describe('AddUserModal', () => {
     render(<AddUserModal onClose={onClose} onDone={onDone} />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Новый Пользователь' } });
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 999 888-77-66' } });
+    fireEvent.change(screen.getByPlaceholderText('12'), { target: { value: '42' } });
 
     // FIX: убрана искусственная задержка 400мс из AddUserModal.submit(),
     // поэтому timeout: 1000 больше не нужен — операция синхронная

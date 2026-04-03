@@ -183,7 +183,10 @@ export default function Login({ onLogin }) {
         <div className="login-form">
           <div className="login-mobile-top">
             <img src={LOGO} alt="" />
-            <span>Резиденции Замоскворечья</span>
+            <div>
+              <div>Резиденции Замоскворечья</div>
+              <div className="login-mobile-tagline">Система управления доступом</div>
+            </div>
           </div>
           <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
           <h1 className="login-h">Вход в систему</h1>

@@ -33,6 +33,41 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .screen-loading-retry{margin-top:20px}
 /* UI-07: Suspense fallback вместо inline style в RoleContentRouter */
 .view-loading{text-align:center;padding:var(--space-2xl, 40px);color:var(--t4)}
+/* P-05: one-time demo welcome banner */
+.demo-welcome-banner{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px;
+  background:rgba(245,158,11,.12);
+  border-bottom:1px solid rgba(245,158,11,.25);
+  font-size:12px;color:var(--warn);
+}
+.demo-welcome-icon{flex-shrink:0;display:inline-flex}
+.demo-welcome-text{flex:1}
+.demo-welcome-close{
+  flex-shrink:0;background:none;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;color:var(--warn);opacity:.7;
+  padding:0;
+}
+.demo-welcome-close:hover{opacity:1}
+/* FA-10: Skip-to-content link for keyboard accessibility */
+.skip-link{
+  position:absolute;top:-100%;left:8px;z-index:var(--z-top);
+  background:var(--g1);color:var(--s0);
+  padding:8px 16px;border-radius:var(--r);font-size:13px;font-weight:600;
+  text-decoration:none;
+  transition:top .1s;
+}
+.skip-link:focus{top:8px}
+/* FA-07: SSE reconnecting indicator in header */
+.sse-reconnecting{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:10px;
+  background:rgba(245,158,11,.15);color:var(--warn);
+  font-size:11px;font-weight:500;
+  animation:ssePulse 1.4s ease-in-out infinite;
+}
+@keyframes ssePulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 .offline-banner{
   position:fixed;top:0;left:0;right:0;z-index:9999;
@@ -180,7 +215,8 @@ html.theme-light .login-art-logo{
 .login-mobile-top img{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(196,150,60,.5)) drop-shadow(0 1px 4px rgba(0,0,0,.2)) brightness(1.1);flex-shrink:0}
 html.theme-light .login-mobile-top img{filter:drop-shadow(0 0 8px rgba(140,100,30,.45)) brightness(.95)}
 @media(prefers-color-scheme:light){html:not(.theme-dark) .login-mobile-top img{filter:drop-shadow(0 0 8px rgba(140,100,30,.45)) brightness(.95)}}
-.login-mobile-top span{font-family:'Playfair Display',serif;font-size:16px;color:var(--t1);font-weight:400}
+.login-mobile-top div > div:first-child{font-family:'Playfair Display',serif;font-size:16px;color:var(--t1);font-weight:400}
+.login-mobile-tagline{font-size:11px;color:var(--t4);margin-top:2px;letter-spacing:.3px}
 
 .login-h{
   font-family:'Playfair Display',serif;
@@ -1387,6 +1423,9 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
   color:var(--t3);cursor:pointer;transition:all .13s;white-space:nowrap;
 }
 .btn-edit:hover{border-color:var(--g2);color:var(--g2)}
+/* P-03: inline confirm для отклонения заявки */
+.req-confirm-reject{display:inline-flex;align-items:center;gap:6px}
+.req-confirm-label{font-size:11px;color:var(--t3)}
 .btn-del-sm{
   background:none;border:1px solid rgba(106,40,40,.3);border-radius:4px;
   padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:11px;
