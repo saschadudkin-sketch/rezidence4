@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
 import Login from './views/Login';
@@ -7,6 +8,18 @@ import ErrorBoundary from './ui/ErrorBoundary';
 import { useAuth, PHASE } from './hooks/useAuth';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
+
+// A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+    },
+  },
+});
 
 /* A-02: CSS layer architecture — tokens → foundations → components/features */
 import './styles/tokens.css';
@@ -140,10 +153,12 @@ const AppInner = memo(function AppInner() {
 
 export default function App() {
   return (
-    <ErrorBoundary name="Критическая ошибка">
-      <AppProvider>
-        <AppInner />
-      </AppProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary name="Критическая ошибка">
+        <AppProvider>
+          <AppInner />
+        </AppProvider>
+      </ErrorBoundary>
+    </QueryClientProvider>
   );
 }
