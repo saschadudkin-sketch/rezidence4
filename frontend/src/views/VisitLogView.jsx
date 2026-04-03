@@ -3,7 +3,7 @@
  * Карточки с полной информацией о визите.
  */
 
-import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo, useDeferredValue } from 'react';
 import { useRequests } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
 import { CAT_ICON, CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON, ROLE_LABELS } from '../constants/index.js';
@@ -106,8 +106,11 @@ export default function VisitLogView({ user }) {
   // FIX [AUDIT-3]: confirmClear заменяет window.confirm() — нативный confirm блокирует
   // UI thread и не стилизуется. Вместо него — inline-кнопка подтверждения.
   const [confirmClear, setConfirmClear] = useState(false);
-  const debouncedQuery = useDebounce(query, 250);
-  const q = debouncedQuery.trim().toLowerCase();
+  // A-15: useDeferredValue defers filter recomputation so that typing stays
+  // responsive even when the visits list is large.
+  const debouncedQuery = useDebounce(query, 150);
+  const deferredQuery  = useDeferredValue(debouncedQuery);
+  const q = deferredQuery.trim().toLowerCase();
   const canClearLogs = user.role === 'admin';  // FIX [AUDIT-5 #10]: admin can clear in both modes
   const canExport = canManageRequests(user.role); // FIX: CSV export was hidden in live mode
 

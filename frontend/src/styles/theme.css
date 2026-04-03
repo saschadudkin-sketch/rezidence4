@@ -1592,6 +1592,52 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 .u-none{display:none}
 .u-search-filter{flex:1;min-width:160px;margin-bottom:0}
 
+/* ── A-06: SectionHeader — стандартный заголовок секции ──────────────────── */
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:var(--space-md);gap:var(--space-sm);flex-wrap:wrap;
+}
+.section-header-main{display:flex;align-items:center;gap:var(--space-sm);min-width:0}
+.section-header-title{
+  font-size:13px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--t2);font-weight:600;
+}
+.section-header-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:var(--g-bg);border:1px solid var(--b2);
+  font-size:11px;font-weight:700;color:var(--g2);
+}
+.section-header-sub{font-size:12px;color:var(--t4);margin:0;width:100%}
+.section-header-action{flex-shrink:0}
+
+/* ── A-06: BadgeStatus — семантический бейдж статуса/роли ───────────────── */
+.badge-sm{font-size:10px!important;padding:1px 6px!important;height:16px!important}
+
+/* ── A-09: Responsive stacked table — disclosure pattern ─────────────────── */
+/* Standard 4-column table collapses to 2 columns, then stacked cards on xs */
+@media(max-width:380px){
+  .t-head{display:none}
+  .t-row{
+    grid-template-columns:1fr!important;
+    gap:var(--space-xs);
+    padding:10px 12px;
+  }
+  .t-row>*{font-size:12px}
+  .t-row>*:not(:last-child)::after{
+    content:attr(data-label);
+    display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--t4);margin-bottom:1px;
+  }
+}
+/* Prevent info loss: keep 2 visible columns from 560px down to 380px */
+@media(max-width:560px) and (min-width:381px){
+  .t-head{grid-template-columns:1fr 1fr}
+  .t-head>*:nth-child(n+3){display:none}
+  .t-row{grid-template-columns:1fr 1fr}
+  .t-row>*:nth-child(n+3){display:none}
+}
+
 
 /* Принудительная тема через класс на <html> */
 html.theme-light {

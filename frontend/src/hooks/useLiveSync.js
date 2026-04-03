@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, startTransition } from 'react';
 import { canManageRequests } from '../constants/requestPredicates.js';
 import { ROLES } from '../domain/permissions.js';
 import { sendNotif, playAlert } from '../utils.js';
@@ -7,12 +7,8 @@ import { services } from '../services/providers/serviceContainer.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.
- *
- * FIX [UX]: добавлен isLoading — пока данные не загружены, Dashboard показывает
- * skeleton вместо пустых списков. Ранее пользователь видел пустой экран 300-600мс.
- *
- * FIX [REACT-2]: стабильный ref для колбэков вместо передачи в deps useEffect.
- * Изменение любого колбэка не перезапускает SSE-соединение.
+ * A-15: SSE state updates wrapped in startTransition so that live data
+ * updates yield to urgent user interactions (typing, taps, navigation).
  */
 export function useLiveSync(user, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
@@ -51,14 +47,17 @@ export function useLiveSync(user, {
 
     Promise.resolve(services.liveData.startSync({
       userUid:        user.uid,
+      // Initial bulk load: not wrapped in transition (renders skeleton → data ASAP)
       setAllRequests: (...a) => {
         callbacksRef.current.setAllRequests?.(...a);
         clearLoading();
       },
-      setAllMessages: (...a) => callbacksRef.current.setAllMessages?.(...a),
-      setAllUsers:    (...a) => callbacksRef.current.setAllUsers?.(...a),
-      setBlacklist:   (e)    => callbacksRef.current.setBlacklist?.(e),
+      // Secondary bulk updates: deferred — don't block user interactions
+      setAllMessages: (...a) => startTransition(() => callbacksRef.current.setAllMessages?.(...a)),
+      setAllUsers:    (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
+      setBlacklist:   (e)    => startTransition(() => callbacksRef.current.setBlacklist?.(e)),
       onRequests: (docs) => {
+        // Notifications are urgent — run immediately before transition
         const newP = docs.filter(r => r.type === 'pass' && r.status === 'pending').length;
         if (newP > prevPendingP.current && user.role === ROLES.SECURITY) {
           sendNotif('Новый пропуск', 'Требует рассмотрения', 'pass');
@@ -72,8 +71,11 @@ export function useLiveSync(user, {
           playAlert('tech');
         }
         prevPendingT.current = newT;
-        callbacksRef.current.setAllRequests?.(docs);
-        clearLoading();
+        // State update is non-urgent: yield to typing, taps, navigation
+        startTransition(() => {
+          callbacksRef.current.setAllRequests?.(docs);
+          clearLoading();
+        });
       },
       onChat: (event) => {
         if (event.type === 'added' && event.message) {
@@ -87,9 +89,9 @@ export function useLiveSync(user, {
           prevMsgs.current += 1;
         }
       },
-      onUsers:     (...a) => callbacksRef.current.setAllUsers?.(...a),
-      onPerms:     (p)    => callbacksRef.current.setPerms?.(user.uid, p),
-      onTemplates: (t)    => callbacksRef.current.setTemplates?.(user.uid, t),
+      onUsers:     (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
+      onPerms:     (p)    => startTransition(() => callbacksRef.current.setPerms?.(user.uid, p)),
+      onTemplates: (t)    => startTransition(() => callbacksRef.current.setTemplates?.(user.uid, t)),
     }))
     .then(fn => {
       if (cancelled) {

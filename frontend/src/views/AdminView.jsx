@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useDeferredValue } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
@@ -86,8 +86,10 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
   const [addModal,   setAddModal]   = useState(false);
   const [query,      setQuery]      = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const debouncedQuery = useDebounce(query, 250);
-  const q = debouncedQuery.trim().toLowerCase();
+  // A-15: deferred query keeps typing responsive while filtering large user lists
+  const debouncedQuery = useDebounce(query, 150);
+  const deferredQuery  = useDeferredValue(debouncedQuery);
+  const q = deferredQuery.trim().toLowerCase();
 
   const filtered = useMemo(() => allUsers.filter(u => {
     const matchQ = !q || u.name.toLowerCase().includes(q) || u.phone.includes(q) || (u.apartment && u.apartment.toLowerCase().includes(q));
@@ -145,8 +147,9 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
   const [reqType,   setReqType]   = useState('all');
   const [reqStatus, setReqStatus] = useState('all');
   const [reqPeriod, setReqPeriod] = useState('all');
-  const debouncedQuery = useDebounce(reqQuery, 250);
-  const rq = debouncedQuery.trim().toLowerCase();
+  const debouncedQuery = useDebounce(reqQuery, 150);
+  const deferredReqQuery = useDeferredValue(debouncedQuery);
+  const rq = deferredReqQuery.trim().toLowerCase();
 
   const filtered = useMemo(() => filterByPeriod(requests, reqPeriod).filter(r => {
     const mq = !rq || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment].some(v => v && v.toLowerCase().includes(rq));
