@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import { useIsMounted } from '../hooks/useIsMounted.js';
 import { toast } from '../ui/Toasts';
 import { PassQRModal } from './PassQRModal';
 import {
@@ -159,11 +160,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   //   - прямой async/await вместо setTimeout
   const actLoadingRef = useRef(actLoading);
   actLoadingRef.current = actLoading;
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
+  const isMountedRef = useIsMounted();
 
   const act = useCallback(async (key, fn, msg, type) => {
     if (actLoadingRef.current) return;

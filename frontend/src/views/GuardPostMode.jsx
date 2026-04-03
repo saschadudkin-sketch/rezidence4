@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
+import { useIsMounted } from '../hooks/useIsMounted.js';
 import { useRequests, useActions, useBlacklist, useUsers, useAvatar } from '../store/AppStore.jsx';
 import { CAT_LABEL } from '../constants/index.js';
 import { sortReqs, playAlert } from '../utils.js';
@@ -29,10 +30,10 @@ import { AppIcon } from '../ui/AppIcon.jsx';
 const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPhone, onViewDetails }) {
   const { approveRequest, rejectRequest, arriveRequest, approveAndArrive } = useActions();
   const avData = useAvatar(req.createdByUid);
-  const [loading, setLoading]             = useState(null);
-  const [showQR, setShowQR]               = useState(false);
-  const [confirmApprove, setConfirmApprove] = useState(false);
-  const [confirmReject, setConfirmReject]   = useState(false);
+  const [loading, setLoading]   = useState(null);
+  const [showQR, setShowQR]     = useState(false);
+  // CQ-01: два boolean → один enum — исключает невалидное состояние confirmApprove && confirmReject
+  const [confirmAction, setConfirmAction] = useState(null); // null | 'approve' | 'reject'
   const blMatch = checkBlacklist(req, blacklist);
 
   // Одиночный тап открывает детали (двойной тап убран — неочевидный UX для охраны)
@@ -41,13 +42,9 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     onViewDetails(req.id);
   };
 
-  // FIX [BUG-21]: добавляем isMountedRef — setLoading(null) в finally мог вызваться
-  // на размонтированной карточке (например, заявка удалена пока шёл запрос).
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
+  // FIX [BUG-21]: setLoading(null) в finally не должен вызываться на размонтированной карточке
+  const isMountedRef = useIsMounted();
 
   // loadingRef стабилен — нет stale closure
   const loadingRef = useRef(loading);
@@ -100,8 +97,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       rejectRequest(req.id, userName, 'security');
       sendNotif('В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
     }, 'В допуске отказано', 'error');
-    setConfirmReject(false);
-    setConfirmApprove(false);
+    setConfirmAction(null);
   };
   const doArrive = () => act('arrive', async () => {
     arriveRequest(req.id, userName, 'security');
@@ -194,23 +190,23 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       <div className="guard-actions">
         {req.status === 'pending' && (
           <>
-            {confirmApprove ? (
+            {confirmAction === 'approve' ? (
               <button className="guard-btn approve confirm" onClick={doPass} disabled={!!loading}>
                 {loading === 'approve' ? <span className="btn-spin" /> : <AppIcon name="check" size={14} />}
                 <span>Точно пропустить?</span>
               </button>
             ) : (
-              <button className="guard-btn approve" onClick={() => setConfirmApprove(true)} disabled={!!loading}>
+              <button className="guard-btn approve" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
                 <span className="u-inline-icon"><AppIcon name="check" size={14} /></span><span>Пропустить</span>
               </button>
             )}
-            {confirmReject ? (
+            {confirmAction === 'reject' ? (
               <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
                 {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
                 <span>Точно отказать?</span>
               </button>
             ) : (
-              <button className="guard-btn reject" onClick={() => setConfirmReject(true)} disabled={!!loading}>
+              <button className="guard-btn reject" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
                 <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
               </button>
             )}

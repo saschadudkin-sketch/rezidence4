@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useActions, usePerms } from '../store/AppStore.jsx';
+import { useIsMounted } from './useIsMounted.js';
+import { MAX_PHOTOS_PER_REQUEST, MAX_FILE_SIZE_BYTES, PHOTO_MAX_WIDTH_PX, PHOTO_JPEG_QUALITY } from '../constants/limits.js';
 import { genId } from '../utils.js';
 import { toast } from '../ui/Toasts';
 import { toastBySyncResult } from '../ui/syncFeedback';
@@ -32,7 +34,7 @@ export const canUsePermsList = (type, cat) =>
 
 // ─── Сжатие изображения ──────────────────────────────────────────────────────
 
-const compressImage = (dataUrl, maxWidth = 1024, quality = 0.72) =>
+const compressImage = (dataUrl, maxWidth = PHOTO_MAX_WIDTH_PX, quality = PHOTO_JPEG_QUALITY) =>
   new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
@@ -122,17 +124,12 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     ? (user.role === 'contractor' ? userPerms.workers : userPerms.visitors)
     : [];
 
-  // FIX [AUDIT-4]: isMountedRef — handleSubmit делает async операции (фото, API).
-  // Если пользователь закроет модал пока запрос летит, setState на unmounted компоненте
-  // вызывал warning и потенциальный side-effect (двойная запись в стор).
-  const isMountedRef = useRef(true);
+  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
+  // FIX [AUDIT-4]: handleSubmit делает async операции (фото, API) — проверяем isMounted после await
+  const isMountedRef = useIsMounted();
   useEffect(() => {
-    isMountedRef.current = true;
     lockScroll();
-    return () => {
-      isMountedRef.current = false;
-      unlockScroll();
-    };
+    return () => { unlockScroll(); };
   }, []);
 
   // Сброс полей при смене категории
@@ -150,12 +147,12 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   const handlePhoto = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const remaining = 5 - photos.length;
-    if (remaining <= 0) { toast('Максимум 5 фото', 'error'); return; }
+    const remaining = MAX_PHOTOS_PER_REQUEST - photos.length;
+    if (remaining <= 0) { toast(`Максимум ${MAX_PHOTOS_PER_REQUEST} фото`, 'error'); return; }
     const toProcess = files.slice(0, remaining);
-    if (files.length > remaining) toast(`Добавлено ${remaining} из ${files.length} фото (макс. 5)`, 'info');
+    if (files.length > remaining) toast(`Добавлено ${remaining} из ${files.length} фото (макс. ${MAX_PHOTOS_PER_REQUEST})`, 'info');
 
-    const oversized = toProcess.some(f => f.size > 10 * 1024 * 1024);
+    const oversized = toProcess.some(f => f.size > MAX_FILE_SIZE_BYTES);
     if (oversized) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
 
     try {
@@ -171,7 +168,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         }))
       );
       // FIX [LEAK]: модал может закрыться пока файлы читались (медленный диск)
-      if (isMountedRef.current) setPhotos(prev => [...prev, ...results].slice(0, 5));
+      if (isMountedRef.current) setPhotos(prev => [...prev, ...results].slice(0, MAX_PHOTOS_PER_REQUEST));
     } catch {
       if (isMountedRef.current) toast('Не удалось загрузить фото', 'error');
     }

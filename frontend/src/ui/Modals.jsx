@@ -5,6 +5,9 @@ import { normalizePhone, genId } from '../utils.js';
 import { toast } from './Toasts.jsx';
 import { lockScroll, unlockScroll } from './scrollLock.js';
 import { AppIcon } from './AppIcon.jsx';
+import { useIsMounted } from '../hooks/useIsMounted.js';
+import { MAX_FILE_SIZE_BYTES } from '../constants/limits.js';
+import { compressImage } from '../utils/compressImage.js';
 
 // ─── ADD USER MODAL ───────────────────────────────────────────────────────────
 
@@ -17,11 +20,8 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
   const { phoneDb } = useUsers();
   const { addUser }  = useActions();
 
-  const isMountedRef = useRef(true);
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
+  const isMountedRef = useIsMounted();
 
   useEffect(() => {
     lockScroll();
@@ -95,22 +95,9 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
 
 // ─── AVATAR MODAL ─────────────────────────────────────────────────────────────
 
-// FIX [PERF]: compressImg вынесена из компонента — не пересоздаётся при каждом рендере
-function compressImg(dataUrl) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale  = Math.min(1, 256 / Math.max(img.width, img.height));
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.82));
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
+// CQ-02: compressImg → общая утилита compressImage из utils/compressImage.js
+// Аватар: maxWidth=256 (квадратный), quality=0.82
+const compressImg = (dataUrl) => compressImage(dataUrl, { maxWidth: 256, quality: 0.82 });
 
 export function AvatarModal({ user, avatar, onSave, onClose }) {
   const [src, setSrc] = useState(avatar && avatar.type === 'photo' ? avatar.src : null);
@@ -125,7 +112,7 @@ export function AvatarModal({ user, avatar, onSave, onClose }) {
   const onFile = e => {
     const f = e.target.files[0];
     if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс. 10 МБ)', 'error'); return; }
+    if (f.size > MAX_FILE_SIZE_BYTES) { toast('Файл слишком большой (макс. 10 МБ)', 'error'); return; }
     const reader = new FileReader();
     reader.onerror = () => toast('Не удалось загрузить фото', 'error');
     reader.onload  = async ev => {

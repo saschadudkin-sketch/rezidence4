@@ -6,6 +6,7 @@ import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';
 import { authProvider } from '../services/providers/backendProvider';
 import { AppIcon } from '../ui/AppIcon';
+import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits.js';
 
 // FIX [AUDIT-2 #15]: демо-данные с телефонами НЕ попадают в production JS-бандл
 const HINTS = isDemoMode() ? [
@@ -78,7 +79,7 @@ export default function Login({ onLogin }) {
         await authProvider.sendOtp(phone);
         if (signal.aborted) return;
         setStep('otp');
-        setResendIn(30);
+        setResendIn(OTP_COOLDOWN_SECONDS);
         setOtpError('');
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'live' });
         toast('SMS-код отправлен', 'success');
@@ -89,14 +90,17 @@ export default function Login({ onLogin }) {
         if (signal.aborted) return;
         setFound(f);
         setStep('otp');
-        setResendIn(30);
+        setResendIn(OTP_COOLDOWN_SECONDS);
         setOtpError('');
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'demo' });
         toast('Демо: введите любой код', 'success');
       }
     } catch(e) {
-      // P-04: use server's Retry-After if provided, fall back to 30s default
-      const retryAfter = e.retryAfter ?? 30;
+      // SEC-02: clamp retryAfter — сервер (или MITM) может вернуть 999999 секунд, блокируя UI навсегда
+      const retryAfter = Math.min(
+        parseInt(e.retryAfter ?? OTP_COOLDOWN_SECONDS, 10) || OTP_COOLDOWN_SECONDS,
+        OTP_RETRY_AFTER_MAX_SECONDS,
+      );
       setResendIn(retryAfter);
       setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
       emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
@@ -225,7 +229,7 @@ export default function Login({ onLogin }) {
                         setOtp('');
                         setOtpError('');
                         setStep('otp');
-                        setResendIn(30);
+                        setResendIn(OTP_COOLDOWN_SECONDS);
                         setDemoOpen(false);
                         emitLoginMetric('send_code_success', { mode: 'demo', source: 'demo_shortcut' });
                         toast('Демо: введите любой код', 'success');
