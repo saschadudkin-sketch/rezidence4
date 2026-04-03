@@ -53,11 +53,16 @@ async function idempotency(req, res, next) {
 
   const originalJson = res.json.bind(res);
   res.json = (body) => {
-    const entry = { status: res.statusCode, body };
-    if (redis) {
-      redis.setex(cacheKey, TTL_SECONDS, JSON.stringify(entry)).catch(() => {});
-    } else {
-      memCache.set(cacheKey, { ...entry, createdAt: Date.now() });
+    // FIX [BUG]: кешируем ТОЛЬКО успешные ответы (2xx).
+    // Ранее 4xx/5xx тоже кешировались: при первом транзитном сбое (503, 500)
+    // все последующие 24 часа клиент получал кешированную ошибку вместо повтора запроса.
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const entry = { status: res.statusCode, body };
+      if (redis) {
+        redis.setex(cacheKey, TTL_SECONDS, JSON.stringify(entry)).catch(() => {});
+      } else {
+        memCache.set(cacheKey, { ...entry, createdAt: Date.now() });
+      }
     }
     return originalJson(body);
   };

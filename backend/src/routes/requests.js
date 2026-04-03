@@ -60,17 +60,23 @@ router.patch('/:id', validateId, async (req, res, next) => {
 });
 
 // ─── DELETE /api/requests/:id ────────────────────────────────────────────────
+// FIX [BUG]: добавлен broadcastRequestUpdate при soft-delete.
+// Без него клиенты (охрана, консьерж) видели удалённые заявки до следующего
+// переподключения SSE или перезагрузки страницы.
 router.delete('/:id', validateId, async (req, res, next) => {
   try {
-    res.json(await RequestsService.delete(req.user, req.params.id));
+    const result = await RequestsService.delete(req.user, req.params.id);
+    broadcastRequestUpdate({ id: req.params.id, status: 'deleted', deletedAt: new Date().toISOString() });
+    res.json(result);
   } catch (err) { handleServiceError(err, res, next); }
 });
 
 // ─── GET /api/requests/:id/history ───────────────────────────────────────────
+// FIX [SECURITY]: передаём req.user для проверки владения (см. RequestsService.getHistory)
 router.get('/:id/history', validateId, async (req, res, next) => {
   try {
-    res.json(await RequestsService.getHistory(req.params.id));
-  } catch (err) { next(err); }
+    res.json(await RequestsService.getHistory(req.user, req.params.id));
+  } catch (err) { handleServiceError(err, res, next); }
 });
 
 module.exports = router;
