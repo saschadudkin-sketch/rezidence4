@@ -3,7 +3,9 @@
  * Покрывает: useTheme, useNavBadges, useNavigation (чистая логика без SSE/Push)
  */
 
+import React from 'react';
 import { renderHook, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // Мокируем тяжёлые зависимости которые не нужны для unit-тестов
 vi.mock('../config/runtimeMode', () => ({
@@ -244,6 +246,8 @@ describe('useNavBadges', () => {
 describe('useNavigation', () => {
   const markChatSeen = vi.fn();
   const onPassesSeen = vi.fn();
+  // Обёртка с MemoryRouter нужна т.к. useNavigation использует useNavigate/useLocation
+  const wrapper = ({ children }) => React.createElement(MemoryRouter, { initialEntries: ['/dashboard/passes'] }, children);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -252,28 +256,34 @@ describe('useNavigation', () => {
 
   test('начальный таб owner — "passes"', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     expect(result.current.activeTab).toBe('passes');
   });
 
   test('начальный таб security — "guardpost"', () => {
+    const secWrapper = ({ children }) => React.createElement(MemoryRouter, { initialEntries: ['/dashboard/guardpost'] }, children);
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'g1', role: 'security' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'g1', role: 'security' }, { markChatSeen, onPassesSeen }),
+      { wrapper: secWrapper }
     );
     expect(result.current.activeTab).toBe('guardpost');
   });
 
   test('начальный таб admin — "stats"', () => {
+    const adminWrapper = ({ children }) => React.createElement(MemoryRouter, { initialEntries: ['/dashboard/stats'] }, children);
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'a1', role: 'admin' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'a1', role: 'admin' }, { markChatSeen, onPassesSeen }),
+      { wrapper: adminWrapper }
     );
     expect(result.current.activeTab).toBe('stats');
   });
 
   test('goTab переключает activeTab', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     act(() => result.current.goTab('chat'));
     expect(result.current.activeTab).toBe('chat');
@@ -281,7 +291,8 @@ describe('useNavigation', () => {
 
   test('goTab не переключает на недоступный таб', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     act(() => result.current.goTab('guardpost')); // недоступен для owner
     expect(result.current.activeTab).toBe('passes'); // не изменился
@@ -289,7 +300,8 @@ describe('useNavigation', () => {
 
   test('goTab на chat вызывает markChatSeen', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     act(() => result.current.goTab('chat'));
     expect(markChatSeen).toHaveBeenCalledWith('u1');
@@ -297,7 +309,8 @@ describe('useNavigation', () => {
 
   test('highlightReqId начально null, setHighlightReqId работает', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     expect(result.current.highlightReqId).toBeNull();
     act(() => result.current.setHighlightReqId('req-123'));
@@ -308,7 +321,8 @@ describe('useNavigation', () => {
   // чтобы счётчик residentNewStatuses немедленно сбросился в текущей вкладке
   test('FIX BUG-16: goTab passes для owner вызывает onPassesSeen', () => {
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     act(() => result.current.goTab('passes'));
     expect(onPassesSeen).toHaveBeenCalledTimes(1);
@@ -317,7 +331,8 @@ describe('useNavigation', () => {
   test('FIX BUG-16: goTab passes для owner записывает rz-passes-seen в localStorage', () => {
     const before = Date.now();
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'u1', role: 'owner' }, { markChatSeen, onPassesSeen }),
+      { wrapper }
     );
     act(() => result.current.goTab('passes'));
     const stored = parseInt(localStorage.getItem('rz-passes-seen') || '0');
@@ -325,8 +340,10 @@ describe('useNavigation', () => {
   });
 
   test('FIX BUG-16: goTab passes для security НЕ вызывает onPassesSeen (только жильцы)', () => {
+    const secWrapper = ({ children }) => React.createElement(MemoryRouter, { initialEntries: ['/dashboard/guardpost'] }, children);
     const { result } = renderHook(() =>
-      useNavigation({ uid: 'g1', role: 'security' }, { markChatSeen, onPassesSeen })
+      useNavigation({ uid: 'g1', role: 'security' }, { markChatSeen, onPassesSeen }),
+      { wrapper: secWrapper }
     );
     act(() => result.current.goTab('passes'));
     expect(onPassesSeen).not.toHaveBeenCalled();

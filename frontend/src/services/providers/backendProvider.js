@@ -58,6 +58,8 @@ function createSSEManager() {
 
       // Успешное соединение — сбрасываем задержку до минимума
       _reconnectDelay = _RECONNECT_MIN;
+      // FA-07: уведомляем React о восстановлении SSE-соединения
+      window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: true } }));
 
       const reader  = response.body.getReader();
       const decoder = new TextDecoder();
@@ -92,6 +94,8 @@ function createSSEManager() {
       logger.warn(`[SSE] connection error, reconnecting in ${_reconnectDelay / 1000}s`, err.message);
       abortController = null;
       isConnected     = false;
+      // FA-07: уведомляем React о разрыве SSE-соединения (будет переподключение)
+      window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: false } }));
       clearTimeout(reconnectTimer);
       const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
       const delay = Math.round(_reconnectDelay * jitter);

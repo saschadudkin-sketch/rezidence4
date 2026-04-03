@@ -31,7 +31,24 @@ import {
   useNavigation,
 } from '../hooks/useDashboardHooks';
 import { ROLES, getTabsForRole } from '../domain/permissions';
+import { isDemoMode } from '../config/runtimeMode.js';
 import AppShell from './shell/AppShell';
+
+// P-05: one-time demo welcome banner
+const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
+function DemoBanner({ onClose }) {
+  return (
+    <div className="demo-welcome-banner" role="status" aria-live="polite">
+      <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
+      <span className="demo-welcome-text">
+        Вы в демо-режиме. Данные хранятся только в браузере и сбрасываются при перезагрузке.
+      </span>
+      <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
+        <AppIcon name="close" size={12} />
+      </button>
+    </div>
+  );
+}
 
 const PAGE_TITLES = {
   owner: 'Добро пожаловать', tenant: 'Добро пожаловать',
@@ -55,16 +72,26 @@ export default function Dashboard({ user, onLogout }) {
 
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
 
+  // P-05: one-time demo welcome banner
+  const [showDemoBanner, setShowDemoBanner] = useState(() =>
+    isDemoMode() && !localStorage.getItem(DEMO_WELCOME_KEY)
+  );
+  const dismissDemoBanner = () => {
+    localStorage.setItem(DEMO_WELCOME_KEY, '1');
+    setShowDemoBanner(false);
+  };
+
   const badges = useNavBadges(user, requests, chat, chatLastSeen, blacklist);
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
 
   const prevPendingP = useRef(0);
   const prevPendingT = useRef(0);
-  const prevMsgs     = useRef(0);
+  // PERF-03: prevMsgs удалён — только инкрементировался, но никогда не сравнивался.
+  // Реальный счётчик непрочитанных — из useNavBadges (chat.filter по chatLastSeen).
 
-  const { isLoading: syncLoading } = useLiveSync(user, {
+  const { isLoading: syncLoading, sseOnline } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-    prevPendingP, prevPendingT, prevMsgs,
+    prevPendingP, prevPendingT,
   });
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
@@ -72,7 +99,9 @@ export default function Dashboard({ user, onLogout }) {
     const t = setTimeout(() => setTimedOut(true), 8_000);
     return () => clearTimeout(t);
   }, [syncLoading]);
-  const isLoading = syncLoading && !timedOut;
+  const isLoading  = syncLoading && !timedOut;
+  // UX-002: таймаут соединения — явное состояние ошибки вместо пустого UI
+  const isConnErr  = syncLoading && timedOut;
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -81,49 +110,48 @@ export default function Dashboard({ user, onLogout }) {
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
 
-  const NAV_META = useMemo(() => ({
-    passes:    ['ticket', user.role === ROLES.SECURITY || user.role === ROLES.CONCIERGE ? 'Заявки' : 'Пропуска',
-                user.role === ROLES.SECURITY ? pendingP + pendingT : user.role === ROLES.CONCIERGE ? pendingT : residentNewStatuses],
-    tech:      ['tools', 'Техслужба', 0],
-    perms:     ['list', 'Список', 0],
-    templates: ['file', 'Шаблоны', 0],
-    history:   ['history', 'История', 0],
-    chat:      ['chat', 'Чат', unreadMsgs],
-    visitlog:  ['history', 'Журнал', 0],
-    residents: ['residents', 'Жильцы', 0],
-    blacklist: ['ban', 'ЧС', blacklistCount],
-    guardpost: ['shield', 'Пост', pendingP],
-    stats:     ['chart', 'Аналитика', 0],
-    requests:  ['list', 'Заявки', pendingP + pendingT],
-    users:     ['users', 'Резиденты', 0],
-  }), [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
-
-  const nav = useMemo(
-    () => getTabsForRole(user.role).map(tab => [tab, ...(NAV_META[tab] || ['list', tab, 0])]),
-    [user.role, NAV_META],
-  );
+  // PERF-04: объединены 3 useMemo (NAV_META, nav, navClassMap) в один вызов.
+  // Все три зависели от одного набора значений, теперь одно вычисление вместо трёх.
+  const { nav, navClassMap } = useMemo(() => {
+    const isSec  = user.role === ROLES.SECURITY;
+    const isCon  = user.role === ROLES.CONCIERGE;
+    const passesBadge = isSec ? pendingP + pendingT : isCon ? pendingT : residentNewStatuses;
+    const NAV_META = {
+      passes:    ['ticket', isSec || isCon ? 'Заявки' : 'Пропуска', passesBadge],
+      tech:      ['tools',    'Техслужба',  0],
+      perms:     ['list',     'Список',     0],
+      templates: ['file',     'Шаблоны',    0],
+      history:   ['history',  'История',    0],
+      chat:      ['chat',     'Чат',        unreadMsgs],
+      visitlog:  ['history',  'Журнал',     0],
+      residents: ['residents','Жильцы',     0],
+      blacklist: ['ban',      'ЧС',         blacklistCount],
+      guardpost: ['shield',   'Пост',       pendingP],
+      stats:     ['chart',    'Аналитика',  0],
+      requests:  ['list',     'Заявки',     pendingP + pendingT],
+      users:     ['users',    'Резиденты',  0],
+    };
+    const tabs = getTabsForRole(user.role);
+    const nav  = tabs.map(tab => [tab, ...(NAV_META[tab] || ['list', tab, 0])]);
+    const map  = {};
+    for (const k of tabs) {
+      const mods = [
+        activeTab === k ? 'active' : '',
+        isSec && k === 'passes' && pendingT > 0             && activeTab !== 'passes' ? 'blink'   : '',
+        isSec && k === 'passes' && pendingT === 0 && pendingP > 0 && activeTab !== 'passes' ? 'blink-y' : '',
+        isCon && k === 'passes' && pendingT > 0             && activeTab !== 'passes' ? 'blink'   : '',
+        k === 'chat' && unreadMsgs > 0                      && activeTab !== 'chat'   ? 'blink-y' : '',
+      ].filter(Boolean).join(' ');
+      map[k]         = mods ? `tn-btn ${mods}` : 'tn-btn';
+      map[k + '_mn'] = mods ? `mn-btn ${mods}` : 'mn-btn';
+    }
+    return { nav, navClassMap: map };
+  }, [user.role, activeTab, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
 
   const pageTitle = PAGE_TITLES[user.role];
   const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
     ? 'Апартаменты ' + user.apartment
     : (PAGE_SUBTITLES[user.role] || '');
-
-  const navClassMap = useMemo(() => {
-    const map = {};
-    const tabs = getTabsForRole(user.role);
-    for (const k of tabs) {
-      const modifiers = [
-        activeTab === k ? 'active' : '',
-        user.role === ROLES.SECURITY  && k === 'passes' && pendingT > 0 && activeTab !== 'passes' ? 'blink'   : '',
-        user.role === ROLES.SECURITY  && k === 'passes' && pendingT === 0 && pendingP > 0 && activeTab !== 'passes' ? 'blink-y' : '',
-        user.role === ROLES.CONCIERGE && k === 'passes' && pendingT > 0 && activeTab !== 'passes' ? 'blink' : '',
-        k === 'chat' && unreadMsgs > 0 && activeTab !== 'chat' ? 'blink-y' : '',
-      ].filter(Boolean).join(' ');
-      map[k]         = modifiers ? `tn-btn ${modifiers}` : 'tn-btn';
-      map[k + '_mn'] = modifiers ? `mn-btn ${modifiers}` : 'mn-btn';
-    }
-    return map;
-  }, [user.role, activeTab, pendingT, pendingP, unreadMsgs]);
 
   if (isLoading) {
     return (
@@ -136,8 +164,26 @@ export default function Dashboard({ user, onLogout }) {
     );
   }
 
+  // UX-002: вместо пустого UI при таймауте — понятный экран ошибки с кнопкой повтора
+  if (isConnErr) {
+    return (
+      <div className="screen-loading">
+        <div className="screen-loading-inner">
+          <div className="screen-loading-spinner"><AppIcon name="ban" size={28} /></div>
+          <div className="screen-loading-label">Не удалось подключиться к серверу</div>
+          <div className="screen-loading-sub">Проверьте соединение и попробуйте снова</div>
+          <button className="btn-outline screen-loading-retry" onClick={() => window.location.reload()}>
+            Обновить страницу
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <AppShell
+    <>
+      {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
+      <AppShell
       user={user}
       onLogout={onLogout}
       pageTitle={pageTitle}
@@ -153,6 +199,8 @@ export default function Dashboard({ user, onLogout }) {
       cycleTheme={cycleTheme}
       themeIcon={themeIcon}
       themeLabel={themeLabel}
+      sseOnline={sseOnline}
     />
+    </>
   );
 }

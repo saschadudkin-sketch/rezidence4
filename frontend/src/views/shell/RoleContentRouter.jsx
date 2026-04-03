@@ -6,14 +6,15 @@
 
 import { lazy, Suspense, memo } from 'react';
 import { ROLES } from '../../domain/permissions';
+import { ReqSkeleton } from '../../requests/ReqCard';
 
 const ResidentView  = lazy(() => import('../ResidentView'));
 const ConciergeView = lazy(() => import('../SecurityConciergeViews').then(m => ({ default: m.ConciergeView })));
 const SecurityView  = lazy(() => import('../SecurityConciergeViews').then(m => ({ default: m.SecurityView })));
 const AdminView     = lazy(() => import('../AdminView'));
 
-const LOADING_STYLE = { textAlign: 'center', padding: 40, color: 'var(--t4)' };
-const fallback = <div style={LOADING_STYLE}>Загрузка...</div>;
+// P-04/U-06: skeleton-плейсхолдер вместо текстового «Загрузка...»
+const fallback = <ReqSkeleton count={3} />;
 
 const RoleContentRouter = memo(function RoleContentRouter({
   user, activeTab, setActiveTab, highlightReqId, setHighlightReqId,
@@ -42,6 +43,8 @@ const RoleContentRouter = memo(function RoleContentRouter({
       </Suspense>
     );
   }
+  // FA-06: OWNER, TENANT, CONTRACTOR — все явно получают ResidentView.
+  // Новые роли не попадут сюда молча — нужно добавить явный if-блок выше.
   return (
     <Suspense fallback={fallback}>
       <ResidentView user={user} activeTab={activeTab} setActiveTab={setActiveTab} />

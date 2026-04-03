@@ -24,6 +24,16 @@ function emitLoginMetric(type, payload = {}) {
   }));
 }
 
+// P-06: форматирует номер телефона при вводе: +7 916 123-45-67
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 1) return '+7 ';
+  if (digits.length <= 4) return `+7 ${digits.slice(1)}`;
+  if (digits.length <= 7) return `+7 ${digits.slice(1, 4)} ${digits.slice(4)}`;
+  if (digits.length <= 9) return `+7 ${digits.slice(1, 4)} ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  return `+7 ${digits.slice(1, 4)} ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
+}
+
 export default function Login({ onLogin }) {
   const [phone,     setPhone]     = useState('+7 ');
   const [otp,       setOtp]       = useState('');
@@ -173,7 +183,10 @@ export default function Login({ onLogin }) {
         <div className="login-form">
           <div className="login-mobile-top">
             <img src={LOGO} alt="" />
-            <span>Резиденции Замоскворечья</span>
+            <div>
+              <div>Резиденции Замоскворечья</div>
+              <div className="login-mobile-tagline">Система управления доступом</div>
+            </div>
           </div>
           <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
           <h1 className="login-h">Вход в систему</h1>
@@ -184,7 +197,7 @@ export default function Login({ onLogin }) {
                 <label className="field-lbl">Номер телефона</label>
                 <input
                   className="field-inp" type="tel" placeholder="+7 000 000-00-00"
-                  value={phone} onChange={e => { setPhone(e.target.value); if (phoneError) setPhoneError(''); }}
+                  value={phone} onChange={e => { setPhone(formatPhone(e.target.value)); if (phoneError) setPhoneError(''); }}
                   onKeyDown={e => e.key === 'Enter' && sendCode()}
                   inputMode="tel" autoComplete="tel" autoFocus
                 />

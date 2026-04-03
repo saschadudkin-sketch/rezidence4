@@ -27,6 +27,9 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   const [editReq,    setEditReq]    = useState(null);
   const [passFilter, setPassFilter] = useState('active');
   const [techFilter, setTechFilter] = useState('active');
+  // UX-003: confirm state для деструктивных действий (id заявки или null)
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmCancel, setConfirmCancel] = useState(null);
 
   // FIX [DEPS-12]: [user] — объект в deps useCallback. React использует Object.is()
   // для сравнения: если parent передаёт новый объект user при каждом рендере (shallow copy),
@@ -44,11 +47,10 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   }), []);
 
   // FIX [DATA-3]: вызываем API перед обновлением локального стора.
-  // Ранее deleteRequest/updateRequest менял только локальное состояние —
-  // после перезагрузки страницы в live-режиме заявка возвращалась в исходный статус.
-  // FIX [PERF]: useCallback — onDelete/onCancel передаются в ReqCard через GroupedReqList,
-  // пересоздание при каждом рендере вызывает re-render всех карточек
-  const onDelete = useCallback(async id => {
+  // FIX [PERF]: useCallback — не создаём новые функции при каждом рендере
+  // UX-003: деструктивные действия проходят через confirm state
+  const onDeleteConfirmed = useCallback(async id => {
+    setConfirmDelete(null);
     try {
       if (isLiveMode()) {
         await services.requests.deleteEverywhere({ requestId: id });
@@ -60,19 +62,25 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     }
   }, [deleteRequest]);
 
-  const onCancel = useCallback(async id => {
+  // onDelete теперь запрашивает подтверждение перед выполнением
+  const onDelete = useCallback((id) => setConfirmDelete(id), []);
+
+  const onCancelConfirmed = useCallback(async id => {
+    setConfirmCancel(null);
     const patch = { status: 'cancelled' };
     try {
       if (isLiveMode()) {
         await services.requests.updateEverywhere({ requestId: id, patch, historyLabel: 'Отменено жильцом' });
       }
-      // FIX: одно обновление через useActions — updateRequest уже достаточно
       updateRequest(id, patch);
       toast('Заявка отменена', 'success');
     } catch (e) {
       toast('Не удалось отменить заявку: ' + (e.message || 'ошибка сервера'), 'error');
     }
   }, [updateRequest]);
+
+  // onCancel теперь запрашивает подтверждение перед выполнением
+  const onCancel = useCallback((id) => setConfirmCancel(id), []);
 
   const myPasses = useMemo(() => requests.filter(r => r.createdByUid === user.uid && r.type === 'pass'), [requests, user.uid]);
   const myTech   = useMemo(() => requests.filter(r => r.createdByUid === user.uid && r.type === 'tech'), [requests, user.uid]);
@@ -268,6 +276,32 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
 
       {modal   && <CreateModal key={modal.cat + '_' + modal.type} user={user} type={modal.type} initialCat={modal.cat} initialData={modal.data} onClose={() => setModal(null)} onDone={() => { setActiveTab(modal.type === 'tech' ? 'tech' : 'passes'); setModal(null); }} />}
       {editReq && <EditRequestModal req={editReq} onClose={() => setEditReq(null)} onDone={() => {}} />}
+
+      {/* UX-003: confirm-диалог для удаления заявки */}
+      {confirmDelete && (
+        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления">
+          <div className="confirm-panel">
+            <p className="confirm-msg">Удалить заявку? Это действие нельзя отменить.</p>
+            <div className="confirm-actions">
+              <button className="btn-no" onClick={() => onDeleteConfirmed(confirmDelete)}>Удалить</button>
+              <button className="btn-outline" onClick={() => setConfirmDelete(null)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* UX-003: confirm-диалог для отмены заявки */}
+      {confirmCancel && (
+        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение отмены">
+          <div className="confirm-panel">
+            <p className="confirm-msg">Отменить заявку?</p>
+            <div className="confirm-actions">
+              <button className="btn-no" onClick={() => onCancelConfirmed(confirmCancel)}>Да, отменить</button>
+              <button className="btn-outline" onClick={() => setConfirmCancel(null)}>Нет</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -12,9 +12,17 @@ import { services } from '../services/providers/serviceContainer.js';
  */
 export function useLiveSync(user, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-  prevPendingP, prevPendingT, prevMsgs,
+  prevPendingP, prevPendingT,
 }) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading,   setIsLoading]   = useState(true);
+  // FA-07: статус SSE-соединения для индикатора в header
+  const [sseOnline, setSseOnline] = useState(true);
+
+  useEffect(() => {
+    const handler = (e) => setSseOnline(e.detail.connected);
+    window.addEventListener('rz:sse-status', handler);
+    return () => window.removeEventListener('rz:sse-status', handler);
+  }, []);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
   const callbacksRef = useRef({});
@@ -86,7 +94,7 @@ export function useLiveSync(user, {
               'chat',
             );
           }
-          prevMsgs.current += 1;
+          // (счётчик непрочитанных ведётся через useNavBadges по chatLastSeen)
         }
       },
       onUsers:     (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
@@ -112,5 +120,5 @@ export function useLiveSync(user, {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role, user.uid]);
 
-  return { isLoading };
+  return { isLoading, sseOnline };
 }

@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
@@ -153,12 +154,14 @@ const AppInner = memo(function AppInner() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary name="Критическая ошибка">
-        <AppProvider>
-          <AppInner />
-        </AppProvider>
-      </ErrorBoundary>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary name="Критическая ошибка">
+          <AppProvider>
+            <AppInner />
+          </AppProvider>
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </BrowserRouter>
   );
 }

@@ -100,8 +100,10 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   const isHighlighted = highlightId === req.id;
   const isCancellable = onCancel && (req.status === 'pending' || req.status === 'approved');
   const [expanded, setExpanded] = useState((isStaffRole && isActive) || isHighlighted || isCancellable);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const [showQR,    setShowQR]    = useState(false);
+  const [confirmDel,    setConfirmDel]    = useState(false);
+  // P-03: двухшаговое подтверждение для отклонения заявки (охрана/консьерж)
+  const [confirmReject, setConfirmReject] = useState(false);
+  const [showQR,        setShowQR]        = useState(false);
   const cardRef = useRef(null);
   const history = useReqHistory(req.id);
   const { approveRequest, rejectRequest, acceptRequest, arriveRequest } = useActions();
@@ -264,7 +266,18 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           <div className="req-actions">
             {req.type === 'pass' ? <>
               {mayApprove && <button className="btn-yes"    onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
-              {mayReject && <button className="btn-no"     onClick={doReject}  disabled={!!actLoading}>{actLoading === 'reject'  && <span className="btn-spin" />}Отказать</button>}
+              {mayReject && !confirmReject && (
+                <button className="btn-no" onClick={() => setConfirmReject(true)} disabled={!!actLoading}>
+                  {actLoading === 'reject' && <span className="btn-spin" />}Отказать
+                </button>
+              )}
+              {mayReject && confirmReject && (
+                <span className="req-confirm-reject">
+                  <span className="req-confirm-label">Отказать?</span>
+                  <button className="btn-no" onClick={() => { setConfirmReject(false); doReject(); }} disabled={!!actLoading}>Да</button>
+                  <button className="btn-outline" onClick={() => setConfirmReject(false)}>Нет</button>
+                </span>
+              )}
               {mayMarkArrival && isApprovedRequest(req) && <button className="btn-arrive" onClick={doArrive}  disabled={!!actLoading}>{actLoading === 'arrive'  && <span className="btn-spin" />}Отметить вход</button>}
               {req.status === 'rejected' && userRole === 'security' && <button className="btn-yes" onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
             </> : <>

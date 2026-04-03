@@ -29,6 +29,7 @@ const AppShell = memo(function AppShell({
   cycleTheme,
   themeIcon,
   themeLabel,
+  sseOnline,
 }) {
   return (
     <>
@@ -39,6 +40,13 @@ const AppShell = memo(function AppShell({
             <span className="header-wordmark">Резиденции Замоскворечья</span>
             {isDemoMode() && (
               <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
+            )}
+            {/* FA-07: индикатор разрыва SSE-соединения — видна только при переподключении */}
+            {sseOnline === false && (
+              <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-live="polite">
+                <AppIcon name="history" size={12} />
+                <span>Переподключение…</span>
+              </span>
             )}
           </div>
           <div className="header-actions">
@@ -53,15 +61,13 @@ const AppShell = memo(function AppShell({
 
       <div className="layout">
         <NavigationShell nav={nav} navClassMap={navClassMap} goTab={goTab} />
-        <main className="content">
-          {activeTab !== 'chat' && (
-            <div className="page-top">
-              <div>
-                <h1 className="page-title">{pageTitle}</h1>
-                <p className="page-sub">{pageSubtitle}</p>
-              </div>
+        <main className="content" id="main-content">
+          <div className="page-top">
+            <div>
+              <h1 className="page-title">{pageTitle}</h1>
+              {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
             </div>
-          )}
+          </div>
           <ErrorBoundary name="Экран">
             <RoleContentRouter
               user={user}

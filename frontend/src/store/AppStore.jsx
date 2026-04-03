@@ -107,7 +107,6 @@ const BlacklistContext = createContext(null);
 const GarageContext    = createContext(null);
 // Единый диспатч — стабильная ссылка, не вызывает ре-рендер подписчиков
 const DispatchContext  = createContext(null);
-let hasWarnedUseAppState = false;
 
 // FIX [AUDIT-2 #9]: useDebouncedSave ВЫНЕСЕН за пределы AppProvider.
 // Ранее была объявлена внутри — нарушение Rules of Hooks (React не видит top-level).
@@ -193,34 +192,8 @@ export function AppProvider({ children }) {
 
 // ─── Публичные хуки (API не изменился) ───────────────────────────────────────
 
-// FIX [AUDIT-3 #12]: useAppState() помечен deprecated.
-// В dev/prod логируем предупреждение, но не роняем приложение для безопасной миграции.
-/** @deprecated Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage() */
-export function useAppState() {
-  if (!hasWarnedUseAppState) {
-    if (import.meta?.env?.PROD === true) {
-      console.error(
-        '[AppStore] useAppState() deprecated in production. ' +
-        'Use granular hooks: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
-      );
-    }
-    console.warn(
-      '[AppStore] useAppState() DEPRECATED — subscribes to ALL 6 contexts causing re-renders. ' +
-      'Use: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()',
-    );
-    hasWarnedUseAppState = true;
-  }
-  const req   = useContext(RequestsContext);
-  const chat  = useContext(ChatContext);
-  const users = useContext(UsersContext);
-  const perms = useContext(PermsContext);
-  const bl    = useContext(BlacklistContext);
-  const gr    = useContext(GarageContext);
-  return useMemo(
-    () => ({ ...req, ...chat, ...users, ...perms, blacklist: bl, garage: gr }),
-    [req, chat, users, perms, bl, gr],
-  );
-}
+// FA-03: useAppState() удалён — мигрировано на granular hooks, нет вызовов в коде.
+// Используй: useRequests(), useChat(), useUsers(), usePerms(), useBlacklist(), useGarage()
 export function useAppDispatch()        { return useContext(DispatchContext); }
 
 // Оптимизированные хуки — подписываются только на нужный контекст
