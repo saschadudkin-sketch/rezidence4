@@ -6,10 +6,24 @@
 
 'use strict';
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const requireAuth = require('../middleware/auth');
 const idempotency = require('../middleware/idempotency');
 const { broadcastRequestUpdate } = require('../sse');
 const { RequestsService, ServiceError } = require('../services/RequestsService');
+
+// SEC-03: per-user rate limit на создание заявок.
+// Предотвращает спам-создание пропусков — без этого один пользователь может
+// создать тысячи заявок, перегрузив интерфейс охраны.
+const createRequestLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 минута
+  max: 20,              // не более 20 заявок в минуту с одного аккаунта
+  keyGenerator: (req) => req.user?.uid || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'TOO_MANY_REQUESTS', message: 'Слишком много заявок. Попробуйте через минуту.' },
+  skip: (req) => req.user?.role === 'admin', // администратор без ограничений
+});
 
 const router = express.Router();
 router.use(requireAuth);
@@ -42,7 +56,8 @@ router.get('/', async (req, res, next) => {
 
 // ─── POST /api/requests ──────────────────────────────────────────────────────
 // FIX [D1]: idempotency middleware prevents duplicate creation on retry
-router.post('/', idempotency, async (req, res, next) => {
+// SEC-03: createRequestLimiter — per-user rate limit 20/min
+router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
   try {
     const created = await RequestsService.create(req.user, req.body);
     broadcastRequestUpdate(created);

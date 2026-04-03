@@ -456,6 +456,13 @@ export default function GuardPostMode({ user, onViewDetails }) {
   return (
     <>
     <div className="guard-post">
+      {/* P-03: sticky-баннер "Вы в режиме охраны" — явный контекстный индикатор.
+          Охранник всегда видит, что он в режиме поста, и не переключится случайно. */}
+      <div className="guard-mode-banner" role="status" aria-label="Активный режим охраны">
+        <span className="guard-mode-banner-dot" aria-hidden="true" />
+        <span>Режим поста охраны активен</span>
+      </div>
+
       {/* Статистика */}
       <div className="guard-header">
         <div className="guard-header-stats">

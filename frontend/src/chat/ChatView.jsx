@@ -35,16 +35,30 @@ function getDayKey(date) {
   return new Date(date).toDateString();
 }
 
-// FIX [REACT-4]: linkify вне компонента
+// T-07/SEC-04: linkify использует URL-конструктор для валидации вместо наивного regex.
+// Это защищает от: URL со скобками, кавычками, спецсимволами, и нестандартных схем (javascript:).
+// Разрешены только http: и https: — остальные схемы отображаются как текст.
 function linkify(text) {
-  const urlRx = /(https?:\/\/[^\s<]+)/g;
+  // Более строгий regex — не захватывает закрывающие скобки/кавычки/знаки препинания в конце URL
+  const urlRx = /\bhttps?:\/\/[^\s<>"'()\[\]{}|\\^`\u0000-\u001F]+/gi;
   const parts = text.split(urlRx);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    /^https?:\/\//.test(part)
-      ? <a key={part.slice(0, 20) + i} href={part} target="_blank" rel="noopener noreferrer" className="msg-link">{part}</a>
-      : part
-  );
+  const matches = text.match(urlRx) || [];
+  if (!matches.length) return text;
+  return parts.flatMap((part, i) => {
+    const url = matches[i - 1];
+    if (i === 0) return [part];
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return [url, part];
+      return [
+        <a key={url.slice(0, 20) + i} href={parsed.href} target="_blank" rel="noopener noreferrer" className="msg-link">{url}</a>,
+        part,
+      ];
+    } catch {
+      // Невалидный URL — показываем как текст
+      return [url, part];
+    }
+  });
 }
 
 // FIX [REACT-4]: CheckIcon вне компонента — не пересоздаётся при каждом рендере ChatView

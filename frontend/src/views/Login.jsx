@@ -8,6 +8,9 @@ import { authProvider } from '../services/providers/backendProvider';
 import { AppIcon } from '../ui/AppIcon';
 import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits.js';
 
+// P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
+const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
+
 // FIX [AUDIT-2 #15]: демо-данные с телефонами НЕ попадают в production JS-бандл
 const HINTS = isDemoMode() ? [
   ['+7 916 123-45-67', 'Собственник · апарт. 12'],
@@ -45,6 +48,8 @@ export default function Login({ onLogin }) {
   const [phoneError, setPhoneError] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  // P-04: счётчик попыток отправки OTP — показываем предупреждение перед блокировкой
+  const [sendAttempts, setSendAttempts] = useState(0);
   const { phoneDb } = useUsers();
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
@@ -81,6 +86,7 @@ export default function Login({ onLogin }) {
         setStep('otp');
         setResendIn(OTP_COOLDOWN_SECONDS);
         setOtpError('');
+        setSendAttempts(n => n + 1);
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'live' });
         toast('SMS-код отправлен', 'success');
       } else {
@@ -92,6 +98,7 @@ export default function Login({ onLogin }) {
         setStep('otp');
         setResendIn(OTP_COOLDOWN_SECONDS);
         setOtpError('');
+        setSendAttempts(n => n + 1);
         emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'demo' });
         toast('Демо: введите любой код', 'success');
       }
@@ -102,6 +109,7 @@ export default function Login({ onLogin }) {
         OTP_RETRY_AFTER_MAX_SECONDS,
       );
       setResendIn(retryAfter);
+      setSendAttempts(n => n + 1);
       setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
       emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
@@ -260,6 +268,12 @@ export default function Login({ onLogin }) {
               <button className="btn-gold" onClick={verify} disabled={loading}>
                 <span>{loading ? 'Проверка...' : 'Войти'}</span>
               </button>
+              {/* P-04: проактивное предупреждение о приближении к лимиту повторных отправок */}
+              {sendAttempts >= OTP_WARN_ON_ATTEMPT && resendIn === 0 && (
+                <div className="field-warn" role="alert">
+                  Слишком много попыток — следующая может заблокировать вход на несколько минут
+                </div>
+              )}
               <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
                 {resendIn > 0 ? `Отправить код повторно через ${resendIn}с` : 'Отправить код повторно'}
               </button>
