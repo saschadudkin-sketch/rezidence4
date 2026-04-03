@@ -148,6 +148,19 @@ router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid message id format' });
     }
 
+    // FIX [SECURITY]: валидация replyTo — ограничиваем размер JSONB поля.
+    // Без проверки пользователь мог сохранить произвольный JSONB (1MB+) в reply_to,
+    // что нагружает БД и увеличивает размер SSE-broadcast всем клиентам.
+    if (replyTo !== undefined && replyTo !== null) {
+      if (typeof replyTo !== 'object' || Array.isArray(replyTo)) {
+        return res.status(400).json({ error: 'replyTo must be an object' });
+      }
+      const serialized = JSON.stringify(replyTo);
+      if (serialized.length > 1024) {
+        return res.status(400).json({ error: 'replyTo too large (max 1KB)' });
+      }
+    }
+
     // FIX [BUG-2]: валидация содержимого — предотвращаем DoS через огромные сообщения
     if (!text && !photo) {
       return res.status(400).json({ error: 'text or photo required' });
@@ -240,6 +253,16 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
       let   i      = 1;
 
       if (text !== undefined) {
+        // FIX [SECURITY]: валидация длины text при редактировании — ранее отсутствовала.
+        // Admin или владелец могли обновить текст сообщения на произвольно длинную строку.
+        if (typeof text !== 'string') {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'text must be a string' });
+        }
+        if (text.length > MAX_CHAT_TEXT) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `text too long (max ${MAX_CHAT_TEXT} chars)` });
+        }
         // Admin может редактировать любое сообщение
         if (existing[0].uid !== uid && role !== 'admin') {
           await client.query('ROLLBACK');

@@ -237,6 +237,17 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    id: '005_users_updated_at',
+    // FIX [BUG]: routes/users.js использовал updated_at=NOW() в DELETE и PATCH /restore,
+    // но таблица users не имела этой колонки — любой вызов падал с
+    // "column updated_at of relation users does not exist".
+    async up(client) {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
+      // Обновляем существующие строки значением created_at как разумным дефолтом
+      await client.query(`UPDATE users SET updated_at = created_at WHERE updated_at IS NULL`);
+    },
+  },
 ];
 
 async function migrate() {

@@ -11,6 +11,19 @@ router.use(requireAuth);
 
 const ALLOWED_ROLES = ['owner','tenant','contractor','concierge','security','admin'];
 
+// FIX [AUDIT]: валидация формата UID — принимаем UUID или legacy safe-id.
+// Без проверки PATCH /api/users/<любая-строка> доходил до БД с мусорным uid.
+const UUID_RE    = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+
+function validateUid(req, res, next) {
+  const uid = String(req.params.uid || '');
+  if (!UUID_RE.test(uid) && !SAFE_ID_RE.test(uid)) {
+    return res.status(400).json({ error: 'Invalid uid format' });
+  }
+  next();
+}
+
 function fmt(u) {
   return {
     uid:       u.uid,
@@ -75,7 +88,7 @@ router.post('/', async (req, res, next) => {
 
 // ─── PATCH /api/users/:uid ────────────────────────────────────────────────────
 
-router.patch('/:uid', async (req, res, next) => {
+router.patch('/:uid', validateUid, async (req, res, next) => {
   try {
     const isAdmin  = req.user.role === 'admin';
     const isSelf   = req.user.uid  === req.params.uid;
@@ -145,11 +158,12 @@ router.patch('/:uid', async (req, res, next) => {
 
 // ─── DELETE /api/users/:uid (soft-delete) ────────────────────────────────────
 
-router.delete('/:uid', async (req, res, next) => {
+router.delete('/:uid', validateUid, async (req, res, next) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
     if (req.user.uid === req.params.uid) return res.status(400).json({ error: 'Cannot delete yourself' });
 
+    // FIX [BUG]: updated_at добавлена в миграции 005 — теперь безопасно использовать.
     await db.query(
       `UPDATE users
        SET deleted_at=NOW(), updated_at=NOW()
@@ -162,10 +176,11 @@ router.delete('/:uid', async (req, res, next) => {
 });
 
 // ─── PATCH /api/users/:uid/restore (soft-delete rollback, admin only) ───────
-router.patch('/:uid/restore', async (req, res, next) => {
+router.patch('/:uid/restore', validateUid, async (req, res, next) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
+    // FIX [BUG]: updated_at добавлена в миграции 005 — теперь безопасно использовать.
     const { rows } = await db.query(
       `UPDATE users
        SET deleted_at=NULL, updated_at=NOW()

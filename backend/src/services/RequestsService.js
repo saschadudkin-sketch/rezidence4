@@ -175,6 +175,24 @@ class RequestsService {
 
     validateFieldLengths(body);
 
+    // FIX [SECURITY]: валидация массива photos.
+    // Без проверки пользователь мог передать произвольные внешние URL (трекеры, javascript:)
+    // или массив из 1000 строк, раздувая БД и SSE-broadcast.
+    if (body.photos !== undefined) {
+      if (!Array.isArray(body.photos)) {
+        throw new ServiceError('photos must be an array');
+      }
+      if (body.photos.length > 10) {
+        throw new ServiceError('photos: max 10 items per request');
+      }
+      const backendUrl = process.env.BACKEND_URL || '';
+      for (const url of body.photos) {
+        if (typeof url !== 'string') throw new ServiceError('photos: each item must be a string');
+        const isLocal = url.startsWith('/uploads/') || (backendUrl && url.startsWith(backendUrl + '/uploads/'));
+        if (!isLocal) throw new ServiceError('photos: only local upload URLs allowed (/uploads/...)');
+      }
+    }
+
     const id = uuid();
     const initialStatus = body.status || 'pending';
 
@@ -300,8 +318,21 @@ class RequestsService {
 
   /**
    * Получить историю заявки.
+   * FIX [SECURITY]: добавлена проверка владения/доступа — жилец видит только свои заявки.
+   * Ранее любой авторизованный пользователь мог получить историю ЛЮБОЙ заявки по id.
    */
-  static async getHistory(id) {
+  static async getHistory(user, id) {
+    const { uid, role } = user;
+    const staff = isStaff(role);
+
+    if (!staff) {
+      const { rows: ownership } = await db.query(
+        `SELECT id FROM requests WHERE id=$1 AND created_by_uid=$2 AND deleted_at IS NULL`,
+        [id, uid],
+      );
+      if (!ownership.length) throw new ServiceError('Forbidden', 403);
+    }
+
     const { rows } = await db.query(
       `SELECT by_name, by_role, label, at FROM request_history WHERE req_id=$1 ORDER BY at`, [id],
     );
