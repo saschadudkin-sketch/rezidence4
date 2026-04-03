@@ -11,6 +11,7 @@ import { getValidationReasonLabel } from '../constants/statusPresentation';
 import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils.js';
 import { useVisitLogs, useClearVisitLogs } from '../hooks/useVisitLogs';
+import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 
@@ -114,8 +115,16 @@ export default function VisitLogView({ user }) {
   const canClearLogs = user.role === 'admin';  // FIX [AUDIT-5 #10]: admin can clear in both modes
   const canExport = canManageRequests(user.role); // FIX: CSV export was hidden in live mode
 
-  const visits = useMemo(() => {
-    const requestsById = new Map(requests.map((r) => [r.id, r]));
+  // Memo 1: build requestsById lookup — only invalidates when requests list changes
+  const requestsById = useMemo(
+    () => new Map(requests.map((r) => [r.id, r])),
+    [requests]
+  );
+
+  // Memo 2: transform raw events → normalised visit rows — only invalidates when events or lookup changes
+  const allVisits = useMemo(() => {
+    // FIX [PERF]: заменили [user] на [user.role, user.uid] — объект user стабилен как prop,
+    // но явные примитивные deps помогают линтеру и документируют реальные зависимости
     let arr = (visitEvents || []).map((event) => {
       const baseReq = event.requestSnapshot || requestsById.get(event.requestId) || {};
       const timestamp = event.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
@@ -139,6 +148,15 @@ export default function VisitLogView({ user }) {
       };
     });
     if (isResident(user.role)) arr = arr.filter(r => r.createdByUid === user.uid);
+    // FIX [PERF]: pre-compute timestamps — new Date() в компараторе = O(n log n) аллокаций
+    const withTs = arr.map(r => ({ r, ts: new Date(r.arrivedAt || r.createdAt).getTime() }));
+    withTs.sort((a, b) => b.ts - a.ts);
+    return withTs.map(({ r }) => r);
+  }, [visitEvents, requestsById, user.role, user.uid]);
+
+  // Memo 3: filter + search — only invalidates when filters or query change
+  const visits = useMemo(() => {
+    let arr = allVisits;
     if (period !== 'all') {
       const ms = period === 'today' ? 86_400_000 : period === 'week' ? 7 * 86_400_000 : 30 * 86_400_000;
       arr = arr.filter(r => Date.now() - new Date(r.arrivedAt).getTime() < ms);
@@ -155,19 +173,14 @@ export default function VisitLogView({ user }) {
         || (r.comment || '').toLowerCase().includes(q)
       );
     }
-    // FIX [PERF]: pre-compute timestamps — new Date() в компараторе = O(n log n) аллокаций
-    const withTs = arr.map(r => ({ r, ts: new Date(r.arrivedAt || r.createdAt).getTime() }));
-    withTs.sort((a, b) => b.ts - a.ts);
-    return withTs.map(({ r }) => r);
-  // FIX [PERF]: заменили [user] на [user.role, user.uid] — объект user стабилен как prop,
-  // но явные примитивные deps помогают линтеру и документируют реальные зависимости
-  }, [requests, visitEvents, user.role, user.uid, period, decision, q]);
+    return arr;
+  }, [allVisits, period, decision, q]);
 
   const handleClearLogs = async () => {
     // FIX [AUDIT-3]: window.confirm заменён на двухшаговое подтверждение
     if (!confirmClear) { setConfirmClear(true); return; }
     setConfirmClear(false);
-    try { await clearLogs(); } catch(e) { /* ignore */ }
+    try { await clearLogs(); } catch(e) { toast('Не удалось очистить журнал: ' + (e?.message || 'ошибка сервера'), 'error'); }
   };
 
   const handleExportCsv = () => {

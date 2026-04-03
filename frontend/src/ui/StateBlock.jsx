@@ -2,7 +2,7 @@ import { AppIcon } from './AppIcon';
 
 const ICON_BY_TYPE = {
   loading: 'history',
-  empty: 'history',
+  empty: 'info',
   error: 'alert',
 };
 

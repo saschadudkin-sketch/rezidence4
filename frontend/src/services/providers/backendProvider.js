@@ -233,6 +233,11 @@ export const requestsProvider = {
             if (photo.startsWith('data:')) {
               const [header, b64] = photo.split(',');
               const mime = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
+              // SECURITY: validate MIME type before upload — prevents sending arbitrary binary data
+              const ALLOWED_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']);
+              if (!ALLOWED_MIMES.has(mime.toLowerCase())) {
+                throw new Error(`Неподдерживаемый формат файла: ${mime}. Разрешены: JPEG, PNG, WebP, GIF`);
+              }
               const bytes = atob(b64);
               const buf   = new Uint8Array(bytes.length);
               for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);

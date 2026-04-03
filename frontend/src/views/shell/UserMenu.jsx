@@ -10,7 +10,7 @@ import { AvatarModal } from '../../ui/Modals';
 import { toast } from '../../ui/Toasts';
 import { useAvatar, useActions } from '../../store/AppStore';
 import { ROLE_LABELS } from '../../constants';
-import { canManageRequests } from '../../constants/requestPredicates.js';
+import { canManageRequests } from '../../domain/permissions.js';
 
 const BADGE_STYLE = {
   position: 'absolute', top: -3, right: -3,

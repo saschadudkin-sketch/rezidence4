@@ -132,10 +132,10 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
                 <div className="type-label">{l}</div>
               </div>
             ))}
-            <div className="type-card" role="button" tabIndex={0}
+            <div role="button" tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
               onClick={() => setActiveTab('templates')}
-              style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
+              className={"type-card" + (activeTab === 'templates' ? ' selected' : '')}>
               <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
             </div>
@@ -199,10 +199,10 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
                 <div className="type-label">{l}</div>
               </div>
             ))}
-            <div className="type-card" role="button" tabIndex={0}
+            <div role="button" tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
               onClick={() => setActiveTab('templates')}
-              style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
+              className={"type-card" + (activeTab === 'templates' ? ' selected' : '')}>
               <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
             </div>

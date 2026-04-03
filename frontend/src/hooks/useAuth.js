@@ -8,7 +8,7 @@ import { authProvider } from '../services/providers/backendProvider';
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 export const APP_CONFIG = {
-  splashDelay: 1200,
+  splashDelay: 400,
 };
 
 export const PHASE = {
@@ -85,6 +85,14 @@ export function useAuth() {
     } else {
       // FIX [MEMORY]: в demo-режиме тоже закрываем SSE если был открыт
       authProvider.disconnect?.();
+      // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
+      try {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('rz:') || key.startsWith('rz-')) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch { /* ignore — localStorage может быть недоступен */ }
     }
   }, []);
 

@@ -41,8 +41,8 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
           {/* FIX [BUG-14]: key=index ломает фокус и значения инпутов при удалении из середины.
               Оборачиваем каждое имя в объект {id, value} со стабильным id. */}
           {vNames.map((n, i) => (
-            <div key={n.__id ?? i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <input className="field-inp" style={{ flex: 1, marginBottom: 0 }}
+            <div key={n.__id ?? i} className="vf-name-row">
+              <input className="field-inp vf-name-inp"
                 placeholder={'Посетитель ' + (i + 1)} value={typeof n === 'object' ? n.value : n}
                 onChange={e => {
                   const a = [...vNames];
@@ -51,13 +51,11 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
                 }}
                 autoCapitalize="words" />
               {vNames.length > 1 && (
-                <button type="button" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: '1px solid var(--b2)', borderRadius: 4, color: 'var(--t3)', padding: '0 10px', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}><AppIcon name="close" size={12} /></button>
+                <button type="button" className="vf-name-del" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}><AppIcon name="close" size={12} /></button>
               )}
             </div>
           ))}
-          <button type="button" onClick={() => setVNames([...vNames, ''])}
-            style={{ background: 'none', border: '1px dashed var(--b3)', borderRadius: 4, color: 'var(--g2)', padding: '7px 14px', cursor: 'pointer', fontSize: 11, letterSpacing: 1, width: '100%', marginTop: 2 }}>
+          <button type="button" className="vf-add-btn" onClick={() => setVNames([...vNames, ''])}>
             + Добавить посетителя
           </button>
         </div>
@@ -68,17 +66,15 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
           <input className="field-inp" placeholder="Иван Иванов"
             value={vName} onChange={e => setVName(e.target.value)} autoCapitalize="words" autoComplete="name" />
           {permsList.length > 0 && (
-            <div style={{ marginTop: 4, position: 'relative' }}>
-              <button type="button" onClick={() => setShowPermsPicker(p => !p)}
-                style={{ background: 'var(--g-bg)', border: '1px solid var(--b3)', borderRadius: 4, color: 'var(--g2)', padding: '7px 12px', cursor: 'pointer', fontSize: 11, width: '100%', fontWeight: 500 }}>
+            <div className="perms-picker-wrap">
+              <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker(p => !p)}>
                 <span className="u-inline-icon"><AppIcon name="list" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
               </button>
               {showPermsPicker && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--s1)', border: '1px solid var(--b2)', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,.3)', marginTop: 2, maxHeight: 180, overflowY: 'auto' }}>
+                <div className="perms-picker-dropdown">
                   {permsList.map(p => (
-                    <button key={p.id} type="button" onClick={() => onPickPerm(p)}
-                      style={{ width: '100%', background: 'none', border: 'none', padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--b1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}>
-                      <span style={{ fontSize: 13, color: 'var(--t1)' }}>{p.name}</span>
+                    <button key={p.id} type="button" className="perms-picker-item" onClick={() => onPickPerm(p)}>
+                      <span className="perms-picker-item-name">{p.name}</span>
                       {p.phone && <span className="u-fs11-t4">{p.phone}</span>}
                     </button>
                   ))}
@@ -186,7 +182,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         <div className="modal-head">
           <div>
             <span className="modal-title">{type === 'pass' ? 'Новый пропуск' : 'Вызов техслужбы'}</span>
-            <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div className="modal-cat-hint">
               <span className="u-op7"><AppIcon name={CAT_ICON[form.cat] || 'users'} size={12} /></span>
               <span className="u-ls3">{CAT_LABEL[form.cat]}</span>
             </div>
@@ -239,7 +235,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
                         )}>{label}</button>
                     ))}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 6 }}>
+                  <div className="temp-pass-info">
                     Многоразовый вход до {parseLocalDateInputValue(form.validUntil)?.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </div>
                 </div>
@@ -252,7 +248,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
             <textarea className="field-textarea" rows={3} placeholder="Дополнительно..."
               value={form.comment} onChange={e => form.setComment(e.target.value)} />
           </div>
-          <label className="photo-btn" style={{ flexDirection: 'column', gap: 6 }}>
+          <label className="photo-btn photo-btn--col">
             <span className="u-row-g8"><AppIcon name="camera" size={14} /> <span>{form.photos.length > 0 ? `Фото: ${form.photos.length}/5` : 'Прикрепить фото'}</span></span>
             <input type="file" accept="image/*" multiple className="u-none" onChange={form.handlePhoto} />
           </label>
