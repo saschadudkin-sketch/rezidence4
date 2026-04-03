@@ -125,20 +125,19 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         <>
           <div className="type-grid">
             {passIcons.map(([k, iconName, l]) => (
-              <div key={k} className="type-card" role="button" tabIndex={0}
-                onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
+              // UI-03: native <button> — natively keyboard-accessible, no manual onKeyDown needed
+              <button key={k} type="button" className="type-card"
                 onClick={() => setModal({ type: 'pass', cat: k })}>
                 <div className="type-icon"><AppIcon name={iconName} /></div>
                 <div className="type-label">{l}</div>
-              </div>
+              </button>
             ))}
-            <div role="button" tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
+            <button type="button"
               onClick={() => setActiveTab('templates')}
               className={"type-card" + (activeTab === 'templates' ? ' selected' : '')}>
               <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
-            </div>
+            </button>
           </div>
           {myPasses.length > 0 && (
             <div className="pass-filter-pills">
@@ -164,7 +163,9 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
             ? <StateBlock
                 type="empty"
                 title="Пропусков пока нет"
-                subtitle="Нажмите на категорию выше, чтобы создать первый пропуск"
+                subtitle="Создайте первый пропуск для гостя или курьера"
+                actionLabel="Создать пропуск"
+                onAction={() => setModal({ type: 'pass', cat: 'guest' })}
               />
             : filteredPasses.length === 0
               ? <StateBlock type="empty" title="Нет пропусков в этой категории" />
@@ -192,20 +193,18 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         <>
           <div className="type-grid">
             {[['electrician','alert','Электрик'],['plumber','tools','Сантехник']].map(([k, iconName, l]) => (
-              <div key={k} className="type-card" role="button" tabIndex={0}
-                onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
+              <button key={k} type="button" className="type-card"
                 onClick={() => setModal({ type: 'tech', cat: k })}>
                 <div className="type-icon"><AppIcon name={iconName} /></div>
                 <div className="type-label">{l}</div>
-              </div>
+              </button>
             ))}
-            <div role="button" tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && e.currentTarget.click()}
+            <button type="button"
               onClick={() => setActiveTab('templates')}
               className={"type-card" + (activeTab === 'templates' ? ' selected' : '')}>
               <div className="type-icon"><AppIcon name="file" /></div>
               <div className="type-label">Шаблоны</div>
-            </div>
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {[['active','Активные'],['all','Все']].map(([k, l]) => (

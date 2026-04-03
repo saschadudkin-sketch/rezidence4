@@ -54,7 +54,10 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         if (refreshed) continue;
 
         window.dispatchEvent(new CustomEvent('rz:unauthorized'));
-        throw new Error('Сессия истекла. Войдите снова.');
+        // T-05: use error code instead of string matching for reliable catch
+        const sessionErr = new Error('Сессия истекла. Войдите снова.');
+        sessionErr.code = 'SESSION_EXPIRED';
+        throw sessionErr;
       }
 
       if (!res.ok) {
@@ -73,7 +76,8 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       return parseApiResponse(res);
     } catch (err) {
       if (err.status && NO_RETRY_STATUSES.has(err.status)) throw err;
-      if (err.message.includes('Сессия истекла')) throw err;
+      // T-05: error code check — robust against message text changes/translations
+      if (err.code === 'SESSION_EXPIRED') throw err;
       nextRetryDelayMs = null;
       lastError = err;
     }

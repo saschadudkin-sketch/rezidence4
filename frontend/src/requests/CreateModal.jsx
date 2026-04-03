@@ -21,16 +21,10 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
   carPlate, setCarPlate, permsList, showPermsPicker, setShowPermsPicker, onPickPerm }) {
   return (
     <>
-      {cat === 'taxi' && (
+      {/* CQ-02: unified car plate field — required for taxi, optional for others */}
+      {needsCarPlate(cat) && (
         <div className="field">
-          <label className="field-lbl">Марка и номер авто *</label>
-          <input className="field-inp" placeholder="Toyota Camry А123БВ777"
-            value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
-        </div>
-      )}
-      {needsCarPlate(cat) && cat !== 'taxi' && (
-        <div className="field">
-          <label className="field-lbl">Марка и номер авто</label>
+          <label className="field-lbl">Марка и номер авто{cat === 'taxi' ? ' *' : ''}</label>
           <input className="field-inp" placeholder="Toyota Camry А123БВ777"
             value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
         </div>

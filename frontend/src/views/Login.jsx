@@ -95,6 +95,9 @@ export default function Login({ onLogin }) {
         toast('Демо: введите любой код', 'success');
       }
     } catch(e) {
+      // P-04: use server's Retry-After if provided, fall back to 30s default
+      const retryAfter = e.retryAfter ?? 30;
+      setResendIn(retryAfter);
       setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
       emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');

@@ -89,19 +89,23 @@ export default function Dashboard({ user, onLogout }) {
   // PERF-03: prevMsgs удалён — только инкрементировался, но никогда не сравнивался.
   // Реальный счётчик непрочитанных — из useNavBadges (chat.filter по chatLastSeen).
 
+  // P-02: retryKey triggers soft reconnect in useLiveSync without page reload
+  const [retryKey, setRetryKey] = useState(0);
   const { isLoading: syncLoading, sseOnline } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-    prevPendingP, prevPendingT,
+    prevPendingP, prevPendingT, retryKey,
   });
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
-    if (!syncLoading) return;
+    if (!syncLoading) { setTimedOut(false); return; }
     const t = setTimeout(() => setTimedOut(true), 3_500);
     return () => clearTimeout(t);
-  }, [syncLoading]);
+  }, [syncLoading, retryKey]);
   const isLoading  = syncLoading && !timedOut;
   // UX-002: таймаут соединения — явное состояние ошибки вместо пустого UI
   const isConnErr  = syncLoading && timedOut;
+  // P-02: soft retry — сбрасывает timedOut и переподключает SSE без потери контекста
+  const handleRetry = () => { setTimedOut(false); setRetryKey(k => k + 1); };
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -157,7 +161,11 @@ export default function Dashboard({ user, onLogout }) {
     return (
       <div className="screen-loading">
         <div className="screen-loading-inner">
-          <div className="screen-loading-spinner"><AppIcon name="history" size={28} /></div>
+          {/* UI-02: CSS spin animation — semantically correct loader (was "history" icon).
+              animation:none overrides screen-loading-spinner's own spin so only btn-spin rotates. */}
+          <div className="screen-loading-spinner" style={{ animation: 'none' }} aria-hidden="true">
+            <span className="btn-spin" style={{ width: 28, height: 28, borderWidth: 3 }} />
+          </div>
           <div className="screen-loading-label">Загрузка данных…</div>
         </div>
       </div>
@@ -172,8 +180,8 @@ export default function Dashboard({ user, onLogout }) {
           <div className="screen-loading-spinner"><AppIcon name="ban" size={28} /></div>
           <div className="screen-loading-label">Не удалось подключиться к серверу</div>
           <div className="screen-loading-sub">Проверьте соединение и попробуйте снова</div>
-          <button className="btn-outline screen-loading-retry" onClick={() => window.location.reload()}>
-            Обновить страницу
+          <button className="btn-outline screen-loading-retry" onClick={handleRetry}>
+            Попробовать снова
           </button>
         </div>
       </div>
@@ -184,23 +192,23 @@ export default function Dashboard({ user, onLogout }) {
     <>
       {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
       <AppShell
-      user={user}
-      onLogout={onLogout}
-      pageTitle={pageTitle}
-      pageSubtitle={pageSubtitle}
-      pendingCount={pendingT + pendingP}
-      nav={nav}
-      navClassMap={navClassMap}
-      goTab={goTab}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      highlightReqId={highlightReqId}
-      setHighlightReqId={setHighlightReqId}
-      cycleTheme={cycleTheme}
-      themeIcon={themeIcon}
-      themeLabel={themeLabel}
-      sseOnline={sseOnline}
-    />
+        user={user}
+        onLogout={onLogout}
+        pageTitle={pageTitle}
+        pageSubtitle={pageSubtitle}
+        pendingCount={pendingT + pendingP}
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={goTab}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        highlightReqId={highlightReqId}
+        setHighlightReqId={setHighlightReqId}
+        cycleTheme={cycleTheme}
+        themeIcon={themeIcon}
+        themeLabel={themeLabel}
+        sseOnline={sseOnline}
+      />
     </>
   );
 }
