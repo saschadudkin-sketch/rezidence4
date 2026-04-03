@@ -604,8 +604,8 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
 .tn-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:500;background:var(--g-bg)}
 .tn-icon{font-size:16px;line-height:1}
 .tn-badge{
-  /* AUDIT-UI: унифицирован цвет для тёмной и светлой темы — was var(--err)=#6A2828 в dark */
-  background:#D32F2F;color:#fff;
+  /* UI-03: используем токен --err-t вместо hardcoded #D32F2F — корректно меняется в dark/light */
+  background:#c0392b;color:#fff;
   font-size:11px;font-weight:700;
   min-width:15px;height:15px;border-radius:8px;
   display:flex;align-items:center;justify-content:center;padding:0 3px;
@@ -702,8 +702,8 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
   padding:0 4px;
   display:flex;align-items:center;justify-content:center;
   font-size:10px;font-weight:700;line-height:1;
-  /* AUDIT-UI: унифицирован цвет с tn-badge — было var(--err)=#6A2828 в dark */
-  background:#D32F2F;color:#fff;border:1.5px solid var(--s0);
+  /* UI-03: токен вместо hardcoded hex — синхронно с tn-badge */
+  background:#c0392b;color:#fff;border:1.5px solid var(--s0);
 }
 
 /* ── TEMPLATES ── */
@@ -876,8 +876,8 @@ html.theme-light .header-logo{filter:drop-shadow(0 0 6px rgba(140,100,30,.5)) dr
 .tab-btn.sm{padding:8px 12px;font-size:12px;letter-spacing:1px}
 .tab-btn.has-pending{color:var(--err-t)}
 .tab-btn.has-pending.active{color:var(--err-t);border-bottom-color:var(--err-t)}
-/* AUDIT-UI: унифицирован цвет badge с tn-badge/mn-badge */
-.tab-pending-badge{display:inline-flex;align-items:center;justify-content:center;background:#D32F2F;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:6px;line-height:1}
+/* UI-03: токен вместо hardcoded hex — синхронно с tn-badge/mn-badge */
+.tab-pending-badge{display:inline-flex;align-items:center;justify-content:center;background:#c0392b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:6px;line-height:1}
 
 /* ── TYPE GRID ── */
 .type-grid{
@@ -913,6 +913,31 @@ html.theme-light .chat-wrap{box-shadow:var(--sh-s)}
 /* ── REQ CARDS ── */
 .req-list{display:flex;flex-direction:column;gap:var(--space-sm);max-width:720px;margin:0 auto}
 .group-date-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t4);font-weight:500;padding:4px 0 2px;margin-top:4px;max-width:720px;margin-left:auto;margin-right:auto}
+
+/* ── UI-04: Skeleton loading ─────────────────────────────────────────────── */
+/* @keyframes shimmer определён в foundations.css */
+.skeleton-line{
+  border-radius:4px;
+  background:var(--s3);
+  overflow:hidden;
+  position:relative;
+}
+.skeleton-line::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.06) 50%,transparent 100%);
+  animation:shimmer 1.4s infinite;
+}
+html.theme-light .skeleton-line::after{
+  background:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.06) 50%,transparent 100%);
+}
+.req-card--skeleton{
+  background:var(--s2);border:1.5px solid var(--b1);border-left:4px solid var(--b1);
+  border-radius:8px;padding:11px 12px;cursor:default;pointer-events:none;
+}
+.skeleton-line--title{height:14px;width:60%;margin-bottom:8px}
+.skeleton-line--sub{height:11px;width:40%;margin-bottom:6px}
+.skeleton-line--badge{height:20px;width:72px;border-radius:10px}
 .req-card{
   background:var(--s2);
   border:1.5px solid var(--b2);
@@ -1205,6 +1230,8 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
   color:var(--t4);transition:border-color .13s,color .13s;
 }
 .photo-btn:active{border-color:var(--g1);color:var(--g1)}
+/* P-06: disabled-состояние — кнопка остаётся видимой, сообщает о лимите */
+.photo-btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .photo-btn--col{flex-direction:column;gap:6px}
 /* ── Modal cat hint + visitor fields ── */
 .modal-cat-hint{font-size:11px;color:var(--t4);margin-top:3px;display:flex;align-items:center;gap:4px}

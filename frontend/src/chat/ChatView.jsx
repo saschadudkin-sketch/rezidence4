@@ -95,6 +95,8 @@ export function ChatView({ user }) {
   const [msgMenu, setMsgMenu] = useState(null);
   const [editingMsg, setEditingMsg] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  // P-05: подтверждение перед удалением сообщения — удаление необратимо
+  const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState(null);
   // FIX [AUDIT]: пагинация истории чата.
   // Бэкенд всегда возвращал { messages, hasMore } — но фронт игнорировал hasMore.
   // Пользователь видел только последние 60 сообщений без возможности прокрутить дальше.
@@ -469,7 +471,7 @@ export function ChatView({ user }) {
                     onDoubleClick={e => e.stopPropagation()}>
                     <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { startReply(m); setMsgMenu(null); }}>↩ Ответить</button>
                     {can(user).editMessage(m) && !m.photo && <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { setEditingMsg({ id: m.id, text: m.text }); setMsgMenu(null); }}><AppIcon name="edit" className="u-inline-icon" /> Редактировать</button>}
-                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { handleDeleteMsg(m.id); setMsgMenu(null); }}><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>}
+                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { setConfirmDeleteMsgId(m.id); setMsgMenu(null); }}><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>}
                     <div className="msg-menu-reactions">
                       {REACTIONS.map(emoji => (
                         <button key={emoji} className="reaction-picker-btn" onMouseDown={e => e.stopPropagation()} onClick={() => { toggleReaction(m.id, emoji); setMsgMenu(null); }}>{emoji}</button>
@@ -587,6 +589,18 @@ export function ChatView({ user }) {
         </div>
       )}
       {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)}/>}
+      {/* P-05: подтверждение удаления сообщения — удаление необратимо */}
+      {confirmDeleteMsgId && (
+        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="Удалить сообщение?">
+          <div className="confirm-panel">
+            <p className="confirm-msg">Удалить сообщение? Это действие нельзя отменить.</p>
+            <div className="confirm-actions">
+              <button className="btn-no" onClick={() => { handleDeleteMsg(confirmDeleteMsgId); setConfirmDeleteMsgId(null); }}>Удалить</button>
+              <button className="btn-outline" onClick={() => setConfirmDeleteMsgId(null)}>Отмена</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

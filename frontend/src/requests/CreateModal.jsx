@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
+import { MAX_PHOTOS_PER_REQUEST } from '../constants/limits.js';
 import {
   useCreateRequest,
   hasVisitorFields,
@@ -242,9 +243,17 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
             <textarea className="field-textarea" rows={3} placeholder="Дополнительно..."
               value={form.comment} onChange={e => form.setComment(e.target.value)} />
           </div>
-          <label className="photo-btn photo-btn--col">
-            <span className="u-row-g8"><AppIcon name="camera" size={14} /> <span>{form.photos.length > 0 ? `Фото: ${form.photos.length}/5` : 'Прикрепить фото'}</span></span>
-            <input type="file" accept="image/*" multiple className="u-none" onChange={form.handlePhoto} />
+          {/* P-06: кнопка остаётся видимой при достижении лимита — показывает счётчик и disabled */}
+          <label className={'photo-btn photo-btn--col' + (form.photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}
+            aria-disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST}
+            title={form.photos.length >= MAX_PHOTOS_PER_REQUEST ? `Максимум ${MAX_PHOTOS_PER_REQUEST} фотографий` : undefined}>
+            <span className="u-row-g8">
+              <AppIcon name="camera" size={14} />
+              <span>{`Фото: ${form.photos.length}/${MAX_PHOTOS_PER_REQUEST}`}</span>
+            </span>
+            <input type="file" accept="image/*" multiple className="u-none"
+              onChange={form.handlePhoto}
+              disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST} />
           </label>
           {form.photos.length > 0 && (
             <div className="photo-grid">

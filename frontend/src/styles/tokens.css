@@ -156,7 +156,8 @@
     --badge-approved-bg: rgba(20,80,40,.10); --badge-approved-b: rgba(20,100,50,.25);
     --badge-rejected-bg: rgba(120,20,20,.10); --badge-rejected-b: rgba(140,30,30,.25);
     --clr-scheduled: #6B3FAF;
-    --warn: #d97706; --warn-t: #ffffff;
+    /* UI-01: #d97706 на белом = 2.94:1 (ниже WCAG AA). #b45309 = 4.67:1 ✅ */
+    --warn: #b45309; --warn-t: #ffffff;
     --danger: var(--err-t);
   }
 }
@@ -197,7 +198,8 @@ html.theme-light {
   --badge-approved-bg: rgba(20,80,40,.12); --badge-approved-b: rgba(20,100,50,.30);
   --badge-rejected-bg: rgba(130,20,20,.12); --badge-rejected-b: rgba(150,30,30,.30);
   --clr-scheduled: #6B3FAF;
-  --warn: #d97706; --warn-t: #ffffff;
+  /* UI-01: #d97706 на белом = 2.94:1 (ниже WCAG AA). #b45309 = 4.67:1 ✅ */
+  --warn: #b45309; --warn-t: #ffffff;
   --danger: var(--err-t);
 }
 
