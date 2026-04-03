@@ -4,7 +4,15 @@
  * QR содержит JSON: { id, type, visitorName, createdByApt, validUntil }
  * Охранник сканирует → система показывает данные пропуска и кнопку «Пропустить».
  */
-import QRCode from 'qrcode';
+// PERF-01: qrcode не импортируется статически — загружается только при первом вызове generatePassQR.
+// Это убирает ~50KB qrcode из initial bundle для всех пользователей, которые никогда не открывают QR.
+let _QRCodeModule = null;
+async function getQRCode() {
+  if (!_QRCodeModule) {
+    _QRCodeModule = (await import('qrcode')).default;
+  }
+  return _QRCodeModule;
+}
 
 /**
  * Генерирует URL QR-кода для пропуска.
@@ -12,6 +20,7 @@ import QRCode from 'qrcode';
  * @returns {Promise<string>} URL картинки QR
  */
 export async function generatePassQR(req) {
+  const QRCode = await getQRCode();
   const payload = JSON.stringify({
     id:           req.id,
     type:         req.type,
