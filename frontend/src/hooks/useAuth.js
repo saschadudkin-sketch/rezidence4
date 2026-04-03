@@ -86,9 +86,10 @@ export function useAuth() {
       // FIX [MEMORY]: в demo-режиме тоже закрываем SSE если был открыт
       authProvider.disconnect?.();
       // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
+      // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)
       try {
         for (const key of Object.keys(localStorage)) {
-          if (key.startsWith('rz:') || key.startsWith('rz-')) {
+          if (key.startsWith('rz:') || key.startsWith('rz-') || key.startsWith('residenze_v5')) {
             localStorage.removeItem(key);
           }
         }

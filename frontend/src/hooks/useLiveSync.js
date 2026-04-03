@@ -13,6 +13,8 @@ import { services } from '../services/providers/serviceContainer.js';
 export function useLiveSync(user, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
   prevPendingP, prevPendingT,
+  // P-02: retryKey increment triggers soft reconnect without page reload
+  retryKey = 0,
 }) {
   const [isLoading,   setIsLoading]   = useState(true);
   // FA-07: статус SSE-соединения для индикатора в header
@@ -47,8 +49,9 @@ export function useLiveSync(user, {
       return;
     }
 
-    // Сброс флага при перезапуске эффекта (смена uid/role)
+    // Сброс флага при перезапуске эффекта (смена uid/role или soft retry)
     loadingClearedRef.current = false;
+    setIsLoading(true);
 
     let cleanupFn = null;
     let cancelled  = false;
@@ -118,7 +121,7 @@ export function useLiveSync(user, {
       cleanupFn?.();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role, user.uid]);
+  }, [user.role, user.uid, retryKey]);
 
   return { isLoading, sseOnline };
 }
