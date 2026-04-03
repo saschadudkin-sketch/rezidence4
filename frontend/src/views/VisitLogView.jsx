@@ -3,14 +3,14 @@
  * Карточки с полной информацией о визите.
  */
 
-import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { useState, useMemo, memo, useDeferredValue } from 'react';
 import { useRequests } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
 import { CAT_ICON, CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON, ROLE_LABELS } from '../constants/index.js';
 import { getValidationReasonLabel } from '../constants/statusPresentation';
 import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils.js';
-import { clearVisitLogs, getVisitLogs } from '../shared/api/passesApi';
+import { useVisitLogs, useClearVisitLogs } from '../hooks/useVisitLogs';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 
@@ -97,34 +97,22 @@ const VisitCard = memo(function VisitCard({ r }) {
 
 export default function VisitLogView({ user }) {
   const requests = useRequests();
-  const [visitEvents, setVisitEvents] = useState([]);
-  // FIX [U2]: ЖЕЛАТЕЛЬНО — loading state при первой загрузке
-  const [isLoading, setIsLoading] = useState(true);
+  // A-10: useQuery replaces manual useState/useEffect/useCallback loading pattern
+  const { data: visitEvents = [], isLoading, isError } = useVisitLogs();
+  const clearLogs = useClearVisitLogs();
   const [query, setQuery] = useState('');
   const [period, setPeriod] = useState('all');
   const [decision, setDecision] = useState('all');
   // FIX [AUDIT-3]: confirmClear заменяет window.confirm() — нативный confirm блокирует
   // UI thread и не стилизуется. Вместо него — inline-кнопка подтверждения.
   const [confirmClear, setConfirmClear] = useState(false);
-  const debouncedQuery = useDebounce(query, 250);
-  const q = debouncedQuery.trim().toLowerCase();
+  // A-15: useDeferredValue defers filter recomputation so that typing stays
+  // responsive even when the visits list is large.
+  const debouncedQuery = useDebounce(query, 150);
+  const deferredQuery  = useDeferredValue(debouncedQuery);
+  const q = deferredQuery.trim().toLowerCase();
   const canClearLogs = user.role === 'admin';  // FIX [AUDIT-5 #10]: admin can clear in both modes
   const canExport = canManageRequests(user.role); // FIX: CSV export was hidden in live mode
-
-  const loadLogs = useCallback(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    getVisitLogs()
-      .then((events) => { if (!cancelled) { setVisitEvents(events || []); setIsLoading(false); } })
-      .catch(() => { if (!cancelled) { setVisitEvents([]); setIsLoading(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return loadLogs();
-  }, [loadLogs]);
-
-
 
   const visits = useMemo(() => {
     const requestsById = new Map(requests.map((r) => [r.id, r]));
@@ -179,8 +167,7 @@ export default function VisitLogView({ user }) {
     // FIX [AUDIT-3]: window.confirm заменён на двухшаговое подтверждение
     if (!confirmClear) { setConfirmClear(true); return; }
     setConfirmClear(false);
-    try { await clearVisitLogs(); } catch(e) { /* ignore */ }
-    loadLogs();
+    try { await clearLogs(); } catch(e) { /* ignore */ }
   };
 
   const handleExportCsv = () => {
@@ -225,7 +212,14 @@ export default function VisitLogView({ user }) {
           subtitle="Пожалуйста, подождите"
         />
       )}
-      {!isLoading && (
+      {isError && !isLoading && (
+        <StateBlock
+          type="error"
+          title="Не удалось загрузить журнал"
+          subtitle="Проверьте соединение и попробуйте снова"
+        />
+      )}
+      {!isLoading && !isError && (
       <>
       <div className="vlog-header">
         <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал посещений</span>

@@ -1,0 +1,41 @@
+/**
+ * foundations.css — A-02: Foundation layer.
+ * Global resets, html/body base styles, keyframe animations.
+ * Import after tokens.css, before theme.css.
+ *
+ * A-13: A11y — uses :focus:not(:focus-visible) pattern instead of
+ * the riskier global *:focus{outline:none} reset.
+ * Keyboard users always see the focus ring; mouse/touch users do not.
+ */
+
+*,*::before,*::after{box-sizing:border-box}
+*{-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+html,body,h1,h2,h3,h4,h5,h6,p,ul,ol{margin:0}
+ul,ol{padding:0;list-style:none}
+button,a{touch-action:manipulation;user-select:none;-webkit-user-select:none}
+input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearance:none}
+
+/* A-13: keyboard focus — показываем кольцо только при навигации с клавиатуры.
+   :focus:not(:focus-visible) скрывает ring при клике мышью/тачем.
+   Это spec-compliant замена паттерна *:focus{outline:none} + *:focus-visible{...}. */
+:focus:not(:focus-visible){outline:none}
+:focus-visible{outline:2px solid var(--g1);outline-offset:2px;border-radius:var(--r)}
+
+html{height:100%;-webkit-text-size-adjust:100%}
+body{
+  height:100%;overflow-x:hidden;
+  font-family:'DM Sans',sans-serif;
+  background:var(--s0);
+  color:var(--t1);
+  overscroll-behavior:none;
+}
+#root{height:100%}
+
+body{font-size:var(--fs-body);line-height:var(--lh-body)}
+
+/* ── Keyframe animations ─────────────────────────────────────────────────── */
+@keyframes spin    {from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes fadeIn  {from{opacity:0}to{opacity:1}}
+@keyframes riseUp  {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes sheetUp {from{transform:translateY(100%)}to{transform:none}}
+@keyframes shimmer {from{transform:translateX(-100%)}to{transform:translateX(300%)}}

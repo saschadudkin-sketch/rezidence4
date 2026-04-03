@@ -4,6 +4,8 @@ node_modules/
 
 # build artifacts
 build/
+dist/
+**/dist/
 frontend/build/
 
 # logs
