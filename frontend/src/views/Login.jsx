@@ -4,14 +4,14 @@ import { findByPhone } from '../utils.js';
 import { toast } from '../ui/Toasts';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';
-import { authProvider } from '../services/providers/backendProvider';
+import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
 import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits.js';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
 
-// FIX [AUDIT-2 #15]: демо-данные с телефонами НЕ попадают в production JS-бандл
+
 const HINTS = isDemoMode() ? [
   ['+7 916 123-45-67', 'Собственник · апарт. 12'],
   ['+7 929 234-56-78', 'Арендатор · апарт. 34'],
@@ -81,7 +81,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     try {
       if (isLiveMode()) {
-        await authProvider.sendOtp(phone);
+        await services.auth.sendOtp(phone);
         if (signal.aborted) return;
         setStep('otp');
         setResendIn(OTP_COOLDOWN_SECONDS);
@@ -119,8 +119,8 @@ export default function Login({ onLogin }) {
   };
 
   const verify = async () => {
-    if (otp.length < 4) {
-      setOtpError('Код должен содержать минимум 4 цифры');
+    if (otp.length !== 6) {
+      setOtpError('Код должен содержать 6 цифр');
       emitLoginMetric('verify_rejected', { reason: 'otp_too_short' });
       toast('Введите код из SMS', 'error');
       return;
@@ -134,7 +134,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     try {
       if (isLiveMode()) {
-        const user = await authProvider.verifyOtp(phone, otp);
+        const user = await services.auth.verifyOtp(phone, otp);
         if (signal.aborted) return;
         emitLoginMetric('verify_success', { mode: 'live' });
         onLogin(user);
@@ -157,7 +157,7 @@ export default function Login({ onLogin }) {
     <div className="login">
       <div className="login-art">
         <div className="login-art-brand">
-          <img src={LOGO} alt="" className="login-art-logo" />
+          <img src={LOGO} alt="Резиденции Замоскворечья" className="login-art-logo" />
           <div>
             <div className="login-art-name">Резиденции Замоскворечья</div>
             <div className="login-art-tagline">Система управления доступом</div>
@@ -197,11 +197,14 @@ export default function Login({ onLogin }) {
       <div className="login-panel">
         <div className="login-form">
           <div className="login-mobile-top">
-            <img src={LOGO} alt="" />
+            <img src={LOGO} alt="Резиденции Замоскворечья" />
             <div>
               <div>Резиденции Замоскворечья</div>
               <div className="login-mobile-tagline">Система управления доступом</div>
             </div>
+          </div>
+          <div className="login-mobile-hero">
+            Умное управление доступом — пропуска, уведомления и безопасность в одном приложении
           </div>
           <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
           <h1 className="login-h">Вход в систему</h1>

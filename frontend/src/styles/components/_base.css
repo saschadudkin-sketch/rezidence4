@@ -1,0 +1,87 @@
+/**
+ * theme.css — A-02: Component + feature styles layer.
+ * Design tokens → tokens.css
+ * Resets + base    → foundations.css
+ * Components/features (this file)
+ *
+ * Import order in App.jsx:
+ *   tokens.css → foundations.css → theme.css
+ */
+
+/* Component styles below — tokens and foundations are in separate files */
+.badge.cancelled{background:var(--s3);color:var(--t3);border:1px solid var(--b2)}
+
+.header-wordmark,.header-role,.header-name,.mn-label,.tn-btn,.demo-badge,.dd-user-phone,.tab-btn,.req-meta,.msg-time,.msg-sender,.vlog-card-comment,.perm-meta,.apt-chip{font-size:var(--fs-meta)}
+
+.app-icon{display:inline-block;vertical-align:middle;flex-shrink:0}
+.u-inline-icon{display:inline-flex;align-items:center;justify-content:center}
+.tn-icon,.mn-icon{display:inline-flex;align-items:center;justify-content:center}
+.header-actions{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end}
+
+/* Light theme card enhancement */
+html.theme-light .req-card,
+html.theme-light .guard-card,
+html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
+html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:var(--b2)}
+
+.screen-loading{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--s0)}
+.screen-loading-inner{text-align:center;color:var(--t3)}
+.screen-loading-spinner{display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--g2);animation:spin 1.2s linear infinite}
+.screen-loading-spinner--no-anim{animation:none}
+.btn-spin--lg{width:28px;height:28px;border-width:3px;margin-right:0}
+.screen-loading-label{font-size:var(--fs-body)}
+/* UX-002: sub-text и retry-кнопка для состояния ошибки подключения */
+.screen-loading-sub{font-size:var(--fs-xs);color:var(--t4);margin-top:6px}
+.screen-loading-retry{margin-top:20px}
+
+.view-loading{text-align:center;padding:var(--space-2xl, 40px);color:var(--t4)}
+/* P-05: one-time demo welcome banner */
+.demo-welcome-banner{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px;
+  background:rgba(245,158,11,.12);
+  border-bottom:1px solid rgba(245,158,11,.25);
+  font-size:var(--fs-xs);color:var(--warn);
+}
+.demo-welcome-icon{flex-shrink:0;display:inline-flex}
+.demo-welcome-text{flex:1}
+.demo-welcome-close{
+  flex-shrink:0;background:none;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;color:var(--warn);opacity:.7;
+  padding:0;
+}
+.demo-welcome-close:hover{opacity:1}
+/* FA-10: Skip-to-content link for keyboard accessibility */
+.skip-link{
+  position:absolute;top:-100%;left:8px;z-index:var(--z-top);
+  background:var(--g1);color:var(--s0);
+  padding:8px 16px;border-radius:var(--r);font-size:var(--fs-sm);font-weight:600;
+  text-decoration:none;
+  transition:top .1s;
+}
+.skip-link:focus{top:8px}
+/* FA-07: SSE reconnecting indicator in header */
+.sse-reconnecting{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:10px;
+  background:rgba(245,158,11,.15);color:var(--warn);
+  font-size:var(--fs-2xs);font-weight:500;
+  animation:ssePulse 1.4s ease-in-out infinite;
+}
+@keyframes ssePulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+.offline-banner{
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:var(--warn);color:var(--warn-t);
+  text-align:center;padding:6px 12px;
+  font-size:var(--fs-sm);font-weight:600;
+  transform:translateY(-100%);
+  transition:transform 220ms ease;
+  pointer-events:none;
+}
+.offline-banner.is-visible{transform:translateY(0);pointer-events:auto}
+.app-content-offset{padding-top:0;transition:padding-top 220ms ease}
+.app-content-offset.has-offline-banner{padding-top:36px}
+.api-config-error{color:var(--danger);margin-top:8px}
+

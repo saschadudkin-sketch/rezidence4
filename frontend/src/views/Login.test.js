@@ -3,10 +3,10 @@
  * Покрывает: Login — шаг phone, валидацию, шаг otp, демо-режим
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Login from './Login';
 import { toast } from '../ui/Toasts';
-import { authProvider } from '../services/providers/backendProvider';
+import { services } from '../services/providers/serviceContainer';
 
 // Мокируем зависимости
 vi.mock('../store/AppStore', () => ({
@@ -27,14 +27,19 @@ vi.mock('../utils', () => ({
 vi.mock('../config/runtimeMode', () => ({
   isLiveMode: vi.fn(() => true),
   isDemoMode: vi.fn(() => false),
+  LIVE_MODE: 'live',
+  DEMO_MODE: 'demo',
+  MODE: 'live',
 }));
 
 vi.mock('../ui/Toasts', () => ({
   toast: vi.fn(),
 }));
 
-vi.mock('../services/providers/backendProvider', () => ({
-  authProvider: { sendOtp: vi.fn(), verifyOtp: vi.fn() },
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: {
+    auth: { sendOtp: vi.fn(), verifyOtp: vi.fn() },
+  },
 }));
 
 vi.mock('../constants/logo', () => ({
@@ -66,7 +71,7 @@ describe('Login — шаг phone', () => {
   });
 
   test.skip('live: при вводе валидного номера переходит на шаг OTP', async () => {
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
@@ -77,7 +82,7 @@ describe('Login — шаг phone', () => {
 
 describe('Login — шаг OTP', () => {
   async function goToOtpStep() {
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
@@ -90,9 +95,9 @@ describe('Login — шаг OTP', () => {
     expect(screen.getByPlaceholderText('• • • •')).toBeInTheDocument();
   });
 
-  test.skip('показывает ошибку при коде < 4 символов', async () => {
+  test.skip('показывает ошибку при коде < 6 символов', async () => {
     const onLogin = vi.fn();
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={onLogin} />);
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
@@ -107,10 +112,10 @@ describe('Login — шаг OTP', () => {
     });
   });
 
-  test.skip('live: verifyOtp с кодом ≥ 4 символов вызывает onLogin', async () => {
+  test.skip('live: verifyOtp с кодом 6 символов вызывает onLogin', async () => {
     const onLogin = vi.fn();
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
-    authProvider.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
     render(<Login onLogin={onLogin} />);
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
@@ -118,7 +123,7 @@ describe('Login — шаг OTP', () => {
     await screen.findByPlaceholderText('• • • •');
 
     const otpInput = screen.getByPlaceholderText('• • • •');
-    fireEvent.change(otpInput, { target: { value: '1234' } });
+    fireEvent.change(otpInput, { target: { value: '123456' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
 
@@ -134,7 +139,7 @@ describe('Login — шаг OTP', () => {
 
 describe('Login — retry/metrics', () => {
   async function openOtp() {
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
@@ -162,13 +167,13 @@ describe('Login — retry/metrics', () => {
     const onLogin = vi.fn();
     const metricSpy = vi.fn();
     window.addEventListener('rz:login-metric', metricSpy);
-    authProvider.sendOtp.mockResolvedValueOnce({ ok: true });
-    authProvider.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
+    services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
+    services.auth.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
     render(<Login onLogin={onLogin} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
     await screen.findByPlaceholderText('• • • •');
-    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '1234' } });
+    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '123456' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
     const types = metricSpy.mock.calls.map(([ev]) => ev.detail.type);

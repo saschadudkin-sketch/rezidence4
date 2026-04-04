@@ -29,7 +29,7 @@
 
     /* T-01: gradual migration — allow .js files, check them via JSDoc */
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": true,
 
     /* Type safety — will be tightened per-file as migration progresses */
     "strict": false,

@@ -1,0 +1,36 @@
+/* ── LOADING ── */
+.loading{
+  position:fixed;inset:0;background:var(--s0);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-lg);
+}
+.loading::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 55% 45% at 50% 55%, rgba(196,150,60,.05) 0%, transparent 70%);
+  pointer-events:none;
+}
+.loading-logo{
+  width:88px;height:88px;object-fit:contain;
+  filter:drop-shadow(0 0 32px rgba(196,150,60,.55)) drop-shadow(0 0 10px rgba(196,150,60,.35)) brightness(1.1);
+  animation:riseUp .9s cubic-bezier(.16,1,.3,1) .15s both;
+}
+.loading-name{
+  font-family:'Playfair Display',serif;
+  font-size:var(--fs-2xs);letter-spacing:5px;text-transform:uppercase;
+  color:var(--t4);
+  animation:riseUp .7s ease .55s both;
+}
+.loading-bar{
+  width:60px;height:1px;background:var(--s3);
+  position:relative;overflow:hidden;
+  animation:riseUp .5s ease .7s both;
+}
+.loading-bar::after{
+  content:'';position:absolute;inset:0;width:35%;
+  background:var(--g1);
+  /* UI-04: начальная позиция за левым краем, чтобы shimmer стартовал корректно */
+  transform:translateX(-100%);
+}
+@media (prefers-reduced-motion: no-preference){
+  .loading-bar::after{animation:shimmer 1.8s ease infinite;}
+}
+

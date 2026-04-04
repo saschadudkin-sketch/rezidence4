@@ -71,6 +71,7 @@ describe('db.migrate — versioned migrations', () => {
             { id: '002_indexes_and_soft_delete' },
             { id: '003_users_soft_delete' },
             { id: '004_composite_indexes' },
+            { id: '005_users_updated_at' },
           ],
         });
       }
