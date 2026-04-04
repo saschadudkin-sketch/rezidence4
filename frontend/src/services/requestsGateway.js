@@ -47,7 +47,13 @@ export async function submitRequest({ request, addLocal }) {
   return SYNC_STATUS.LOCAL;
 }
 
-export async function updateRequestEverywhere({ requestId, patch, updateLocal }) {
+/**
+ * T-03: Optimistic update pattern:
+ *   1. Apply patch locally immediately (optimistic)
+ *   2. Send to remote
+ *   3. On failure: if rollbackLocal provided, revert the optimistic change
+ */
+export async function updateRequestEverywhere({ requestId, patch, updateLocal, rollbackLocal }) {
   updateLocal(requestId, patch);
   if (!isLiveMode()) return SYNC_STATUS.LOCAL;
 
@@ -56,6 +62,7 @@ export async function updateRequestEverywhere({ requestId, patch, updateLocal })
     return SYNC_STATUS.REMOTE;
   } catch (e) {
     logger.warn('[requestsGateway] updateRequest failed', e.message);
+    rollbackLocal?.(requestId);
     return SYNC_STATUS.LOCAL_FALLBACK;
   }
 }

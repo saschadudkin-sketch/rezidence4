@@ -7,10 +7,11 @@ import { LOGO } from '../constants/logo';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
 import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits.js';
+import { formatPhone } from '../utils/phoneUtils.js';
+import { emitLoginMetric } from '../utils/loginMetrics.js';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
-
 
 const HINTS = isDemoMode() ? [
   ['+7 916 123-45-67', 'Собственник · апарт. 12'],
@@ -20,23 +21,6 @@ const HINTS = isDemoMode() ? [
   ['+7 917 567-89-01', 'Охрана'],
   ['+7 495 123-00-00', 'Администратор'],
 ] : [];
-
-function emitLoginMetric(type, payload = {}) {
-  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
-  window.dispatchEvent(new CustomEvent('rz:login-metric', {
-    detail: { type, ...payload, ts: Date.now() },
-  }));
-}
-
-// P-06: форматирует номер телефона при вводе: +7 916 123-45-67
-function formatPhone(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 1) return '+7 ';
-  if (digits.length <= 4) return `+7 ${digits.slice(1)}`;
-  if (digits.length <= 7) return `+7 ${digits.slice(1, 4)} ${digits.slice(4)}`;
-  if (digits.length <= 9) return `+7 ${digits.slice(1, 4)} ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  return `+7 ${digits.slice(1, 4)} ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
-}
 
 export default function Login({ onLogin }) {
   const [phone,     setPhone]     = useState('+7 ');

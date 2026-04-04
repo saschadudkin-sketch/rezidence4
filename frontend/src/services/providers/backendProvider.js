@@ -446,7 +446,16 @@ export function createBackendProvider() {
         // Blacklist — загружаем (может вернуть 403 для жильцов — ловим)
         promises.push(blacklistProvider.getAll().catch(() => []));
 
-        const [reqs, chatData, users, permsData, templatesData, blacklistData] = await Promise.all(promises);
+        // D-03: allSettled — если один эндпоинт упал, остальные данные всё равно загружаются
+        const settled = await Promise.allSettled(promises);
+        const settled_values = settled.map((r, i) => {
+          if (r.status === 'rejected') {
+            logger.warn('[startSync] partial load failure at index ' + i, { message: r.reason?.message });
+            return null;
+          }
+          return r.value;
+        });
+        const [reqs, chatData, users, permsData, templatesData, blacklistData] = settled_values;
 
         // Отписаться от буфера — теперь будет live subscription ниже
         bufferReqSub();
@@ -454,7 +463,7 @@ export function createBackendProvider() {
         if (!mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
-        let currentRequests = Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        let currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
         for (const bufferedReq of reqEventBuffer) {
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
@@ -462,8 +471,8 @@ export function createBackendProvider() {
         }
 
         if (setAllRequests) setAllRequests(currentRequests);
-        if (setAllMessages) setAllMessages(chatData.messages || chatData);
-        if (setAllUsers)    setAllUsers(users);
+        if (setAllMessages && chatData) setAllMessages(chatData.messages || chatData);
+        if (setAllUsers && users)       setAllUsers(users);
         // FIX [AUDIT-6]: загруженные perms/templates/blacklist → в стор
         if (permsData && onPerms)       onPerms(permsData);
         if (templatesData && onTemplates) onTemplates(templatesData);

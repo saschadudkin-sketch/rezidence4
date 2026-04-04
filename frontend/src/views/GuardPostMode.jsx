@@ -40,30 +40,49 @@ export default function GuardPostMode({ user, onViewDetails }) {
       .some(v => v && v.toLowerCase().includes(q));
   }, [debouncedSearch]);
 
-  const pending  = useMemo(() => sortReqs(requests.filter(r => r.type === 'pass' && r.status === 'pending')), [requests]);
-  const approved = useMemo(() => sortReqs(requests.filter(r => r.type === 'pass' && r.status === 'approved' && r.passDuration !== 'temporary')), [requests]);
-  const temporary = useMemo(() => {
+  // PERF-03: single memo for base lists — one pass over requests instead of 5
+  const { pending, approved, temporary, techPending, techActive } = useMemo(() => {
+    const _pending  = [], _approved = [], _tempRaw = [], _techPending = [], _techActive = [];
+    for (const r of requests) {
+      if (r.type === 'pass') {
+        if (r.status === 'pending') { _pending.push(r); }
+        else if (r.status === 'approved' && r.passDuration !== 'temporary') { _approved.push(r); }
+        else if (r.passDuration === 'temporary' && r.validUntil && (r.status === 'approved' || r.status === 'arrived')) { _tempRaw.push(r); }
+      } else if (r.type === 'tech' && (r.status === 'pending' || r.status === 'accepted')) {
+        if (r.status === 'pending') _techPending.push(r);
+        _techActive.push(r);
+      }
+    }
     // FIX [PERF]: pre-compute timestamps — new Date() в компараторе = O(n log n) аллокаций
-    const filtered = requests.filter(r =>
-      r.type === 'pass' && r.passDuration === 'temporary' && r.validUntil &&
-      (r.status === 'approved' || r.status === 'arrived')
-    );
-    const withTs = filtered.map(r => ({ r, ts: new Date(r.validUntil).getTime() }));
+    const withTs = _tempRaw.map(r => ({ r, ts: new Date(r.validUntil).getTime() }));
     withTs.sort((a, b) => a.ts - b.ts);
-    return withTs.map(({ r }) => r);
+    return {
+      pending:     sortReqs(_pending),
+      approved:    sortReqs(_approved),
+      temporary:   withTs.map(({ r }) => r),
+      techPending: sortReqs(_techPending),
+      techActive:  sortReqs(_techActive),
+    };
   }, [requests]);
-  const techPending  = useMemo(() => sortReqs(requests.filter(r => r.type === 'tech' && r.status === 'pending')), [requests]);
-  const techActive   = useMemo(() => sortReqs(requests.filter(r => r.type === 'tech' && (r.status === 'pending' || r.status === 'accepted'))), [requests]);
-  // FIX [PERF]: techActive.filter вызывался 3 раза в render — мемоизируем подмножества
-  const techPendingCards   = useMemo(() => techActive.filter(r => r.status === 'pending'),  [techActive]);
-  const techAcceptedCards  = useMemo(() => techActive.filter(r => r.status === 'accepted'), [techActive]);
 
-  // P-03: отфильтрованные списки по поисковому запросу
-  const filteredPending       = useMemo(() => pending.filter(matchSearch),       [pending, matchSearch]);
-  const filteredApproved      = useMemo(() => approved.filter(matchSearch),      [approved, matchSearch]);
-  const filteredTemporary     = useMemo(() => temporary.filter(matchSearch),     [temporary, matchSearch]);
-  const filteredTechPending   = useMemo(() => techPendingCards.filter(matchSearch),  [techPendingCards, matchSearch]);
-  const filteredTechAccepted  = useMemo(() => techAcceptedCards.filter(matchSearch), [techAcceptedCards, matchSearch]);
+  // PERF-03: single filtered memo — avoids 5 separate useMemo + 5 separate filter passes
+  const { filteredPending, filteredApproved, filteredTemporary, filteredTechPending, filteredTechAccepted } = useMemo(() => {
+    const techPendingCards  = techActive.filter(r => r.status === 'pending');
+    const techAcceptedCards = techActive.filter(r => r.status === 'accepted');
+    if (!debouncedSearch.trim()) {
+      return {
+        filteredPending: pending, filteredApproved: approved, filteredTemporary: temporary,
+        filteredTechPending: techPendingCards, filteredTechAccepted: techAcceptedCards,
+      };
+    }
+    return {
+      filteredPending:     pending.filter(matchSearch),
+      filteredApproved:    approved.filter(matchSearch),
+      filteredTemporary:   temporary.filter(matchSearch),
+      filteredTechPending: techPendingCards.filter(matchSearch),
+      filteredTechAccepted: techAcceptedCards.filter(matchSearch),
+    };
+  }, [pending, approved, temporary, techActive, matchSearch, debouncedSearch]);
 
   // Звук при новой pending (pass или tech)
   const prevPassCount = useRef(pending.length);
