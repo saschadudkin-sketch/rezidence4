@@ -1,0 +1,47 @@
+{
+  /**
+   * T-01: TypeScript gradual migration config.
+   *
+   * Strategy: allowJs + checkJs enables type-checking of existing .js files
+   * via JSDoc annotations without requiring full .ts migration up front.
+   *
+   * Migration path:
+   *   Phase 1 (now): allowJs + checkJs — catch type errors via JSDoc in domain files
+   *   Phase 2: rename critical domain/*.js → domain/*.ts one file at a time
+   *   Phase 3: add strict:true once all domain files are typed
+   */
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode — Vite handles module resolution */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+
+    /* JSX */
+    "jsx": "react-jsx",
+
+    /* T-01: gradual migration — allow .js files, check them via JSDoc */
+    "allowJs": true,
+    "checkJs": false,
+
+    /* Type safety — will be tightened per-file as migration progresses */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    /* Path aliases matching vite.config.js */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
