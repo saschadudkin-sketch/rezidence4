@@ -109,3 +109,13 @@
   vertical-align:middle;margin-right:5px;
 }
 
+/* Modifier for cancel-request button — smaller, error-colored */
+.btn-cancel-req{
+  font-size:var(--fs-xs);
+  padding:5px 12px;
+  min-height:unset;
+  color:var(--err-t);
+  border-color:var(--err);
+}
+@media(hover:hover){.btn-cancel-req:hover{border-color:var(--err-t);color:var(--err-t);background:rgba(192,96,96,.06)}}
+

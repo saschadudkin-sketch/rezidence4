@@ -122,6 +122,15 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally depends on specific req fields only
   }, [req.status, userRole, userId]);
 
+  // UI: Вычисляем метку даты один раз — вместо IIFE в JSX на каждый рендер.
+  // IIFE (()=>{})() в JSX создаёт новую функцию при каждом рендере без кеширования.
+  const dateLabel = useMemo(() => {
+    const d = fmtDate(req.createdAt);
+    return (d === 'сегодня' || d === 'только что')
+      ? `${d} ${fmtTime(req.createdAt)}`
+      : d;
+  }, [req.createdAt]);
+
   // Auto-expand and scroll when highlighted
   useEffect(() => {
     if (!isHighlighted || !cardRef.current) return;
@@ -211,9 +220,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         </div>
         <div className="u-col-end-g4">
-          <span style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap' }}>
-            {/* FIX [PERF]: fmtDate вычисляется один раз, не трижды */}
-            {(() => { const d = fmtDate(req.createdAt); return d + ((d === 'сегодня' || d === 'только что') ? ' ' + fmtTime(req.createdAt) : ''); })()}
+          <span className="req-date-label">
+            {dateLabel}
           </span>
           <span className={'badge ' + req.status}>{STS_LABEL[req.status]}</span>
         </div>
@@ -290,11 +298,11 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </button>
         )}
         {(onEdit || onDelete) && isPendingRequest(req) && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+          <div className="u-flex u-flex-end u-gap-6 u-mt-8">
             {confirmDel ? <>
-              <span style={{ fontSize: 11, color: 'var(--t3)' }}>Удалить?</span>
+              <span className="u-fs-2xs u-t3">Удалить?</span>
               <button className="btn-del-sm" onClick={() => onDelete(req.id)}>Да</button>
-              <button className="btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setConfirmDel(false)}>Нет</button>
+              <button className="btn-outline u-fs-xs" style={{ padding: '4px 10px' }} onClick={() => setConfirmDel(false)}>Нет</button>
             </> : <>
               {onEdit && (
                 <button className="btn-edit" onClick={() => onEdit(req)}>
@@ -312,9 +320,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         )}
         {onCancel && (req.status === 'pending' || req.status === 'approved') && !isStaffRole && (
-          <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn-outline" style={{ fontSize: 12, padding: '5px 12px', color: 'var(--err-t)', borderColor: 'var(--err)' }}
-              onClick={() => onCancel(req.id)}>
+          <div className="u-flex u-flex-end u-mt-8">
+            <button className="btn-outline btn-cancel-req" onClick={() => onCancel(req.id)}>
               <span className="u-inline-icon u-mr6"><AppIcon name="close" size={12} /></span>
               Отменить заявку
             </button>

@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * domain/permissions.js — Permission Engine
  *
@@ -11,7 +12,9 @@
  * Или отдельные предикаты:
  *   import { canEditRequest, canDeleteRequest } from '../domain/permissions';
  *
- * T-01: JSDoc type annotations — enables TypeScript checking via tsconfig allowJs.
+ * @ts-check включён — TypeScript проверяет JSDoc-аннотации в этом файле.
+ * tsconfig.json: allowJs:true, checkJs:false (глобально) — но // @ts-check
+ * включает проверку точечно для критичных domain-файлов без риска сломать компоненты.
  */
 
 /**

@@ -68,3 +68,36 @@ describe('ReqCard act() stale closure fix', () => {
     expect(src).toMatch(/const ReqPhoto = memo/);
   });
 });
+
+// UI-08: Double-click prevention — act() использует ref вместо state для guard.
+// Тестируем инварианты через анализ исходного кода.
+describe('ReqCard double-click prevention', () => {
+  test('act() проверяет actLoadingRef.current перед запуском (guard против двойного клика)', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./ReqCard.jsx'), 'utf8');
+    // Guard должен быть: if (actLoadingRef.current) return;
+    expect(src).toMatch(/if \(actLoadingRef\.current\) return/);
+  });
+
+  test('actLoadingRef синхронизируется с actLoading state на каждом рендере', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./ReqCard.jsx'), 'utf8');
+    // actLoadingRef.current = actLoading; — синхронизация в теле компонента
+    expect(src).toContain('actLoadingRef.current = actLoading');
+  });
+
+  test('act() — useCallback без actLoading в deps (нет stale closure)', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./ReqCard.jsx'), 'utf8');
+    // stable callback — deps массив должен быть [], а не [actLoading, ...]
+    expect(src).toMatch(/\}, \[\]\); \/\/ стабильный/);
+  });
+
+  test('dateLabel вычисляется через useMemo, а не IIFE', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./ReqCard.jsx'), 'utf8');
+    expect(src).toContain('const dateLabel = useMemo');
+    // Не должно быть IIFE-паттерна в JSX для dateLabel
+    expect(src).not.toMatch(/\{.*\(\(\) => \{.*fmtDate.*\}\)\(\)\}/s);
+  });
+});

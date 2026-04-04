@@ -8,6 +8,7 @@ const db       = require('../db');
 const requireAuth = require('../middleware/auth');
 const { normalizePhone } = require('../constants');
 const appMetrics = require('../metrics');
+const { getRedis } = require('../lib/redisClient');
 
 const router = express.Router();
 
@@ -25,7 +26,11 @@ function makeCode() {
 const CRYPTO = require('crypto');
 const ACCESS_TOKEN_EXPIRES  = '15m';
 const REFRESH_TOKEN_EXPIRES = 30 * 24 * 60 * 60 * 1000; // 30 дней в мс
-const REFRESH_LEGACY_FALLBACK_ENABLED = process.env.REFRESH_LEGACY_FALLBACK_ENABLED !== '0';
+// SEC: default=false — legacy raw-token fallback disabled unless explicitly opted in.
+// Опасный default: включённый fallback позволяет использовать raw refresh token
+// (если он попал в лог) для аутентификации в обход хэширования.
+// Включить только на период миграции: REFRESH_LEGACY_FALLBACK_ENABLED=1
+const REFRESH_LEGACY_FALLBACK_ENABLED = process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '1';
 
 function hashRefreshToken(rawToken) {
   return CRYPTO.createHash('sha256').update(String(rawToken)).digest('hex');
@@ -119,16 +124,50 @@ router.post('/send-otp', async (req, res, next) => {
       return res.json({ ok: true });
     }
 
-    await db.query(
-      `DELETE FROM otp_codes WHERE phone=$1 AND (expires_at < NOW() OR used=TRUE)`,
-      [phone],
-    );
-    const { rows: active } = await db.query(
-      `SELECT COUNT(*) FROM otp_codes WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
-      [phone],
-    );
-    if (Number(active[0].count) >= 3) {
-      return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
+    // SEC: OTP send rate-limit — Redis atomic counter (multi-instance safe).
+    // При нескольких бэкенд-инстансах DB-счётчик имеет race condition:
+    // два запроса одновременно видят count=2, оба проходят — итого 4+ OTP.
+    // Redis INCR атомарна, счётчик разделяется между всеми инстансами.
+    // Fallback на DB-счётчик если Redis недоступен.
+    const OTP_SEND_WINDOW_SEC = 300; // 5 минут
+    const OTP_SEND_MAX        = 3;
+    const redis = getRedis();
+    if (redis) {
+      try {
+        const key   = `otp:send:${phone}`;
+        const count = await redis.incr(key);
+        if (count === 1) await redis.expire(key, OTP_SEND_WINDOW_SEC);
+        if (count > OTP_SEND_MAX) {
+          return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
+        }
+      } catch (redisErr) {
+        logger.warn({ err: redisErr }, '[send-otp] redis rate-limit failed, falling back to DB counter');
+        // Fallback: DB-based counter (single-instance safe)
+        await db.query(
+          `DELETE FROM otp_codes WHERE phone=$1 AND (expires_at < NOW() OR used=TRUE)`,
+          [phone],
+        );
+        const { rows: active } = await db.query(
+          `SELECT COUNT(*) FROM otp_codes WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
+          [phone],
+        );
+        if (Number(active[0].count) >= OTP_SEND_MAX) {
+          return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
+        }
+      }
+    } else {
+      // No Redis — DB-based counter
+      await db.query(
+        `DELETE FROM otp_codes WHERE phone=$1 AND (expires_at < NOW() OR used=TRUE)`,
+        [phone],
+      );
+      const { rows: active } = await db.query(
+        `SELECT COUNT(*) FROM otp_codes WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
+        [phone],
+      );
+      if (Number(active[0].count) >= OTP_SEND_MAX) {
+        return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
+      }
     }
 
     const code      = makeCode();

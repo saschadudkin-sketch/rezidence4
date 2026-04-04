@@ -212,6 +212,14 @@ app.get('/uploads/:filename', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
+  // SEC: Content-Disposition: attachment — браузер скачивает файл, а не рендерит.
+  // Предотвращает inline-рендеринг HTML/SVG файлов с JS даже при обходе magic-byte валидации.
+  // X-Content-Type-Options: nosniff — запрещает MIME-sniffing браузером.
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Cache-Control: private — файлы принадлежат конкретному пользователю
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+
   res.sendFile(filepath, (err) => {
     if (err) {
       if (err.code === 'ENOENT') return res.status(404).json({ error: 'Not found' });

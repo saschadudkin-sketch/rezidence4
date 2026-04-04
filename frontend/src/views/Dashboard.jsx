@@ -30,7 +30,8 @@ import {
   useArrivalNotifier,
   useNavigation,
 } from '../hooks/useDashboardHooks';
-import { ROLES, getTabsForRole } from '../domain/permissions';
+import { ROLES } from '../domain/permissions';
+import { buildNavItems, buildNavClassMap } from '../domain/navigation';
 import { isDemoMode } from '../config/runtimeMode.js';
 import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/limits';
 import AppShell from './shell/AppShell';
@@ -76,9 +77,10 @@ export default function Dashboard({ user, onLogout }) {
     setAllRequests, setAllMessages, setAllUsers,
     setPerms, setTemplates, setBlacklist,
     markChatSeen, activateScheduled,
-    // FIX [P-1]: incremental SSE updates for blacklist and users (real-time without F5)
     addToBlacklist, removeFromBlacklist,
     updateUser, deleteUser, addUser,
+    // PERF: incremental SSE request updates — точечные действия вместо full REQUESTS_SET_ALL
+    updateRequest, addRequest, deleteRequest,
   } = useActions();
 
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
@@ -96,11 +98,21 @@ export default function Dashboard({ user, onLogout }) {
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
 
   const [retryKey, setRetryKey] = useState(0);
+
+  // DO-02: Listen for watchdog-triggered force reconnect.
+  // useLiveSync watchdog emits this when SSE stream is stale for 60s.
+  useEffect(() => {
+    const handler = () => setRetryKey(k => k + 1);
+    window.addEventListener('rz:sse-force-reconnect', handler);
+    return () => window.removeEventListener('rz:sse-force-reconnect', handler);
+  }, []);
+
   const { isLoading: syncLoading, sseOnline, ssePermanentError } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
     retryKey,
-    // FIX [P-1]: incremental SSE updates
     addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
+    // PERF: incremental request SSE updates
+    updateRequest, addRequest, deleteRequest,
   });
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
@@ -122,43 +134,16 @@ export default function Dashboard({ user, onLogout }) {
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
 
-  // Все три зависели от одного набора значений, теперь одно вычисление вместо трёх.
-  const { nav, navClassMap } = useMemo(() => {
-    const isSec  = user.role === ROLES.SECURITY;
-    const isCon  = user.role === ROLES.CONCIERGE;
-    const passesBadge = isSec ? pendingP + pendingT : isCon ? pendingT : residentNewStatuses;
-    const NAV_META = {
-      passes:    ['ticket', isSec || isCon ? 'Заявки' : 'Пропуска', passesBadge],
-      tech:      ['tools',    'Техслужба',  0],
-      perms:     ['list',     'Список',     0],
-      templates: ['file',     'Шаблоны',    0],
-      history:   ['history',  'История',    0],
-      chat:      ['chat',     'Чат',        unreadMsgs],
-      // UI-04: visitlog used same 'history' icon as history tab — changed to 'list'
-      visitlog:  ['list',     'Журнал',     0],
-      residents: ['residents','Жильцы',     0],
-      blacklist: ['ban',      'ЧС',         blacklistCount],
-      guardpost: ['shield',   'Пост',       pendingP],
-      stats:     ['chart',    'Аналитика',  0],
-      requests:  ['list',     'Заявки',     pendingP + pendingT],
-      users:     ['users',    'Резиденты',  0],
-    };
-    const tabs = getTabsForRole(user.role);
-    const nav  = tabs.map(tab => [tab, ...(NAV_META[tab] || ['list', tab, 0])]);
-    const map  = {};
-    for (const k of tabs) {
-      const mods = [
-        activeTab === k ? 'active' : '',
-        isSec && k === 'passes' && pendingT > 0             && activeTab !== 'passes' ? 'blink'   : '',
-        isSec && k === 'passes' && pendingT === 0 && pendingP > 0 && activeTab !== 'passes' ? 'blink-y' : '',
-        isCon && k === 'passes' && pendingT > 0             && activeTab !== 'passes' ? 'blink'   : '',
-        k === 'chat' && unreadMsgs > 0                      && activeTab !== 'chat'   ? 'blink-y' : '',
-      ].filter(Boolean).join(' ');
-      map[k]         = mods ? `tn-btn ${mods}` : 'tn-btn';
-      map[k + '_mn'] = mods ? `mn-btn ${mods}` : 'mn-btn';
-    }
-    return { nav, navClassMap: map };
-  }, [user.role, activeTab, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
+  // Navigation items и CSS-классы вычисляются через domain/navigation.js.
+  // Логика вынесена из компонента — тестируема без React, Dashboard остаётся тонким координатором.
+  const badgesForNav = useMemo(
+    () => ({ pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount }),
+    [pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount],
+  );
+  const navItems   = useMemo(() => buildNavItems(user.role, badgesForNav),   [user.role, badgesForNav]);
+  const navClassMap = useMemo(() => buildNavClassMap(user.role, activeTab, badgesForNav), [user.role, activeTab, badgesForNav]);
+  // NavigationShell ожидает nav как массив [tab, icon, label, badge]
+  const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
 
   const pageTitle = TAB_TITLES[activeTab] || PAGE_TITLES[user.role];
   const pageSubtitle = user.role === 'owner' || user.role === 'tenant'

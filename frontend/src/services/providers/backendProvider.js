@@ -414,12 +414,14 @@ export function createBackendProvider() {
     },
     liveData: {
       startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
-        // FIX [AUDIT-6 CRITICAL]: добавлены колбэки для perms, templates, blacklist.
-        // Ранее эти данные НЕ загружались при startSync — после F5 в live mode
-        // перм-списки, шаблоны и чёрный список были пусты.
         onPerms, onTemplates, setBlacklist, userUid,
-        // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+        // Incremental blacklist/user updates (SSE)
         onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
+        // PERF: Incremental request SSE updates — точечные действия вместо full replace
+        // onRequestUpdate(req)  — обновить существующую заявку
+        // onRequestAdd(req)     — добавить новую заявку
+        // onRequestDelete(id)   — удалить заявку (soft-delete broadcast)
+        onRequestUpdate, onRequestAdd, onRequestDelete,
       }) => {
         let mounted = true;
 
@@ -481,16 +483,42 @@ export function createBackendProvider() {
         const unsubMsg    = chatProvider.onMessage(msg      => onChat && onChat({ type: 'added',   message: msg }));
         const unsubUpdate = chatProvider.onMessageUpdate(msg => onChat && onChat({ type: 'updated', message: msg }));
         const unsubDel    = chatProvider.onMessageDelete(d   => onChat && onChat({ type: 'deleted', id: d.id }));
-        const unsubReq    = sseManager.on('request_update', req => {
+        // PERF: Incremental SSE updates — вместо полной замены массива (REQUESTS_SET_ALL)
+        // используем точечные операции REQUEST_UPDATE / REQUEST_ADD / REQUEST_DELETE.
+        // При 500+ заявках staff-роли это убирает O(n) reconciler-прогон при каждом событии.
+        // setAllRequests сохраняется только для начальной bulk-загрузки.
+        const unsubReq = sseManager.on('request_update', req => {
           if (!mounted) return;
+          // Удаление (soft-delete broadcast)
+          if (req.status === 'deleted') {
+            if (onRequestDelete) {
+              onRequestDelete(req.id);
+            } else {
+              // Fallback: убрать из локального массива и обновить весь стор
+              currentRequests = currentRequests.filter(r => r.id !== req.id);
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
+            return;
+          }
           const idx = currentRequests.findIndex(r => r.id === req.id);
           if (idx >= 0) {
+            // Существующая заявка — инкрементальное обновление
             currentRequests = [...currentRequests];
             currentRequests[idx] = req;
+            if (onRequestUpdate) {
+              onRequestUpdate(req);
+            } else {
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
           } else {
+            // Новая заявка (ещё не в локальном массиве)
             currentRequests = [req, ...currentRequests];
+            if (onRequestAdd) {
+              onRequestAdd(req);
+            } else {
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
           }
-          if (setAllRequests) setAllRequests(currentRequests);
         });
 
         // FIX [P-1]: real-time SSE subscriptions for blacklist and user updates

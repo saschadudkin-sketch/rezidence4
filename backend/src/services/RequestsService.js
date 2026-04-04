@@ -126,6 +126,32 @@ class ServiceError extends Error {
 
 class RequestsService {
   /**
+   * Получить одну заявку по id с проверкой доступа.
+   * Жилец видит только свои заявки; персонал и админ видят все.
+   * @returns {object} Заявка (formatted)
+   */
+  static async getOne(user, id) {
+    const { uid, role } = user;
+    const staff = isStaff(role);
+
+    let rows;
+    if (staff || role === 'admin') {
+      ({ rows } = await db.query(
+        `SELECT ${COLS} FROM requests WHERE id=$1 AND deleted_at IS NULL`,
+        [id],
+      ));
+    } else {
+      ({ rows } = await db.query(
+        `SELECT ${COLS} FROM requests WHERE id=$1 AND created_by_uid=$2 AND deleted_at IS NULL`,
+        [id, uid],
+      ));
+    }
+
+    if (!rows.length) throw new ServiceError('Not found', 404);
+    return fmt(rows[0]);
+  }
+
+  /**
    * Получить список заявок с пагинацией.
    * @returns {{ data: object[], total: number, page: number, limit: number }}
    */

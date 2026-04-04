@@ -15,8 +15,10 @@ export function useLiveSync(user, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
   // P-02: retryKey increment triggers soft reconnect without page reload
   retryKey = 0,
-  // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+  // Incremental blacklist/user SSE updates
   addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
+  // PERF: Incremental request SSE updates — избегаем full REQUESTS_SET_ALL при каждом событии
+  updateRequest, addRequest, deleteRequest,
 }) {
   const [isLoading,   setIsLoading]   = useState(true);
   // FA-07: статус SSE-соединения для индикатора в header
@@ -37,13 +39,13 @@ export function useLiveSync(user, {
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
   const callbacksRef = useRef({});
-  useEffect(() => {
-    callbacksRef.current = {
-      setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-      // FIX [P-1]: incremental SSE actions
-      addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
-    };
-  });
+  // Стабильный ref — обновляем на каждом рендере без перезапуска эффекта.
+  // Это намеренный паттерн: колбэки всегда актуальны, SSE-эффект не рестартует.
+  callbacksRef.current = {
+    setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
+    addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
+    updateRequest, addRequest, deleteRequest,
+  };
 
   // A-05: refs live here — not in Dashboard — Dashboard had no business owning them
   const prevPendingP = useRef(0);
@@ -120,12 +122,16 @@ export function useLiveSync(user, {
       onUsers:     (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
       onPerms:     (p)    => startTransition(() => callbacksRef.current.setPerms?.(user.uid, p)),
       onTemplates: (t)    => startTransition(() => callbacksRef.current.setTemplates?.(user.uid, t)),
-      // FIX [P-1]: incremental SSE handlers for real-time blacklist/user updates
+      // Incremental SSE: blacklist / user changes
       onBlacklistAdd:    (entry) => startTransition(() => callbacksRef.current.addToBlacklist?.(entry)),
       onBlacklistRemove: (id)    => startTransition(() => callbacksRef.current.removeFromBlacklist?.(id)),
       onUserUpdate:      (u)     => startTransition(() => callbacksRef.current.updateUser?.(u.uid, u)),
       onUserDelete:      (uid)   => startTransition(() => callbacksRef.current.deleteUser?.(uid)),
       onUserAdd:         (u)     => startTransition(() => callbacksRef.current.addUser?.(u)),
+      // PERF: Incremental SSE: request changes — вместо full REQUESTS_SET_ALL на каждый event
+      onRequestUpdate:   (req)   => startTransition(() => callbacksRef.current.updateRequest?.(req.id, req)),
+      onRequestAdd:      (req)   => startTransition(() => callbacksRef.current.addRequest?.(req)),
+      onRequestDelete:   (id)    => startTransition(() => callbacksRef.current.deleteRequest?.(id)),
     }))
     .then(fn => {
       if (cancelled) {
@@ -146,8 +152,10 @@ export function useLiveSync(user, {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role, user.uid, retryKey]);
 
-  // DO-02: watchdog — if SSE reports online but no events for 60s, force disconnect
-  // so the SSE manager will reconnect. Uses rz:sse-activity dispatched per-event.
+  // DO-02: watchdog — if SSE reports online but no events for 60s, force real reconnect.
+  // Previously only dispatched a fake rz:sse-status event (UI-only), which changed
+  // the indicator but did NOT actually reconnect the SSE stream.
+  // Now dispatches rz:sse-force-reconnect which Dashboard listens to and increments retryKey.
   useEffect(() => {
     if (!isLiveMode()) return;
     const WATCHDOG_INTERVAL_MS = 30_000;
@@ -157,8 +165,11 @@ export function useLiveSync(user, {
     window.addEventListener('rz:sse-activity', onActivity);
     const interval = setInterval(() => {
       if (Date.now() - lastActivity > STALE_THRESHOLD_MS) {
-        // SSE stream appears stale — trigger reconnect by toggling status
-        window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: false } }));
+        logger.warn('[useLiveSync] SSE stream stale — forcing reconnect');
+        // Trigger real reconnect (Dashboard listens and increments retryKey)
+        window.dispatchEvent(new CustomEvent('rz:sse-force-reconnect'));
+        // Reset timer to avoid rapid-fire reconnects
+        lastActivity = Date.now();
       }
     }, WATCHDOG_INTERVAL_MS);
     return () => {
