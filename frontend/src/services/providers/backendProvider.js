@@ -51,7 +51,7 @@ function createSSEManager() {
     if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/events`, {
         credentials: 'include',
         signal,
         headers,
@@ -350,31 +350,20 @@ export const permsProvider = {
     return apiClient.get(`/api/perms/${uid}`);
   },
   /**
-   * FIX [AUDIT-5 CRITICAL]: backend POST /api/perms requires `type` ('visitors'|'workers')
-   * and `items` (array for that type). Frontend passes entire perms object {visitors:[], workers:[]}.
-   * Without this fix ALL perms saves fail with 400 "Invalid type" in live mode.
-   *
-   * Solution: split into two sequential requests, one per type.
-   * Using Promise.all for parallelism — the (uid, type) PK means no conflict.
+   * Атомарно сохраняет perms через POST /api/perms/batch (одна транзакция).
+   * Legacy-формат (flat array) по-прежнему поддерживается через старый endpoint.
    */
   async savePerms(uid, permsObj) {
-    // Support both old format (flat array) and new format ({visitors:[], workers:[]})
+    // Legacy: flat array — assume visitors only (backward compat)
     if (Array.isArray(permsObj)) {
-      // Legacy: assume visitors
       return apiClient.post('/api/perms', { uid, type: 'visitors', items: permsObj });
     }
-    const promises = [];
-    if (permsObj.visitors !== undefined) {
-      promises.push(apiClient.post('/api/perms', { uid, type: 'visitors', items: permsObj.visitors }));
-    }
-    if (permsObj.workers !== undefined) {
-      promises.push(apiClient.post('/api/perms', { uid, type: 'workers', items: permsObj.workers }));
-    }
-    if (promises.length === 0) {
-      return { ok: true };
-    }
-    const results = await Promise.all(promises);
-    return results[results.length - 1]; // return last result for compat
+    // New format: use batch endpoint for atomic save
+    const payload = { uid };
+    if (permsObj.visitors !== undefined) payload.visitors = permsObj.visitors;
+    if (permsObj.workers  !== undefined) payload.workers  = permsObj.workers;
+    if (!payload.visitors && !payload.workers) return { ok: true };
+    return apiClient.post('/api/perms/batch', payload);
   },
   async getTemplates(uid) {
     return apiClient.get(`/api/templates/${uid}`);

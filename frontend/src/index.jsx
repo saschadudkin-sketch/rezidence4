@@ -1,7 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import App from './App';
 import { registerSW } from './utils/swUtils';
+import { reportWebVitals } from './utils/webVitals';
+
+// ─── Sentry error tracking ─────────────────────────────────────────────────────
+// Activated only when VITE_SENTRY_DSN is set — no-op in dev/demo without it.
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    release: import.meta.env.VITE_APP_VERSION,
+    tracesSampleRate: 0.1, // 10% of transactions for performance monitoring
+    replaysOnErrorSampleRate: 1.0,
+  });
+}
 
 // Suppress harmless ResizeObserver loop error (browser-level, not a bug)
 const ro = window.onerror;
@@ -20,6 +34,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 registerSW();
+reportWebVitals();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

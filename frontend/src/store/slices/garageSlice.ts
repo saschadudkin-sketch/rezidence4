@@ -1,12 +1,32 @@
 /**
- * store/slices/garageSlice.js
+ * store/slices/garageSlice.ts
  * Хранилище машин квартиры.
  * Структура: { [uid]: [{ id, plate, brand, isMain, note }] }
  */
 
-export const INITIAL_GARAGE = {};
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-export function garageReducer(state, action) {
+export interface Car {
+  id: string;
+  plate: string;
+  brand?: string;
+  isMain?: boolean;
+  note?: string;
+}
+
+export interface GarageState {
+  garage: Record<string, Car[]>;
+}
+
+type GarageAction =
+  | { type: 'GARAGE_ADD_CAR'; uid: string; car: Car }
+  | { type: 'GARAGE_UPDATE_CAR'; uid: string; carId: string; patch?: Partial<Car>; data?: Partial<Car> }
+  | { type: 'GARAGE_DELETE_CAR'; uid: string; carId: string }
+  | { type: 'GARAGE_SET'; uid: string; cars: Car[] };
+
+export const INITIAL_GARAGE: Record<string, Car[]> = {};
+
+export function garageReducer(state: GarageState, action: GarageAction): GarageState {
   switch (action.type) {
 
     case 'GARAGE_ADD_CAR': {

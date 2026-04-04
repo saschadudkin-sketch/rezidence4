@@ -1,6 +1,42 @@
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface PermEntry {
+  id: string;
+  name: string;
+  phone: string;
+  carPlate?: string;
+}
+
+export interface UserPerms {
+  visitors: PermEntry[];
+  workers: PermEntry[];
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  type: string;
+  category: string;
+  visitorName: string;
+  visitorPhone: string;
+  carPlate: string;
+  comment: string;
+}
+
+export interface PermsState {
+  perms: Record<string, UserPerms>;
+  templates: Record<string, Template[]>;
+}
+
+type PermsAction =
+  | { type: 'PERMS_SET'; uid: string; perms: UserPerms }
+  | { type: 'TEMPLATE_ADD'; uid: string; template: Template }
+  | { type: 'TEMPLATE_DELETE'; uid: string; id: string }
+  | { type: 'TEMPLATES_SET'; uid: string; templates: Template[] };
+
 // ─── Начальные данные ────────────────────────────────────────────────────────
 
-export const INITIAL_PERMS = {
+export const INITIAL_PERMS: Record<string, UserPerms> = {
   'u1': {
     visitors: [
       { id: 'pv1', name: 'Анна Волкова',  phone: '+7 916 100-00-01' },
@@ -21,7 +57,7 @@ export const INITIAL_PERMS = {
   },
 };
 
-export const INITIAL_TEMPLATES = {
+export const INITIAL_TEMPLATES: Record<string, Template[]> = {
   'u1': [
     { id: 't1', name: 'Гость Дима',       type: 'pass', category: 'guest',   visitorName: 'Дмитрий Орлов', visitorPhone: '+7 916 777-88-99', carPlate: '', comment: '' },
     { id: 't2', name: 'Сантехник',         type: 'tech', category: 'plumber', visitorName: '',               visitorPhone: '',                 carPlate: '', comment: 'Течёт кран' },
@@ -34,7 +70,7 @@ export const INITIAL_TEMPLATES = {
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function permsReducer(state, action) {
+export function permsReducer(state: PermsState, action: PermsAction): PermsState {
   switch (action.type) {
 
     case 'PERMS_SET':

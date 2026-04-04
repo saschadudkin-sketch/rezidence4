@@ -202,12 +202,15 @@ describe('permsProvider', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/perms/u1');
   });
 
-  test('savePerms → POST /api/perms (object format: splits into per-type requests)', async () => {
+  test('savePerms → POST /api/perms/batch (object format: atomic batch save)', async () => {
     apiClient.post.mockResolvedValue({ ok: true });
     const permsObj = { visitors: [{ id: 'p1', name: 'Гость' }], workers: [{ id: 'p2', name: 'Рабочий' }] };
     await permsProvider.savePerms('u1', permsObj);
-    expect(apiClient.post).toHaveBeenCalledWith('/api/perms', { uid: 'u1', type: 'visitors', items: permsObj.visitors });
-    expect(apiClient.post).toHaveBeenCalledWith('/api/perms', { uid: 'u1', type: 'workers', items: permsObj.workers });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/perms/batch', {
+      uid: 'u1',
+      visitors: permsObj.visitors,
+      workers:  permsObj.workers,
+    });
   });
 
   test('savePerms → POST /api/perms (legacy flat array format)', async () => {

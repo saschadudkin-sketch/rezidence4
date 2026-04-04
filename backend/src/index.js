@@ -19,6 +19,7 @@ const authRouter      = require('./routes/auth');
 const requestsRouter  = require('./routes/requests');
 const usersRouter     = require('./routes/users');
 const chatRouter      = require('./routes/chat');
+const sse             = require('./sse');
 const permsRouter     = require('./routes/perms');
 const templatesRouter = require('./routes/templates');
 const blacklistRouter = require('./routes/blacklist');
@@ -216,6 +217,23 @@ app.use('/api/v1/auth', authLimiter, authRouter); // КРИТ-3: authLimiter п�
 app.use('/api/v1/requests',    requestsRouter);
 app.use('/api/v1/users',       usersRouter);
 app.use('/api/v1/chat',        chatRouter);
+
+// ─── GET /api/v1/events — canonical SSE endpoint ──────────────────────────────
+// Semantic rename from /api/chat/stream. The old path remains available via the
+// deprecated /api/chat alias below for backward-compat during migration.
+const sseEventsLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false, ...makeRedisStore('sse') });
+app.get('/api/v1/events', requireAuth, sseEventsLimiter, (req, res) => {
+  const { uid, role } = req.user;
+  res.setHeader('Content-Type',      'text/event-stream');
+  res.setHeader('Cache-Control',     'no-cache');
+  res.setHeader('Connection',        'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  sse.addClient(uid, res, role);
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25_000);
+  req.on('close', () => { clearInterval(ping); sse.removeClient(uid, res); });
+});
 app.use('/api/v1/perms',       permsRouter);
 app.use('/api/v1/templates',   templatesRouter);
 app.use('/api/v1/blacklist',   blacklistRouter);
@@ -253,7 +271,7 @@ app.get('/api/health/detailed', requireAuth, async (_req, res) => {
 });
 
 // FIX [DO4]: ЖЕЛАТЕЛЬНО — метрики для мониторинга (Prometheus/Grafana)
-const { clients: sseClients } = require('./sse');
+const { clients: sseClients } = sse;
 app.get('/api/metrics', requireAuth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   const activeSSE = [...sseClients.values()].reduce((s, set) => s + set.size, 0);

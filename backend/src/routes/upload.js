@@ -4,9 +4,14 @@ const path       = require('path');
 const fs         = require('fs');
 const { randomBytes } = require('crypto'); // moved to top — no repeated require in handler
 const fileType   = require('file-type');
+const sharp      = require('sharp');
 const logger     = require('../logger');
 const requireAuth = require('../middleware/auth');
 const db         = require('../db'); // moved to top
+
+// ─── Image processing config ──────────────────────────────────────────────────
+const MAX_DIMENSION   = 1200; // px — resize if width or height exceeds this
+const WEBP_QUALITY    = 82;   // WebP quality (0-100); 82 ≈ good SSIM, ~60% smaller than JPEG
 
 const router = express.Router();
 router.use(requireAuth);
@@ -82,11 +87,38 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       });
     }
 
-    const ext      = ALLOWED_TYPES.get(detected.mime);
+    // ── Sharp: resize + convert to WebP ───────────────────────────────────────
+    // GIF-анимации сохраняем как есть (sharp не поддерживает animated gif → webp надёжно).
+    // Остальные форматы: resize до MAX_DIMENSION + конвертация в WebP для экономии места.
+    // Fallback: если sharp недоступен (native binaries), сохраняем оригинал.
+    let outputBuffer;
+    let outputExt;
+    if (detected.mime === 'image/gif') {
+      outputBuffer = req.body;
+      outputExt = ALLOWED_TYPES.get(detected.mime);
+    } else {
+      try {
+        outputBuffer = await sharp(req.body)
+          .resize(MAX_DIMENSION, MAX_DIMENSION, {
+            fit: 'inside',        // сохраняем соотношение сторон, не кропаем
+            withoutEnlargement: true, // не увеличиваем маленькие изображения
+          })
+          .webp({ quality: WEBP_QUALITY })
+          .toBuffer();
+        outputExt = 'webp';
+      } catch (sharpErr) {
+        // Sharp failed (e.g., corrupted data, native lib issue) — save original
+        logger.warn({ err: sharpErr }, '[upload] sharp resize failed, saving original');
+        outputBuffer = req.body;
+        outputExt = ALLOWED_TYPES.get(detected.mime);
+      }
+    }
+
+    const ext      = outputExt;
     const filename = `photo_${Date.now()}_${randomBytes(12).toString('hex')}.${ext}`;
     const filepath = path.join(UPLOAD_DIR, filename);
 
-    await fs.promises.writeFile(filepath, req.body);
+    await fs.promises.writeFile(filepath, outputBuffer);
 
     const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
     res.json({ url: `${baseUrl}/uploads/${filename}` });
