@@ -114,6 +114,16 @@
   --lh-body: 1.5;
   --lh-loose: 1.65;
 
+  /* ── Breakpoints — UI-bp: responsive layout tokens ─────────────────────── */
+  /* Use in JS as getComputedStyle(document.documentElement).getPropertyValue('--bp-md') */
+  /* In CSS: @media (min-width: 768px) — token values are reference-only (CSS vars           */
+  /* cannot be used in @media queries directly; the numeric values document intent).          */
+  --bp-sm:   480px;   /* large mobile / small phone landscape                                */
+  --bp-md:   768px;   /* tablet portrait (iPad, Android tablet)                              */
+  --bp-lg:  1024px;   /* tablet landscape / small desktop                                    */
+  --bp-xl:  1280px;   /* desktop                                                             */
+  --bp-2xl: 1536px;   /* large desktop / wide monitor                                        */
+
   --r: 8px;
   --sat: env(safe-area-inset-top,0px);
   --sab: env(safe-area-inset-bottom,0px);

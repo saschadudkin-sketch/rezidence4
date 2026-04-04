@@ -42,28 +42,42 @@ const trustProxyValue = trustProxyHops != null
   : (isProd ? 1 : false);
 app.set('trust proxy', Number.isInteger(trustProxyValue) && trustProxyValue >= 0 ? trustProxyValue : false);
 
-// ─── Production guard ────────────────────────────────────────────────────────
-// Fail fast on startup if required env vars are missing — prevents deploying
-// with an open wildcard CORS origin or insecure / missing JWT secret.
-if (isProd && !process.env.FRONTEND_URL) {
-  logger.fatal('FRONTEND_URL must be set in production (cannot use wildcard CORS in prod)');
-  process.exit(1);
+// ─── validateConfig — consolidated startup validation (10.6) ─────────────────
+// All process.exit(1) calls for missing/invalid config are centralised here.
+// Fail fast before any route or middleware registration so errors are obvious.
+function validateConfig(env, prod) {
+  const errors = [];
+
+  // JWT_SECRET: required always, minimum 16 chars for brute-force resistance
+  if (!env.JWT_SECRET || env.JWT_SECRET.length < 16) {
+    errors.push('JWT_SECRET must be set and at least 16 characters long');
+  }
+
+  // DATABASE_URL: required always — pool creation succeeds but the first query
+  // fails with a cryptic error if this is missing.
+  if (!env.DATABASE_URL) {
+    errors.push('DATABASE_URL must be set');
+  }
+
+  // FRONTEND_URL: required in production — prevents wildcard CORS in prod.
+  if (prod && !env.FRONTEND_URL) {
+    errors.push('FRONTEND_URL must be set in production (cannot use wildcard CORS in prod)');
+  }
+
+  if (errors.length) {
+    for (const msg of errors) logger.fatal(msg);
+    process.exit(1);
+  }
+
+  // Advisory warnings (non-fatal)
+  if (env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
+    logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
+  } else {
+    logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
+  }
 }
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
-  logger.fatal('JWT_SECRET must be set and at least 16 characters long');
-  process.exit(1);
-}
-// DATABASE_URL is required — pool creation succeeds but first query fails
-// with a cryptic runtime error without it.
-if (!process.env.DATABASE_URL) {
-  logger.fatal('DATABASE_URL must be set');
-  process.exit(1);
-}
-if (process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
-  logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
-} else {
-  logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
-}
+
+validateConfig(process.env, isProd);
 
 // ─── Helmet — security headers ───────────────────────────────────────────────
 // Sets X-Frame-Options, X-Content-Type-Options, HSTS,
@@ -268,6 +282,25 @@ app.use('/api/upload',      deprecate, uploadLimiter, uploadRouter);
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
+
+// SSE health — authenticated endpoint reporting live connection counts.
+// Use this in monitoring to detect SSE layer issues (zero connections when users
+// should be connected, or approaching MAX_TOTAL_CONNECTIONS).
+// 10.4: exposes SSE layer health as a dedicated, observable endpoint.
+app.get('/api/v1/events/health', requireAuth, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const { clients: sseClientsMap } = sse;
+  const uniqueUsers = sseClientsMap.size;
+  const totalConnections = [...sseClientsMap.values()].reduce((s, set) => s + set.size, 0);
+  res.json({
+    ok: true,
+    uniqueUsers,
+    totalConnections,
+    maxTotalConnections: 2000,
+    saturated: totalConnections >= 1800, // warn at 90% capacity
+    ts: new Date().toISOString(),
+  });
+});
 
 // Detailed healthcheck including DB connectivity — authenticated users only.
 app.get('/api/health/detailed', requireAuth, async (_req, res) => {

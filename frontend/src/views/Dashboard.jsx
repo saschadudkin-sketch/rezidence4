@@ -44,7 +44,9 @@ function DemoBanner({ onClose }) {
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
       <span className="demo-welcome-text">
-        Вы в демо-режиме. Данные хранятся только в браузере и сбрасываются при перезагрузке.
+        <strong>Демо-режим.</strong>{' '}
+        Попробуйте создать пропуск или вызов техслужбы — всё работает без сервера.
+        Данные сохраняются только в браузере и сбросятся при перезагрузке страницы.
       </span>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
         <AppIcon name="close" size={12} />

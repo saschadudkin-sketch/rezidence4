@@ -3,6 +3,7 @@ import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer.js';
 import { logger } from '../services/logger.js';
 import { useNewRequestNotifier } from './useNewRequestNotifier.js';
+import { useStatusChangeNotifier } from './useStatusChangeNotifier.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.
@@ -47,6 +48,8 @@ export function useLiveSync(user, {
 
   // ARCH-2: notification policy lives in its own hook, not here.
   const notifyNewRequests = useNewRequestNotifier(user);
+  // N-02: toast when a resident's own request changes status (approved/rejected/etc.)
+  const notifyStatusChange = useStatusChangeNotifier(user);
 
   // FIX: флаг-ref, чтобы setIsLoading(false) вызвался ровно один раз.
   // Без него: setAllRequests-обёртка И onRequests оба вызывали setIsLoading(false)
@@ -114,7 +117,8 @@ export function useLiveSync(user, {
       onUserDelete:      (uid)   => startTransition(() => callbacksRef.current.deleteUser?.(uid)),
       onUserAdd:         (u)     => startTransition(() => callbacksRef.current.addUser?.(u)),
       // PERF: Incremental SSE: request changes — вместо full REQUESTS_SET_ALL на каждый event
-      onRequestUpdate:   (req)   => startTransition(() => callbacksRef.current.updateRequest?.(req.id, req)),
+      // N-02: notify resident before state update so toast appears before card re-renders
+      onRequestUpdate:   (req)   => { notifyStatusChange(req); startTransition(() => callbacksRef.current.updateRequest?.(req.id, req)); },
       onRequestAdd:      (req)   => startTransition(() => callbacksRef.current.addRequest?.(req)),
       onRequestDelete:   (id)    => startTransition(() => callbacksRef.current.deleteRequest?.(id)),
     }); if (cancelled) { if (typeof fn === 'function') fn(); return; }

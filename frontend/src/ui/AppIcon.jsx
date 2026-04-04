@@ -30,6 +30,8 @@ const PATHS = {
   'chevron-up': 'm18 15-6-6-6 6',
   // UI-03: circular refresh icon — used for loading spinners (semantically correct vs 'history' clock)
   refresh: 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15',
+  // UI-QR: QR-code icon — three corner squares + a central dot
+  qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h.01M18 14h3v3h-3zM14 18h.01M17 18h1v3h-3v-1M20 18h.01',
 };
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));

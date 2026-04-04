@@ -606,3 +606,27 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 .req-card,.guard-card-wrap,.guard-card{content-visibility:auto;contain-intrinsic-block-size:130px}
 
 .search-clear:hover{color:var(--t1)}
+
+/* ── 3.1: Tablet breakpoint styles (768–1024px) ─────────────────────────────
+   These rules specifically address the gap between mobile (<768px) and desktop
+   (>1024px). Token values: --bp-md:768px, --bp-lg:1024px (in tokens.css).    */
+
+/* Tablet: two-column req-details grid for wider cards */
+@media(min-width:768px) and (max-width:1024px){
+  .req-details{grid-template-columns:repeat(3,1fr)}
+  .req-list{max-width:680px}
+  .req-list--virtual{height:calc(100vh - 160px)}
+}
+
+/* Tablet: nav layout adjustments — show text labels on larger screens */
+@media(min-width:768px){
+  .mobnav-lbl{display:inline}
+  .req-photo-img{max-width:280px;max-height:260px}
+}
+
+/* Tablet landscape: wider card + slightly larger font */
+@media(min-width:1024px){
+  .req-list{max-width:760px}
+  .req-list--virtual{height:calc(100vh - 140px)}
+}
+
