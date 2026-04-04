@@ -18,7 +18,7 @@ test.describe('Login flow smoke', () => {
     await openOtpStepDemo(page);
     await page.locator('input.field-otp').fill('12');
     await page.getByRole('button', { name: 'Войти' }).click();
-    await expect(page.getByText('Код должен содержать минимум 4 цифры')).toBeVisible();
+    await expect(page.getByText('Код должен содержать 6 цифр')).toBeVisible();
   });
 
   test('can return from OTP to phone step', async ({ page }) => {

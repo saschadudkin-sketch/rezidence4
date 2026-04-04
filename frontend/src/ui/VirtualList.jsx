@@ -8,7 +8,7 @@
  * Usage:
  *   <VirtualList items={filteredPending} renderItem={(r, i) => <GuardCard key={r.id} req={r} />} estimateSize={148} />
  */
-import { useRef, useLayoutEffect } from 'react';
+import { useRef, useState, useLayoutEffect } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
 /** Minimum list length to activate virtualization (below this, render normally). */
@@ -16,18 +16,20 @@ const VIRTUAL_THRESHOLD = 20;
 
 export function VirtualList({ items, renderItem, estimateSize = 130, className = '' }) {
   const listRef = useRef(null);
+  // scrollMargin must be measured after mount (ref is null on first render).
+  // useState ensures a re-render with the correct value before virtualization runs.
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useLayoutEffect(() => {
+    if (listRef.current) setScrollMargin(listRef.current.offsetTop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rowVirtualizer = useWindowVirtualizer({
     count: items.length,
     estimateSize: () => estimateSize,
     overscan: 5,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin,
   });
-
-  // Re-measure scroll offset after mount and whenever the list re-mounts.
-  useLayoutEffect(() => {
-    rowVirtualizer.measure();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (items.length <= VIRTUAL_THRESHOLD) {
     // Short list — render normally, no virtualization overhead.

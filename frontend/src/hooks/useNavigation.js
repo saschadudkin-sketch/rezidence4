@@ -93,8 +93,8 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
     setSearchParams({}, { replace: true }); // убираем ?reqId= из URL
     setHighlightReqId(reqId);
     setActiveTab('passes');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // только при монтировании
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // re-run when searchParams change so in-session deep links work
 
   return { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId };
 }
