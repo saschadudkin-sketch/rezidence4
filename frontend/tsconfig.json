@@ -39,6 +39,7 @@
     "noUnusedParameters": false,
 
     /* Path aliases matching vite.config.js */
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
