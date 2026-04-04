@@ -1,0 +1,111 @@
+/* ── BUTTONS ── */
+
+/* улучшает читаемость и соответствие SaaS-стандарту */
+.btn-gold{
+  background:var(--g1);color:var(--s0);
+  border:none;border-radius:var(--r);padding:var(--space-md);
+  font-family:'DM Sans',sans-serif;
+  font-size:var(--fs-sm);font-weight:600;letter-spacing:0.2px;
+  cursor:pointer;transition:background .13s,transform .13s;
+}
+
+.modal-foot .btn-gold,.modal-foot .btn-outline{flex:1}
+.perm-form-btns .btn-gold{padding:10px 20px}
+@media(hover:hover){.btn-gold:hover:not(:disabled){background:var(--g2);box-shadow:0 4px 16px rgba(196,150,60,.3)}}
+.btn-gold:active{background:var(--g3);transform:scale(.99)}
+.btn-gold:disabled{opacity:.3;cursor:not-allowed}
+
+.btn-outline{
+  
+  
+  
+  background:transparent;
+  border:1.5px solid var(--b3);border-radius:var(--r);
+  padding:var(--space-md);
+  font-family:'DM Sans',sans-serif;
+  font-size:var(--fs-sm);font-weight:500;letter-spacing:0.2px;
+  color:var(--t2);cursor:pointer;
+  transition:border-color .13s,color .13s,background .13s;
+}
+@media(hover:hover){.btn-outline:hover{border-color:var(--g1);color:var(--g2);background:var(--g-bg)}}
+.btn-outline:active{border-color:var(--g1);color:var(--g1)}
+
+.btn-danger{
+  background:var(--danger-bg);
+  border:1.5px solid var(--danger);border-radius:var(--r);
+  padding:var(--space-md);
+  font-family:'DM Sans',sans-serif;
+  font-size:var(--fs-sm);font-weight:600;letter-spacing:0.2px;
+  color:var(--danger-t);cursor:pointer;
+  transition:border-color .13s,color .13s,background .13s;
+}
+@media(hover:hover){.btn-danger:hover{background:rgba(122,32,32,.22);border-color:var(--danger-t)}}
+.btn-danger:active{background:rgba(122,32,32,.30)}
+
+.btn-text{
+  
+  display:flex;align-items:center;justify-content:center;
+  width:100%;background:none;border:none;
+  min-height:44px;padding:var(--space-sm) var(--space-md);
+  text-align:center;font-family:'DM Sans',sans-serif;font-size:var(--fs-sm);
+  color:var(--t3);cursor:pointer;margin-top:6px;
+  transition:color .13s;touch-action:manipulation;
+}
+.btn-text:active{color:var(--t1)}
+.btn-text:disabled{opacity:.45;cursor:not-allowed}
+
+.btn-yes{
+  background:var(--ok);color:var(--ok-t);
+  border:none;border-radius:var(--r);padding:8px 16px;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-sm);font-weight:600;
+  letter-spacing:0.1px;
+  cursor:pointer;transition:opacity .13s;white-space:nowrap;
+}
+.btn-yes:active{opacity:.75}
+/* UI-05: hover states — consistent with btn-gold/btn-outline interaction pattern */
+@media(hover:hover){.btn-yes:hover:not(:disabled){opacity:.88}}
+.btn-no{
+  background:transparent;color:var(--err-t);
+  border:1px solid rgba(192,96,96,.35);border-radius:var(--r);padding:8px 16px;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-sm);font-weight:600;
+  letter-spacing:0.1px;
+  cursor:pointer;transition:opacity .13s,background .13s;white-space:nowrap;
+}
+.btn-no:active{opacity:.75}
+@media(hover:hover){.btn-no:hover:not(:disabled){background:rgba(192,96,96,.08)}}
+.btn-accept{
+  background:var(--g-bg);color:var(--g2);
+  border:1px solid var(--b2);border-radius:var(--r);padding:8px 16px;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-sm);font-weight:600;
+  letter-spacing:0.1px;
+  cursor:pointer;transition:background .13s;white-space:nowrap;
+}
+.btn-accept:active{background:var(--g-bg2)}
+
+/* ── Mobile accessibility: minimum 44px tap targets ── */
+
+.btn-gold,.btn-outline,.btn-text,.btn-yes,.btn-no,.btn-accept,
+.date-pill,.tab-btn,.scan-qr-btn,.schedule-toggle,.schedule-preset,
+.temp-pass-toggle,.temp-pass-preset,.pass-dur-btn,.type-card,.tn-btn{
+  min-height:44px;
+}
+.date-pill,.schedule-preset,.temp-pass-preset{padding-top:8px;padding-bottom:8px}
+.btn-gold,.btn-outline,.btn-text,.btn-yes,.btn-no,.btn-accept,.scan-qr-btn,.schedule-toggle,.temp-pass-toggle,.pass-dur-btn{
+  touch-action:manipulation;
+}
+
+.btn-arrive{
+  background:transparent;color:var(--arrived-t);
+  border:1px solid rgba(91,143,212,.35);border-radius:var(--r);padding:8px 16px;
+  font-family:"DM Sans",sans-serif;font-size:var(--fs-sm);font-weight:600;
+  letter-spacing:0.1px;
+  cursor:pointer;transition:opacity .13s;white-space:nowrap;
+}
+.btn-arrive:active{opacity:.75}
+.btn-spin{
+  display:inline-block;width:15px;height:15px;
+  border:2px solid currentColor;border-top-color:transparent;
+  border-radius:50%;animation:spin .6s linear infinite;
+  vertical-align:middle;margin-right:5px;
+}
+

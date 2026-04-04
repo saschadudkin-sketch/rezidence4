@@ -96,7 +96,11 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   // ── Состояние формы ─────────────────────────────────────────────────────
   const [cat,      setCat]      = useState(initialData?.category  || initialCat || cats[0]);
   const [vName,    setVName]    = useState(initialData?.visitorName  || '');
-  const [vNames,   setVNames]   = useState(initialData?.visitorName ? [initialData.visitorName] : ['']);
+  const [vNames,   setVNames]   = useState(() =>
+    initialData?.visitorName
+      ? [{ __id: genId(), value: initialData.visitorName }]
+      : [{ __id: genId(), value: '' }]
+  );
   const [vPhone,   setVPhone]   = useState(initialData?.visitorPhone || '');
   const [carPlate, setCarPlate] = useState(initialData?.carPlate   || '');
   const [comment,  setComment]  = useState(initialData?.comment    || '');
@@ -191,7 +195,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       type,
       category:    cat,
       visitorName: cat === 'taxi' ? '' : cat === 'team'
-                     ? vNames.filter(n => n.trim()).join(', ')
+                     ? vNames.filter(n => n.value.trim()).map(n => n.value).join(', ')
                      : vName,
       visitorPhone: vPhone,
       carPlate,
@@ -211,7 +215,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   const handleSubmit = async () => {
     // Валидация
     if (type === 'pass' && cat === 'taxi'  && !carPlate.trim())              { toast('Укажите марку и номер авто', 'error');  return; }
-    if (type === 'pass' && cat === 'team'  && !vNames.some(n => n.trim()))   { toast('Укажите имена посетителей', 'error'); return; }
+    if (type === 'pass' && cat === 'team'  && !vNames.some(n => n.value.trim()))   { toast('Укажите имена посетителей', 'error'); return; }
     if (type === 'pass' && requiresVisitorName(cat) && !vName.trim())        { toast('Укажите имя посетителя',     'error');  return; }
 
     setLoading(true);
@@ -235,7 +239,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       createdByApt:  user.apartment,
       visitorName:   type !== 'pass'       ? null
                    : cat  === 'taxi'       ? null
-                   : cat  === 'team'       ? vNames.filter(n => n.trim()).join(', ') || null
+                   : cat  === 'team'       ? vNames.filter(n => n.value.trim()).map(n => n.value).join(', ') || null
                    : vName.trim()          || null,
       carPlate:      needsCarPlate(cat)    ? carPlate.trim() || null : null,
       visitorPhone:  type === 'pass'       ? vPhone.trim()   || null : null,

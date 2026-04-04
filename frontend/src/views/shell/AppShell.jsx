@@ -12,6 +12,7 @@ import ErrorBoundary from '../../ui/ErrorBoundary';
 import UserMenu from './UserMenu';
 import NavigationShell from './NavigationShell';
 import RoleContentRouter from './RoleContentRouter';
+import { useNavigationContext } from './NavigationContext';
 
 const AppShell = memo(function AppShell({
   user,
@@ -19,9 +20,6 @@ const AppShell = memo(function AppShell({
   pageTitle,
   pageSubtitle,
   pendingCount,
-  nav,
-  navClassMap,
-  goTab,
   activeTab,
   setActiveTab,
   highlightReqId,
@@ -31,17 +29,18 @@ const AppShell = memo(function AppShell({
   themeLabel,
   sseOnline,
 }) {
+  const { nav, navClassMap, goTab } = useNavigationContext();
+
   return (
     <>
       <header className="header">
         <div className="header-inner">
           <div className="header-brand">
-            <img src={LOGO} alt="" className="header-logo" />
+            <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
             <span className="header-wordmark">Резиденции Замоскворечья</span>
             {isDemoMode() && (
               <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
             )}
-            {/* FA-07: индикатор разрыва SSE-соединения — видна только при переподключении */}
             {sseOnline === false && (
               <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-live="polite">
                 <AppIcon name="history" size={12} />
@@ -60,12 +59,12 @@ const AppShell = memo(function AppShell({
       </header>
 
       <div className="layout">
-        <NavigationShell nav={nav} navClassMap={navClassMap} goTab={goTab} />
+        <NavigationShell nav={nav} navClassMap={navClassMap} goTab={goTab} userRole={user.role} />
         <main className="content" id="main-content">
           <div className="page-top">
             <div>
               <h1 className="page-title">{pageTitle}</h1>
-              {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
+              <p className="page-sub" style={{visibility: activeTab === 'chat' ? 'hidden' : 'visible'}}>{pageSubtitle}</p>
             </div>
           </div>
           <ErrorBoundary name="Экран">

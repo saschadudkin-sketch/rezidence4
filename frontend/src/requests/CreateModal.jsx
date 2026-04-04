@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { genId } from '../utils.js';
 import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
 import { MAX_PHOTOS_PER_REQUEST } from '../constants/limits.js';
 import {
@@ -36,12 +37,12 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
           {/* FIX [BUG-14]: key=index ломает фокус и значения инпутов при удалении из середины.
               Оборачиваем каждое имя в объект {id, value} со стабильным id. */}
           {vNames.map((n, i) => (
-            <div key={n.__id ?? i} className="vf-name-row">
+            <div key={n.__id} className="vf-name-row">
               <input className="field-inp vf-name-inp"
-                placeholder={'Посетитель ' + (i + 1)} value={typeof n === 'object' ? n.value : n}
+                placeholder={'Посетитель ' + (i + 1)} value={n.value}
                 onChange={e => {
                   const a = [...vNames];
-                  a[i] = typeof n === 'object' ? { ...n, value: e.target.value } : e.target.value;
+                  a[i] = { ...n, value: e.target.value };
                   setVNames(a);
                 }}
                 autoCapitalize="words" />
@@ -50,7 +51,7 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
               )}
             </div>
           ))}
-          <button type="button" className="vf-add-btn" onClick={() => setVNames([...vNames, ''])}>
+          <button type="button" className="vf-add-btn" onClick={() => setVNames([...vNames, { __id: genId(), value: '' }])}>
             + Добавить посетителя
           </button>
         </div>
@@ -138,7 +139,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
           <span className="schedule-toggle-ico"><AppIcon name="history" size={14} /></span>
           <span>{showSchedule && scheduledFor ? 'Запланировано: ' + fmtScheduled(scheduledFor) : 'Запланировать на время'}</span>
         </span>
-        <span className="u-fs11-op6">{showSchedule ? '−' : '+'}</span>
+        <span className="u-fs11-op6"><AppIcon name={showSchedule ? 'chevron-up' : 'chevron-down'} size={12} /></span>
       </button>
       {showSchedule && (
         <div className="schedule-block">

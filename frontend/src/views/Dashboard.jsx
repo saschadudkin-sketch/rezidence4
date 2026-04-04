@@ -33,8 +33,9 @@ import {
 import { ROLES, getTabsForRole } from '../domain/permissions';
 import { isDemoMode } from '../config/runtimeMode.js';
 import AppShell from './shell/AppShell';
+import { NavigationContext } from './shell/NavigationContext';
 
-// P-05: one-time demo welcome banner
+
 const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
 function DemoBanner({ onClose }) {
   return (
@@ -55,6 +56,12 @@ const PAGE_TITLES = {
   contractor: 'Панель подрядчика', concierge: 'Рабочее место',
   security: 'Пост охраны', admin: 'Управление',
 };
+const TAB_TITLES = {
+  passes: 'Пропуска', tech: 'Техслужба', perms: 'Постоянный список',
+  templates: 'Шаблоны', history: 'История', chat: 'Чат',
+  visitlog: 'Журнал посещений', residents: 'Жильцы', blacklist: 'Чёрный список',
+  guardpost: 'Пост охраны', stats: 'Аналитика', requests: 'Заявки', users: 'Резиденты',
+};
 const PAGE_SUBTITLES = {
   contractor: 'Управление пропусками', concierge: 'Контроль и координация',
   security: 'Контроль доступа', admin: 'Резиденции Замоскворечья',
@@ -72,7 +79,7 @@ export default function Dashboard({ user, onLogout }) {
 
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
 
-  // P-05: one-time demo welcome banner
+  
   const [showDemoBanner, setShowDemoBanner] = useState(() =>
     isDemoMode() && !localStorage.getItem(DEMO_WELCOME_KEY)
   );
@@ -86,10 +93,10 @@ export default function Dashboard({ user, onLogout }) {
 
   const prevPendingP = useRef(0);
   const prevPendingT = useRef(0);
-  // PERF-03: prevMsgs удалён — только инкрементировался, но никогда не сравнивался.
+  
   // Реальный счётчик непрочитанных — из useNavBadges (chat.filter по chatLastSeen).
 
-  // P-02: retryKey triggers soft reconnect in useLiveSync without page reload
+  
   const [retryKey, setRetryKey] = useState(0);
   const { isLoading: syncLoading, sseOnline } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
@@ -98,13 +105,13 @@ export default function Dashboard({ user, onLogout }) {
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!syncLoading) { setTimedOut(false); return; }
-    const t = setTimeout(() => setTimedOut(true), 3_500);
+    const t = setTimeout(() => setTimedOut(true), 1_500);
     return () => clearTimeout(t);
   }, [syncLoading, retryKey]);
   const isLoading  = syncLoading && !timedOut;
-  // UX-002: таймаут соединения — явное состояние ошибки вместо пустого UI
+  
   const isConnErr  = syncLoading && timedOut;
-  // P-02: soft retry — сбрасывает timedOut и переподключает SSE без потери контекста
+  
   const handleRetry = () => { setTimedOut(false); setRetryKey(k => k + 1); };
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
@@ -114,7 +121,7 @@ export default function Dashboard({ user, onLogout }) {
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
 
-  // PERF-04: объединены 3 useMemo (NAV_META, nav, navClassMap) в один вызов.
+  
   // Все три зависели от одного набора значений, теперь одно вычисление вместо трёх.
   const { nav, navClassMap } = useMemo(() => {
     const isSec  = user.role === ROLES.SECURITY;
@@ -152,7 +159,7 @@ export default function Dashboard({ user, onLogout }) {
     return { nav, navClassMap: map };
   }, [user.role, activeTab, pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount]);
 
-  const pageTitle = PAGE_TITLES[user.role];
+  const pageTitle = TAB_TITLES[activeTab] || PAGE_TITLES[user.role];
   const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
     ? 'Апартаменты ' + user.apartment
     : (PAGE_SUBTITLES[user.role] || '');
@@ -163,8 +170,8 @@ export default function Dashboard({ user, onLogout }) {
         <div className="screen-loading-inner">
           {/* UI-02: CSS spin animation — semantically correct loader (was "history" icon).
               animation:none overrides screen-loading-spinner's own spin so only btn-spin rotates. */}
-          <div className="screen-loading-spinner" style={{ animation: 'none' }} aria-hidden="true">
-            <span className="btn-spin" style={{ width: 28, height: 28, borderWidth: 3 }} />
+          <div className="screen-loading-spinner screen-loading-spinner--no-anim" aria-hidden="true">
+            <span className="btn-spin btn-spin--lg" />
           </div>
           <div className="screen-loading-label">Загрузка данных…</div>
         </div>
@@ -172,7 +179,7 @@ export default function Dashboard({ user, onLogout }) {
     );
   }
 
-  // UX-002: вместо пустого UI при таймауте — понятный экран ошибки с кнопкой повтора
+  
   if (isConnErr) {
     return (
       <div className="screen-loading">
@@ -189,7 +196,7 @@ export default function Dashboard({ user, onLogout }) {
   }
 
   return (
-    <>
+    <NavigationContext.Provider value={{ nav, navClassMap, goTab, activeTab, setActiveTab }}>
       {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
       <AppShell
         user={user}
@@ -197,9 +204,6 @@ export default function Dashboard({ user, onLogout }) {
         pageTitle={pageTitle}
         pageSubtitle={pageSubtitle}
         pendingCount={pendingT + pendingP}
-        nav={nav}
-        navClassMap={navClassMap}
-        goTab={goTab}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         highlightReqId={highlightReqId}
@@ -209,6 +213,6 @@ export default function Dashboard({ user, onLogout }) {
         themeLabel={themeLabel}
         sseOnline={sseOnline}
       />
-    </>
+    </NavigationContext.Provider>
   );
 }

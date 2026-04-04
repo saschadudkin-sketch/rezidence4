@@ -26,6 +26,8 @@ const PATHS = {
   camera: 'M4 7h4l2-3h4l2 3h4v12H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   close: 'M6 6l12 12M18 6 6 18',
   chevronRight: 'm9 6 6 6-6 6',
+  'chevron-down': 'm6 9 6 6 6-6',
+  'chevron-up': 'm18 15-6-6-6 6',
 };
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));

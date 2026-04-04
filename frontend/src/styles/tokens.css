@@ -55,6 +55,11 @@
   --wrn:   #6A4818;
   --wrn-t: #C49040;
 
+  /* danger — destructive actions */
+  --danger:    #7A2020;
+  --danger-t:  #D06060;
+  --danger-bg: rgba(122,32,32,.12);
+
   /* borders */
   --b1: rgba(196,150,60,.10);
   --b2: rgba(196,150,60,.20);

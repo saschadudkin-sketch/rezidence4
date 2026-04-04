@@ -98,6 +98,8 @@ describe('APP_ICON_NAMES', () => {
       'camera',
       'close',
       'chevronRight',
+      'chevron-down',
+      'chevron-up',
     ]);
   });
 

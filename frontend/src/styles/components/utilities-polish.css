@@ -1,0 +1,549 @@
+/* ── Utility классы (заменяют повторяющиеся inline style) ── */
+.u-mb0{margin-bottom:0}
+.u-mb8{margin-bottom:var(--space-sm)}
+.u-mb10{margin-bottom:10px}
+.u-mb16{margin-bottom:var(--space-md)}
+.u-mt4{margin-top:var(--space-xs)}
+.u-mr6{margin-right:6px}
+.u-flex{display:flex}
+.u-flex-col{display:flex;flex-direction:column}
+.u-flex-end{display:flex;justify-content:flex-end}
+.u-row{display:flex;align-items:center}
+.u-row-g6{display:flex;align-items:center;gap:6px}
+.u-row-g8{display:flex;align-items:center;gap:var(--space-sm)}
+.u-row-wrap{display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:12px}
+.u-row-full{display:flex;align-items:center;width:100%}
+.u-col-stretch{display:flex;flex-direction:column;align-items:stretch}
+.u-pad-btn{padding:8px 18px}
+.u-pad-icon-btn{padding:8px 16px;flex-shrink:0}
+.u-cover{width:100%;height:100%;object-fit:cover}
+.u-t4{color:var(--t4)}
+.u-t3{color:var(--t3)}
+.u-arrived{color:var(--arrived-t)}
+.u-fs11-t4{font-size:var(--fs-2xs);color:var(--t4)}     /* small muted meta text */
+.u-grid-span{grid-column:1/-1}
+.u-flex1{flex:1}
+.u-flex2{flex:2}                                          /* used in split-column layouts */
+.u-none{display:none}
+.u-search-filter{flex:1;min-width:160px;margin-bottom:0}
+/* spacing utilities */
+.u-mb-12{margin-bottom:12px}
+.u-mb-16{margin-bottom:16px}
+/* tech-filter row — replaces inline style={{ display:'flex', gap:6, marginBottom:12 }} */
+.tech-filter-row{display:flex;gap:6px;margin-bottom:12px}
+/* u-row-g8-bare — bare flex row with 8px gap, no extra padding */
+.u-row-g8-bare{display:flex;gap:8px}
+
+/* ── A-06: SectionHeader — стандартный заголовок секции ──────────────────── */
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:var(--space-md);gap:var(--space-sm);flex-wrap:wrap;
+}
+.section-header-main{display:flex;align-items:center;gap:var(--space-sm);min-width:0}
+.section-header-title{
+  font-size:var(--fs-sm);letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--t2);font-weight:600;
+}
+.section-header-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:var(--g-bg);border:1px solid var(--b2);
+  font-size:var(--fs-2xs);font-weight:700;color:var(--g2);
+}
+.section-header-sub{font-size:var(--fs-xs);color:var(--t4);margin:0;width:100%}
+.section-header-action{flex-shrink:0}
+
+/* ── A-06: BadgeStatus — семантический бейдж статуса/роли ───────────────── */
+.badge-sm{font-size:10px!important;padding:1px 6px!important;height:16px!important}
+
+/* ── A-09: Responsive stacked table — disclosure pattern ─────────────────── */
+/* Standard 4-column table collapses to 2 columns, then stacked cards on xs */
+@media(max-width:380px){
+  .t-head{display:none}
+  .t-row{
+    grid-template-columns:1fr!important;
+    gap:var(--space-xs);
+    padding:10px 12px;
+  }
+  .t-row>*{font-size:var(--fs-xs)}
+  .t-row>*:not(:last-child)::after{
+    content:attr(data-label);
+    display:block;font-size:var(--fs-3xs);letter-spacing:1px;text-transform:uppercase;
+    color:var(--t4);margin-bottom:1px;
+  }
+}
+/* Prevent info loss: keep 2 visible columns from 560px down to 380px */
+@media(max-width:560px) and (min-width:381px){
+  .t-head{grid-template-columns:1fr 1fr}
+  .t-head>*:nth-child(n+3){display:none}
+  .t-row{grid-template-columns:1fr 1fr}
+  .t-row>*:nth-child(n+3){display:none}
+}
+
+
+/* Принудительная тема через класс на <html> */
+html.theme-light {
+  --s0: #FAF8F4; --s1: #F5F2EC; --s2: #EEEBE3; --s3: #E5E1D8; --s4: #DAD5CA;
+  --t1: #1C1A16; --t2: #3D3830; --t3: #6B6358; --t4: #9C9285;
+  --g1: #A67C2E; --g2: #B8902E; --g3: #C9A43A;
+  --g-bg: rgba(166,124,46,.10); --g-bg2: rgba(166,124,46,.18);
+  --ok: #1E5C38; --ok-t: #1E5C38; --err: #8B2020; --err-t: #8B2020;
+  --wrn: #7A4A10; --wrn-t: #7A4A10;
+  --b1: rgba(130,100,50,.12); --b2: rgba(130,100,50,.22); --b3: rgba(130,100,50,.40);
+  --sh-s: 0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.06);
+  --sh-m: 0 4px 20px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.07);
+  --sh-l: 0 16px 56px rgba(0,0,0,.16),0 4px 16px rgba(0,0,0,.10);
+  --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
+  --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
+  --overlay-bg: rgba(250,248,244,.92); --header-bg: rgba(245,242,236,.92);
+  --topnav-bg: rgba(245,242,236,.92); --mobnav-bg: rgba(245,242,236,.96);
+  --dd-bg: rgba(238,235,227,.96);
+  --badge-pending-bg:  rgba(140,90,0,.10);   --badge-pending-b:  rgba(140,100,0,.25);
+  --badge-approved-bg: rgba(20,80,40,.10);   --badge-approved-b: rgba(20,100,50,.25);
+  --badge-rejected-bg: rgba(120,20,20,.10);  --badge-rejected-b: rgba(140,30,30,.25);
+}
+html.theme-dark {
+  --s0: #13110E; --s1: #191714; --s2: #211E1A; --s3: #2C2820; --s4: #363028;
+  --t1: #EDE5D8; --t2: #C4BAA8; --t3: #A79A8A; --t4: #817463;
+  --g1: #C4963C; --g2: #D8AE58; --g3: #EAC878;
+  --g-bg: rgba(196,150,60,.08); --g-bg2: rgba(196,150,60,.15);
+  --ok: #2D6040; --ok-t: #5EAA78; --err: #6A2828; --err-t: #C06060;
+  --wrn: #6A4818; --wrn-t: #C49040;
+  --b1: rgba(196,150,60,.10); --b2: rgba(196,150,60,.20); --b3: rgba(196,150,60,.38);
+  --sh-s: 0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
+  --sh-m: 0 4px 20px rgba(0,0,0,.4),0 1px 4px rgba(0,0,0,.3);
+  --sh-l: 0 16px 56px rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.4);
+  --arrived: #5B8FD4; --arrived-t: #82B4F0;
+  --arrived-bg: rgba(65,110,180,.15); --arrived-b: rgba(91,143,212,.25);
+  --overlay-bg: rgba(0,0,0,.65); --header-bg: rgba(19,17,14,.88);
+  --topnav-bg: rgba(19,17,14,.88); --mobnav-bg: rgba(19,17,14,.94);
+  --dd-bg: rgba(0,0,0,.7);
+  --badge-pending-bg: rgba(106,72,24,.15);  --badge-pending-b: rgba(196,144,64,.2);
+  --badge-approved-bg: rgba(45,96,64,.15);  --badge-approved-b: rgba(94,170,120,.2);
+  --badge-rejected-bg: rgba(106,40,40,.15); --badge-rejected-b: rgba(192,96,96,.2);
+}
+
+/* Доступность — отключаем все анимации и переходы если пользователь просит */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+}
+
+
+/* ── VISUAL POLISH ── */
+/* Smooth scroll */
+html{scroll-behavior:smooth}
+/* Better selection */
+::selection{background:var(--g1);color:var(--s0)}
+/* Card hover lift */
+.req-card:hover{transform:translateY(-1px)}
+.guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+/* Smoother button feedback */
+.btn-gold:hover{filter:brightness(1.1)}
+.btn-outline:hover{border-color:var(--g1);color:var(--g2)}
+/* Date pill hover */
+.date-pill:hover:not(.active){background:var(--s3);color:var(--t2)}
+/* Guard subtab hover */
+.guard-subtab:hover:not(.active){background:var(--s3);color:var(--t2)}
+/* Tab btn hover */
+.tab-btn:hover:not(.active){color:var(--t2)}
+/* Search focus glow */
+.search-inp:focus{border-color:var(--g1);box-shadow:0 0 0 2px rgba(196,150,60,.15)}
+/* Consistent card transitions */
+.req-card,.guard-card,.vlog-card,.bl-row{transition:transform .15s ease,box-shadow .15s ease,background .13s,border-color .13s}
+/* Better scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--b3)}
+/* Avatar ring on hover */
+.header-user:hover .header-avatar{box-shadow:0 0 0 2px var(--g1)}
+/* Demo badge pulse */
+.demo-badge{animation:demoPulse 3s ease infinite}
+@keyframes demoPulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* ── MOBILE POLISH ── */
+@media(max-width:600px){
+  .guard-header-stats{gap:12px}
+  .guard-stat-val{font-size:22px}
+  .guard-subtabs{border-radius:8px}
+  .guard-subtab{padding:10px 8px;font-size:var(--fs-2xs);gap:4px}
+  .guard-card{padding:14px}
+  .guard-btn{padding:12px 8px;font-size:var(--fs-sm);min-height:48px}
+  .guard-card-top{gap:10px}
+  .guard-apt{font-size:var(--fs-md)}
+  .guard-name{font-size:var(--fs-sm)}
+  .vlog-card{padding:10px 12px;gap:10px}
+  .vlog-card-time{font-size:var(--fs-xs)}
+  .vlog-card-name{font-size:var(--fs-sm)}
+  .bl-header{flex-direction:column;align-items:flex-start;gap:8px}
+  .sec-filters-row{gap:4px}
+  .admin-toolbar{flex-direction:column}
+  .admin-toolbar .search-wrap{min-width:0;max-width:none}
+  .chat-bar{padding:8px}
+  .chat-inp{font-size:var(--fs-body)}
+  .msg-bubble{padding:8px 10px}
+  .type-card{width:80px;min-height:76px;padding:16px 6px 14px}
+  .type-icon{font-size:var(--fs-lg);margin-bottom:6px}
+  .type-label{font-size:var(--fs-3xs)}
+}
+@media(max-width:380px){
+  .guard-header-stats{flex-wrap:wrap;justify-content:center}
+  .guard-subtab{font-size:var(--fs-3xs);padding:8px 6px}
+  .type-card{width:72px;min-height:68px}
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   POLISH — отступы, тени, hover, transitions
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Smoother card hovers */
+.req-card{transition:background .15s,border-color .15s,transform .15s,box-shadow .15s}
+.req-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
+html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
+
+/* Guard card hover */
+.guard-card{transition:border-color .15s,transform .15s,box-shadow .15s}
+.guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.4)}
+
+/* Visit log card hover */
+.vlog-card{transition:background .15s,transform .15s,box-shadow .15s}
+.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+
+/* Buttons — subtle scale on hover */
+.guard-btn{transition:all .15s}
+.guard-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+
+/* Blacklist items hover */
+.bl-row{transition:background .13s,transform .13s}
+.bl-row:hover{transform:translateY(-1px)}
+
+/* Smoother subtabs */
+.guard-subtab{transition:all .2s}
+.date-pill{transition:all .15s}
+.date-pill:hover:not(.active){background:var(--s3)}
+
+/* ── Landing ── */
+.landing{max-width:1060px;margin:0 auto;padding:24px 18px 28px}
+.landing-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.landing-brand{display:flex;align-items:center;gap:12px}
+.landing-brand img{width:42px;height:42px;border-radius:10px}
+.landing-name{font-size:20px;font-weight:700;color:var(--t1)}
+.landing-sub{font-size:var(--fs-xs);color:var(--t4)}
+.landing-hero{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:22px;margin-bottom:16px}
+.landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:'Playfair Display',serif}
+.landing-hero p{margin:0 0 14px;font-size:var(--fs-body);line-height:1.55;color:var(--t3);max-width:760px}
+.landing-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.landing-card{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:14px}
+.landing-card-ico{font-size:var(--fs-xl);margin-bottom:8px}
+.landing-card-title{font-size:var(--fs-body);font-weight:700;color:var(--t1);margin-bottom:4px}
+.landing-card-text{font-size:var(--fs-xs);line-height:1.5;color:var(--t3)}
+.landing-proof{margin-top:16px;background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:16px}
+.landing-proof h2{margin:0 0 10px;font-size:var(--fs-md);color:var(--t1)}
+.landing-proof ul{margin:0 0 12px;padding-left:18px;display:grid;gap:6px}
+.landing-proof li{font-size:var(--fs-sm);color:var(--t3);line-height:1.45}
+.landing-contact{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 16px}
+@media(max-width:760px){
+  .landing-hero h1{font-size:22px}
+  .landing-cards{grid-template-columns:1fr}
+}
+
+/* Chat grouped spacing */
+.msg-row.grouped{margin-top:1px}
+.msg-row:not(.grouped){margin-top:10px}
+.msg-row:first-child{margin-top:0}
+
+/* Stat cards — subtle glow on hover */
+.stat-card{transition:all .2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MOBILE ADAPTIVE
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Guard post — full width on mobile */
+@media(max-width:600px){
+  .guard-post{max-width:100%}
+  .guard-card{padding:14px}
+  .guard-btn{padding:12px 10px;font-size:var(--fs-sm);min-height:48px}
+  .guard-header-stats{gap:12px}
+  .guard-stat-val{font-size:22px}
+  .guard-subtabs{border-radius:8px}
+  .guard-subtab{padding:10px 12px;font-size:var(--fs-2xs)}
+}
+
+/* Req cards — tighter on mobile */
+@media(max-width:600px){
+  .req-list{gap:6px}
+  .vlog-cards{gap:8px}
+  .vlog-card{padding:10px 12px;gap:10px}
+  .vlog-card-time{font-size:var(--fs-xs)}
+  .vlog-card-name{font-size:var(--fs-sm)}
+}
+
+/* Perms list */
+@media(max-width:600px){
+  .perms-wrap{max-width:100%}
+}
+
+/* Chat — full height mobile */
+@media(max-width:600px){
+  .chat-wrap{border-radius:0;border:none;max-width:100%}
+  .msg-bubble{max-width:85%}
+}
+
+/* Type grid mobile */
+@media(max-width:400px){
+  .type-card{width:80px;min-height:78px;padding:16px 6px 14px}
+  .type-icon{font-size:var(--fs-lg);margin-bottom:8px}
+  .type-label{font-size:9px}
+}
+
+/* Admin toolbar mobile */
+@media(max-width:600px){
+  .admin-toolbar{flex-direction:column}
+  .admin-toolbar .search-wrap{min-width:100%}
+}
+
+/* Blacklist header mobile */
+@media(max-width:500px){
+  .bl-header{flex-direction:column;align-items:stretch;gap:8px}
+}
+
+/* Filter pills scroll on mobile */
+@media(max-width:600px){
+  .date-pills{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .date-pills::-webkit-scrollbar{display:none}
+  .pass-filter-pills{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;justify-content:flex-start;padding-bottom:2px}
+  .pass-filter-pills::-webkit-scrollbar{display:none}
+}
+
+/* Header mobile compact */
+@media(max-width:500px){
+  .header-wordmark{display:none}
+  .header-info{display:none}
+  .demo-badge{font-size:8px;padding:1px 4px}
+}
+
+/* Page top mobile */
+@media(max-width:460px){
+  .page-top{margin-bottom:16px}
+  .page-sub{font-size:9px;letter-spacing:1.5px}
+}
+
+/* Login mobile */
+@media(max-width:860px){
+  .login{flex-direction:column}
+  .login-art{display:none}
+  .login-panel{max-width:100%;min-height:100dvh;justify-content:center}
+}
+
+/* ── Photo grid (create modal) ── */
+.photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.photo-grid-item{position:relative;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--b2)}
+.photo-grid-item img{width:100%;height:100%;object-fit:cover}
+.photo-grid-del{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;border:none;font-size:var(--fs-2xs);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .13s}
+.photo-grid-del:hover{background:var(--err)}
+
+/* ── Photo grid (req card) ── */
+.req-photos-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.req-photos-grid img{max-width:140px;max-height:140px}
+
+/* Guard detail button */
+.guard-detail-btn{background:none;border:1px solid var(--b2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;transition:all .15s}
+.guard-detail-btn:hover{background:var(--g-bg);border-color:var(--g1)}
+
+/* ReqCard highlight animation */
+.req-card-highlight{animation:cardHighlight 2s ease}
+@keyframes cardHighlight{0%{box-shadow:0 0 0 3px var(--g1)}50%{box-shadow:0 0 20px 3px var(--g1)}100%{box-shadow:0 4px 16px rgba(0,0,0,.45)}}
+
+/* Guard tap hint */
+.guard-tap-hint{font-size:var(--fs-3xs);color:var(--g2);margin-top:4px;animation:fadeInUp .2s ease;opacity:.8}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(4px)}to{opacity:.8;transform:translateY(0)}}
+
+.sec-divider-label{font-size:var(--fs-2xs);font-weight:600;color:var(--t4);letter-spacing:1px;text-transform:uppercase;padding:6px 0 8px;border-bottom:1px solid var(--b1);margin-bottom:10px;}
+
+
+
+/* ── Гараж (машины квартиры) ──────────────────────────────────────────────── */
+.garage-view{padding:0 0 24px}
+.garage-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--s3)}
+.garage-title{display:flex;align-items:center;gap:10px}
+.garage-title-text{font-size:15px;font-weight:500;color:var(--t1)}
+.garage-title-sub{font-size:var(--fs-xs);color:var(--t4);margin-top:1px}
+.garage-form{background:var(--s2);border:1px solid var(--s4);border-radius:12px;padding:14px;margin-bottom:14px}
+.garage-form-btns{display:flex;gap:8px;margin-top:12px}
+.garage-list{display:flex;flex-direction:column;gap:8px}
+.garage-card{
+  display:flex;align-items:center;gap:12px;
+  background:var(--s2);border:1px solid var(--s3);
+  border-radius:12px;padding:12px 14px;
+}
+.garage-card.main{border-color:var(--g1);background:var(--b1)}
+.garage-plate{
+  font-family:var(--font-mono,'monospace');font-size:15px;font-weight:600;
+  color:var(--t1);background:var(--s3);padding:4px 10px;border-radius:6px;
+  letter-spacing:.05em;flex-shrink:0;
+}
+.garage-info{flex:1;min-width:0}
+.garage-brand{font-size:var(--fs-sm);color:var(--t2);font-weight:500}
+.garage-note{font-size:var(--fs-xs);color:var(--t4);margin-top:1px}
+.garage-badge{
+  display:inline-block;font-size:var(--fs-3xs);font-weight:600;
+  padding:2px 7px;border-radius:8px;margin-top:3px;
+  background:var(--b2);color:var(--g1);
+}
+.garage-actions{display:flex;gap:4px;flex-shrink:0}
+.icon-btn{
+  width:30px;height:30px;border-radius:8px;border:none;
+  background:transparent;cursor:pointer;font-size:var(--fs-body);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--t3);transition:background .15s;
+}
+.icon-btn:hover{background:var(--s3);color:var(--t1)}
+.icon-btn.danger:hover{background:rgba(220,50,50,.12);color:var(--err-t)}
+
+
+/* ── Вкладка Жильцы (ResidentsView) ──────────────────────────────────────── */
+.residents-view{padding-bottom:24px}
+.residents-summary{display:flex;gap:12px;font-size:var(--fs-xs);color:var(--t4);margin-bottom:10px}
+.residents-summary span{background:var(--s2);padding:2px 8px;border-radius:8px}
+
+.apt-list{display:flex;flex-direction:column;gap:6px}
+.apt-card{
+  border:1px solid var(--s3);border-radius:12px;
+  overflow:hidden;background:var(--s1);
+  transition:box-shadow .15s;
+}
+.apt-card.open{border-color:var(--b2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.apt-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;cursor:pointer;user-select:none;
+}
+.apt-header:hover{background:var(--s2)}
+.apt-num{display:flex;align-items:center;gap:6px;min-width:100px}
+.apt-num-ico{font-size:var(--fs-md)}
+.apt-num-val{font-size:var(--fs-body);font-weight:500;color:var(--t1)}
+.apt-meta{display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap}
+.apt-chip{
+  font-size:var(--fs-2xs);padding:2px 8px;border-radius:10px;
+  background:var(--s3);color:var(--t3);
+}
+.apt-chip.car{background:var(--b1);color:var(--g2)}
+.apt-chip.park{background:#fef3c7;color:#92400e}
+.dark .apt-chip.park{background:#2d2000;color:#f59e0b}
+.apt-chevron{font-size:var(--fs-2xs);color:var(--t4);flex-shrink:0}
+
+.apt-body{border-top:1px solid var(--s3);padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.resident-row{display:flex;align-items:flex-start;gap:10px}
+.resident-info{flex:1;min-width:0}
+.resident-name{font-size:var(--fs-body);font-weight:500;color:var(--t1);margin-bottom:3px}
+.resident-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.resident-phone{font-size:var(--fs-xs);color:var(--g1);text-decoration:none}
+.resident-phone:hover{text-decoration:underline}
+.resident-parking{font-size:var(--fs-xs);color:var(--t3);background:var(--s3);padding:1px 7px;border-radius:8px}
+
+.resident-cars{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.car-tag{
+  display:flex;align-items:center;gap:5px;
+  padding:3px 8px;border-radius:8px;font-size:var(--fs-xs);
+  background:var(--s2);border:1px solid var(--s3);
+}
+.car-tag.main{border-color:var(--g1);background:var(--b1)}
+.car-plate{font-family:var(--font-mono,'monospace');font-weight:600;color:var(--t1);letter-spacing:.04em}
+.car-brand{color:var(--t3)}
+
+/* ─── Постоянные посетители/рабочие в карточке жильца ──────────────── */
+.perm-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--s3)}
+.perm-section-title{font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:6px;font-weight:600}
+.perm-entry{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:var(--fs-sm)}
+.perm-name{color:var(--t1);font-weight:500}
+.perm-phone{color:var(--g2);font-size:var(--fs-xs);text-decoration:none}
+.perm-phone:hover{text-decoration:underline}
+.perm-car{color:var(--t3);font-size:var(--fs-xs);font-family:var(--font-mono,'monospace')}
+
+/* ── Поиск авто (CarSearchModal) ───────────────────────────────────────────── */
+.car-search-empty{text-align:center;padding:28px 0;color:var(--t4)}
+.car-search-empty-icon{display:flex;justify-content:center;opacity:.3}
+.car-search-empty-title{font-size:var(--fs-body);color:var(--t3);margin-top:8px}
+.car-search-empty-sub{font-size:var(--fs-xs);color:var(--t4);margin-top:4px}
+.car-search-hint{text-align:center;padding:24px 0;color:var(--t4);font-size:var(--fs-sm)}
+.car-search-results{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.car-search-card{
+  display:flex;align-items:center;gap:12px;
+  background:var(--s2);border:1px solid var(--s3);
+  border-radius:12px;padding:12px 14px;
+}
+.car-search-plate{
+  font-family:var(--font-mono,'monospace');font-size:var(--fs-md);font-weight:700;
+  color:var(--t1);background:var(--s3);padding:5px 12px;border-radius:8px;
+  letter-spacing:.05em;flex-shrink:0;
+}
+.car-search-info{flex:1;min-width:0}
+.car-search-brand{font-size:var(--fs-xs);color:var(--t4);margin-bottom:3px}
+.car-search-resident{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.car-search-apt{font-size:var(--fs-sm);font-weight:500;color:var(--t1)}
+.car-search-name{font-size:var(--fs-sm);color:var(--t2)}
+.car-search-parking{font-size:var(--fs-xs);color:var(--t3);margin-bottom:3px}
+.car-search-phone{font-size:var(--fs-xs);color:var(--g1);text-decoration:none;display:block}
+.car-search-phone:hover{text-decoration:underline}
+
+/* ── Кнопки действий охраны (QR + Поиск авто) ─────────────────────────────── */
+.security-action-btns{display:flex;gap:8px;margin-bottom:12px}
+.security-action-btns .scan-qr-btn{flex:1}
+.car-search-trigger{border-color:var(--b2)!important;color:var(--g1)!important}
+
+/* ── Аудит: утилитарные классы для замены частых inline styles ─────────────── */
+/* FIX [AUDIT-PERF]: inline style={{}} создаёт новый объект при каждом рендере.
+   Хотя React оптимизирует сравнение, сборщик мусора всё равно работает.
+   Утилитарные классы — zero-cost после первого render. */
+
+/* Кнопки-иконки без оформления */
+.btn-icon-sm{background:none;border:1px solid var(--b2);border-radius:4px;
+  color:var(--t3);padding:0 10px;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;height:36px}
+.btn-icon-sm:hover{background:var(--s3)}
+
+/* Строки подтверждения (inline confirm) */
+.inline-confirm{display:flex;align-items:center;gap:4px;font-size:var(--fs-2xs)}
+.inline-confirm__label{color:var(--err);font-weight:500}
+
+/* Кнопки заголовка (мелкие action-кнопки в header) */
+.btn-hdr{width:auto;padding:0 10px;font-size:var(--fs-3xs)}
+
+/* Контейнер статистики ролей */
+.role-stat-row{padding:12px 16px;border-bottom:1px solid var(--b1)}
+
+/* Аватар-круг (AdminView и SecurityConciergeViews) */
+.avatar-circle-sm{width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-sm);font-weight:600;color:#fff;flex-shrink:0}
+
+/* Полоса прогресса роли */
+.role-bar{height:4px;border-radius:2px;background:var(--b2);overflow:hidden;margin-top:4px}
+.role-bar__fill{height:100%;border-radius:2px;transition:width .3s ease}
+
+/* Текст "Точно?" в двухшаговом подтверждении */
+.confirm-label{color:var(--err);font-weight:500}
+/* UX-003: confirm-диалог для деструктивных действий */
+.confirm-overlay{
+  position:fixed;inset:0;z-index:var(--z-modal);
+  background:var(--overlay-bg);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:var(--space-md);
+  animation:fadeIn .15s ease;
+}
+.confirm-panel{
+  background:var(--s1);border:1px solid var(--b2);
+  border-radius:var(--r);padding:var(--space-md) var(--space-lg);
+  max-width:340px;width:100%;box-shadow:var(--sh-m);
+}
+.confirm-msg{margin:0 0 var(--space-md);color:var(--t1);font-size:var(--fs-body);line-height:var(--lh-body)}
+.confirm-actions{display:flex;gap:var(--space-sm);justify-content:flex-end}
+
+/* Обёртка дат VisitLogView */
+.date-pills-row{margin-bottom:12px;justify-content:center}
+
+/* Метки истории заявки */
+.req-history-row{font-size:var(--fs-2xs);color:var(--t4);line-height:1.6}
+.req-history-time{color:var(--t3)}

@@ -1,0 +1,171 @@
+/* ── LAYOUT ── */
+.layout{
+  min-height:100dvh;
+  padding-top:calc(var(--header-h) + var(--sat));
+}
+
+/* ── TOP NAV (desktop) ── */
+.top-nav{
+  display:flex;align-items:center;justify-content:center;gap:2px;
+  padding:0;
+  max-width:960px;margin:0 auto;
+  background:var(--topnav-bg);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);
+  position:sticky;top:calc(var(--header-h) + var(--sat));z-index:var(--z-sticky);
+  overflow-x:auto;scrollbar-width:none;
+}
+.top-nav::-webkit-scrollbar{display:none}
+@media(max-width:860px){.top-nav{display:none}}
+.tn-btn{
+  display:flex;align-items:center;gap:var(--space-sm);
+  padding:0 18px;height:44px;
+  background:none;border:none;border-bottom:2px solid transparent;
+  font-family:'DM Sans',sans-serif;font-size:var(--fs-sm);font-weight:400;
+  letter-spacing:0;color:var(--t3);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:color .13s,border-color .13s,background .13s;position:relative;
+  margin-bottom:-1px;border-radius:var(--r) var(--r) 0 0;
+}
+@media(hover:hover){.tn-btn:hover{color:var(--t1);background:rgba(196,150,60,.05)}}
+.tn-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:500;background:var(--g-bg)}
+.tn-icon{font-size:var(--fs-md);line-height:1}
+.tn-badge{
+  
+  background:#c0392b;color:#fff;
+  font-size:var(--fs-2xs);font-weight:700;
+  min-width:15px;height:15px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;
+}
+.tn-btn.blink{color:var(--err-t)}
+.tn-btn.blink-y{color:var(--wrn-t)}
+.mn-btn.blink-y .mn-label{color:var(--wrn-t)}
+@media(prefers-reduced-motion:no-preference){
+  .tn-btn.blink .tn-icon{animation:blink 1s ease infinite}
+  .tn-btn.blink-y .tn-icon{animation:blink 1s ease infinite}
+  .mn-btn.blink-y .mn-icon{animation:blink 1s ease infinite}
+  .mn-btn.blink-y .mn-label{animation:blink 1s ease infinite}
+}
+
+/* ── CONTENT ── */
+.content{
+  padding:28px 40px calc(28px + var(--sab));min-height:100%;
+  max-width:960px;margin:0 auto;
+}
+@media(max-width:600px){.content{padding:20px 16px calc(20px + var(--sab))}}
+@media(max-width:860px){
+  .content{padding:20px 16px calc(var(--nav-h) + var(--sab) + 20px)}
+}
+
+
+/* Было: 32px Playfair Display по центру (landing page стиль) */
+/* Стало: 22px DM Sans, left-aligned, flex-row для CTA */
+.page-top{
+  margin-bottom:24px;
+  display:flex;align-items:baseline;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;
+}
+.page-title{
+  font-family:'DM Sans',sans-serif;
+  font-size:22px;font-weight:600;color:var(--t1);line-height:1.2;
+}
+@media(max-width:460px){.page-title{font-size:var(--fs-lg)}}
+.page-sub{
+  font-size:var(--fs-sm);letter-spacing:0;text-transform:none;color:var(--t3);margin-top:0;
+}
+
+/* ── MOBILE NAV ── */
+.mobile-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:var(--z-nav);
+  background:var(--mobnav-bg);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--b1);
+  padding-bottom:var(--sab);
+  
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.mobile-nav::-webkit-scrollbar{display:none}
+
+.mobile-nav::after{
+  content:'';
+  position:sticky;right:0;width:28px;flex-shrink:0;pointer-events:none;
+  background:linear-gradient(to right,transparent,var(--mobnav-bg));
+}
+@media(max-width:860px){.mobile-nav{display:flex}}
+
+
+@media(min-width:680px) and (max-width:860px){
+  .mobile-nav{
+    position:sticky;
+    top:calc(var(--header-h) + var(--sat));
+    bottom:auto;
+    border-top:none;
+    border-bottom:1px solid var(--b1);
+    padding-bottom:0;
+  }
+  /* контент не подпирается нижним nav на tablet */
+  .content{padding-bottom:calc(28px + var(--sab))}
+}
+.mn-btn{
+  
+  flex:1;min-width:60px;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:var(--space-xs);padding:9px 4px;
+  background:none;border:none;cursor:pointer;
+  min-height:var(--nav-h);position:relative;
+  transition:background .13s;
+}
+.mn-btn:active{background:var(--g-bg)}
+.mn-icon{font-size:var(--fs-md);line-height:1}
+
+.mn-label{font-size:var(--fs-2xs);letter-spacing:0;text-transform:none;color:var(--t3)}
+.mn-btn.active .mn-label{color:var(--g2)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.mn-btn.blink .mn-label{color:var(--err-t)}
+@media(prefers-reduced-motion:no-preference){
+  .mn-btn.blink .mn-icon{animation:blink 1s ease infinite}
+  .mn-btn.blink .mn-label{animation:blink 1s ease infinite}
+}
+.mn-badge{
+  position:absolute;top:5px;right:calc(50% - 16px);
+  min-width:16px;height:16px;border-radius:8px;
+  padding:0 4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-3xs);font-weight:700;line-height:1;
+  
+  background:#c0392b;color:#fff;border:1.5px solid var(--s0);
+}
+
+/* ── P-02/R-01: Mobile "More" drawer ── */
+.mn-more-wrap{position:relative;flex-shrink:0}
+.mn-more-btn{position:relative}
+/* Drawer открывается над nav-bar */
+.mn-more-drawer{
+  position:absolute;bottom:calc(100% + 8px);right:0;
+  min-width:180px;
+  background:var(--dd-bg);
+  border:1px solid var(--b2);
+  border-radius:var(--r);
+  box-shadow:var(--sh-m);
+  z-index:var(--z-overlay);
+  overflow:hidden;
+  animation:riseUp .15s ease;
+}
+.mn-more-item{
+  display:flex;align-items:center;gap:12px;
+  width:100%;padding:12px 16px;
+  background:transparent;border:none;
+  color:var(--t2);font-size:var(--fs-body);
+  cursor:pointer;text-align:left;
+  transition:background .12s;
+}
+.mn-more-item:hover,.mn-more-item:active{background:var(--g-bg)}
+.mn-more-item.active,.mn-more-item[aria-current='page']{color:var(--g2)}
+.mn-more-item .mn-icon{flex-shrink:0;color:var(--t3)}
+.mn-more-item.active .mn-icon,.mn-more-item[aria-current='page'] .mn-icon{color:var(--g2)}
+.mn-more-label{flex:1}
+.mn-more-item .mn-badge{position:static;margin-left:auto}
+

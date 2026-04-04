@@ -59,43 +59,44 @@ describe('GuardPostMode', () => {
   });
 });
 
-// FIX [BUG-2, 5, 17, 19]: Structural checks on GuardPostMode source
+// FIX [BUG-2, 5, 17, 19]: Structural checks on guard sub-components
+// Компоненты GuardCard, TempPassCard, TechCard вынесены в views/guard/
 describe('GuardPostMode audit fixes', () => {
-  const getSource = () => {
+  const readGuard = (name) => {
     const fs = require('fs');
-    return fs.readFileSync(require.resolve('./GuardPostMode.jsx'), 'utf8');
+    return fs.readFileSync(require.resolve('./guard/' + name), 'utf8');
   };
 
   test('FIX BUG-5: GuardCard обёрнут в memo', () => {
-    expect(getSource()).toMatch(/const GuardCard = memo/);
+    expect(readGuard('GuardCard.jsx')).toMatch(/const GuardCard = memo/);
   });
 
   test('FIX BUG-5: TempPassCard обёрнут в memo', () => {
-    expect(getSource()).toMatch(/const TempPassCard = memo/);
+    expect(readGuard('TempPassCard.jsx')).toMatch(/const TempPassCard = memo/);
   });
 
   test('FIX BUG-5: TechCard обёрнут в memo', () => {
-    expect(getSource()).toMatch(/const TechCard = memo/);
+    expect(readGuard('TechCard.jsx')).toMatch(/const TechCard = memo/);
   });
 
   test('FIX BUG-2: нет fire-and-forget setTimeout(async) в TempPassCard', () => {
     // Убрали setTimeout(async → теперь прямой async/await
-    const src = getSource().replace(/\/\/[^\n]*/g, '');
+    const src = readGuard('TempPassCard.jsx').replace(/\/\/[^\n]*/g, '');
     expect(src).not.toMatch(/setTimeout\(async/);
   });
 
   test('FIX BUG-2: isMountedRef присутствует в TempPassCard', () => {
-    expect(getSource()).toContain('isMountedRef');
+    expect(readGuard('TempPassCard.jsx')).toContain('isMountedRef');
   });
 
   test('FIX BUG-17: window.open заменён на <a rel=noopener>', () => {
-    const src = getSource().replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const src = readGuard('GuardCard.jsx').replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
     expect(src).not.toContain('window.open');
     expect(src).toContain('rel="noopener noreferrer"');
   });
 
   test('FIX BUG-6: стабильный ключ key={i} для фото (не src.slice)', () => {
-    const src = getSource().replace(/\/\/[^\n]*/g, '');
+    const src = readGuard('GuardCard.jsx').replace(/\/\/[^\n]*/g, '');
     expect(src).not.toMatch(/key=\{src\.slice/);
   });
 });

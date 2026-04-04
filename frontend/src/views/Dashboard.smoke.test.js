@@ -3,6 +3,17 @@ import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
+// NavigationShell uses window.matchMedia for responsive detection
+window.matchMedia = window.matchMedia || vi.fn().mockImplementation(query => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn(),
+}));
 Object.defineProperty(global.navigator, 'mediaDevices', {
   value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }) },
   configurable: true,

@@ -13,8 +13,12 @@ import { AppIcon } from '../../ui/AppIcon';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
-// Максимум вкладок в мобильном nav до появления кнопки "•••"
-const MOBILE_MAX_TABS = 4;
+// Роли с расширенной навигацией получают 5 вкладок без "•••" drawer
+const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 5 };
+const DEFAULT_MOBILE_MAX_TABS = 4;
+function getMobileMaxTabs(role) {
+  return MOBILE_MAX_TABS_BY_ROLE[role] ?? DEFAULT_MOBILE_MAX_TABS;
+}
 
 // UI-01: sync with CSS breakpoint (max-width:860px → mobile nav visible)
 function useIsMobile() {
@@ -66,17 +70,17 @@ function MoreDrawer({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, o
   );
 }
 
-const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab }) {
+const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }) {
   const isMobile      = useIsMobile();
   const [showMore, setShowMore] = useState(false);
   const navBtnClass   = (k) => navClassMap[k]        || 'tn-btn';
   const navBtnClassMn = (k) => navClassMap[k + '_mn'] || 'mn-btn';
   const isActive      = (k) => (navClassMap[k] || '').includes('active');
 
-  // P-02/R-01: разделяем nav на видимые и скрытые вкладки для мобильного nav
-  const needsMore = nav.length > MOBILE_MAX_TABS;
-  const visibleNav = needsMore ? nav.slice(0, MOBILE_MAX_TABS) : nav;
-  const overflowNav = needsMore ? nav.slice(MOBILE_MAX_TABS) : [];
+  const mobileMaxTabs = getMobileMaxTabs(userRole);
+  const needsMore  = nav.length > mobileMaxTabs;
+  const visibleNav = needsMore ? nav.slice(0, mobileMaxTabs) : nav;
+  const overflowNav = needsMore ? nav.slice(mobileMaxTabs) : [];
 
   // Суммарный badge для кнопки "•••" (сумма badge скрытых вкладок)
   const moreBadge = overflowNav.reduce((sum, [, , , badge]) => sum + (badge || 0), 0);
@@ -118,7 +122,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab 
         ))}
         {/* P-02/R-01: кнопка "•••" для скрытых вкладок */}
         {needsMore && (
-          <div className="mn-more-wrap" style={{ position: 'relative' }}>
+          <div className="mn-more-wrap">
             <button
               className={'mn-btn mn-more-btn' + (moreIsActive ? ' active' : '')}
               onClick={() => setShowMore(v => !v)}

@@ -42,7 +42,7 @@ import { permsReducer,    INITIAL_PERMS,    INITIAL_TEMPLATES }                 
 import { blacklistReducer, INITIAL_BLACKLIST }                                          from './slices/blacklistSlice';
 import { garageReducer,   INITIAL_GARAGE }                                              from './slices/garageSlice';
 
-// FIX [A4]: persistence вынесена в отдельный модуль
+
 import {
   loadFromLS,
   saveRequests, saveChat, saveUsers, savePerms, saveBlacklist, saveGarage,
@@ -169,7 +169,7 @@ export function AppProvider({ children }) {
   }));
 
   // Единый диспатч: маршрутизирует action в нужный слайс-диспатч
-  // FIX [ARCH]: useReducer dispatch functions гарантированно стабильны в React.
+  
   // Явно перечисляем их в deps вместо eslint-disable — намерение прозрачно.
   const dispatch = useMemo(() => (action) => {
     if (REQUESTS_ACTIONS.has(action.type))  return reqDispatch(action);
@@ -178,17 +178,19 @@ export function AppProvider({ children }) {
     if (PERMS_ACTIONS.has(action.type))     return permsDispatch(action);
     if (BLACKLIST_ACTIONS.has(action.type)) return blacklistDispatch(action);
     if (GARAGE_ACTIONS.has(action.type))    return garageDispatch(action);
+    else if (process.env.NODE_ENV !== 'production') {
+      console.warn('[AppStore] Unmatched action type:', action.type);
+    }
   }, [reqDispatch, chatDispatch, usersDispatch, permsDispatch, blacklistDispatch, garageDispatch]);
 
-  // FIX [P2]: Per-slice saving with hook moved outside component
-  const _notLive = !isLiveMode();
+  const isDemoMode = !isLiveMode();
 
-  useDebouncedSave(reqState,   saveRequests,  _notLive);
-  useDebouncedSave(chatState,  saveChat,      _notLive);
-  useDebouncedSave(usersState, saveUsers,     _notLive);
-  useDebouncedSave(permsState, savePerms,     _notLive);
-  useDebouncedSave(blacklist,  saveBlacklist, _notLive);
-  useDebouncedSave(garage,     saveGarage,    _notLive);
+  useDebouncedSave(reqState,   saveRequests,  isDemoMode);
+  useDebouncedSave(chatState,  saveChat,      isDemoMode);
+  useDebouncedSave(usersState, saveUsers,     isDemoMode);
+  useDebouncedSave(permsState, savePerms,     isDemoMode);
+  useDebouncedSave(blacklist,  saveBlacklist, isDemoMode);
+  useDebouncedSave(garage,     saveGarage,    isDemoMode);
 
   return (
     <DispatchContext.Provider value={dispatch}>
@@ -223,8 +225,8 @@ export function useAvatar(uid)          { const c = useContext(UsersContext) || 
 export function usePerms(uid)           { return useContext(PermsContext)?.perms?.[uid]     || { visitors: [], workers: [] }; }
 export function useTemplates(uid)       { return useContext(PermsContext)?.templates?.[uid] || []; }
 export function useRequestHistory(reqId){ return useContext(RequestsContext)?.history?.[reqId] || []; }
-export function useBlacklist()          { return useContext(BlacklistContext) || []; }
-export function useGarage(uid)          { return (useContext(GarageContext) ?? {})[uid] || []; }
+export function useBlacklist()          { return useContext(BlacklistContext); }
+export function useGarage(uid)          { return useContext(GarageContext)[uid] || []; }
 
 // Специализированные хуки для компонентов, которым нужен весь объект perms/garage
 // Подписываются только на свой контекст — не перерендерятся от чата или заявок
@@ -242,7 +244,7 @@ export function useActions() {
     updateRequest:     (id, patch)          => dispatch({ type: A.REQUEST_UPDATE,             id, patch }),
     deleteRequest:     (id)                 => dispatch({ type: A.REQUEST_DELETE,             id }),
     setAllRequests:    (requests)           => dispatch({ type: A.REQUESTS_SET_ALL,           requests }),
-    // FIX [ARCH]: передаём now — reducer остаётся чистой функцией
+    
     activateScheduled: ()                   => dispatch({ type: A.REQUEST_ACTIVATE_SCHEDULED, now: Date.now() }),
 
     approveRequest: (id, byName, byRole) => {
@@ -260,7 +262,7 @@ export function useActions() {
     // ── Чат
     sendMessage:    (msg)       => dispatch({ type: A.CHAT_SEND,           message: msg }),
     setAllMessages: (msgs)      => dispatch({ type: A.CHAT_SET_ALL,        messages: msgs }),
-    // FIX [ARCH]: передаём at в action — reducer остаётся чистой функцией
+    
     markChatSeen:   (uid)       => dispatch({ type: A.CHAT_MARK_SEEN,      uid, at: Date.now() }),
     updateMessage:  (id, patch) => dispatch({ type: A.CHAT_UPDATE_MESSAGE, id, patch }),
     deleteMessage:  (id)        => dispatch({ type: A.CHAT_DELETE_MESSAGE, id }),
