@@ -272,3 +272,37 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 /* UI-3: aria-busy — visually disable children while an action is in-flight */
 .req-actions[aria-busy="true"]>*{opacity:.55;pointer-events:none}
 
+/* ── 2.2: Inline styles migrated to CSS classes ────────────────────────────── */
+/* req-head cursor state — replaces style={{ cursor, marginBottom }} */
+.req-head{cursor:default;margin-bottom:0}
+.req-head--clickable{cursor:pointer}
+/* req-type-icon opacity — replaces style={{ opacity: .7 }} */
+.req-type-icon{opacity:.7}
+/* req-photo-img — replaces inline style on img in ReqPhoto */
+.req-photo-img{
+  max-width:220px;max-height:200px;object-fit:contain;
+  background:var(--s1);border-radius:8px;
+  cursor:zoom-in;display:block;
+}
+
+/* ── 5.1: Virtual list container ─────────────────────────────────────────── */
+.req-list--virtual{
+  max-width:720px;margin:0 auto;
+  /* fixed height so the virtualizer scroll container works */
+  height:calc(100vh - 180px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ── 5.3: Skeleton stagger delays (replaces inline --card-delay per card) ─── */
+.skeleton-card--delay-0{--card-delay:0ms;animation-delay:0ms}
+.skeleton-card--delay-1{--card-delay:80ms;animation-delay:80ms}
+.skeleton-card--delay-2{--card-delay:160ms;animation-delay:160ms}
+.skeleton-card--delay-3{--card-delay:240ms;animation-delay:240ms}
+.skeleton-card--delay-4{--card-delay:320ms;animation-delay:320ms}
+/* ── Skeleton bar width helpers ────────────────────────────────────────────── */
+.skeleton-bar--w48{width:48px}
+.skeleton-bar--w64{width:64px}
+.skeleton-bar--w80{width:80%}
+
