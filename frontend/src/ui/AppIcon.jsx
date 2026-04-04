@@ -28,6 +28,8 @@ const PATHS = {
   chevronRight: 'm9 6 6 6-6 6',
   'chevron-down': 'm6 9 6 6 6-6',
   'chevron-up': 'm18 15-6-6-6 6',
+  // UI-03: circular refresh icon — used for loading spinners (semantically correct vs 'history' clock)
+  refresh: 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15',
 };
 
 export const APP_ICON_NAMES = Object.freeze(Object.keys(PATHS));

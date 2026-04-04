@@ -10,7 +10,8 @@
 
 const DB_NAME = 'residenze_photos';
 const STORE_NAME = 'photos';
-const DB_VERSION = 1;
+const COMPRESSED_STORE = 'compressed';
+const DB_VERSION = 2;
 
 let _db = null;
 
@@ -22,6 +23,9 @@ function openDB() {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(COMPRESSED_STORE)) {
+        db.createObjectStore(COMPRESSED_STORE, { keyPath: 'fingerprint' });
       }
     };
     request.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
@@ -135,4 +139,43 @@ export async function clearAll() {
       tx.onerror = () => reject(tx.error);
     });
   } catch { /* ignore */ }
+}
+
+/**
+ * PERF-02: Cache a compressed image data URL keyed by file fingerprint.
+ * @param {string} fingerprint — "${file.name}|${file.size}|${file.lastModified}"
+ * @param {string} dataUrl — compressed JPEG data URL
+ */
+export async function cacheCompressed(fingerprint, dataUrl) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(COMPRESSED_STORE, 'readwrite');
+      tx.objectStore(COMPRESSED_STORE).put({ fingerprint, dataUrl, cachedAt: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('[photoCache] cacheCompressed failed:', e);
+  }
+}
+
+/**
+ * PERF-02: Get a cached compressed image by file fingerprint.
+ * Returns null if not cached.
+ * @param {string} fingerprint
+ * @returns {Promise<string|null>}
+ */
+export async function getCachedCompressed(fingerprint) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(COMPRESSED_STORE, 'readonly');
+      const req = tx.objectStore(COMPRESSED_STORE).get(fingerprint);
+      req.onsuccess = () => resolve(req.result?.dataUrl ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
 }

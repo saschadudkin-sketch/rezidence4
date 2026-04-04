@@ -7,8 +7,8 @@
  *   notifUtils.js  — requestNotifPerm, sendNotif, playAlert
  *   swUtils.js     — registerSW
  */
-export { normalizePhone, findByPhone }                            from './utils/phoneUtils.js';
-export { genId }                                                  from './utils/idUtils.js';
+export { normalizePhone, findByPhone }                            from './utils/phoneUtils.ts';
+export { genId }                                                  from './utils/idUtils.ts';
 export { fmtDate, fmtTime, filterByPeriod, groupReqs, sortReqs } from './utils/dateUtils.js';
 export { requestNotifPerm, sendNotif, playAlert }                 from './utils/notifUtils.js';
 export { registerSW }                                             from './utils/swUtils.js';

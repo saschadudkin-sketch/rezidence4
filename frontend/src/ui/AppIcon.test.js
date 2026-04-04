@@ -100,6 +100,7 @@ describe('APP_ICON_NAMES', () => {
       'chevronRight',
       'chevron-down',
       'chevron-up',
+      'refresh',
     ]);
   });
 

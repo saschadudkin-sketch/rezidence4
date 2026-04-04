@@ -17,8 +17,19 @@ import StateBlock from '../ui/StateBlock.jsx';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
+// UI-06: skeleton placeholder for 6 stat tiles
+function StatCardSkeleton() {
+  return (
+    <div className="stat-card stat-card--skeleton" aria-hidden="true">
+      <div className="stat-ico-skel" />
+      <div className="stat-val-skel" />
+      <div className="stat-lbl-skel" />
+    </div>
+  );
+}
+
 // FIX [PERF]: memo — не ре-рендерится при смене activeTab если allUsers/requests не изменились
-const AdminStatsView = memo(function AdminStatsView({ allUsers, requests }) {
+const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }) {
   // FIX [PERF]: stats и roleCount мемоизированы — не пересчитываются при несвязанных ре-рендерах
   const { stats, roleCount } = useMemo(() => {
     // FIX [PERF]: todayTs — числовая метка, не объект Date — избегаем new Date() в каждом filter
@@ -40,6 +51,14 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests }) {
       }, {}),
     };
   }, [allUsers, requests]);
+
+  if (isLoading) {
+    return (
+      <div className="stats-grid" aria-busy="true">
+        {Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -197,7 +216,7 @@ export default function AdminView({ user, activeTab }) {
 
   return (
     <>
-      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} />}
+      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} />}
       {activeTab === 'users'       && <AdminUsersView    allUsers={allUsers} currentUser={user} />}
       {activeTab === 'contractors' && <AdminUsersView    allUsers={allUsers} currentUser={user} contractorOnly />}
       {activeTab === 'requests'    && <AdminRequestsView requests={requests} adminUid={user.uid} />}

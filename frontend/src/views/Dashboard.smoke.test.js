@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './Dashboard';
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -86,18 +87,30 @@ vi.mock('../config/runtimeMode', () => ({ isLiveMode: () => false, isDemoMode: (
 
 const ownerUser = { uid:'u1', role:'owner', name:'Иван', apartment:'12' };
 
+// P-01/A-01: Dashboard renders nested <Routes> (via RoleContentRouter), so it must
+// live inside a <Route path="/dashboard/*"> to correctly strip the prefix before the
+// inner <Route path=":tab"> can match. MemoryRouter + Routes mirrors the real App setup.
+const renderDashboard = (initialPath = '/dashboard/passes') =>
+  render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <Routes>
+        <Route path="/dashboard/*" element={<Dashboard user={ownerUser} onLogout={vi.fn()} />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
 describe('Dashboard', () => {
   test('рендерится без ошибок для owner', () => {
-    expect(() => render(<Dashboard user={ownerUser} onLogout={vi.fn()} />)).not.toThrow();
+    expect(() => renderDashboard()).not.toThrow();
   });
 
   test('показывает ResidentView для owner', () => {
-    render(<Dashboard user={ownerUser} onLogout={vi.fn()} />);
+    renderDashboard();
     expect(screen.getByTestId('resident-view')).toBeInTheDocument();
   });
 
   test('показывает имя пользователя', () => {
-    render(<Dashboard user={ownerUser} onLogout={vi.fn()} />);
+    renderDashboard();
     expect(screen.getByText('Иван')).toBeInTheDocument();
   });
 });

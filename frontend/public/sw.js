@@ -94,13 +94,17 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
-        // Уже открыто — фокусируем
+        // Уже открыто — фокусируем и навигируем на нужный URL (P-07)
         for (const client of clients) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
-            return client.focus();
+            return client.focus().then(() => {
+              if (targetUrl !== '/' && 'navigate' in client) {
+                return client.navigate(targetUrl);
+              }
+            });
           }
         }
-        // Нет открытого окна — открываем
+        // Нет открытого окна — открываем сразу на нужном URL
         if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
       })
   );

@@ -185,6 +185,15 @@ app.use(pinoHttp({
     req(req) { return { method: req.method, url: req.url, uid: req.raw?.user?.uid, requestId: req.raw?.requestId }; },
     res(res) { return { statusCode: res.statusCode }; },
   },
+  // DO-03: record request latency for P95 tracking
+  customSuccessMessage(_req, res, responseTime) {
+    appMetrics.recordLatency(responseTime);
+    return `${res.statusCode}`;
+  },
+  customErrorMessage(_req, res, err, responseTime) {
+    appMetrics.recordLatency(responseTime);
+    return err.message;
+  },
 }));
 app.use('/api/',     globalLimiter);
 
@@ -316,6 +325,13 @@ app.get('/api/metrics/prometheus', requireAuth, (req, res) => {
     '# HELP rez_db_pool_waiting Waiting PostgreSQL pool clients',
     '# TYPE rez_db_pool_waiting gauge',
     `rez_db_pool_waiting ${db.pool.waitingCount}`,
+    // DO-03: request latency percentiles
+    '# HELP rez_http_request_duration_milliseconds HTTP request duration in milliseconds',
+    '# TYPE rez_http_request_duration_milliseconds summary',
+    `rez_http_request_duration_milliseconds{quantile="0.5"} ${m.latency.p50 ?? 'NaN'}`,
+    `rez_http_request_duration_milliseconds{quantile="0.95"} ${m.latency.p95 ?? 'NaN'}`,
+    `rez_http_request_duration_milliseconds{quantile="0.99"} ${m.latency.p99 ?? 'NaN'}`,
+    `rez_http_request_duration_milliseconds_count ${m.latency.sampleCount}`,
   ];
   res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
   res.send(lines.join('\n') + '\n');

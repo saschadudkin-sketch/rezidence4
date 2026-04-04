@@ -547,3 +547,48 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 /* Метки истории заявки */
 .req-history-row{font-size:var(--fs-2xs);color:var(--t4);line-height:1.6}
 .req-history-time{color:var(--t3)}
+
+/* ── UI-01: ErrorBoundary — заменяем все inline styles на классы ── */
+.eb-card{
+  padding:24px 20px;margin:12px 0;
+  background:var(--s2);
+  border:1px solid rgba(220,60,60,.25);
+  border-radius:var(--r);
+  text-align:center;
+}
+.eb-icon{margin-bottom:10px}
+.eb-title{font-size:14px;font-weight:500;color:var(--t1);margin-bottom:6px}
+.eb-message{font-size:12px;color:var(--t4);margin-bottom:16px}
+.eb-retry-btn{
+  background:var(--g-bg);border:1px solid var(--b2);
+  border-radius:6px;color:var(--g2);
+  padding:7px 16px;font-size:12px;cursor:pointer;
+  font-family:inherit;
+  transition:background .13s,border-color .13s;
+}
+.eb-retry-btn:hover{background:var(--g-bg2);border-color:var(--g1)}
+
+/* ── UI-05: screen-reader-only hidden text ── */
+.u-sr-only{
+  position:absolute;width:1px;height:1px;
+  padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+/* ── UI-02: guard empty state text classes (replaces inline styles) ── */
+.guard-empty-title{font-size:var(--fs-lg);color:var(--t3);margin-bottom:8px}
+.guard-empty-sub{font-size:var(--fs-sm);color:var(--t4)}
+
+/* ── Guard post search clear button ── */
+.search-clear{
+  background:none;border:none;cursor:pointer;
+  color:var(--t4);padding:0 6px;display:flex;align-items:center;
+  flex-shrink:0;transition:color .13s;
+}
+
+/* ── PERF-01: content-visibility — browser skips layout/paint for off-screen cards ── */
+/* Provides a free rendering boost for all lists without JS virtualization overhead.    */
+/* contain-intrinsic-size matches the typical card height to avoid scroll-bar jump.    */
+.req-card,.guard-card-wrap,.guard-card{content-visibility:auto;contain-intrinsic-block-size:130px}
+
+.search-clear:hover{color:var(--t1)}

@@ -1,5 +1,5 @@
-/** Генерирует уникальный ID с опциональным префиксом */
-export const genId = (prefix = '') => {
+/** CQ-02: migrated from idUtils.js — generates unique IDs with optional prefix */
+export const genId = (prefix = ''): string => {
   const id =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)

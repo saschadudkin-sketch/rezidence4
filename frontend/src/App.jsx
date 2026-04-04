@@ -1,12 +1,13 @@
-import { memo, useEffect, useRef, useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { memo, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
 import Login from './views/Login';
-import Toasts, { toast } from './ui/Toasts';
+import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
 import { useAuth, PHASE } from './hooks/useAuth';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
@@ -42,50 +43,6 @@ import './styles/tokens.css';
 import './styles/foundations.css';
 import './styles/theme.css';
 
-// ─── FIX [U1]: Offline indicator ──────────────────────────────────────────────
-// Слушает события online/offline и показывает toast + баннер при потере сети.
-// Для охранника это критично — пропуски могут не дойти до сервера.
-function useOnlineStatus() {
-  const TOAST_THROTTLE_MS = 5000;
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
-  const lastToastAtRef = useRef(0);
-  const lastStatusRef = useRef(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
-
-  useEffect(() => {
-    const showToastThrottled = (message, level) => {
-      const now = Date.now();
-      if (now - lastToastAtRef.current < TOAST_THROTTLE_MS) return;
-      lastToastAtRef.current = now;
-      toast(message, level);
-    };
-
-    const goOnline = () => {
-      if (lastStatusRef.current === true) return;
-      lastStatusRef.current = true;
-      setIsOnline(true);
-      showToastThrottled('Соединение восстановлено', 'success');
-    };
-    const goOffline = () => {
-      if (lastStatusRef.current === false) return;
-      lastStatusRef.current = false;
-      setIsOnline(false);
-      showToastThrottled('Нет интернета — работаем офлайн', 'warning');
-    };
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
-  return isOnline;
-}
-
 const OfflineBanner = memo(function OfflineBanner({ visible }) {
   return (
     <div
@@ -94,7 +51,11 @@ const OfflineBanner = memo(function OfflineBanner({ visible }) {
       aria-live="polite"
       aria-atomic="true"
     >
-      {visible ? 'Нет подключения к интернету' : null}
+      {/* UI-05: always render text so screen readers detect change;
+          visually hidden when banner is not shown via CSS transform */}
+      <span className={visible ? undefined : 'u-sr-only'}>
+        Нет подключения к интернету
+      </span>
     </div>
   );
 });
@@ -165,7 +126,27 @@ const AppInner = memo(function AppInner() {
   );
 });
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// ─── Route tree ───────────────────────────────────────────────────────────────
+//
+// P-01/A-01: Declarative URL routing with React Router <Routes>/<Route>.
+//
+// Route structure:
+//   /                  → redirect to /dashboard (preserves any ?reqId= params)
+//   /dashboard/*       → authenticated app shell (tab rendered by nested Routes)
+//   *                  → redirect to / (unknown paths)
+//
+// The nested /dashboard/:tab matching lives in RoleContentRouter, which
+// renders <Routes><Route path=":tab"> so each section has its own URL.
+//
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/*" element={<AppInner />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
@@ -173,7 +154,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary name="Критическая ошибка">
           <AppProvider>
-            <AppInner />
+            <AppRoutes />
           </AppProvider>
         </ErrorBoundary>
       </QueryClientProvider>

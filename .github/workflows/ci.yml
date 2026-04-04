@@ -60,6 +60,8 @@ jobs:
       - run: mkdir -p ../artifacts
       - run: npm run test:ux-critical:report
       - run: npm run build
+      - name: Bundle size budget check (PERF-05)
+        run: node scripts/check-bundle-size.js dist/assets
       - name: Summarize UX-critical suite
         if: always()
         run: |

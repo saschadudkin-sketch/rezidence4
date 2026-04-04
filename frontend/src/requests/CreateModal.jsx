@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { genId } from '../utils.js';
 import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
-import { MAX_PHOTOS_PER_REQUEST } from '../constants/limits.js';
+import { MAX_PHOTOS_PER_REQUEST } from '../constants/limits';
 import {
   useCreateRequest,
   hasVisitorFields,

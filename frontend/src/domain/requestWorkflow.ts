@@ -1,11 +1,4 @@
-/**
- * requestWorkflow.js — централизованные переходы статусов заявок.
- *
- * Зачем:
- * - убрать дублирование последовательностей dispatch в разных местах;
- * - держать бизнес-правила статусов + историю в одном модуле;
- * - упростить тестирование и дальнейшее расширение workflow.
- */
+/** CQ-02: migrated from requestWorkflow.js */
 
 import {
   REQUEST_SET_STATUS,
@@ -13,23 +6,49 @@ import {
   HISTORY_ADD,
 } from '../store/requestActionTypes';
 
-function addHistory(dispatch, reqId, byName, byRole, label, at) {
+type Dispatch = (action: Record<string, unknown>) => void;
+
+function addHistory(
+  dispatch: Dispatch,
+  reqId: string,
+  byName: string,
+  byRole: string,
+  label: string,
+  at: Date,
+): void {
   dispatch({ type: HISTORY_ADD, reqId, byName, byRole, label, at });
 }
 
-export function setStatusWithHistory(dispatch, reqId, status, label, byName, byRole) {
+export function setStatusWithHistory(
+  dispatch: Dispatch,
+  reqId: string,
+  status: string,
+  label: string,
+  byName: string,
+  byRole: string,
+): void {
   const now = new Date();
   dispatch({ type: REQUEST_SET_STATUS, id: reqId, status });
   addHistory(dispatch, reqId, byName, byRole, label, now);
 }
 
-export function arriveWithHistory(dispatch, reqId, byName, byRole) {
+export function arriveWithHistory(
+  dispatch: Dispatch,
+  reqId: string,
+  byName: string,
+  byRole: string,
+): void {
   const now = new Date();
   dispatch({ type: REQUEST_ARRIVE, id: reqId, arrivedAt: now });
   addHistory(dispatch, reqId, byName, byRole, 'Отмечен вход', now);
 }
 
-export function approveAndArriveWithHistory(dispatch, reqId, byName, byRole) {
+export function approveAndArriveWithHistory(
+  dispatch: Dispatch,
+  reqId: string,
+  byName: string,
+  byRole: string,
+): void {
   const now = new Date();
   dispatch({ type: REQUEST_SET_STATUS, id: reqId, status: 'approved' });
   dispatch({ type: REQUEST_ARRIVE, id: reqId, arrivedAt: now });

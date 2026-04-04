@@ -1,7 +1,9 @@
 import { AppIcon } from './AppIcon';
 
+// UI-03: 'history' (clock icon) was semantically incorrect for loading state.
+// 'refresh' (circular arrow) correctly communicates "data is being fetched".
 const ICON_BY_TYPE = {
-  loading: 'history',
+  loading: 'refresh',
   empty: 'info',
   error: 'alert',
 };

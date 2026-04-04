@@ -112,6 +112,46 @@ describe('requestsGateway', () => {
     expect(updateLocal).toHaveBeenCalledWith('r6f', { comment: 'y' });
   });
 
+  // T-03: optimistic update order and rollback
+  test('T-03: updateRequestEverywhere applies update optimistically (local before remote)', async () => {
+    isLiveMode.mockReturnValue(true);
+    const callOrder = [];
+    const updateLocal = vi.fn().mockImplementation(() => callOrder.push('local'));
+    updateRequest.mockImplementationOnce(() => {
+      callOrder.push('remote');
+      return Promise.resolve();
+    });
+
+    await updateRequestEverywhere({ requestId: 'opt1', patch: { comment: 'z' }, updateLocal });
+
+    expect(callOrder).toEqual(['local', 'remote']);
+  });
+
+  test('T-03: updateRequestEverywhere calls rollbackLocal on remote failure', async () => {
+    isLiveMode.mockReturnValue(true);
+    const updateLocal = vi.fn();
+    const rollbackLocal = vi.fn();
+    updateRequest.mockRejectedValueOnce(new Error('server error'));
+
+    const mode = await updateRequestEverywhere({
+      requestId: 'rb1', patch: { comment: 'z' }, updateLocal, rollbackLocal,
+    });
+
+    expect(mode).toBe(SYNC_STATUS.LOCAL_FALLBACK);
+    expect(updateLocal).toHaveBeenCalledWith('rb1', { comment: 'z' });
+    expect(rollbackLocal).toHaveBeenCalledWith('rb1');
+  });
+
+  test('T-03: updateRequestEverywhere does not call rollbackLocal when no rollback provided', async () => {
+    isLiveMode.mockReturnValue(true);
+    const updateLocal = vi.fn();
+    updateRequest.mockRejectedValueOnce(new Error('server error'));
+
+    // Should not throw even without rollbackLocal
+    const mode = await updateRequestEverywhere({ requestId: 'rb2', patch: { x: 1 }, updateLocal });
+    expect(mode).toBe(SYNC_STATUS.LOCAL_FALLBACK);
+  });
+
   test('deleteRequestEverywhere removes local only in demo mode', async () => {
     isLiveMode.mockReturnValue(false);
     const deleteLocal = vi.fn();

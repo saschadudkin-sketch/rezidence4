@@ -1,11 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { canManageRequests } from '../domain/permissions.js';
 
 // O(1) lookup вместо O(n) Array.includes() в горячем useMemo
 const RESIDENT_STATUS_SET = new Set(['approved', 'rejected', 'arrived', 'cancelled']);
 
+const LS_KEY = 'rz-passes-seen';
+
+function readLastSeen() {
+  try { return parseInt(localStorage.getItem(LS_KEY) || '0'); } catch { return 0; }
+}
+
 /**
  * useNavBadges — счётчики для навигационных иконок.
+ *
+ * A-02: refactored — заменяем lsVersion hack (void lsVersion + eslint-disable)
+ * на явное состояние lastSeenPassesAt. Теперь useMemo использует его напрямую
+ * без side-effect триггеров.
  *
  * Возвращает:
  *   pendingT            — кол-во новых техзаявок (для персонала)
@@ -16,12 +26,13 @@ const RESIDENT_STATUS_SET = new Set(['approved', 'rejected', 'arrived', 'cancell
  *   onPassesSeen        — колбэк: немедленно сбросить счётчик пропусков
  */
 export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
-  // BUG-7: lsVersion — триггер для пересчёта residentNewStatuses при записи в localStorage.
-  // goTab() пишет в 'rz-passes-seen' → storage event → lsVersion++ → useMemo пересчитывает.
-  const [lsVersion, setLsVersion] = useState(0);
+  // A-02: хранить отметку времени в state — явная зависимость useMemo без хаков
+  const [lastSeenPassesAt, setLastSeenPassesAt] = useState(readLastSeen);
+
+  // Синхронизация с другими вкладками
   useEffect(() => {
     const onStorage = (e) => {
-      if (e.key === 'rz-passes-seen') setLsVersion(v => v + 1);
+      if (e.key === LS_KEY) setLastSeenPassesAt(parseInt(e.newValue || '0'));
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -33,23 +44,29 @@ export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
   ], [requests]);
 
   const lastSeen   = chatLastSeen[user.uid] || 0;
-  const unreadMsgs = useMemo(
-    () => chat.filter(m => m.uid !== user.uid && new Date(m.at).getTime() > lastSeen).length,
-    [chat, user.uid, lastSeen],
-  );
+  // PERF-04: count loop instead of filter() — avoids allocating a new array on every update.
+  const unreadMsgs = useMemo(() => {
+    let count = 0;
+    for (const m of chat) {
+      if (m.uid !== user.uid && new Date(m.at).getTime() > lastSeen) count++;
+    }
+    return count;
+  }, [chat, user.uid, lastSeen]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- lsVersion intentionally triggers re-read
   const residentNewStatuses = useMemo(() => {
-    void lsVersion; // trigger recalculation after onPassesSeen updates localStorage marker
     if (canManageRequests(user.role)) return 0;
-    let lastSeenPassesAt = 0;
-    try { lastSeenPassesAt = parseInt(localStorage.getItem('rz-passes-seen') || '0'); } catch { /* ok */ }
     return requests.filter(
       r => r.createdByUid === user.uid
         && RESIDENT_STATUS_SET.has(r.status)
         && new Date(r.createdAt).getTime() > lastSeenPassesAt,
     ).length;
-  }, [requests, user.uid, user.role, lsVersion]);
+  }, [requests, user.uid, user.role, lastSeenPassesAt]);
+
+  const onPassesSeen = useCallback(() => {
+    const now = Date.now();
+    try { localStorage.setItem(LS_KEY, String(now)); } catch { /* ok */ }
+    setLastSeenPassesAt(now);
+  }, []);
 
   return {
     pendingT,
@@ -57,6 +74,6 @@ export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
     unreadMsgs,
     residentNewStatuses,
     blacklistCount: blacklist.length,
-    onPassesSeen: () => setLsVersion(v => v + 1),
+    onPassesSeen,
   };
 }

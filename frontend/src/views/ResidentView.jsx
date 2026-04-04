@@ -144,32 +144,33 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       {modal   && <CreateModal key={modal.cat + '_' + modal.type} user={user} type={modal.type} initialCat={modal.cat} initialData={modal.data} onClose={() => setModal(null)} onDone={() => { setActiveTab(modal.type === 'tech' ? 'tech' : 'passes'); setModal(null); }} />}
       {editReq && <EditRequestModal req={editReq} onClose={() => setEditReq(null)} onDone={() => {}} />}
 
-      {confirmDelete && (() => {
-        const req = requests.find(r => r.id === confirmDelete);
-        const label = req?.visitorName || req?.category || 'заявку';
-        return (
-          <ConfirmDialog
-            message={`Удалить заявку для «${label}»? Это действие нельзя отменить.`}
-            confirmLabel="Удалить"
-            onConfirm={() => onDeleteConfirmed(confirmDelete)}
-            onCancel={() => setConfirmDelete(null)}
-          />
-        );
-      })()}
+      {/* A-06: replace IIFE pattern with computed variables before JSX */}
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Удалить заявку для «${
+            requests.find(r => r.id === confirmDelete)?.visitorName ||
+            requests.find(r => r.id === confirmDelete)?.category   ||
+            'заявку'
+          }»? Это действие нельзя отменить.`}
+          confirmLabel="Удалить"
+          onConfirm={() => onDeleteConfirmed(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
 
-      {confirmCancel && (() => {
-        const req = requests.find(r => r.id === confirmCancel);
-        const label = req?.visitorName || req?.category || 'заявку';
-        return (
-          <ConfirmDialog
-            message={`Отменить заявку для «${label}»?`}
-            confirmLabel="Да, отменить"
-            cancelLabel="Нет"
-            onConfirm={() => onCancelConfirmed(confirmCancel)}
-            onCancel={() => setConfirmCancel(null)}
-          />
-        );
-      })()}
+      {confirmCancel && (
+        <ConfirmDialog
+          message={`Отменить заявку для «${
+            requests.find(r => r.id === confirmCancel)?.visitorName ||
+            requests.find(r => r.id === confirmCancel)?.category   ||
+            'заявку'
+          }»?`}
+          confirmLabel="Да, отменить"
+          cancelLabel="Нет"
+          onConfirm={() => onCancelConfirmed(confirmCancel)}
+          onCancel={() => setConfirmCancel(null)}
+        />
+      )}
     </>
   );
 }

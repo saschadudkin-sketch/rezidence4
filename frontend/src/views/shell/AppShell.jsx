@@ -20,16 +20,12 @@ const AppShell = memo(function AppShell({
   pageTitle,
   pageSubtitle,
   pendingCount,
-  activeTab,
-  setActiveTab,
-  highlightReqId,
-  setHighlightReqId,
   cycleTheme,
   themeIcon,
   themeLabel,
   sseOnline,
 }) {
-  const { nav, navClassMap, goTab } = useNavigationContext();
+  const { nav, navClassMap, goTab, activeTab, setActiveTab } = useNavigationContext();
 
   return (
     <>
@@ -68,13 +64,9 @@ const AppShell = memo(function AppShell({
             </div>
           </div>
           <ErrorBoundary name="Экран">
-            <RoleContentRouter
-              user={user}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              highlightReqId={highlightReqId}
-              setHighlightReqId={setHighlightReqId}
-            />
+            {/* P-01/A-01: activeTab and setActiveTab come from URL params
+                and NavigationContext inside RoleContentRouter */}
+            <RoleContentRouter user={user} />
           </ErrorBoundary>
         </main>
       </div>

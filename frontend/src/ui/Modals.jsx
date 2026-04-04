@@ -6,7 +6,7 @@ import { toast } from './Toasts.jsx';
 import { lockScroll, unlockScroll } from './scrollLock.js';
 import { AppIcon } from './AppIcon.jsx';
 import { useIsMounted } from '../hooks/useIsMounted.js';
-import { MAX_FILE_SIZE_BYTES } from '../constants/limits.js';
+import { MAX_FILE_SIZE_BYTES } from '../constants/limits';
 import { compressImage } from '../utils/compressImage.js';
 
 // ─── ADD USER MODAL ───────────────────────────────────────────────────────────

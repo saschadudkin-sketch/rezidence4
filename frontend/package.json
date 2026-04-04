@@ -5,6 +5,7 @@
   "dependencies": {
     "@sentry/react": "^10.47.0",
     "@tanstack/react-query": "^5.96.1",
+    "@tanstack/react-virtual": "^3.13.23",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -33,6 +34,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
+    "build:check": "vite build && node scripts/check-bundle-size.js",
     "test": "vitest run",
     "test:ux-critical": "vitest run src/views/Login.test.js src/views/Dashboard.smoke.test.js src/views/VisitLogView.test.js src/views/ResidentView.test.js src/views/AdminView.test.js src/views/SecurityConciergeViews.test.js src/views/BlacklistView.test.js src/perms/PermsList.smoke.test.js",
     "test:ux-critical:report": "vitest run src/views/Login.test.js src/views/Dashboard.smoke.test.js src/views/VisitLogView.test.js src/views/ResidentView.test.js src/views/AdminView.test.js src/views/SecurityConciergeViews.test.js src/views/BlacklistView.test.js src/perms/PermsList.smoke.test.js --reporter=default --reporter=json --outputFile=../artifacts/ux-critical-vitest.json",

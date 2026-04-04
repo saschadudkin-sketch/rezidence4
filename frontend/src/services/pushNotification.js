@@ -32,10 +32,12 @@ export function pushNotifyResident(req) {
   const title = '🚪 Ваш гость вошёл';
   const body  = guestLabel + aptStr + ' — вход в ' + time;
   const tag   = 'guest-arrived-' + req.id;
+  // P-07: deep link — при нажатии уведомления откроем заявку через URL-параметр
+  const url   = '/?reqId=' + req.id;
 
   // ── Demo: показываем уведомление прямо на этом устройстве (охраны) ──────────
   // В реальном приложении вместо этого отправляем FCM токену жильца
-  sendNotif(title, body, tag);
+  sendNotif(title, body, tag, { url });
 
   // ── Live: отправка через FCM Cloud Function ──────────────────────────────────
   // При наличии сервера — раскомментировать и реализовать:
