@@ -10,6 +10,24 @@
  *
  * Или отдельные предикаты:
  *   import { canEditRequest, canDeleteRequest } from '../domain/permissions';
+ *
+ * T-01: JSDoc type annotations — enables TypeScript checking via tsconfig allowJs.
+ */
+
+/**
+ * @typedef {'owner'|'tenant'|'contractor'|'concierge'|'security'|'admin'} Role
+ */
+
+/**
+ * @typedef {{ uid: string, role: Role, name?: string, apartment?: string }} AppUser
+ */
+
+/**
+ * @typedef {{ id: string, createdByUid: string, status: string, type?: string, passDuration?: string }} Request
+ */
+
+/**
+ * @typedef {{ uid: string, role: Role }} ChatMessage
  */
 
 // ─── Роли ────────────────────────────────────────────────────────────────────
@@ -31,16 +49,16 @@ const MANAGE_ROLES_SET    = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMI
 // Может одобрять/отклонять заявки (консьерж — только просмотр)
 const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.ADMIN]);
 
-/** Жилец (может создавать заявки и видеть только свои) */
+/** @param {Role} role @returns {boolean} Жилец (может создавать заявки и видеть только свои) */
 export const isResident = (role) => RESIDENT_ROLES_SET.has(role);
 
-/** Оперативный персонал (обрабатывает заявки в реальном времени) */
+/** @param {Role} role @returns {boolean} Оперативный персонал (обрабатывает заявки в реальном времени) */
 export const isStaff = (role) => STAFF_ROLES_SET.has(role);
 
-/** Видит все заявки + получает уведомления о новых */
+/** @param {Role} role @returns {boolean} Видит все заявки + получает уведомления о новых */
 export const canManageRequests = (role) => MANAGE_ROLES_SET.has(role);
 
-/** Может одобрять/отклонять заявки */
+/** @param {Role} role @returns {boolean} Может одобрять/отклонять заявки */
 export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
 
 // ─── Заявки ──────────────────────────────────────────────────────────────────
@@ -48,6 +66,7 @@ export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
 /**
  * Может ли пользователь редактировать заявку
  * Только создатель пока заявка в статусе pending
+ * @param {AppUser} user @param {Request} req @returns {boolean}
  */
 export const canEditRequest = (user, req) =>
   req.createdByUid === user.uid && req.status === 'pending';
@@ -55,6 +74,7 @@ export const canEditRequest = (user, req) =>
 /**
  * Может ли пользователь удалить заявку
  * Создатель (pending) или администратор
+ * @param {AppUser} user @param {Request} req @returns {boolean}
  */
 export const canDeleteRequest = (user, req) =>
   (req.createdByUid === user.uid && req.status === 'pending')
@@ -162,6 +182,16 @@ export const canAccessTab = (role, tab) => getTabsForRole(role).includes(tab);
  *   const perms = can(user);
  *   if (perms.editRequest(req)) { ... }
  *   if (perms.deleteUser(targetUser)) { ... }
+ *
+ * @param {AppUser} user
+ * @returns {{ editRequest: (req: Request) => boolean, deleteRequest: (req: Request) => boolean,
+ *             approveRequest: (req: Request) => boolean, rejectRequest: (req: Request) => boolean,
+ *             acceptRequest: (req: Request) => boolean, markArrival: (req: Request) => boolean,
+ *             repeatRequest: (req: Request) => boolean, viewRequest: (req: Request) => boolean,
+ *             viewChat: () => boolean, editMessage: (msg: ChatMessage) => boolean,
+ *             deleteMessage: (msg: ChatMessage) => boolean, manageUsers: () => boolean,
+ *             changeRole: (target: AppUser) => boolean, deleteUser: (target: AppUser) => boolean,
+ *             editPerms: (targetUid: string) => boolean, viewPerms: (targetUid: string) => boolean }}
  */
 export const can = (user) => ({
   editRequest:   (req)        => canEditRequest(user, req),

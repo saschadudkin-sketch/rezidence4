@@ -11,6 +11,21 @@ import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 
 // A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
+//
+// T-03: Architecture decision — React Query vs Context API.
+//
+// DECISION: Context API (AppStore) remains the primary state layer for real-time
+// data (requests, users, blacklist, chat). React Query is reserved for:
+//   1. One-shot read queries without SSE (e.g. stats, admin reports, garage data)
+//   2. Mutations that benefit from optimistic updates + rollback
+//
+// Rationale: the app uses Server-Sent Events for live sync. React Query's cache
+// invalidation model conflicts with SSE push — merging both causes double-fetches.
+// The existing Context+useReducer pattern is already optimal for SSE-driven state.
+//
+// Migration path: new feature endpoints should prefer useQuery/useMutation
+// (less boilerplate, automatic loading/error states). Existing SSE-driven slices
+// (requestsSlice, chatSlice, usersSlice) should stay as Context reducers.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
