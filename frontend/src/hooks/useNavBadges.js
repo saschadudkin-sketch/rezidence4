@@ -44,10 +44,14 @@ export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
   ], [requests]);
 
   const lastSeen   = chatLastSeen[user.uid] || 0;
-  const unreadMsgs = useMemo(
-    () => chat.filter(m => m.uid !== user.uid && new Date(m.at).getTime() > lastSeen).length,
-    [chat, user.uid, lastSeen],
-  );
+  // PERF-04: count loop instead of filter() — avoids allocating a new array on every update.
+  const unreadMsgs = useMemo(() => {
+    let count = 0;
+    for (const m of chat) {
+      if (m.uid !== user.uid && new Date(m.at).getTime() > lastSeen) count++;
+    }
+    return count;
+  }, [chat, user.uid, lastSeen]);
 
   const residentNewStatuses = useMemo(() => {
     if (canManageRequests(user.role)) return 0;
