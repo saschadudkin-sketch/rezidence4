@@ -76,7 +76,7 @@ describe('Login — шаг phone', () => {
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    expect(await screen.findByPlaceholderText('• • • •')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('• • • • • •')).toBeInTheDocument();
   });
 });
 
@@ -87,12 +87,12 @@ describe('Login — шаг OTP', () => {
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    await screen.findByPlaceholderText('• • • •');
+    await screen.findByPlaceholderText('• • • • • •');
   }
 
   test.skip('показывает поле для кода', async () => {
     await goToOtpStep();
-    expect(screen.getByPlaceholderText('• • • •')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('• • • • • •')).toBeInTheDocument();
   });
 
   test.skip('показывает ошибку при коде < 6 символов', async () => {
@@ -102,9 +102,9 @@ describe('Login — шаг OTP', () => {
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    await screen.findByPlaceholderText('• • • •');
+    await screen.findByPlaceholderText('• • • • • •');
 
-    const otpInput = screen.getByPlaceholderText('• • • •');
+    const otpInput = screen.getByPlaceholderText('• • • • • •');
     fireEvent.change(otpInput, { target: { value: '12' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => {
@@ -120,9 +120,9 @@ describe('Login — шаг OTP', () => {
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    await screen.findByPlaceholderText('• • • •');
+    await screen.findByPlaceholderText('• • • • • •');
 
-    const otpInput = screen.getByPlaceholderText('• • • •');
+    const otpInput = screen.getByPlaceholderText('• • • • • •');
     fireEvent.change(otpInput, { target: { value: '123456' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
@@ -143,7 +143,7 @@ describe('Login — retry/metrics', () => {
     render(<Login onLogin={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    await screen.findByPlaceholderText('• • • •');
+    await screen.findByPlaceholderText('• • • • • •');
   }
 
   test('на шаге OTP показывается таймер resend', async () => {
@@ -155,7 +155,7 @@ describe('Login — retry/metrics', () => {
     const metricSpy = vi.fn();
     window.addEventListener('rz:login-metric', metricSpy);
     await openOtp();
-    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '12' } });
+    fireEvent.change(screen.getByPlaceholderText('• • • • • •'), { target: { value: '12' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(metricSpy).toHaveBeenCalled());
     const last = metricSpy.mock.calls.at(-1)[0].detail;
@@ -172,8 +172,8 @@ describe('Login — retry/metrics', () => {
     render(<Login onLogin={onLogin} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
     fireEvent.click(screen.getByText('Получить SMS-код'));
-    await screen.findByPlaceholderText('• • • •');
-    fireEvent.change(screen.getByPlaceholderText('• • • •'), { target: { value: '123456' } });
+    await screen.findByPlaceholderText('• • • • • •');
+    fireEvent.change(screen.getByPlaceholderText('• • • • • •'), { target: { value: '123456' } });
     fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
     const types = metricSpy.mock.calls.map(([ev]) => ev.detail.type);

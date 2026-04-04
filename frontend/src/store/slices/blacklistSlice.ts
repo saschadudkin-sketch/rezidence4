@@ -1,6 +1,26 @@
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface BlacklistEntry {
+  id: string;
+  name: string;
+  carPlate: string;
+  reason: string;
+  addedBy: string;
+  addedAt: Date;
+}
+
+export interface BlacklistState {
+  blacklist: BlacklistEntry[];
+}
+
+type BlacklistAction =
+  | { type: 'BLACKLIST_ADD'; entry: BlacklistEntry }
+  | { type: 'BLACKLIST_REMOVE'; id: string }
+  | { type: 'BLACKLIST_SET_ALL'; entries: BlacklistEntry[] };
+
 // ─── Начальные данные ────────────────────────────────────────────────────────
 
-export const INITIAL_BLACKLIST = [
+export const INITIAL_BLACKLIST: BlacklistEntry[] = [
   { id: 'bl1', name: 'Петров Сергей',    carPlate: '', reason: 'Нарушение порядка', addedBy: 'u5', addedAt: new Date(Date.now() - 7 * 86_400_000) },
   { id: 'bl2', name: '',                  carPlate: 'Х666ХХ77', reason: 'Парковка на газоне', addedBy: 'u5', addedAt: new Date(Date.now() - 3 * 86_400_000) },
 ];
@@ -11,7 +31,10 @@ export const INITIAL_BLACKLIST = [
  * Проверяет, есть ли совпадение заявки с чёрным списком.
  * Возвращает запись из списка или null.
  */
-export function checkBlacklist(req, blacklist) {
+export function checkBlacklist(
+  req: { visitorName?: string; carPlate?: string },
+  blacklist: BlacklistEntry[],
+): BlacklistEntry | null {
   if (!blacklist || blacklist.length === 0) return null;
   const vName = (req.visitorName || '').toLowerCase().trim();
   const plate = (req.carPlate || '').replace(/[\s-]/g, '').toLowerCase();
@@ -35,7 +58,7 @@ export function checkBlacklist(req, blacklist) {
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function blacklistReducer(state, action) {
+export function blacklistReducer(state: BlacklistState, action: BlacklistAction): BlacklistState {
   switch (action.type) {
 
     case 'BLACKLIST_ADD':

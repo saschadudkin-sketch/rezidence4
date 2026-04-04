@@ -5,6 +5,7 @@ const db      = require('../db');
 const requireAuth = require('../middleware/auth');
 const { invalidateUserActiveCache } = requireAuth;
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
+const { broadcastUserUpdate, broadcastUserDelete } = require('../sse');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -79,6 +80,7 @@ router.post('/', async (req, res, next) => {
        VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [uid, normalised, name, role, apartment || null],
     );
+    broadcastUserUpdate(fmt(rows[0]));
     res.status(201).json(fmt(rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Телефон уже зарегистрирован' });
@@ -152,6 +154,7 @@ router.patch('/:uid', validateUid, async (req, res, next) => {
       vals,
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    broadcastUserUpdate(fmt(rows[0]));
     res.json(fmt(rows[0]));
   } catch (err) { next(err); }
 });
@@ -171,6 +174,7 @@ router.delete('/:uid', validateUid, async (req, res, next) => {
       [req.params.uid],
     );
     await invalidateUserActiveCache(req.params.uid);
+    broadcastUserDelete(req.params.uid);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

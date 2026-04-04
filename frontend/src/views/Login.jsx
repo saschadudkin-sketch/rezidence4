@@ -261,7 +261,7 @@ export default function Login({ onLogin }) {
                 <label className="field-lbl">Код из SMS</label>
                 <input
                   className="field-inp field-otp" type="text"
-                  inputMode="numeric" maxLength={6} placeholder="• • • •"
+                  inputMode="numeric" maxLength={6} placeholder="• • • • • •"
                   value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); if (otpError) setOtpError(''); }}
                   onKeyDown={e => e.key === 'Enter' && verify()}
                   autoComplete="one-time-code" autoFocus

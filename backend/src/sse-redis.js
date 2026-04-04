@@ -38,8 +38,11 @@ function init() {
 
   sub.on('message', (_channel, raw) => {
     try {
-      const { event, data } = JSON.parse(raw);
-      if (event === 'request_update') {
+      const { event, data, targetRoles } = JSON.parse(raw);
+      if (targetRoles && Array.isArray(targetRoles)) {
+        // Role-restricted broadcast (e.g. blacklist events)
+        sse.localBroadcastToRoles(event, data, new Set(targetRoles));
+      } else if (event === 'request_update') {
         sse.localBroadcastRequestUpdate(data);
       } else {
         sse.localBroadcastToAll(event, data);
@@ -49,9 +52,12 @@ function init() {
     }
   });
 
-  sse.setRedisPublish((event, data) => {
+  // fn signature: (event, data, targetRoles?) — targetRoles is string[] or undefined
+  sse.setRedisPublish((event, data, targetRoles) => {
     if (pub) {
-      pub.publish(CHANNEL, JSON.stringify({ event, data })).catch(() => {});
+      const msg = { event, data };
+      if (targetRoles) msg.targetRoles = targetRoles;
+      pub.publish(CHANNEL, JSON.stringify(msg)).catch(() => {});
     }
   });
 

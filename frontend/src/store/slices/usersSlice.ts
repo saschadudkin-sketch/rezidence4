@@ -1,8 +1,36 @@
 import { normalizePhone } from '../../utils';
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type UserRole = 'owner' | 'tenant' | 'contractor' | 'concierge' | 'security' | 'admin';
+
+export interface AppUser {
+  uid: string;
+  name: string;
+  phone: string;
+  role: UserRole;
+  apartment?: string;
+  parkingSpot?: string | null;
+  avatar?: string | null;
+}
+
+export interface UsersState {
+  users: Record<string, AppUser>;
+  phoneDb: Record<string, AppUser>;
+  avatars: Record<string, string>;
+}
+
+type UsersAction =
+  | { type: 'USER_ADD'; user: AppUser }
+  | { type: 'USER_UPDATE'; uid?: string; user?: Partial<AppUser>; patch?: Partial<AppUser>; oldPhone?: string }
+  | { type: 'USER_DELETE'; uid: string }
+  | { type: 'USERS_SET_ALL'; users: AppUser[] }
+  | { type: 'AVATAR_SET'; uid: string; avatar: string }
+  | { type: 'AVATAR_DELETE'; uid: string };
+
 // ─── Начальные данные ────────────────────────────────────────────────────────
 
-export const PHONE_DB_INITIAL = {
+export const PHONE_DB_INITIAL: Record<string, AppUser> = {
   '79161234567': { uid: 'u1', name: 'Михаил Волков',  phone: '+7 916 123-45-67', role: 'owner',      apartment: '12', parkingSpot: 'A-12' },
   '79292345678': { uid: 'u2', name: 'Анна Соколова',  phone: '+7 929 234-56-78', role: 'tenant',     apartment: '34', parkingSpot: 'B-34' },
   '79033456789': { uid: 'u3', name: 'Строй Групп',    phone: '+7 903 345-67-89', role: 'contractor', apartment: '45',  parkingSpot: null },
@@ -11,13 +39,13 @@ export const PHONE_DB_INITIAL = {
   '74951230000': { uid: 'u6', name: 'Управление',     phone: '+7 495 123-00-00', role: 'admin',      apartment: '—'  },
 };
 
-export const INITIAL_USERS    = Object.fromEntries(Object.values(PHONE_DB_INITIAL).map(u => [u.uid, u]));
-export const INITIAL_PHONE_DB = { ...PHONE_DB_INITIAL };
-export const INITIAL_AVATARS  = {};
+export const INITIAL_USERS: Record<string, AppUser>    = Object.fromEntries(Object.values(PHONE_DB_INITIAL).map(u => [u.uid, u]));
+export const INITIAL_PHONE_DB: Record<string, AppUser> = { ...PHONE_DB_INITIAL };
+export const INITIAL_AVATARS: Record<string, string>   = {};
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function usersReducer(state, action) {
+export function usersReducer(state: UsersState, action: UsersAction): UsersState {
   switch (action.type) {
 
     case 'USER_ADD': {

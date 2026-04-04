@@ -1,13 +1,55 @@
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'arrived' | 'expired' | 'cancelled' | 'scheduled';
+export type RequestType = 'pass' | 'tech';
+export type PassDuration = 'once' | 'temporary' | 'permanent';
+
+export interface AppRequest {
+  id: string;
+  type: RequestType;
+  status: RequestStatus;
+  createdAt: string | Date;
+  passDuration?: PassDuration;
+  visitorName?: string;
+  carPlate?: string;
+  scheduledFor?: string | null;
+  validUntil?: string | null;
+  arrivedAt?: Date | null;
+  [key: string]: unknown;
+}
+
+export interface HistoryEntry {
+  at: Date | string;
+  byName: string;
+  byRole: string;
+  action: string;
+}
+
+export interface RequestsState {
+  requests: AppRequest[];
+  history: Record<string, HistoryEntry[]>;
+}
+
+type RequestsAction =
+  | { type: 'REQUEST_ADD'; request: AppRequest }
+  | { type: 'REQUEST_UPDATE'; id: string; patch: Partial<AppRequest> }
+  | { type: 'REQUEST_DELETE'; id: string }
+  | { type: 'REQUEST_SET_STATUS'; id: string; status: RequestStatus }
+  | { type: 'REQUEST_ARRIVE'; id: string; arrivedAt?: Date }
+  | { type: 'REQUESTS_SET_ALL'; requests: AppRequest[] }
+  | { type: 'REQUEST_ACTIVATE_SCHEDULED'; now?: number }
+  | { type: 'HISTORY_ADD'; reqId: string; at?: Date; byName: string; byRole: string; label: string };
+
 // ─── Начальные данные ────────────────────────────────────────────────────────
 // Демо-данные вынесены в src/fixtures/demoData.js и загружаются только в demo-режиме
 // через createServices.js. В production store всегда начинается пустым.
 
-export const INITIAL_REQUESTS = [];
-export const INITIAL_HISTORY = {};
+export const INITIAL_REQUESTS: AppRequest[] = [];
+export const INITIAL_HISTORY: Record<string, HistoryEntry[]> = {};
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function requestsReducer(state, action) {
+export function requestsReducer(state: RequestsState, action: RequestsAction): RequestsState {
   switch (action.type) {
 
     case 'REQUEST_ADD':

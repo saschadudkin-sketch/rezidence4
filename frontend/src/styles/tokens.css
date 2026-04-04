@@ -24,7 +24,7 @@
   --z-nav:     200;
   --z-overlay: 300;
   --z-modal:   400;
-  --z-toast:   999;
+  --z-toast:   9999;
   --z-top:     1000;
 
   /* surfaces — тёплый почти-чёрный, без синевы */
@@ -56,7 +56,7 @@
   --wrn-t: #C49040;
 
   /* danger — destructive actions */
-  --danger:    #7A2020;
+  /* NOTE: --danger primary value defined below as var(--err-t) for theme-awareness */
   --danger-t:  #D06060;
   --danger-bg: rgba(122,32,32,.12);
 

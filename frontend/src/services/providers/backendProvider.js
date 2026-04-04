@@ -27,6 +27,9 @@ function createSSEManager() {
 
   const sseHandlers = {
     message: [], message_update: [], message_delete: [], request_update: [],
+    // FIX [P-1]: real-time domain updates — blacklist and user changes
+    blacklist_add: [], blacklist_remove: [],
+    user_update: [], user_delete: [],
   };
 
   async function connect(uid = null) {
@@ -48,7 +51,7 @@ function createSSEManager() {
     if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/events`, {
         credentials: 'include',
         signal,
         headers,
@@ -347,31 +350,20 @@ export const permsProvider = {
     return apiClient.get(`/api/perms/${uid}`);
   },
   /**
-   * FIX [AUDIT-5 CRITICAL]: backend POST /api/perms requires `type` ('visitors'|'workers')
-   * and `items` (array for that type). Frontend passes entire perms object {visitors:[], workers:[]}.
-   * Without this fix ALL perms saves fail with 400 "Invalid type" in live mode.
-   *
-   * Solution: split into two sequential requests, one per type.
-   * Using Promise.all for parallelism — the (uid, type) PK means no conflict.
+   * Атомарно сохраняет perms через POST /api/perms/batch (одна транзакция).
+   * Legacy-формат (flat array) по-прежнему поддерживается через старый endpoint.
    */
   async savePerms(uid, permsObj) {
-    // Support both old format (flat array) and new format ({visitors:[], workers:[]})
+    // Legacy: flat array — assume visitors only (backward compat)
     if (Array.isArray(permsObj)) {
-      // Legacy: assume visitors
       return apiClient.post('/api/perms', { uid, type: 'visitors', items: permsObj });
     }
-    const promises = [];
-    if (permsObj.visitors !== undefined) {
-      promises.push(apiClient.post('/api/perms', { uid, type: 'visitors', items: permsObj.visitors }));
-    }
-    if (permsObj.workers !== undefined) {
-      promises.push(apiClient.post('/api/perms', { uid, type: 'workers', items: permsObj.workers }));
-    }
-    if (promises.length === 0) {
-      return { ok: true };
-    }
-    const results = await Promise.all(promises);
-    return results[results.length - 1]; // return last result for compat
+    // New format: use batch endpoint for atomic save
+    const payload = { uid };
+    if (permsObj.visitors !== undefined) payload.visitors = permsObj.visitors;
+    if (permsObj.workers  !== undefined) payload.workers  = permsObj.workers;
+    if (!payload.visitors && !payload.workers) return { ok: true };
+    return apiClient.post('/api/perms/batch', payload);
   },
   async getTemplates(uid) {
     return apiClient.get(`/api/templates/${uid}`);
@@ -412,8 +404,16 @@ export function createBackendProvider() {
         // Ранее эти данные НЕ загружались при startSync — после F5 в live mode
         // перм-списки, шаблоны и чёрный список были пусты.
         onPerms, onTemplates, setBlacklist, userUid,
+        // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+        onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
       }) => {
         let mounted = true;
+
+        // FIX [DATA-1]: Race condition fix — подписываемся на request_update ДО Promise.all.
+        // События, пришедшие пока грузятся начальные данные, буферизируются и применяются после.
+        // Без этого: событие между стартом Promise.all и подпиской sseManager.on — теряется навсегда.
+        const reqEventBuffer = [];
+        const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
         // Параллельная загрузка ВСЕХ данных при старте
         const promises = [
@@ -434,17 +434,26 @@ export function createBackendProvider() {
 
         const [reqs, chatData, users, permsData, templatesData, blacklistData] = await Promise.all(promises);
 
+        // Отписаться от буфера — теперь будет live subscription ниже
+        bufferReqSub();
+
         if (!mounted) return () => {};
 
-        if (setAllRequests) setAllRequests(reqs);
+        // Применить буферизированные события к начальным данным перед отправкой в стор
+        let currentRequests = Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        for (const bufferedReq of reqEventBuffer) {
+          const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
+          if (idx >= 0) currentRequests[idx] = bufferedReq;
+          else currentRequests = [bufferedReq, ...currentRequests];
+        }
+
+        if (setAllRequests) setAllRequests(currentRequests);
         if (setAllMessages) setAllMessages(chatData.messages || chatData);
         if (setAllUsers)    setAllUsers(users);
         // FIX [AUDIT-6]: загруженные perms/templates/blacklist → в стор
         if (permsData && onPerms)       onPerms(permsData);
         if (templatesData && onTemplates) onTemplates(templatesData);
         if (setBlacklist && Array.isArray(blacklistData)) setBlacklist(blacklistData);
-
-        let currentRequests = reqs;
 
         const unsubMsg    = chatProvider.onMessage(msg      => onChat && onChat({ type: 'added',   message: msg }));
         const unsubUpdate = chatProvider.onMessageUpdate(msg => onChat && onChat({ type: 'updated', message: msg }));
@@ -461,12 +470,22 @@ export function createBackendProvider() {
           if (setAllRequests) setAllRequests(currentRequests);
         });
 
+        // FIX [P-1]: real-time SSE subscriptions for blacklist and user updates
+        const unsubBLAdd    = sseManager.on('blacklist_add',    entry      => { if (!mounted) return; onBlacklistAdd?.(entry); });
+        const unsubBLRemove = sseManager.on('blacklist_remove', ({ id })   => { if (!mounted) return; onBlacklistRemove?.(id); });
+        const unsubUserUpd  = sseManager.on('user_update',      u          => { if (!mounted) return; onUserUpdate?.(u); });
+        const unsubUserDel  = sseManager.on('user_delete',      ({ uid })  => { if (!mounted) return; onUserDelete?.(uid); });
+
         return () => {
           mounted = false;
           unsubMsg();
           unsubUpdate();
           unsubDel();
           unsubReq();
+          unsubBLAdd();
+          unsubBLRemove();
+          unsubUserUpd();
+          unsubUserDel();
         };
       },
     },

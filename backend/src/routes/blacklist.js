@@ -3,6 +3,7 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
+const { broadcastBlacklistAdd, broadcastBlacklistRemove } = require('../sse');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -78,6 +79,7 @@ router.post('/', async (req, res, next) => {
       added_by: req.user.name || null,
       added_at: new Date().toISOString(),
     };
+    broadcastBlacklistAdd(fmt(inserted));
     res.status(201).json(fmt(inserted));
   } catch (err) { next(err); }
 });
@@ -88,6 +90,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     await db.query(`DELETE FROM blacklist WHERE id=$1`, [req.params.id]);
+    broadcastBlacklistRemove(req.params.id);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

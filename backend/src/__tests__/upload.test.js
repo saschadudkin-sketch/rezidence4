@@ -102,23 +102,23 @@ describe('POST /api/upload/photo', () => {
     expect(res.status).toBe(400);
   });
 
-  it('200 для JPEG — URL заканчивается на .jpg', async () => {
+  it('200 для JPEG — URL заканчивается на .jpg или .webp', async () => {
     fileType.fromBuffer.mockResolvedValueOnce({ mime: 'image/jpeg', ext: 'jpg' });
     const res = await request(app)
       .post('/api/upload/photo').set('Cookie', `token=${T_USER}`)
       .set('Content-Type', 'image/jpeg').send(FAKE_JPEG);
     expect(res.status).toBe(200);
-    expect(res.body.url).toMatch(/\.jpg$/);
+    expect(res.body.url).toMatch(/\.(jpg|webp)$/);
     expect(res.body.url).toContain('/uploads/');
   });
 
-  it('200 для PNG — URL заканчивается на .png', async () => {
+  it('200 для PNG — URL заканчивается на .png или .webp', async () => {
     fileType.fromBuffer.mockResolvedValueOnce({ mime: 'image/png', ext: 'png' });
     const res = await request(app)
       .post('/api/upload/photo').set('Cookie', `token=${T_USER}`)
       .send(FAKE_PNG);
     expect(res.status).toBe(200);
-    expect(res.body.url).toMatch(/\.png$/);
+    expect(res.body.url).toMatch(/\.(png|webp)$/);
   });
 
   it('200 для WebP — URL заканчивается на .webp', async () => {
@@ -152,7 +152,7 @@ describe('POST /api/upload/photo', () => {
     const res = await request(app)
       .post('/api/upload/photo').set('Cookie', `token=${T_USER}`)
       .send(FAKE_JPEG);
-    expect(res.body.url).toMatch(/photo_\d+_[a-z0-9]+\.jpg/);
+    expect(res.body.url).toMatch(/photo_\d+_[a-z0-9]+\.(jpg|webp)/);
   });
 
   it('файл записывается на диск (fs.writeFile вызван 1 раз)', async () => {

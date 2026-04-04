@@ -7,9 +7,11 @@ const path         = require('path');
 const helmet       = require('helmet');           // FIX [SEC-5]: security headers (CSP, X-Frame-Options и др.)
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
+const RedisStore   = require('rate-limit-redis');
 const pinoHttp     = require('pino-http');
 const logger       = require('./logger');
 const appMetrics   = require('./metrics');
+const { getRedis } = require('./lib/redisClient');
 const { randomUUID } = require('crypto');
 
 const db              = require('./db');
@@ -17,6 +19,7 @@ const authRouter      = require('./routes/auth');
 const requestsRouter  = require('./routes/requests');
 const usersRouter     = require('./routes/users');
 const chatRouter      = require('./routes/chat');
+const sse             = require('./sse');
 const permsRouter     = require('./routes/perms');
 const templatesRouter = require('./routes/templates');
 const blacklistRouter = require('./routes/blacklist');
@@ -88,18 +91,35 @@ app.use(helmet({
 }));
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
+// FIX [SEC-1]: Redis store для rate limiters — корректная работа в multi-instance деплое.
+// Без Redis store каждый инстанс имеет свой счётчик: 3 инстанса × 10 запросов = 30 попыток.
+// С Redis store счётчики разделяются между всеми инстансами — лимит соблюдается глобально.
+// Fallback на in-memory если Redis не настроен (одиночный инстанс или dev-среда).
+function makeRedisStore(prefix) {
+  const redis = getRedis();
+  if (!redis) return {};
+  return {
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+      prefix: `rz:rl:${prefix}:`,
+    }),
+  };
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Попробуйте позже.' },
+  ...makeRedisStore('auth'),
 });
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  ...makeRedisStore('global'),
 });
 const clientLogsLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -107,6 +127,7 @@ const clientLogsLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много client logs. Подождите.' },
+  ...makeRedisStore('client-logs'),
 });
 // FIX [AUDIT]: отдельный лимит для загрузки файлов — 20 фото/мин.
 // Без него авторизованный пользователь загружает 200 файлов × 10MB = 2GB/мин на диск,
@@ -117,6 +138,7 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много загрузок. Подождите.' },
+  ...makeRedisStore('upload'),
 });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
@@ -195,6 +217,23 @@ app.use('/api/v1/auth', authLimiter, authRouter); // КРИТ-3: authLimiter п�
 app.use('/api/v1/requests',    requestsRouter);
 app.use('/api/v1/users',       usersRouter);
 app.use('/api/v1/chat',        chatRouter);
+
+// ─── GET /api/v1/events — canonical SSE endpoint ──────────────────────────────
+// Semantic rename from /api/chat/stream. The old path remains available via the
+// deprecated /api/chat alias below for backward-compat during migration.
+const sseEventsLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false, ...makeRedisStore('sse') });
+app.get('/api/v1/events', requireAuth, sseEventsLimiter, (req, res) => {
+  const { uid, role } = req.user;
+  res.setHeader('Content-Type',      'text/event-stream');
+  res.setHeader('Cache-Control',     'no-cache');
+  res.setHeader('Connection',        'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  sse.addClient(uid, res, role);
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25_000);
+  req.on('close', () => { clearInterval(ping); sse.removeClient(uid, res); });
+});
 app.use('/api/v1/perms',       permsRouter);
 app.use('/api/v1/templates',   templatesRouter);
 app.use('/api/v1/blacklist',   blacklistRouter);
@@ -232,7 +271,7 @@ app.get('/api/health/detailed', requireAuth, async (_req, res) => {
 });
 
 // FIX [DO4]: ЖЕЛАТЕЛЬНО — метрики для мониторинга (Prometheus/Grafana)
-const { clients: sseClients } = require('./sse');
+const { clients: sseClients } = sse;
 app.get('/api/metrics', requireAuth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   const activeSSE = [...sseClients.values()].reduce((s, set) => s + set.size, 0);

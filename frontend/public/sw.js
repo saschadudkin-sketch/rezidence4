@@ -1,17 +1,27 @@
 // Service Worker — Резиденции Замоскворечья
-// Обеспечивает Push-уведомления на заблокированном экране
+// Workbox injectManifest mode: self.__WB_MANIFEST injected by vite-plugin-pwa at build time.
+// Precaches all hashed build assets + /index.html for reliable offline shell.
 
-const CACHE_NAME = 'residenze-v1';
-const PRECACHE = ['/', '/index.html', '/manifest.json'];
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
-// ── Установка: кешируем оболочку приложения ──────────────────────────────────
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
-});
+// ── Workbox precache: хешированные ассеты сборки ─────────────────────────────
+// self.__WB_MANIFEST заменяется vite-plugin-pwa массивом { url, revision } записей.
+precacheAndRoute(self.__WB_MANIFEST || []);
+cleanupOutdatedCaches();
+
+// ── Navigation: Network-first → offline fallback на /index.html ──────────────
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({ cacheName: 'pages', networkTimeoutSeconds: 3 }),
+);
+
+// ── Статические ассеты без хеша (логотипы, иконки, манифест) ─────────────────
+registerRoute(
+  ({ url }) => url.pathname.match(/\.(png|svg|ico|webmanifest)$/),
+  new StaleWhileRevalidate({ cacheName: 'static-assets' }),
+);
 
 // ── Активация: удаляем старые кеши ────────────────────────────────────────────
 self.addEventListener('activate', event => {

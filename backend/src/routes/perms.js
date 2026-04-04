@@ -89,4 +89,52 @@ router.post('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── POST /api/perms/batch ────────────────────────────────────────────────────
+// Атомарно сохраняет visitors и workers в одной транзакции.
+// Устраняет риск частичного сохранения при двух раздельных POST /api/perms.
+
+router.post('/batch', async (req, res, next) => {
+  try {
+    const { uid: callerUid, role } = req.user;
+    const { uid, visitors, workers } = req.body;
+
+    if (!uid) return res.status(400).json({ error: 'uid is required' });
+    if (callerUid !== uid && role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const updates = [];
+    if (visitors !== undefined) {
+      if (!validatePermsItems(visitors, res)) return;
+      updates.push(['visitors', visitors]);
+    }
+    if (workers !== undefined) {
+      if (!validatePermsItems(workers, res)) return;
+      updates.push(['workers', workers]);
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'Provide visitors or workers' });
+
+    // Single transaction — both types saved or neither
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      for (const [type, items] of updates) {
+        await client.query(
+          `INSERT INTO perms(uid, type, items) VALUES($1,$2,$3)
+           ON CONFLICT (uid, type) DO UPDATE SET items=EXCLUDED.items`,
+          [uid, type, JSON.stringify(items)],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -1,13 +1,36 @@
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  uid: string;
+  name: string;
+  text: string;
+  at: Date | string;
+  [key: string]: unknown;
+}
+
+export interface ChatState {
+  chat: ChatMessage[];
+  chatLastSeen: Record<string, number>;
+}
+
+type ChatAction =
+  | { type: 'CHAT_SEND'; message: ChatMessage }
+  | { type: 'CHAT_SET_ALL'; messages: ChatMessage[] }
+  | { type: 'CHAT_UPDATE_MESSAGE'; id: string; patch: Partial<ChatMessage> }
+  | { type: 'CHAT_DELETE_MESSAGE'; id: string }
+  | { type: 'CHAT_MARK_SEEN'; uid: string; at?: number };
+
 // ─── Начальные данные ────────────────────────────────────────────────────────
 
 // Demo messages have been moved to demoProvider.js to avoid leaking into production builds.
-export const INITIAL_CHAT = [];
+export const INITIAL_CHAT: ChatMessage[] = [];
 
-export const INITIAL_CHAT_LAST_SEEN = {};
+export const INITIAL_CHAT_LAST_SEEN: Record<string, number> = {};
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
-export function chatReducer(state, action) {
+export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
 
     case 'CHAT_SEND':

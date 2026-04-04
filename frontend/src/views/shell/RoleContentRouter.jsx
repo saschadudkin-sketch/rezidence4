@@ -51,7 +51,13 @@ const RoleContentRouter = memo(function RoleContentRouter({
     );
   }
   // FA-06: OWNER, TENANT, CONTRACTOR — все явно получают ResidentView.
-  // Новые роли не попадут сюда молча — нужно добавить явный if-блок выше.
+  // FIX [FA-4]: Dev-only exhaustive check — новые роли не упадут молча в ResidentView.
+  if (process.env.NODE_ENV !== 'production') {
+    const knownResidentRoles = [ROLES.OWNER, ROLES.TENANT, ROLES.CONTRACTOR];
+    if (!knownResidentRoles.includes(user.role)) {
+      console.error('[RoleContentRouter] Unknown role, falling back to ResidentView:', user.role);
+    }
+  }
   return (
     <ErrorBoundary name="Кабинет жильца">
       <Suspense fallback={fallback}>

@@ -24,6 +24,7 @@
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
 import { sendNotif } from '../utils.js';
 import { isLiveMode } from '../config/runtimeMode.js';
+import { logger } from '../services/logger.js';
 import {
   setStatusWithHistory,
   arriveWithHistory,
@@ -178,8 +179,9 @@ export function AppProvider({ children }) {
     if (PERMS_ACTIONS.has(action.type))     return permsDispatch(action);
     if (BLACKLIST_ACTIONS.has(action.type)) return blacklistDispatch(action);
     if (GARAGE_ACTIONS.has(action.type))    return garageDispatch(action);
-    else if (process.env.NODE_ENV !== 'production') {
-      console.warn('[AppStore] Unmatched action type:', action.type);
+    else {
+      // FIX [FA-1]: логируем в production тоже — опечатка в типе = потеря данных без симптомов
+      logger.warn('[AppStore] Unmatched action type:', action.type);
     }
   }, [reqDispatch, chatDispatch, usersDispatch, permsDispatch, blacklistDispatch, garageDispatch]);
 
