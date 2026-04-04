@@ -54,7 +54,8 @@
 .modal-cat-hint{font-size:var(--fs-2xs);color:var(--t4);margin-top:3px;display:flex;align-items:center;gap:4px}
 .vf-name-row{display:flex;gap:6px;margin-bottom:6px}
 .vf-name-inp{flex:1;margin-bottom:0 !important}
-.vf-name-del{background:none;border:1px solid var(--b2);border-radius:4px;color:var(--t3);padding:0 10px;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;line-height:1;transition:border-color .13s,color .13s}
+/* R-03: min touch target 44px (WCAG 2.5.5) */
+.vf-name-del{background:none;border:1px solid var(--b2);border-radius:4px;color:var(--t3);padding:0 10px;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;line-height:1;transition:border-color .13s,color .13s;min-height:44px;display:flex;align-items:center;justify-content:center}
 .vf-name-del:hover{border-color:var(--err-t);color:var(--err-t)}
 .vf-add-btn{background:none;border:1px dashed var(--b3);border-radius:4px;color:var(--g2);padding:7px 14px;cursor:pointer;font-size:var(--fs-2xs);letter-spacing:1px;width:100%;margin-top:2px;font-family:'DM Sans',sans-serif;transition:border-color .13s,background .13s}
 .vf-add-btn:hover{border-color:var(--g1);background:var(--g-bg)}

@@ -94,7 +94,11 @@ const OfflineBanner = memo(function OfflineBanner({ visible }) {
       aria-live="polite"
       aria-atomic="true"
     >
-      {visible ? 'Нет подключения к интернету' : null}
+      {/* UI-05: always render text so screen readers detect change;
+          visually hidden when banner is not shown via CSS transform */}
+      <span className={visible ? undefined : 'u-sr-only'}>
+        Нет подключения к интернету
+      </span>
     </div>
   );
 });

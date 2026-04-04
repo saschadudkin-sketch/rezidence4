@@ -133,6 +133,18 @@ export default function Dashboard({ user, onLogout }) {
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
 
+  // P-07: при переходе из push-уведомления (?reqId=xxx) — открываем нужную заявку
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reqId = params.get('reqId');
+    if (!reqId) return;
+    // Убираем параметр из URL без перезагрузки
+    const url = window.location.pathname + (window.location.hash || '');
+    window.history.replaceState(null, '', url);
+    setHighlightReqId(reqId);
+    setActiveTab('passes');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on mount
+
   
   // Все три зависели от одного набора значений, теперь одно вычисление вместо трёх.
   const { nav, navClassMap } = useMemo(() => {
@@ -146,7 +158,8 @@ export default function Dashboard({ user, onLogout }) {
       templates: ['file',     'Шаблоны',    0],
       history:   ['history',  'История',    0],
       chat:      ['chat',     'Чат',        unreadMsgs],
-      visitlog:  ['history',  'Журнал',     0],
+      // UI-04: visitlog used same 'history' icon as history tab — changed to 'list'
+      visitlog:  ['list',     'Журнал',     0],
       residents: ['residents','Жильцы',     0],
       blacklist: ['ban',      'ЧС',         blacklistCount],
       guardpost: ['shield',   'Пост',       pendingP],

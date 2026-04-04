@@ -41,6 +41,14 @@ export default function Toasts() {
     timersRef.current.set(id, t);
   }, []);
 
+  // P-06: dismiss clears the timer and removes the toast immediately
+  const dismiss = useCallback((id) => {
+    const tid = timersRef.current.get(id);
+    if (tid !== undefined) clearTimeout(tid);
+    timersRef.current.delete(id);
+    setList(p => p.filter(x => x.id !== id));
+  }, []);
+
   useEffect(() => {
     // Регистрируем последний смонтированный экземпляр (LIFO)
     const prev = _toastCb;
@@ -61,7 +69,10 @@ export default function Toasts() {
   return (
     <div className="toast-wrap" role="status" aria-live="polite" aria-atomic="false">
       {list.map(t => (
-        <div key={t.id} className={'toast ' + t.type} aria-atomic="true">{t.msg}</div>
+        <div key={t.id} className={'toast ' + t.type} aria-atomic="true">
+          <span className="toast-msg">{t.msg}</span>
+          <button className="toast-close" onClick={() => dismiss(t.id)} aria-label="Закрыть уведомление">×</button>
+        </div>
       ))}
     </div>
   );

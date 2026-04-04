@@ -6,8 +6,14 @@ export const requestNotifPerm = () => {
     Notification.requestPermission();
 };
 
-/** Показывает системное уведомление (через SW или напрямую) */
-export const sendNotif = (title, body, tag) => {
+/**
+ * Показывает системное уведомление (через SW или напрямую).
+ * @param {string} title
+ * @param {string} body
+ * @param {string} tag
+ * @param {object} [extra] — доп. поля: { url } для deep link при нажатии
+ */
+export const sendNotif = (title, body, tag, extra = {}) => {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     const swReg = getSwReg();
@@ -19,6 +25,8 @@ export const sendNotif = (title, body, tag) => {
         icon:     '/logo192.png',
         badge:    '/logo192.png',
         vibrate:  [200, 100, 200],
+        // P-07: data.url передаётся SW-обработчику notificationclick для навигации
+        data:     { url: extra.url || '/' },
       });
     } else {
       new Notification(title, { body, icon: '/logo192.png' });

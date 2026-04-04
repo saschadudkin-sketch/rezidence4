@@ -178,7 +178,17 @@
   box-shadow:var(--sh-l);
   animation:riseUp .2s ease, fadeIn .2s ease 2.8s reverse forwards;
   pointer-events:auto;
+  display:flex;align-items:center;gap:10px;
 }
+/* P-06: dismiss button */
+.toast-msg{flex:1}
+.toast-close{
+  background:none;border:none;cursor:pointer;
+  color:var(--t4);font-size:16px;line-height:1;
+  padding:0 2px;flex-shrink:0;
+  transition:color .13s;
+}
+.toast-close:hover{color:var(--t1)}
 .toast.success{border-left-color:var(--ok-t)}
 .toast.error  {border-left-color:var(--err-t)}
 /* compat */

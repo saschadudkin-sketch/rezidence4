@@ -104,7 +104,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   const [vPhone,   setVPhone]   = useState(initialData?.visitorPhone || '');
   const [carPlate, setCarPlate] = useState(initialData?.carPlate   || '');
   const [comment,  setComment]  = useState(initialData?.comment    || '');
-  const [passDuration, setPassDuration] = useState(initialData?.passDuration || 'once');
+  // P-05: passDuration state removed — it was never used in the submitted object
+  // (line 248 always derives the value from validUntil). Kept only validUntil.
   const [validUntil,   setValidUntil]   = useState(initialData?.validUntil   || '');
   const [photos,   setPhotos]   = useState([]);
   const [loading,  setLoading]  = useState(false);
@@ -131,6 +132,9 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
   // FIX [AUDIT-4]: handleSubmit делает async операции (фото, API) — проверяем isMounted после await
   const isMountedRef = useIsMounted();
+  // D-01: double-submit guard — ref синхронен, в отличие от state (setLoading)
+  // Предотвращает повторный вызов handleSubmit пока предыдущий ещё в процессе
+  const submittingRef = useRef(false);
   useEffect(() => {
     lockScroll();
     return () => { unlockScroll(); };
@@ -143,7 +147,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   useEffect(() => {
     if (prevCatRef.current === cat) return; // монтирование — пропускаем
     prevCatRef.current = cat;
-    setVName(''); setVPhone(''); setCarPlate(''); setVNames(['']);
+    // P-04: fix type bug — setVNames expects [{__id, value}] objects, not plain strings
+    setVName(''); setVPhone(''); setCarPlate(''); setVNames([{ __id: genId(), value: '' }]);
   }, [cat]);
 
   // ── Обработчики ─────────────────────────────────────────────────────────
@@ -213,11 +218,15 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   };
 
   const handleSubmit = async () => {
+    // D-01: синхронная защита от двойного нажатия — ref гарантирует атомарность
+    if (submittingRef.current) return;
+
     // Валидация
     if (type === 'pass' && cat === 'taxi'  && !carPlate.trim())              { toast('Укажите марку и номер авто', 'error');  return; }
     if (type === 'pass' && cat === 'team'  && !vNames.some(n => n.value.trim()))   { toast('Укажите имена посетителей', 'error'); return; }
     if (type === 'pass' && requiresVisitorName(cat) && !vName.trim())        { toast('Укажите имя посетителя',     'error');  return; }
 
+    submittingRef.current = true;
     setLoading(true);
 
     const schedDate   = showSchedule && scheduledFor ? new Date(scheduledFor) : null;
@@ -293,6 +302,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         updateRequest(tempId, { _pending: false });
       }
 
+      submittingRef.current = false;
       setLoading(false);
       const successMsg = isScheduled
         ? 'Запланировано на ' + fmtScheduled(scheduledFor)
@@ -307,6 +317,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     } catch(e) {
       // FIX [UX-2]: откат optimistic update при ошибке сервера
       deleteRequest(newReq.id);
+      submittingRef.current = false;
       if (isMountedRef.current) {
         setLoading(false);
         toast('Ошибка при отправке заявки: ' + (e.message || 'попробуйте снова'), 'error');
@@ -322,7 +333,6 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     vPhone, setVPhone,
     carPlate, setCarPlate,
     comment, setComment,
-    passDuration, setPassDuration,
     validUntil, setValidUntil,
     photos, removePhoto,
     loading,

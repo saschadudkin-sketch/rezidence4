@@ -61,21 +61,22 @@ describe('Toasts component', () => {
   test('тип "error" передаётся как CSS-класс', async () => {
     render(<Toasts />);
     await emitToast('Ошибка!', 'error');
-    const el = screen.getByText('Ошибка!');
+    // P-06: text is now in .toast-msg span — check the parent toast div
+    const el = screen.getByText('Ошибка!').closest('.toast');
     expect(el.className).toContain('error');
   });
 
   test('тип "success" передаётся как CSS-класс', async () => {
     render(<Toasts />);
     await emitToast('Успех!', 'success');
-    const el = screen.getByText('Успех!');
+    const el = screen.getByText('Успех!').closest('.toast');
     expect(el.className).toContain('success');
   });
 
   test('по умолчанию тип "info"', async () => {
     render(<Toasts />);
     await emitToast('Инфо');
-    const el = screen.getByText('Инфо');
+    const el = screen.getByText('Инфо').closest('.toast');
     expect(el.className).toContain('info');
   });
 

@@ -34,37 +34,21 @@ export default class ErrorBoundary extends Component {
 
     if (fallback) return fallback;
 
+    // UI-01: inline styles replaced with CSS classes (eb-card, eb-icon, eb-title, etc.)
     return (
-      <div style={{
-        padding: '24px 20px',
-        margin: '12px 0',
-        background: 'var(--s2)',
-        border: '1px solid rgba(220,60,60,.25)',
-        borderRadius: 'var(--r)',
-        textAlign: 'center',
-      }}>
-        <div style={{ marginBottom: 10 }}><AppIcon name="alert" size={28} /></div>
-        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--t1)', marginBottom: 6 }}>
-          {name} не смог загрузиться
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 16 }}>
+      <div className="eb-card">
+        <div className="eb-icon"><AppIcon name="alert" size={28} /></div>
+        <div className="eb-title">{name} не смог загрузиться</div>
+        <div className="eb-message">
           {(import.meta?.env?.PROD === true)
             ? 'Что-то пошло не так. Попробуйте обновить страницу.'
             : (this.state.error?.message ?? 'Неизвестная ошибка')}
         </div>
         <button
+          className="eb-retry-btn"
           // FIX [BUG]: сброс state без remount = повторный краш на тех же данных.
           // resetKey++ форсирует remount дочерних компонентов через key prop.
           onClick={() => this.setState(s => ({ hasError: false, error: null, resetKey: s.resetKey + 1 }))}
-          style={{
-            background: 'var(--g-bg)',
-            border: '1px solid var(--b2)',
-            borderRadius: 6,
-            color: 'var(--g2)',
-            padding: '7px 16px',
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
         >
           Попробовать снова
         </button>

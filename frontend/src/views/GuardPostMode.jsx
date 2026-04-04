@@ -12,6 +12,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRequests, useBlacklist, useUsers } from '../store/AppStore.jsx';
 import { sortReqs, playAlert } from '../utils.js';
+import { useDebounce } from '../hooks/useDebounce.js';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { AppIcon } from '../ui/AppIcon.jsx';
@@ -28,6 +29,16 @@ export default function GuardPostMode({ user, onViewDetails }) {
   const { users } = useUsers();
   const [subTab, setSubTab] = useState('active');
   const [showScan, setShowScan] = useState(false);
+
+  // P-03: поиск на посту охраны
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 250);
+  const matchSearch = useCallback((r) => {
+    if (!debouncedSearch.trim()) return true;
+    const q = debouncedSearch.trim().toLowerCase();
+    return [r.visitorName, r.carPlate, r.createdByName, r.createdByApt, r.comment]
+      .some(v => v && v.toLowerCase().includes(q));
+  }, [debouncedSearch]);
 
   const pending  = useMemo(() => sortReqs(requests.filter(r => r.type === 'pass' && r.status === 'pending')), [requests]);
   const approved = useMemo(() => sortReqs(requests.filter(r => r.type === 'pass' && r.status === 'approved' && r.passDuration !== 'temporary')), [requests]);
@@ -46,6 +57,13 @@ export default function GuardPostMode({ user, onViewDetails }) {
   // FIX [PERF]: techActive.filter вызывался 3 раза в render — мемоизируем подмножества
   const techPendingCards   = useMemo(() => techActive.filter(r => r.status === 'pending'),  [techActive]);
   const techAcceptedCards  = useMemo(() => techActive.filter(r => r.status === 'accepted'), [techActive]);
+
+  // P-03: отфильтрованные списки по поисковому запросу
+  const filteredPending       = useMemo(() => pending.filter(matchSearch),       [pending, matchSearch]);
+  const filteredApproved      = useMemo(() => approved.filter(matchSearch),      [approved, matchSearch]);
+  const filteredTemporary     = useMemo(() => temporary.filter(matchSearch),     [temporary, matchSearch]);
+  const filteredTechPending   = useMemo(() => techPendingCards.filter(matchSearch),  [techPendingCards, matchSearch]);
+  const filteredTechAccepted  = useMemo(() => techAcceptedCards.filter(matchSearch), [techAcceptedCards, matchSearch]);
 
   // Звук при новой pending (pass или tech)
   const prevPassCount = useRef(pending.length);
@@ -100,6 +118,22 @@ export default function GuardPostMode({ user, onViewDetails }) {
         <span>Сканировать QR-код пропуска</span>
       </button>
 
+      {/* P-03: поиск по гостю, авто, апарт. */}
+      <div className="search-wrap u-mb16">
+        <span className="search-ico"><AppIcon name="search" size={14} /></span>
+        <input
+          className="search-inp"
+          placeholder="Поиск по имени, авто, апарт.…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button className="search-clear" onClick={() => setSearchQuery('')} aria-label="Очистить поиск">
+            <AppIcon name="close" size={12} />
+          </button>
+        )}
+      </div>
+
       {/* Подвкладки */}
       <div className="guard-subtabs">
         <button className={'guard-subtab' + (subTab === 'active' ? ' active' : '')} onClick={() => setSubTab('active')}>
@@ -122,19 +156,26 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {pending.length === 0 && approved.length === 0 && (
             <div className="guard-empty">
               <div className="guard-empty-icon"><AppIcon name="shield" size={42} /></div>
-              <div style={{ fontSize: 'var(--fs-lg)', color: 'var(--t3)', marginBottom: 8 }}>Всё спокойно</div>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t4)' }}>Нет активных пропусков</div>
+              <div className="guard-empty-title">Всё спокойно</div>
+              <div className="guard-empty-sub">Нет активных пропусков</div>
             </div>
           )}
-          <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={pending.length}>
-            {pending.map(r => (
+          {pending.length > 0 && approved.length > 0 && filteredPending.length === 0 && filteredApproved.length === 0 && (
+            <div className="guard-empty">
+              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
+              <div className="guard-empty-title">Ничего не найдено</div>
+              <div className="guard-empty-sub">Попробуйте другой запрос</div>
+            </div>
+          )}
+          <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={filteredPending.length}>
+            {filteredPending.map(r => (
               <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
                 <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
               </ErrorBoundary>
             ))}
           </GuardSection>
-          <GuardSection title="Допущены" icon={<AppIcon name="list" size={14} />} count={approved.length}>
-            {approved.map(r => (
+          <GuardSection title="Допущены" icon={<AppIcon name="list" size={14} />} count={filteredApproved.length}>
+            {filteredApproved.map(r => (
               <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
                 <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
               </ErrorBoundary>
@@ -149,12 +190,19 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {temporary.length === 0 && (
             <div className="guard-empty">
               <div className="guard-empty-icon"><AppIcon name="history" size={42} /></div>
-              <div style={{ fontSize: 'var(--fs-lg)', color: 'var(--t3)', marginBottom: 8 }}>Нет временных пропусков</div>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t4)' }}>Временные пропуска с открытым доступом появятся здесь</div>
+              <div className="guard-empty-title">Нет временных пропусков</div>
+              <div className="guard-empty-sub">Временные пропуска с открытым доступом появятся здесь</div>
+            </div>
+          )}
+          {temporary.length > 0 && filteredTemporary.length === 0 && (
+            <div className="guard-empty">
+              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
+              <div className="guard-empty-title">Ничего не найдено</div>
+              <div className="guard-empty-sub">Попробуйте другой запрос</div>
             </div>
           )}
           <div className="guard-list">
-            {temporary.map(r => (
+            {filteredTemporary.map(r => (
               <ErrorBoundary key={r.id} name={`Временный пропуск ${r.id}`}>
                 <TempPassCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} />
               </ErrorBoundary>
@@ -169,19 +217,26 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {techActive.length === 0 && (
             <div className="guard-empty">
               <div className="guard-empty-icon"><AppIcon name="tools" size={42} /></div>
-              <div style={{ fontSize: 'var(--fs-lg)', color: 'var(--t3)', marginBottom: 8 }}>Нет техзаявок</div>
-              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--t4)' }}>Заявки на электрика и сантехника появятся здесь</div>
+              <div className="guard-empty-title">Нет техзаявок</div>
+              <div className="guard-empty-sub">Заявки на электрика и сантехника появятся здесь</div>
             </div>
           )}
-          <GuardSection title="Новые заявки" icon={<AppIcon name="history" size={14} />} count={techPending.length}>
-            {techPendingCards.map(r => (
+          {techActive.length > 0 && filteredTechPending.length === 0 && filteredTechAccepted.length === 0 && (
+            <div className="guard-empty">
+              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
+              <div className="guard-empty-title">Ничего не найдено</div>
+              <div className="guard-empty-sub">Попробуйте другой запрос</div>
+            </div>
+          )}
+          <GuardSection title="Новые заявки" icon={<AppIcon name="history" size={14} />} count={filteredTechPending.length}>
+            {filteredTechPending.map(r => (
               <ErrorBoundary key={r.id} name={`Техзаявка ${r.id}`}>
                 <TechCard req={r} userName={user.name} residentPhone={getPhone(r.createdByUid)} />
               </ErrorBoundary>
             ))}
           </GuardSection>
-          <GuardSection title="В работе" icon={<AppIcon name="tools" size={14} />} count={techAcceptedCards.length}>
-            {techAcceptedCards.map(r => (
+          <GuardSection title="В работе" icon={<AppIcon name="tools" size={14} />} count={filteredTechAccepted.length}>
+            {filteredTechAccepted.map(r => (
               <ErrorBoundary key={r.id} name={`Техзаявка ${r.id}`}>
                 <TechCard req={r} userName={user.name} residentPhone={getPhone(r.createdByUid)} />
               </ErrorBoundary>
