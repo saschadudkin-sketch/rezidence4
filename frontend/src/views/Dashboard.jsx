@@ -16,7 +16,7 @@
  *   useNavigation()        — active tab management
  */
 
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   useRequests, useChat, useActions, useBlacklist,
 } from '../store/AppStore';
@@ -32,6 +32,7 @@ import {
 } from '../hooks/useDashboardHooks';
 import { ROLES, getTabsForRole } from '../domain/permissions';
 import { isDemoMode } from '../config/runtimeMode.js';
+import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/limits';
 import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 
@@ -94,26 +95,16 @@ export default function Dashboard({ user, onLogout }) {
   const badges = useNavBadges(user, requests, chat, chatLastSeen, blacklist);
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
 
-  const prevPendingP = useRef(0);
-  const prevPendingT = useRef(0);
-  
-  // Реальный счётчик непрочитанных — из useNavBadges (chat.filter по chatLastSeen).
-
-  
   const [retryKey, setRetryKey] = useState(0);
-  const { isLoading: syncLoading, sseOnline } = useLiveSync(user, {
+  const { isLoading: syncLoading, sseOnline, ssePermanentError } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-    prevPendingP, prevPendingT, retryKey,
+    retryKey,
     // FIX [P-1]: incremental SSE updates
     addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
   });
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!syncLoading) { setTimedOut(false); return; }
-    // FIX [P-3]: первый коннект — 5s (медленный сервер/4G не должен давать ложный error screen)
-    //            повторный коннект — 3s (reconnect быстрее чем первый запуск)
-    const FIRST_CONNECT_TIMEOUT_MS = 5_000;
-    const RECONNECT_TIMEOUT_MS     = 3_000;
     const t = setTimeout(
       () => setTimedOut(true),
       retryKey === 0 ? FIRST_CONNECT_TIMEOUT_MS : RECONNECT_TIMEOUT_MS,
@@ -121,9 +112,7 @@ export default function Dashboard({ user, onLogout }) {
     return () => clearTimeout(t);
   }, [syncLoading, retryKey]);
   const isLoading  = syncLoading && !timedOut;
-  
-  const isConnErr  = syncLoading && timedOut;
-  
+  const isConnErr  = (syncLoading && timedOut) || ssePermanentError;
   const handleRetry = () => { setTimedOut(false); setRetryKey(k => k + 1); };
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
@@ -221,7 +210,7 @@ export default function Dashboard({ user, onLogout }) {
   }
 
   return (
-    <NavigationContext.Provider value={{ nav, navClassMap, goTab, activeTab, setActiveTab }}>
+    <NavigationContext.Provider value={{ nav, navClassMap, goTab, activeTab, setActiveTab, highlightReqId, setHighlightReqId }}>
       {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
       <AppShell
         user={user}
@@ -229,10 +218,6 @@ export default function Dashboard({ user, onLogout }) {
         pageTitle={pageTitle}
         pageSubtitle={pageSubtitle}
         pendingCount={pendingT + pendingP}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        highlightReqId={highlightReqId}
-        setHighlightReqId={setHighlightReqId}
         cycleTheme={cycleTheme}
         themeIcon={themeIcon}
         themeLabel={themeLabel}

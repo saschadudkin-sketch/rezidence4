@@ -20,16 +20,12 @@ const AppShell = memo(function AppShell({
   pageTitle,
   pageSubtitle,
   pendingCount,
-  activeTab,
-  setActiveTab,
-  highlightReqId,
-  setHighlightReqId,
   cycleTheme,
   themeIcon,
   themeLabel,
   sseOnline,
 }) {
-  const { nav, navClassMap, goTab } = useNavigationContext();
+  const { nav, navClassMap, goTab, activeTab, setActiveTab } = useNavigationContext();
 
   return (
     <>
@@ -72,8 +68,6 @@ const AppShell = memo(function AppShell({
               user={user}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              highlightReqId={highlightReqId}
-              setHighlightReqId={setHighlightReqId}
             />
           </ErrorBoundary>
         </main>

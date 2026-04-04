@@ -3,7 +3,7 @@ import { requestNotifPerm } from '../utils.js';
 import { logger } from '../services/logger.js';
 import { toast } from '../ui/Toasts';
 import { isLiveMode } from '../config/runtimeMode.js';
-import { authProvider } from '../services/providers/backendProvider';
+import { services } from '../services/providers/serviceContainer';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export function useAuth() {
     if (isLiveMode()) {
       // Live: пробуем восстановить сессию по HttpOnly cookie (/api/auth/me)
       let cancelled = false;
-      authProvider.getMe()
+      services.auth.getMe()
         .then(u => {
           if (cancelled) return;
           if (u && u.uid) {
@@ -81,10 +81,8 @@ export function useAuth() {
     // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
-      authProvider.logout().catch(() => {});
+      services.auth.logout().catch(() => {});
     } else {
-      // FIX [MEMORY]: в demo-режиме тоже закрываем SSE если был открыт
-      authProvider.disconnect?.();
       // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
       // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)
       try {

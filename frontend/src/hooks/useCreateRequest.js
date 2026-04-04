@@ -9,9 +9,7 @@ import { lockScroll, unlockScroll } from '../ui/scrollLock.js';
 import { services } from '../services/providers/serviceContainer';
 import { toLocalDateTimeInputValue, parseLocalDateInputValue } from '../utils/dateInput';
 
-// Эти утилиты нужны компонентам, импортирующим их из этого файла (CreateModal и др.).
-// Явный re-export с комментарием о происхождении — лучше, чем молчаливый транзитный экспорт.
-// TODO: перевести CreateModal и остальных импортёров напрямую на '../utils/dateInput'.
+// Re-export date utilities consumed by CreateModal and other importers.
 export { toLocalDateInputValue, toLocalDateTimeInputValue, parseLocalDateInputValue } from '../utils/dateInput';
 
 // ─── Предикаты категорий ─────────────────────────────────────────────────────

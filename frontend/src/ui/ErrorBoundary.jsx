@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { AppIcon } from './AppIcon';
+import { logger } from '../services/logger.js';
 
 /**
  * ErrorBoundary — перехватывает ошибки рендера в дочерних компонентах.
@@ -21,7 +22,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error(`[ErrorBoundary: ${this.props.name ?? 'App'}]`, error, info.componentStack);
+    logger.error(`[ErrorBoundary: ${this.props.name ?? 'App'}]`, { message: error?.message, stack: info.componentStack });
   }
 
   render() {

@@ -4,6 +4,7 @@ import { ROLES } from '../domain/permissions.js';
 import { sendNotif, playAlert } from '../utils.js';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer.js';
+import { logger } from '../services/logger.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.
@@ -12,7 +13,6 @@ import { services } from '../services/providers/serviceContainer.js';
  */
 export function useLiveSync(user, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-  prevPendingP, prevPendingT,
   // P-02: retryKey increment triggers soft reconnect without page reload
   retryKey = 0,
   // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
@@ -21,11 +21,18 @@ export function useLiveSync(user, {
   const [isLoading,   setIsLoading]   = useState(true);
   // FA-07: статус SSE-соединения для индикатора в header
   const [sseOnline, setSseOnline] = useState(true);
+  // D-04: SSE достиг лимита попыток — требуется ручной retry
+  const [ssePermanentError, setSsePermanentError] = useState(false);
 
   useEffect(() => {
-    const handler = (e) => setSseOnline(e.detail.connected);
-    window.addEventListener('rz:sse-status', handler);
-    return () => window.removeEventListener('rz:sse-status', handler);
+    const onStatus = (e) => setSseOnline(e.detail.connected);
+    const onPermanent = () => setSsePermanentError(true);
+    window.addEventListener('rz:sse-status', onStatus);
+    window.addEventListener('rz:sse-permanent-error', onPermanent);
+    return () => {
+      window.removeEventListener('rz:sse-status', onStatus);
+      window.removeEventListener('rz:sse-permanent-error', onPermanent);
+    };
   }, []);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
@@ -37,6 +44,10 @@ export function useLiveSync(user, {
       addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
     };
   });
+
+  // A-05: refs live here — not in Dashboard — Dashboard had no business owning them
+  const prevPendingP = useRef(0);
+  const prevPendingT = useRef(0);
 
   // FIX: флаг-ref, чтобы setIsLoading(false) вызвался ровно один раз.
   // Без него: setAllRequests-обёртка И onRequests оба вызывали setIsLoading(false)
@@ -124,7 +135,7 @@ export function useLiveSync(user, {
       if (typeof fn === 'function') cleanupFn = fn;
     })
     .catch((err) => {
-      console.error('[useLiveSync] startSync failed:', err);
+      logger.error('[useLiveSync] startSync failed', { message: err?.message });
       clearLoading(); // ошибка — тоже снимаем skeleton
     });
 
@@ -135,5 +146,26 @@ export function useLiveSync(user, {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role, user.uid, retryKey]);
 
-  return { isLoading, sseOnline };
+  // DO-02: watchdog — if SSE reports online but no events for 60s, force disconnect
+  // so the SSE manager will reconnect. Uses rz:sse-activity dispatched per-event.
+  useEffect(() => {
+    if (!isLiveMode()) return;
+    const WATCHDOG_INTERVAL_MS = 30_000;
+    const STALE_THRESHOLD_MS   = 60_000;
+    let lastActivity = Date.now();
+    const onActivity = () => { lastActivity = Date.now(); };
+    window.addEventListener('rz:sse-activity', onActivity);
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivity > STALE_THRESHOLD_MS) {
+        // SSE stream appears stale — trigger reconnect by toggling status
+        window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: false } }));
+      }
+    }, WATCHDOG_INTERVAL_MS);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('rz:sse-activity', onActivity);
+    };
+  }, []);
+
+  return { isLoading, sseOnline, ssePermanentError };
 }

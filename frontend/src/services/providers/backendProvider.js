@@ -22,6 +22,9 @@ function createSSEManager() {
   let _reconnectDelay = 3_000;
   const _RECONNECT_MIN  = 3_000;
   const _RECONNECT_MAX  = 30_000;
+  // D-04: максимальное число попыток переподключения перед капитуляцией
+  let _retryCount = 0;
+  const MAX_SSE_RETRIES = 10;
   // FIX [AUDIT-2 #16]: сохраняем last event ID для replay при переподключении
   let _lastEventId = null;
 
@@ -59,8 +62,9 @@ function createSSEManager() {
 
       if (!response.ok || !response.body) throw new Error('SSE connection failed');
 
-      // Успешное соединение — сбрасываем задержку до минимума
+      // Успешное соединение — сбрасываем задержку и счётчик попыток
       _reconnectDelay = _RECONNECT_MIN;
+      _retryCount = 0;
       // FA-07: уведомляем React о восстановлении SSE-соединения
       window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: true } }));
 
@@ -88,20 +92,29 @@ function createSSEManager() {
             try {
               const parsed = JSON.parse(data);
               sseHandlers[eventType].forEach(fn => fn(parsed));
+              // DO-02: notify heartbeat monitor of activity
+              window.dispatchEvent(new CustomEvent('rz:sse-activity'));
             } catch { /* ignore malformed */ }
           }
         }
       }
     } catch (err) {
       if (err.name === 'AbortError') return; // намеренный disconnect
-      logger.warn(`[SSE] connection error, reconnecting in ${_reconnectDelay / 1000}s`, err.message);
       abortController = null;
       isConnected     = false;
-      // FA-07: уведомляем React о разрыве SSE-соединения (будет переподключение)
+      _retryCount    += 1;
+      // FA-07: уведомляем React о разрыве SSE-соединения
       window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: false } }));
       clearTimeout(reconnectTimer);
+      // D-04: после MAX_SSE_RETRIES — прекращаем автоматические попытки
+      if (_retryCount >= MAX_SSE_RETRIES) {
+        logger.warn(`[SSE] gave up after ${MAX_SSE_RETRIES} retries`);
+        window.dispatchEvent(new CustomEvent('rz:sse-permanent-error'));
+        return;
+      }
       const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
       const delay = Math.round(_reconnectDelay * jitter);
+      logger.warn(`[SSE] connection error, retry ${_retryCount}/${MAX_SSE_RETRIES} in ${Math.round(delay / 1000)}s`);
       // FIX [AUDIT-2]: exponential backoff — интервал удваивается, максимум 30с
       _reconnectDelay = Math.min(_reconnectDelay * 1.5, _RECONNECT_MAX);
       reconnectTimer  = setTimeout(() => connect(currentUid), delay);
@@ -113,6 +126,7 @@ function createSSEManager() {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     _reconnectDelay = _RECONNECT_MIN; // сбрасываем backoff при явном disconnect
+    _retryCount = 0; // D-04: сбрасываем счётчик при явном переподключении
     if (abortController) {
       abortController.abort();
       abortController = null;

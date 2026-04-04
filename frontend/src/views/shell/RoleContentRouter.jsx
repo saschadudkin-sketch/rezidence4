@@ -8,6 +8,7 @@ import { lazy, Suspense, memo } from 'react';
 import { ROLES } from '../../domain/permissions';
 import { ReqSkeleton } from '../../requests/ReqCard';
 import ErrorBoundary from '../../ui/ErrorBoundary';
+import { useNavigationContext } from './NavigationContext';
 
 const ResidentView  = lazy(() => import('../ResidentView'));
 const ConciergeView = lazy(() => import('../SecurityConciergeViews').then(m => ({ default: m.ConciergeView })));
@@ -18,8 +19,9 @@ const AdminView     = lazy(() => import('../AdminView'));
 const fallback = <ReqSkeleton count={3} />;
 
 const RoleContentRouter = memo(function RoleContentRouter({
-  user, activeTab, setActiveTab, highlightReqId, setHighlightReqId,
+  user, activeTab, setActiveTab,
 }) {
+  const { highlightReqId, setHighlightReqId } = useNavigationContext();
   if (user.role === ROLES.SECURITY) {
     return (
       <ErrorBoundary name="Пост охраны">

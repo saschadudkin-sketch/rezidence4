@@ -24,6 +24,12 @@ export const PHOTO_MAX_WIDTH_PX = 1024;
 /** Качество JPEG при сжатии фото (0–1) */
 export const PHOTO_JPEG_QUALITY = 0.72;
 
+/** Таймаут первого SSE-подключения (мс) — медленный сервер/4G */
+export const FIRST_CONNECT_TIMEOUT_MS = 5_000;
+
+/** Таймаут повторного SSE-подключения (мс) — reconnect быстрее первого запуска */
+export const RECONNECT_TIMEOUT_MS = 3_000;
+
 /** Cooldown между повторными отправками OTP по умолчанию (сек) */
 export const OTP_COOLDOWN_SECONDS = 30;
 
