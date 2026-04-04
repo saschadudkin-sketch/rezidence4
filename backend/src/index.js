@@ -7,9 +7,11 @@ const path         = require('path');
 const helmet       = require('helmet');           // FIX [SEC-5]: security headers (CSP, X-Frame-Options и др.)
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
+const RedisStore   = require('rate-limit-redis');
 const pinoHttp     = require('pino-http');
 const logger       = require('./logger');
 const appMetrics   = require('./metrics');
+const { getRedis } = require('./lib/redisClient');
 const { randomUUID } = require('crypto');
 
 const db              = require('./db');
@@ -88,18 +90,35 @@ app.use(helmet({
 }));
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
+// FIX [SEC-1]: Redis store для rate limiters — корректная работа в multi-instance деплое.
+// Без Redis store каждый инстанс имеет свой счётчик: 3 инстанса × 10 запросов = 30 попыток.
+// С Redis store счётчики разделяются между всеми инстансами — лимит соблюдается глобально.
+// Fallback на in-memory если Redis не настроен (одиночный инстанс или dev-среда).
+function makeRedisStore(prefix) {
+  const redis = getRedis();
+  if (!redis) return {};
+  return {
+    store: new RedisStore({
+      sendCommand: (...args) => redis.call(...args),
+      prefix: `rz:rl:${prefix}:`,
+    }),
+  };
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много запросов. Попробуйте позже.' },
+  ...makeRedisStore('auth'),
 });
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  ...makeRedisStore('global'),
 });
 const clientLogsLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -107,6 +126,7 @@ const clientLogsLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много client logs. Подождите.' },
+  ...makeRedisStore('client-logs'),
 });
 // FIX [AUDIT]: отдельный лимит для загрузки файлов — 20 фото/мин.
 // Без него авторизованный пользователь загружает 200 файлов × 10MB = 2GB/мин на диск,
@@ -117,6 +137,7 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много загрузок. Подождите.' },
+  ...makeRedisStore('upload'),
 });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────

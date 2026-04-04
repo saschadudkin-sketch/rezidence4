@@ -27,6 +27,9 @@ function createSSEManager() {
 
   const sseHandlers = {
     message: [], message_update: [], message_delete: [], request_update: [],
+    // FIX [P-1]: real-time domain updates — blacklist and user changes
+    blacklist_add: [], blacklist_remove: [],
+    user_update: [], user_delete: [],
   };
 
   async function connect(uid = null) {
@@ -412,8 +415,16 @@ export function createBackendProvider() {
         // Ранее эти данные НЕ загружались при startSync — после F5 в live mode
         // перм-списки, шаблоны и чёрный список были пусты.
         onPerms, onTemplates, setBlacklist, userUid,
+        // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+        onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
       }) => {
         let mounted = true;
+
+        // FIX [DATA-1]: Race condition fix — подписываемся на request_update ДО Promise.all.
+        // События, пришедшие пока грузятся начальные данные, буферизируются и применяются после.
+        // Без этого: событие между стартом Promise.all и подпиской sseManager.on — теряется навсегда.
+        const reqEventBuffer = [];
+        const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
         // Параллельная загрузка ВСЕХ данных при старте
         const promises = [
@@ -434,17 +445,26 @@ export function createBackendProvider() {
 
         const [reqs, chatData, users, permsData, templatesData, blacklistData] = await Promise.all(promises);
 
+        // Отписаться от буфера — теперь будет live subscription ниже
+        bufferReqSub();
+
         if (!mounted) return () => {};
 
-        if (setAllRequests) setAllRequests(reqs);
+        // Применить буферизированные события к начальным данным перед отправкой в стор
+        let currentRequests = Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        for (const bufferedReq of reqEventBuffer) {
+          const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
+          if (idx >= 0) currentRequests[idx] = bufferedReq;
+          else currentRequests = [bufferedReq, ...currentRequests];
+        }
+
+        if (setAllRequests) setAllRequests(currentRequests);
         if (setAllMessages) setAllMessages(chatData.messages || chatData);
         if (setAllUsers)    setAllUsers(users);
         // FIX [AUDIT-6]: загруженные perms/templates/blacklist → в стор
         if (permsData && onPerms)       onPerms(permsData);
         if (templatesData && onTemplates) onTemplates(templatesData);
         if (setBlacklist && Array.isArray(blacklistData)) setBlacklist(blacklistData);
-
-        let currentRequests = reqs;
 
         const unsubMsg    = chatProvider.onMessage(msg      => onChat && onChat({ type: 'added',   message: msg }));
         const unsubUpdate = chatProvider.onMessageUpdate(msg => onChat && onChat({ type: 'updated', message: msg }));
@@ -461,12 +481,22 @@ export function createBackendProvider() {
           if (setAllRequests) setAllRequests(currentRequests);
         });
 
+        // FIX [P-1]: real-time SSE subscriptions for blacklist and user updates
+        const unsubBLAdd    = sseManager.on('blacklist_add',    entry      => { if (!mounted) return; onBlacklistAdd?.(entry); });
+        const unsubBLRemove = sseManager.on('blacklist_remove', ({ id })   => { if (!mounted) return; onBlacklistRemove?.(id); });
+        const unsubUserUpd  = sseManager.on('user_update',      u          => { if (!mounted) return; onUserUpdate?.(u); });
+        const unsubUserDel  = sseManager.on('user_delete',      ({ uid })  => { if (!mounted) return; onUserDelete?.(uid); });
+
         return () => {
           mounted = false;
           unsubMsg();
           unsubUpdate();
           unsubDel();
           unsubReq();
+          unsubBLAdd();
+          unsubBLRemove();
+          unsubUserUpd();
+          unsubUserDel();
         };
       },
     },

@@ -64,7 +64,7 @@ const AppShell = memo(function AppShell({
           <div className="page-top">
             <div>
               <h1 className="page-title">{pageTitle}</h1>
-              <p className="page-sub" style={{visibility: activeTab === 'chat' ? 'hidden' : 'visible'}}>{pageSubtitle}</p>
+              <p className={`page-sub${activeTab === 'chat' ? ' page-sub--hidden' : ''}`}>{pageSubtitle}</p>
             </div>
           </div>
           <ErrorBoundary name="Экран">

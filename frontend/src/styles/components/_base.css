@@ -84,4 +84,6 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .app-content-offset{padding-top:0;transition:padding-top 220ms ease}
 .app-content-offset.has-offline-banner{padding-top:36px}
 .api-config-error{color:var(--danger);margin-top:8px}
+/* FIX [UI-2]: CSS class вместо inline style visibility для page-sub */
+.page-sub--hidden{visibility:hidden}
 

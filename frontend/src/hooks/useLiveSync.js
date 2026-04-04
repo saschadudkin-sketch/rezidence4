@@ -15,6 +15,8 @@ export function useLiveSync(user, {
   prevPendingP, prevPendingT,
   // P-02: retryKey increment triggers soft reconnect without page reload
   retryKey = 0,
+  // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+  addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
 }) {
   const [isLoading,   setIsLoading]   = useState(true);
   // FA-07: статус SSE-соединения для индикатора в header
@@ -29,7 +31,11 @@ export function useLiveSync(user, {
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
   const callbacksRef = useRef({});
   useEffect(() => {
-    callbacksRef.current = { setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist };
+    callbacksRef.current = {
+      setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
+      // FIX [P-1]: incremental SSE actions
+      addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
+    };
   });
 
   // FIX: флаг-ref, чтобы setIsLoading(false) вызвался ровно один раз.
@@ -103,6 +109,12 @@ export function useLiveSync(user, {
       onUsers:     (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
       onPerms:     (p)    => startTransition(() => callbacksRef.current.setPerms?.(user.uid, p)),
       onTemplates: (t)    => startTransition(() => callbacksRef.current.setTemplates?.(user.uid, t)),
+      // FIX [P-1]: incremental SSE handlers for real-time blacklist/user updates
+      onBlacklistAdd:    (entry) => startTransition(() => callbacksRef.current.addToBlacklist?.(entry)),
+      onBlacklistRemove: (id)    => startTransition(() => callbacksRef.current.removeFromBlacklist?.(id)),
+      onUserUpdate:      (u)     => startTransition(() => callbacksRef.current.updateUser?.(u.uid, u)),
+      onUserDelete:      (uid)   => startTransition(() => callbacksRef.current.deleteUser?.(uid)),
+      onUserAdd:         (u)     => startTransition(() => callbacksRef.current.addUser?.(u)),
     }))
     .then(fn => {
       if (cancelled) {

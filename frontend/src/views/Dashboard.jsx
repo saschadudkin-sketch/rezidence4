@@ -75,6 +75,9 @@ export default function Dashboard({ user, onLogout }) {
     setAllRequests, setAllMessages, setAllUsers,
     setPerms, setTemplates, setBlacklist,
     markChatSeen, activateScheduled,
+    // FIX [P-1]: incremental SSE updates for blacklist and users (real-time without F5)
+    addToBlacklist, removeFromBlacklist,
+    updateUser, deleteUser, addUser,
   } = useActions();
 
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
@@ -101,11 +104,20 @@ export default function Dashboard({ user, onLogout }) {
   const { isLoading: syncLoading, sseOnline } = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
     prevPendingP, prevPendingT, retryKey,
+    // FIX [P-1]: incremental SSE updates
+    addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
   });
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!syncLoading) { setTimedOut(false); return; }
-    const t = setTimeout(() => setTimedOut(true), 1_500);
+    // FIX [P-3]: первый коннект — 5s (медленный сервер/4G не должен давать ложный error screen)
+    //            повторный коннект — 3s (reconnect быстрее чем первый запуск)
+    const FIRST_CONNECT_TIMEOUT_MS = 5_000;
+    const RECONNECT_TIMEOUT_MS     = 3_000;
+    const t = setTimeout(
+      () => setTimedOut(true),
+      retryKey === 0 ? FIRST_CONNECT_TIMEOUT_MS : RECONNECT_TIMEOUT_MS,
+    );
     return () => clearTimeout(t);
   }, [syncLoading, retryKey]);
   const isLoading  = syncLoading && !timedOut;

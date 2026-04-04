@@ -6,6 +6,9 @@ const { randomUUID } = require('crypto');
 // In-memory map: uid -> Set<{ res, role }>
 const clients = new Map();
 
+// Roles allowed to receive blacklist events
+const BLACKLIST_ROLES = new Set(['admin', 'security', 'concierge']);
+
 function nextEventId() {
   return `${Date.now()}-${randomUUID()}`;
 }
@@ -45,6 +48,7 @@ function removeClient(uid, res) {
 
 // ─── FIX [AUDIT-6]: Redis pub/sub hook ───────────────────────────────────────
 let _redisPublish = null;
+// fn signature: (event, data, targetRoles?) where targetRoles is Set|undefined
 function setRedisPublish(fn) { _redisPublish = fn; }
 
 // ─── Local broadcast (вызывается напрямую ИЛИ из Redis subscriber) ───────────
@@ -71,6 +75,20 @@ function localBroadcastRequestUpdate(req) {
   }
 }
 
+// ─── Local broadcast: only to clients with specific roles ─────────────────────
+// Used directly OR from Redis subscriber when targetRoles is set.
+function localBroadcastToRoles(event, data, allowedRoles) {
+  const id = nextEventId();
+  const payload = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const [, set] of clients.entries()) {
+    for (const { res, role } of set) {
+      if (allowedRoles.has(role)) {
+        try { res.write(payload); } catch { /* disconnected */ }
+      }
+    }
+  }
+}
+
 // ─── Public broadcast (Redis-aware) ──────────────────────────────────────────
 
 function broadcastToAll(event, data) {
@@ -78,6 +96,17 @@ function broadcastToAll(event, data) {
     _redisPublish(event, data);
   } else {
     localBroadcastToAll(event, data);
+  }
+}
+
+// Broadcast to specific roles only (Redis-aware).
+// targetRoles must be a Set<string>.
+function broadcastToRoles(event, data, targetRoles) {
+  if (_redisPublish) {
+    // Pass roles array so Redis subscriber can re-filter per instance
+    _redisPublish(event, data, [...targetRoles]);
+  } else {
+    localBroadcastToRoles(event, data, targetRoles);
   }
 }
 
@@ -93,12 +122,23 @@ function broadcastChatMessage(msg) { broadcastToAll('message',        msg); }
 function broadcastChatUpdate(msg)  { broadcastToAll('message_update', msg); }
 function broadcastChatDelete(id)   { broadcastToAll('message_delete', { id }); }
 
+// ─── Domain-specific broadcasts ──────────────────────────────────────────────
+// Blacklist: only admin/security/concierge may see blacklist data
+function broadcastBlacklistAdd(entry)  { broadcastToRoles('blacklist_add',    entry,    BLACKLIST_ROLES); }
+function broadcastBlacklistRemove(id)  { broadcastToRoles('blacklist_remove', { id },   BLACKLIST_ROLES); }
+// User updates: all clients already receive full user list at sync,
+// so broadcasting to all is consistent with existing data access model.
+function broadcastUserUpdate(user)     { broadcastToAll('user_update', user); }
+function broadcastUserDelete(uid)      { broadcastToAll('user_delete', { uid }); }
+
 module.exports = {
   clients,
   addClient, removeClient,
   broadcastRequestUpdate,
   broadcastChatMessage, broadcastChatUpdate, broadcastChatDelete,
+  broadcastBlacklistAdd, broadcastBlacklistRemove,
+  broadcastUserUpdate, broadcastUserDelete,
   setRedisPublish,
-  localBroadcastToAll,
+  localBroadcastToAll, localBroadcastToRoles,
   localBroadcastRequestUpdate,
 };
