@@ -1,8 +1,12 @@
 /**
- * A-07: formatPhone extracted from Login.jsx — belongs with phone utilities.
- * Formats a raw phone input to +7 XXX XXX-XX-XX style for display.
+ * phoneUtils.ts — CQ-02: migrated from phoneUtils.js
+ * A-07: formatPhone was extracted from Login.jsx and added here.
  */
-export function formatPhone(value) {
+
+/**
+ * formatPhone — formats raw phone input to +7 XXX XXX-XX-XX display style.
+ */
+export function formatPhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 1) return '+7 ';
   if (digits.length <= 4) return `+7 ${digits.slice(1)}`;
@@ -11,8 +15,8 @@ export function formatPhone(value) {
   return `+7 ${digits.slice(1, 4)} ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9)}`;
 }
 
-/** Нормализует номер к формату 7XXXXXXXXXX (11 цифр) */
-export const normalizePhone = (p) => {
+/** Normalizes a phone number to 7XXXXXXXXXX format (11 digits) */
+export const normalizePhone = (p: string): string => {
   if (!p) return '';
   const digits = p.replace(/\D/g, '');
   if (!digits) return '';
@@ -20,5 +24,6 @@ export const normalizePhone = (p) => {
   return digits.replace(/^8/, '7');                 // 89161234567 → 79161234567
 };
 
-/** Ищет пользователя по номеру телефона в переданном phoneDb */
-export const findByPhone = (p, phoneDb) => phoneDb[normalizePhone(p)] || null;
+/** Finds a user by phone number in the provided phoneDb map */
+export const findByPhone = (p: string, phoneDb: Record<string, unknown>): unknown =>
+  phoneDb[normalizePhone(p)] ?? null;

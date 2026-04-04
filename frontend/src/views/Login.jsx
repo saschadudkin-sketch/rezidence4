@@ -6,9 +6,9 @@ import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
-import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits.js';
-import { formatPhone } from '../utils/phoneUtils.js';
-import { emitLoginMetric } from '../utils/loginMetrics.js';
+import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits';
+import { formatPhone } from '../utils/phoneUtils';
+import { emitLoginMetric } from '../utils/loginMetrics';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)

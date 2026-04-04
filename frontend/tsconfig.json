@@ -27,12 +27,14 @@
     /* JSX */
     "jsx": "react-jsx",
 
-    /* T-01: gradual migration — allow .js files, check them via JSDoc */
+    /* CQ-02 / A-08: Phase 3 — domain + utils migrated to .ts; strict mode enabled.
+       .js files still allowed (allowJs) for React components not yet migrated,
+       but checkJs is disabled so only .ts/.tsx files get strict checking. */
     "allowJs": true,
-    "checkJs": true,
+    "checkJs": false,
 
-    /* Type safety — will be tightened per-file as migration progresses */
-    "strict": false,
+    /* A-08: strict mode now applies to all .ts/.tsx files */
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
 
