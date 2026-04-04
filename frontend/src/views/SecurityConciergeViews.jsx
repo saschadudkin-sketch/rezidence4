@@ -49,6 +49,11 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
 
   return (<>
     {activeTab === 'passes' && (<>
+      {/* ВАЖНО-1: role reminder — approvals belong to security, not concierge */}
+      <div className="concierge-role-hint" role="note">
+        <AppIcon name="info" size={14} className="u-inline-icon" />
+        <span>Консьерж контролирует доступ и создаёт заявки. Одобрение — задача охраны.</span>
+      </div>
       <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
         <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
         <span>Сканировать QR-код</span>

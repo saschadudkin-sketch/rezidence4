@@ -12,6 +12,7 @@ import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { AppIcon } from '../ui/AppIcon.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
+import { useDebounce } from '../hooks/useDebounce.js';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -116,6 +117,10 @@ export function ChatView({ user }) {
   // Пользователь видел только последние 60 сообщений без возможности прокрутить дальше.
   const [hasMore, setHasMore]             = useState(false);
   const [loadingOlder, setLoadingOlder]   = useState(false);
+  // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
+  const [serverSearchResults, setServerSearchResults] = useState(null);
+  const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
   const msgsContainerRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -135,11 +140,13 @@ export function ChatView({ user }) {
   }, []);
 
   // FIX [REACT-3]: filteredChat ПЕРЕД return (было после — используется в JSX)
+  // КРИТ-2: prefer server results when hasMore=true (local store is incomplete).
   const filteredChat = useMemo(() => {
     if (!searchQuery.trim()) return chat;
+    if (serverSearchResults !== null) return serverSearchResults; // server-side full-history results
     const q = searchQuery.toLowerCase();
     return chat.filter(m => m.text?.toLowerCase().includes(q));
-  }, [chat, searchQuery]);
+  }, [chat, searchQuery, serverSearchResults]);
 
   // FIX [PERF-4]: кешируем timestamp каждого сообщения — не создаём new Date() внутри map
   // При N сообщениях и каждом ре-рендере chat-bar это экономит 2N Date-аллокаций.
@@ -208,6 +215,25 @@ export function ChatView({ user }) {
   useEffect(() => {
     markChatSeen(user.uid);
   }, [user.uid, markChatSeen]);
+
+  // КРИТ-2: when hasMore=true the local store is incomplete — search on the server.
+  // When hasMore=false or query is empty, clear server results and use local filter.
+  useEffect(() => {
+    if (!debouncedSearchQuery.trim() || !hasMore || !isLiveMode()) {
+      setServerSearchResults(null);
+      return;
+    }
+    let cancelled = false;
+    setServerSearchLoading(true);
+    services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
+      .then(data => {
+        if (cancelled) return;
+        setServerSearchResults(data?.messages ?? []);
+      })
+      .catch(() => { if (!cancelled) setServerSearchResults(null); })
+      .finally(() => { if (!cancelled) setServerSearchLoading(false); });
+    return () => { cancelled = true; };
+  }, [debouncedSearchQuery, hasMore]);
 
   // FIX [AUDIT]: синхронизируем hasMore при первой загрузке (live-режим).
   // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
@@ -446,7 +472,10 @@ export function ChatView({ user }) {
             )}
           </div>
         )}
-        {filteredChat.length === 0 && (
+        {serverSearchLoading && (
+          <StateBlock type="loading" title="Поиск по всей истории…" />
+        )}
+        {filteredChat.length === 0 && !serverSearchLoading && (
           <StateBlock
             type="empty"
             title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}

@@ -279,10 +279,12 @@ export const requestsProvider = {
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 export const chatProvider = {
   // Returns { messages, hasMore }. before= loads history older than that message id.
-  async getMessages({ before, limit } = {}) {
+  // search= performs full-history text search (КРИТ-2).
+  async getMessages({ before, limit, search } = {}) {
     const params = new URLSearchParams();
     if (before) params.set('before', before);
     if (limit)  params.set('limit', String(limit));
+    if (search) params.set('search', search);
     const qs = params.toString();
     const data = await apiClient.get(`/api/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })

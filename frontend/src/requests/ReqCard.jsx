@@ -181,7 +181,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
         onClick={() => (hasDetails || showActions) && setExpanded(o => !o)}
         style={{ cursor: (hasDetails || showActions) ? 'pointer' : 'default', marginBottom: 0 }}>
         <div className="req-left">
-          <div className="req-ico" style={{ overflow: 'hidden', padding: 0 }}>
+          <div className="req-ico">
             <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={34} fontSize={13} />
           </div>
           <div className="u-mw0">
@@ -241,8 +241,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           <button className="qr-pass-btn" onClick={() => setShowQR(true)}>
             <span className="u-inline-icon"><AppIcon name="phone" size={18} /></span>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>QR-код пропуска</div>
-              <div style={{ fontSize: 11, color: 'var(--t4)' }}>
+              <div className="qr-pass-label">QR-код пропуска</div>
+              <div className="qr-pass-hint">
                 {req.status === 'approved' ? 'Покажите охране для прохода' : 'Будет активен после одобрения'}
               </div>
             </div>
@@ -250,7 +250,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
         )}
 
         {canApproveRequests(userRole) && (
-          <div className="req-actions">
+          <div className="req-actions" aria-busy={!!actLoading}>
             {req.type === 'pass' ? <>
               {mayApprove && <button className="btn-yes"    onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
               {mayReject && !confirmReject && (
@@ -273,7 +273,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         )}
         {onRepeat && req.status !== 'pending' && (
-          <button className="tpl-save-btn" style={{ marginTop: 8, fontSize: 11 }} onClick={() => onRepeat(req)}>
+          <button className="tpl-save-btn" onClick={() => onRepeat(req)}>
             <span className="u-inline-icon u-mr6"><AppIcon name="undo" size={12} /></span>
             Повторить заявку
           </button>
@@ -283,7 +283,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
             {confirmDel ? <>
               <span className="u-fs-2xs u-t3">Удалить?</span>
               <button className="btn-del-sm" onClick={() => onDelete(req.id)}>Да</button>
-              <button className="btn-outline u-fs-xs" style={{ padding: '4px 10px' }} onClick={() => setConfirmDel(false)}>Нет</button>
+              <button className="btn-outline btn-outline--sm" onClick={() => setConfirmDel(false)}>Нет</button>
             </> : <>
               {onEdit && (
                 <button className="btn-edit" onClick={() => onEdit(req)}>

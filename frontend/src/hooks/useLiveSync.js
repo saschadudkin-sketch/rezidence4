@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef, startTransition } from 'react';
-import { canManageRequests } from '../domain/permissions.js';
-import { ROLES } from '../domain/permissions.js';
-import { sendNotif, playAlert } from '../utils.js';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer.js';
 import { logger } from '../services/logger.js';
+import { useNewRequestNotifier } from './useNewRequestNotifier.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.
@@ -47,9 +45,8 @@ export function useLiveSync(user, {
     updateRequest, addRequest, deleteRequest,
   };
 
-  // A-05: refs live here — not in Dashboard — Dashboard had no business owning them
-  const prevPendingP = useRef(0);
-  const prevPendingT = useRef(0);
+  // ARCH-2: notification policy lives in its own hook, not here.
+  const notifyNewRequests = useNewRequestNotifier(user);
 
   // FIX: флаг-ref, чтобы setIsLoading(false) вызвался ровно один раз.
   // Без него: setAllRequests-обёртка И onRequests оба вызывали setIsLoading(false)
@@ -75,7 +72,7 @@ export function useLiveSync(user, {
     let cleanupFn = null;
     let cancelled  = false;
 
-    Promise.resolve(services.liveData.startSync({
+    (async () => { try { const fn = await services.liveData.startSync({
       userUid:        user.uid,
       // Initial bulk load: not wrapped in transition (renders skeleton → data ASAP)
       setAllRequests: (...a) => {
@@ -88,19 +85,7 @@ export function useLiveSync(user, {
       setBlacklist:   (e)    => startTransition(() => callbacksRef.current.setBlacklist?.(e)),
       onRequests: (docs) => {
         // Notifications are urgent — run immediately before transition
-        const newP = docs.filter(r => r.type === 'pass' && r.status === 'pending').length;
-        if (newP > prevPendingP.current && user.role === ROLES.SECURITY) {
-          sendNotif('Новый пропуск', 'Требует рассмотрения', 'pass');
-          playAlert('pass');
-        }
-        prevPendingP.current = newP;
-
-        const newT = docs.filter(r => r.type === 'tech' && r.status === 'pending').length;
-        if (newT > prevPendingT.current && canManageRequests(user.role)) {
-          sendNotif('Техзаявка', 'Новая заявка в техслужбу', 'tech');
-          playAlert('tech');
-        }
-        prevPendingT.current = newT;
+        notifyNewRequests(docs);
         // State update is non-urgent: yield to typing, taps, navigation
         startTransition(() => {
           callbacksRef.current.setAllRequests?.(docs);
@@ -132,18 +117,12 @@ export function useLiveSync(user, {
       onRequestUpdate:   (req)   => startTransition(() => callbacksRef.current.updateRequest?.(req.id, req)),
       onRequestAdd:      (req)   => startTransition(() => callbacksRef.current.addRequest?.(req)),
       onRequestDelete:   (id)    => startTransition(() => callbacksRef.current.deleteRequest?.(id)),
-    }))
-    .then(fn => {
-      if (cancelled) {
-        if (typeof fn === 'function') fn();
-        return;
-      }
+    }); if (cancelled) { if (typeof fn === 'function') fn(); return; }
       if (typeof fn === 'function') cleanupFn = fn;
-    })
-    .catch((err) => {
+    } catch (err) {
       logger.error('[useLiveSync] startSync failed', { message: err?.message });
-      clearLoading(); // ошибка — тоже снимаем skeleton
-    });
+      clearLoading();
+    } })();
 
     return () => {
       cancelled = true;

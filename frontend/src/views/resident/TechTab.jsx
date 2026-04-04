@@ -1,13 +1,23 @@
-import { memo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard.jsx';
 import { AppIcon } from '../../ui/AppIcon.jsx';
 import StateBlock from '../../ui/StateBlock.jsx';
+import { useDebounce } from '../../hooks/useDebounce.js';
 
 const TechTab = memo(function TechTab({
   user, techFilter, setTechFilter, setModal,
   onRepeatTech, onEdit, onDelete, onCancel, computed,
 }) {
   const { filteredTech } = computed;
+
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 250);
+  const matchQ = useCallback((r) => {
+    const q = debouncedQuery.trim().toLowerCase();
+    if (!q) return true;
+    return [r.comment, r.category].some(v => v && v.toLowerCase().includes(q));
+  }, [debouncedQuery]);
+  const visibleTech = useMemo(() => filteredTech.filter(matchQ), [filteredTech, matchQ]);
 
   return (
     <>
@@ -25,14 +35,20 @@ const TechTab = memo(function TechTab({
           <button key={k} className={'date-pill' + (techFilter === k ? ' active' : '')} onClick={() => setTechFilter(k)}>{l}</button>
         ))}
       </div>
-      {filteredTech.length === 0
+      {filteredTech.length > 0 && (
+        <div className="search-wrap u-mb8">
+          <span className="search-ico"><AppIcon name="search" size={14} /></span>
+          <input className="search-inp" placeholder="Поиск по комментарию..." value={query} onChange={e => setQuery(e.target.value)} />
+        </div>
+      )}
+      {visibleTech.length === 0
         ? <StateBlock
             type="empty"
-            title="Заявок нет"
-            subtitle="Нажмите на категорию выше, чтобы вызвать техслужбу"
+            title={debouncedQuery ? 'Ничего не найдено' : 'Заявок нет'}
+            subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Нажмите на категорию выше, чтобы вызвать техслужбу'}
           />
         : <GroupedReqList
-            reqs={filteredTech} userRole={user.role} userName={user.name} userId={user.uid}
+            reqs={visibleTech} userRole={user.role} userName={user.name} userId={user.uid}
             onRepeat={onRepeatTech}
             onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
           />
