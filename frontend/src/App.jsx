@@ -1,5 +1,5 @@
 import { memo, useEffect } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
@@ -126,7 +126,27 @@ const AppInner = memo(function AppInner() {
   );
 });
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
+// ─── Route tree ───────────────────────────────────────────────────────────────
+//
+// P-01/A-01: Declarative URL routing with React Router <Routes>/<Route>.
+//
+// Route structure:
+//   /                  → redirect to /dashboard (preserves any ?reqId= params)
+//   /dashboard/*       → authenticated app shell (tab rendered by nested Routes)
+//   *                  → redirect to / (unknown paths)
+//
+// The nested /dashboard/:tab matching lives in RoleContentRouter, which
+// renders <Routes><Route path=":tab"> so each section has its own URL.
+//
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/*" element={<AppInner />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
@@ -134,7 +154,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary name="Критическая ошибка">
           <AppProvider>
-            <AppInner />
+            <AppRoutes />
           </AppProvider>
         </ErrorBoundary>
       </QueryClientProvider>

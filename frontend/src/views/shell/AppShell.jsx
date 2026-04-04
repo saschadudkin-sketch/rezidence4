@@ -64,11 +64,9 @@ const AppShell = memo(function AppShell({
             </div>
           </div>
           <ErrorBoundary name="Экран">
-            <RoleContentRouter
-              user={user}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-            />
+            {/* P-01/A-01: activeTab and setActiveTab come from URL params
+                and NavigationContext inside RoleContentRouter */}
+            <RoleContentRouter user={user} />
           </ErrorBoundary>
         </main>
       </div>

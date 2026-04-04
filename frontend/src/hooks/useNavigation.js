@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions.js';
 import { canAccessTab, getTabsForRole } from '../domain/permissions';
 
@@ -13,6 +13,7 @@ import { canAccessTab, getTabsForRole } from '../domain/permissions';
 export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const defaultTab = {
     owner: 'passes', tenant: 'passes', contractor: 'passes',
@@ -83,6 +84,17 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
     if (k === 'chat') markChatSeen(user.uid);
     setActiveTab(k);
   }, [user.role, user.uid, markChatSeen, onPassesSeen, setActiveTab]);
+
+  // P-07: при переходе из push-уведомления (?reqId=xxx) — открываем нужную заявку.
+  // Используем useSearchParams вместо window.location для совместимости с React Router.
+  useEffect(() => {
+    const reqId = searchParams.get('reqId');
+    if (!reqId) return;
+    setSearchParams({}, { replace: true }); // убираем ?reqId= из URL
+    setHighlightReqId(reqId);
+    setActiveTab('passes');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // только при монтировании
 
   return { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId };
 }
