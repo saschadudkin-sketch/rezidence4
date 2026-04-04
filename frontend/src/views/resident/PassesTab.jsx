@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard.jsx';
 import { AppIcon } from '../../ui/AppIcon.jsx';
 import StateBlock from '../../ui/StateBlock.jsx';
+import SectionHeader from '../../ui/SectionHeader.jsx';
 
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
 
@@ -66,7 +67,7 @@ const PassesTab = memo(function PassesTab({
           : <>
               {scheduledPasses.length > 0 && passFilter !== 'scheduled' && (
                 <div className="u-mb-12">
-                  <div className="sec-divider-label"><AppIcon name="history" className="u-inline-icon" /> Запланированные ({scheduledPasses.length})</div>
+                  <SectionHeader title="Запланированные" count={scheduledPasses.length} />
                   <GroupedReqList reqs={scheduledPasses} userRole={user.role} userName={user.name} userId={user.uid}
                     onRepeat={onRepeatPass}
                     onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}

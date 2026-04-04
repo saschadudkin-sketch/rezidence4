@@ -45,12 +45,8 @@ const ReqPhoto = memo(function ReqPhoto({ src }) {
   );
 });
 
-// FIX [BUG-6]: нестабильный ключ `src.slice(-20) + i` — если URL перезапишется
-// (например, при обновлении через SSE), React может неправильно сопоставить
-// компоненты и вызвать полный unmount/mount вместо обновления.
-// Используем стабильный индекс: порядок фото в массиве не меняется без замены всего req.
-// FIX [MEMO]: ReqPhotos без memo перерисовывался при любом изменении статуса заявки
-// (например, при hover/expand другой карточки если ReqCard в общем списке).
+// Photo order is stable (index key). URL-based key would cause unmount/remount
+// on SSE updates even when photo list hasn't changed.
 const ReqPhotos = memo(function ReqPhotos({ req }) {
   const photos = req.photos && req.photos.length > 0 ? req.photos : req.photo ? [req.photo] : [];
   if (photos.length === 0) return null;
@@ -89,11 +85,8 @@ export function ReqSkeleton({ count = 3 }) {
 
 // ─── ReqCard ─────────────────────────────────────────────────────────────────
 
-// FIX [PERF-12]: memo — ReqCard рендерится для каждой заявки в GroupedReqList.
-// При обновлении любого состояния родителя (например, открытие модала) без memo
-// перерендерились ВСЕ карточки, включая тяжёлые вычисления mayApprove/mayReject
-// и вызовы useAvatar / useReqHistory для каждой из них.
-// Именованный экспорт сохраняем через отдельную переменную.
+// memo: prevents re-render of all cards when parent state changes (modal open, etc.)
+// Named export preserved via assignment.
 export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
   const isStaffRole = canManageRequests(userRole);
   const isActive = isActiveRequest(req);
@@ -109,8 +102,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   const history = useReqHistory(req.id);
   const { approveRequest, rejectRequest, acceptRequest, arriveRequest } = useActions();
   const avData = useAvatar(req.createdByUid);
-  // FIX [PERF]: actor object + permission checks мемоизированы —
-  // пересчитываются только при изменении req.status или userRole/userId
+  // Permission checks memoized — recomputed only when req.status or role/user changes.
   const { mayApprove, mayReject, mayAccept, mayMarkArrival } = useMemo(() => {
     const actor = { role: userRole, uid: userId };
     return {
@@ -122,8 +114,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally depends on specific req fields only
   }, [req.status, userRole, userId]);
 
-  // UI: Вычисляем метку даты один раз — вместо IIFE в JSX на каждый рендер.
-  // IIFE (()=>{})() в JSX создаёт новую функцию при каждом рендере без кеширования.
+  // Date label memoized — format+condition computed once, not inline per render.
   const dateLabel = useMemo(() => {
     const d = fmtDate(req.createdAt);
     return (d === 'сегодня' || d === 'только что')
@@ -156,24 +147,14 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
 
   const actorName = userName || userRole;
 
-  // FIX [BUG-1]: Три проблемы были в оригинальном act():
-  //   а) stale closure: actLoading захватывался в deps useCallback и пересоздавал
-  //      функцию при каждом setActLoading → каскадное пересоздание doApprove/doReject/…
-  //   б) setTimeout без cleanup → setState вызывался на unmounted компоненте
-  //      (предупреждение React "Can't perform a state update on unmounted component")
-  //   в) искусственная задержка 350мс без пользы для UX
-  //
-  // РЕШЕНИЕ:
-  //   - actLoadingRef читается в момент вызова → нет stale closure, нет deps
-  //   - isMounted ref защищает setState после unmount
-  //   - прямой async/await вместо setTimeout
+  // actLoadingRef читается в момент вызова — нет stale closure, нет лишних deps.
+  // Синхронизируется с state при каждом рендере, поэтому всегда актуален.
   const actLoadingRef = useRef(actLoading);
   actLoadingRef.current = actLoading;
-  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
-  const isMountedRef = useIsMounted();
+  const isMountedRef = useIsMounted(); // guards setState after unmount
 
   const act = useCallback(async (key, fn, msg, type) => {
-    if (actLoadingRef.current) return;
+    if (actLoadingRef.current) return; // double-submit guard
     if (!isMountedRef.current) return;
     setActLoading(key);
     try {
@@ -184,7 +165,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
-  }, []); // стабильный — читает ref в момент вызова
+  }, []); // stable ref — reads actLoadingRef at call time, not from closure
 
   const doApprove = useCallback(() => act('approve', () => approveRequest(req.id, actorName, userRole), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
   const doReject  = useCallback(() => act('reject',  () => rejectRequest(req.id, actorName, userRole),  'В допуске отказано', 'error'),   [act, rejectRequest,  req.id, actorName, userRole]);

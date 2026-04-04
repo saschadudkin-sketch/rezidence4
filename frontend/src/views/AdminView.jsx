@@ -14,6 +14,7 @@ import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
+import SectionHeader from '../ui/SectionHeader.jsx';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -72,9 +73,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
           </div>
         ))}
       </div>
-      <div className="divider">
-        <div className="div-l" /><span className="div-label">Распределение по ролям</span><div className="div-l" />
-      </div>
+      <SectionHeader title="Распределение по ролям" />
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
           const pct = Math.round(count / allUsers.length * 100);

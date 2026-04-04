@@ -5,6 +5,7 @@ import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
 import { isResident, ROLES } from '../domain/permissions.js';
 import GarageView from './GarageView.jsx';
+import SectionHeader from '../ui/SectionHeader.jsx';
 
 /**
  * ResidentsView — справочник жильцов для охраны и консьержа.
@@ -156,7 +157,7 @@ export default function ResidentsView({ user }) {
                           {/* Постоянные посетители */}
                           {visitors.length > 0 && (
                             <div className="perm-section">
-                              <div className="perm-section-title">Постоянные посетители</div>
+                              <SectionHeader title="Постоянные посетители" className="section-header--compact" />
                               {visitors.map((v, i) => (
                                 <div key={v.id || i} className="perm-entry">
                                   <span className="perm-name">{v.name}</span>
@@ -172,7 +173,7 @@ export default function ResidentsView({ user }) {
                           {/* Постоянные рабочие */}
                           {workers.length > 0 && (
                             <div className="perm-section">
-                              <div className="perm-section-title">Постоянные рабочие</div>
+                              <SectionHeader title="Постоянные рабочие" className="section-header--compact" />
                               {workers.map((w, i) => (
                                 <div key={w.id || i} className="perm-entry">
                                   <span className="perm-name">{w.name}</span>

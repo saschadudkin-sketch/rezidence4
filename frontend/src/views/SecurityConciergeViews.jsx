@@ -16,6 +16,7 @@ import ResidentsView from './ResidentsView.jsx';
 import { CarSearchModal } from '../requests/CarSearchModal.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
+import SectionHeader from '../ui/SectionHeader.jsx';
 
 // ─── CONCIERGE VIEW ───────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {allT.length > 0 && <>
-        <div className="divider"><div className="div-l" /><span className="div-label">Все заявки</span><div className="div-l" /></div>
+        <SectionHeader title="Все заявки" count={allT.length} />
         <div className="req-list">{allT.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>
       </>}
       {allT.length === 0 && (
