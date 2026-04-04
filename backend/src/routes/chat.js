@@ -78,8 +78,25 @@ router.get('/messages', async (req, res, next) => {
   try {
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 60));
     const before = req.query.before || null; // id сообщения-курсора
+    const search = (req.query.search || '').trim().slice(0, 200); // КРИТ-2: full-history search
 
     let rows;
+
+    if (search) {
+      // Full-history search: ignore cursor pagination, return matching messages newest-first
+      const { rows: r } = await db.query(
+        `SELECT id, uid, name, role, text, photo, reply_to, reactions, edited, at
+         FROM chat_messages
+         WHERE text ILIKE $1
+         ORDER BY at DESC, id DESC
+         LIMIT $2`,
+        [`%${search}%`, limit + 1],
+      );
+      rows = r;
+      const hasMore = rows.length > limit;
+      if (hasMore) rows = rows.slice(0, limit);
+      return res.json({ messages: rows.map(fmt).reverse(), hasMore });
+    }
 
     if (before) {
       // Догрузка истории: сообщения СТАРШЕ курсора

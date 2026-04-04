@@ -18,6 +18,11 @@
   color:var(--err-t);cursor:pointer;transition:all .13s;white-space:nowrap;
 }
 .btn-del-sm:hover{background:rgba(106,40,40,.1)}
+/* RESP-1: touch targets — min 44px on touch devices */
+@media(pointer:coarse){
+  .btn-edit,.btn-del-sm{min-height:44px;padding:8px 14px}
+  .t-row-actions{gap:var(--space-sm)}
+}
 .admin-badge{
   display:inline-block;padding:2px 8px;border-radius:20px;
   font-size:var(--fs-2xs);font-weight:600;letter-spacing:.5px;

@@ -22,15 +22,14 @@ export default function AdminUserRow({ u, currentUser }) {
   const { updateUser, deleteUser } = useActions();
   const avData = useAvatar(u.uid);
 
-  // FIX [LEAK]: isMountedRef — save/del делают await операции над строкой таблицы,
-  // которая может быть удалена пока запрос летит (rapid delete + re-render).
+  // isMountedRef: guards setState when row unmounts mid-flight (rapid delete while save is pending).
   const isMountedRef = useRef(true);
   useEffect(() => { isMountedRef.current = true; return () => { isMountedRef.current = false; }; }, []);
 
   async function save() {
     if (!name.trim()) { toast('Введите имя', 'error'); return; }
     const patch = { name: name.trim(), phone: phone.trim(), role, apartment: apt.trim() || '—', parkingSpot: parking.trim() || null };
-    // FIX [BUG]: mode была объявлена внутри try — undefined после блока
+    // mode declared outside try so it's accessible in the post-await code
     let mode;
     try {
       mode = await services.admin.saveUserEverywhere({ uid: u.uid, patch, updateLocal: updateUser, oldPhone: u.phone });
@@ -45,7 +44,7 @@ export default function AdminUserRow({ u, currentUser }) {
 
   async function del() {
     if (!canDel) { toast('Нельзя удалить собственный аккаунт', 'error'); return; }
-    // FIX [BUG]: mode была объявлена внутри try — undefined после блока
+    // mode declared outside try so it's accessible in the post-await code
     let mode;
     try {
       mode = await services.admin.removeUserEverywhere({ uid: u.uid, removeLocal: deleteUser });

@@ -92,6 +92,20 @@
 }
 .emoji-pick-btn:hover{background:var(--s3);transform:scale(1.15)}
 .emoji-pick-btn:active{transform:scale(.95)}
+/* RESP-2: bottom-sheet on touch devices */
+@media(pointer:coarse){
+  .emoji-picker{
+    position:fixed;bottom:0;left:0;right:0;
+    max-height:45vh;
+    z-index:var(--z-top);
+    border-top:2px solid var(--b2);
+    border-radius:16px 16px 0 0;
+    padding:12px var(--space-md) calc(12px + var(--sab));
+    box-shadow:0 -4px 24px rgba(0,0,0,.35);
+    justify-content:center;
+  }
+  .emoji-pick-btn{width:44px;height:44px;font-size:24px}
+}
 
 /* ── Фото в чате ── */
 .chat-photo-btn{

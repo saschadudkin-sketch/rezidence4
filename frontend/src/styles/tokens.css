@@ -20,12 +20,12 @@
 
   /* ── Z-index система ───────────────────────────── */
   --z-base:    1;
-  --z-sticky:  100;
-  --z-nav:     200;
-  --z-overlay: 300;
-  --z-modal:   400;
-  --z-toast:   9999;
-  --z-top:     1000;
+  --z-sticky:  100;   /* sticky headers */
+  --z-nav:     200;   /* top/bottom nav bars */
+  --z-overlay: 300;   /* backdrop/scrim behind modals */
+  --z-modal:   400;   /* modals, dialogs */
+  --z-top:     500;   /* mobile nav overlay, floating elements above modals */
+  --z-toast:   9999;  /* toasts — always on top */
 
   /* surfaces — тёплый почти-чёрный, без синевы */
   --s0: #13110E;
@@ -138,6 +138,21 @@
   --warn:   #f59e0b;
   --warn-t: #000000;
   --danger: var(--err-t);
+
+  /* ── Semantic aliases — UI-4: human-readable names for shorthand tokens ─── */
+  --color-text-primary:   var(--t1);
+  --color-text-secondary: var(--t2);
+  --color-text-muted:     var(--t3);
+  --color-text-subtle:    var(--t4);
+  --color-surface-base:   var(--s0);
+  --color-surface-card:   var(--s2);
+  --color-surface-raised: var(--s3);
+  --color-border:         var(--b1);
+  --color-border-hover:   var(--b2);
+  --color-accent:         var(--g2);
+  --color-success:        var(--ok-t);
+  --color-error:          var(--err-t);
+  --color-warning:        var(--wrn-t);
 }
 
 /* ── Светлая тема (auto) ───────────────────────────────────────────────────── */

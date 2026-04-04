@@ -16,6 +16,7 @@ import ResidentsView from './ResidentsView.jsx';
 import { CarSearchModal } from '../requests/CarSearchModal.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
+import SectionHeader from '../ui/SectionHeader.jsx';
 
 // ─── CONCIERGE VIEW ───────────────────────────────────────────────────────────
 
@@ -48,6 +49,11 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
 
   return (<>
     {activeTab === 'passes' && (<>
+      {/* ВАЖНО-1: role reminder — approvals belong to security, not concierge */}
+      <div className="concierge-role-hint" role="note">
+        <AppIcon name="info" size={14} className="u-inline-icon" />
+        <span>Консьерж контролирует доступ и создаёт заявки. Одобрение — задача охраны.</span>
+      </div>
       <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
         <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
         <span>Сканировать QR-код</span>
@@ -97,7 +103,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {allT.length > 0 && <>
-        <div className="divider"><div className="div-l" /><span className="div-label">Все заявки</span><div className="div-l" /></div>
+        <SectionHeader title="Все заявки" count={allT.length} />
         <div className="req-list">{allT.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>
       </>}
       {allT.length === 0 && (

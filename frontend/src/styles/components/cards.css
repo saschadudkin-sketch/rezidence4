@@ -243,6 +243,7 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
   background:var(--s3);border:1px solid var(--b1);
   display:flex;align-items:center;justify-content:center;
   font-size:var(--fs-md);flex-shrink:0;
+  overflow:hidden;padding:0;
 }
 .req-cat{font-size:var(--fs-sm);font-weight:500;color:var(--t1)}
 .req-meta{font-size:var(--fs-2xs);color:var(--t2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -268,4 +269,6 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 .det-lbl{font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;color:var(--t4);margin-bottom:4px;font-weight:500}
 .det-val{font-size:var(--fs-sm);color:var(--t1)}
 .req-actions{display:flex;gap:var(--space-xs);margin-top:10px;justify-content:flex-end}
+/* UI-3: aria-busy — visually disable children while an action is in-flight */
+.req-actions[aria-busy="true"]>*{opacity:.55;pointer-events:none}
 

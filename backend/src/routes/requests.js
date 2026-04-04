@@ -45,6 +45,16 @@ function handleServiceError(err, res, next) {
   next(err);
 }
 
+// ─── GET /api/requests/:id ────────────────────────────────────────────────────
+// Ownership check внутри RequestsService.getOne:
+//   - Жилец получает 404 если заявка чужая (а не 403, чтобы не раскрывать факт существования)
+//   - Персонал и админ видят любую заявку
+router.get('/:id', validateId, async (req, res, next) => {
+  try {
+    res.json(await RequestsService.getOne(req.user, req.params.id));
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
 // ─── GET /api/requests ────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {

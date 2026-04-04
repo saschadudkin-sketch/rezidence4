@@ -52,6 +52,20 @@
 }
 .section-header-sub{font-size:var(--fs-xs);color:var(--t4);margin:0;width:100%}
 .section-header-action{flex-shrink:0}
+/* Compact variant — used inside cards/perms sections */
+.section-header--compact{
+  margin-bottom:6px;
+}
+.section-header--compact .section-header-title{
+  font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;color:var(--t4);font-weight:600;
+}
+/* ВАЖНО-1: concierge role info hint */
+.concierge-role-hint{
+  display:flex;align-items:center;gap:var(--space-xs);
+  font-size:var(--fs-2xs);color:var(--t3);
+  background:rgba(196,150,60,.06);border:1px solid var(--b1);border-radius:var(--r);
+  padding:8px 12px;margin-bottom:12px;
+}
 
 /* ── A-06: BadgeStatus — семантический бейдж статуса/роли ───────────────── */
 .badge-sm{font-size:10px!important;padding:1px 6px!important;height:16px!important}

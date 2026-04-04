@@ -39,7 +39,8 @@ const AppShell = memo(function AppShell({
             )}
             {sseOnline === false && (
               <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-live="polite">
-                <AppIcon name="history" size={12} />
+                {/* UI: 'refresh' семантически верен для reconnect; 'history' — это журнал событий */}
+                <AppIcon name="refresh" size={12} />
                 <span>Переподключение…</span>
               </span>
             )}

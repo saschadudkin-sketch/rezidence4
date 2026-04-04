@@ -4,7 +4,7 @@ require('dotenv').config();
 const express      = require('express');
 const cors         = require('cors');
 const path         = require('path');
-const helmet       = require('helmet');           // FIX [SEC-5]: security headers (CSP, X-Frame-Options и др.)
+const helmet       = require('helmet');           // security headers: CSP, X-Frame-Options, HSTS
 const cookieParser = require('cookie-parser');
 const rateLimit    = require('express-rate-limit');
 const RedisStore   = require('rate-limit-redis');
@@ -33,18 +33,18 @@ const app  = express();
 
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
-// FIX [AUDIT]: trust proxy должен быть явно управляем окружением.
-// По умолчанию доверяем 1 proxy hop только в production (типично nginx → backend).
-// В non-prod default=false, чтобы не принимать spoofed X-Forwarded-* при прямом доступе.
+// Trust proxy hops are controlled via TRUST_PROXY_HOPS env var.
+// Defaults to 1 in production (nginx → backend) and false in non-prod
+// to reject spoofed X-Forwarded-* headers on direct access.
 const trustProxyHops = process.env.TRUST_PROXY_HOPS;
 const trustProxyValue = trustProxyHops != null
   ? Number.parseInt(trustProxyHops, 10)
   : (isProd ? 1 : false);
 app.set('trust proxy', Number.isInteger(trustProxyValue) && trustProxyValue >= 0 ? trustProxyValue : false);
 
-// ─── FIX [SEC-4]: Production guard ───────────────────────────────────────────
-// Если в production не задан FRONTEND_URL — стартуем с ошибкой,
-// чтобы не допустить деплой с открытым CORS (*).
+// ─── Production guard ────────────────────────────────────────────────────────
+// Fail fast on startup if required env vars are missing — prevents deploying
+// with an open wildcard CORS origin or insecure / missing JWT secret.
 if (isProd && !process.env.FRONTEND_URL) {
   logger.fatal('FRONTEND_URL must be set in production (cannot use wildcard CORS in prod)');
   process.exit(1);
@@ -53,8 +53,8 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
   logger.fatal('JWT_SECRET must be set and at least 16 characters long');
   process.exit(1);
 }
-// FIX [AUDIT-3 #1]: DATABASE_URL обязателен — без него Pool создаётся,
-// но любой SQL-запрос падает с runtime error без понятного сообщения.
+// DATABASE_URL is required — pool creation succeeds but first query fails
+// with a cryptic runtime error without it.
 if (!process.env.DATABASE_URL) {
   logger.fatal('DATABASE_URL must be set');
   process.exit(1);
@@ -65,9 +65,9 @@ if (process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
   logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
 }
 
-// ─── FIX [SEC-5]: Helmet — security headers ──────────────────────────────────
-// Устанавливает: X-Frame-Options, X-Content-Type-Options, HSTS,
-// Referrer-Policy, Permissions-Policy и Content-Security-Policy.
+// ─── Helmet — security headers ───────────────────────────────────────────────
+// Sets X-Frame-Options, X-Content-Type-Options, HSTS,
+// Referrer-Policy, and Permissions-Policy.
 const BACKEND_URL  = process.env.BACKEND_URL  || `http://localhost:${PORT}`;
 const DEFAULT_DEV_FRONTEND_URLS = [
   'http://localhost:5173',
@@ -77,24 +77,22 @@ const DEFAULT_DEV_FRONTEND_URLS = [
 ].join(',');
 const FRONTEND_URL = process.env.FRONTEND_URL || (isProd ? '' : DEFAULT_DEV_FRONTEND_URLS);
 
-// FIX [AUDIT-3 #14]: Убираем CSP из helmet на backend — он API-only сервер,
-// не отдаёт HTML. CSP на /api/* бессмысленен для JSON-ответов и конфликтует
-// с CSP nginx на фронте (браузер применяет оба — более строгий побеждает,
-// что ломает SSE или загрузку фото без очевидной причины).
-// Единственный источник CSP — nginx.conf (frontend).
+// CSP is disabled — this is an API-only server that never renders HTML.
+// A backend CSP header would conflict with the nginx CSP on the frontend
+// (browsers apply both; the stricter one wins, silently breaking SSE or photo uploads).
+// CSP is managed exclusively in frontend/nginx.conf.
 app.use(helmet({
-  // HSTS: только в production и только если есть HTTPS
+  // HSTS: production only, assumes HTTPS termination upstream
   hsts: isProd ? { maxAge: 31536000, includeSubDomains: true } : false,
-  // CSP отключён — backend отдаёт только JSON, HTML не рендерится.
-  // CSP управляется в frontend/nginx.conf.
+  // CSP disabled — backend serves JSON only, never renders HTML.
+  // CSP is managed in frontend/nginx.conf.
   contentSecurityPolicy: false,
 }));
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
-// FIX [SEC-1]: Redis store для rate limiters — корректная работа в multi-instance деплое.
-// Без Redis store каждый инстанс имеет свой счётчик: 3 инстанса × 10 запросов = 30 попыток.
-// С Redis store счётчики разделяются между всеми инстансами — лимит соблюдается глобально.
-// Fallback на in-memory если Redis не настроен (одиночный инстанс или dev-среда).
+// Redis-backed store for rate limiters — enforces limits globally across all instances.
+// Without it each instance keeps its own counter, multiplying the effective limit.
+// Falls back to in-memory if Redis is not configured (single instance or dev).
 function makeRedisStore(prefix) {
   const redis = getRedis();
   if (!redis) return {};
@@ -129,9 +127,8 @@ const clientLogsLimiter = rateLimit({
   message: { error: 'Слишком много client logs. Подождите.' },
   ...makeRedisStore('client-logs'),
 });
-// FIX [AUDIT]: отдельный лимит для загрузки файлов — 20 фото/мин.
-// Без него авторизованный пользователь загружает 200 файлов × 10MB = 2GB/мин на диск,
-// исчерпывая дисковое пространство и пропускную способность сети.
+// Separate rate limit for file uploads (20/min) — prevents a single authenticated
+// user from exhausting disk space and bandwidth via the global 200 req/min allowance.
 const uploadLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
@@ -156,11 +153,9 @@ app.use(cors({
 }));
 
 // ─── Body / cookie parsing ────────────────────────────────────────────────────
-// FIX [AUDIT]: глобальный лимит снижен с 10mb до 64kb.
-// 10mb был нужен только для upload.js — но он использует express.raw, а не express.json.
-// Все текстовые роуты (chat, requests, users и т.д.) не нуждаются в телах > 64kb.
-// Без этого любой аутентифицированный пользователь мог отправить 10MB JSON-тело
-// на любой эндпоинт — создавая DoS-нагрузку на парсер Node.js.
+// Global JSON body limit is 64 kb — upload.js uses express.raw and doesn't need this higher.
+// All text routes (chat, requests, users, etc.) never need bodies larger than 64 kb,
+// so a generous limit would only enable DoS via the Node.js JSON parser.
 app.use(express.json({ limit: '64kb' }));
 app.use(cookieParser());
 
@@ -173,10 +168,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── FIX [AUDIT-6 #3]: CSRF protection (double-submit cookie) ────────────────
+// ─── CSRF protection (double-submit cookie) ───────────────────────────────────
 const { setCsrfCookie, verifyCsrf } = require('./middleware/csrf');
-app.use('/api/', setCsrfCookie);  // выдаём токен при любом GET на /api/
-app.use('/api/', verifyCsrf);     // проверяем на POST/PATCH/DELETE
+app.use('/api/', setCsrfCookie);  // issue token on any GET to /api/
+app.use('/api/', verifyCsrf);     // verify token on POST/PATCH/DELETE
 
 app.use(pinoHttp({
   logger,
@@ -185,7 +180,7 @@ app.use(pinoHttp({
     req(req) { return { method: req.method, url: req.url, uid: req.raw?.user?.uid, requestId: req.raw?.requestId }; },
     res(res) { return { statusCode: res.statusCode }; },
   },
-  // DO-03: record request latency for P95 tracking
+  // record request latency for P95/P99 percentile tracking
   customSuccessMessage(_req, res, responseTime) {
     appMetrics.recordLatency(responseTime);
     return `${res.statusCode}`;
@@ -197,11 +192,11 @@ app.use(pinoHttp({
 }));
 app.use('/api/',     globalLimiter);
 
-// NOTE: chatLimiter применяется внутри routes/chat.js на POST /messages
-// (покрывает оба пути: /api/chat и /api/v1/chat)
+// NOTE: chatLimiter is applied inside routes/chat.js on POST /messages
+// (covers both /api/chat and /api/v1/chat)
 
 // ─── Protected uploads ────────────────────────────────────────────────────────
-// FIX [SEC-1]: /uploads защищены аутентификацией — без токена 401.
+// /uploads require authentication — unauthenticated requests receive 401.
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'));
 
 app.get('/uploads/:filename', requireAuth, (req, res) => {
@@ -212,6 +207,13 @@ app.get('/uploads/:filename', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
+  // Force download (attachment) to prevent inline rendering of HTML/SVG even if
+  // magic-byte validation is bypassed. nosniff blocks browser MIME-sniffing.
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // private: files belong to a specific authenticated user
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+
   res.sendFile(filepath, (err) => {
     if (err) {
       if (err.code === 'ENOENT') return res.status(404).json({ error: 'Not found' });
@@ -221,8 +223,8 @@ app.get('/uploads/:filename', requireAuth, (req, res) => {
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-// Versioned routes — ломающие изменения возможны через /api/v2/
-app.use('/api/v1/auth', authLimiter, authRouter); // КРИТ-3: authLimiter применён к обоим префиксам
+// Versioned routes — breaking changes can be introduced under /api/v2/
+app.use('/api/v1/auth', authLimiter, authRouter); // authLimiter applied to both /v1 and legacy /api prefixes
 app.use('/api/v1/requests',    requestsRouter);
 app.use('/api/v1/users',       usersRouter);
 app.use('/api/v1/chat',        chatRouter);
@@ -248,13 +250,12 @@ app.use('/api/v1/templates',   templatesRouter);
 app.use('/api/v1/blacklist',   blacklistRouter);
 app.use('/api/v1/visit-logs',  visitLogsRouter);
 app.use('/api/v1/upload',      uploadLimiter, uploadRouter);
-// FIX [AUDIT-6 #4]: client error reporting — no auth (errors before login), отдельный limiter
+// client error reporting — no auth required (captures errors that occur before login), separate limiter
 app.use('/api/v1/client-logs', clientLogsLimiter, clientLogsRouter);
 app.use('/api/client-logs',    clientLogsLimiter, clientLogsRouter);
 
-// FIX [AUDIT-3 #11]: Backward-compatible aliases — добавляем Deprecation/Sunset заголовки.
-// Rate limiter на /api/auth теперь также покрывает /api/v1/auth через явный middleware.
-// Удалим алиасы после миграции фронта на /v1/.
+// Backward-compatible aliases for pre-v1 clients — include Deprecation/Sunset headers.
+// Remove once the frontend has fully migrated to /v1/ routes.
 app.use('/api/auth',        deprecate, authLimiter,   authRouter);
 app.use('/api/requests',    deprecate, requestsRouter);
 app.use('/api/users',       deprecate, usersRouter);
@@ -268,7 +269,7 @@ app.use('/api/upload',      deprecate, uploadLimiter, uploadRouter);
 // ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
 
-// FIX [DEVOPS-4]: детальный healthcheck (только для авторизованных)
+// Detailed healthcheck including DB connectivity — authenticated users only.
 app.get('/api/health/detailed', requireAuth, async (_req, res) => {
   try {
     const { rows } = await db.query('SELECT NOW() AS ts');
@@ -279,7 +280,7 @@ app.get('/api/health/detailed', requireAuth, async (_req, res) => {
   }
 });
 
-// FIX [DO4]: ЖЕЛАТЕЛЬНО — метрики для мониторинга (Prometheus/Grafana)
+// Runtime metrics endpoint for monitoring (Prometheus/Grafana) — admin only.
 const { clients: sseClients } = sse;
 app.get('/api/metrics', requireAuth, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
@@ -325,7 +326,7 @@ app.get('/api/metrics/prometheus', requireAuth, (req, res) => {
     '# HELP rez_db_pool_waiting Waiting PostgreSQL pool clients',
     '# TYPE rez_db_pool_waiting gauge',
     `rez_db_pool_waiting ${db.pool.waitingCount}`,
-    // DO-03: request latency percentiles
+    // request latency percentiles
     '# HELP rez_http_request_duration_milliseconds HTTP request duration in milliseconds',
     '# TYPE rez_http_request_duration_milliseconds summary',
     `rez_http_request_duration_milliseconds{quantile="0.5"} ${m.latency.p50 ?? 'NaN'}`,
@@ -354,8 +355,8 @@ async function start() {
   try {
     const server = app.listen(PORT, () => logger.info(`[server] :${PORT} ready (prod=${isProd})`));
 
-    // FIX [AUDIT-6 #2]: Redis pub/sub для горизонтального масштабирования SSE.
-    // Если REDIS_URL задан — broadcast идёт через Redis → все инстансы получают события.
+    // Redis pub/sub for horizontal SSE scaling — when REDIS_URL is set, broadcasts
+    // propagate through Redis so every instance receives events.
     const sseRedis = require('./sse-redis');
     if (process.env.REDIS_URL) {
       sseRedis.init();
@@ -370,12 +371,12 @@ async function start() {
       shuttingDown = true;
       logger.info(`[server] ${signal}: graceful shutdown started`);
 
-      // 0. Закрываем Redis (shared singleton + SSE pub/sub)
+      // 0. Close Redis (shared singleton + SSE pub/sub)
       sseRedis.shutdown();
       const { closeRedis } = require('./lib/redisClient');
       await closeRedis().catch(() => {});
 
-      // 1. Подсказываем SSE клиентам переподключиться через 2с
+      // 1. Tell SSE clients to reconnect after 2 s
       const { clients } = require('./sse');
       if (clients) {
         for (const set of clients.values()) {
@@ -385,17 +386,17 @@ async function start() {
         }
       }
 
-      // 2. Перестаём принимать новые соединения
+      // 2. Stop accepting new connections
       server.close(() => {
         logger.info('[server] HTTP server closed');
-        // 3. Закрываем пул БД
+        // 3. Close the DB pool
         db.pool.end(() => {
           logger.info('[server] DB pool closed');
           process.exit(0);
         });
       });
 
-      // 4. Таймаут: если не успели за 10с — принудительный выход
+      // 4. Force exit if graceful shutdown exceeds the timeout
       setTimeout(() => {
         logger.warn('[server] graceful shutdown timeout, forcing exit');
         process.exit(1);
@@ -405,9 +406,9 @@ async function start() {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
-    // FIX [AUDIT-3 #3]: Очистка истёкших записей token_revocations.
-    // Без этого таблица растёт бесконечно — каждый logout добавляет запись.
-    // Каждый запрос делает SELECT по этой таблице → деградация производительности.
+    // Hourly cleanup of expired token_revocations — prevents unbounded table growth.
+    // Every logout inserts a row; every auth check queries this table, so size directly
+    // affects query performance.
     const cleanupJob = setInterval(async () => {
       try {
         const { rowCount } = await db.query(
@@ -417,23 +418,15 @@ async function start() {
       } catch (err) {
         logger.error({ err }, '[cleanup] token_revocations failed');
       }
-    }, 60 * 60 * 1000); // каждый час
+    }, 60 * 60 * 1000); // every hour
     cleanupJob.unref();
 
-    // FIX [ARCH]: Серверная экспирация и активация заявок — каждые 5 минут.
-    //
-    // ПРОБЛЕМА: ранее статусы 'expired' и активация 'scheduled → pending'
-    // вычислялись ТОЛЬКО на фронте (useScheduledActivation). Это означало:
-    //   - при прямых запросах к API охрана видела неактуальный статус
-    //   - заявки не истекали когда клиент offline
-    //   - другие сервисы/интеграции не получали корректный статус
-    //
-    // РЕШЕНИЕ: backend — единственный источник истины для статусов.
-    // Фронт может показывать оптимистичное состояние, но БД — авторитет.
+    // Background job (every 5 min) that expires overdue requests and activates scheduled ones.
+    // The backend is the single source of truth for request statuses — the frontend may
+    // show optimistic state, but the database is authoritative.
     const expirationJob = setInterval(async () => {
       try {
-        // 1. Истекают разовые пропуски (once) через 24ч после создания
-        //    и временные с явным valid_until в прошлом
+        // 1. Expire single-use passes (once) older than 24 h and passes with a past valid_until
         const { rowCount: expired } = await db.query(`
           UPDATE requests
           SET status = 'expired', updated_at = NOW()
@@ -447,7 +440,7 @@ async function start() {
             )
         `);
 
-        // 2. Активируются запланированные заявки
+        // 2. Activate scheduled requests whose scheduled_for time has arrived
         const { rowCount: activated } = await db.query(`
           UPDATE requests
           SET status = 'pending', scheduled_for = NULL, updated_at = NOW()
@@ -461,8 +454,8 @@ async function start() {
       } catch (err) {
         logger.error({ err }, '[expiration] request status update failed');
       }
-    }, 5 * 60 * 1000); // каждые 5 минут
-    expirationJob.unref(); // не блокируем завершение процесса
+    }, 5 * 60 * 1000); // every 5 minutes
+    expirationJob.unref(); // don't keep the process alive on shutdown
 
   } catch (err) {
     logger.fatal({ err }, '[fatal] startup failed');

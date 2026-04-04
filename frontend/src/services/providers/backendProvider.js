@@ -15,33 +15,32 @@ import { API_BASE_URL } from '../../config/apiBaseUrl.js';
 function createSSEManager() {
   let abortController = null;
   let reconnectTimer  = null;
-  let isConnected     = false;  // FIX [DATA-1]: явный флаг живого соединения
-  let currentUid      = null;   // FIX [DATA-1]: для обнаружения смены пользователя
-  // FIX [AUDIT-2]: exponential backoff — при нестабильном соединении клиент не
-  // долбит сервер запросами каждые 3с, интервал растёт до 30с.
+  let isConnected     = false;  // explicit live-connection flag
+  let currentUid      = null;   // tracks active user UID to detect session change
+  // Exponential backoff: reconnect delay doubles up to 30s to avoid hammering the server.
   let _reconnectDelay = 3_000;
   const _RECONNECT_MIN  = 3_000;
   const _RECONNECT_MAX  = 30_000;
-  // D-04: максимальное число попыток переподключения перед капитуляцией
+  // Max retries before giving up and dispatching 'rz:sse-permanent-error'
   let _retryCount = 0;
   const MAX_SSE_RETRIES = 10;
-  // FIX [AUDIT-2 #16]: сохраняем last event ID для replay при переподключении
+  // Last-Event-ID: sent on reconnect so server can replay missed events.
   let _lastEventId = null;
 
   const sseHandlers = {
     message: [], message_update: [], message_delete: [], request_update: [],
-    // FIX [P-1]: real-time domain updates — blacklist and user changes
+    // Real-time incremental updates for blacklist and user roster
     blacklist_add: [], blacklist_remove: [],
     user_update: [], user_delete: [],
   };
 
   async function connect(uid = null) {
-    // FIX [DATA-1]: если соединение живое и пользователь тот же — ничего не делаем.
-    // Если пользователь СМЕНИЛСЯ (logout одного + login другого) — принудительно
-    // переподключаемся, иначе новый пользователь получал бы события под старой сессией.
+    // Skip reconnect if already live on the same user session.
+    // On user switch (logout + new login), force-disconnect first so the new
+    // user doesn't inherit events from the previous session.
     if (isConnected) {
-      if (uid && uid === currentUid) return; // тот же юзер — уже подключены
-      _forceDisconnect();                    // другой юзер — разрываем и переподключаем
+      if (uid && uid === currentUid) return;
+      _forceDisconnect();
     }
 
     currentUid  = uid;
@@ -49,7 +48,7 @@ function createSSEManager() {
 
     abortController = new AbortController();
     const signal    = abortController.signal;
-    // FIX [AUDIT-2 #16]: передаём Last-Event-ID при переподключении
+    // Pass Last-Event-ID so the server can replay missed events after reconnect.
     const headers = {};
     if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
@@ -115,7 +114,7 @@ function createSSEManager() {
       const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
       const delay = Math.round(_reconnectDelay * jitter);
       logger.warn(`[SSE] connection error, retry ${_retryCount}/${MAX_SSE_RETRIES} in ${Math.round(delay / 1000)}s`);
-      // FIX [AUDIT-2]: exponential backoff — интервал удваивается, максимум 30с
+      // Exponential backoff: multiply delay × 1.5, cap at RECONNECT_MAX.
       _reconnectDelay = Math.min(_reconnectDelay * 1.5, _RECONNECT_MAX);
       reconnectTimer  = setTimeout(() => connect(currentUid), delay);
     }
@@ -144,9 +143,8 @@ function createSSEManager() {
   function on(event, fn) {
     sseHandlers[event]?.push(fn);
     return () => {
-      // FIX [BUG]: disconnect() заменяет массивы на [] — старые unsubscribe замыкания
-      // искали fn в старых массивах и ничего не находили (новый массив пустой).
-      // Теперь ищем fn во ТЕКУЩЕМ массиве (sseHandlers[event]), а не в замыкании.
+      // Read sseHandlers[event] fresh — not from closure — so unsubscribe
+      // finds fn in the current array even after disconnect() replaced it.
       const arr = sseHandlers[event];
       if (arr) {
         const idx = arr.indexOf(fn);
@@ -169,17 +167,14 @@ export const authProvider = {
   async verifyOtp(phone, code) {
     // Сервер устанавливает HttpOnly cookie — токен не в теле ответа
     const { user } = await apiClient.post('/api/auth/verify-otp', { phone, code });
-    // FIX [AUDIT-5 #6]: сбрасываем _refreshFailed при новом логине.
-    // Без этого: временный 503 при refresh → _refreshFailed=true →
-    // новый пользователь не может обновить access token даже после успешного входа.
+    // Reset refresh-failed flag so the new session can obtain tokens normally.
     if (typeof resetRefreshState === 'function') resetRefreshState();
-    // FIX [DATA-1]: передаём uid чтобы SSE мог корректно обработать смену пользователя
+    // Pass uid so SSE manager can detect user switch and reconnect under new session.
     sseManager.connect(user.uid);
     return user;
   },
   async getMe() {
     const { user } = await apiClient.get('/api/auth/me');
-    // FIX [DATA-1]: передаём uid
     sseManager.connect(user.uid);
     return user;
   },
@@ -194,7 +189,7 @@ export const authProvider = {
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
   async getAll() {
-    // FIX [AUDIT-2 perf]: параллельная загрузка страниц вместо последовательной.
+    // Pages fetched in parallel after the first: 1 sequential + N parallel.
     // При 1000 заявках: 5 последовательных → 1 + 4 параллельных.
     const PAGE_SIZE = 200;
     const first = await apiClient.get(`/api/requests?limit=${PAGE_SIZE}&page=1`);
@@ -212,7 +207,7 @@ export const requestsProvider = {
     return [firstData, ...rest.map(r => Array.isArray(r) ? r : (r.data || []))].flat();
   },
   async create(request) {
-    // FIX [D1]: Idempotency Key — защита от дублирования при параллельных submit
+    // Idempotency key prevents duplicate submissions on concurrent or retried requests.
     const idempotencyKey = `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const serverReq = await apiClient.post('/api/requests', request, {
       headers: { 'Idempotency-Key': idempotencyKey },
@@ -226,8 +221,7 @@ export const requestsProvider = {
     return apiClient.delete(`/api/requests/${id}`);
   },
   async resolvePhotos(requestId, photos) {
-    // FIX [DATA-2]: Promise.allSettled — все фото грузятся параллельно
-    // FIX [DATA-2б]: добавлен timeout 30 сек на загрузку одного фото
+    // All photos upload in parallel via allSettled; 30s timeout per photo.
     const UPLOAD_TIMEOUT = 30_000;
 
     function withTimeout(promise, ms) {
@@ -243,9 +237,8 @@ export const requestsProvider = {
       photos.map((photo) =>
         withTimeout(
           (async () => {
-            // FIX [BUG]: fetch(dataURL) — антипаттерн: создаёт синтетический HTTP запрос,
-            // падает в CSP-ограниченных средах и при SSR/тестах.
-            // Конвертируем base64 напрямую через atob() без сетевого слоя.
+            // Convert base64 via atob() directly — avoids fetch(dataURL) which
+            // fails under CSP and in test/SSR environments.
             let blob;
             if (photo.startsWith('data:')) {
               const [header, b64] = photo.split(',');
@@ -285,12 +278,13 @@ export const requestsProvider = {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 export const chatProvider = {
-  // FIX [AUDIT-6]: API теперь возвращает { messages, hasMore } вместо плоского массива.
-  // getMessages({ before }) — загрузить историю СТАРШЕ сообщения with id=before
-  async getMessages({ before, limit } = {}) {
+  // Returns { messages, hasMore }. before= loads history older than that message id.
+  // search= performs full-history text search (КРИТ-2).
+  async getMessages({ before, limit, search } = {}) {
     const params = new URLSearchParams();
     if (before) params.set('before', before);
     if (limit)  params.set('limit', String(limit));
+    if (search) params.set('search', search);
     const qs = params.toString();
     const data = await apiClient.get(`/api/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
@@ -414,18 +408,19 @@ export function createBackendProvider() {
     },
     liveData: {
       startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
-        // FIX [AUDIT-6 CRITICAL]: добавлены колбэки для perms, templates, blacklist.
-        // Ранее эти данные НЕ загружались при startSync — после F5 в live mode
-        // перм-списки, шаблоны и чёрный список были пусты.
         onPerms, onTemplates, setBlacklist, userUid,
-        // FIX [P-1]: incremental SSE updates — real-time blacklist and user changes
+        // Incremental blacklist/user updates (SSE)
         onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
+        // PERF: Incremental request SSE updates — точечные действия вместо full replace
+        // onRequestUpdate(req)  — обновить существующую заявку
+        // onRequestAdd(req)     — добавить новую заявку
+        // onRequestDelete(id)   — удалить заявку (soft-delete broadcast)
+        onRequestUpdate, onRequestAdd, onRequestDelete,
       }) => {
         let mounted = true;
 
-        // FIX [DATA-1]: Race condition fix — подписываемся на request_update ДО Promise.all.
-        // События, пришедшие пока грузятся начальные данные, буферизируются и применяются после.
-        // Без этого: событие между стартом Promise.all и подпиской sseManager.on — теряется навсегда.
+        // Subscribe to request_update BEFORE the parallel fetch so events that arrive
+        // during initial load are buffered and applied after — not silently dropped.
         const reqEventBuffer = [];
         const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
@@ -473,7 +468,7 @@ export function createBackendProvider() {
         if (setAllRequests) setAllRequests(currentRequests);
         if (setAllMessages && chatData) setAllMessages(chatData.messages || chatData);
         if (setAllUsers && users)       setAllUsers(users);
-        // FIX [AUDIT-6]: загруженные perms/templates/blacklist → в стор
+        // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);
         if (templatesData && onTemplates) onTemplates(templatesData);
         if (setBlacklist && Array.isArray(blacklistData)) setBlacklist(blacklistData);
@@ -481,19 +476,45 @@ export function createBackendProvider() {
         const unsubMsg    = chatProvider.onMessage(msg      => onChat && onChat({ type: 'added',   message: msg }));
         const unsubUpdate = chatProvider.onMessageUpdate(msg => onChat && onChat({ type: 'updated', message: msg }));
         const unsubDel    = chatProvider.onMessageDelete(d   => onChat && onChat({ type: 'deleted', id: d.id }));
-        const unsubReq    = sseManager.on('request_update', req => {
+        // PERF: Incremental SSE updates — вместо полной замены массива (REQUESTS_SET_ALL)
+        // используем точечные операции REQUEST_UPDATE / REQUEST_ADD / REQUEST_DELETE.
+        // При 500+ заявках staff-роли это убирает O(n) reconciler-прогон при каждом событии.
+        // setAllRequests сохраняется только для начальной bulk-загрузки.
+        const unsubReq = sseManager.on('request_update', req => {
           if (!mounted) return;
+          // Удаление (soft-delete broadcast)
+          if (req.status === 'deleted') {
+            if (onRequestDelete) {
+              onRequestDelete(req.id);
+            } else {
+              // Fallback: убрать из локального массива и обновить весь стор
+              currentRequests = currentRequests.filter(r => r.id !== req.id);
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
+            return;
+          }
           const idx = currentRequests.findIndex(r => r.id === req.id);
           if (idx >= 0) {
+            // Существующая заявка — инкрементальное обновление
             currentRequests = [...currentRequests];
             currentRequests[idx] = req;
+            if (onRequestUpdate) {
+              onRequestUpdate(req);
+            } else {
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
           } else {
+            // Новая заявка (ещё не в локальном массиве)
             currentRequests = [req, ...currentRequests];
+            if (onRequestAdd) {
+              onRequestAdd(req);
+            } else {
+              if (setAllRequests) setAllRequests(currentRequests);
+            }
           }
-          if (setAllRequests) setAllRequests(currentRequests);
         });
 
-        // FIX [P-1]: real-time SSE subscriptions for blacklist and user updates
+        // Real-time SSE subscriptions for blacklist and user roster updates.
         const unsubBLAdd    = sseManager.on('blacklist_add',    entry      => { if (!mounted) return; onBlacklistAdd?.(entry); });
         const unsubBLRemove = sseManager.on('blacklist_remove', ({ id })   => { if (!mounted) return; onBlacklistRemove?.(id); });
         const unsubUserUpd  = sseManager.on('user_update',      u          => { if (!mounted) return; onUserUpdate?.(u); });

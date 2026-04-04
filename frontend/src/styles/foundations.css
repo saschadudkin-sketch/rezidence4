@@ -39,3 +39,61 @@ body{font-size:var(--fs-body);line-height:var(--lh-body)}
 @keyframes riseUp  {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes sheetUp {from{transform:translateY(100%)}to{transform:none}}
 @keyframes shimmer {from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+
+/* ── CSS Utility classes — заменяют inline font-size/color/gap/margin ───── */
+/* Используй эти классы вместо style={{ fontSize: 11, color: 'var(--t4)' }}  */
+/* Это обеспечивает консистентность с дизайн-токенами и упрощает тему.       */
+
+/* Typography utilities */
+.u-fs-3xs { font-size: var(--fs-3xs); }  /* 10px */
+.u-fs-2xs  { font-size: var(--fs-2xs); }  /* 11px */
+.u-fs-xs   { font-size: var(--fs-xs);  }  /* 12px */
+.u-fs-sm   { font-size: var(--fs-sm);  }  /* 13px */
+.u-fs-body { font-size: var(--fs-body);}  /* 14px */
+.u-fs-md   { font-size: var(--fs-md);  }  /* 16px */
+.u-fs-lg   { font-size: var(--fs-lg);  }  /* 18px */
+
+.u-fw-500   { font-weight: 500; }
+.u-fw-600   { font-weight: 600; }
+.u-nowrap   { white-space: nowrap; }
+.u-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Color utilities — semantic text colors */
+.u-t1 { color: var(--t1); }
+.u-t2 { color: var(--t2); }
+.u-t3 { color: var(--t3); }
+.u-t4 { color: var(--t4); }
+.u-ok { color: var(--ok-t); }
+.u-err{ color: var(--err-t); }
+.u-wrn{ color: var(--wrn-t); }
+.u-gold { color: var(--g2); }
+
+/* Spacing utilities */
+.u-mt-4  { margin-top: var(--space-xs); }
+.u-mt-8  { margin-top: var(--space-sm); }
+.u-mt-16 { margin-top: var(--space-md); }
+.u-mb-4  { margin-bottom: var(--space-xs); }
+.u-mb-8  { margin-bottom: var(--space-sm); }
+.u-mb-12 { margin-bottom: 12px; }
+.u-mb-16 { margin-bottom: var(--space-md); }
+.u-gap-6 { gap: 6px; }
+.u-gap-8 { gap: var(--space-sm); }
+.u-gap-12{ gap: 12px; }
+
+/* Layout utilities */
+.u-flex       { display: flex; }
+.u-flex-end   { justify-content: flex-end; }
+.u-flex-center{ justify-content: center; align-items: center; }
+.u-flex1      { flex: 1; }
+.u-flex2      { flex: 2; }
+.u-w-full     { width: 100%; }
+
+/* Touch target — минимум 36px высоты для мобильных кнопок */
+.u-touch-target { min-height: 36px; padding: var(--space-sm) 12px; }
+
+/* Req card date label — заменяет inline style в ReqCard */
+.req-date-label {
+  font-size: var(--fs-2xs);
+  color: var(--t4);
+  white-space: nowrap;
+}

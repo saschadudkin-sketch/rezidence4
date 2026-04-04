@@ -45,12 +45,8 @@ const ReqPhoto = memo(function ReqPhoto({ src }) {
   );
 });
 
-// FIX [BUG-6]: нестабильный ключ `src.slice(-20) + i` — если URL перезапишется
-// (например, при обновлении через SSE), React может неправильно сопоставить
-// компоненты и вызвать полный unmount/mount вместо обновления.
-// Используем стабильный индекс: порядок фото в массиве не меняется без замены всего req.
-// FIX [MEMO]: ReqPhotos без memo перерисовывался при любом изменении статуса заявки
-// (например, при hover/expand другой карточки если ReqCard в общем списке).
+// Photo order is stable (index key). URL-based key would cause unmount/remount
+// on SSE updates even when photo list hasn't changed.
 const ReqPhotos = memo(function ReqPhotos({ req }) {
   const photos = req.photos && req.photos.length > 0 ? req.photos : req.photo ? [req.photo] : [];
   if (photos.length === 0) return null;
@@ -89,11 +85,8 @@ export function ReqSkeleton({ count = 3 }) {
 
 // ─── ReqCard ─────────────────────────────────────────────────────────────────
 
-// FIX [PERF-12]: memo — ReqCard рендерится для каждой заявки в GroupedReqList.
-// При обновлении любого состояния родителя (например, открытие модала) без memo
-// перерендерились ВСЕ карточки, включая тяжёлые вычисления mayApprove/mayReject
-// и вызовы useAvatar / useReqHistory для каждой из них.
-// Именованный экспорт сохраняем через отдельную переменную.
+// memo: prevents re-render of all cards when parent state changes (modal open, etc.)
+// Named export preserved via assignment.
 export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
   const isStaffRole = canManageRequests(userRole);
   const isActive = isActiveRequest(req);
@@ -109,8 +102,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   const history = useReqHistory(req.id);
   const { approveRequest, rejectRequest, acceptRequest, arriveRequest } = useActions();
   const avData = useAvatar(req.createdByUid);
-  // FIX [PERF]: actor object + permission checks мемоизированы —
-  // пересчитываются только при изменении req.status или userRole/userId
+  // Permission checks memoized — recomputed only when req.status or role/user changes.
   const { mayApprove, mayReject, mayAccept, mayMarkArrival } = useMemo(() => {
     const actor = { role: userRole, uid: userId };
     return {
@@ -121,6 +113,14 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally depends on specific req fields only
   }, [req.status, userRole, userId]);
+
+  // Date label memoized — format+condition computed once, not inline per render.
+  const dateLabel = useMemo(() => {
+    const d = fmtDate(req.createdAt);
+    return (d === 'сегодня' || d === 'только что')
+      ? `${d} ${fmtTime(req.createdAt)}`
+      : d;
+  }, [req.createdAt]);
 
   // Auto-expand and scroll when highlighted
   useEffect(() => {
@@ -147,24 +147,14 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
 
   const actorName = userName || userRole;
 
-  // FIX [BUG-1]: Три проблемы были в оригинальном act():
-  //   а) stale closure: actLoading захватывался в deps useCallback и пересоздавал
-  //      функцию при каждом setActLoading → каскадное пересоздание doApprove/doReject/…
-  //   б) setTimeout без cleanup → setState вызывался на unmounted компоненте
-  //      (предупреждение React "Can't perform a state update on unmounted component")
-  //   в) искусственная задержка 350мс без пользы для UX
-  //
-  // РЕШЕНИЕ:
-  //   - actLoadingRef читается в момент вызова → нет stale closure, нет deps
-  //   - isMounted ref защищает setState после unmount
-  //   - прямой async/await вместо setTimeout
+  // actLoadingRef читается в момент вызова — нет stale closure, нет лишних deps.
+  // Синхронизируется с state при каждом рендере, поэтому всегда актуален.
   const actLoadingRef = useRef(actLoading);
   actLoadingRef.current = actLoading;
-  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
-  const isMountedRef = useIsMounted();
+  const isMountedRef = useIsMounted(); // guards setState after unmount
 
   const act = useCallback(async (key, fn, msg, type) => {
-    if (actLoadingRef.current) return;
+    if (actLoadingRef.current) return; // double-submit guard
     if (!isMountedRef.current) return;
     setActLoading(key);
     try {
@@ -175,7 +165,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
-  }, []); // стабильный — читает ref в момент вызова
+  }, []); // stable ref — reads actLoadingRef at call time, not from closure
 
   const doApprove = useCallback(() => act('approve', () => approveRequest(req.id, actorName, userRole), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
   const doReject  = useCallback(() => act('reject',  () => rejectRequest(req.id, actorName, userRole),  'В допуске отказано', 'error'),   [act, rejectRequest,  req.id, actorName, userRole]);
@@ -191,7 +181,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
         onClick={() => (hasDetails || showActions) && setExpanded(o => !o)}
         style={{ cursor: (hasDetails || showActions) ? 'pointer' : 'default', marginBottom: 0 }}>
         <div className="req-left">
-          <div className="req-ico" style={{ overflow: 'hidden', padding: 0 }}>
+          <div className="req-ico">
             <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={34} fontSize={13} />
           </div>
           <div className="u-mw0">
@@ -211,9 +201,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         </div>
         <div className="u-col-end-g4">
-          <span style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap' }}>
-            {/* FIX [PERF]: fmtDate вычисляется один раз, не трижды */}
-            {(() => { const d = fmtDate(req.createdAt); return d + ((d === 'сегодня' || d === 'только что') ? ' ' + fmtTime(req.createdAt) : ''); })()}
+          <span className="req-date-label">
+            {dateLabel}
           </span>
           <span className={'badge ' + req.status}>{STS_LABEL[req.status]}</span>
         </div>
@@ -252,8 +241,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           <button className="qr-pass-btn" onClick={() => setShowQR(true)}>
             <span className="u-inline-icon"><AppIcon name="phone" size={18} /></span>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>QR-код пропуска</div>
-              <div style={{ fontSize: 11, color: 'var(--t4)' }}>
+              <div className="qr-pass-label">QR-код пропуска</div>
+              <div className="qr-pass-hint">
                 {req.status === 'approved' ? 'Покажите охране для прохода' : 'Будет активен после одобрения'}
               </div>
             </div>
@@ -261,7 +250,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
         )}
 
         {canApproveRequests(userRole) && (
-          <div className="req-actions">
+          <div className="req-actions" aria-busy={!!actLoading}>
             {req.type === 'pass' ? <>
               {mayApprove && <button className="btn-yes"    onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
               {mayReject && !confirmReject && (
@@ -284,17 +273,17 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         )}
         {onRepeat && req.status !== 'pending' && (
-          <button className="tpl-save-btn" style={{ marginTop: 8, fontSize: 11 }} onClick={() => onRepeat(req)}>
+          <button className="tpl-save-btn" onClick={() => onRepeat(req)}>
             <span className="u-inline-icon u-mr6"><AppIcon name="undo" size={12} /></span>
             Повторить заявку
           </button>
         )}
         {(onEdit || onDelete) && isPendingRequest(req) && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+          <div className="u-flex u-flex-end u-gap-6 u-mt-8">
             {confirmDel ? <>
-              <span style={{ fontSize: 11, color: 'var(--t3)' }}>Удалить?</span>
+              <span className="u-fs-2xs u-t3">Удалить?</span>
               <button className="btn-del-sm" onClick={() => onDelete(req.id)}>Да</button>
-              <button className="btn-outline" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => setConfirmDel(false)}>Нет</button>
+              <button className="btn-outline btn-outline--sm" onClick={() => setConfirmDel(false)}>Нет</button>
             </> : <>
               {onEdit && (
                 <button className="btn-edit" onClick={() => onEdit(req)}>
@@ -312,9 +301,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           </div>
         )}
         {onCancel && (req.status === 'pending' || req.status === 'approved') && !isStaffRole && (
-          <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn-outline" style={{ fontSize: 12, padding: '5px 12px', color: 'var(--err-t)', borderColor: 'var(--err)' }}
-              onClick={() => onCancel(req.id)}>
+          <div className="u-flex u-flex-end u-mt-8">
+            <button className="btn-outline btn-cancel-req" onClick={() => onCancel(req.id)}>
               <span className="u-inline-icon u-mr6"><AppIcon name="close" size={12} /></span>
               Отменить заявку
             </button>

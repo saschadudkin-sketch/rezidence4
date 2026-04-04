@@ -99,3 +99,42 @@ describe('ChatView', () => {
     expect(container.querySelector('.emoji-picker')).toBeNull();
   });
 });
+
+// SEC-04: linkify XSS protection — проверяем безопасность через анализ исходного кода.
+// linkify() не экспортируется, поэтому тестируем инварианты через src.
+describe('linkify XSS protection (source-level)', () => {
+  const fs = require('fs');
+  let src;
+  beforeAll(() => {
+    src = fs.readFileSync(require.resolve('./ChatView.jsx'), 'utf8');
+  });
+
+  test('linkify использует URL-конструктор для валидации (не только regex)', () => {
+    expect(src).toMatch(/new URL\(url\)/);
+  });
+
+  test('linkify содержит whitelist протоколов — только http: и https:', () => {
+    // protocol check должен блокировать javascript:, data:, vbscript: и т.д.
+    expect(src).toMatch(/parsed\.protocol !== ['"]https:['"] && parsed\.protocol !== ['"]http:['"]/);
+  });
+
+  test('regex linkify НЕ захватывает javascript: URL (не начинается с https?://)', () => {
+    // Регулярное выражение должно начинаться с https?:\/\/
+    expect(src).toMatch(/https\?:\/\\/);
+    // Убеждаемся, что нет отдельной ветки для других схем
+    expect(src).not.toMatch(/javascript:/);
+  });
+
+  test('linkify устанавливает rel="noopener noreferrer" на все ссылки', () => {
+    expect(src).toContain('rel="noopener noreferrer"');
+  });
+
+  test('linkify устанавливает target="_blank" на все внешние ссылки', () => {
+    expect(src).toContain('target="_blank"');
+  });
+
+  test('невалидный URL отображается как текст (catch block)', () => {
+    // catch блок возвращает [url, part] — текст без тега <a>
+    expect(src).toMatch(/catch[\s\S]{0,20}return \[url, part\]/);
+  });
+});

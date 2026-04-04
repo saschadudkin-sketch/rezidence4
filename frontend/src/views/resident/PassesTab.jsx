@@ -1,7 +1,9 @@
-import { memo } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard.jsx';
 import { AppIcon } from '../../ui/AppIcon.jsx';
 import StateBlock from '../../ui/StateBlock.jsx';
+import SectionHeader from '../../ui/SectionHeader.jsx';
+import { useDebounce } from '../../hooks/useDebounce.js';
 
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
 
@@ -11,6 +13,16 @@ const PassesTab = memo(function PassesTab({
 }) {
   const { myPasses, scheduledPasses, filteredPasses, tempCount, permCount } = computed;
   const scheduledCount = scheduledPasses.length;
+
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 250);
+  const matchQ = useCallback((r) => {
+    const q = debouncedQuery.trim().toLowerCase();
+    if (!q) return true;
+    return [r.visitorName, r.carPlate, r.comment].some(v => v && v.toLowerCase().includes(q));
+  }, [debouncedQuery]);
+  const visiblePasses = useMemo(() => filteredPasses.filter(matchQ), [filteredPasses, matchQ]);
+  const visibleScheduled = useMemo(() => scheduledPasses.filter(matchQ), [scheduledPasses, matchQ]);
 
   const passIcons = user.role === 'contractor'
     ? [['worker','tools','Рабочий'],['team','users','Бригада'],['delivery','car','Доставка'],['car','car','Авто']]
@@ -34,6 +46,12 @@ const PassesTab = memo(function PassesTab({
         </button>
       </div>
       {myPasses.length > 0 && (
+        <div className="search-wrap u-mb8">
+          <span className="search-ico"><AppIcon name="search" size={14} /></span>
+          <input className="search-inp" placeholder="Поиск по имени, авто, комментарию..." value={query} onChange={e => setQuery(e.target.value)} />
+        </div>
+      )}
+      {myPasses.length > 0 && (
         <div className="pass-filter-pills">
           {[
             ['active',    'Активные',           0],
@@ -53,7 +71,7 @@ const PassesTab = memo(function PassesTab({
           )}
         </div>
       )}
-      {filteredPasses.length === 0 && myPasses.length === 0
+      {visiblePasses.length === 0 && myPasses.length === 0
         ? <StateBlock
             type="empty"
             title="Пропусков пока нет"
@@ -61,20 +79,20 @@ const PassesTab = memo(function PassesTab({
             actionLabel="Создать пропуск"
             onAction={() => setModal({ type: 'pass', cat: 'guest' })}
           />
-        : filteredPasses.length === 0
-          ? <StateBlock type="empty" title="Нет пропусков в этой категории" />
+        : visiblePasses.length === 0 && visibleScheduled.length === 0
+          ? <StateBlock type="empty" title={debouncedQuery ? 'Ничего не найдено' : 'Нет пропусков в этой категории'} />
           : <>
-              {scheduledPasses.length > 0 && passFilter !== 'scheduled' && (
+              {visibleScheduled.length > 0 && passFilter !== 'scheduled' && (
                 <div className="u-mb-12">
-                  <div className="sec-divider-label"><AppIcon name="history" className="u-inline-icon" /> Запланированные ({scheduledPasses.length})</div>
-                  <GroupedReqList reqs={scheduledPasses} userRole={user.role} userName={user.name} userId={user.uid}
+                  <SectionHeader title="Запланированные" count={visibleScheduled.length} />
+                  <GroupedReqList reqs={visibleScheduled} userRole={user.role} userName={user.name} userId={user.uid}
                     onRepeat={onRepeatPass}
                     onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
                   />
                 </div>
               )}
               <GroupedReqList
-                reqs={filteredPasses} userRole={user.role} userName={user.name} userId={user.uid}
+                reqs={visiblePasses} userRole={user.role} userName={user.name} userId={user.uid}
                 onRepeat={onRepeatPass}
                 onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
               />
