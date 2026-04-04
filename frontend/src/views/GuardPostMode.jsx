@@ -16,6 +16,7 @@ import { useDebounce } from '../hooks/useDebounce.js';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import { VirtualList } from '../ui/VirtualList';
 import GuardCard from './guard/GuardCard.jsx';
 import GuardSection from './guard/GuardSection.jsx';
 import TempPassCard from './guard/TempPassCard.jsx';
@@ -187,18 +188,26 @@ export default function GuardPostMode({ user, onViewDetails }) {
             </div>
           )}
           <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={filteredPending.length}>
-            {filteredPending.map(r => (
-              <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
-                <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
-              </ErrorBoundary>
-            ))}
+            <VirtualList
+              items={filteredPending}
+              estimateSize={148}
+              renderItem={r => (
+                <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
+                  <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
+                </ErrorBoundary>
+              )}
+            />
           </GuardSection>
           <GuardSection title="Допущены" icon={<AppIcon name="list" size={14} />} count={filteredApproved.length}>
-            {filteredApproved.map(r => (
-              <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
-                <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
-              </ErrorBoundary>
-            ))}
+            <VirtualList
+              items={filteredApproved}
+              estimateSize={148}
+              renderItem={r => (
+                <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
+                  <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
+                </ErrorBoundary>
+              )}
+            />
           </GuardSection>
         </>
       )}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MAX_PHOTOS_PER_REQUEST, MAX_FILE_SIZE_BYTES, PHOTO_MAX_WIDTH_PX, PHOTO_JPEG_QUALITY } from '../constants/limits';
 import { toast } from '../ui/Toasts';
+import { getCachedCompressed, cacheCompressed } from '../store/persistence/photoCache';
 
 /**
  * compressImage — сжимает dataURL до maxWidth при качестве quality.
@@ -24,6 +25,21 @@ export const compressImage = (dataUrl, maxWidth = PHOTO_MAX_WIDTH_PX, quality = 
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
+
+/**
+ * PERF-02: Compress image with IndexedDB caching.
+ * On repeated selection of the same file (same name+size+lastModified),
+ * returns the cached compressed data URL without re-running canvas compression.
+ */
+async function compressImageCached(file, dataUrl) {
+  const fingerprint = `${file.name}|${file.size}|${file.lastModified}`;
+  const cached = await getCachedCompressed(fingerprint);
+  if (cached) return cached;
+  const compressed = await compressImage(dataUrl);
+  // store in cache (fire-and-forget, don't block on storage)
+  cacheCompressed(fingerprint, compressed).catch(() => {});
+  return compressed;
+}
 
 /**
  * usePhotoHandler — manages photo list state for the create-request form.
@@ -51,7 +67,7 @@ export function usePhotoHandler(isMountedRef) {
         toProcess.map(f => new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = async (ev) => {
-            try { resolve(await compressImage(ev.target.result)); }
+            try { resolve(await compressImageCached(f, ev.target.result)); }
             catch (err) { reject(err); }
           };
           reader.onerror = () => reject(new Error('Не удалось загрузить фото'));

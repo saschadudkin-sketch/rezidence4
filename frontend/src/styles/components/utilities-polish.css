@@ -585,4 +585,10 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
   color:var(--t4);padding:0 6px;display:flex;align-items:center;
   flex-shrink:0;transition:color .13s;
 }
+
+/* ── PERF-01: content-visibility — browser skips layout/paint for off-screen cards ── */
+/* Provides a free rendering boost for all lists without JS virtualization overhead.    */
+/* contain-intrinsic-size matches the typical card height to avoid scroll-bar jump.    */
+.req-card,.guard-card-wrap,.guard-card{content-visibility:auto;contain-intrinsic-block-size:130px}
+
 .search-clear:hover{color:var(--t1)}
