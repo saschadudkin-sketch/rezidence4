@@ -30,10 +30,12 @@ export function buildNavItems(role, badges) {
   const passesBadge = isSec ? pendingP + pendingT
     : isCon ? pendingT
     : residentNewStatuses;
+  const guardpostLabel = isSec ? 'Скан' : 'Пост';
+  const passesLabel = isSec ? 'Проверка' : (isCon ? 'Заявки' : 'Пропуска');
 
   /** @type {Record<string, [string, string, number]>} icon, label, badge */
   const NAV_META = {
-    passes:    ['ticket',    isSec || isCon ? 'Заявки' : 'Пропуска', passesBadge],
+    passes:    ['ticket',    passesLabel,    passesBadge],
     tech:      ['tools',     'Техслужба',   0],
     perms:     ['list',      'Список',      0],
     templates: ['file',      'Шаблоны',     0],
@@ -42,7 +44,7 @@ export function buildNavItems(role, badges) {
     visitlog:  ['list',      'Журнал',      0],
     residents: ['residents', 'Жильцы',      0],
     blacklist: ['ban',       'ЧС',          blacklistCount],
-    guardpost: ['shield',    'Пост',        pendingP],
+    guardpost: ['shield',    guardpostLabel, pendingP],
     stats:     ['chart',     'Аналитика',   0],
     requests:  ['list',      'Заявки',      pendingP + pendingT],
     users:     ['users',     'Резиденты',   0],

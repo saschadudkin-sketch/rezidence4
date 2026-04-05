@@ -118,9 +118,12 @@ export function ChatView({ user }) {
   // Пользователь видел только последние 60 сообщений без возможности прокрутить дальше.
   const [hasMore, setHasMore]             = useState(false);
   const [loadingOlder, setLoadingOlder]   = useState(false);
+  const [historyError, setHistoryError] = useState('');
   // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
   const [serverSearchResults, setServerSearchResults] = useState(null);
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const [serverSearchError, setServerSearchError] = useState('');
+  const [searchRetryTick, setSearchRetryTick] = useState(0);
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
   const msgsContainerRef = useRef(null);
   const bottomRef = useRef(null);
@@ -187,6 +190,7 @@ export function ChatView({ user }) {
     if (!oldestMsg) return;
 
     setLoadingOlder(true);
+    setHistoryError('');
     const container = msgsContainerRef.current;
     const prevScrollHeight = container?.scrollHeight ?? 0;
 
@@ -206,7 +210,8 @@ export function ChatView({ user }) {
         setHasMore(false);
       }
     } catch {
-      // Не показываем ошибку — пользователь просто не увидит более старые сообщения
+      setHistoryError('Не удалось загрузить более ранние сообщения');
+      toast('Ошибка загрузки истории чата', 'error');
     } finally {
       setLoadingOlder(false);
     }
@@ -222,19 +227,26 @@ export function ChatView({ user }) {
   useEffect(() => {
     if (!debouncedSearchQuery.trim() || !hasMore || !isLiveMode()) {
       setServerSearchResults(null);
+      setServerSearchError('');
       return;
     }
     let cancelled = false;
     setServerSearchLoading(true);
+    setServerSearchError('');
     services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
       .then(data => {
         if (cancelled) return;
         setServerSearchResults(data?.messages ?? []);
       })
-      .catch(() => { if (!cancelled) setServerSearchResults(null); })
+      .catch(() => {
+        if (cancelled) return;
+        setServerSearchResults(null);
+        setServerSearchError('Не удалось выполнить поиск по истории');
+        toast('Поиск по истории временно недоступен', 'error');
+      })
       .finally(() => { if (!cancelled) setServerSearchLoading(false); });
     return () => { cancelled = true; };
-  }, [debouncedSearchQuery, hasMore]);
+  }, [debouncedSearchQuery, hasMore, searchRetryTick]);
 
   // FIX [AUDIT]: синхронизируем hasMore при первой загрузке (live-режим).
   // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
@@ -471,10 +483,28 @@ export function ChatView({ user }) {
                 <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
               </button>
             )}
+            {historyError && (
+              <StateBlock
+                type="error"
+                title="История чата недоступна"
+                subtitle={historyError}
+                actionLabel="Повторить"
+                onAction={loadOlderMessages}
+              />
+            )}
           </div>
         )}
         {serverSearchLoading && (
           <StateBlock type="loading" title="Поиск по всей истории…" />
+        )}
+        {serverSearchError && !serverSearchLoading && (
+          <StateBlock
+            type="error"
+            title="Не удалось выполнить поиск"
+            subtitle={serverSearchError}
+            actionLabel="Повторить"
+            onAction={() => setSearchRetryTick(v => v + 1)}
+          />
         )}
         {filteredChat.length === 0 && !serverSearchLoading && (
           <StateBlock

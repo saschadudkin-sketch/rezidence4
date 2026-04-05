@@ -41,6 +41,8 @@ export default function Login({ onLogin, authNotice = '' }) {
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
   const abortRef = useRef(null);
+  const inFlightSendRef = useRef(false);
+  const inFlightVerifyRef = useRef(false);
 
   useEffect(() => {
     if (step !== 'otp' || resendIn <= 0) return;
@@ -51,6 +53,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   }, [step, resendIn]);
 
   const sendCode = async () => {
+    if (inFlightSendRef.current) return;
     const isResend = step === 'otp';
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 10 || digits.length > 11) {
@@ -65,6 +68,7 @@ export default function Login({ onLogin, authNotice = '' }) {
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
 
+    inFlightSendRef.current = true;
     setLoading(true);
     try {
       // CQ-01: authFlow.sendOtp handles live vs. demo branching internally
@@ -95,6 +99,7 @@ export default function Login({ onLogin, authNotice = '' }) {
         if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
       }
     } finally {
+      inFlightSendRef.current = false;
       if (!signal.aborted) setLoading(false);
     }
   };
@@ -102,6 +107,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   // FIX [I-5]: accept optional otpValue so auto-submit can pass the value directly
   // (React state update is async — closure would read stale otp on immediate call)
   const verify = async (otpValue) => {
+    if (inFlightVerifyRef.current) return;
     const code = typeof otpValue === 'string' ? otpValue : otp;
     if (code.length !== 6) {
       setOtpError('Код должен содержать 6 цифр');
@@ -115,6 +121,7 @@ export default function Login({ onLogin, authNotice = '' }) {
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
 
+    inFlightVerifyRef.current = true;
     setLoading(true);
     try {
       // CQ-01: authFlow.verifyOtp handles live vs. demo branching internally
@@ -127,6 +134,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
     } finally {
+      inFlightVerifyRef.current = false;
       if (!signal.aborted) setLoading(false);
     }
   };

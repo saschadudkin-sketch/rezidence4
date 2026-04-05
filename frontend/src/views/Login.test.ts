@@ -17,11 +17,12 @@ vi.mock('../store/AppStore', () => ({
   }),
 }));
 
-vi.mock('../utils', () => ({
+vi.mock('../utils/phoneUtils', () => ({
   findByPhone: vi.fn((phone, db) => {
     const normalized = phone.replace(/\D/g, '');
     return Object.values(db).find(u => u.phone.replace(/\D/g, '') === normalized) || null;
   }),
+  formatPhone: vi.fn((value) => value),
 }));
 
 vi.mock('../config/runtimeMode', () => ({
@@ -81,12 +82,12 @@ describe('Login — шаг phone', () => {
 });
 
 describe('Login — шаг OTP', () => {
-  async function goToOtpStep() {
+async function goToOtpStep() {
     services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     await screen.findByPlaceholderText('• • • • • •');
   }
 
@@ -138,17 +139,17 @@ describe('Login — шаг OTP', () => {
 });
 
 describe('Login — retry/metrics', () => {
-  async function openOtp() {
+async function openOtp() {
     services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     await screen.findByPlaceholderText('• • • • • •');
   }
 
   test('на шаге OTP показывается таймер resend', async () => {
     await openOtp();
-    expect(screen.getByText(/Отправить код повторно через/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отправить повторно через/i })).toBeInTheDocument();
   });
 
   test('отправляет metric verify_rejected при коротком OTP', async () => {
@@ -171,10 +172,9 @@ describe('Login — retry/metrics', () => {
     services.auth.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
     render(<Login onLogin={onLogin} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     await screen.findByPlaceholderText('• • • • • •');
     fireEvent.change(screen.getByPlaceholderText('• • • • • •'), { target: { value: '123456' } });
-    fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
     const types = metricSpy.mock.calls.map(([ev]) => ev.detail.type);
     expect(types).toContain('verify_success');
