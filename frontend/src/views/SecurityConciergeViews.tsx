@@ -67,10 +67,14 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <AppIcon name="info" size={14} className="u-inline-icon" />
         <span>Консьерж контролирует доступ и создаёт заявки. Одобрение — задача охраны.</span>
       </div>
-      <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-        <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
-        <span>Сканировать QR-код</span>
-      </button>
+      <PageActionBar
+        className="u-mb12"
+        primaryLabel="Сканировать QR-код"
+        onPrimary={() => setShowScan(true)}
+        secondary={[
+          { label: 'Создать пропуск гостю', onClick: () => setModal({ type: 'pass', cat: 'guest' }) },
+        ]}
+      />
       <div className="search-wrap">
         <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />

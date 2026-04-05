@@ -3,6 +3,7 @@ import { GroupedReqList } from '../../requests/ReqCard';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import SectionHeader from '../../ui/SectionHeader';
+import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 
@@ -32,6 +33,14 @@ const PassesTab = memo(function PassesTab({
 
   return (
     <>
+      <PageActionBar
+        className="u-mb12"
+        primaryLabel="Создать пропуск"
+        onPrimary={() => setModal({ type: 'pass', cat: user.role === 'contractor' ? 'worker' : 'guest' })}
+        secondary={[
+          { label: 'Открыть шаблоны', onClick: () => setActiveTab('templates') },
+        ]}
+      />
       <div className="type-grid">
         {passIcons.map(([k, iconName, l]) => (
           <button key={k} type="button" className="type-card"
