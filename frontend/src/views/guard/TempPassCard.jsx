@@ -11,6 +11,7 @@ import { checkBlacklist } from '../../store/slices/blacklistSlice';
 import { toast } from '../../ui/Toasts.jsx';
 import { AvatarCircle } from '../../ui/AvatarCircle.jsx';
 import { AppIcon } from '../../ui/AppIcon.jsx';
+import { MS_PER_DAY } from '../../constants/limits';
 
 // FIX [PERF-5]: memo — TempPassCard рендерится для каждого временного пропуска.
 const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, blacklist }) {
@@ -24,8 +25,8 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
     const exp  = new Date(req.validUntil);
     const diff = exp - new Date();
     const expired = diff <= 0;
-    const days  = Math.floor(diff / 86400000);
-    const hours = Math.floor((diff % 86400000) / 3600000);
+    const days  = Math.floor(diff / MS_PER_DAY);
+    const hours = Math.floor((diff % MS_PER_DAY) / 3600000);
     const mins  = Math.floor((diff % 3600000) / 60000);
     const timeLeft = expired ? 'Истёк'
       : days > 0 ? `${days}д ${hours}ч`

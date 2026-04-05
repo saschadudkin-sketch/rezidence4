@@ -104,6 +104,19 @@ services:
       - "80:80"
       # Раскомментируйте для HTTPS (требуется certbot + nginx.prod.conf):
       # - "443:443"
+    # DO-04: nginx log rotation — без ограничений access.log при 1000 req/day = GB за неделю
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    # DO-04: healthcheck для frontend — проверяет что nginx отдаёт HTML
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ | grep -q '<html' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # ── Резервное копирование БД ──────────────────────────────────────────────────
   # FIX [AUDIT]: заменён sleep-цикл на настоящий cron через busybox crond.

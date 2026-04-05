@@ -161,6 +161,15 @@
 .state-title{font-family:'Playfair Display',serif;font-size:var(--fs-md);color:var(--t2);margin-bottom:6px}
 .state-sub{font-size:var(--fs-2xs);color:var(--t4)}
 .state-action{margin-top:12px;min-width:160px}
+/* P-04: EmptyState — dedicated component for empty list/section states */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 20px;text-align:center;
+}
+.empty-state-icon{opacity:.2;margin-bottom:14px}
+.empty-state-title{font-family:'Playfair Display',serif;font-size:var(--fs-md);font-weight:400;color:var(--t2);margin-bottom:8px}
+.empty-state-desc{font-size:var(--fs-sm);color:var(--t4);line-height:1.55;max-width:240px}
+.empty-state-cta{margin-top:16px;min-width:160px}
 /* ── Skeleton ── */
 .skeleton-card{background:var(--s2);border:1.5px solid var(--b1);border-left:4px solid var(--b1);border-radius:8px;padding:12px;margin-bottom:8px;overflow:hidden}
 .skeleton-row{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)}
@@ -199,7 +208,6 @@
   pointer-events:auto;
   display:flex;align-items:center;gap:10px;
 }
-/* P-06: dismiss button */
 .toast-msg{flex:1}
 .toast-close{
   background:none;border:none;cursor:pointer;
@@ -208,6 +216,14 @@
   transition:color .13s;
 }
 .toast-close:hover{color:var(--t1)}
+/* P-05: retry / CTA action button inside error toast */
+.toast-action{
+  background:none;border:1px solid currentColor;border-radius:4px;
+  cursor:pointer;font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);
+  font-weight:500;padding:3px 9px;flex-shrink:0;
+  color:inherit;opacity:.85;transition:opacity .13s;
+}
+.toast-action:hover{opacity:1}
 .toast.success{border-left-color:var(--ok-t)}
 .toast.error  {border-left-color:var(--err-t)}
 /* compat */

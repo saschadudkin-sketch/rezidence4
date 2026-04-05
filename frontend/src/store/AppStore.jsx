@@ -22,7 +22,6 @@
  */
 
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
-import { sendNotif } from '../utils.js';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { logger } from '../services/logger.js';
 import {
@@ -249,14 +248,13 @@ export function useActions() {
     
     activateScheduled: ()                   => dispatch({ type: A.REQUEST_ACTIVATE_SCHEDULED, now: Date.now() }),
 
-    approveRequest: (id, byName, byRole) => {
-      setStatusWithHistory(dispatch, id, 'approved', 'Допуск разрешён', byName, byRole);
-      sendNotif('Пропуск одобрен', byName + ' разрешил допуск', 'approved-' + id);
-    },
-    rejectRequest: (id, byName, byRole) => {
-      setStatusWithHistory(dispatch, id, 'rejected', 'Отказано', byName, byRole);
-      sendNotif('Пропуск отклонён', byName + ' отказал в допуске', 'rejected-' + id);
-    },
+    // A-02: side-effect-free — sendNotif removed from store action creators.
+    // Push notifications for approve/reject are handled at the call site
+    // (component or hook) where user context is available.
+    approveRequest: (id, byName, byRole) =>
+      setStatusWithHistory(dispatch, id, 'approved', 'Допуск разрешён', byName, byRole),
+    rejectRequest: (id, byName, byRole) =>
+      setStatusWithHistory(dispatch, id, 'rejected', 'Отказано', byName, byRole),
     acceptRequest:    (id, byName, byRole) => setStatusWithHistory(dispatch, id, 'accepted', 'Принято в работу', byName, byRole),
     arriveRequest:    (id, byName, byRole) => arriveWithHistory(dispatch, id, byName, byRole),
     approveAndArrive: (id, byName, byRole) => approveAndArriveWithHistory(dispatch, id, byName, byRole),

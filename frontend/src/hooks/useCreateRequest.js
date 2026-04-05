@@ -206,7 +206,12 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       submittingRef.current = false;
       if (isMountedRef.current) {
         setLoading(false);
-        toast('Ошибка при отправке заявки: ' + (e.message || 'попробуйте снова'), 'error');
+        // P-05: offer retry action so users can resubmit without re-filling the form
+        toast(
+          'Ошибка при отправке: ' + (e.message || 'попробуйте снова'),
+          'error',
+          { label: 'Повторить', onClick: handleSubmit },
+        );
       }
     }
   };

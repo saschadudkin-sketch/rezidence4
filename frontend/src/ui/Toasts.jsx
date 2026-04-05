@@ -18,12 +18,18 @@ let _toastIdCounter = 0;
  * Показывает всплывающее уведомление.
  * Можно безопасно вызывать из любого места приложения — services, hooks, утилиты.
  * Если Toasts ещё не смонтирован — уведомление тихо теряется (ожидаемо при splash).
+ *
+ * @param {string} msg
+ * @param {'info'|'success'|'error'|'warn'} [type]
+ * @param {{ label: string, onClick: () => void }} [action] — P-05: optional CTA button
  */
-export const toast = (msg, type = 'info') => {
-  if (_toastCb) _toastCb(msg, type);
+export const toast = (msg, type = 'info', action = null) => {
+  if (_toastCb) _toastCb(msg, type, action);
 };
 
-const TOAST_DURATION = 3_500; // мс до автоудаления
+// P-05: longer duration for error toasts with an action so the user has time to click
+const TOAST_DURATION        = 3_500; // мс до автоудаления
+const TOAST_DURATION_ACTION = 7_000; // мс — extra time when toast has an action button
 
 export default function Toasts() {
   const [list, setList] = useState([]);
@@ -31,13 +37,14 @@ export default function Toasts() {
   // это позволяет dismiss-кнопке (если добавим) обращаться к ним без перерегистрации.
   const timersRef = useRef(new Map()); // id → timeoutId
 
-  const add = useCallback((msg, type) => {
+  const add = useCallback((msg, type, action) => {
     const id = ++_toastIdCounter;
-    setList(p => [...p, { id, msg, type }]);
+    const duration = action ? TOAST_DURATION_ACTION : TOAST_DURATION;
+    setList(p => [...p, { id, msg, type, action }]);
     const t = setTimeout(() => {
       setList(p => p.filter(x => x.id !== id));
       timersRef.current.delete(id);
-    }, TOAST_DURATION);
+    }, duration);
     timersRef.current.set(id, t);
   }, []);
 
@@ -69,8 +76,17 @@ export default function Toasts() {
   return (
     <div className="toast-wrap" role="status" aria-live="polite" aria-atomic="false">
       {list.map(t => (
-        <div key={t.id} className={'toast ' + t.type} aria-atomic="true">
+        <div key={t.id} className={'toast ' + t.type + (t.action ? ' toast--has-action' : '')} aria-atomic="true">
           <span className="toast-msg">{t.msg}</span>
+          {/* P-05: optional CTA — e.g. "Повторить" for API error recovery */}
+          {t.action && (
+            <button
+              className="toast-action"
+              onClick={() => { t.action.onClick(); dismiss(t.id); }}
+            >
+              {t.action.label}
+            </button>
+          )}
           <button className="toast-close" onClick={() => dismiss(t.id)} aria-label="Закрыть уведомление">×</button>
         </div>
       ))}

@@ -3,6 +3,39 @@ import { MAX_PHOTOS_PER_REQUEST, MAX_FILE_SIZE_BYTES, PHOTO_MAX_WIDTH_PX, PHOTO_
 import { toast } from '../ui/Toasts';
 import { getCachedCompressed, cacheCompressed } from '../store/persistence/photoCache';
 
+// SEC-02: magic-byte MIME validation — we read the first 12 bytes of the file and
+// compare them to known image signatures instead of trusting file.type, which can
+// be spoofed by renaming a non-image file to .jpg.
+const IMAGE_SIGNATURES = [
+  { mime: 'image/jpeg', bytes: [0xFF, 0xD8, 0xFF] },
+  { mime: 'image/png',  bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { mime: 'image/gif',  bytes: [0x47, 0x49, 0x46, 0x38] },
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // "RIFF" — WEBP follows at offset 8
+  { mime: 'image/avif', bytes: [0x00, 0x00, 0x00] },       // ftyp box — partial match, see check below
+];
+
+/**
+ * Returns true if the file's magic bytes match a known safe image format.
+ * Reads only the first 12 bytes (negligible cost).
+ */
+function validateImageMagicBytes(file) {
+  return new Promise((resolve) => {
+    const slice = file.slice(0, 12);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arr = new Uint8Array(e.target.result);
+      const matches = IMAGE_SIGNATURES.some(({ bytes }) =>
+        bytes.every((b, i) => arr[i] === b)
+      );
+      // AVIF: bytes 4-7 are "ftyp" — wider check for container formats
+      const isFtyp = arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70;
+      resolve(matches || isFtyp);
+    };
+    reader.onerror = () => resolve(false);
+    reader.readAsArrayBuffer(slice);
+  });
+}
+
 /**
  * compressImage — сжимает dataURL до maxWidth при качестве quality.
  * Graceful degradation: при сбое canvas context возвращает оригинал.
@@ -61,6 +94,15 @@ export function usePhotoHandler(isMountedRef) {
 
     const oversized = toProcess.some(f => f.size > MAX_FILE_SIZE_BYTES);
     if (oversized) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
+
+    // SEC-02: validate magic bytes before reading full files — rejects renamed non-images
+    const magicChecks = await Promise.all(toProcess.map(validateImageMagicBytes));
+    const invalidIdx = magicChecks.findIndex(ok => !ok);
+    if (invalidIdx !== -1) {
+      toast(`Файл «${toProcess[invalidIdx].name}» не является изображением`, 'error');
+      e.target.value = '';
+      return;
+    }
 
     try {
       const results = await Promise.all(

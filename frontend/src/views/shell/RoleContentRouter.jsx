@@ -96,8 +96,13 @@ function TabRoute({ user }) {
  * Only `user` is needed as a prop — tab and navigation callbacks come from
  * URL params (useParams) and NavigationContext respectively.
  */
-const RoleContentRouter = memo(function RoleContentRouter({ user }) {
+const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = false }) {
   const defaultTab = getTabsForRole(user.role)[0] || 'passes';
+
+  // P-02: while SSE data is loading, show skeleton cards inside the shell
+  // (header + nav remain interactive). This replaces the full-screen spinner.
+  if (isLoading) return <ReqSkeleton count={4} />;
+
   return (
     <Routes>
       {/* /dashboard/:tab — main route, access-guarded inside TabRoute */}

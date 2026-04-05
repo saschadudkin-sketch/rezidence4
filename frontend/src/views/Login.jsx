@@ -4,11 +4,12 @@ import { findByPhone } from '../utils.js';
 import { toast } from '../ui/Toasts';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';
-import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
 import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits';
 import { formatPhone } from '../utils/phoneUtils';
 import { emitLoginMetric } from '../utils/loginMetrics';
+// CQ-01: live/demo auth branching moved out of component into a hook
+import { useAuthFlow } from '../hooks/useAuthFlow';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
@@ -35,6 +36,8 @@ export default function Login({ onLogin }) {
   // P-04: счётчик попыток отправки OTP — показываем предупреждение перед блокировкой
   const [sendAttempts, setSendAttempts] = useState(0);
   const { phoneDb } = useUsers();
+  // CQ-01: mode-aware auth — no isLiveMode() branches in component
+  const authFlow = useAuthFlow();
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
   const abortRef = useRef(null);
@@ -64,39 +67,33 @@ export default function Login({ onLogin }) {
 
     setLoading(true);
     try {
-      if (isLiveMode()) {
-        await services.auth.sendOtp(phone);
-        if (signal.aborted) return;
-        setStep('otp');
-        setResendIn(OTP_COOLDOWN_SECONDS);
-        setOtpError('');
-        setSendAttempts(n => n + 1);
-        emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'live' });
-        toast('SMS-код отправлен', 'success');
-      } else {
-        const f = findByPhone(phone, phoneDb);
-        if (!f) { toast('Номер не найден в системе', 'error'); setLoading(false); return; }
-        await new Promise(r => setTimeout(r, 600));
-        if (signal.aborted) return;
-        setFound(f);
-        setStep('otp');
-        setResendIn(OTP_COOLDOWN_SECONDS);
-        setOtpError('');
-        setSendAttempts(n => n + 1);
-        emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: 'demo' });
-        toast('Демо: введите любой код', 'success');
-      }
-    } catch(e) {
-      // SEC-02: clamp retryAfter — сервер (или MITM) может вернуть 999999 секунд, блокируя UI навсегда
-      const retryAfter = Math.min(
-        parseInt(e.retryAfter ?? OTP_COOLDOWN_SECONDS, 10) || OTP_COOLDOWN_SECONDS,
-        OTP_RETRY_AFTER_MAX_SECONDS,
-      );
-      setResendIn(retryAfter);
+      // CQ-01: authFlow.sendOtp handles live vs. demo branching internally
+      const demoUser = await authFlow.sendOtp(phone);
+      if (signal.aborted) return;
+      if (demoUser) setFound(demoUser); // demo mode returns the matched user
+      setStep('otp');
+      setResendIn(OTP_COOLDOWN_SECONDS);
+      setOtpError('');
       setSendAttempts(n => n + 1);
-      setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
-      emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
-      if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
+      emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: isLiveMode() ? 'live' : 'demo' });
+      toast(isLiveMode() ? 'SMS-код отправлен' : 'Демо: введите любой код', 'success');
+    } catch(e) {
+      if (e.notFound) {
+        // Demo: phone not in fixture data
+        if (!signal.aborted) toast('Номер не найден в системе', 'error');
+        setPhoneError('Номер не найден в демо-данных');
+      } else {
+        // SEC-02: clamp retryAfter — сервер (или MITM) может вернуть 999999 секунд, блокируя UI навсегда
+        const retryAfter = Math.min(
+          parseInt(e.retryAfter ?? OTP_COOLDOWN_SECONDS, 10) || OTP_COOLDOWN_SECONDS,
+          OTP_RETRY_AFTER_MAX_SECONDS,
+        );
+        setResendIn(retryAfter);
+        setSendAttempts(n => n + 1);
+        setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
+        emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
+        if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
+      }
     } finally {
       if (!signal.aborted) setLoading(false);
     }
@@ -117,17 +114,11 @@ export default function Login({ onLogin }) {
 
     setLoading(true);
     try {
-      if (isLiveMode()) {
-        const user = await services.auth.verifyOtp(phone, otp);
-        if (signal.aborted) return;
-        emitLoginMetric('verify_success', { mode: 'live' });
-        onLogin(user);
-      } else {
-        await new Promise(r => setTimeout(r, 400));
-        if (signal.aborted) return;
-        emitLoginMetric('verify_success', { mode: 'demo' });
-        onLogin(found);
-      }
+      // CQ-01: authFlow.verifyOtp handles live vs. demo branching internally
+      const user = await authFlow.verifyOtp(phone, otp, found);
+      if (signal.aborted) return;
+      emitLoginMetric('verify_success', { mode: isLiveMode() ? 'live' : 'demo' });
+      onLogin(user);
     } catch(e) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
@@ -261,8 +252,17 @@ export default function Login({ onLogin }) {
                   Слишком много попыток — следующая может заблокировать вход на несколько минут
                 </div>
               )}
+              {/* P-01: visual OTP countdown — progress bar depletes as cooldown ticks down */}
+              {resendIn > 0 && (
+                <div className="otp-countdown" aria-hidden="true">
+                  <div
+                    className="otp-countdown-bar"
+                    style={{ '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%` }}
+                  />
+                </div>
+              )}
               <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
-                {resendIn > 0 ? `Отправить код повторно через ${resendIn}с` : 'Отправить код повторно'}
+                {resendIn > 0 ? `Отправить повторно через ${resendIn}с` : 'Отправить код повторно'}
               </button>
               <button className="btn-text" onClick={() => { setStep('phone'); setOtp(''); setFound(null); }}>
                 ← Изменить номер

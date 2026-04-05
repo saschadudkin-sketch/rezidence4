@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { genId } from '../utils.js';
 import { CAT_ICON, CAT_LABEL } from '../constants/index.js';
-import { MAX_PHOTOS_PER_REQUEST } from '../constants/limits';
+import { MAX_PHOTOS_PER_REQUEST, daysFromNow } from '../constants/limits';
 import {
   useCreateRequest,
   hasVisitorFields,
@@ -187,6 +187,25 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         </div>
 
         <div className="modal-body">
+          {/* P-03: category picker — lets users switch category directly inside
+              the modal instead of having to close, pick from outside, and reopen */}
+          {form.cats.length > 1 && (
+            <div className="modal-cat-picker" role="group" aria-label="Тип заявки">
+              {form.cats.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`modal-cat-btn${form.cat === c ? ' active' : ''}`}
+                  onClick={() => form.setCat(c)}
+                  aria-pressed={form.cat === c}
+                >
+                  <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[c] || 'users'} size={14} /></span>
+                  <span className="modal-cat-btn-label">{CAT_LABEL[c]}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {type === 'pass' && (
             <VisitorFields
               cat={form.cat}
@@ -204,7 +223,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
             <div className="field">
               {!form.validUntil ? (
                 <button type="button" className="temp-pass-toggle" onClick={() => form.setValidUntil(
-                  toLocalDateInputValue(new Date(Date.now() + 7 * 86400000))
+                  toLocalDateInputValue(daysFromNow(7))
                 )}>
                   <span><AppIcon name="history" size={14} /></span>
                   <span>Временный пропуск</span>
@@ -227,7 +246,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
                     ].map(([label, days]) => (
                       <button key={days} type="button" className="temp-pass-preset"
                         onClick={() => form.setValidUntil(
-                          toLocalDateInputValue(new Date(Date.now() + days * 86400000))
+                          toLocalDateInputValue(daysFromNow(days))
                         )}>{label}</button>
                     ))}
                   </div>

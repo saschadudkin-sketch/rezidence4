@@ -52,6 +52,24 @@
 .photo-btn--col{flex-direction:column;gap:6px}
 /* ── Modal cat hint + visitor fields ── */
 .modal-cat-hint{font-size:var(--fs-2xs);color:var(--t4);margin-top:3px;display:flex;align-items:center;gap:4px}
+/* P-03: Category picker — horizontal scroll strip at top of modal body */
+.modal-cat-picker{
+  display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;margin-bottom:4px;
+  scrollbar-width:none;-ms-overflow-style:none;
+}
+.modal-cat-picker::-webkit-scrollbar{display:none}
+.modal-cat-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;
+  background:var(--s3);border:1px solid var(--b1);border-radius:var(--r);
+  padding:8px 12px;cursor:pointer;min-width:62px;
+  font-family:'DM Sans',sans-serif;transition:background .13s,border-color .13s;
+}
+.modal-cat-btn-ico{color:var(--t3);transition:color .13s}
+.modal-cat-btn-label{font-size:var(--fs-2xs);color:var(--t3);white-space:nowrap;transition:color .13s}
+.modal-cat-btn:hover{background:var(--g-bg);border-color:var(--b2)}
+.modal-cat-btn:hover .modal-cat-btn-ico,.modal-cat-btn:hover .modal-cat-btn-label{color:var(--g2)}
+.modal-cat-btn.active{background:var(--g-bg2);border-color:var(--g1)}
+.modal-cat-btn.active .modal-cat-btn-ico,.modal-cat-btn.active .modal-cat-btn-label{color:var(--g2);font-weight:500}
 .vf-name-row{display:flex;gap:6px;margin-bottom:6px}
 .vf-name-inp{flex:1;margin-bottom:0 !important}
 /* R-03: min touch target 44px (WCAG 2.5.5) */

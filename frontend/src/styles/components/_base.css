@@ -52,6 +52,23 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
   padding:0;
 }
 .demo-welcome-close:hover{opacity:1}
+/* P-06: Role-based onboarding hint — dismissible, shown once per role */
+.onboarding-hint{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px;
+  background:var(--g-bg);
+  border-bottom:1px solid var(--b2);
+  font-size:var(--fs-xs);color:var(--t2);
+}
+.onboarding-hint-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}
+.onboarding-hint-text{flex:1}
+.onboarding-hint-close{
+  flex-shrink:0;background:none;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;color:var(--t4);opacity:.7;
+  padding:0;
+}
+.onboarding-hint-close:hover{opacity:1}
 /* FA-10: Skip-to-content link for keyboard accessibility */
 .skip-link{
   position:absolute;top:-100%;left:8px;z-index:var(--z-top);

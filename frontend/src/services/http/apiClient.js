@@ -9,6 +9,8 @@ import {
 import { getCsrfToken, makeRequestId } from './requestIdentity.js';
 import { createAuthSession } from './authSession.js';
 import { createUploadClient } from './uploadClient.js';
+// A-01: use centralized event registry instead of magic string
+import { emitUnauthorized } from '../../utils/events.js';
 
 const BASE_URL = API_BASE_URL;
 
@@ -53,7 +55,8 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         const refreshed = await authSession.tryRefreshToken(requestId);
         if (refreshed) continue;
 
-        window.dispatchEvent(new CustomEvent('rz:unauthorized'));
+        // A-01: use typed emitter from centralized event registry
+        emitUnauthorized();
         // T-05: use error code instead of string matching for reliable catch
         const sessionErr = new Error('Сессия истекла. Войдите снова.');
         sessionErr.code = 'SESSION_EXPIRED';

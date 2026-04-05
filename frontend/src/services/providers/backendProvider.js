@@ -409,6 +409,9 @@ export function createBackendProvider() {
     liveData: {
       startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
         onPerms, onTemplates, setBlacklist, userUid,
+        // DA-01: AbortSignal from useLiveSync — cancels the parallel initial fetch
+        // when retryKey changes before startSync resolves (fast reconnect race).
+        signal,
         // Incremental blacklist/user updates (SSE)
         onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
         // PERF: Incremental request SSE updates — точечные действия вместо full replace
@@ -419,16 +422,23 @@ export function createBackendProvider() {
       }) => {
         let mounted = true;
 
+        // DA-01: bail out immediately if the caller already aborted (rapid retryKey change)
+        if (signal?.aborted) return () => {};
+
         // Subscribe to request_update BEFORE the parallel fetch so events that arrive
         // during initial load are buffered and applied after — not silently dropped.
         const reqEventBuffer = [];
         const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
+        // DA-01: pass signal to every provider call so the underlying apiClient fetch
+        // is aborted immediately when the caller calls abortCtrl.abort().
+        const fetchOpts = signal ? { signal } : {};
+
         // Параллельная загрузка ВСЕХ данных при старте
         const promises = [
-          requestsProvider.getAll(),
-          chatProvider.getMessages(),
-          usersProvider.getAll(),
+          requestsProvider.getAll(fetchOpts),
+          chatProvider.getMessages(fetchOpts),
+          usersProvider.getAll(fetchOpts),
         ];
         // Perms и templates привязаны к uid — загружаем если uid передан
         if (userUid) {
@@ -455,7 +465,8 @@ export function createBackendProvider() {
         // Отписаться от буфера — теперь будет live subscription ниже
         bufferReqSub();
 
-        if (!mounted) return () => {};
+        // DA-01: check abort signal after allSettled (signal aborted → stop immediately)
+        if (signal?.aborted || !mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
         let currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
