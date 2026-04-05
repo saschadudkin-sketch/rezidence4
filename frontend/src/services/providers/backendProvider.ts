@@ -162,11 +162,11 @@ const sseManager = createSSEManager();
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authProvider = {
   async sendOtp(phone) {
-    await apiClient.post('/api/auth/send-otp', { phone });
+    await apiClient.post('/api/v1/auth/send-otp', { phone });
   },
   async verifyOtp(phone, code) {
     // Сервер устанавливает HttpOnly cookie — токен не в теле ответа
-    const { user } = await apiClient.post('/api/auth/verify-otp', { phone, code });
+    const { user } = await apiClient.post('/api/v1/auth/verify-otp', { phone, code });
     // Reset refresh-failed flag so the new session can obtain tokens normally.
     if (typeof resetRefreshState === 'function') resetRefreshState();
     // Pass uid so SSE manager can detect user switch and reconnect under new session.
@@ -174,13 +174,13 @@ export const authProvider = {
     return user;
   },
   async getMe() {
-    const { user } = await apiClient.get('/api/auth/me');
+    const { user } = await apiClient.get('/api/v1/auth/me');
     sseManager.connect(user.uid);
     return user;
   },
   async logout() {
     // Сервер сбрасывает HttpOnly cookie через Set-Cookie: token=; Max-Age=0
-    await apiClient.post('/api/auth/logout').catch(() => {});
+    await apiClient.post('/api/v1/auth/logout').catch(() => {});
     sseManager.disconnect();
   },
 };
@@ -192,7 +192,7 @@ export const requestsProvider = {
     // Pages fetched in parallel after the first: 1 sequential + N parallel.
     // При 1000 заявках: 5 последовательных → 1 + 4 параллельных.
     const PAGE_SIZE = 200;
-    const first = await apiClient.get(`/api/requests?limit=${PAGE_SIZE}&page=1`);
+    const first = await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`);
     const firstData = Array.isArray(first) ? first : (first.data || []);
     const total = first.total || firstData.length;
 
@@ -201,7 +201,7 @@ export const requestsProvider = {
     const pages = Math.ceil(total / PAGE_SIZE);
     const rest = await Promise.all(
       Array.from({ length: pages - 1 }, (_, i) =>
-        apiClient.get(`/api/requests?limit=${PAGE_SIZE}&page=${i + 2}`)
+        apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=${i + 2}`)
       )
     );
     return [firstData, ...rest.map(r => Array.isArray(r) ? r : (r.data || []))].flat();
@@ -209,16 +209,16 @@ export const requestsProvider = {
   async create(request) {
     // Idempotency key prevents duplicate submissions on concurrent or retried requests.
     const idempotencyKey = `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const serverReq = await apiClient.post('/api/requests', request, {
+    const serverReq = await apiClient.post('/api/v1/requests', request, {
       headers: { 'Idempotency-Key': idempotencyKey },
     });
     return serverReq;
   },
   async update(id, patch, historyLabel) {
-    return apiClient.patch(`/api/requests/${id}`, { ...patch, historyLabel });
+    return apiClient.patch(`/api/v1/requests/${id}`, { ...patch, historyLabel });
   },
   async delete(id) {
-    return apiClient.delete(`/api/requests/${id}`);
+    return apiClient.delete(`/api/v1/requests/${id}`);
   },
   async resolvePhotos(requestId, photos) {
     // All photos upload in parallel via allSettled; 30s timeout per photo.
@@ -292,22 +292,22 @@ export const chatProvider = {
     if (limit)  params.set('limit', String(limit));
     if (search) params.set('search', search);
     const qs = params.toString();
-    const data = await apiClient.get(`/api/chat/messages${qs ? '?' + qs : ''}`);
+    const data = await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
     if (Array.isArray(data)) return { messages: data, hasMore: false };
     return data; // { messages: [...], hasMore: bool }
   },
   async sendMessage(msg) {
-    return apiClient.post('/api/chat/messages', msg);
+    return apiClient.post('/api/v1/chat/messages', msg);
   },
   async updateMessage(id, patch) {
-    return apiClient.patch(`/api/chat/messages/${id}`, patch);
+    return apiClient.patch(`/api/v1/chat/messages/${id}`, patch);
   },
   async deleteMessage(id) {
-    return apiClient.delete(`/api/chat/messages/${id}`);
+    return apiClient.delete(`/api/v1/chat/messages/${id}`);
   },
   async markSeen(uid) {
-    return apiClient.post('/api/chat/seen', { uid });
+    return apiClient.post('/api/v1/chat/seen', { uid });
   },
   onMessage(fn)       { return sseManager.on('message', fn); },
   onMessageUpdate(fn) { return sseManager.on('message_update', fn); },
@@ -317,73 +317,73 @@ export const chatProvider = {
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const usersProvider = {
   async getAll() {
-    return apiClient.get('/api/users');
+    return apiClient.get('/api/v1/users');
   },
   async update(uid, patch) {
-    return apiClient.patch(`/api/users/${uid}`, patch);
+    return apiClient.patch(`/api/v1/users/${uid}`, patch);
   },
   async delete(uid) {
-    return apiClient.delete(`/api/users/${uid}`);
+    return apiClient.delete(`/api/v1/users/${uid}`);
   },
 };
 
 // ─── Blacklist ────────────────────────────────────────────────────────────────
 export const blacklistProvider = {
   async getAll() {
-    return apiClient.get('/api/blacklist');
+    return apiClient.get('/api/v1/blacklist');
   },
   async add(entry) {
-    return apiClient.post('/api/blacklist', entry);
+    return apiClient.post('/api/v1/blacklist', entry);
   },
   async remove(id) {
-    return apiClient.delete(`/api/blacklist/${id}`);
+    return apiClient.delete(`/api/v1/blacklist/${id}`);
   },
 };
 
 // ─── Visit Logs ───────────────────────────────────────────────────────────────
 export const visitLogsProvider = {
   async getAll() {
-    return apiClient.get('/api/visit-logs');
+    return apiClient.get('/api/v1/visit-logs');
   },
   async add(entry) {
-    return apiClient.post('/api/visit-logs', entry);
+    return apiClient.post('/api/v1/visit-logs', entry);
   },
   /**
-   * FIX [AUDIT-5 #2]: Backend DELETE /api/visit-logs requires
+   * FIX [AUDIT-5 #2]: Backend DELETE /api/v1/visit-logs requires
    * body { confirm: 'DELETE_ALL_LOGS' } as safety guard.
    * Without this the request always returns 400.
    */
   async clear() {
-    return apiClient.delete('/api/visit-logs', { confirm: 'DELETE_ALL_LOGS' });
+    return apiClient.delete('/api/v1/visit-logs', { confirm: 'DELETE_ALL_LOGS' });
   },
 };
 
 // ─── Permissions & Templates ──────────────────────────────────────────────────
 export const permsProvider = {
   async getPerms(uid) {
-    return apiClient.get(`/api/perms/${uid}`);
+    return apiClient.get(`/api/v1/perms/${uid}`);
   },
   /**
-   * Атомарно сохраняет perms через POST /api/perms/batch (одна транзакция).
+   * Атомарно сохраняет perms через POST /api/v1/perms/batch (одна транзакция).
    * Legacy-формат (flat array) по-прежнему поддерживается через старый endpoint.
    */
   async savePerms(uid, permsObj) {
     // Legacy: flat array — assume visitors only (backward compat)
     if (Array.isArray(permsObj)) {
-      return apiClient.post('/api/perms', { uid, type: 'visitors', items: permsObj });
+      return apiClient.post('/api/v1/perms', { uid, type: 'visitors', items: permsObj });
     }
     // New format: use batch endpoint for atomic save
     const payload = { uid };
     if (permsObj.visitors !== undefined) payload.visitors = permsObj.visitors;
     if (permsObj.workers  !== undefined) payload.workers  = permsObj.workers;
     if (!payload.visitors && !payload.workers) return { ok: true };
-    return apiClient.post('/api/perms/batch', payload);
+    return apiClient.post('/api/v1/perms/batch', payload);
   },
   async getTemplates(uid) {
-    return apiClient.get(`/api/templates/${uid}`);
+    return apiClient.get(`/api/v1/templates/${uid}`);
   },
   async saveTemplates(uid, items) {
-    return apiClient.post('/api/templates', { uid, items });
+    return apiClient.post('/api/v1/templates', { uid, items });
   },
 };
 
@@ -413,13 +413,13 @@ export function createBackendProvider() {
       removeUserEverywhere: (args) => usersProvider.delete(args.uid),
     },
     liveData: {
-      startSync: async ({ onRequests, onChat, onUsers, setAllRequests, setAllMessages, setAllUsers,
+      startSync: async ({ onChat, setAllRequests, setAllMessages, setAllUsers,
         onPerms, onTemplates, setBlacklist, userUid,
         // DA-01: AbortSignal from useLiveSync — cancels the parallel initial fetch
         // when retryKey changes before startSync resolves (fast reconnect race).
         signal,
         // Incremental blacklist/user updates (SSE)
-        onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete, onUserAdd,
+        onBlacklistAdd, onBlacklistRemove, onUserUpdate, onUserDelete,
         // PERF: Incremental request SSE updates — точечные действия вместо full replace
         // onRequestUpdate(req)  — обновить существующую заявку
         // onRequestAdd(req)     — добавить новую заявку

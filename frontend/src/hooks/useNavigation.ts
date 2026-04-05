@@ -90,7 +90,9 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   useEffect(() => {
     const reqId = searchParams.get('reqId');
     if (!reqId) return;
-    setSearchParams({}, { replace: true }); // убираем ?reqId= из URL
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('reqId');
+    setSearchParams(nextParams, { replace: true }); // удаляем только reqId, сохраняя остальные query params
     setHighlightReqId(reqId);
     setActiveTab('passes');
   // eslint-disable-next-line react-hooks/exhaustive-deps
