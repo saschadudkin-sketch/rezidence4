@@ -3,6 +3,8 @@ import { useGarage, useActions } from '../store/AppStore';
 import { genId } from '../utils';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
+import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 /**
  * GarageView — управление машинами квартиры
@@ -19,6 +21,7 @@ export default function GarageView({ user, targetUid }) {
   const [brand,    setBrand]    = useState('');
   const [note,     setNote]     = useState('');
   const [isMain,   setIsMain]   = useState(false);
+  const emptyCopy = getViewStateCopy('garage', 'empty');
 
   // FIX [PERF]: useCallback — не пересоздаётся при каждом рендере
   const resetForm = useCallback(() => { setPlate(''); setBrand(''); setNote(''); setIsMain(false); setAdding(false); setEditId(null); }, []);
@@ -97,11 +100,7 @@ export default function GarageView({ user, targetUid }) {
 
       {/* Список машин */}
       {cars.length === 0 && !adding && (
-        <div className="empty-state">
-          <div className="empty-icon"><AppIcon name="car" size={28} /></div>
-          <div className="empty-title">Машины не добавлены</div>
-          <div className="empty-sub">Добавьте автомобиль для быстрого создания пропусков на парковку</div>
-        </div>
+        <StateBlock type="empty" title={emptyCopy.title} subtitle={emptyCopy.subtitle} />
       )}
 
       <div className="garage-list">

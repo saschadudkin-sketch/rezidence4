@@ -15,6 +15,7 @@ import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { MS_PER_DAY } from '../constants/limits';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -215,6 +216,8 @@ export default function VisitLogView({ user }) {
   // loadLogs, любого state). visits уже мемоизирован, поэтому groups тоже должен быть.
   const groups = useMemo(() => groupByDate(visits), [visits]);
   const totalCount = visits.length;
+  const loadingCopy = getViewStateCopy('visitlog', 'loading');
+  const errorCopy = getViewStateCopy('visitlog', 'error');
 
   return (
     <div className="vlog-wrap">
@@ -222,15 +225,15 @@ export default function VisitLogView({ user }) {
       {isLoading && (
         <StateBlock
           type="loading"
-          title="Загрузка журнала..."
-          subtitle="Пожалуйста, подождите"
+          title={loadingCopy.title}
+          subtitle={loadingCopy.subtitle}
         />
       )}
       {isError && !isLoading && (
         <StateBlock
           type="error"
-          title="Не удалось загрузить журнал"
-          subtitle="Проверьте соединение и попробуйте снова"
+          title={errorCopy.title}
+          subtitle={errorCopy.subtitle}
         />
       )}
       {!isLoading && !isError && (

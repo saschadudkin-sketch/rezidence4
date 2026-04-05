@@ -48,6 +48,10 @@ import {
   saveRequests, saveChat, saveUsers, savePerms, saveBlacklist, saveGarage,
 } from './persistence/localStorage';
 import { useDebouncedSave } from './useDebouncedSave';
+import {
+  REQUESTS_ACTIONS, CHAT_ACTIONS, USERS_ACTIONS,
+  PERMS_ACTIONS, BLACKLIST_ACTIONS, GARAGE_ACTIONS,
+} from './actionDomains';
 
 // ─── Action types (публичный экспорт не изменился) ────────────────────────────
 
@@ -66,13 +70,6 @@ export const A = {
 };
 
 // ─── Группировка actions по доменам ──────────────────────────────────────────
-
-const REQUESTS_ACTIONS  = new Set(['REQUEST_ADD','REQUEST_UPDATE','REQUEST_DELETE','REQUEST_SET_STATUS','REQUEST_ARRIVE','REQUESTS_SET_ALL','REQUEST_ACTIVATE_SCHEDULED','HISTORY_ADD']);
-const CHAT_ACTIONS      = new Set(['CHAT_SEND','CHAT_SET_ALL','CHAT_MARK_SEEN','CHAT_UPDATE_MESSAGE','CHAT_DELETE_MESSAGE']);
-const USERS_ACTIONS     = new Set(['USER_ADD','USER_UPDATE','USER_DELETE','USERS_SET_ALL','AVATAR_SET','AVATAR_DELETE']);
-const PERMS_ACTIONS     = new Set(['PERMS_SET','TEMPLATE_ADD','TEMPLATE_DELETE','TEMPLATES_SET']);
-const BLACKLIST_ACTIONS = new Set(['BLACKLIST_ADD','BLACKLIST_REMOVE','BLACKLIST_SET_ALL']);
-const GARAGE_ACTIONS    = new Set(['GARAGE_ADD_CAR','GARAGE_UPDATE_CAR','GARAGE_DELETE_CAR','GARAGE_SET']);
 
 // ─── Слайс-редьюсеры адаптированы под локальный стейт ────────────────────────
 // Каждый слайс-редьюсер ожидает весь appState, но мы передаём только нужную часть.

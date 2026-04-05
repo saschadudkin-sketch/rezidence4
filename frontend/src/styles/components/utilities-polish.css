@@ -87,7 +87,7 @@
   }
 }
 /* Prevent info loss: keep 2 visible columns from 560px down to 380px */
-@media(max-width:560px) and (min-width:381px){
+@media(max-width:560px) and (min-width:380px){
   .t-head{grid-template-columns:1fr 1fr}
   .t-head>*:nth-child(n+3){display:none}
   .t-row{grid-template-columns:1fr 1fr}
