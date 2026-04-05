@@ -1,4 +1,5 @@
 import { createServices } from './createServices';
+import type { ServiceContainer } from './ServiceContracts';
 
 /**
  * A-03: services — module-level singleton for mode-aware service access.
@@ -27,4 +28,4 @@ import { createServices } from './createServices';
  *
  * Do NOT call createServices() a second time elsewhere — import from this file.
  */
-export const services = createServices();
+export const services: ServiceContainer = createServices();

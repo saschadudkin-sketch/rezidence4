@@ -13,7 +13,8 @@ import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { useDebounce } from '../hooks/useDebounce';
+import { useChatSearch } from './hooks/useChatSearch';
+import { useChatComposer } from './hooks/useChatComposer';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -102,15 +103,10 @@ export function ChatView({ user }) {
   const { chat, chatLastSeen } = useChat();
   const { sendMessage, markChatSeen, updateMessage, deleteMessage, setAllMessages } = useActions();
   const { users } = useUsers();
-  const [text, setText] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const { text, setText, replyTo, setReplyTo, editingMsg, setEditingMsg, showEmoji, setShowEmoji } = useChatComposer();
   const [photoSending, setPhotoSending] = useState(false);
   const [lightbox, setLightbox] = useState(null);
-  const [replyTo, setReplyTo] = useState(null);
   const [msgMenu, setMsgMenu] = useState(null);
-  const [editingMsg, setEditingMsg] = useState(null);
-  const [showEmoji, setShowEmoji] = useState(false);
   // P-05: подтверждение перед удалением сообщения — удаление необратимо
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState(null);
   // FIX [AUDIT]: пагинация истории чата.
@@ -121,11 +117,17 @@ export function ChatView({ user }) {
   const [historyError, setHistoryError] = useState('');
   const [initialHistoryError, setInitialHistoryError] = useState('');
   // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
-  const [serverSearchResults, setServerSearchResults] = useState(null);
-  const [serverSearchLoading, setServerSearchLoading] = useState(false);
-  const [serverSearchError, setServerSearchError] = useState('');
-  const [searchRetryTick, setSearchRetryTick] = useState(0);
-  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+  const {
+    searchQuery,
+    setSearchQuery,
+    showSearch,
+    setShowSearch,
+    serverSearchLoading,
+    serverSearchError,
+    searchRetryTick,
+    setSearchRetryTick,
+    filteredChat,
+  } = useChatSearch(chat, hasMore);
   const msgsContainerRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -146,13 +148,6 @@ export function ChatView({ user }) {
 
   // FIX [REACT-3]: filteredChat ПЕРЕД return (было после — используется в JSX)
   // КРИТ-2: prefer server results when hasMore=true (local store is incomplete).
-  const filteredChat = useMemo(() => {
-    if (!searchQuery.trim()) return chat;
-    if (serverSearchResults !== null) return serverSearchResults; // server-side full-history results
-    const q = searchQuery.toLowerCase();
-    return chat.filter(m => m.text?.toLowerCase().includes(q));
-  }, [chat, searchQuery, serverSearchResults]);
-
   // FIX [PERF-4]: кешируем timestamp каждого сообщения — не создаём new Date() внутри map
   // При N сообщениях и каждом ре-рендере chat-bar это экономит 2N Date-аллокаций.
   const msgTimestamps = useMemo(
@@ -222,32 +217,6 @@ export function ChatView({ user }) {
   useEffect(() => {
     markChatSeen(user.uid);
   }, [user.uid, markChatSeen]);
-
-  // КРИТ-2: when hasMore=true the local store is incomplete — search on the server.
-  // When hasMore=false or query is empty, clear server results and use local filter.
-  useEffect(() => {
-    if (!debouncedSearchQuery.trim() || !hasMore || !isLiveMode()) {
-      setServerSearchResults(null);
-      setServerSearchError('');
-      return;
-    }
-    let cancelled = false;
-    setServerSearchLoading(true);
-    setServerSearchError('');
-    services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
-      .then(data => {
-        if (cancelled) return;
-        setServerSearchResults(data?.messages ?? []);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setServerSearchResults(null);
-        setServerSearchError('Не удалось выполнить поиск по истории');
-        toast('Поиск по истории временно недоступен', 'error');
-      })
-      .finally(() => { if (!cancelled) setServerSearchLoading(false); });
-    return () => { cancelled = true; };
-  }, [debouncedSearchQuery, hasMore, searchRetryTick]);
 
   // FIX [AUDIT]: синхронизируем hasMore при первой загрузке (live-режим).
   // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
