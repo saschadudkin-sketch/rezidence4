@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUsers } from '../store/AppStore';
-import { findByPhone } from '../utils.js';
+import { findByPhone } from '../utils/phoneUtils';
 import { toast } from '../ui/Toasts';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode.js';
 import { LOGO } from '../constants/logo';

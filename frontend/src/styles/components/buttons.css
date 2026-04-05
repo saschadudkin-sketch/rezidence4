@@ -13,7 +13,8 @@
 .perm-form-btns .btn-gold{padding:10px 20px}
 @media(hover:hover){.btn-gold:hover:not(:disabled){background:var(--g2);box-shadow:0 4px 16px rgba(196,150,60,.3)}}
 .btn-gold:active{background:var(--g3);transform:scale(.99)}
-.btn-gold:disabled{opacity:.3;cursor:not-allowed}
+.btn-gold:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.btn-outline:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 
 .btn-outline{
   
