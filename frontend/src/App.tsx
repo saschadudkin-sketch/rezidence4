@@ -18,6 +18,7 @@ import { useAuth, PHASE } from './hooks/useAuth';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
+import { readStorage, removeStorage, STORAGE_KEYS } from './store/persistence/storageRegistry';
 // A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
 //
 // T-03: Architecture decision — React Query vs Context API.
@@ -79,11 +80,8 @@ const AppInner = memo(function AppInner() {
 
   useEffect(() => {
     if (phase !== PHASE.DASHBOARD || !user) return;
-    let returnTo = '';
-    try {
-      returnTo = sessionStorage.getItem('rz:return-to') || '';
-      if (returnTo) sessionStorage.removeItem('rz:return-to');
-    } catch { /* ignore */ }
+    const returnTo = readStorage(STORAGE_KEYS.RETURN_TO);
+    if (returnTo) removeStorage(STORAGE_KEYS.RETURN_TO);
     if (returnTo && returnTo.startsWith('/dashboard') && returnTo !== location.pathname + location.search) {
       navigate(returnTo, { replace: true });
     }

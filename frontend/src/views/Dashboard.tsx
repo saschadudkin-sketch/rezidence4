@@ -41,9 +41,9 @@ import { NavigationContext } from './shell/NavigationContext';
 import { onSseForceReconnect } from '../utils/events';
 import StateBlock from '../ui/StateBlock';
 import { getRoleManifest } from '../domain/roleManifest';
+import { onboardingKey, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
 
-const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
 function DemoBanner({ onClose }) {
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
@@ -62,7 +62,6 @@ function DemoBanner({ onClose }) {
 
 // P-06: Role-based onboarding hints — shown once per role on first login.
 // Dismissed permanently per role using localStorage.
-const ONBOARDING_HINT_KEY = (role) => `rz:onboarding-seen:${role}`;
 const ONBOARDING_HINTS = {
   [ROLES.OWNER]:       'Нажмите «+» чтобы создать пропуск для гостя, курьера или подрядчика. Пропуска появятся у охраны автоматически.',
   [ROLES.TENANT]:      'Создайте пропуск для гостя или мастера — охрана получит уведомление мгновенно.',
@@ -110,19 +109,19 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
 
   
   const [showDemoBanner, setShowDemoBanner] = useState(() =>
-    isDemoMode() && !localStorage.getItem(DEMO_WELCOME_KEY)
+    isDemoMode() && !readStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN)
   );
   const dismissDemoBanner = () => {
-    localStorage.setItem(DEMO_WELCOME_KEY, '1');
+    writeStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN, '1');
     setShowDemoBanner(false);
   };
 
   // P-06: role-based onboarding hint — shown once per role, dismissed to localStorage
   const [showOnboarding, setShowOnboarding] = useState(() =>
-    !localStorage.getItem(ONBOARDING_HINT_KEY(user.role))
+    !readStorage(onboardingKey(user.role))
   );
   const dismissOnboarding = () => {
-    localStorage.setItem(ONBOARDING_HINT_KEY(user.role), '1');
+    writeStorage(onboardingKey(user.role), '1');
     setShowOnboarding(false);
   };
 

@@ -6,6 +6,7 @@ import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
 // A-01: use centralized event registry instead of magic string
 import { onSessionExpired, onUnauthorized } from '../utils/events';
+import { clearAppStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
 // ─── Security model ──────────────────────────────────────────────────────────
 // SEC: JWT stored in HttpOnly cookie (not accessible to JS).
@@ -65,10 +66,9 @@ export function useAuth() {
     setPhase(PHASE.LOGIN);
   }), []);
   useEffect(() => onSessionExpired((detail) => {
-    try {
-      if (detail?.returnTo) sessionStorage.setItem('rz:return-to', detail.returnTo);
-    } catch { /* ignore */ }
-    setAuthNotice('Сессия истекла. Войдите снова — мы восстановим ваш последний экран.');
+    if (detail?.returnTo) writeStorage(STORAGE_KEYS.RETURN_TO, detail.returnTo);
+    const reasonLabel = detail?.reason === 'refresh_failed' ? 'время входа истекло' : 'сессия завершена';
+    setAuthNotice(`Сессия истекла (${reasonLabel}). Войдите снова — мы восстановим ваш последний экран.`);
   }), []);
 
   const login = useCallback((u) => {
@@ -101,13 +101,7 @@ export function useAuth() {
     } else {
       // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
       // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)
-      try {
-        for (const key of Object.keys(localStorage)) {
-          if (key.startsWith('rz:') || key.startsWith('rz-') || key.startsWith('residenze_v5')) {
-            localStorage.removeItem(key);
-          }
-        }
-      } catch { /* ignore — localStorage может быть недоступен */ }
+      clearAppStorage();
     }
   }, []);
 
