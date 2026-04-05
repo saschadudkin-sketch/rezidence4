@@ -24,12 +24,28 @@ const AppShell = memo(function AppShell({
   themeIcon,
   themeLabel,
   sseOnline,
+  isLoading = false,
 }) {
   const { nav, navClassMap, goTab, activeTab, setActiveTab } = useNavigationContext();
 
+  const isOffline = sseOnline === false;
+
   return (
     <>
-      <header className="header">
+      {/* UI-04: prominent banner-style SSE offline indicator — more visible than the
+          small header chip. Slides in from the top so users immediately notice
+          the loss of real-time data without having to look at the header. */}
+      <div
+        className={`offline-banner${isOffline ? ' is-visible' : ''}`}
+        role="status"
+        aria-live="polite"
+        aria-label="Нет соединения с сервером"
+      >
+        <AppIcon name="refresh" size={13} />
+        {' '}Нет соединения с сервером — переподключение…
+      </div>
+
+      <header className={`header${isOffline ? ' app-content-offset has-offline-banner' : ''}`}>
         <div className="header-inner">
           <div className="header-brand">
             <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
@@ -37,8 +53,8 @@ const AppShell = memo(function AppShell({
             {isDemoMode() && (
               <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
             )}
-            {sseOnline === false && (
-              <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-live="polite">
+            {isOffline && (
+              <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-hidden="true">
                 {/* UI: 'refresh' семантически верен для reconnect; 'history' — это журнал событий */}
                 <AppIcon name="refresh" size={12} />
                 <span>Переподключение…</span>
@@ -65,9 +81,9 @@ const AppShell = memo(function AppShell({
             </div>
           </div>
           <ErrorBoundary name="Экран">
-            {/* P-01/A-01: activeTab and setActiveTab come from URL params
-                and NavigationContext inside RoleContentRouter */}
-            <RoleContentRouter user={user} />
+            {/* P-02: isLoading passed so RoleContentRouter can show skeleton
+                cards while SSE data loads — header + nav remain fully usable */}
+            <RoleContentRouter user={user} isLoading={isLoading} />
           </ErrorBoundary>
         </main>
       </div>

@@ -2,6 +2,7 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard.jsx';
 import { AppIcon } from '../../ui/AppIcon.jsx';
 import StateBlock from '../../ui/StateBlock.jsx';
+import { EmptyState } from '../../ui/EmptyState.jsx';
 import SectionHeader from '../../ui/SectionHeader.jsx';
 import { useDebounce } from '../../hooks/useDebounce.js';
 
@@ -72,12 +73,12 @@ const PassesTab = memo(function PassesTab({
         </div>
       )}
       {visiblePasses.length === 0 && myPasses.length === 0
-        ? <StateBlock
-            type="empty"
+        ? <EmptyState
+            icon="users"
             title="Пропусков пока нет"
-            subtitle="Создайте первый пропуск для гостя или курьера"
-            actionLabel="Создать пропуск"
-            onAction={() => setModal({ type: 'pass', cat: 'guest' })}
+            description="Создайте первый пропуск для гостя или курьера"
+            ctaLabel="Создать пропуск"
+            onCta={() => setModal({ type: 'pass', cat: 'guest' })}
           />
         : visiblePasses.length === 0 && visibleScheduled.length === 0
           ? <StateBlock type="empty" title={debouncedQuery ? 'Ничего не найдено' : 'Нет пропусков в этой категории'} />

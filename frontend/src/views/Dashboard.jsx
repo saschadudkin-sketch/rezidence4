@@ -33,9 +33,12 @@ import {
 import { ROLES } from '../domain/permissions';
 import { buildNavItems, buildNavClassMap } from '../domain/navigation';
 import { isDemoMode } from '../config/runtimeMode.js';
-import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/limits';
+// CQ-03: connection state logic extracted to dedicated hook
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
+// A-01: use centralized event registry
+import { onSseForceReconnect } from '../utils/events.js';
 
 
 const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
@@ -49,6 +52,32 @@ function DemoBanner({ onClose }) {
         Данные сохраняются только в браузере и сбросятся при перезагрузке страницы.
       </span>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
+        <AppIcon name="close" size={12} />
+      </button>
+    </div>
+  );
+}
+
+// P-06: Role-based onboarding hints — shown once per role on first login.
+// Dismissed permanently per role using localStorage.
+const ONBOARDING_HINT_KEY = (role) => `rz:onboarding-seen:${role}`;
+const ONBOARDING_HINTS = {
+  [ROLES.OWNER]:       'Нажмите «+» чтобы создать пропуск для гостя, курьера или подрядчика. Пропуска появятся у охраны автоматически.',
+  [ROLES.TENANT]:      'Создайте пропуск для гостя или мастера — охрана получит уведомление мгновенно.',
+  [ROLES.CONTRACTOR]:  'Здесь ваши рабочие пропуска. Создайте новый, указав марку и номер авто, если планируется въезд.',
+  [ROLES.CONCIERGE]:   'Пропуска, ожидающие подтверждения, — в разделе «Заявки». Подтвердите или отклоните каждую.',
+  [ROLES.SECURITY]:    'Отсканируйте QR-код гостя или найдите заявку вручную, чтобы зарегистрировать визит.',
+  [ROLES.ADMIN]:       'В разделе «Резиденты» управляйте пользователями. Аналитика доступна во вкладке «Аналитика».',
+};
+
+function OnboardingHint({ role, onClose }) {
+  const hint = ONBOARDING_HINTS[role];
+  if (!hint) return null;
+  return (
+    <div className="onboarding-hint" role="status" aria-live="polite">
+      <span className="onboarding-hint-icon"><AppIcon name="info" size={14} /></span>
+      <span className="onboarding-hint-text">{hint}</span>
+      <button className="onboarding-hint-close" onClick={onClose} aria-label="Закрыть подсказку">
         <AppIcon name="close" size={12} />
       </button>
     </div>
@@ -96,6 +125,15 @@ export default function Dashboard({ user, onLogout }) {
     setShowDemoBanner(false);
   };
 
+  // P-06: role-based onboarding hint — shown once per role, dismissed to localStorage
+  const [showOnboarding, setShowOnboarding] = useState(() =>
+    !localStorage.getItem(ONBOARDING_HINT_KEY(user.role))
+  );
+  const dismissOnboarding = () => {
+    localStorage.setItem(ONBOARDING_HINT_KEY(user.role), '1');
+    setShowOnboarding(false);
+  };
+
   const badges = useNavBadges(user, requests, chat, chatLastSeen, blacklist);
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
 
@@ -103,31 +141,18 @@ export default function Dashboard({ user, onLogout }) {
 
   // DO-02: Listen for watchdog-triggered force reconnect.
   // useLiveSync watchdog emits this when SSE stream is stale for 60s.
-  useEffect(() => {
-    const handler = () => setRetryKey(k => k + 1);
-    window.addEventListener('rz:sse-force-reconnect', handler);
-    return () => window.removeEventListener('rz:sse-force-reconnect', handler);
-  }, []);
+  // A-01: use typed helper from centralized event registry (was magic string 'rz:sse-force-reconnect')
+  useEffect(() => onSseForceReconnect(() => setRetryKey(k => k + 1)), []);
 
-  const { isLoading: syncLoading, sseOnline, ssePermanentError } = useLiveSync(user, {
+  const liveSync = useLiveSync(user, {
     setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
     retryKey,
     addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
     // PERF: incremental request SSE updates
     updateRequest, addRequest, deleteRequest,
   });
-  const [timedOut, setTimedOut] = useState(false);
-  useEffect(() => {
-    if (!syncLoading) { setTimedOut(false); return; }
-    const t = setTimeout(
-      () => setTimedOut(true),
-      retryKey === 0 ? FIRST_CONNECT_TIMEOUT_MS : RECONNECT_TIMEOUT_MS,
-    );
-    return () => clearTimeout(t);
-  }, [syncLoading, retryKey]);
-  const isLoading  = syncLoading && !timedOut;
-  const isConnErr  = (syncLoading && timedOut) || ssePermanentError;
-  const handleRetry = () => { setTimedOut(false); setRetryKey(k => k + 1); };
+  // CQ-03: connection state logic in its own hook — Dashboard stays a thin coordinator
+  const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(liveSync, { retryKey, setRetryKey });
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -152,22 +177,6 @@ export default function Dashboard({ user, onLogout }) {
     ? 'Апартаменты ' + user.apartment
     : (PAGE_SUBTITLES[user.role] || '');
 
-  if (isLoading) {
-    return (
-      <div className="screen-loading">
-        <div className="screen-loading-inner">
-          {/* UI-02: CSS spin animation — semantically correct loader (was "history" icon).
-              animation:none overrides screen-loading-spinner's own spin so only btn-spin rotates. */}
-          <div className="screen-loading-spinner screen-loading-spinner--no-anim" aria-hidden="true">
-            <span className="btn-spin btn-spin--lg" />
-          </div>
-          <div className="screen-loading-label">Загрузка данных…</div>
-        </div>
-      </div>
-    );
-  }
-
-  
   if (isConnErr) {
     return (
       <div className="screen-loading">
@@ -186,6 +195,11 @@ export default function Dashboard({ user, onLogout }) {
   return (
     <NavigationContext.Provider value={{ nav, navClassMap, goTab, activeTab, setActiveTab, highlightReqId, setHighlightReqId }}>
       {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
+      {showOnboarding && !showDemoBanner && (
+        <OnboardingHint role={user.role} onClose={dismissOnboarding} />
+      )}
+      {/* P-02: pass isLoading so AppShell renders skeleton cards instead of
+          a full-screen spinner — the header and nav are immediately usable */}
       <AppShell
         user={user}
         onLogout={onLogout}
@@ -196,6 +210,7 @@ export default function Dashboard({ user, onLogout }) {
         themeIcon={themeIcon}
         themeLabel={themeLabel}
         sseOnline={sseOnline}
+        isLoading={isLoading}
       />
     </NavigationContext.Provider>
   );

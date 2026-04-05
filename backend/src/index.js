@@ -126,11 +126,18 @@ const authLimiter = rateLimit({
   message: { error: 'Слишком много запросов. Попробуйте позже.' },
   ...makeRedisStore('auth'),
 });
+// SEC-04: Per-user rate limiting after authentication.
+// Residential complexes often share a single NAT/proxy IP — IP-based limiting
+// would block all residents when one user is active. After auth, use uid as key.
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use authenticated user uid when available; fall back to IP for pre-auth requests
+    return req.user?.uid || req.ip;
+  },
   ...makeRedisStore('global'),
 });
 const clientLogsLimiter = rateLimit({
@@ -221,9 +228,20 @@ app.get('/uploads/:filename', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  // Force download (attachment) to prevent inline rendering of HTML/SVG even if
-  // magic-byte validation is bypassed. nosniff blocks browser MIME-sniffing.
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  // SEC-01: serve images inline so <img> tags and lightboxes work correctly.
+  // Non-image files (SVG, HTML, etc.) still force download to prevent XSS.
+  // nosniff blocks MIME-sniffing regardless of Content-Type.
+  const ext = path.extname(filename).toLowerCase();
+  const SAFE_INLINE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif']);
+  if (SAFE_INLINE_EXTS.has(ext)) {
+    const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+      '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif' };
+    res.setHeader('Content-Type', mimeMap[ext] || 'image/jpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  } else {
+    // Non-image: force download to prevent inline rendering of HTML/SVG
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // private: files belong to a specific authenticated user
   res.setHeader('Cache-Control', 'private, max-age=3600');

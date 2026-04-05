@@ -1,10 +1,25 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'child_process';
+
+// DO-06: Derive release version from git — injected as VITE_APP_VERSION so
+// Sentry.init({ release }) gets the exact commit SHA linked to the deployed build.
+// Falls back to package.json version when git is unavailable (CI cache, Docker).
+function getGitVersion() {
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
+    const tag = execSync('git describe --tags --abbrev=0 2>/dev/null || echo ""', { encoding: 'utf-8' }).trim();
+    return tag ? `${tag}+${sha}` : sha;
+  } catch {
+    return process.env.npm_package_version || 'unknown';
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const viteEnv = loadEnv(mode, process.cwd(), 'VITE_');
   const isProdBuild = mode === 'production';
+  const appVersion = viteEnv.VITE_APP_VERSION || getGitVersion();
 
   if (isProdBuild && !viteEnv.VITE_API_URL) {
     throw new Error('VITE_API_URL is required for production build');
@@ -17,6 +32,11 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    // DO-06: Expose the resolved version to the app bundle so Sentry release
+    // tracking links error reports to the exact git commit that shipped them.
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    },
     plugins: [
       react(),
       VitePWA({
@@ -49,6 +69,23 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    // SEC-05: CSP headers for the Vite dev server — prevents XSS during local
+    // development and surfaces policy violations early before nginx applies them.
+    // 'unsafe-inline' and 'unsafe-eval' are required for Vite HMR in dev only;
+    // they are NOT present in the nginx CSP for production.
+    server: {
+      headers: {
+        'Content-Security-Policy': [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Vite HMR requires these in dev
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' https://fonts.gstatic.com",
+          "img-src 'self' data: blob:",
+          "connect-src 'self' ws: wss:",
+          "worker-src 'self' blob:",
+        ].join('; '),
+      },
+    },
     resolve: {
       extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json'],
     },

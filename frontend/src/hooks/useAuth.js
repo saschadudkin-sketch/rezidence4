@@ -4,6 +4,8 @@ import { logger } from '../services/logger.js';
 import { toast } from '../ui/Toasts';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { services } from '../services/providers/serviceContainer';
+// A-01: use centralized event registry instead of magic string
+import { onUnauthorized } from '../utils/events.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -50,14 +52,11 @@ export function useAuth() {
   }, []);
 
   // Автологаут при истечении JWT (событие от apiClient)
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setUser(null);
-      setPhase(PHASE.LOGIN);
-    };
-    window.addEventListener('rz:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('rz:unauthorized', handleUnauthorized);
-  }, []);
+  // A-01: use typed helper from centralized event registry
+  useEffect(() => onUnauthorized(() => {
+    setUser(null);
+    setPhase(PHASE.LOGIN);
+  }), []);
 
   const login = useCallback((u) => {
     if (!u || !u.uid) {

@@ -12,7 +12,7 @@
  * cards (which grow significantly) are handled correctly.
  */
 
-import { useRef, useMemo, useCallback } from 'react';
+import { useRef, useMemo, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { groupReqs } from '../utils.js';
 import { ReqCard } from './ReqCard.jsx';
@@ -98,8 +98,10 @@ function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, on
 }
 
 // ─── GroupedReqList ──────────────────────────────────────────────────────────
-
-export function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
+// PERF-03: memo prevents re-renders when parent re-renders but props haven't changed.
+// Critical because GroupedReqList is rendered by multiple role views and can receive
+// large request arrays — re-rendering the virtualized list is expensive.
+export const GroupedReqList = memo(function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
   const groups = useMemo(() => groupReqs(reqs), [reqs]);
   if (groups.length === 0) return null;
 
@@ -144,4 +146,4 @@ export function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onE
       ))}
     </div>
   );
-}
+});

@@ -14,12 +14,13 @@ import { useVisitLogs, useClearVisitLogs } from '../hooks/useVisitLogs';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
+import { MS_PER_DAY } from '../constants/limits';
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today - 86400000);
+  const yesterday = new Date(today - MS_PER_DAY);
   const day = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
   if (day.getTime() === today.getTime()) return 'Сегодня';
   if (day.getTime() === yesterday.getTime()) return 'Вчера';

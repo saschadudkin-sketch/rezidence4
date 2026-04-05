@@ -149,7 +149,19 @@
   --warn-t: #000000;
   --danger: var(--err-t);
 
-  /* ── Semantic aliases — UI-4: human-readable names for shorthand tokens ─── */
+  /* ── Semantic aliases — UI-01: human-readable names for shorthand tokens ─── */
+  /*
+   * RULE: Prefer semantic aliases (--color-*) over shorthand aliases (--t1, --s0, etc.)
+   * in all new component code. Shorthand aliases exist for backward compatibility only.
+   *
+   * ✅ Good: color: var(--color-text-primary)
+   * ⚠️  Legacy: color: var(--t1)  ← still works but don't use in new code
+   *
+   * Benefits of semantic aliases:
+   *   - Self-documenting intent (--color-surface-card vs. --s2)
+   *   - Easier to update theme values without searching the codebase
+   *   - Consistent naming with design system conventions
+   */
   --color-text-primary:   var(--t1);
   --color-text-secondary: var(--t2);
   --color-text-muted:     var(--t3);

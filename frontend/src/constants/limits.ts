@@ -27,6 +27,12 @@ export const FIRST_CONNECT_TIMEOUT_MS = 5_000 as const;
 /** Таймаут повторного SSE-подключения (мс) — reconnect быстрее первого запуска */
 export const RECONNECT_TIMEOUT_MS = 3_000 as const;
 
+/** Milliseconds in one day — CQ-02: replaces magic number 86400000 */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000 as const;
+
+/** Helper: returns date offset by n days from now */
+export const daysFromNow = (n: number): Date => new Date(Date.now() + n * MS_PER_DAY);
+
 /** Cooldown между повторными отправками OTP по умолчанию (сек) */
 export const OTP_COOLDOWN_SECONDS = 30 as const;
 

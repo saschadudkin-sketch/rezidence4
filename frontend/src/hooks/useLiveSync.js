@@ -4,6 +4,8 @@ import { services } from '../services/providers/serviceContainer.js';
 import { logger } from '../services/logger.js';
 import { useNewRequestNotifier } from './useNewRequestNotifier.js';
 import { useStatusChangeNotifier } from './useStatusChangeNotifier.js';
+// A-01: use centralized event registry instead of magic string literals
+import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity } from '../utils/events.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.
@@ -26,14 +28,10 @@ export function useLiveSync(user, {
   const [ssePermanentError, setSsePermanentError] = useState(false);
 
   useEffect(() => {
-    const onStatus = (e) => setSseOnline(e.detail.connected);
-    const onPermanent = () => setSsePermanentError(true);
-    window.addEventListener('rz:sse-status', onStatus);
-    window.addEventListener('rz:sse-permanent-error', onPermanent);
-    return () => {
-      window.removeEventListener('rz:sse-status', onStatus);
-      window.removeEventListener('rz:sse-permanent-error', onPermanent);
-    };
+    // A-01: use typed helpers from centralized event registry
+    const cleanupStatus   = onSseStatus(({ connected }) => setSseOnline(connected));
+    const cleanupPermanent = onSsePermanentError(() => setSsePermanentError(true));
+    return () => { cleanupStatus(); cleanupPermanent(); };
   }, []);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
@@ -72,11 +70,18 @@ export function useLiveSync(user, {
     loadingClearedRef.current = false;
     setIsLoading(true);
 
+    // DA-01: AbortController cancels in-flight API calls (the parallel allSettled batch)
+    // when retryKey changes before startSync resolves. Without this, a rapid
+    // retryKey change causes two concurrent startSync calls to race — the slower
+    // one could overwrite the store after the faster one has already populated it.
+    const abortCtrl = new AbortController();
+
     let cleanupFn = null;
     let cancelled  = false;
 
     (async () => { try { const fn = await services.liveData.startSync({
       userUid:        user.uid,
+      signal:         abortCtrl.signal,
       // Initial bulk load: not wrapped in transition (renders skeleton → data ASAP)
       setAllRequests: (...a) => {
         callbacksRef.current.setAllRequests?.(...a);
@@ -130,8 +135,16 @@ export function useLiveSync(user, {
 
     return () => {
       cancelled = true;
+      // DA-01: abort any in-flight fetch calls immediately on cleanup
+      abortCtrl.abort();
       cleanupFn?.();
     };
+  // A-04: exhaustive-deps intentionally suppressed here.
+  // This effect must only re-run when the user identity (uid/role) changes or when a
+  // manual reconnect is requested (retryKey). The callbacks (setAllRequests, etc.) are
+  // accessed via callbacksRef.current — a stable ref that is kept up-to-date on every
+  // render — so they don't need to be in the dependency array and adding them would
+  // cause the SSE stream to restart on every state update.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role, user.uid, retryKey]);
 
@@ -145,19 +158,20 @@ export function useLiveSync(user, {
     const STALE_THRESHOLD_MS   = 60_000;
     let lastActivity = Date.now();
     const onActivity = () => { lastActivity = Date.now(); };
-    window.addEventListener('rz:sse-activity', onActivity);
+    // A-01: use typed helpers from centralized event registry
+    const cleanupActivity = onSseActivity(() => { lastActivity = Date.now(); });
     const interval = setInterval(() => {
       if (Date.now() - lastActivity > STALE_THRESHOLD_MS) {
         logger.warn('[useLiveSync] SSE stream stale — forcing reconnect');
-        // Trigger real reconnect (Dashboard listens and increments retryKey)
-        window.dispatchEvent(new CustomEvent('rz:sse-force-reconnect'));
+        // A-01: emit via typed helper instead of magic string literal
+        emitSseForceReconnect();
         // Reset timer to avoid rapid-fire reconnects
         lastActivity = Date.now();
       }
     }, WATCHDOG_INTERVAL_MS);
     return () => {
       clearInterval(interval);
-      window.removeEventListener('rz:sse-activity', onActivity);
+      cleanupActivity();
     };
   }, []);
 

@@ -40,6 +40,24 @@ body{font-size:var(--fs-body);line-height:var(--lh-body)}
 @keyframes sheetUp {from{transform:translateY(100%)}to{transform:none}}
 @keyframes shimmer {from{transform:translateX(-100%)}to{transform:translateX(300%)}}
 
+/* UI-02: prefers-reduced-motion — WCAG 2.1 criterion 2.3.3
+   Disables all animations for users who have requested minimal motion.
+   Covers: req card riseUp/urgentPulse, modal sheetUp, skeleton shimmer,
+   loading spinner, and any other CSS-driven motion in the app. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep spinner visible but static instead of spinning */
+  .btn-spin, .qr-cam-spinner {
+    animation: none !important;
+    border-top-color: var(--g1);
+  }
+}
+
 /* ── CSS Utility classes — заменяют inline font-size/color/gap/margin ───── */
 /* Используй эти классы вместо style={{ fontSize: 11, color: 'var(--t4)' }}  */
 /* Это обеспечивает консистентность с дизайн-токенами и упрощает тему.       */

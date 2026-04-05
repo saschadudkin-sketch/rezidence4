@@ -65,8 +65,10 @@
   display:flex;align-items:baseline;justify-content:space-between;
   gap:12px;flex-wrap:wrap;
 }
+/* UI-05: Playfair Display gives the dashboard titles the premium serif feel
+   matching the brand identity (logo, avatar initials, modal headings all use it). */
 .page-title{
-  font-family:'DM Sans',sans-serif;
+  font-family:'Playfair Display',serif;
   font-size:22px;font-weight:600;color:var(--t1);line-height:1.2;
 }
 @media(max-width:460px){.page-title{font-size:var(--fs-lg)}}
