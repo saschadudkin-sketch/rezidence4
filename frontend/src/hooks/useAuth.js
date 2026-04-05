@@ -7,6 +7,12 @@ import { services } from '../services/providers/serviceContainer';
 // A-01: use centralized event registry instead of magic string
 import { onUnauthorized } from '../utils/events.js';
 
+// ─── Security model ──────────────────────────────────────────────────────────
+// SEC: JWT stored in HttpOnly cookie (not accessible to JS).
+// Access token: 15min. Refresh token: 30 days, rotated on each use.
+// Session recovery: GET /api/auth/me on app load.
+// Auto-logout: 401 from API → emits 'rz:unauthorized' event → setPhase(LOGIN)
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 export const APP_CONFIG = {
