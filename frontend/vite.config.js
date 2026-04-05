@@ -55,8 +55,9 @@ export default defineConfig(({ mode }) => {
           name: 'Резиденции Замоскворечья',
           short_name: 'Резиденции',
           description: 'Система управления резиденцией',
-          theme_color: '#1a1a2e',
-          background_color: '#1a1a2e',
+          /* FIX [D-1]: matches actual --s0 dark theme token (#13110E) */
+          theme_color: '#13110E',
+          background_color: '#13110E',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',

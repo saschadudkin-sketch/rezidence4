@@ -313,10 +313,11 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
   .type-label{font-size:9px}
 }
 
-/* Admin toolbar mobile */
+/* Admin toolbar mobile — FIX [I-13]: column layout + full-width children prevent overflow */
 @media(max-width:600px){
-  .admin-toolbar{flex-direction:column}
-  .admin-toolbar .search-wrap{min-width:100%}
+  .admin-toolbar{flex-direction:column;align-items:stretch}
+  .admin-toolbar .search-wrap{min-width:100%;width:100%}
+  .admin-toolbar .btn,.admin-toolbar select,.admin-toolbar .filter-btn{width:100%;min-width:0;box-sizing:border-box}
 }
 
 /* Blacklist header mobile */

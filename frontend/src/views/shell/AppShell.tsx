@@ -87,7 +87,9 @@ const AppShell = memo(function AppShell({
           <div className="page-top">
             <div>
               <h1 className="page-title">{pageTitle}</h1>
-              <p className={`page-sub${activeTab === 'chat' ? ' page-sub--hidden' : ''}`}>{pageSubtitle}</p>
+              {/* FIX [D-2]: conditional render instead of hidden class — removes element
+                  from DOM and avoids screen readers announcing invisible text */}
+              {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
             </div>
           </div>
           <ErrorBoundary name="Экран">

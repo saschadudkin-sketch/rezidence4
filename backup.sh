@@ -34,7 +34,9 @@ if pg_dump -h "$DB_HOST" -U "$DB_USER" "$DB_NAME" | gzip > "$FNAME"; then
   SIZE=$(du -sh "$FNAME" 2>/dev/null | cut -f1 || echo "?")
   echo "[backup] saved: $FNAME ($SIZE)"
 else
-  echo "[backup] ERROR: pg_dump failed! Removing partial file."
+  # FIX [I-17]: log to stderr so Docker captures it in error stream;
+  # set -e already causes exit 1, but explicit cleanup + stderr makes monitoring easier.
+  echo "[backup] ERROR: pg_dump failed! Removing partial file." >&2
   rm -f "$FNAME"
   exit 1
 fi

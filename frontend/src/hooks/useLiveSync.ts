@@ -5,7 +5,9 @@ import { logger } from '../services/logger';
 import { useNewRequestNotifier } from './useNewRequestNotifier';
 import { useStatusChangeNotifier } from './useStatusChangeNotifier';
 // A-01: use centralized event registry instead of magic string literals
-import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity } from '../utils/events';
+import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity } from '../utils/events.js';
+// FIX [C-1]: sendNotif was called but not imported → ReferenceError on every incoming chat message
+import { sendNotif } from '../utils.js';
 
 /**
  * useLiveSync — SSE-синхронизация с сервером.

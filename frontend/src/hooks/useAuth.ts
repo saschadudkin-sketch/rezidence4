@@ -73,7 +73,9 @@ export function useAuth() {
     setUser(u);
     setPhase(PHASE.DASHBOARD);
     toast('Добро пожаловать, ' + u.name + '!', 'success');
-    requestNotifPerm();
+    // FIX [I-19]: defer push notification permission request by 30s after login
+    // so the browser dialog appears after the user has seen value, not on first render.
+    setTimeout(requestNotifPerm, 30_000);
     logger.setContext({ uid: u.uid, role: u.role, name: u.name });
     logger.action('login', { role: u.role });
   }, []);
