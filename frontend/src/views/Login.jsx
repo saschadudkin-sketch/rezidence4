@@ -130,7 +130,7 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login">
-      <div className="login-art">
+      <div className="login-art" aria-hidden="true">
         <div className="login-art-brand">
           <img src={LOGO} alt="Резиденции Замоскворечья" className="login-art-logo" />
           <div>
@@ -178,7 +178,7 @@ export default function Login({ onLogin }) {
               <div className="login-mobile-tagline">Система управления доступом</div>
             </div>
           </div>
-          <div className="login-mobile-hero">
+          <div className="login-mobile-hero" aria-hidden="true">
             Умное управление доступом — пропуска, уведомления и безопасность в одном приложении
           </div>
           <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
@@ -207,16 +207,19 @@ export default function Login({ onLogin }) {
               {isDemoMode() && demoOpen && (
                 <div className="demo-list">
                   {HINTS.map(([p, r]) => (
-                    <button key={p} className="demo-row" onClick={() => {
+                    <button key={p} className="demo-row" disabled={loading} onClick={async () => {
                       setPhone(p);
                       const f = findByPhone(p, phoneDb);
                       if (f) {
+                        setLoading(true);
                         setFound(f);
                         setOtp('');
                         setOtpError('');
+                        setDemoOpen(false);
+                        await new Promise(r => setTimeout(r, 300));
                         setStep('otp');
                         setResendIn(OTP_COOLDOWN_SECONDS);
-                        setDemoOpen(false);
+                        setLoading(false);
                         emitLoginMetric('send_code_success', { mode: 'demo', source: 'demo_shortcut' });
                         toast('Демо: введите любой код', 'success');
                       } else {
@@ -229,9 +232,18 @@ export default function Login({ onLogin }) {
                   ))}
                 </div>
               )}
+              {!isDemoMode() && (
+                <div className="login-help">
+                  <span className="login-help-text">Номер изменился? </span>
+                  <a href="mailto:admin@rezidencia.ru" className="login-help-link">Напишите администратору</a>
+                </div>
+              )}
             </>
           ) : (
             <>
+              <div className="login-otp-phone">
+                Код отправлен на <strong>{phone}</strong>
+              </div>
               <div className="field">
                 <label className="field-lbl">Код из SMS</label>
                 <input
@@ -267,6 +279,10 @@ export default function Login({ onLogin }) {
               <button className="btn-text" onClick={() => { setStep('phone'); setOtp(''); setFound(null); }}>
                 ← Изменить номер
               </button>
+              <div className="login-help">
+                <span className="login-help-text">Проблема со входом? </span>
+                <a href="mailto:admin@rezidencia.ru" className="login-help-link">Связаться с администратором</a>
+              </div>
             </>
           )}
         </div>

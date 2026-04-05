@@ -28,7 +28,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
 
-  const onEdit = useCallback(r => { if (can(user).editRequest(r)) setEditReq(r); }, [user.uid, user.role]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onEdit = useCallback(r => { if (can(user).editRequest(r)) setEditReq(r); }, [user]);
 
   const onRepeatPass = useCallback(r => setModal({
     type: r.type, cat: r.category,

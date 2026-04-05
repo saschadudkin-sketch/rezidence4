@@ -128,6 +128,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     const isScheduled    = Boolean(schedDate && schedDate > new Date());
     const parsedValidUntil = type === 'pass' && validUntil ? parseLocalDateInputValue(validUntil) : null;
     if (type === 'pass' && validUntil && !parsedValidUntil) {
+      // Reset submission guard — this is a validation error, not a real submit
+      submittingRef.current = false;
       if (isMountedRef.current) setLoading(false);
       toast('Некорректная дата действия пропуска', 'error');
       return;
@@ -187,9 +189,6 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         updateRequest(tempId, { _pending: false });
       }
 
-      submittingRef.current = false;
-      setLoading(false);
-
       const successMsg = isScheduled
         ? 'Запланировано на ' + fmtScheduled(scheduledFor)
         : type === 'pass' ? 'Пропуск создан' : 'Заявка отправлена';
@@ -203,9 +202,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     } catch(e) {
       // FIX [UX-2]: rollback optimistic update on server error
       deleteRequest(newReq.id);
-      submittingRef.current = false;
       if (isMountedRef.current) {
-        setLoading(false);
         // P-05: offer retry action so users can resubmit without re-filling the form
         toast(
           'Ошибка при отправке: ' + (e.message || 'попробуйте снова'),
@@ -213,6 +210,10 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
           { label: 'Повторить', onClick: handleSubmit },
         );
       }
+    } finally {
+      // FIX [ВАЖНО-CQ2]: always reset in finally — prevents stuck loading state on any exit path
+      submittingRef.current = false;
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
