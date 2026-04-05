@@ -41,7 +41,7 @@ html.theme-light .skeleton-line::after{
 }
 @media(hover:hover){.req-card:hover{background:var(--s3);border-color:var(--b3);box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateY(-1px)}}
 .req-card:active{background:var(--s3);transform:scale(.99)}
-@media(max-width:460px){.req-card{padding:9px 10px}}
+@media(max-width:480px){.req-card{padding:9px 10px}}
 .req-card.pending   {border-left-color:var(--wrn-t)}
 .req-card.approved  {border-left-color:var(--ok-t)}
 .req-card.rejected  {border-left-color:var(--err-t)}
@@ -71,7 +71,7 @@ html.theme-light .skeleton-line::after{
 .qr-pass-info{flex:1;min-width:0}
 .qr-pass-label{font-size:var(--fs-sm);font-weight:500;color:var(--t1);margin-bottom:4px}
 .qr-pass-hint{font-size:var(--fs-2xs);color:var(--t4);line-height:1.5}
-@media(max-width:400px){.qr-pass-block{flex-direction:column;text-align:center}.qr-pass-info{text-align:center}}
+@media(max-width:480px){.qr-pass-block{flex-direction:column;text-align:center}.qr-pass-info{text-align:center}}
 /* ── QR Info rows ── */
 .qr-container{background:var(--s3);padding:20px;border-radius:12px;border:1px solid var(--b2);display:flex;flex-direction:column;align-items:center;gap:12px}
 .qr-loading{width:100%;max-width:220px;aspect-ratio:1;background:var(--s3);border-radius:8px;display:flex;align-items:center;justify-content:center}

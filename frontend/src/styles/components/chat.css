@@ -10,8 +10,8 @@
   background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;
 }
 /* На desktop нет bottom-nav, поэтому nav-h не вычитается */
-@media(min-width:860px){.chat-wrap{height:calc(100dvh - var(--header-h) - var(--sat) - var(--page-top-h) - 16px)}}
-@media(max-width:860px){.chat-wrap{
+@media(min-width:1024px){.chat-wrap{height:calc(100dvh - var(--header-h) - var(--sat) - var(--page-top-h) - 16px)}}
+@media(max-width:1024px){.chat-wrap{
   height:calc(100dvh - var(--header-h) - var(--sat) - var(--nav-h) - var(--sab) - var(--page-top-h));
   border-radius:0;border:none;margin:0 -16px;max-width:none;
 }}

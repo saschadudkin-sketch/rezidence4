@@ -121,7 +121,7 @@
    *
    * TODO (ЖЕЛАТ-R1): Migrate to PostCSS custom-media plugin to prevent breakpoint drift:
    *   npm i -D postcss-custom-media
-   *   Then use: @custom-media --bp-md (min-width: 768px);
+   *   Then use: @custom-media --bp-md (min-width:768px);
    *             @media (--bp-md) { ... }
    * This ensures breakpoint changes propagate everywhere automatically.
    *

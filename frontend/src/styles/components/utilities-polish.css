@@ -72,7 +72,7 @@
 
 /* ── A-09: Responsive stacked table — disclosure pattern ─────────────────── */
 /* Standard 4-column table collapses to 2 columns, then stacked cards on xs */
-@media(max-width:380px){
+@media(max-width:480px){
   .t-head{display:none}
   .t-row{
     grid-template-columns:1fr!important;
@@ -87,7 +87,7 @@
   }
 }
 /* Prevent info loss: keep 2 visible columns from 560px down to 380px */
-@media(max-width:560px) and (min-width:380px){
+@media(max-width:768px) and (min-width:480px){
   .t-head{grid-template-columns:1fr 1fr}
   .t-head>*:nth-child(n+3){display:none}
   .t-row{grid-template-columns:1fr 1fr}
@@ -177,7 +177,7 @@ html{scroll-behavior:smooth}
 @keyframes demoPulse{0%,100%{opacity:1}50%{opacity:.6}}
 
 /* ── MOBILE POLISH ── */
-@media(max-width:600px){
+@media(max-width:768px){
   .guard-header-stats{gap:12px}
   .guard-stat-val{font-size:22px}
   .guard-subtabs{border-radius:8px}
@@ -201,7 +201,7 @@ html{scroll-behavior:smooth}
   .type-icon{font-size:var(--fs-lg);margin-bottom:6px}
   .type-label{font-size:var(--fs-3xs)}
 }
-@media(max-width:380px){
+@media(max-width:480px){
   .guard-header-stats{flex-wrap:wrap;justify-content:center}
   .guard-subtab{font-size:var(--fs-3xs);padding:8px 6px}
   .type-card{width:72px;min-height:68px}
@@ -276,7 +276,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
    ══════════════════════════════════════════════════════════════════════ */
 
 /* Guard post — full width on mobile */
-@media(max-width:600px){
+@media(max-width:768px){
   .guard-post{max-width:100%}
   .guard-card{padding:14px}
   .guard-btn{padding:12px 10px;font-size:var(--fs-sm);min-height:48px}
@@ -287,7 +287,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 }
 
 /* Req cards — tighter on mobile */
-@media(max-width:600px){
+@media(max-width:768px){
   .req-list{gap:6px}
   .vlog-cards{gap:8px}
   .vlog-card{padding:10px 12px;gap:10px}
@@ -296,37 +296,37 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 }
 
 /* Perms list */
-@media(max-width:600px){
+@media(max-width:768px){
   .perms-wrap{max-width:100%}
 }
 
 /* Chat — full height mobile */
-@media(max-width:600px){
+@media(max-width:768px){
   .chat-wrap{border-radius:0;border:none;max-width:100%}
   .msg-bubble{max-width:85%}
 }
 
 /* Type grid mobile */
-@media(max-width:400px){
+@media(max-width:480px){
   .type-card{width:80px;min-height:78px;padding:16px 6px 14px}
   .type-icon{font-size:var(--fs-lg);margin-bottom:8px}
   .type-label{font-size:9px}
 }
 
 /* Admin toolbar mobile — FIX [I-13]: column layout + full-width children prevent overflow */
-@media(max-width:600px){
+@media(max-width:768px){
   .admin-toolbar{flex-direction:column;align-items:stretch}
   .admin-toolbar .search-wrap{min-width:100%;width:100%}
   .admin-toolbar .btn,.admin-toolbar select,.admin-toolbar .filter-btn{width:100%;min-width:0;box-sizing:border-box}
 }
 
 /* Blacklist header mobile */
-@media(max-width:500px){
+@media(max-width:480px){
   .bl-header{flex-direction:column;align-items:stretch;gap:8px}
 }
 
 /* Filter pills scroll on mobile */
-@media(max-width:600px){
+@media(max-width:768px){
   .date-pills{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
   .date-pills::-webkit-scrollbar{display:none}
   .pass-filter-pills{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;justify-content:flex-start;padding-bottom:2px}
@@ -334,20 +334,20 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 }
 
 /* Header mobile compact */
-@media(max-width:500px){
+@media(max-width:480px){
   .header-wordmark{display:none}
   .header-info{display:none}
   .demo-badge{font-size:8px;padding:1px 4px}
 }
 
 /* Page top mobile */
-@media(max-width:460px){
+@media(max-width:480px){
   .page-top{margin-bottom:16px}
   .page-sub{font-size:9px;letter-spacing:1.5px}
 }
 
 /* Login mobile */
-@media(max-width:860px){
+@media(max-width:1024px){
   .login{flex-direction:column}
   .login-art{display:none}
   .login-panel{max-width:100%;min-height:100dvh;justify-content:center}

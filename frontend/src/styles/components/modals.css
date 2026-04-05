@@ -6,7 +6,7 @@
   display:flex;align-items:flex-end;justify-content:center;
   animation:fadeIn .18s ease;overscroll-behavior:contain;
 }
-@media(min-width:580px){.overlay{align-items:center;padding:var(--space-md)}}
+@media(min-width:768px){.overlay{align-items:center;padding:var(--space-md)}}
 .modal{
   background:var(--s1);width:100%;max-width:460px;
   max-height:92dvh;display:flex;flex-direction:column;
@@ -17,14 +17,14 @@
   animation:sheetUp .28s cubic-bezier(.32,0,.67,0);
   padding-bottom:var(--sab);
 }
-@media(min-width:580px){
+@media(min-width:768px){
   .modal{border-radius:var(--r);animation:riseUp .2s ease;border-bottom:1px solid var(--b2);padding-bottom:0}
 }
 .modal-handle{
   display:block;width:30px;height:3px;
   background:var(--s4);border-radius:2px;margin:10px auto;
 }
-@media(min-width:580px){.modal-handle{display:none}}
+@media(min-width:768px){.modal-handle{display:none}}
 .modal-head{
   padding:16px 18px;border-bottom:1px solid var(--b1);
   display:flex;justify-content:space-between;align-items:center;
@@ -163,7 +163,7 @@
 .u-search-sm .search-inp{padding:8px 8px 8px 30px;font-size:var(--fs-xs)}
 .date-pill.sm{padding:5px 8px;font-size:var(--fs-3xs);letter-spacing:.5px}
 .date-pill.has-pending{color:var(--err-t);border-color:var(--err-t)}
-@media(max-width:460px){
+@media(max-width:480px){
   .sec-filters-row{gap:4px}
   .sec-filter-sep{display:none}
   .date-pill.sm{padding:4px 6px;font-size:9px}
@@ -180,7 +180,7 @@
 .guard-info{flex:1;min-width:0}
 /* R-02: base = mobile size (lg=18px), desktop overrides at min-width:460px */
 .guard-apt{font-size:var(--fs-lg);font-weight:600;color:var(--g2);font-family:'Playfair Display',serif}
-@media(min-width:460px){.guard-apt{font-size:20px}}
+@media(min-width:480px){.guard-apt{font-size:20px}}
 .guard-name{font-size:15px;color:var(--t1);margin-top:2px}
 .guard-cat{font-size:var(--fs-xs);color:var(--t3);margin-top:2px;letter-spacing:.5px}
 .guard-details{display:flex;flex-direction:column;gap:6px;padding:12px;background:var(--s1);border-radius:8px;margin-bottom:14px}
@@ -194,7 +194,7 @@
 .guard-actions{display:flex;gap:10px;flex-wrap:wrap}
 /* R-02: mobile-first — base = mobile button size, desktop overrides at min-width:460px */
 .guard-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:10px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:var(--fs-body);font-weight:600;letter-spacing:.5px;transition:all .15s;min-height:52px;text-decoration:none}
-@media(min-width:460px){.guard-btn{font-size:15px;min-height:56px;padding:16px 12px}}
+@media(min-width:480px){.guard-btn{font-size:15px;min-height:56px;padding:16px 12px}}
 .guard-btn:active{transform:scale(.97)}
 .guard-btn:disabled{opacity:.4;cursor:not-allowed}
 .guard-btn.approve{background:var(--ok);color:#fff}

@@ -13,18 +13,11 @@ function walkCss(dir, acc = []) {
 }
 
 const cssFiles = walkCss('src/styles');
-const forbiddenBreakpoints = ['760px', '761px', '861px', '381px', '461px'];
-const allowedBreakpoints = new Set(['380', '400', '460', '480', '500', '560', '580', '600', '680', '768', '860', '1024']);
+const allowedBreakpoints = new Set(['480', '768', '1024', '1280', '1536']);
 let hasError = false;
 
 for (const file of cssFiles) {
   const text = readFileSync(file, 'utf8');
-  for (const bp of forbiddenBreakpoints) {
-    if (text.includes(bp)) {
-      console.error(`[style-governance] Forbidden breakpoint ${bp} found in ${file}`);
-      hasError = true;
-    }
-  }
   const mediaMatches = text.matchAll(/@media[^{]+\((?:min|max)-width:\s*(\d+)px\)/g);
   for (const [, bp] of mediaMatches) {
     if (!allowedBreakpoints.has(bp)) {
