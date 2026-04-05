@@ -1,43 +1,42 @@
-# ADR-011: Strategic frontend migration roadmap after deep audit
+# ADR-011: Strategic roadmap for architectural migration
 
 ## Status
-Accepted — 2026-04-05
+Accepted — April 5, 2026
 
 ## Context
-Deep audit identified 5 remaining strategic areas:
-1. Unified UX contract for loading/empty/error across all role screens.
-2. Full CSS breakpoint normalization.
-3. Deeper bounded-context modularization of AppStore.
-4. Product-level telemetry/SLA contract.
-5. Architecture migration governance for next milestones.
+Deep audit показал, что точечные улучшения (UX contract, breakpoints, store split, telemetry) уже начаты, но без единой multi-wave governance-модели остаётся высокий риск:
+
+- drift между командами и потоками задач;
+- отсутствие единых exit criteria между этапами;
+- слабая связка roadmap ↔ release gates ↔ SLA decisioning.
+
+Нужен единый стратегический документ уровня платформы, который определяет **что**, **когда**, **зачем**, и **по каким критериям** считается завершённым.
 
 ## Decision
-Adopt phased migration with enforceable gates:
-
-### Phase A — UX state contract (2 sprints)
-- All views must use `StateBlock` + `viewStateContract` copy registry.
-- No raw custom empty/error/loading blocks in new code.
-- PR check: at least one unit/smoke test for each critical state.
-
-### Phase B — Breakpoint governance (1 sprint)
-- Allowed breakpoints set: 380, 400, 460, 480, 500, 560, 580, 600, 680, 768, 860, 1024.
-- `check-style-governance.js` blocks non-standard widths.
-
-### Phase C — Store bounded contexts (3 sprints)
-- Move action-domain routing to separate modules.
-- Introduce per-domain selectors and side-effect boundaries.
-- Keep AppStore as composition root only.
-
-### Phase D — Telemetry/SLA (2 sprints)
-- Contract events: `ux.view_ready`, `ux.action_success`, `sse.reconnect.ms`, `sse.connection.timeout`.
-- Build dashboards for p95 reconnect and screen-ready times.
-
-### Phase E — Strategic architecture migration (ongoing)
-- Role manifest becomes single source for tabs/titles/default route.
-- Expand realtime state machine to health model (`healthy/degraded/failed`).
-- Monthly architecture review with KPIs.
+1. Утвердить единый стратегический roadmap-документ:
+   - `docs/architecture/STRATEGIC_MIGRATION_ROADMAP_2026-2027.md`
+2. Вести архитектурную миграцию wave-моделью (Wave 0..6) с жёсткими gate-решениями.
+3. Принять governance cadence:
+   - weekly engineering review,
+   - bi-weekly product+engineering SLA review,
+   - monthly architecture board gate.
+4. Сделать обязательным traceability каждого PR к roadmap item и ADR/RFC.
 
 ## Consequences
-- Faster feature delivery with lower regression risk.
-- Predictable UX across roles and states.
-- Clear quality gates for SaaS maturity.
+### Positive
+- Прозрачный путь миграции до mid-2027 без big-bang rewrite.
+- Снижение регрессионного риска за счёт wave exit criteria.
+- SLA становится реальным release gate, а не пост-фактум отчётом.
+
+### Trade-offs
+- Больше upfront-process overhead на каждую архитектурную задачу.
+- Потребуется дисциплина по roadmap-tagging и регулярным ревью.
+
+## Compliance
+Для соответствия ADR-011 каждая архитектурная задача должна иметь:
+- roadmap-tag,
+- ссылку на ADR/RFC,
+- автоматический quality gate,
+- telemetry impact statement,
+- rollback plan.
+

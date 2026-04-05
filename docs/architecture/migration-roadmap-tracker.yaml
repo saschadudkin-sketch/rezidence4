@@ -1,0 +1,74 @@
+version: 1
+updated_at: 2026-04-05
+owner: frontend-architecture-board
+waves:
+  - id: W0
+    name: Governance baseline
+    start: 2026-04-08
+    end: 2026-04-26
+    status: planned
+    kpis:
+      - name: pr_traceability
+        target: "100%"
+      - name: ci_gate_enforcement
+        target: "100%"
+  - id: W1
+    name: UX Contract Completion
+    start: 2026-04-27
+    end: 2026-06-07
+    status: planned
+    kpis:
+      - name: ux_contract_coverage
+        target: ">=98%"
+      - name: axe_critical
+        target: "0"
+  - id: W2
+    name: Store Bounded Contexts v2
+    start: 2026-06-08
+    end: 2026-08-02
+    status: planned
+    kpis:
+      - name: critical_screen_rerenders
+        target: "-30%"
+      - name: cross_domain_p1_p2
+        target: "0"
+  - id: W3
+    name: Realtime Reliability & Health Model
+    start: 2026-08-03
+    end: 2026-10-04
+    status: planned
+    kpis:
+      - name: sse_reconnect_p95_ms
+        target: "<=15000"
+      - name: sse_reconnect_p99_ms
+        target: "<=30000"
+  - id: W4
+    name: Telemetry Contract & SLA Operations
+    start: 2026-10-05
+    end: 2026-12-13
+    status: planned
+    kpis:
+      - name: critical_journey_telemetry_coverage
+        target: "100%"
+      - name: sla_breach_detection_latency
+        target: "<5m"
+  - id: W5
+    name: Platform Simplification
+    start: 2027-01-11
+    end: 2027-03-21
+    status: planned
+    kpis:
+      - name: lead_time_pr_to_prod
+        target: "-25%"
+      - name: change_failure_rate
+        target: "<10%"
+  - id: W6
+    name: Scale & Enablement
+    start: 2027-03-22
+    end: 2027-06-20
+    status: planned
+    kpis:
+      - name: first_safe_pr_days
+        target: "<=10"
+      - name: policy_violations_trend
+        target: "0"
