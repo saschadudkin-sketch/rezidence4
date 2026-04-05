@@ -43,6 +43,7 @@ import StateBlock from '../ui/StateBlock';
 import { getRoleManifest } from '../domain/roleManifest';
 import { onboardingKey, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
 
 function DemoBanner({ onClose }) {
@@ -146,6 +147,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   // CQ-03: connection state logic in its own hook — Dashboard stays a thin coordinator
   const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(liveSync, { retryKey, setRetryKey });
   const requestsErrorCopy = getViewStateCopy('requests', 'error');
+  const [viewReadyEmitted, setViewReadyEmitted] = useState(false);
+
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -153,6 +156,12 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
 
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
+
+  useEffect(() => {
+    if (viewReadyEmitted || isLoading || isConnErr) return;
+    emitUxMetric(UX_METRICS.VIEW_READY, { role: user.role, tab: activeTab });
+    setViewReadyEmitted(true);
+  }, [viewReadyEmitted, isLoading, isConnErr, user.role, activeTab]);
 
   // Navigation items и CSS-классы вычисляются через domain/navigation.js.
   // Логика вынесена из компонента — тестируема без React, Dashboard остаётся тонким координатором.

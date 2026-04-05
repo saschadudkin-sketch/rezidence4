@@ -16,6 +16,8 @@ import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { useTelemetrySla } from '../hooks/useTelemetrySla';
+import SlaDashboard from '../ui/SlaDashboard';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -32,6 +34,7 @@ function StatCardSkeleton() {
 
 // FIX [PERF]: memo — не ре-рендерится при смене activeTab если allUsers/requests не изменились
 const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }) {
+  const sla = useTelemetrySla();
   // FIX [PERF]: stats и roleCount мемоизированы — не пересчитываются при несвязанных ре-рендерах
   const { stats, roleCount } = useMemo(() => {
     // FIX [PERF]: todayTs — числовая метка, не объект Date — избегаем new Date() в каждом filter
@@ -74,6 +77,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
           </div>
         ))}
       </div>
+      <SlaDashboard snapshot={sla} />
       <SectionHeader title="Распределение по ролям" />
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
