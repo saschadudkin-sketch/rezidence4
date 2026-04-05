@@ -8,6 +8,7 @@ import { AppIcon } from './AppIcon';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { MAX_FILE_SIZE_BYTES } from '../constants/limits';
 import { compressImage } from '../utils/compressImage';
+import { useModalAccessibility } from './useModalAccessibility';
 
 // ─── ADD USER MODAL ───────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
   const [loading, setLoading] = useState(false);
   const { phoneDb } = useUsers();
   const { addUser }  = useActions();
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
   const isMountedRef = useIsMounted();
@@ -54,8 +56,8 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
   };
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <span className="modal-title">Новый жилец</span>
@@ -102,12 +104,12 @@ const compressImg = (dataUrl) => compressImage(dataUrl, { maxWidth: 256, quality
 export function AvatarModal({ user, avatar, onSave, onClose }) {
   const [src, setSrc] = useState(avatar && avatar.type === 'photo' ? avatar.src : null);
 
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
+
   useEffect(() => {
     lockScroll();
-    const fn = e => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', fn);
-    return () => { unlockScroll(); window.removeEventListener('keydown', fn); };
-  }, [onClose]);
+    return () => { unlockScroll(); };
+  }, []);
 
   const onFile = e => {
     const f = e.target.files[0];
@@ -129,8 +131,8 @@ export function AvatarModal({ user, avatar, onSave, onClose }) {
   };
 
   return (
-    <div className="av-modal" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="av-panel">
+    <div className="av-modal" {...overlayProps}>
+      <div className="av-panel" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="av-panel-head">
           <span className="av-panel-title">Фото профиля</span>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>

@@ -5,6 +5,7 @@ import { CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON } from '../constants
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
 
 /**
  * PassQRModal — показывает QR-код пропуска для предъявления охране.
@@ -24,12 +25,12 @@ export function PassQRModal({ req, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [error, setError]  = useState(false);
 
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
+
   useEffect(() => {
     lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => { unlockScroll(); document.removeEventListener('keydown', onKey); };
-  }, [onClose]);
+    return () => { unlockScroll(); };
+  }, []);
 
   useEffect(() => {
     Promise.resolve(generatePassQR(req))
@@ -41,8 +42,8 @@ export function PassQRModal({ req, onClose }) {
   }, [req.id]);
 
   return createPortal(
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <div>

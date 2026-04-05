@@ -11,6 +11,7 @@ import {
 import { toLocalDateInputValue, parseLocalDateInputValue } from '../utils/dateInput';
 import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useScheduleForm';
 import { AppIcon } from '../ui/AppIcon';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
 
 // ─── VisitorFields ────────────────────────────────────────────────────────────
 // FIX [PERF-19]: memo — VisitorFields не имеет внутреннего состояния, рендерится
@@ -164,13 +165,14 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
 
 export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const submitLabel = form.loading             ? 'Сохранение...'
     : form.showSchedule && form.scheduledFor   ? 'Запланировать'
     : 'Создать заявку';
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <div>
