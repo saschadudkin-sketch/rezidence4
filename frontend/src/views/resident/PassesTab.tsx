@@ -2,9 +2,9 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
-import { EmptyState } from '../../ui/EmptyState';
 import SectionHeader from '../../ui/SectionHeader';
 import { useDebounce } from '../../hooks/useDebounce';
+import { getViewStateCopy } from '../../ui/viewStateContract';
 
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
 
@@ -24,6 +24,7 @@ const PassesTab = memo(function PassesTab({
   }, [debouncedQuery]);
   const visiblePasses = useMemo(() => filteredPasses.filter(matchQ), [filteredPasses, matchQ]);
   const visibleScheduled = useMemo(() => scheduledPasses.filter(matchQ), [scheduledPasses, matchQ]);
+  const passesEmptyCopy = getViewStateCopy('passes', 'empty');
 
   const passIcons = user.role === 'contractor'
     ? [['worker','tools','Рабочий'],['team','users','Бригада'],['delivery','car','Доставка'],['car','car','Авто']]
@@ -73,15 +74,19 @@ const PassesTab = memo(function PassesTab({
         </div>
       )}
       {visiblePasses.length === 0 && myPasses.length === 0
-        ? <EmptyState
-            icon="users"
-            title="Пропусков пока нет"
-            description="Создайте первый пропуск для гостя или курьера"
-            ctaLabel="Создать пропуск"
-            onCta={() => setModal({ type: 'pass', cat: 'guest' })}
+        ? <StateBlock
+            type="empty"
+            title={passesEmptyCopy.title}
+            subtitle={passesEmptyCopy.subtitle}
+            actionLabel="Создать пропуск"
+            onAction={() => setModal({ type: 'pass', cat: 'guest' })}
           />
         : visiblePasses.length === 0 && visibleScheduled.length === 0
-          ? <StateBlock type="empty" title={debouncedQuery ? 'Ничего не найдено' : 'Нет пропусков в этой категории'} />
+          ? <StateBlock
+              type="empty"
+              title={debouncedQuery ? 'Ничего не найдено' : passesEmptyCopy.title}
+              subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Нет пропусков в этой категории'}
+            />
           : <>
               {visibleScheduled.length > 0 && passFilter !== 'scheduled' && (
                 <div className="u-mb-12">

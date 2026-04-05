@@ -42,6 +42,7 @@ import { onSseForceReconnect } from '../utils/events';
 import StateBlock from '../ui/StateBlock';
 import { getRoleManifest } from '../domain/roleManifest';
 import { onboardingKey, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 
 function DemoBanner({ onClose }) {
@@ -144,6 +145,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   });
   // CQ-03: connection state logic in its own hook — Dashboard stays a thin coordinator
   const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(liveSync, { retryKey, setRetryKey });
+  const requestsErrorCopy = getViewStateCopy('requests', 'error');
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -175,8 +177,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         <div className="screen-loading-inner">
           <StateBlock
             type="error"
-            title="Не удалось подключиться к серверу"
-            subtitle="Проверьте соединение и попробуйте снова"
+            title={requestsErrorCopy.title}
+            subtitle={requestsErrorCopy.subtitle}
             actionLabel="Попробовать снова"
             onAction={handleRetry}
           />

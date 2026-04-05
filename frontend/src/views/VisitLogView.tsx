@@ -218,6 +218,7 @@ export default function VisitLogView({ user }) {
   const totalCount = visits.length;
   const loadingCopy = getViewStateCopy('visitlog', 'loading');
   const errorCopy = getViewStateCopy('visitlog', 'error');
+  const emptyCopy = getViewStateCopy('visitlog', 'empty');
 
   return (
     <div className="vlog-wrap">
@@ -290,8 +291,8 @@ export default function VisitLogView({ user }) {
       {visits.length === 0 && (
         <StateBlock
           type="empty"
-          title={q ? 'Ничего не найдено' : 'Посещений нет'}
-          subtitle={q ? 'Попробуйте другой запрос' : 'Входы посетителей будут отображаться здесь'}
+          title={q ? 'Ничего не найдено' : emptyCopy.title}
+          subtitle={q ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
           actionLabel={q ? 'Сбросить поиск' : undefined}
           onAction={q ? () => setQuery('') : undefined}
         />

@@ -3,6 +3,7 @@ import { GroupedReqList } from '../../requests/ReqCard';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import { useDebounce } from '../../hooks/useDebounce';
+import { getViewStateCopy } from '../../ui/viewStateContract';
 
 const TechTab = memo(function TechTab({
   user, techFilter, setTechFilter, setModal,
@@ -18,6 +19,7 @@ const TechTab = memo(function TechTab({
     return [r.comment, r.category].some(v => v && v.toLowerCase().includes(q));
   }, [debouncedQuery]);
   const visibleTech = useMemo(() => filteredTech.filter(matchQ), [filteredTech, matchQ]);
+  const techEmptyCopy = getViewStateCopy('tech', 'empty');
 
   return (
     <>
@@ -44,8 +46,8 @@ const TechTab = memo(function TechTab({
       {visibleTech.length === 0
         ? <StateBlock
             type="empty"
-            title={debouncedQuery ? 'Ничего не найдено' : 'Заявок нет'}
-            subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Нажмите на категорию выше, чтобы вызвать техслужбу'}
+            title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
+            subtitle={debouncedQuery ? 'Попробуйте другой запрос' : techEmptyCopy.subtitle}
           />
         : <GroupedReqList
             reqs={visibleTech} userRole={user.role} userName={user.name} userId={user.uid}

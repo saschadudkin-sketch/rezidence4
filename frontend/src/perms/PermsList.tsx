@@ -8,6 +8,7 @@ import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 // ─── PermsList ────────────────────────────────────────────────────────────────
 
@@ -198,14 +199,15 @@ export function PermsList({ user }) {
 export function MyTemplates({ user, onUse }) {
   const tpls = useTemplates(user.uid);
   const { deleteTemplate } = useActions();
+  const templatesEmptyCopy = getViewStateCopy('templates', 'empty');
   // FIX [PERF]: useCallback — del вызывается для каждого шаблона в списке
   const del = useCallback(id => { deleteTemplate(user.uid, id); toast('Шаблон удалён', 'success'); }, [deleteTemplate, user.uid]);
 
   if (tpls.length === 0) return (
     <StateBlock
       type="empty"
-      title="Шаблонов нет"
-      subtitle="При создании пропуска или заявки нажмите «💾 Сохранить как шаблон»"
+      title={templatesEmptyCopy.title}
+      subtitle={templatesEmptyCopy.subtitle}
     />
   );
 

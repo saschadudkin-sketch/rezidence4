@@ -15,6 +15,7 @@ import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
   }), [allUsers, q, roleFilter, contractorOnly]);
 
   const ROLE_FILTERS = [['all','Все'],['owner','Собств.'],['tenant','Аренд.'],['contractor','Подряд.'],['concierge','Консьерж'],['security','Охрана'],['admin','Админ']];
+  const usersEmptyCopy = getViewStateCopy('admin_users', 'empty');
 
   function handleOpenAdd() { setAddModal(true); }
   function handleCloseAdd() { setAddModal(false); }
@@ -147,8 +149,8 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
       {filtered.length === 0 && (
         <StateBlock
           type="empty"
-          title={query ? 'Ничего не найдено' : contractorOnly ? 'Подрядчиков нет' : 'Пользователей нет'}
-          subtitle={contractorOnly && !query ? 'Нажмите «+ Добавить подрядчика»' : (query ? 'Попробуйте изменить запрос' : undefined)}
+          title={query ? 'Ничего не найдено' : usersEmptyCopy.title}
+          subtitle={query ? 'Попробуйте изменить запрос' : (contractorOnly ? 'Нажмите «+ Добавить подрядчика»' : usersEmptyCopy.subtitle)}
         />
       )}
       <div>{filtered.map(u => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />)}</div>
@@ -175,6 +177,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     const ms = reqStatus === 'all' || r.status === reqStatus;
     return mq && mt && ms;
   }), [requests, reqPeriod, rq, reqType, reqStatus]);
+  const requestsEmptyCopy = getViewStateCopy('admin_requests', 'empty');
 
   return (
     <>
@@ -199,7 +202,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
           ))}
         </div>
       </div>
-      {filtered.length === 0 && <StateBlock type="empty" title="Заявок нет" subtitle="Измените фильтры или период поиска" />}
+      {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
       <div>{filtered.map(r => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />)}</div>
     </>
   );
