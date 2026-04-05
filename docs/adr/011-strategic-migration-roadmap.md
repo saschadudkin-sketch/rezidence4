@@ -35,6 +35,7 @@ Deep audit показал, что точечные улучшения (UX contra
 ## Compliance
 Для соответствия ADR-011 каждая архитектурная задача должна иметь:
 - roadmap-tag,
+- ссылка на RFC-001 для data-layer решений (Query vs Realtime),
 - ссылку на ADR/RFC,
 - автоматический quality gate,
 - telemetry impact statement,

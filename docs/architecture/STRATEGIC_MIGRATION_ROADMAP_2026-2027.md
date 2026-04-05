@@ -86,6 +86,7 @@
 
 ### Объём
 - Realtime health states: `healthy`, `degraded`, `failed`, `recovering`.
+- RFC-001 data-layer policy (Query vs Realtime) mandatory for all new domain integrations.
 - Backoff/replay/idempotency policy для SSE событий.
 - Dead-letter telemetry для malformed events.
 - Graceful degradation UX (read-only modes, queued actions).
@@ -106,6 +107,7 @@
 
 ### Объём
 - Metric catalog v2 (UX, transport, action quality, auth/session recovery).
+- SLA reporting aligned with RFC-001 data convergence and conflict-rate metrics.
 - SLA dashboard с SLO error-budget logic.
 - Alerting policy (warning/critical) + weekly reliability review.
 
