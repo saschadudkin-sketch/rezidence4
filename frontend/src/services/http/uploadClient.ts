@@ -1,7 +1,7 @@
 export function createUploadClient({ baseUrl, fetchWithTimeout, getCsrfToken, makeRequestId }) {
   return async function uploadPhoto(blob) {
     const res = await fetchWithTimeout(
-      `${baseUrl}/api/upload/photo`,
+      `${baseUrl}/api/v1/upload/photo`,
       {
         method: 'POST',
         headers: {

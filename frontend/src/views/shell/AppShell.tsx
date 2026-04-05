@@ -27,7 +27,7 @@ const AppShell = memo(function AppShell({
   isLoading = false,
   isOnline = true,
 }) {
-  const { nav, navClassMap, goTab, activeTab, setActiveTab } = useNavigationContext();
+  const { nav, navClassMap, goTab, activeTab } = useNavigationContext();
 
   // FIX [КРИТ-P1]: single unified offline banner — no more double-stacking.
   // Priority: network loss > SSE loss. Only one banner is ever visible at once.

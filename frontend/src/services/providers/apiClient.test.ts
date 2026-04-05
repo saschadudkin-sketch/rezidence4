@@ -180,7 +180,7 @@ describe('apiClient.get', () => {
     expect(firstRequestId).toBeTruthy();
     expect(refreshRequestId).toBe(firstRequestId);
     expect(retryRequestId).toBe(firstRequestId);
-    expect(fetch.mock.calls[1][0]).toContain('/api/auth/refresh');
+    expect(fetch.mock.calls[1][0]).toContain('/api/v1/auth/refresh');
   });
 });
 
@@ -240,13 +240,13 @@ describe('apiClient.delete', () => {
 describe('apiClient.uploadPhoto', () => {
   const fakeBlob = { type: 'image/jpeg', size: 1024 };
 
-  test('отправляет на /api/upload/photo с credentials: include', async () => {
+  test('отправляет на /api/v1/upload/photo с credentials: include', async () => {
     mockFetchOk({ url: 'http://localhost:3001/uploads/photo_123.jpg' });
     const client = await getClient();
     await client.uploadPhoto(fakeBlob);
 
     const [url, opts] = fetch.mock.calls[0];
-    expect(url).toContain('/api/upload/photo');
+    expect(url).toContain('/api/v1/upload/photo');
     expect(opts.method).toBe('POST');
     expect(opts.credentials).toBe('include');
     expect(opts.body).toBe(fakeBlob);

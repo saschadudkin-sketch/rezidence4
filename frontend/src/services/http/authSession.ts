@@ -7,7 +7,7 @@ export function createAuthSession({ baseUrl, fetchWithTimeout, getCsrfToken, mak
     if (refreshPromise) return refreshPromise;
 
     refreshPromise = fetchWithTimeout(
-      `${baseUrl}/api/auth/refresh`,
+      `${baseUrl}/api/v1/auth/refresh`,
       {
         method: 'POST',
         credentials: 'include',

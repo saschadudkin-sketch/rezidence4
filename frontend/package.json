@@ -16,20 +16,19 @@
     "workbox-strategies": "^7.4.0"
   },
   "devDependencies": {
-    "@storybook/addon-essentials": "^10.3.4",
-    "@storybook/addon-interactions": "^10.3.4",
-    "@storybook/react": "^10.3.4",
-    "@storybook/react-vite": "^10.3.4",
-    "@storybook/test": "^10.3.4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@vitejs/plugin-react": "^5.0.4",
     "jsdom": "^27.0.1",
-    "storybook": "^10.3.4",
     "vite": "^7.1.11",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "eslint": "^9.38.0",
+    "@eslint/js": "^9.38.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.1",
+    "eslint-plugin-react-hooks": "^5.2.0"
   },
   "scripts": {
     "start": "vite",
@@ -41,12 +40,13 @@
     "test:mode-services": "vitest run src/config/runtimeMode.test.ts src/domain/requestWorkflow.test.ts src/services/providers/createServices.test.ts src/services/providers/serviceContainer.test.ts src/services/providers/demoProvider.test.ts src/services/chatGateway.test.ts src/services/requestsGateway.test.ts src/services/adminGateway.test.ts src/ui/syncFeedback.test.ts",
     "verify:env": "node scripts/verify-env.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "npm run verify:env && vitest run && npm run build",
+    "verify:all": "npm run verify:env && npm run verify:api-version && npm run lint && npm run typecheck && vitest run && npm run build",
     "dev": "vite",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "storybook": "storybook dev --port 6006",
-    "build-storybook": "storybook build"
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "lint": "eslint src/services/providers/backendProvider.ts src/services/http/*.ts src/hooks/useNavigation.ts src/views/shell/AppShell.tsx",
+    "verify:api-version": "node scripts/check-no-legacy-api.js"
   },
   "type": "module"
 }
