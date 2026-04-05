@@ -116,6 +116,7 @@ router.post('/send-otp', async (req, res, next) => {
         const count = await redis.incr(key);
         if (count === 1) await redis.expire(key, OTP_SEND_WINDOW_SEC);
         if (count > OTP_SEND_MAX) {
+          appMetrics.incrementCounter('otpSendRateLimited');
           return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
         }
       } catch (redisErr) {
@@ -130,6 +131,7 @@ router.post('/send-otp', async (req, res, next) => {
           [phone],
         );
         if (Number(active[0].count) >= OTP_SEND_MAX) {
+          appMetrics.incrementCounter('otpSendRateLimited');
           return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
         }
       }
@@ -144,6 +146,7 @@ router.post('/send-otp', async (req, res, next) => {
         [phone],
       );
       if (Number(active[0].count) >= OTP_SEND_MAX) {
+        appMetrics.incrementCounter('otpSendRateLimited');
         return res.status(429).json({ error: 'Слишком много попыток. Подождите несколько минут.' });
       }
     }
@@ -156,7 +159,12 @@ router.post('/send-otp', async (req, res, next) => {
     //   Если sendSms падает — 100ms потрачены впустую на каждую неудавшуюся отправку.
     // СТАЛО: sendSms → hash → insert
     //   Хешируем только когда точно знаем, что SMS ушёл.
-    await sendSms(phone, 'Код входа Резиденции: ' + code); // бросает при ошибке SMS → hash и INSERT не выполняются
+    try {
+      await sendSms(phone, 'Код входа Резиденции: ' + code);
+    } catch (smsErr) {
+      appMetrics.incrementCounter('otpSendSmsFailed');
+      throw smsErr; // propagate — hash and INSERT should not run if SMS failed
+    }
 
     const hash = await passwordHasher.hash(code);
 
@@ -164,6 +172,7 @@ router.post('/send-otp', async (req, res, next) => {
       `INSERT INTO otp_codes(phone, code, expires_at) VALUES($1,$2,$3)`,
       [phone, hash, expiresAt],
     );
+    appMetrics.incrementCounter('otpSendSuccess');
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -200,6 +209,7 @@ router.post('/verify-otp', async (req, res, next) => {
          WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
         [phone],
       );
+      appMetrics.incrementCounter('otpVerifyFailed');
       return res.status(401).json({ error: 'Неверный или истёкший код' });
     }
 
@@ -234,6 +244,8 @@ router.post('/verify-otp', async (req, res, next) => {
     // FIX [S1]: access token + refresh token при логине
     setTokenCookie(res, user);
     await setRefreshTokenCookie(res, user.uid);
+    appMetrics.incrementCounter('otpVerifySuccess');
+    appMetrics.incrementCounter('authLoginSuccess');
     res.json({ user });
   } catch (err) { next(err); }
 });

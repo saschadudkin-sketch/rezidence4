@@ -1,5 +1,21 @@
 'use strict';
 
+/**
+ * SCALABILITY NOTE (МАСШТАБ-1): SSE connections are stored in process memory.
+ * In a multi-instance deployment (horizontal scaling), events emitted on instance A
+ * are NOT received by clients connected to instance B.
+ *
+ * To support multi-instance horizontal scaling:
+ * 1. Subscribe each instance to a Redis Pub/Sub channel on startup
+ * 2. When any event is emitted (request approved, chat message, etc.),
+ *    publish it to Redis instead of broadcasting locally
+ * 3. Each instance receives the Redis message and broadcasts to its own SSE clients
+ *
+ * TODO: Implement Redis Pub/Sub for multi-instance SSE broadcast.
+ * Reference: https://redis.io/docs/latest/develop/interact/pubsub/
+ * Estimated effort: 2–3 days.
+ */
+
 const { STAFF_ROLES } = require('./constants');
 const { randomUUID } = require('crypto');
 

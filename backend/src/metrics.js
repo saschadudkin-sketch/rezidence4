@@ -7,6 +7,13 @@ const counters = {
   authRefreshSuccess: 0,
   authRefreshFailed: 0,
   authRefreshLegacyFallbackUsed: 0,
+  // OTP metrics — DO-03: track security-critical events for alerting
+  otpSendSuccess: 0,         // SMS sent successfully
+  otpSendRateLimited: 0,     // 429 returned — potential abuse signal
+  otpSendSmsFailed: 0,       // SMS provider error
+  otpVerifyFailed: 0,        // wrong code — potential brute-force signal
+  otpVerifySuccess: 0,       // successful verification
+  authLoginSuccess: 0,       // completed login
 };
 
 /** Rolling window for request latency samples (last 1000 requests) */
