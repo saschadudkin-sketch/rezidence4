@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers, useAllPerms } from '../store/AppStore.jsx';
-import { ROLE_COLOR, ROLE_LABELS } from '../constants/index.js';
+import { ROLE_LABELS } from '../constants/index.js';
 import { sortReqs, filterByPeriod } from '../utils.js';
 import { isPassRequest, isTechRequest } from '../constants/requestPredicates.js';
 import { ReqCard } from '../requests/ReqCard.jsx';
@@ -15,8 +15,12 @@ import VisitLogView from './VisitLogView.jsx';
 import ResidentsView from './ResidentsView.jsx';
 import { CarSearchModal } from '../requests/CarSearchModal.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
+import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
 import SectionHeader from '../ui/SectionHeader.jsx';
+// FIX [C-2]: Виртуализация списков заявок — при 500+ заявок без VirtualList
+// рендерится полный DOM, что вызывает freeze UI на слабых устройствах охраны.
+import { VirtualList } from '../ui/VirtualList.jsx';
 
 // ─── CONCIERGE VIEW ───────────────────────────────────────────────────────────
 
@@ -27,6 +31,11 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
   const [showScan, setShowScan] = useState(false);
   const debouncedQuery = useDebounce(query, 250);
   const [showAll, setShowAll] = useState(false);
+
+  // FIX [D-7]: Сбрасываем поисковый запрос при смене вкладки.
+  // Раньше запрос "Иванов" с вкладки пропусков оставался при переходе на
+  // Техслужбу — пользователь видел отфильтрованный список без понимания почему.
+  useEffect(() => { setQuery(''); }, [activeTab]);
 
   // FIX [AUDIT-2 #23perf]: вычисляем один раз, а не для каждого поля каждой заявки
   const normalizedQuery = useMemo(() => debouncedQuery.trim().toLowerCase(), [debouncedQuery]);
@@ -63,11 +72,13 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       <div className="type-grid">
+        {/* FIX [A11y]: type-card заменены на <button> — правильная семантика,
+            Space и Enter работают без onKeyDown-хака. */}
         {pIcons.map(([k, iconName, l]) => (
-          <div key={k} className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setModal({ type: 'pass', cat: k })}>
+          <button key={k} type="button" className="type-card" onClick={() => setModal({ type: 'pass', cat: k })}>
             <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
             <div className="type-label">{l}</div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="u-flex-center u-mb16">
@@ -75,7 +86,17 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
           {showAll ? '▴ Скрыть все пропуска' : '▾ Все пропуска'}
         </button>
       </div>
-      {showAll && allP.length > 0 && <div className="req-list">{allP.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>}
+      {showAll && allP.length > 0 && (
+        // FIX [C-2]: VirtualList для списка всех пропусков консьержа
+        <VirtualList
+          items={allP}
+          renderItem={(r, i) => (
+            <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />
+          )}
+          estimateSize={110}
+          className="req-list"
+        />
+      )}
       {showAll && allP.length === 0 && (
         <StateBlock
           type="empty"
@@ -88,15 +109,16 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
     {activeTab === 'tech' && (<>
       <div className="type-grid">
         {[['electrician', 'chart', 'Электрик'], ['plumber', 'tools', 'Сантехник']].map(([k, iconName, l]) => (
-          <div key={k} className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setModal({ type: 'tech', cat: k })}>
+          // FIX [A11y]: <button> вместо div[role=button]
+          <button key={k} type="button" className="type-card" onClick={() => setModal({ type: 'tech', cat: k })}>
             <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
             <div className="type-label">{l}</div>
-          </div>
+          </button>
         ))}
-        <div className="type-card" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => setActiveTab('templates')} style={{ borderColor: activeTab === 'templates' ? 'var(--g2)' : 'var(--b1)' }}>
+        <button type="button" className="type-card" onClick={() => setActiveTab('templates')}>
           <div className="type-icon"><AppIcon name="file" size={20} /></div>
           <div className="type-label">Шаблоны</div>
-        </div>
+        </button>
       </div>
       <div className="search-wrap">
         <span className="search-ico"><AppIcon name="search" size={14} /></span>
@@ -104,7 +126,15 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       </div>
       {allT.length > 0 && <>
         <SectionHeader title="Все заявки" count={allT.length} />
-        <div className="req-list">{allT.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />)}</div>
+        {/* FIX [C-2]: VirtualList для техзаявок */}
+        <VirtualList
+          items={allT}
+          renderItem={(r, i) => (
+            <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />
+          )}
+          estimateSize={110}
+          className="req-list"
+        />
       </>}
       {allT.length === 0 && (
         <StateBlock
@@ -196,9 +226,9 @@ const SecurityPermsList = memo(function SecurityPermsList() {
           <div key={u.uid} className="u-mb8">
             <div className={'spl-apt-row' + (isOpen ? ' open' : '')} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && toggleApt(u.uid)} onClick={() => toggleApt(u.uid)}>
               <div className="spl-apt-info">
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: ROLE_COLOR[u.role] || 'var(--s4)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0 }}>{u.name.charAt(0)}</div>
+                {/* FIX [CQ-2]: Заменён inline-style аватар на AvatarCircle — единый компонент,
+                    корректно работает в светлой теме (цвет текста зависит от роли). */}
+                <AvatarCircle role={u.role} name={u.name} size={32} fontSize={13} />
                 <div>
                   <div className="spl-apt-title">{'Апарт. ' + u.apartment}</div>
                   <div className="spl-apt-sub">{u.name} · <span className="u-t4">{ROLE_LABELS[u.role]}</span></div>
@@ -245,12 +275,13 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
   const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
 
   const shown = useMemo(() => {
-    const allFiltered = sortReqs(filterByPeriod(requests, datePeriod));
+    // FIX [I-1]: убран первый sortReqs — фильтрация не нарушает порядок,
+    // двойной O(n log n) был лишним (экономия при 500+ заявках).
     const q = debouncedQuery.trim().toLowerCase();
     const matchQ = r => !q || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment]
       .some(v => v && v.toLowerCase().includes(q));
     return sortReqs(
-      allFiltered
+      filterByPeriod(requests, datePeriod)
         .filter(r => typeFilter === 'all' || r.type === typeFilter)
         .filter(r => statusFilter === 'all' || r.status === statusFilter)
         .filter(r => filter === 'all' || r.createdByRole === filter)
@@ -278,11 +309,15 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
             <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
           </div>
-          <div className="date-pills u-mb0">
+          {/* FIX [I-6]: date-pills перенесены в отдельный скроллируемый ряд
+              через класс sec-filters-row--scroll (overflow-x:auto, no-wrap). */}
+          <div className="sec-filters-row sec-filters-row--scroll">
             {datePills.map(([k, l]) => <button key={k} className={'date-pill ' + (datePeriod === k ? 'active' : '')} onClick={() => setDatePeriod(k)}>{l}</button>)}
           </div>
         </div>
-        <div className="sec-filters-row">
+        {/* FIX [I-6]: второй ряд фильтров — скроллируемый на mobile,
+            разделители │ заменены на gap (семантически правильнее). */}
+        <div className="sec-filters-row sec-filters-row--scroll">
           {[
             ['all', 'Все', 0],
             ['pass', 'Пропуска', pendingPassCount],
@@ -292,12 +327,12 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
               {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
             </button>
           ))}
-          <span className="sec-filter-sep">│</span>
+          <span className="sec-filter-divider" aria-hidden="true" />
           {[['all', 'Все'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
             <button key={k} className={'date-pill sm ' + (statusFilter === k ? 'active' : '')} onClick={() => setStatusFilter(k)} title={{'all':'Все статусы','pending':'В ожидании','approved':'Одобрены','rejected':'Отклонены','arrived':'Вошли','expired':'Истёкшие'}[k]}>{l}</button>
           ))}
           {typeFilter !== 'tech' && <>
-            <span className="sec-filter-sep">│</span>
+            <span className="sec-filter-divider" aria-hidden="true" />
             {[['all','Все'],['owner','Собст.'],['tenant','Аренд.'],['contractor','Подр.']].map(([k, l]) => (
               <button key={k} className={'date-pill sm ' + (filter === k ? 'active' : '')} onClick={() => setFilter(k)}>{l}</button>
             ))}
@@ -310,7 +345,28 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
             title={query ? 'Ничего не найдено' : 'Заявок нет'}
             subtitle={query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}
           />
-        : <div className="req-list">{shown.map((r, i) => <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} highlightId={highlightReqId} onHighlighted={() => setHighlightReqId && setHighlightReqId(null)} />)}</div>}
+        : (
+          // FIX [C-2]: VirtualList — при 500+ заявок охраны рендерится только
+          // видимая область вместо полного DOM из 500+ ReqCard элементов.
+          <VirtualList
+            items={shown}
+            renderItem={(r, i) => (
+              <ReqCard
+                key={r.id}
+                req={r}
+                staggerIdx={i}
+                userRole={user.role}
+                userName={user.name}
+                userId={user.uid}
+                highlightId={highlightReqId}
+                onHighlighted={() => setHighlightReqId && setHighlightReqId(null)}
+              />
+            )}
+            estimateSize={110}
+            className="req-list"
+          />
+        )
+      }
     </>)}
 
     {activeTab === 'perms' && <SecurityPermsList />}

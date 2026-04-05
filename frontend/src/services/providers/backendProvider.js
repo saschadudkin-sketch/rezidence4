@@ -253,7 +253,13 @@ export const requestsProvider = {
               for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i);
               blob = new Blob([buf], { type: mime });
             } else {
-              // URL — загружаем как обычно (уже выгружено)
+              // FIX [I-11]: validate URL before fetch — reject non-http(s) and non-same-origin external
+              // to prevent SSRF-style leaks via crafted blob:/data:/javascript: URLs.
+              let parsed;
+              try { parsed = new URL(photo); } catch { throw new Error('Недопустимый URL фото'); }
+              if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+                throw new Error('Недопустимый протокол URL фото');
+              }
               blob = await fetch(photo).then(r => r.blob());
             }
             const result = await apiClient.uploadPhoto(blob);

@@ -172,10 +172,33 @@ export function loadFromLS() {
     for (const [, lsKey] of Object.entries(SLICE_KEYS)) {
       const val = localStorage.getItem(lsKey);
       if (val) {
-        try { Object.assign(result, JSON.parse(val)); } catch { /* skip corrupt slice */ }
+        try {
+          const parsed = JSON.parse(val);
+          // FIX [I-12]: basic shape validation — if top-level is not a plain object, discard silently
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            Object.assign(result, parsed);
+          } else {
+            console.warn('[persistence] corrupt slice discarded:', lsKey);
+            localStorage.removeItem(lsKey);
+          }
+        } catch { /* skip corrupt slice */ }
       }
     }
     if (!Object.keys(result).length) return null;
+
+    // FIX [I-12]: validate per-field shapes before consuming
+    if (result.requests !== undefined && !Array.isArray(result.requests)) {
+      console.warn('[persistence] requests not an array — discarding');
+      delete result.requests;
+    }
+    if (result.chat !== undefined && !Array.isArray(result.chat)) {
+      console.warn('[persistence] chat not an array — discarding');
+      delete result.chat;
+    }
+    if (result.blacklist !== undefined && !Array.isArray(result.blacklist)) {
+      console.warn('[persistence] blacklist not an array — discarding');
+      delete result.blacklist;
+    }
 
     // Post-process
     if (result.requests) result.requests = loadPhotos(result.requests);

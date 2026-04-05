@@ -31,8 +31,8 @@
 .tn-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:500;background:var(--g-bg)}
 .tn-icon{font-size:var(--fs-md);line-height:1}
 .tn-badge{
-  
-  background:#c0392b;color:#fff;
+  /* FIX [I-3]: use CSS token instead of hardcoded hex */
+  background:var(--err-t);color:#fff;
   font-size:var(--fs-2xs);font-weight:700;
   min-width:15px;height:15px;border-radius:8px;
   display:flex;align-items:center;justify-content:center;padding:0 3px;
@@ -137,8 +137,8 @@
   padding:0 4px;
   display:flex;align-items:center;justify-content:center;
   font-size:var(--fs-3xs);font-weight:700;line-height:1;
-  
-  background:#c0392b;color:#fff;border:1.5px solid var(--s0);
+  /* FIX [I-3]: use CSS token instead of hardcoded hex */
+  background:var(--err-t);color:#fff;border:1.5px solid var(--s0);
 }
 
 /* ── P-02/R-01: Mobile "More" drawer ── */

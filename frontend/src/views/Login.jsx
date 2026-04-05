@@ -99,8 +99,11 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const verify = async () => {
-    if (otp.length !== 6) {
+  // FIX [I-5]: accept optional otpValue so auto-submit can pass the value directly
+  // (React state update is async — closure would read stale otp on immediate call)
+  const verify = async (otpValue) => {
+    const code = typeof otpValue === 'string' ? otpValue : otp;
+    if (code.length !== 6) {
       setOtpError('Код должен содержать 6 цифр');
       emitLoginMetric('verify_rejected', { reason: 'otp_too_short' });
       toast('Введите код из SMS', 'error');
@@ -115,7 +118,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     try {
       // CQ-01: authFlow.verifyOtp handles live vs. demo branching internally
-      const user = await authFlow.verifyOtp(phone, otp, found);
+      const user = await authFlow.verifyOtp(phone, code, found);
       if (signal.aborted) return;
       emitLoginMetric('verify_success', { mode: isLiveMode() ? 'live' : 'demo' });
       onLogin(user);
@@ -237,7 +240,7 @@ export default function Login({ onLogin }) {
                 <input
                   className="field-inp field-otp" type="text"
                   inputMode="numeric" maxLength={6} placeholder="• • • • • •"
-                  value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); if (otpError) setOtpError(''); }}
+                  value={otp} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setOtp(v); if (otpError) setOtpError(''); /* FIX [I-5]: auto-submit when all 6 digits entered */ if (v.length === 6) verify(v); }}
                   onKeyDown={e => e.key === 'Enter' && verify()}
                   autoComplete="one-time-code" autoFocus
                 />

@@ -153,6 +153,11 @@
 /* ── Security filters ── */
 .sec-filters{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;align-items:center}
 .sec-filters-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
+/* FIX [I-6]: scroll modifier — overflow-x:auto so filter pills don't wrap on narrow screens */
+.sec-filters-row--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.sec-filters-row--scroll::-webkit-scrollbar{display:none}
+/* FIX [I-6]: semantic divider replacing the inline │ character */
+.sec-filter-divider{width:1px;height:16px;background:var(--b2);flex-shrink:0;align-self:center;margin:0 2px}
 .sec-filter-sep{color:var(--b2);font-size:var(--fs-body);margin:0 2px}
 .u-search-sm{flex:1;min-width:140px;max-width:260px}
 .u-search-sm .search-inp{padding:8px 8px 8px 30px;font-size:var(--fs-xs)}
