@@ -11,12 +11,6 @@ import { usePhotoHandler } from './usePhotoHandler.js';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm.js';
 import { useTemplateForm } from './useTemplateForm.js';
 
-// Re-export date utilities consumed by CreateModal and other importers.
-export { toLocalDateInputValue, toLocalDateTimeInputValue, parseLocalDateInputValue } from '../utils/dateInput';
-
-// Re-export scheduling helpers consumed by CreateModal.
-export { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from './useScheduleForm.js';
-
 // ─── Предикаты категорий ─────────────────────────────────────────────────────
 
 /** Нужно ли поле «марка и номер авто» */

@@ -1,6 +1,14 @@
 import { memo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// TODO [ВАЖНО-PERF3]: Add ReactQueryDevtools in dev mode once @tanstack/react-query-devtools is installed.
+// import { lazy, Suspense } from 'react';
+// const ReactQueryDevtools = import.meta.env.DEV
+//   ? lazy(() => import('@tanstack/react-query-devtools').then(m => ({ default: m.ReactQueryDevtools })))
+//   : null;
+// Then inside QueryClientProvider: {import.meta.env.DEV && ReactQueryDevtools && (
+//   <Suspense fallback={null}><ReactQueryDevtools initialIsOpen={false} /></Suspense>
+// )}
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
 import Login from './views/Login';
