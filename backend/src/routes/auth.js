@@ -10,6 +10,8 @@ const { normalizePhone } = require('../constants');
 const appMetrics = require('../metrics');
 const { getRedis } = require('../lib/redisClient');
 
+const { sendSms } = require('../services/smsService');
+
 const router = express.Router();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -31,6 +33,12 @@ const REFRESH_TOKEN_EXPIRES = 30 * 24 * 60 * 60 * 1000; // 30 дней в мс
 // (если он попал в лог) для аутентификации в обход хэширования.
 // Включить только на период миграции: REFRESH_LEGACY_FALLBACK_ENABLED=1
 const REFRESH_LEGACY_FALLBACK_ENABLED = process.env.REFRESH_LEGACY_FALLBACK_ENABLED === '1';
+// Auto-disable legacy fallback after migration deadline
+const REFRESH_LEGACY_DEADLINE = new Date(process.env.REFRESH_LEGACY_DEADLINE || '2026-01-01');
+const effectiveLegacyFallback = REFRESH_LEGACY_FALLBACK_ENABLED && Date.now() < REFRESH_LEGACY_DEADLINE.getTime();
+if (REFRESH_LEGACY_FALLBACK_ENABLED && !effectiveLegacyFallback) {
+  logger.warn('[auth] REFRESH_LEGACY_FALLBACK_ENABLED=1 but deadline passed — legacy fallback disabled automatically');
+}
 
 function hashRefreshToken(rawToken) {
   return CRYPTO.createHash('sha256').update(String(rawToken)).digest('hex');
@@ -72,37 +80,7 @@ async function setRefreshTokenCookie(res, uid) {
 }
 
 // normalizePhone — imported from '../constants' (единая реализация)
-
-async function sendSms(phone, code) {
-  const apiId = process.env.SMSRU_API_ID;
-  if (!apiId || apiId === 'STUB') {
-    logger.info({ phone }, '[sms] STUB mode — skipping send');
-    return;
-  }
-  const digits = phone.replace(/\D/g, '');
-
-  // FIX [SEC-5]: API ключ передаётся в теле POST-запроса, а не в URL.
-  // Ранее ключ попадал в pino-http логи (url-поле каждого запроса к sms.ru).
-  // URLSearchParams автоматически кодирует спецсимволы в теле.
-  const body = new URLSearchParams({
-    api_id: apiId,
-    to:     digits,
-    msg:    'Код входа Резиденции: ' + code,
-    json:   '1',
-  });
-
-  const res  = await fetch('https://sms.ru/sms/send', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    body.toString(),
-  });
-  const data = await res.json();
-  if (data.status !== 'OK') {
-    logger.error({ data }, '[sms] send failed');
-    throw new Error('Не удалось отправить SMS');
-  }
-  logger.info({ phone }, '[sms] sent');
-}
+// sendSms — imported from '../services/smsService' (abstraction with fallback chain)
 
 // ─── POST /api/auth/send-otp ──────────────────────────────────────────────────
 
@@ -178,7 +156,7 @@ router.post('/send-otp', async (req, res, next) => {
     //   Если sendSms падает — 100ms потрачены впустую на каждую неудавшуюся отправку.
     // СТАЛО: sendSms → hash → insert
     //   Хешируем только когда точно знаем, что SMS ушёл.
-    await sendSms(phone, code); // бросает при ошибке SMS → hash и INSERT не выполняются
+    await sendSms(phone, 'Код входа Резиденции: ' + code); // бросает при ошибке SMS → hash и INSERT не выполняются
 
     const hash = await passwordHasher.hash(code);
 
@@ -313,7 +291,7 @@ router.post('/refresh', async (req, res, next) => {
     );
 
     // Backward-compat: legacy строки со старым id=rawToken
-    if (!rows.length && REFRESH_LEGACY_FALLBACK_ENABLED) {
+    if (!rows.length && effectiveLegacyFallback) {
       const legacy = await db.query(
         `DELETE FROM refresh_tokens WHERE id=$1 AND expires_at > NOW() RETURNING uid`,
         [refreshId],

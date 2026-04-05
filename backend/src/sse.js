@@ -131,9 +131,23 @@ function broadcastBlacklistRemove(id)  { broadcastToRoles('blacklist_remove', { 
 function broadcastUserUpdate(user)     { broadcastToAll('user_update', user); }
 function broadcastUserDelete(uid)      { broadcastToAll('user_delete', { uid }); }
 
+/**
+ * closeAll — send retry hint to all SSE clients and close their connections.
+ * Called during graceful shutdown so browsers reconnect after restart.
+ */
+function closeAll() {
+  for (const set of clients.values()) {
+    for (const { res } of set) {
+      try { res.write('retry: 2000\n\n'); res.end(); } catch { /* already closed */ }
+    }
+  }
+  clients.clear();
+}
+
 module.exports = {
   clients,
   addClient, removeClient,
+  closeAll,
   broadcastRequestUpdate,
   broadcastChatMessage, broadcastChatUpdate, broadcastChatDelete,
   broadcastBlacklistAdd, broadcastBlacklistRemove,

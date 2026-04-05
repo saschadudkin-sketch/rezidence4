@@ -69,6 +69,20 @@ function validateConfig(env, prod) {
     process.exit(1);
   }
 
+  // Advisory: Redis required for correct rate limiting in multi-instance deployments
+  if (prod && !env.REDIS_URL && !env.REDIS_TLS_URL) {
+    logger.warn('[config] REDIS_URL not set in production — rate limiting uses in-memory store (unsafe for multi-instance deployments)');
+  }
+
+  // TRUST_PROXY_HOPS documentation guard
+  const hops = Number.parseInt(env.TRUST_PROXY_HOPS, 10);
+  if (prod && !Number.isNaN(hops) && hops > 3) {
+    logger.warn({ hops }, '[config] TRUST_PROXY_HOPS > 3 — verify your nginx topology. Each reverse proxy counts as one hop.');
+  }
+  if (prod && !env.TRUST_PROXY_HOPS) {
+    logger.info('[config] TRUST_PROXY_HOPS not set — defaulting to 1 hop (nginx → backend). Set explicitly if topology differs.');
+  }
+
   // Advisory warnings (non-fatal)
   if (env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
     logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
@@ -389,6 +403,23 @@ app.get('/api/metrics/prometheus', requireAuth, (req, res) => {
   res.send(lines.join('\n') + '\n');
 });
 
+// ─── GET /health — unauthenticated liveness + readiness probe ────────────────
+// Checks DB connectivity and Redis availability. Returns 200 if healthy, 503 if not.
+// Used by load balancers, container orchestrators, and uptime monitors.
+app.get('/health', async (req, res) => {
+  const checks = {};
+  try {
+    await db.query('SELECT 1');
+    checks.db = 'ok';
+  } catch { checks.db = 'error'; }
+  const redis = getRedis();
+  if (redis) {
+    try { await redis.ping(); checks.redis = 'ok'; } catch { checks.redis = 'error'; }
+  } else { checks.redis = 'unconfigured'; }
+  const healthy = checks.db === 'ok';
+  res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'error', checks, uptime: process.uptime(), ts: new Date().toISOString() });
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
@@ -427,15 +458,8 @@ async function start() {
       const { closeRedis } = require('./lib/redisClient');
       await closeRedis().catch(() => {});
 
-      // 1. Tell SSE clients to reconnect after 2 s
-      const { clients } = require('./sse');
-      if (clients) {
-        for (const set of clients.values()) {
-          for (const { res } of set) {
-            try { res.write('retry: 2000\n\n'); res.end(); } catch { /* already closed */ }
-          }
-        }
-      }
+      // 1. Tell SSE clients to reconnect after 2 s (uses closeAll from sse module)
+      try { sse.closeAll(); } catch { /* ignore */ }
 
       // 2. Stop accepting new connections
       server.close(() => {
@@ -507,6 +531,24 @@ async function start() {
       }
     }, 5 * 60 * 1000); // every 5 minutes
     expirationJob.unref(); // don't keep the process alive on shutdown
+
+    // Periodic OTP cleanup — runs every 5 minutes to remove expired codes
+    // Prevents otp_codes table from growing unboundedly
+    // appMetrics tracks: otpSendAttempts, smsFailures, sseConnectionCount (see metrics.js)
+    const OTP_CLEANUP_INTERVAL = 5 * 60 * 1000;
+    const runOtpCleanup = async () => {
+      try {
+        const { rowCount } = await db.query(
+          `DELETE FROM otp_codes WHERE expires_at < NOW() - INTERVAL '1 hour'`
+        );
+        if (rowCount > 0) logger.info({ rowCount }, '[otp-cleanup] deleted expired codes');
+      } catch (err) {
+        logger.warn({ err }, '[otp-cleanup] failed');
+      }
+    };
+    // Run immediately on startup, then every 5 minutes
+    runOtpCleanup();
+    const _otpCleanupTimer = setInterval(runOtpCleanup, OTP_CLEANUP_INTERVAL).unref();
 
   } catch (err) {
     logger.fatal({ err }, '[fatal] startup failed');

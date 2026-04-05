@@ -248,6 +248,21 @@ const MIGRATIONS = [
       await client.query(`UPDATE users SET updated_at = created_at WHERE updated_at IS NULL`);
     },
   },
+  {
+    id: '006_otp_codes_lookup_index',
+    // FIX [PERF]: composite partial index for the hot /send-otp and /verify-otp paths.
+    // Queries filter on phone + expires_at + used=FALSE; without this index PostgreSQL
+    // falls back to a seq scan on otp_codes as the table grows unboundedly.
+    // The partial predicate (WHERE used = FALSE) keeps the index small — used rows
+    // are excluded and are cleaned up by the periodic OTP cleanup job.
+    async up(client) {
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_otp_codes_lookup
+          ON otp_codes(phone, expires_at, used)
+          WHERE used = FALSE
+      `);
+    },
+  },
 ];
 
 async function migrate() {
