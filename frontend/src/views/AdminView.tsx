@@ -15,6 +15,7 @@ import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
+import PageActionBar from '../ui/PageActionBar';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { useTelemetrySla } from '../hooks/useTelemetrySla';
 import SlaDashboard from '../ui/SlaDashboard';
@@ -142,9 +143,11 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
             ))}
           </div>
         )}
-        <button className="btn-gold u-pad-icon-btn" onClick={handleOpenAdd}>
-          <span>{contractorOnly ? '+ Добавить подрядчика' : '＋ Добавить'}</span>
-        </button>
+        <PageActionBar
+          className="admin-toolbar-action"
+          primaryLabel={contractorOnly ? '+ Добавить подрядчика' : '＋ Добавить'}
+          onPrimary={handleOpenAdd}
+        />
       </div>
 
       {(query || (!contractorOnly && roleFilter !== 'all')) && (

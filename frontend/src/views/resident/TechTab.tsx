@@ -2,6 +2,7 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import { GroupedReqList } from '../../requests/ReqCard';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
+import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 
@@ -23,6 +24,11 @@ const TechTab = memo(function TechTab({
 
   return (
     <>
+      <PageActionBar
+        className="u-mb12"
+        primaryLabel="Создать техзаявку"
+        onPrimary={() => setModal({ type: 'tech', cat: 'electrician' })}
+      />
       <div className="type-grid">
         {[['electrician','alert','Электрик'],['plumber','tools','Сантехник']].map(([k, iconName, l]) => (
           <button key={k} type="button" className="type-card"

@@ -9,6 +9,15 @@
  *   theme.css        ← components + features
  */
 
+@custom-media --bp-sm-down (max-width: 480px);
+@custom-media --bp-sm-up (min-width: 480px);
+@custom-media --bp-md-down (max-width: 768px);
+@custom-media --bp-lg-down (max-width: 1024px);
+@custom-media --bp-md-up (min-width: 768px);
+@custom-media --bp-lg-up (min-width: 1024px);
+@custom-media --bp-xl-up (min-width: 1280px);
+@custom-media --bp-2xl-up (min-width: 1536px);
+
 :root {
   /* ── Цвета статусов и типов ──────────────────────── */
   --clr-scheduled: #5B3A9B;
@@ -119,13 +128,8 @@
    * CSS custom properties CANNOT be used in @media queries (spec limitation).
    * The numeric values below document intent — use them literally in @media rules.
    *
-   * TODO (ЖЕЛАТ-R1): Migrate to PostCSS custom-media plugin to prevent breakpoint drift:
-   *   npm i -D postcss-custom-media
-   *   Then use: @custom-media --bp-md (min-width:768px);
-   *             @media (--bp-md) { ... }
-   * This ensures breakpoint changes propagate everywhere automatically.
-   *
-   * Until then: use ONLY these exact pixel values in @media rules across all CSS files.
+   * Breakpoint rules are defined via @custom-media aliases above.
+   * Use ONLY aliases in component styles and avoid literal pixel breakpoints.
    *   480px  = --bp-sm   (large mobile)
    *   768px  = --bp-md   (tablet portrait) ← most common breakpoint
    *  1024px  = --bp-lg   (tablet landscape)
