@@ -31,10 +31,10 @@
 .tn-btn.active{color:var(--g2);border-bottom-color:var(--g1);font-weight:500;background:var(--g-bg)}
 .tn-icon{font-size:var(--fs-md);line-height:1}
 .tn-badge{
-  /* FIX [I-3]: use CSS token instead of hardcoded hex */
-  background:var(--err-t);color:#fff;
-  font-size:var(--fs-2xs);font-weight:700;
-  min-width:15px;height:15px;border-radius:8px;
+  background:color-mix(in srgb, var(--err-t) 84%, transparent);
+  color:#fff;
+  font-size:10px;font-weight:700;
+  min-width:14px;height:14px;border-radius:7px;
   display:flex;align-items:center;justify-content:center;padding:0 3px;
 }
 .tn-btn.blink{color:var(--err-t)}
@@ -133,12 +133,12 @@
 }
 .mn-badge{
   position:absolute;top:5px;right:calc(50% - 16px);
-  min-width:16px;height:16px;border-radius:8px;
+  min-width:14px;height:14px;border-radius:7px;
   padding:0 4px;
   display:flex;align-items:center;justify-content:center;
-  font-size:var(--fs-3xs);font-weight:700;line-height:1;
-  /* FIX [I-3]: use CSS token instead of hardcoded hex */
-  background:var(--err-t);color:#fff;border:1.5px solid var(--s0);
+  font-size:10px;font-weight:700;line-height:1;
+  background:color-mix(in srgb, var(--err-t) 84%, transparent);
+  color:#fff;border:1px solid var(--s0);
 }
 
 /* ── P-02/R-01: Mobile "More" drawer ── */
@@ -170,4 +170,3 @@
 .mn-more-item.active .mn-icon,.mn-more-item[aria-current='page'] .mn-icon{color:var(--g2)}
 .mn-more-label{flex:1}
 .mn-more-item .mn-badge{position:static;margin-left:auto}
-
