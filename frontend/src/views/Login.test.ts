@@ -71,12 +71,12 @@ describe('Login — шаг phone', () => {
     });
   });
 
-  test.skip('live: при вводе валидного номера переходит на шаг OTP', async () => {
+  test('live: при вводе валидного номера переходит на шаг OTP', async () => {
     services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={vi.fn()} />);
     const input = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(input, { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     expect(await screen.findByPlaceholderText('• • • • • •')).toBeInTheDocument();
   });
 });
@@ -91,47 +91,46 @@ async function goToOtpStep() {
     await screen.findByPlaceholderText('• • • • • •');
   }
 
-  test.skip('показывает поле для кода', async () => {
+  test('показывает поле для кода', async () => {
     await goToOtpStep();
     expect(screen.getByPlaceholderText('• • • • • •')).toBeInTheDocument();
   });
 
-  test.skip('показывает ошибку при коде < 6 символов', async () => {
+  test('показывает ошибку при коде < 6 символов', async () => {
     const onLogin = vi.fn();
     services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     render(<Login onLogin={onLogin} />);
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     await screen.findByPlaceholderText('• • • • • •');
 
     const otpInput = screen.getByPlaceholderText('• • • • • •');
     fireEvent.change(otpInput, { target: { value: '12' } });
-    fireEvent.click(screen.getByText('Войти'));
+    fireEvent.click(screen.getByRole('button', { name: /^войти$/i }));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Введите код из SMS', 'error');
     });
   });
 
-  test.skip('live: verifyOtp с кодом 6 символов вызывает onLogin', async () => {
+  test('live: verifyOtp с кодом 6 символов вызывает onLogin', async () => {
     const onLogin = vi.fn();
     services.auth.sendOtp.mockResolvedValueOnce({ ok: true });
     services.auth.verifyOtp.mockResolvedValueOnce({ uid: 'u1', role: 'owner' });
     render(<Login onLogin={onLogin} />);
     const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
     fireEvent.change(phoneInput, { target: { value: '+7 916 123-45-67' } });
-    fireEvent.click(screen.getByText('Получить SMS-код'));
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     await screen.findByPlaceholderText('• • • • • •');
 
     const otpInput = screen.getByPlaceholderText('• • • • • •');
     fireEvent.change(otpInput, { target: { value: '123456' } });
-    fireEvent.click(screen.getByText('Войти'));
     await waitFor(() => expect(onLogin).toHaveBeenCalledTimes(1));
 
     expect(onLogin.mock.calls[0][0]).toMatchObject({ uid: 'u1' });
   });
 
-  test.skip('кнопка "Изменить номер" возвращает на шаг phone', async () => {
+  test('кнопка "Изменить номер" возвращает на шаг phone', async () => {
     await goToOtpStep();
     fireEvent.click(screen.getByText('← Изменить номер'));
     expect(screen.getByPlaceholderText('+7 000 000-00-00')).toBeInTheDocument();

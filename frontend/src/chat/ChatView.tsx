@@ -119,6 +119,7 @@ export function ChatView({ user }) {
   const [hasMore, setHasMore]             = useState(false);
   const [loadingOlder, setLoadingOlder]   = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const [initialHistoryError, setInitialHistoryError] = useState('');
   // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
   const [serverSearchResults, setServerSearchResults] = useState(null);
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
@@ -252,17 +253,23 @@ export function ChatView({ user }) {
   // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
   // но setAllMessages принимает только массив сообщений.
   // Решение: при первом монтировании в live-режиме запрашиваем чат напрямую и берём hasMore.
-  useEffect(() => {
+  const syncHasMoreMeta = useCallback(async () => {
     if (!isLiveMode()) return;
+    setInitialHistoryError('');
+    const data = await services.chat.getMessages({ limit: 60 });
+    setHasMore(data?.hasMore ?? false);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
-    services.chat.getMessages({ limit: 60 })
-      .then(data => {
+    syncHasMoreMeta()
+      .catch(() => {
         if (cancelled) return;
-        setHasMore(data?.hasMore ?? false);
-      })
-      .catch(() => {});
+        setInitialHistoryError('Не удалось загрузить состояние истории чата');
+        toast('Ошибка синхронизации истории чата', 'error');
+      });
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- только при mount
+  }, [syncHasMoreMeta]);
 
   // FIX: Ref для popup — закрытие по клику вне меню
   const menuPopupRef = useRef(null);
@@ -504,6 +511,21 @@ export function ChatView({ user }) {
             subtitle={serverSearchError}
             actionLabel="Повторить"
             onAction={() => setSearchRetryTick(v => v + 1)}
+          />
+        )}
+        {initialHistoryError && !hasMore && (
+          <StateBlock
+            type="error"
+            title="История чата временно недоступна"
+            subtitle={initialHistoryError}
+            actionLabel="Повторить"
+            onAction={() => {
+              syncHasMoreMeta()
+                .catch(() => {
+                  setInitialHistoryError('Не удалось загрузить состояние истории чата');
+                  toast('Ошибка синхронизации истории чата', 'error');
+                });
+            }}
           />
         )}
         {filteredChat.length === 0 && !serverSearchLoading && (
