@@ -19,7 +19,12 @@ input,select,textarea{font-size:16px!important;-webkit-appearance:none;appearanc
    :focus:not(:focus-visible) скрывает ring при клике мышью/тачем.
    Это spec-compliant замена паттерна *:focus{outline:none} + *:focus-visible{...}. */
 :focus:not(:focus-visible){outline:none}
-:focus-visible{outline:2px solid var(--g1);outline-offset:2px;border-radius:var(--r)}
+:focus-visible{
+  outline:2px solid var(--g2);
+  outline-offset:2px;
+  border-radius:var(--r);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--g2) 22%, transparent);
+}
 
 html{height:100%;-webkit-text-size-adjust:100%}
 body{

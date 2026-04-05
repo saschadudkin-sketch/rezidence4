@@ -1,4 +1,5 @@
 // @ts-check
+import { ROLE_MANIFEST } from './roleManifest';
 /**
  * domain/permissions.js — Permission Engine
  *
@@ -165,12 +166,12 @@ export const canViewPerms = (user, targetUid) =>
 // ─── Доступ к экранaм (route/feature guard) ─────────────────────────────────
 
 export const ALLOWED_TABS_BY_ROLE = {
-  [ROLES.OWNER]:      ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
-  [ROLES.TENANT]:     ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
-  [ROLES.CONTRACTOR]: ['passes', 'tech', 'perms', 'templates', 'history', 'chat'],
-  [ROLES.CONCIERGE]:  ['passes', 'residents', 'visitlog', 'blacklist', 'chat'],
-  [ROLES.SECURITY]:   ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat'],
-  [ROLES.ADMIN]:      ['stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat'],
+  [ROLES.OWNER]:      ROLE_MANIFEST.owner.tabs,
+  [ROLES.TENANT]:     ROLE_MANIFEST.tenant.tabs,
+  [ROLES.CONTRACTOR]: ROLE_MANIFEST.contractor.tabs,
+  [ROLES.CONCIERGE]:  ROLE_MANIFEST.concierge.tabs,
+  [ROLES.SECURITY]:   ROLE_MANIFEST.security.tabs,
+  [ROLES.ADMIN]:      ROLE_MANIFEST.admin.tabs,
 };
 
 export const getTabsForRole = (role) => ALLOWED_TABS_BY_ROLE[role] || [];

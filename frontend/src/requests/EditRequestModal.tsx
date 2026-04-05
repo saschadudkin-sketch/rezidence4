@@ -6,6 +6,7 @@ import { toast } from '../ui/Toasts';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
 
 export function EditRequestModal({ req, onClose, onDone }) {
   const [vName,    setVName]    = useState(req.visitorName  || '');
@@ -14,6 +15,7 @@ export function EditRequestModal({ req, onClose, onDone }) {
   const [comment,  setComment]  = useState(req.comment      || '');
   const [loading,  setLoading]  = useState(false);
   const { updateRequest } = useActions();
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   // FIX [BUG-22]: isMountedRef — если пользователь закрыл модал пока запрос летел,
   // setLoading(false) вызывался на размонтированном компоненте.
@@ -52,8 +54,8 @@ export function EditRequestModal({ req, onClose, onDone }) {
   const needsPlate = ['taxi', 'car', 'master', 'delivery'].includes(req.category);
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <div>

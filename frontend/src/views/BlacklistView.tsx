@@ -5,6 +5,7 @@ import { genId } from '../utils';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 export default function BlacklistView({ user }) {
   const blacklist = useBlacklist();
@@ -16,6 +17,7 @@ export default function BlacklistView({ user }) {
   const [query, setQuery]     = useState('');
   const debouncedQuery = useDebounce(query, 250);
   const q = debouncedQuery.trim().toLowerCase();
+  const emptyCopy = getViewStateCopy('blacklist', 'empty');
 
   // FIX [PERF]: filtered мемоизирован — без useMemo пересчитывается при каждом рендере
   const filtered = useMemo(() =>
@@ -87,8 +89,8 @@ export default function BlacklistView({ user }) {
       {filtered.length === 0 && (
         <StateBlock
           type="empty"
-          title={q ? 'Ничего не найдено' : 'Список пуст'}
-          subtitle={q ? 'Попробуйте другой запрос' : 'Нажмите «+ Добавить» чтобы внести запись'}
+          title={q ? 'Ничего не найдено' : emptyCopy.title}
+          subtitle={q ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
         />
       )}
 

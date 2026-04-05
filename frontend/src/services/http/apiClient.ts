@@ -10,7 +10,8 @@ import { getCsrfToken, makeRequestId } from './requestIdentity';
 import { createAuthSession } from './authSession';
 import { createUploadClient } from './uploadClient';
 // A-01: use centralized event registry instead of magic string
-import { emitUnauthorized } from '../../utils/events';
+import { emitUnauthorized, emitSessionExpired } from '../../utils/events';
+import { classifyHttpError } from './errorTaxonomy';
 
 const BASE_URL = API_BASE_URL;
 
@@ -56,10 +57,15 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         if (refreshed) continue;
 
         // A-01: use typed emitter from centralized event registry
+        const returnTo = typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : '/dashboard';
+        emitSessionExpired({ reason: 'refresh_failed', returnTo });
         emitUnauthorized();
         // T-05: use error code instead of string matching for reliable catch
         const sessionErr = new Error('Сессия истекла. Войдите снова.');
         sessionErr.code = 'SESSION_EXPIRED';
+        sessionErr.kind = classifyHttpError(401, sessionErr.message);
         throw sessionErr;
       }
 
@@ -68,6 +74,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         const err = new Error('Недостаточно прав для выполнения этого действия');
         err.status = 403;
         err.forbidden = true;
+        err.kind = classifyHttpError(403, err.message);
         throw err;
       }
 
@@ -75,6 +82,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         const err = await res.json().catch(() => ({ error: res.statusText }));
         const error = new Error(err.error || `HTTP ${res.status}`);
         error.status = res.status;
+        error.kind = classifyHttpError(res.status, error.message);
 
         if (NO_RETRY_STATUSES.has(res.status)) throw error;
 
@@ -86,6 +94,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       authSession.markHealthy();
       return parseApiResponse(res);
     } catch (err) {
+      err.kind = err.kind || classifyHttpError(err.status, err.message);
       if (err.status && NO_RETRY_STATUSES.has(err.status)) throw err;
       // T-05: error code check — robust against message text changes/translations
       if (err.code === 'SESSION_EXPIRED') throw err;

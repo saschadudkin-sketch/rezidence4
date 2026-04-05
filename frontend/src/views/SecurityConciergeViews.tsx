@@ -18,6 +18,7 @@ import { AppIcon } from '../ui/AppIcon.jsx';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
 import SectionHeader from '../ui/SectionHeader.jsx';
+import { getViewStateCopy } from '../ui/viewStateContract';
 // FIX [C-2]: Виртуализация списков заявок — при 500+ заявок без VirtualList
 // рендерится полный DOM, что вызывает freeze UI на слабых устройствах охраны.
 import { VirtualList } from '../ui/VirtualList.jsx';
@@ -53,6 +54,8 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
     () => sortReqs(filterByPeriod(requests.filter(isTechRequest), 'all').filter(matchQ)),
     [requests, matchQ]
   );
+  const passesEmptyCopy = getViewStateCopy('security_passes', 'empty');
+  const techEmptyCopy = getViewStateCopy('security_tech', 'empty');
 
   const pIcons = [['guest', 'users', 'Гость'], ['courier', 'file', 'Курьер'], ['taxi', 'car', 'Такси'], ['car', 'car', 'Авто'], ['master', 'tools', 'Мастер']];
 
@@ -100,8 +103,8 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       {showAll && allP.length === 0 && (
         <StateBlock
           type="empty"
-          title="Пропусков нет"
-          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки на пропуск не найдены'}
+          title={debouncedQuery ? 'Ничего не найдено' : passesEmptyCopy.title}
+          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : passesEmptyCopy.subtitle}
         />
       )}
     </>)}
@@ -139,8 +142,8 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       {allT.length === 0 && (
         <StateBlock
           type="empty"
-          title="Техзаявок нет"
-          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : 'Заявки в техслужбу не найдены'}
+          title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
+          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : techEmptyCopy.subtitle}
         />
       )}
     </>)}
@@ -184,6 +187,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
   [users]);
 
   const q = debouncedQuery.trim().toLowerCase();
+  const permsEmptyCopy = getViewStateCopy('security_perms', 'empty');
 
   const residentItems = useMemo(() => {
     const matchRes  = u    => !q || u.apartment.toLowerCase().includes(q) || u.name.toLowerCase().includes(q);
@@ -216,8 +220,8 @@ const SecurityPermsList = memo(function SecurityPermsList() {
       {residentItems.length === 0 && (
         <StateBlock
           type="empty"
-          title={q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}
-          subtitle={q ? 'Попробуйте другой запрос' : 'Резиденты ещё не добавили постоянных ' + (tab === 'visitors' ? 'посетителей' : 'рабочих')}
+          title={q ? 'Ничего не найдено' : permsEmptyCopy.title}
+          subtitle={q ? 'Попробуйте другой запрос' : permsEmptyCopy.subtitle}
         />
       )}
       {residentItems.map(({ u, list }) => {
@@ -273,6 +277,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
 
   const pendingPassCount = useMemo(() => requests.filter(r => r.type === 'pass' && r.status === 'pending').length, [requests]);
   const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
+  const requestsEmptyCopy = getViewStateCopy('requests', 'empty');
 
   const shown = useMemo(() => {
     // FIX [I-1]: убран первый sortReqs — фильтрация не нарушает порядок,
@@ -342,8 +347,8 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
       {shown.length === 0
         ? <StateBlock
             type="empty"
-            title={query ? 'Ничего не найдено' : 'Заявок нет'}
-            subtitle={query ? 'Попробуйте другой запрос' : 'Нет активных заявок за выбранный период'}
+            title={query ? 'Ничего не найдено' : requestsEmptyCopy.title}
+            subtitle={query ? 'Попробуйте другой запрос' : requestsEmptyCopy.subtitle}
           />
         : (
           // FIX [C-2]: VirtualList — при 500+ заявок охраны рендерится только

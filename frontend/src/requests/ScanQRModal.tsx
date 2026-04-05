@@ -10,6 +10,7 @@ import { getScanDecision } from '../domain/scanDecision';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
 
 /**
  * ScanQRModal — сканер QR-кода для охраны.
@@ -28,6 +29,7 @@ export function ScanQRModal({ user, onClose }) {
   const [camError, setCamError]     = useState(false);
   const [camReady, setCamReady]     = useState(false);
   const videoRef    = useRef(null);
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const streamRef   = useRef(null);
   const scanRef     = useRef(null);
   const foundRef    = useRef(false);
@@ -127,14 +129,11 @@ export function ScanQRModal({ user, onClose }) {
 
   useEffect(() => {
     lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
     return () => {
       unlockScroll();
       stopCamera();
-      document.removeEventListener('keydown', onKey);
     };
-  }, [stopCamera, onClose]);
+  }, [stopCamera]);
 
   // Запускаем камеру
   useEffect(() => {
@@ -291,8 +290,8 @@ export function ScanQRModal({ user, onClose }) {
         : 'alert';
 
   return createPortal(
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <span className="modal-title">{scanning ? 'Сканировать QR' : 'Результат проверки'}</span>

@@ -5,7 +5,7 @@ import { logger } from '../services/logger';
 import { useNewRequestNotifier } from './useNewRequestNotifier';
 import { useStatusChangeNotifier } from './useStatusChangeNotifier';
 // A-01: use centralized event registry instead of magic string literals
-import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity } from '../utils/events.js';
+import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity, onRealtimeState } from '../utils/events.js';
 // FIX [C-1]: sendNotif was called but not imported → ReferenceError on every incoming chat message
 import { sendNotif } from '../utils.js';
 
@@ -33,7 +33,10 @@ export function useLiveSync(user, {
     // A-01: use typed helpers from centralized event registry
     const cleanupStatus   = onSseStatus(({ connected }) => setSseOnline(connected));
     const cleanupPermanent = onSsePermanentError(() => setSsePermanentError(true));
-    return () => { cleanupStatus(); cleanupPermanent(); };
+    const cleanupRealtime = onRealtimeState(({ from, to, durationMs }) => {
+      logger.info('[realtime-state]', { from, to, durationMs });
+    });
+    return () => { cleanupStatus(); cleanupPermanent(); cleanupRealtime(); };
   }, []);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта

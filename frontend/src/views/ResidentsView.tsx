@@ -6,6 +6,8 @@ import { AppIcon } from '../ui/AppIcon';
 import { isResident, ROLES } from '../domain/permissions';
 import GarageView from './GarageView';
 import SectionHeader from '../ui/SectionHeader';
+import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 /**
  * ResidentsView — справочник жильцов для охраны и консьержа.
@@ -19,6 +21,7 @@ export default function ResidentsView({ user }) {
   const [query, setQuery] = useState('');
   const dq = useDebounce(query, 200);
   const [expandedApt, setExpandedApt] = useState(null);
+  const emptyCopy = getViewStateCopy('residents', 'empty');
 
   // Группируем жильцов по апартаментам
   const aptGroups = useMemo(() => {
@@ -88,11 +91,7 @@ export default function ResidentsView({ user }) {
 
       {/* Список апартаментов */}
       {filtered.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-icon"><AppIcon name="residents" size={28} /></div>
-          <div className="empty-title">Ничего не найдено</div>
-          <div className="empty-sub">Попробуйте другой запрос</div>
-        </div>
+        <StateBlock type="empty" title={emptyCopy.title} subtitle={emptyCopy.subtitle} />
       )}
 
       <div className="apt-list">

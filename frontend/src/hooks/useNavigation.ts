@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions';
 import { canAccessTab, getTabsForRole } from '../domain/permissions';
+import { getRoleManifest } from '../domain/roleManifest';
+import { STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
 /**
  * useNavigation — URL-based tab navigation (UX-001).
@@ -15,10 +17,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const defaultTab = {
-    owner: 'passes', tenant: 'passes', contractor: 'passes',
-    concierge: 'passes', security: 'guardpost', admin: 'stats',
-  }[user.role] || 'passes';
+  const defaultTab = getRoleManifest(user.role).defaultTab;
 
   // Извлекаем таб из URL: /dashboard/passes → 'passes'
   const getTabFromPath = (pathname) => {
@@ -75,11 +74,9 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const goTab = useCallback((k) => {
     if (!canAccessTab(user.role, k)) return;
     if (k === 'passes' && !canManageRequests(user.role)) {
-      try {
-        localStorage.setItem('rz-passes-seen', Date.now().toString());
-        // BUG-16: storage event не стреляет в той же вкладке — уведомляем явно
-        onPassesSeen?.();
-      } catch { /* quota */ }
+      writeStorage(STORAGE_KEYS.PASSES_SEEN_AT, Date.now().toString());
+      // BUG-16: storage event не стреляет в той же вкладке — уведомляем явно
+      onPassesSeen?.();
     }
     if (k === 'chat') markChatSeen(user.uid);
     setActiveTab(k);

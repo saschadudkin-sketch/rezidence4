@@ -5,7 +5,8 @@ import { toast } from '../ui/Toasts';
 import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
 // A-01: use centralized event registry instead of magic string
-import { onUnauthorized } from '../utils/events';
+import { onSessionExpired, onUnauthorized } from '../utils/events';
+import { clearAppStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
 // ─── Security model ──────────────────────────────────────────────────────────
 // SEC: JWT stored in HttpOnly cookie (not accessible to JS).
@@ -30,6 +31,7 @@ export const PHASE = {
 export function useAuth() {
   const [phase, setPhase] = useState(PHASE.LOADING);
   const [user,  setUser]  = useState(null);
+  const [authNotice, setAuthNotice] = useState('');
 
   useEffect(() => {
     if (isLiveMode()) {
@@ -63,6 +65,11 @@ export function useAuth() {
     setUser(null);
     setPhase(PHASE.LOGIN);
   }), []);
+  useEffect(() => onSessionExpired((detail) => {
+    if (detail?.returnTo) writeStorage(STORAGE_KEYS.RETURN_TO, detail.returnTo);
+    const reasonLabel = detail?.reason === 'refresh_failed' ? 'время входа истекло' : 'сессия завершена';
+    setAuthNotice(`Сессия истекла (${reasonLabel}). Войдите снова — мы восстановим ваш последний экран.`);
+  }), []);
 
   const login = useCallback((u) => {
     if (!u || !u.uid) {
@@ -72,6 +79,7 @@ export function useAuth() {
     }
     setUser(u);
     setPhase(PHASE.DASHBOARD);
+    setAuthNotice('');
     toast('Добро пожаловать, ' + u.name + '!', 'success');
     // FIX [I-19]: defer push notification permission request by 30s after login
     // so the browser dialog appears after the user has seen value, not on first render.
@@ -85,6 +93,7 @@ export function useAuth() {
     logger.clearContext();
     setUser(null);
     setPhase(PHASE.LOGIN);
+    setAuthNotice('');
     // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
@@ -92,15 +101,9 @@ export function useAuth() {
     } else {
       // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
       // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)
-      try {
-        for (const key of Object.keys(localStorage)) {
-          if (key.startsWith('rz:') || key.startsWith('rz-') || key.startsWith('residenze_v5')) {
-            localStorage.removeItem(key);
-          }
-        }
-      } catch { /* ignore — localStorage может быть недоступен */ }
+      clearAppStorage();
     }
   }, []);
 
-  return { phase, user, login, logout };
+  return { phase, user, login, logout, authNotice };
 }

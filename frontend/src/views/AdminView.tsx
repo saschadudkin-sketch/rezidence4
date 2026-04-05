@@ -15,6 +15,9 @@ import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
+import { getViewStateCopy } from '../ui/viewStateContract';
+import { useTelemetrySla } from '../hooks/useTelemetrySla';
+import SlaDashboard from '../ui/SlaDashboard';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -31,6 +34,7 @@ function StatCardSkeleton() {
 
 // FIX [PERF]: memo — не ре-рендерится при смене activeTab если allUsers/requests не изменились
 const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }) {
+  const sla = useTelemetrySla();
   // FIX [PERF]: stats и roleCount мемоизированы — не пересчитываются при несвязанных ре-рендерах
   const { stats, roleCount } = useMemo(() => {
     // FIX [PERF]: todayTs — числовая метка, не объект Date — избегаем new Date() в каждом filter
@@ -73,6 +77,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
           </div>
         ))}
       </div>
+      <SlaDashboard snapshot={sla} />
       <SectionHeader title="Распределение по ролям" />
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
@@ -116,6 +121,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
   }), [allUsers, q, roleFilter, contractorOnly]);
 
   const ROLE_FILTERS = [['all','Все'],['owner','Собств.'],['tenant','Аренд.'],['contractor','Подряд.'],['concierge','Консьерж'],['security','Охрана'],['admin','Админ']];
+  const usersEmptyCopy = getViewStateCopy('admin_users', 'empty');
 
   function handleOpenAdd() { setAddModal(true); }
   function handleCloseAdd() { setAddModal(false); }
@@ -147,8 +153,8 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
       {filtered.length === 0 && (
         <StateBlock
           type="empty"
-          title={query ? 'Ничего не найдено' : contractorOnly ? 'Подрядчиков нет' : 'Пользователей нет'}
-          subtitle={contractorOnly && !query ? 'Нажмите «+ Добавить подрядчика»' : (query ? 'Попробуйте изменить запрос' : undefined)}
+          title={query ? 'Ничего не найдено' : usersEmptyCopy.title}
+          subtitle={query ? 'Попробуйте изменить запрос' : (contractorOnly ? 'Нажмите «+ Добавить подрядчика»' : usersEmptyCopy.subtitle)}
         />
       )}
       <div>{filtered.map(u => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />)}</div>
@@ -175,6 +181,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     const ms = reqStatus === 'all' || r.status === reqStatus;
     return mq && mt && ms;
   }), [requests, reqPeriod, rq, reqType, reqStatus]);
+  const requestsEmptyCopy = getViewStateCopy('admin_requests', 'empty');
 
   return (
     <>
@@ -199,7 +206,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
           ))}
         </div>
       </div>
-      {filtered.length === 0 && <StateBlock type="empty" title="Заявок нет" subtitle="Измените фильтры или период поиска" />}
+      {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
       <div>{filtered.map(r => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />)}</div>
     </>
   );

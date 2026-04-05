@@ -39,9 +39,13 @@ import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 // A-01: use centralized event registry
 import { onSseForceReconnect } from '../utils/events';
+import StateBlock from '../ui/StateBlock';
+import { getRoleManifest } from '../domain/roleManifest';
+import { onboardingKey, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { getViewStateCopy } from '../ui/viewStateContract';
+import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
 
-const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
 function DemoBanner({ onClose }) {
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
@@ -60,7 +64,6 @@ function DemoBanner({ onClose }) {
 
 // P-06: Role-based onboarding hints — shown once per role on first login.
 // Dismissed permanently per role using localStorage.
-const ONBOARDING_HINT_KEY = (role) => `rz:onboarding-seen:${role}`;
 const ONBOARDING_HINTS = {
   [ROLES.OWNER]:       'Нажмите «+» чтобы создать пропуск для гостя, курьера или подрядчика. Пропуска появятся у охраны автоматически.',
   [ROLES.TENANT]:      'Создайте пропуск для гостя или мастера — охрана получит уведомление мгновенно.',
@@ -84,22 +87,12 @@ function OnboardingHint({ role, onClose }) {
   );
 }
 
-const PAGE_TITLES = {
-  owner: 'Добро пожаловать', tenant: 'Добро пожаловать',
-  contractor: 'Панель подрядчика', concierge: 'Рабочее место',
-  security: 'Пост охраны', admin: 'Управление',
-};
 const TAB_TITLES = {
   passes: 'Пропуска', tech: 'Техслужба', perms: 'Постоянный список',
   templates: 'Шаблоны', history: 'История', chat: 'Чат',
   visitlog: 'Журнал посещений', residents: 'Жильцы', blacklist: 'Чёрный список',
   guardpost: 'Пост охраны', stats: 'Аналитика', requests: 'Заявки', users: 'Резиденты',
 };
-const PAGE_SUBTITLES = {
-  contractor: 'Управление пропусками', concierge: 'Контроль и координация',
-  security: 'Контроль доступа', admin: 'Резиденции Замоскворечья',
-};
-
 export default function Dashboard({ user, onLogout, isOnline = true }) {
   const requests  = useRequests();
   const blacklist = useBlacklist();
@@ -118,19 +111,19 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
 
   
   const [showDemoBanner, setShowDemoBanner] = useState(() =>
-    isDemoMode() && !localStorage.getItem(DEMO_WELCOME_KEY)
+    isDemoMode() && !readStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN)
   );
   const dismissDemoBanner = () => {
-    localStorage.setItem(DEMO_WELCOME_KEY, '1');
+    writeStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN, '1');
     setShowDemoBanner(false);
   };
 
   // P-06: role-based onboarding hint — shown once per role, dismissed to localStorage
   const [showOnboarding, setShowOnboarding] = useState(() =>
-    !localStorage.getItem(ONBOARDING_HINT_KEY(user.role))
+    !readStorage(onboardingKey(user.role))
   );
   const dismissOnboarding = () => {
-    localStorage.setItem(ONBOARDING_HINT_KEY(user.role), '1');
+    writeStorage(onboardingKey(user.role), '1');
     setShowOnboarding(false);
   };
 
@@ -153,6 +146,9 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   });
   // CQ-03: connection state logic in its own hook — Dashboard stays a thin coordinator
   const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(liveSync, { retryKey, setRetryKey });
+  const requestsErrorCopy = getViewStateCopy('requests', 'error');
+  const [viewReadyEmitted, setViewReadyEmitted] = useState(false);
+
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -160,6 +156,12 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
 
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
+
+  useEffect(() => {
+    if (viewReadyEmitted || isLoading || isConnErr) return;
+    emitUxMetric(UX_METRICS.VIEW_READY, { role: user.role, tab: activeTab });
+    setViewReadyEmitted(true);
+  }, [viewReadyEmitted, isLoading, isConnErr, user.role, activeTab]);
 
   // Navigation items и CSS-классы вычисляются через domain/navigation.js.
   // Логика вынесена из компонента — тестируема без React, Dashboard остаётся тонким координатором.
@@ -172,21 +174,23 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   // NavigationShell ожидает nav как массив [tab, icon, label, badge]
   const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
 
-  const pageTitle = TAB_TITLES[activeTab] || PAGE_TITLES[user.role];
+  const roleManifest = getRoleManifest(user.role);
+  const pageTitle = TAB_TITLES[activeTab] || roleManifest.pageTitle;
   const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
     ? 'Апартаменты ' + user.apartment
-    : (PAGE_SUBTITLES[user.role] || '');
+    : (roleManifest.pageSubtitle || '');
 
   if (isConnErr) {
     return (
       <div className="screen-loading">
         <div className="screen-loading-inner">
-          <div className="screen-loading-spinner"><AppIcon name="ban" size={28} /></div>
-          <div className="screen-loading-label">Не удалось подключиться к серверу</div>
-          <div className="screen-loading-sub">Проверьте соединение и попробуйте снова</div>
-          <button className="btn-outline screen-loading-retry" onClick={handleRetry}>
-            Попробовать снова
-          </button>
+          <StateBlock
+            type="error"
+            title={requestsErrorCopy.title}
+            subtitle={requestsErrorCopy.subtitle}
+            actionLabel="Попробовать снова"
+            onAction={handleRetry}
+          />
         </div>
       </div>
     );

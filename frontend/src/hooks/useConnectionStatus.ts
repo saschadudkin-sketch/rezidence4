@@ -14,6 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/limits';
+import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
 /**
  * @param {{ isLoading: boolean, sseOnline: boolean|null, ssePermanentError: boolean }} liveSync
@@ -21,19 +22,33 @@ import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/lim
  */
 export function useConnectionStatus({ isLoading: syncLoading, sseOnline, ssePermanentError }, { retryKey, setRetryKey }) {
   const [timedOut, setTimedOut] = useState(false);
+  const [retryStartedAt, setRetryStartedAt] = useState(0);
 
   useEffect(() => {
     if (!syncLoading) { setTimedOut(false); return; }
     const t = setTimeout(
-      () => setTimedOut(true),
+      () => {
+        setTimedOut(true);
+        emitUxMetric(UX_METRICS.CONNECTION_TIMEOUT, { retryKey });
+      },
       retryKey === 0 ? FIRST_CONNECT_TIMEOUT_MS : RECONNECT_TIMEOUT_MS,
     );
     return () => clearTimeout(t);
   }, [syncLoading, retryKey]);
 
+  useEffect(() => {
+    if (!retryStartedAt || syncLoading || sseOnline !== true) return;
+    emitUxMetric(UX_METRICS.SSE_RECONNECT_MS, { durationMs: Date.now() - retryStartedAt, retryKey });
+    setRetryStartedAt(0);
+  }, [retryStartedAt, syncLoading, sseOnline, retryKey]);
+
   const isLoading  = syncLoading && !timedOut;
   const isConnErr  = (syncLoading && timedOut) || ssePermanentError;
-  const handleRetry = () => { setTimedOut(false); setRetryKey(k => k + 1); };
+  const handleRetry = () => {
+    setTimedOut(false);
+    setRetryStartedAt(Date.now());
+    setRetryKey(k => k + 1);
+  };
 
   return { isLoading, isConnErr, sseOnline, handleRetry };
 }

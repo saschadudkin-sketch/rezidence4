@@ -4,6 +4,7 @@ import { useUsers, useAllGarage } from '../store/AppStore';
 import { isResident } from '../domain/permissions';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { AppIcon } from '../ui/AppIcon';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
 
 /**
  * CarSearchModal — быстрый поиск авто по номеру.
@@ -13,13 +14,12 @@ export function CarSearchModal({ onClose }) {
   const { users }   = useUsers();
   const garage = useAllGarage();
   const [query, setQuery] = useState('');
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   useEffect(() => {
     lockScroll();
-    const onKey = e => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => { unlockScroll(); document.removeEventListener('keydown', onKey); };
-  }, [onClose]);
+    return () => { unlockScroll(); };
+  }, []);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -38,8 +38,8 @@ export function CarSearchModal({ onClose }) {
   }, [query, users, garage]);
 
   return createPortal(
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+    <div className="overlay" {...overlayProps}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <span className="modal-title"><AppIcon name="car" size={16} /> Поиск по номеру авто</span>

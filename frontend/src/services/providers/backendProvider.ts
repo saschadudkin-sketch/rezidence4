@@ -10,9 +10,12 @@ import apiClient from './apiClient';
 import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
+import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
+import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
+  const realtimeState = createRealtimeStateMachine();
   let abortController = null;
   let reconnectTimer  = null;
   let isConnected     = false;  // explicit live-connection flag
@@ -45,6 +48,7 @@ function createSSEManager() {
 
     currentUid  = uid;
     isConnected = true;
+    realtimeState.transition(REALTIME_STATES.CONNECTING);
 
     abortController = new AbortController();
     const signal    = abortController.signal;
@@ -65,7 +69,8 @@ function createSSEManager() {
       _reconnectDelay = _RECONNECT_MIN;
       _retryCount = 0;
       // FA-07: уведомляем React о восстановлении SSE-соединения
-      window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: true } }));
+      emitSseStatus({ connected: true });
+      realtimeState.transition(REALTIME_STATES.LIVE);
 
       const reader  = response.body.getReader();
       const decoder = new TextDecoder();
@@ -92,7 +97,7 @@ function createSSEManager() {
               const parsed = JSON.parse(data);
               sseHandlers[eventType].forEach(fn => fn(parsed));
               // DO-02: notify heartbeat monitor of activity
-              window.dispatchEvent(new CustomEvent('rz:sse-activity'));
+              emitSseActivity();
             } catch { /* ignore malformed */ }
           }
         }
@@ -103,12 +108,14 @@ function createSSEManager() {
       isConnected     = false;
       _retryCount    += 1;
       // FA-07: уведомляем React о разрыве SSE-соединения
-      window.dispatchEvent(new CustomEvent('rz:sse-status', { detail: { connected: false } }));
+      emitSseStatus({ connected: false });
+      realtimeState.transition(REALTIME_STATES.DEGRADED);
       clearTimeout(reconnectTimer);
       // D-04: после MAX_SSE_RETRIES — прекращаем автоматические попытки
       if (_retryCount >= MAX_SSE_RETRIES) {
         logger.warn(`[SSE] gave up after ${MAX_SSE_RETRIES} retries`);
-        window.dispatchEvent(new CustomEvent('rz:sse-permanent-error'));
+        emitSsePermanentError();
+        realtimeState.transition(REALTIME_STATES.FAILED);
         return;
       }
       const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
@@ -131,6 +138,8 @@ function createSSEManager() {
       abortController = null;
     }
     isConnected = false;
+    emitSseStatus({ connected: false });
+    realtimeState.transition(REALTIME_STATES.IDLE);
   }
 
   // Публичный: полный сброс при logout — очищаем uid и все подписки
@@ -199,12 +208,22 @@ export const requestsProvider = {
     if (firstData.length < PAGE_SIZE || total <= PAGE_SIZE) return firstData;
 
     const pages = Math.ceil(total / PAGE_SIZE);
-    const rest = await Promise.all(
-      Array.from({ length: pages - 1 }, (_, i) =>
-        apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=${i + 2}`)
-      )
-    );
-    return [firstData, ...rest.map(r => Array.isArray(r) ? r : (r.data || []))].flat();
+    const pageNumbers = Array.from({ length: pages - 1 }, (_, i) => i + 2);
+    const CONCURRENCY_LIMIT = 4;
+    /** @type {Map<number, any>} */
+    const pageResults = new Map();
+    for (let i = 0; i < pageNumbers.length; i += CONCURRENCY_LIMIT) {
+      const chunk = pageNumbers.slice(i, i + CONCURRENCY_LIMIT);
+      const chunkResults = await Promise.all(
+        chunk.map((page) =>
+          apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=${page}`)
+            .then((result) => [page, result])
+        )
+      );
+      chunkResults.forEach(([page, result]) => pageResults.set(page, result));
+    }
+    const orderedRest = pageNumbers.map((page) => pageResults.get(page));
+    return [firstData, ...orderedRest.map(r => Array.isArray(r) ? r : (r.data || []))].flat();
   },
   async create(request) {
     // Idempotency key prevents duplicate submissions on concurrent or retried requests.

@@ -8,6 +8,7 @@ import { toastBySyncResult } from '../../ui/syncFeedback';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
+import { getViewStateCopy } from '../../ui/viewStateContract';
 
 // ─── AdminPermsItemRow ────────────────────────────────────────────────────────
 
@@ -202,6 +203,7 @@ export default function AdminPermsView() {
   const debouncedQuery = useDebounce(query, 250);
   const q = debouncedQuery.trim().toLowerCase();
   const [roleFilter, setRoleFilter] = useState('all');
+  const permsEmptyCopy = getViewStateCopy('admin_perms', 'empty');
 
   const allResidents = useMemo(() =>
     Object.values(users)
@@ -260,8 +262,8 @@ export default function AdminPermsView() {
       {filtered.length === 0 && (
         <StateBlock
           type="empty"
-          title={q ? 'Ничего не найдено' : tab === 'visitors' ? 'Посетителей нет' : 'Рабочих нет'}
-          subtitle={q ? 'Попробуйте другой запрос' : 'Жильцы ещё не заполнили постоянные списки'}
+          title={q ? 'Ничего не найдено' : permsEmptyCopy.title}
+          subtitle={q ? 'Попробуйте другой запрос' : permsEmptyCopy.subtitle}
         />
       )}
       {filtered.map(u => <AdminPermsAptGroup key={u.uid + tab} u={u} tab={tab} />)}

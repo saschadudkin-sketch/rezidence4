@@ -15,6 +15,7 @@ import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { MS_PER_DAY } from '../constants/limits';
+import { getViewStateCopy } from '../ui/viewStateContract';
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -215,6 +216,9 @@ export default function VisitLogView({ user }) {
   // loadLogs, любого state). visits уже мемоизирован, поэтому groups тоже должен быть.
   const groups = useMemo(() => groupByDate(visits), [visits]);
   const totalCount = visits.length;
+  const loadingCopy = getViewStateCopy('visitlog', 'loading');
+  const errorCopy = getViewStateCopy('visitlog', 'error');
+  const emptyCopy = getViewStateCopy('visitlog', 'empty');
 
   return (
     <div className="vlog-wrap">
@@ -222,15 +226,15 @@ export default function VisitLogView({ user }) {
       {isLoading && (
         <StateBlock
           type="loading"
-          title="Загрузка журнала..."
-          subtitle="Пожалуйста, подождите"
+          title={loadingCopy.title}
+          subtitle={loadingCopy.subtitle}
         />
       )}
       {isError && !isLoading && (
         <StateBlock
           type="error"
-          title="Не удалось загрузить журнал"
-          subtitle="Проверьте соединение и попробуйте снова"
+          title={errorCopy.title}
+          subtitle={errorCopy.subtitle}
         />
       )}
       {!isLoading && !isError && (
@@ -287,8 +291,8 @@ export default function VisitLogView({ user }) {
       {visits.length === 0 && (
         <StateBlock
           type="empty"
-          title={q ? 'Ничего не найдено' : 'Посещений нет'}
-          subtitle={q ? 'Попробуйте другой запрос' : 'Входы посетителей будут отображаться здесь'}
+          title={q ? 'Ничего не найдено' : emptyCopy.title}
+          subtitle={q ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
           actionLabel={q ? 'Сбросить поиск' : undefined}
           onAction={q ? () => setQuery('') : undefined}
         />

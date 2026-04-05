@@ -39,14 +39,17 @@
     "test:ux-critical:report": "vitest run src/views/Login.test.ts src/views/Dashboard.smoke.test.ts src/views/VisitLogView.test.ts src/views/ResidentView.test.ts src/views/AdminView.test.ts src/views/SecurityConciergeViews.test.ts src/views/BlacklistView.test.ts src/perms/PermsList.smoke.test.ts --reporter=default --reporter=json --outputFile=../artifacts/ux-critical-vitest.json",
     "test:mode-services": "vitest run src/config/runtimeMode.test.ts src/domain/requestWorkflow.test.ts src/services/providers/createServices.test.ts src/services/providers/serviceContainer.test.ts src/services/providers/demoProvider.test.ts src/services/chatGateway.test.ts src/services/requestsGateway.test.ts src/services/adminGateway.test.ts src/ui/syncFeedback.test.ts",
     "verify:env": "node scripts/verify-env.js",
+    "verify:styles": "node scripts/check-style-governance.js",
+    "verify:ux-contract": "node scripts/check-ux-contract.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "npm run verify:env && npm run verify:api-version && npm run lint && npm run typecheck && vitest run && npm run build",
+    "verify:all": "npm run verify:env && npm run verify:api-version && npm run verify:styles && npm run verify:ux-contract && npm run verify:modal-a11y && npm run lint && npm run typecheck && vitest run && npm run build",
     "dev": "vite",
     "test:watch": "vitest",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "eslint src/services/providers/backendProvider.ts src/services/http/*.ts src/hooks/useNavigation.ts src/views/shell/AppShell.tsx",
-    "verify:api-version": "node scripts/check-no-legacy-api.js"
+    "verify:api-version": "node scripts/check-no-legacy-api.js",
+    "verify:modal-a11y": "node scripts/check-modal-a11y.js"
   },
   "type": "module"
 }

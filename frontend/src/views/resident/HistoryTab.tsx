@@ -1,16 +1,18 @@
 import { memo } from 'react';
 import { ReqCard } from '../../requests/ReqCard';
 import StateBlock from '../../ui/StateBlock';
+import { getViewStateCopy } from '../../ui/viewStateContract';
 
 const HistoryTab = memo(function HistoryTab({ user, onRepeatPass, onRepeatTech, computed }) {
   const { completedRequests } = computed;
+  const historyEmptyCopy = getViewStateCopy('history', 'empty');
 
   if (completedRequests.length === 0) {
     return (
       <StateBlock
         type="empty"
-        title="Нет завершённых заявок"
-        subtitle="Здесь появятся завершённые, отклонённые и отменённые заявки"
+        title={historyEmptyCopy.title}
+        subtitle={historyEmptyCopy.subtitle}
       />
     );
   }

@@ -12,6 +12,7 @@ import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useDebounce } from '../hooks/useDebounce';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
@@ -634,15 +635,12 @@ export function ChatView({ user }) {
       {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)}/>}
       {/* P-05: подтверждение удаления сообщения — удаление необратимо */}
       {confirmDeleteMsgId && (
-        <div className="confirm-overlay" role="dialog" aria-modal="true" aria-label="Удалить сообщение?">
-          <div className="confirm-panel">
-            <p className="confirm-msg">Удалить сообщение? Это действие нельзя отменить.</p>
-            <div className="confirm-actions">
-              <button className="btn-no" onClick={() => { handleDeleteMsg(confirmDeleteMsgId); setConfirmDeleteMsgId(null); }}>Удалить</button>
-              <button className="btn-outline" onClick={() => setConfirmDeleteMsgId(null)}>Отмена</button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          message="Удалить сообщение? Это действие нельзя отменить."
+          confirmLabel="Удалить"
+          onConfirm={() => { handleDeleteMsg(confirmDeleteMsgId); setConfirmDeleteMsgId(null); }}
+          onCancel={() => setConfirmDeleteMsgId(null)}
+        />
       )}
     </div>
   );
