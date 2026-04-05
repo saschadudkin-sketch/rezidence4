@@ -39,6 +39,8 @@ import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 // A-01: use centralized event registry
 import { onSseForceReconnect } from '../utils/events';
+import StateBlock from '../ui/StateBlock';
+import { getRoleManifest } from '../domain/roleManifest';
 
 
 const DEMO_WELCOME_KEY = 'rz:demo-welcome-seen';
@@ -84,22 +86,12 @@ function OnboardingHint({ role, onClose }) {
   );
 }
 
-const PAGE_TITLES = {
-  owner: 'Добро пожаловать', tenant: 'Добро пожаловать',
-  contractor: 'Панель подрядчика', concierge: 'Рабочее место',
-  security: 'Пост охраны', admin: 'Управление',
-};
 const TAB_TITLES = {
   passes: 'Пропуска', tech: 'Техслужба', perms: 'Постоянный список',
   templates: 'Шаблоны', history: 'История', chat: 'Чат',
   visitlog: 'Журнал посещений', residents: 'Жильцы', blacklist: 'Чёрный список',
   guardpost: 'Пост охраны', stats: 'Аналитика', requests: 'Заявки', users: 'Резиденты',
 };
-const PAGE_SUBTITLES = {
-  contractor: 'Управление пропусками', concierge: 'Контроль и координация',
-  security: 'Контроль доступа', admin: 'Резиденции Замоскворечья',
-};
-
 export default function Dashboard({ user, onLogout, isOnline = true }) {
   const requests  = useRequests();
   const blacklist = useBlacklist();
@@ -172,21 +164,23 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   // NavigationShell ожидает nav как массив [tab, icon, label, badge]
   const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
 
-  const pageTitle = TAB_TITLES[activeTab] || PAGE_TITLES[user.role];
+  const roleManifest = getRoleManifest(user.role);
+  const pageTitle = TAB_TITLES[activeTab] || roleManifest.pageTitle;
   const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
     ? 'Апартаменты ' + user.apartment
-    : (PAGE_SUBTITLES[user.role] || '');
+    : (roleManifest.pageSubtitle || '');
 
   if (isConnErr) {
     return (
       <div className="screen-loading">
         <div className="screen-loading-inner">
-          <div className="screen-loading-spinner"><AppIcon name="ban" size={28} /></div>
-          <div className="screen-loading-label">Не удалось подключиться к серверу</div>
-          <div className="screen-loading-sub">Проверьте соединение и попробуйте снова</div>
-          <button className="btn-outline screen-loading-retry" onClick={handleRetry}>
-            Попробовать снова
-          </button>
+          <StateBlock
+            type="error"
+            title="Не удалось подключиться к серверу"
+            subtitle="Проверьте соединение и попробуйте снова"
+            actionLabel="Попробовать снова"
+            onAction={handleRetry}
+          />
         </div>
       </div>
     );

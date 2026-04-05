@@ -12,6 +12,10 @@ import { join, extname } from 'path';
 
 const MAX_CHUNK_KB = 600; // hard limit per chunk (raw, before gzip)
 const WARN_CHUNK_KB = 300; // warning threshold
+const ROUTE_BUDGETS = [
+  { match: /login/i, warnKB: 120, maxKB: 180, label: 'route:login' },
+  { match: /(dashboard|app|index)/i, warnKB: 220, maxKB: 320, label: 'route:dashboard' },
+];
 
 const distDir = process.argv[2] || 'dist/assets';
 
@@ -38,11 +42,15 @@ console.log('\n📦 Bundle size check\n');
 for (const file of jsFiles.sort()) {
   const filePath = join(distDir, file);
   const sizeKB = Math.round(statSync(filePath).size / 1024);
-  const status = sizeKB > MAX_CHUNK_KB ? '❌ OVER LIMIT'
-               : sizeKB > WARN_CHUNK_KB ? '⚠️  WARN'
+  const routeBudget = ROUTE_BUDGETS.find((b) => b.match.test(file));
+  const warnLimit = routeBudget?.warnKB ?? WARN_CHUNK_KB;
+  const maxLimit = routeBudget?.maxKB ?? MAX_CHUNK_KB;
+  const status = sizeKB > maxLimit ? '❌ OVER LIMIT'
+               : sizeKB > warnLimit ? '⚠️  WARN'
                : '✓';
-  console.log(`  ${status.padEnd(14)} ${file.padEnd(60)} ${sizeKB} KB`);
-  if (sizeKB > MAX_CHUNK_KB) hasError = true;
+  const budgetLabel = routeBudget ? ` (${routeBudget.label} ${warnLimit}/${maxLimit} KB)` : '';
+  console.log(`  ${status.padEnd(14)} ${file.padEnd(60)} ${sizeKB} KB${budgetLabel}`);
+  if (sizeKB > maxLimit) hasError = true;
 }
 
 console.log('');

@@ -5,7 +5,7 @@ import { toast } from '../ui/Toasts';
 import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
 // A-01: use centralized event registry instead of magic string
-import { onUnauthorized } from '../utils/events';
+import { onSessionExpired, onUnauthorized } from '../utils/events';
 
 // ─── Security model ──────────────────────────────────────────────────────────
 // SEC: JWT stored in HttpOnly cookie (not accessible to JS).
@@ -30,6 +30,7 @@ export const PHASE = {
 export function useAuth() {
   const [phase, setPhase] = useState(PHASE.LOADING);
   const [user,  setUser]  = useState(null);
+  const [authNotice, setAuthNotice] = useState('');
 
   useEffect(() => {
     if (isLiveMode()) {
@@ -63,6 +64,12 @@ export function useAuth() {
     setUser(null);
     setPhase(PHASE.LOGIN);
   }), []);
+  useEffect(() => onSessionExpired((detail) => {
+    try {
+      if (detail?.returnTo) sessionStorage.setItem('rz:return-to', detail.returnTo);
+    } catch { /* ignore */ }
+    setAuthNotice('Сессия истекла. Войдите снова — мы восстановим ваш последний экран.');
+  }), []);
 
   const login = useCallback((u) => {
     if (!u || !u.uid) {
@@ -72,6 +79,7 @@ export function useAuth() {
     }
     setUser(u);
     setPhase(PHASE.DASHBOARD);
+    setAuthNotice('');
     toast('Добро пожаловать, ' + u.name + '!', 'success');
     // FIX [I-19]: defer push notification permission request by 30s after login
     // so the browser dialog appears after the user has seen value, not on first render.
@@ -85,6 +93,7 @@ export function useAuth() {
     logger.clearContext();
     setUser(null);
     setPhase(PHASE.LOGIN);
+    setAuthNotice('');
     // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
@@ -102,5 +111,5 @@ export function useAuth() {
     }
   }, []);
 
-  return { phase, user, login, logout };
+  return { phase, user, login, logout, authNotice };
 }

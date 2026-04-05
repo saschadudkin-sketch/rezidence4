@@ -1,6 +1,6 @@
 /* ── LOGIN ── */
 /* R-01: mobile-first — base = mobile (single column, art hidden)
-   Fixed: 861px → 768px (--bp-md token), 761px → 768px consistent */
+   Unified to a single tablet switch at 768px (--bp-md token). */
 .login{min-height:100dvh;display:grid;grid-template-columns:1fr}
 .login-art{display:none}
 @media(min-width:768px){.login{grid-template-columns:1fr 1fr}.login-art{display:flex}}
@@ -79,7 +79,7 @@ html.theme-light .login-art-logo,
 
 
 
-/* R-02: mobile-first — base = mobile padding, desktop overrides at min-width:761px */
+/* R-02: mobile-first — base = mobile padding, desktop overrides at min-width:768px */
 .login-panel{
   background:var(--s0);
   display:flex;align-items:flex-start;justify-content:center;
@@ -163,4 +163,3 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
   background:var(--g-bg);border-radius:var(--r);border:1px solid var(--b1);
 }
 .login-otp-phone strong{color:var(--t1);font-weight:500}
-

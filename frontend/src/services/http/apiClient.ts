@@ -10,7 +10,7 @@ import { getCsrfToken, makeRequestId } from './requestIdentity';
 import { createAuthSession } from './authSession';
 import { createUploadClient } from './uploadClient';
 // A-01: use centralized event registry instead of magic string
-import { emitUnauthorized } from '../../utils/events';
+import { emitUnauthorized, emitSessionExpired } from '../../utils/events';
 
 const BASE_URL = API_BASE_URL;
 
@@ -56,6 +56,10 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         if (refreshed) continue;
 
         // A-01: use typed emitter from centralized event registry
+        const returnTo = typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : '/dashboard';
+        emitSessionExpired({ reason: 'refresh_failed', returnTo });
         emitUnauthorized();
         // T-05: use error code instead of string matching for reliable catch
         const sessionErr = new Error('Сессия истекла. Войдите снова.');

@@ -246,7 +246,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 .landing-sub{font-size:var(--fs-xs);color:var(--t4)}
 .landing-hero{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:22px;margin-bottom:16px}
 .landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:'Playfair Display',serif}
-.landing-hero p{margin:0 0 14px;font-size:var(--fs-body);line-height:1.55;color:var(--t3);max-width:760px}
+.landing-hero p{margin:0 0 14px;font-size:var(--fs-body);line-height:1.55;color:var(--t3);max-width:768px}
 .landing-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .landing-card{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:14px}
 .landing-card-ico{font-size:var(--fs-xl);margin-bottom:8px}
@@ -257,7 +257,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 .landing-proof ul{margin:0 0 12px;padding-left:18px;display:grid;gap:6px}
 .landing-proof li{font-size:var(--fs-sm);color:var(--t3);line-height:1.45}
 .landing-contact{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 16px}
-@media(max-width:760px){
+@media(max-width:768px){
   .landing-hero h1{font-size:22px}
   .landing-cards{grid-template-columns:1fr}
 }
@@ -627,7 +627,6 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 
 /* Tablet landscape: wider card + slightly larger font */
 @media(min-width:1024px){
-  .req-list{max-width:760px}
+  .req-list{max-width:768px}
   .req-list--virtual{height:calc(100vh - 140px)}
 }
-

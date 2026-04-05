@@ -20,6 +20,8 @@
 export const AppEvents = /** @type {const} */ ({
   /** JWT expired / 401 received — triggers logout */
   UNAUTHORIZED: 'rz:unauthorized',
+  /** JWT expired and refresh failed — detail: { reason: string, returnTo?: string } */
+  SESSION_EXPIRED: 'rz:session-expired',
 
   /** SSE connection state changed — detail: { connected: boolean } */
   SSE_STATUS: 'rz:sse-status',
@@ -32,6 +34,8 @@ export const AppEvents = /** @type {const} */ ({
 
   /** SSE exhausted max retry attempts — requires manual user action */
   SSE_PERMANENT_ERROR: 'rz:sse-permanent-error',
+  /** Realtime transport state transition — detail: { from: string, to: string, at: number, durationMs: number } */
+  REALTIME_STATE: 'rz:realtime-state',
 });
 
 // ─── Typed emit helpers ───────────────────────────────────────────────────────
@@ -57,6 +61,20 @@ export function emitSsePermanentError() {
 
 export function emitUnauthorized() {
   window.dispatchEvent(new CustomEvent(AppEvents.UNAUTHORIZED));
+}
+
+/**
+ * @param {{ reason: string, returnTo?: string }} detail
+ */
+export function emitSessionExpired(detail) {
+  window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXPIRED, { detail }));
+}
+
+/**
+ * @param {{ from: string, to: string, at: number, durationMs: number }} detail
+ */
+export function emitRealtimeState(detail) {
+  window.dispatchEvent(new CustomEvent(AppEvents.REALTIME_STATE, { detail }));
 }
 
 // ─── Typed on helpers — return cleanup function ───────────────────────────────
@@ -105,4 +123,24 @@ export function onSsePermanentError(handler) {
 export function onUnauthorized(handler) {
   window.addEventListener(AppEvents.UNAUTHORIZED, handler);
   return () => window.removeEventListener(AppEvents.UNAUTHORIZED, handler);
+}
+
+/**
+ * @param {(detail: { reason: string, returnTo?: string }) => void} handler
+ * @returns {() => void} cleanup
+ */
+export function onSessionExpired(handler) {
+  const listener = (e) => handler(/** @type {CustomEvent} */ (e).detail);
+  window.addEventListener(AppEvents.SESSION_EXPIRED, listener);
+  return () => window.removeEventListener(AppEvents.SESSION_EXPIRED, listener);
+}
+
+/**
+ * @param {(detail: { from: string, to: string, at: number, durationMs: number }) => void} handler
+ * @returns {() => void} cleanup
+ */
+export function onRealtimeState(handler) {
+  const listener = (e) => handler(/** @type {CustomEvent} */ (e).detail);
+  window.addEventListener(AppEvents.REALTIME_STATE, listener);
+  return () => window.removeEventListener(AppEvents.REALTIME_STATE, listener);
 }

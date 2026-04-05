@@ -21,7 +21,7 @@
  * Публичный API (хуки) полностью обратно совместим — ни один импорт не изменился.
  */
 
-import { createContext, useContext, useReducer, useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import { createContext, useContext, useReducer, useMemo, useCallback, useState } from 'react';
 import { isLiveMode } from '../config/runtimeMode';
 import { logger } from '../services/logger';
 import {
@@ -47,6 +47,7 @@ import {
   loadFromLS,
   saveRequests, saveChat, saveUsers, savePerms, saveBlacklist, saveGarage,
 } from './persistence/localStorage';
+import { useDebouncedSave } from './useDebouncedSave';
 
 // ─── Action types (публичный экспорт не изменился) ────────────────────────────
 
@@ -107,37 +108,6 @@ const BlacklistContext = createContext(null);
 const GarageContext    = createContext(null);
 // Единый диспатч — стабильная ссылка, не вызывает ре-рендер подписчиков
 const DispatchContext  = createContext(null);
-
-// FIX [AUDIT-2 #9]: useDebouncedSave ВЫНЕСЕН за пределы AppProvider.
-// Ранее была объявлена внутри — нарушение Rules of Hooks (React не видит top-level).
-// T-06: pendingStateRef + flush-on-unmount — предотвращает потерю данных при быстром
-// стриминге SSE (state меняется каждые 100ms, дебаунс постоянно сбрасывается).
-function useDebouncedSave(state, saveFn, enabled) {
-  const timer           = useRef(null);
-  const pendingStateRef = useRef(null);
-
-  useEffect(() => {
-    if (!enabled) return;
-    clearTimeout(timer.current);
-    pendingStateRef.current = state;
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      pendingStateRef.current = null;
-      saveFn(state);
-    }, 500);
-    return () => clearTimeout(timer.current);
-  }, [state, saveFn, enabled]);
-
-  // T-06: flush any pending save immediately on unmount
-  useEffect(() => {
-    return () => {
-      if (timer.current !== null && pendingStateRef.current !== null) {
-        clearTimeout(timer.current);
-        saveFn(pendingStateRef.current);
-      }
-    };
-  }, [saveFn]); // eslint-disable-line react-hooks/exhaustive-deps
-}
 
 // ─── AppProvider ─────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions';
 import { canAccessTab, getTabsForRole } from '../domain/permissions';
+import { getRoleManifest } from '../domain/roleManifest';
 
 /**
  * useNavigation — URL-based tab navigation (UX-001).
@@ -15,10 +16,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const defaultTab = {
-    owner: 'passes', tenant: 'passes', contractor: 'passes',
-    concierge: 'passes', security: 'guardpost', admin: 'stats',
-  }[user.role] || 'passes';
+  const defaultTab = getRoleManifest(user.role).defaultTab;
 
   // Извлекаем таб из URL: /dashboard/passes → 'passes'
   const getTabFromPath = (pathname) => {

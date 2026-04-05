@@ -23,7 +23,7 @@ const HINTS = isDemoMode() ? [
   ['+7 495 123-00-00', 'Администратор'],
 ] : [];
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, authNotice = '' }) {
   const [phone,     setPhone]     = useState('+7 ');
   const [otp,       setOtp]       = useState('');
   const [step,      setStep]      = useState('phone');
@@ -186,6 +186,11 @@ export default function Login({ onLogin }) {
           </div>
           <div className="login-step">Шаг {step === 'phone' ? '1' : '2'} из 2</div>
           <h1 className="login-h">Вход в систему</h1>
+          {authNotice && (
+            <div className="field-warn" role="status" aria-live="polite">
+              {authNotice}
+            </div>
+          )}
 
           {step === 'phone' ? (
             <>

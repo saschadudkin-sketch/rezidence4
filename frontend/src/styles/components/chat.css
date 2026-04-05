@@ -10,7 +10,7 @@
   background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;
 }
 /* На desktop нет bottom-nav, поэтому nav-h не вычитается */
-@media(min-width:861px){.chat-wrap{height:calc(100dvh - var(--header-h) - var(--sat) - var(--page-top-h) - 16px)}}
+@media(min-width:860px){.chat-wrap{height:calc(100dvh - var(--header-h) - var(--sat) - var(--page-top-h) - 16px)}}
 @media(max-width:860px){.chat-wrap{
   height:calc(100dvh - var(--header-h) - var(--sat) - var(--nav-h) - var(--sab) - var(--page-top-h));
   border-radius:0;border:none;margin:0 -16px;max-width:none;
@@ -167,4 +167,3 @@
 .msg-edit-hint{font-size:var(--fs-2xs);color:var(--t4);margin-top:4px;display:flex;gap:10px}
 .msg-edit-hint kbd{display:inline-block;padding:1px 5px;border-radius:3px;background:var(--s3);border:1px solid var(--b2);font-family:'DM Sans',sans-serif;font-size:var(--fs-3xs);color:var(--t3)}
 .msg-edited-mark{font-size:var(--fs-3xs);color:var(--t4);margin-left:4px;font-style:italic}
-

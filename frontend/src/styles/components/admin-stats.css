@@ -197,7 +197,7 @@
   left:14px;right:14px;
   display:flex;flex-direction:column;gap:var(--space-xs);pointer-events:none;
 }
-@media(min-width:761px){.toast-wrap{bottom:22px;left:auto;min-width:220px}}
+@media(min-width:768px){.toast-wrap{bottom:22px;left:auto;min-width:220px}}
 .toast{
   background:var(--s3);color:var(--t1);
   padding:11px 15px;border-radius:var(--r);

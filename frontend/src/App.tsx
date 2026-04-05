@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { memo, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // TODO [ВАЖНО-PERF3]: Add ReactQueryDevtools in dev mode once @tanstack/react-query-devtools is installed.
 // import { lazy, Suspense } from 'react';
@@ -18,7 +18,6 @@ import { useAuth, PHASE } from './hooks/useAuth';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
-
 // A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
 //
 // T-03: Architecture decision — React Query vs Context API.
@@ -73,8 +72,22 @@ const AppInner = memo(function AppInner() {
   // FIX [HOOKS]: хуки должны вызываться БЕЗУСЛОВНО — до любого раннего возврата.
   // Нарушение Rules of Hooks: если API_CONFIG_ERROR менялся в runtime,
   // React падал с "Rendered more hooks than during the previous render".
-  const { phase, user, login, logout } = useAuth();
+  const { phase, user, login, logout, authNotice } = useAuth();
   const isOnline = useOnlineStatus(); // passed to Dashboard → AppShell for unified banner
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (phase !== PHASE.DASHBOARD || !user) return;
+    let returnTo = '';
+    try {
+      returnTo = sessionStorage.getItem('rz:return-to') || '';
+      if (returnTo) sessionStorage.removeItem('rz:return-to');
+    } catch { /* ignore */ }
+    if (returnTo && returnTo.startsWith('/dashboard') && returnTo !== location.pathname + location.search) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [phase, user, navigate, location.pathname, location.search]);
 
   if (API_CONFIG_ERROR) {
     return (
@@ -97,7 +110,7 @@ const AppInner = memo(function AppInner() {
       {safePhase === PHASE.LOADING && <LoadingScreen />}
       {safePhase === PHASE.LOGIN && (
         <ErrorBoundary name="Вход">
-          <Login onLogin={login} />
+          <Login onLogin={login} authNotice={authNotice} />
         </ErrorBoundary>
       )}
       {safePhase === PHASE.DASHBOARD && user && (
