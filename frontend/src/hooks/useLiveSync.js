@@ -83,49 +83,58 @@ export function useLiveSync(user, {
       userUid:        user.uid,
       signal:         abortCtrl.signal,
       // Initial bulk load: not wrapped in transition (renders skeleton → data ASAP)
+      // PERF3: each handler wrapped in try/catch — a bug in one handler must not
+      // crash the entire SSE stream or prevent clearLoading() from being called.
       setAllRequests: (...a) => {
-        callbacksRef.current.setAllRequests?.(...a);
+        try { callbacksRef.current.setAllRequests?.(...a); } catch (err) { logger.error('[useLiveSync] handler error in setAllRequests', { message: err?.message }); }
         clearLoading();
       },
       // Secondary bulk updates: deferred — don't block user interactions
-      setAllMessages: (...a) => startTransition(() => callbacksRef.current.setAllMessages?.(...a)),
-      setAllUsers:    (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
-      setBlacklist:   (e)    => startTransition(() => callbacksRef.current.setBlacklist?.(e)),
+      setAllMessages: (...a) => startTransition(() => { try { callbacksRef.current.setAllMessages?.(...a); } catch (err) { logger.error('[useLiveSync] handler error in setAllMessages', { message: err?.message }); } }),
+      setAllUsers:    (...a) => startTransition(() => { try { callbacksRef.current.setAllUsers?.(...a); } catch (err) { logger.error('[useLiveSync] handler error in setAllUsers', { message: err?.message }); } }),
+      setBlacklist:   (e)    => startTransition(() => { try { callbacksRef.current.setBlacklist?.(e); } catch (err) { logger.error('[useLiveSync] handler error in setBlacklist', { message: err?.message }); } }),
       onRequests: (docs) => {
         // Notifications are urgent — run immediately before transition
-        notifyNewRequests(docs);
+        try { notifyNewRequests(docs); } catch (err) { logger.error('[useLiveSync] handler error in notifyNewRequests', { message: err?.message }); }
         // State update is non-urgent: yield to typing, taps, navigation
         startTransition(() => {
-          callbacksRef.current.setAllRequests?.(docs);
-          clearLoading();
+          try {
+            callbacksRef.current.setAllRequests?.(docs);
+            clearLoading();
+          } catch (err) {
+            logger.error('[useLiveSync] handler error in onRequests/setAllRequests', { message: err?.message });
+            clearLoading();
+          }
         });
       },
       onChat: (event) => {
-        if (event.type === 'added' && event.message) {
-          if (event.message.uid !== user.uid) {
-            sendNotif(
-              'Сообщение от ' + event.message.name,
-              (event.message.text || '').slice(0, 60),
-              'chat',
-            );
+        try {
+          if (event.type === 'added' && event.message) {
+            if (event.message.uid !== user.uid) {
+              sendNotif(
+                'Сообщение от ' + event.message.name,
+                (event.message.text || '').slice(0, 60),
+                'chat',
+              );
+            }
+            // (счётчик непрочитанных ведётся через useNavBadges по chatLastSeen)
           }
-          // (счётчик непрочитанных ведётся через useNavBadges по chatLastSeen)
-        }
+        } catch (err) { logger.error('[useLiveSync] handler error in onChat', { message: err?.message }); }
       },
-      onUsers:     (...a) => startTransition(() => callbacksRef.current.setAllUsers?.(...a)),
-      onPerms:     (p)    => startTransition(() => callbacksRef.current.setPerms?.(user.uid, p)),
-      onTemplates: (t)    => startTransition(() => callbacksRef.current.setTemplates?.(user.uid, t)),
+      onUsers:     (...a) => startTransition(() => { try { callbacksRef.current.setAllUsers?.(...a); } catch (err) { logger.error('[useLiveSync] handler error in onUsers', { message: err?.message }); } }),
+      onPerms:     (p)    => startTransition(() => { try { callbacksRef.current.setPerms?.(user.uid, p); } catch (err) { logger.error('[useLiveSync] handler error in onPerms', { message: err?.message }); } }),
+      onTemplates: (t)    => startTransition(() => { try { callbacksRef.current.setTemplates?.(user.uid, t); } catch (err) { logger.error('[useLiveSync] handler error in onTemplates', { message: err?.message }); } }),
       // Incremental SSE: blacklist / user changes
-      onBlacklistAdd:    (entry) => startTransition(() => callbacksRef.current.addToBlacklist?.(entry)),
-      onBlacklistRemove: (id)    => startTransition(() => callbacksRef.current.removeFromBlacklist?.(id)),
-      onUserUpdate:      (u)     => startTransition(() => callbacksRef.current.updateUser?.(u.uid, u)),
-      onUserDelete:      (uid)   => startTransition(() => callbacksRef.current.deleteUser?.(uid)),
-      onUserAdd:         (u)     => startTransition(() => callbacksRef.current.addUser?.(u)),
+      onBlacklistAdd:    (entry) => startTransition(() => { try { callbacksRef.current.addToBlacklist?.(entry); } catch (err) { logger.error('[useLiveSync] handler error in onBlacklistAdd', { message: err?.message }); } }),
+      onBlacklistRemove: (id)    => startTransition(() => { try { callbacksRef.current.removeFromBlacklist?.(id); } catch (err) { logger.error('[useLiveSync] handler error in onBlacklistRemove', { message: err?.message }); } }),
+      onUserUpdate:      (u)     => startTransition(() => { try { callbacksRef.current.updateUser?.(u.uid, u); } catch (err) { logger.error('[useLiveSync] handler error in onUserUpdate', { message: err?.message }); } }),
+      onUserDelete:      (uid)   => startTransition(() => { try { callbacksRef.current.deleteUser?.(uid); } catch (err) { logger.error('[useLiveSync] handler error in onUserDelete', { message: err?.message }); } }),
+      onUserAdd:         (u)     => startTransition(() => { try { callbacksRef.current.addUser?.(u); } catch (err) { logger.error('[useLiveSync] handler error in onUserAdd', { message: err?.message }); } }),
       // PERF: Incremental SSE: request changes — вместо full REQUESTS_SET_ALL на каждый event
       // N-02: notify resident before state update so toast appears before card re-renders
-      onRequestUpdate:   (req)   => { notifyStatusChange(req); startTransition(() => callbacksRef.current.updateRequest?.(req.id, req)); },
-      onRequestAdd:      (req)   => startTransition(() => callbacksRef.current.addRequest?.(req)),
-      onRequestDelete:   (id)    => startTransition(() => callbacksRef.current.deleteRequest?.(id)),
+      onRequestUpdate:   (req)   => { try { notifyStatusChange(req); } catch (err) { logger.error('[useLiveSync] handler error in notifyStatusChange', { message: err?.message }); } startTransition(() => { try { callbacksRef.current.updateRequest?.(req.id, req); } catch (err) { logger.error('[useLiveSync] handler error in onRequestUpdate', { message: err?.message }); } }); },
+      onRequestAdd:      (req)   => startTransition(() => { try { callbacksRef.current.addRequest?.(req); } catch (err) { logger.error('[useLiveSync] handler error in onRequestAdd', { message: err?.message }); } }),
+      onRequestDelete:   (id)    => startTransition(() => { try { callbacksRef.current.deleteRequest?.(id); } catch (err) { logger.error('[useLiveSync] handler error in onRequestDelete', { message: err?.message }); } }),
     }); if (cancelled) { if (typeof fn === 'function') fn(); return; }
       if (typeof fn === 'function') cleanupFn = fn;
     } catch (err) {

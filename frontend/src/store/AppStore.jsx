@@ -21,7 +21,7 @@
  * Публичный API (хуки) полностью обратно совместим — ни один импорт не изменился.
  */
 
-import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
+import { createContext, useContext, useReducer, useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { isLiveMode } from '../config/runtimeMode.js';
 import { logger } from '../services/logger.js';
 import {
@@ -142,7 +142,10 @@ function useDebouncedSave(state, saveFn, enabled) {
 // ─── AppProvider ─────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
-  const saved = useMemo(() => loadFromLS(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // FIX [ЖЕЛАТ-CQ4]: useState lazy initializer is guaranteed to run exactly once on mount
+  // (unlike useMemo which React may re-run in concurrent mode future versions).
+  const [_saved] = useState(() => loadFromLS());
+  const saved = _saved;
 
   const [reqState,  reqDispatch]  = useReducer(requestsSliceReducer,  null, () => ({
     requests: saved?.requests ?? INITIAL_REQUESTS,
@@ -168,10 +171,10 @@ export function AppProvider({ children }) {
     garage: saved?.garage ?? INITIAL_GARAGE,
   }));
 
-  // Единый диспатч: маршрутизирует action в нужный слайс-диспатч
-  
-  // Явно перечисляем их в deps вместо eslint-disable — намерение прозрачно.
-  const dispatch = useMemo(() => (action) => {
+  // Единый диспатч: маршрутизирует action в нужный слайс-диспатч.
+  // FIX [ВАЖНО-A3]: useCallback with empty deps — useReducer dispatch functions are
+  // stable by React contract (same reference across re-renders), so no deps needed.
+  const dispatch = useCallback((action) => {
     if (REQUESTS_ACTIONS.has(action.type))  return reqDispatch(action);
     if (CHAT_ACTIONS.has(action.type))      return chatDispatch(action);
     if (USERS_ACTIONS.has(action.type))     return usersDispatch(action);
@@ -182,7 +185,7 @@ export function AppProvider({ children }) {
       // FIX [FA-1]: логируем в production тоже — опечатка в типе = потеря данных без симптомов
       logger.warn('[AppStore] Unmatched action type:', action.type);
     }
-  }, [reqDispatch, chatDispatch, usersDispatch, permsDispatch, blacklistDispatch, garageDispatch]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — useReducer dispatchers are stable
 
   const isDemoMode = !isLiveMode();
 

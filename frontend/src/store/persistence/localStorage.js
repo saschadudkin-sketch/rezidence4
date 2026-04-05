@@ -12,6 +12,46 @@ import { PHONE_DB_INITIAL, INITIAL_USERS } from '../slices/usersSlice';
 const LS_KEY = 'residenze_v5';
 export const LS_SCHEMA_VERSION = 5;
 
+// ─── TTL helpers — SEC6: session-based expiry for demo mode data ──────────────
+// In demo mode, localStorage data can persist across browser sessions indefinitely.
+// We add a timestamp + TTL so stale data (older than 24 h) is cleared on next load.
+
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const LS_TTL_KEY = `${LS_KEY}_ttl`;
+
+function saveTTL() {
+  try {
+    localStorage.setItem(LS_TTL_KEY, JSON.stringify({ _savedAt: Date.now(), _ttl: TTL_MS }));
+  } catch { /* ignore — quota or private mode */ }
+}
+
+function checkTTL() {
+  try {
+    const raw = localStorage.getItem(LS_TTL_KEY);
+    if (!raw) return true; // no metadata yet — allow load (first run or old data)
+    const meta = JSON.parse(raw);
+    if (!meta || !meta._savedAt || !meta._ttl) return true;
+    if (Date.now() - meta._savedAt > meta._ttl) {
+      // Expired — clear all persisted slices and return false
+      clearLS();
+      return false;
+    }
+    return true;
+  } catch {
+    return true; // parse error — allow load
+  }
+}
+
+export function clearLS() {
+  try {
+    for (const key of Object.keys(SLICE_KEYS)) {
+      localStorage.removeItem(SLICE_KEYS[key]);
+    }
+    localStorage.removeItem(LS_TTL_KEY);
+    localStorage.removeItem(LS_KEY);
+  } catch { /* ignore */ }
+}
+
 // ─── Per-slice keys ───────────────────────────────────────────────────────────
 // FIX [P2]: каждый слайс сохраняется отдельно — не сериализуем всё при каждом изменении
 const SLICE_KEYS = {
@@ -92,6 +132,7 @@ export function saveRequests(reqState) {
       requests: reqsClean,
       history: reqState.history,
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] saveRequests failed:', e); }
 }
 
@@ -106,6 +147,7 @@ export function saveChat(chatState) {
       chat: recentMessages.map(m => ({ ...m, at: m.at instanceof Date ? m.at.toISOString() : m.at })),
       chatLastSeen: chatState.chatLastSeen,
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] saveChat failed:', e); }
 }
 
@@ -119,6 +161,7 @@ export function saveUsers(usersState) {
         )
       ),
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] saveUsers failed:', e); }
 }
 
@@ -128,6 +171,7 @@ export function savePerms(permsState) {
       perms: permsState.perms,
       templates: permsState.templates,
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] savePerms failed:', e); }
 }
 
@@ -139,6 +183,7 @@ export function saveBlacklist(blacklist) {
         ...e, addedAt: e.addedAt instanceof Date ? e.addedAt.toISOString() : e.addedAt,
       })),
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] saveBlacklist failed:', e); }
 }
 
@@ -147,6 +192,7 @@ export function saveGarage(garage) {
     localStorage.setItem(SLICE_KEYS.garage, JSON.stringify({
       garage: garage.garage || garage || {},
     }));
+    saveTTL();
   } catch (e) { console.warn('[persistence] saveGarage failed:', e); }
 }
 
@@ -154,6 +200,12 @@ export function saveGarage(garage) {
 
 export function loadFromLS() {
   try {
+    // SEC6: Check TTL — if data is older than 24 h, clear and return null
+    if (!checkTTL()) {
+      console.info('[persistence] localStorage TTL expired — cleared');
+      return null;
+    }
+
     // Check legacy combined format first
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {

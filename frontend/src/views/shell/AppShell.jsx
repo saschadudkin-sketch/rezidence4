@@ -25,27 +25,37 @@ const AppShell = memo(function AppShell({
   themeLabel,
   sseOnline,
   isLoading = false,
+  isOnline = true,
 }) {
   const { nav, navClassMap, goTab, activeTab, setActiveTab } = useNavigationContext();
 
-  const isOffline = sseOnline === false;
+  // FIX [КРИТ-P1]: single unified offline banner — no more double-stacking.
+  // Priority: network loss > SSE loss. Only one banner is ever visible at once.
+  const noNetwork = isOnline === false;
+  const noSse     = !noNetwork && sseOnline === false;
+  const showBanner = noNetwork || noSse;
+
+  const bannerText = noNetwork
+    ? 'Нет подключения к интернету'
+    : 'Нет соединения с сервером — переподключение…';
+  const bannerIcon = noNetwork ? 'ban' : 'refresh';
 
   return (
     <>
-      {/* UI-04: prominent banner-style SSE offline indicator — more visible than the
-          small header chip. Slides in from the top so users immediately notice
-          the loss of real-time data without having to look at the header. */}
+      {/* UI-04/UI-05: unified offline banner for both network loss and SSE disconnection.
+          Always rendered so CSS transition can animate it in/out smoothly.
+          Only one state is shown at a time (network loss takes priority over SSE). */}
       <div
-        className={`offline-banner${isOffline ? ' is-visible' : ''}`}
+        className={`offline-banner${showBanner ? ' is-visible' : ''}`}
         role="status"
         aria-live="polite"
-        aria-label="Нет соединения с сервером"
+        aria-atomic="true"
       >
-        <AppIcon name="refresh" size={13} />
-        {' '}Нет соединения с сервером — переподключение…
+        <AppIcon name={bannerIcon} size={13} />
+        {' '}<span className={showBanner ? undefined : 'u-sr-only'}>{bannerText}</span>
       </div>
 
-      <header className={`header${isOffline ? ' app-content-offset has-offline-banner' : ''}`}>
+      <header className={`header${showBanner ? ' app-content-offset has-offline-banner' : ''}`}>
         <div className="header-inner">
           <div className="header-brand">
             <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
@@ -53,7 +63,7 @@ const AppShell = memo(function AppShell({
             {isDemoMode() && (
               <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
             )}
-            {isOffline && (
+            {noSse && (
               <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-hidden="true">
                 {/* UI: 'refresh' семантически верен для reconnect; 'history' — это журнал событий */}
                 <AppIcon name="refresh" size={12} />

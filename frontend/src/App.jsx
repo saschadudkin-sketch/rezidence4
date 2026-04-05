@@ -1,6 +1,14 @@
-import { memo, useEffect } from 'react';
+import { memo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// TODO [ВАЖНО-PERF3]: Add ReactQueryDevtools in dev mode once @tanstack/react-query-devtools is installed.
+// import { lazy, Suspense } from 'react';
+// const ReactQueryDevtools = import.meta.env.DEV
+//   ? lazy(() => import('@tanstack/react-query-devtools').then(m => ({ default: m.ReactQueryDevtools })))
+//   : null;
+// Then inside QueryClientProvider: {import.meta.env.DEV && ReactQueryDevtools && (
+//   <Suspense fallback={null}><ReactQueryDevtools initialIsOpen={false} /></Suspense>
+// )}
 import { AppProvider } from './store/AppStore';
 import Dashboard from './views/Dashboard';
 import Login from './views/Login';
@@ -43,23 +51,6 @@ import './styles/tokens.css';
 import './styles/foundations.css';
 import './styles/theme.css';
 
-const OfflineBanner = memo(function OfflineBanner({ visible }) {
-  return (
-    <div
-      className={`offline-banner${visible ? ' is-visible' : ''}`}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      {/* UI-05: always render text so screen readers detect change;
-          visually hidden when banner is not shown via CSS transform */}
-      <span className={visible ? undefined : 'u-sr-only'}>
-        Нет подключения к интернету
-      </span>
-    </div>
-  );
-});
-
 // ─── Splash ───────────────────────────────────────────────────────────────────
 
 // FIX [MEMO]: LoadingScreen и AppInner без memo пересоздавались при каждом рендере
@@ -83,7 +74,7 @@ const AppInner = memo(function AppInner() {
   // Нарушение Rules of Hooks: если API_CONFIG_ERROR менялся в runtime,
   // React падал с "Rendered more hooks than during the previous render".
   const { phase, user, login, logout } = useAuth();
-  const isOnline = useOnlineStatus();
+  const isOnline = useOnlineStatus(); // passed to Dashboard → AppShell for unified banner
 
   if (API_CONFIG_ERROR) {
     return (
@@ -103,12 +94,6 @@ const AppInner = memo(function AppInner() {
 
   return (
     <>
-      {/* FIX [AUDIT-3 #13]: всегда монтируем баннер, управляем через visible-проп.
-          CSS transform плавно выдвигает/прячет его без layout shift.
-          padding-top с transition компенсирует высоту баннера для контента ниже. */}
-      <OfflineBanner visible={!isOnline} />
-      {/* FIX [AUDIT-2 #23]: padding-top когда баннер виден, чтобы не перекрывать header */}
-      <div className={`app-content-offset${isOnline ? '' : ' has-offline-banner'}`}>
       {safePhase === PHASE.LOADING && <LoadingScreen />}
       {safePhase === PHASE.LOGIN && (
         <ErrorBoundary name="Вход">
@@ -117,10 +102,11 @@ const AppInner = memo(function AppInner() {
       )}
       {safePhase === PHASE.DASHBOARD && user && (
         <ErrorBoundary name="Приложение">
-          <Dashboard user={user} onLogout={logout} />
+          {/* FIX [КРИТ-P1]: isOnline passed down so AppShell shows ONE unified banner.
+              OfflineBanner removed from App — AppShell handles both network and SSE loss. */}
+          <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
         </ErrorBoundary>
       )}
-      </div>
       <Toasts />
     </>
   );

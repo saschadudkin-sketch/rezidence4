@@ -63,6 +63,14 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         throw sessionErr;
       }
 
+      // ВАЖНО-A5: centralized 403 handling — consistent forbidden error across all callers
+      if (res.status === 403) {
+        const err = new Error('Недостаточно прав для выполнения этого действия');
+        err.status = 403;
+        err.forbidden = true;
+        throw err;
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         const error = new Error(err.error || `HTTP ${res.status}`);

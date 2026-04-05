@@ -100,7 +100,7 @@ const PAGE_SUBTITLES = {
   security: 'Контроль доступа', admin: 'Резиденции Замоскворечья',
 };
 
-export default function Dashboard({ user, onLogout }) {
+export default function Dashboard({ user, onLogout, isOnline = true }) {
   const requests  = useRequests();
   const blacklist = useBlacklist();
   const { chat, chatLastSeen } = useChat();
@@ -211,6 +211,7 @@ export default function Dashboard({ user, onLogout }) {
         themeLabel={themeLabel}
         sseOnline={sseOnline}
         isLoading={isLoading}
+        isOnline={isOnline}
       />
     </NavigationContext.Provider>
   );

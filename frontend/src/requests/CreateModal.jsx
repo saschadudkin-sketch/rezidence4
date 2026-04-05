@@ -7,12 +7,9 @@ import {
   hasVisitorFields,
   needsCarPlate,
   requiresVisitorName,
-  fmtScheduled,
-  minDateTime,
-  toLocalDateInputValue,
-  parseLocalDateInputValue,
-  SCHEDULE_PRESETS,
 } from '../hooks/useCreateRequest';
+import { toLocalDateInputValue, parseLocalDateInputValue } from '../utils/dateInput';
+import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useScheduleForm';
 import { AppIcon } from '../ui/AppIcon.jsx';
 
 // ─── VisitorFields ────────────────────────────────────────────────────────────

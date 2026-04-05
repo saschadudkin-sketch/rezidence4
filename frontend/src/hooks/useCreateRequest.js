@@ -10,12 +10,8 @@ import { parseLocalDateInputValue } from '../utils/dateInput';
 import { usePhotoHandler } from './usePhotoHandler.js';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm.js';
 import { useTemplateForm } from './useTemplateForm.js';
-
-// Re-export date utilities consumed by CreateModal and other importers.
-export { toLocalDateInputValue, toLocalDateTimeInputValue, parseLocalDateInputValue } from '../utils/dateInput';
-
-// Re-export scheduling helpers consumed by CreateModal.
-export { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from './useScheduleForm.js';
+// КРИТ-A1: form field state extracted to its own hook as part of God Hook decomposition
+import { useRequestFormState } from './useRequestFormState.js';
 
 // ─── Предикаты категорий ─────────────────────────────────────────────────────
 
@@ -46,26 +42,19 @@ export const canUsePermsList = (type, cat) =>
  * CreateModal остаётся чистым «шаблоном» без бизнес-логики.
  */
 export function useCreateRequest({ user, type, initialCat, initialData, onClose, onDone }) {
-  const cats = type === 'pass'
-    ? (user.role === 'contractor'
-        ? ['worker', 'team', 'delivery', 'car']
-        : ['guest', 'courier', 'taxi', 'car', 'master'])
-    : ['electrician', 'plumber'];
+  // КРИТ-A1: form field state delegated to useRequestFormState (decomposition step 1)
+  const {
+    cats, cat, setCat,
+    vName, setVName,
+    vNames, setVNames,
+    vPhone, setVPhone,
+    carPlate, setCarPlate,
+    comment, setComment,
+    validUntil, setValidUntil,
+  } = useRequestFormState({ type, user, initialCat, initialData });
 
-  // ── Состояние формы ─────────────────────────────────────────────────────
-  const [cat,      setCat]      = useState(initialData?.category    || initialCat || cats[0]);
-  const [vName,    setVName]    = useState(initialData?.visitorName  || '');
-  const [vNames,   setVNames]   = useState(() =>
-    initialData?.visitorName
-      ? [{ __id: genId(), value: initialData.visitorName }]
-      : [{ __id: genId(), value: '' }]
-  );
-  const [vPhone,   setVPhone]   = useState(initialData?.visitorPhone || '');
-  const [carPlate, setCarPlate] = useState(initialData?.carPlate    || '');
-  const [comment,  setComment]  = useState(initialData?.comment     || '');
   // P-05: passDuration state removed — derived from validUntil at submit time
-  const [validUntil, setValidUntil] = useState(initialData?.validUntil || '');
-  const [loading,    setLoading]    = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // ── Выбор из списка ─────────────────────────────────────────────────────
   const [showPermsPicker, setShowPermsPicker] = useState(false);
@@ -86,16 +75,6 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     lockScroll();
     return () => { unlockScroll(); };
   }, []);
-
-  // Reset visitor fields on category change
-  // FIX [REACT]: prev-value ref pattern avoids triggering on mount
-  const prevCatRef = useRef(cat);
-  useEffect(() => {
-    if (prevCatRef.current === cat) return;
-    prevCatRef.current = cat;
-    // P-04: fix type bug — setVNames expects [{__id, value}] objects, not plain strings
-    setVName(''); setVPhone(''); setCarPlate(''); setVNames([{ __id: genId(), value: '' }]);
-  }, [cat]);
 
   // ── Sub-hooks ────────────────────────────────────────────────────────────
   const { photos, handlePhoto, removePhoto } = usePhotoHandler(isMountedRef);
@@ -128,6 +107,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     const isScheduled    = Boolean(schedDate && schedDate > new Date());
     const parsedValidUntil = type === 'pass' && validUntil ? parseLocalDateInputValue(validUntil) : null;
     if (type === 'pass' && validUntil && !parsedValidUntil) {
+      // Reset submission guard — this is a validation error, not a real submit
+      submittingRef.current = false;
       if (isMountedRef.current) setLoading(false);
       toast('Некорректная дата действия пропуска', 'error');
       return;
@@ -187,9 +168,6 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         updateRequest(tempId, { _pending: false });
       }
 
-      submittingRef.current = false;
-      setLoading(false);
-
       const successMsg = isScheduled
         ? 'Запланировано на ' + fmtScheduled(scheduledFor)
         : type === 'pass' ? 'Пропуск создан' : 'Заявка отправлена';
@@ -203,9 +181,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     } catch(e) {
       // FIX [UX-2]: rollback optimistic update on server error
       deleteRequest(newReq.id);
-      submittingRef.current = false;
       if (isMountedRef.current) {
-        setLoading(false);
         // P-05: offer retry action so users can resubmit without re-filling the form
         toast(
           'Ошибка при отправке: ' + (e.message || 'попробуйте снова'),
@@ -213,6 +189,10 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
           { label: 'Повторить', onClick: handleSubmit },
         );
       }
+    } finally {
+      // FIX [ВАЖНО-CQ2]: always reset in finally — prevents stuck loading state on any exit path
+      submittingRef.current = false;
+      if (isMountedRef.current) setLoading(false);
     }
   };
 

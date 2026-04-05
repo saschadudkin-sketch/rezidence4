@@ -115,9 +115,23 @@
   --lh-loose: 1.65;
 
   /* ── Breakpoints — UI-bp: responsive layout tokens ─────────────────────── */
-  /* Use in JS as getComputedStyle(document.documentElement).getPropertyValue('--bp-md') */
-  /* In CSS: @media (min-width: 768px) — token values are reference-only (CSS vars           */
-  /* cannot be used in @media queries directly; the numeric values document intent).          */
+  /*
+   * CSS custom properties CANNOT be used in @media queries (spec limitation).
+   * The numeric values below document intent — use them literally in @media rules.
+   *
+   * TODO (ЖЕЛАТ-R1): Migrate to PostCSS custom-media plugin to prevent breakpoint drift:
+   *   npm i -D postcss-custom-media
+   *   Then use: @custom-media --bp-md (min-width: 768px);
+   *             @media (--bp-md) { ... }
+   * This ensures breakpoint changes propagate everywhere automatically.
+   *
+   * Until then: use ONLY these exact pixel values in @media rules across all CSS files.
+   *   480px  = --bp-sm   (large mobile)
+   *   768px  = --bp-md   (tablet portrait) ← most common breakpoint
+   *  1024px  = --bp-lg   (tablet landscape)
+   *  1280px  = --bp-xl   (desktop)
+   *  1536px  = --bp-2xl  (wide desktop)
+   */
   --bp-sm:   480px;   /* large mobile / small phone landscape                                */
   --bp-md:   768px;   /* tablet portrait (iPad, Android tablet)                              */
   --bp-lg:  1024px;   /* tablet landscape / small desktop                                    */
@@ -156,6 +170,12 @@
    *
    * ✅ Good: color: var(--color-text-primary)
    * ⚠️  Legacy: color: var(--t1)  ← still works but don't use in new code
+   *
+   * TOKEN MIGRATION GUIDE (ЖЕЛАТ-UI4):
+   * Phase 1 (current): All NEW component code uses --color-* semantic aliases.
+   * Phase 2 (next sprint): Find and replace legacy tokens in component CSS files:
+   *   grep -r 'var(--t[1-4])\|var(--s[0-4])\|var(--g[1-3])' frontend/src/styles/components/
+   * Phase 3: Remove shorthand aliases (--t1..t4, --s0..s4, --g1..g3) — dead code at that point.
    *
    * Benefits of semantic aliases:
    *   - Self-documenting intent (--color-surface-card vs. --s2)
