@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_RUNTIME_MODE?: string;
+  readonly VITE_MODE?: string;
   readonly VITE_APP_VERSION?: string;
   readonly PROD?: boolean;
 }

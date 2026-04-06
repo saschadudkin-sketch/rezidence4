@@ -33,23 +33,24 @@ export interface AdminService {
 }
 
 export interface LiveSyncCallbacks {
-  onChat?: (payload: unknown) => void;
-  setAllRequests?: (requests: unknown[]) => void;
-  onRequests?: (requests: unknown[]) => void;
-  setAllMessages?: (messages: unknown[]) => void;
-  setAllUsers?: (users: unknown[]) => void;
+  onChat?: (payload: { type?: string; message?: Record<string, unknown>; id?: string }) => void;
+  setAllRequests?: (requests: Record<string, unknown>[]) => void;
+  onRequests?: (requests: Record<string, unknown>[]) => void;
+  setAllMessages?: (messages: Record<string, unknown>[]) => void;
+  setAllUsers?: (users: Record<string, unknown>[]) => void;
   onPerms?: (payload: unknown) => void;
   onTemplates?: (payload: unknown) => void;
   setBlacklist?: (entries: unknown[]) => void;
   userUid?: string;
   signal?: AbortSignal;
-  onBlacklistAdd?: (entry: unknown) => void;
+  onBlacklistAdd?: (entry: Record<string, unknown>) => void;
   onBlacklistRemove?: (entryId: string) => void;
-  onUsers?: (users: unknown[]) => void;
-  onUserUpdate?: (user: unknown) => void;
+  onUsers?: (users: Record<string, unknown>[]) => void;
+  onUserAdd?: (user: Record<string, unknown>) => void;
+  onUserUpdate?: (user: Record<string, unknown>) => void;
   onUserDelete?: (uid: string) => void;
-  onRequestUpdate?: (request: unknown) => void;
-  onRequestAdd?: (request: unknown) => void;
+  onRequestUpdate?: (request: Record<string, unknown>) => void;
+  onRequestAdd?: (request: Record<string, unknown>) => void;
   onRequestDelete?: (id: string) => void;
 }
 

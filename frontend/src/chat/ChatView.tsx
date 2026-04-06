@@ -400,13 +400,13 @@ export function ChatView({ user }) {
     if (f.size > 10 * 1024 * 1024) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
     setPhotoSending(true);
     try {
-      const dataUrl = await new Promise((res, rej) => {
+      const dataUrl = await new Promise<string>((res, rej) => {
         const r = new FileReader();
-        r.onload = ev => res(ev.target.result);
+        r.onload = ev => res(String(ev.target?.result || ''));
         r.onerror = () => rej(new Error('fail'));
         r.readAsDataURL(f);
       });
-      const compressed = await new Promise(resolve => {
+      const compressed = await new Promise<string>(resolve => {
         const img = new Image();
         img.onload = () => {
           const max = 800;
@@ -603,11 +603,15 @@ export function ChatView({ user }) {
                   )}
                   {m.reactions && Object.keys(m.reactions).length > 0 && (
                     <div className="msg-reactions">
-                      {Object.entries(m.reactions).map(([emoji, uids]) => uids.length > 0 && (
-                        <button key={emoji} className={'reaction-badge' + (uids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={uids.length + ' чел.'}>
-                          <span>{emoji}</span><span className="reaction-count">{uids.length}</span>
+                      {Object.entries(m.reactions).map(([emoji, uids]) => {
+                        const safeUids = Array.isArray(uids) ? uids : [];
+                        if (!safeUids.length) return null;
+                        return (
+                        <button key={emoji} className={'reaction-badge' + (safeUids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={safeUids.length + ' чел.'}>
+                          <span>{emoji}</span><span className="reaction-count">{safeUids.length}</span>
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

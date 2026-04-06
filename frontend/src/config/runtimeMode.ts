@@ -10,7 +10,7 @@ export function normalizeMode(mode) {
 // FIX [AUDIT]: убран FEATURES.LEGACY_FLAG — legacy realtime provider удалён, флаг был всегда false.
 // Режим теперь определяется только через env-переменные.
 // Если ни VITE_RUNTIME_MODE, ни VITE_MODE не заданы — демо-режим (безопасный дефолт).
-export function resolveRuntimeMode(env = (import.meta?.env ?? {})) {
+export function resolveRuntimeMode(env: Partial<ImportMetaEnv> = (import.meta?.env ?? {})) {
   // Приоритет: VITE_RUNTIME_MODE → VITE_MODE → demo
   const runtimeMode = normalizeMode(env.VITE_RUNTIME_MODE);
   if (runtimeMode) return runtimeMode;
