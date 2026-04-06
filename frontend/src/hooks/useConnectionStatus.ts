@@ -15,6 +15,7 @@
 import { useState, useEffect } from 'react';
 import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/limits';
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
+import { buildDataPlaneContract } from '../data/dataPlanePolicy';
 
 /**
  * @param {{ isLoading: boolean, sseOnline: boolean|null, ssePermanentError: boolean }} liveSync
@@ -42,8 +43,14 @@ export function useConnectionStatus({ isLoading: syncLoading, sseOnline, ssePerm
     setRetryStartedAt(0);
   }, [retryStartedAt, syncLoading, sseOnline, retryKey]);
 
-  const isLoading  = syncLoading && !timedOut;
-  const isConnErr  = (syncLoading && timedOut) || ssePermanentError;
+  const contract = buildDataPlaneContract({
+    syncLoading,
+    timedOut,
+    ssePermanentError,
+    sseOnline,
+  });
+  const isLoading  = contract.loading;
+  const isConnErr  = contract.error;
   const handleRetry = () => {
     setTimedOut(false);
     setRetryStartedAt(Date.now());
