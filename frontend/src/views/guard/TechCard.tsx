@@ -10,6 +10,7 @@ import { CAT_LABEL } from '../../constants/index';
 import { toast } from '../../ui/Toasts';
 import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
+import { presentError } from '../../ui/errorPresenter';
 
 // FIX [PERF-5]: memo — аналогично TempPassCard
 const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
@@ -30,7 +31,7 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
       acceptRequest(req.id, userName, 'security');
       if (isMountedRef.current) toast('Принято в работу', 'success');
     } catch {
-      if (isMountedRef.current) toast('Ошибка', 'error');
+      if (isMountedRef.current) toast(presentError(new Error('tech_accept_failed'), 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(null);
     }

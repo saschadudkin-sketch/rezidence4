@@ -9,6 +9,7 @@
 import { normalizePhone } from '../../utils';
 import { PHONE_DB_INITIAL, INITIAL_USERS } from '../slices/usersSlice';
 import { readStorage, STORAGE_KEYS } from './storageRegistry';
+import { putMedia, getMedia, clearMediaStore } from './mediaStore';
 
 const LS_KEY = 'residenze_v5';
 export const LS_SCHEMA_VERSION = 5;
@@ -66,6 +67,7 @@ export function clearLS() {
       const k = sessionStorage.key(i);
       if (k?.startsWith(SESSION_PHOTO_PREFIX)) sessionStorage.removeItem(k);
     }
+    clearMediaStore().catch(() => {});
   } catch { /* ignore */ }
 }
 
@@ -91,18 +93,18 @@ function savePhotos(requests) {
       scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.toISOString() : (r.scheduledFor || null),
       validUntil:   r.validUntil   instanceof Date ? r.validUntil.toISOString()   : (r.validUntil || null),
     };
-    if (r.photo?.startsWith('data:')) { photos[r.id] = r.photo; base.photo = '__session_photo__'; }
+    if (r.photo?.startsWith('data:')) { photos[r.id] = r.photo; base.photo = '__idb_photo__'; }
     if (r.photos && r.photos.length > 0) {
       r.photos.forEach((p, i) => { if (p?.startsWith('data:')) photos[r.id + '_' + i] = p; });
-      base.photos = r.photos.map((p, i) => p?.startsWith('data:') ? '__session_photo_' + i + '__' : p).filter(Boolean);
+      base.photos = r.photos.map((p, i) => p?.startsWith('data:') ? '__idb_photo_' + i + '__' : p).filter(Boolean);
     }
     return base;
   });
 
-  // Save photos in sessionStorage only (privacy + localStorage quota safety).
-  // Persistent localStorage stores only pointers, never base64 media blobs.
+  // Save photos into IndexedDB (tiered storage) and keep only pointers in localStorage.
   Object.entries(photos).forEach(([id, src]) => {
-    sessionSet(id, src);
+    sessionSet(id, src); // immediate same-session availability
+    putMedia(id, src).catch(() => {});
   });
 
   return reqsClean;
@@ -115,11 +117,26 @@ function loadPhotos(requests) {
     arrivedAt: r.arrivedAt ? new Date(r.arrivedAt) : null,
     scheduledFor: r.scheduledFor ? new Date(r.scheduledFor) : null,
     validUntil: r.validUntil ? new Date(r.validUntil) : null,
-    photo: r.photo === '__session_photo__' ? (sessionGet(r.id) || null) : r.photo,
+    photo: r.photo === '__idb_photo__' ? (sessionGet(r.id) || null) : r.photo,
     photos: (r.photos || []).map((p, i) =>
-      p?.startsWith('__session_photo_') ? (sessionGet(r.id + '_' + i) || null) : p
+      p?.startsWith('__idb_photo_') ? (sessionGet(r.id + '_' + i) || null) : p
     ).filter(Boolean),
   }));
+}
+
+export async function hydrateRequestMediaFromIndexedDb(requests) {
+  if (!Array.isArray(requests) || !requests.length) return requests;
+  const hydrated = await Promise.all(requests.map(async (r) => {
+    const photo = r.photo === '__idb_photo__'
+      ? (sessionGet(r.id) || await getMedia(r.id) || null)
+      : r.photo;
+    const photos = await Promise.all((r.photos || []).map(async (p, i) => {
+      if (!String(p).startsWith('__idb_photo_')) return p;
+      return sessionGet(r.id + '_' + i) || await getMedia(r.id + '_' + i) || null;
+    }));
+    return { ...r, photo, photos: photos.filter(Boolean) };
+  }));
+  return hydrated;
 }
 
 // ─── Per-slice save functions ─────────────────────────────────────────────────

@@ -27,7 +27,7 @@ const metricValidators: Record<MetricName, (payload: MetricPayload) => boolean> 
   [UX_METRICS.ACTION_SUCCESS]: (p) => typeof p.action === 'string',
   [UX_METRICS.ACTION_FAILURE]: (p) => typeof p.action === 'string',
   [UX_METRICS.NAV_FORBIDDEN_REDIRECT]: (p) =>
-    typeof p.role === 'string' && typeof p.from === 'string' && typeof p.to === 'string',
+    typeof p.role === 'string' && typeof p.from === 'string' && typeof p.to === 'string' && typeof p.reason === 'string',
   [UX_METRICS.SSE_RECONNECT_MS]: (p) => typeof p.durationMs === 'number',
   [UX_METRICS.CONNECTION_TIMEOUT]: () => true,
 };

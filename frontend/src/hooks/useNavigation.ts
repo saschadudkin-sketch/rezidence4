@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions';
 import { canAccessTab } from '../domain/permissions';
-import { getRoleManifest } from '../domain/roleManifest';
+import { getRoleManifest, ROLE_MANIFEST } from '../domain/roleManifest';
 import { STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 import { toast } from '../ui/Toasts';
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
@@ -21,6 +21,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
 
   const defaultTab = getRoleManifest(user.role).defaultTab;
   const redirectNoticeRef = useRef('');
+  const knownTabs = useRef(new Set(Object.values(ROLE_MANIFEST).flatMap((m) => m.tabs)));
 
   // Извлекаем таб из URL: /dashboard/passes → 'passes'
   const getTabFromPath = (pathname) => {
@@ -47,6 +48,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
             role: user.role,
             from: tabFromUrl,
             to: defaultTab,
+            reason: knownTabs.current.has(tabFromUrl) ? 'forbidden' : 'invalid',
           });
           toast('Раздел недоступен вашей роли. Открыт доступный раздел.', 'warn');
         }

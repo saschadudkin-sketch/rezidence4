@@ -12,6 +12,7 @@ import { toast } from '../../ui/Toasts';
 import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
 import { MS_PER_DAY } from '../../constants/limits';
+import { presentError } from '../../ui/errorPresenter';
 
 // FIX [PERF-5]: memo — TempPassCard рендерится для каждого временного пропуска.
 const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, blacklist }) {
@@ -45,7 +46,7 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
       arriveRequest(req.id, userName, 'security');
       if (isMountedRef.current) toast('Вход отмечен', 'success');
     } catch {
-      if (isMountedRef.current) toast('Ошибка операции', 'error');
+      if (isMountedRef.current) toast(presentError(new Error('arrive_failed'), 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(false);
     }

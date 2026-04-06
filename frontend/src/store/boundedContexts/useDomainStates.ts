@@ -20,6 +20,7 @@ import {
 } from '../slices/garageSlice';
 import {
   loadFromLS,
+  hydrateRequestMediaFromIndexedDb,
   saveRequests,
   saveChat,
   saveUsers,
@@ -97,10 +98,14 @@ export function useBoundedDomainStates() {
   useDebouncedSave(garageState, saveGarage, isDemoMode);
 
   useEffect(() => {
-    const applyDeferredHydration = () => {
+    const applyDeferredHydration = async () => {
       const full = loadFromLS();
       if (!full) return;
-      if (full.requests) dispatch({ type: A.REQUESTS_SET_ALL, requests: full.requests });
+      if (full.requests) {
+        dispatch({ type: A.REQUESTS_SET_ALL, requests: full.requests });
+        const hydrated = await hydrateRequestMediaFromIndexedDb(full.requests);
+        dispatch({ type: A.REQUESTS_SET_ALL, requests: hydrated });
+      }
       if (full.chat) dispatch({ type: A.CHAT_SET_ALL, messages: full.chat });
       if (full.users) dispatch({ type: A.USERS_SET_ALL, users: Object.values(full.users) });
       if (full.perms) Object.entries(full.perms).forEach(([uid, perms]) => dispatch({ type: A.PERMS_SET, uid, perms }));
