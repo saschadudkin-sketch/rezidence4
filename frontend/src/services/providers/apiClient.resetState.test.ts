@@ -11,12 +11,12 @@ global.fetch = vi.fn();
 describe('apiClient — _resetApiState изоляция', () => {
   let apiClient, _resetApiState, resetRefreshState;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     global.fetch = vi.fn();
     // Убираем window.dispatchEvent чтобы не было ошибки в jsdom
     vi.spyOn(window, 'dispatchEvent').mockImplementation(() => {});
-    ({ apiClient, _resetApiState, resetRefreshState } = require('./apiClient'));
+    ({ apiClient, _resetApiState, resetRefreshState } = await import('./apiClient'));
   });
 
   afterEach(() => {

@@ -14,6 +14,7 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ROLES, canAccessTab, getTabsForRole } from '../../domain/permissions';
 import { ReqSkeleton } from '../../requests/ReqCard';
 import ErrorBoundary from '../../ui/ErrorBoundary';
+import ViewStateAdapter from '../../ui/ViewStateAdapter';
 import { useNavigationContext } from './NavigationContext';
 
 const ResidentView  = lazy(() => import('../ResidentView'));
@@ -77,7 +78,7 @@ function TabRoute({ user }) {
     return (
       <ErrorBoundary name="Панель администратора">
         <Suspense fallback={fallback}>
-          <AdminView user={user} activeTab={tab} />
+          <AdminView user={user} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -111,7 +112,7 @@ const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = fa
 
   // P-02: while SSE data is loading, show skeleton cards inside the shell
   // (header + nav remain interactive). This replaces the full-screen spinner.
-  if (isLoading) return <ReqSkeleton count={4} />;
+  if (isLoading) return <ViewStateAdapter entity="requests" state="loading" />;
 
   return (
     <Routes>

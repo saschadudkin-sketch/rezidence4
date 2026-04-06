@@ -53,6 +53,27 @@ for (const file of codeFiles) {
   }
 }
 
+
+const utilitiesPolishPath = 'src/styles/components/utilities-polish.css';
+const utilitiesPolish = readFileSync(utilitiesPolishPath, 'utf8');
+const utilityLines = utilitiesPolish.split('\n').length;
+const MAX_UTILITY_LINES = 760;
+if (utilityLines > MAX_UTILITY_LINES) {
+  console.error(`[style-governance] ${utilitiesPolishPath} exceeds utility budget: ${utilityLines} lines (max ${MAX_UTILITY_LINES})`);
+  hasError = true;
+}
+
+const MAX_UTILITY_BLOCK_LINES = 24;
+for (const match of utilitiesPolish.matchAll(/[^{}]+\{[^{}]*\}/g)) {
+  const block = match[0];
+  const blockLines = block.split('\n').length;
+  if (blockLines > MAX_UTILITY_BLOCK_LINES) {
+    const selector = block.split('{')[0].trim().replace(/\s+/g, ' ');
+    console.error(`[style-governance] Large utility block is forbidden in ${utilitiesPolishPath}: "${selector}" has ${blockLines} lines (max ${MAX_UTILITY_BLOCK_LINES})`);
+    hasError = true;
+  }
+}
+
 const foundations = readFileSync('src/styles/foundations.css', 'utf8');
 if (!foundations.includes(':focus-visible')) {
   console.error('[style-governance] foundations.css must define :focus-visible styles');

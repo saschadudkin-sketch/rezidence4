@@ -6,7 +6,7 @@ export interface ValidationResult {
 }
 
 interface LegacyResult {
-  status?: 'allowed' | 'denied';
+  status?: string;
   valid?: boolean;
   reason?: string;
 }

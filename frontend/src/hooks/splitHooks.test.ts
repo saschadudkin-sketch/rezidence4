@@ -44,12 +44,9 @@ describe('useDashboardHooks barrel re-exports', () => {
 });
 
 describe('useLiveSync — isLoading state', () => {
-  const { renderHook } = require('@testing-library/react');
-  const { useLiveSync } = require('./useLiveSync');
-
-  const { services: mockServices } = require('../services/providers/serviceContainer');
-
   test('isLoading starts true and becomes false after data arrives', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    const { useLiveSync } = await import('./useLiveSync');
     const { result } = renderHook(() =>
       useLiveSync(
         { uid: 'u1', role: 'owner' },

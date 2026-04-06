@@ -6,7 +6,7 @@
 .chat-wrap{
   display:flex;flex-direction:column;
   height:calc(100dvh - var(--header-h) - var(--sat) - var(--nav-h) - var(--sab) - var(--page-top-h));
-  min-height:200px;max-width:720px;margin:0 auto;
+  min-height:200px;max-width:680px;margin:0 auto;
   background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;
 }
 /* На desktop нет bottom-nav, поэтому nav-h не вычитается */

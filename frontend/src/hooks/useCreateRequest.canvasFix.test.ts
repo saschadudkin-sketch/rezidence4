@@ -97,7 +97,7 @@ describe('useCreateRequest — dateInput re-export contract', () => {
     const fs   = require('fs');
     const path = require('path');
     const src  = fs.readFileSync(
-      path.resolve(__dirname, '../hooks/useCreateRequest'),
+      path.resolve(__dirname, '../hooks/useCreateRequest.ts'),
       'utf-8',
     );
     expect(src).toMatch(/^export\s*\{[^}]*toLocalDateInputValue/m);

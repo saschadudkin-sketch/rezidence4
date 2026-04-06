@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
 import { MAX_PHOTOS_PER_REQUEST, daysFromNow } from '../constants/limits';
@@ -183,6 +183,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const submitLabel = form.loading             ? 'Сохранение...'
     : form.showSchedule && form.scheduledFor   ? 'Запланировать'
     : 'Создать заявку';
@@ -282,17 +283,30 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
               onBlur={e => form.setComment(sanitizeText(e.target.value))} />
           </div>
           {/* P-06: кнопка остаётся видимой при достижении лимита — показывает счётчик и disabled */}
-          <label className={'photo-btn photo-btn--col' + (form.photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}
+          <button
+            type="button"
+            className={'photo-btn photo-btn--col' + (form.photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}
             aria-disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST}
-            title={form.photos.length >= MAX_PHOTOS_PER_REQUEST ? `Максимум ${MAX_PHOTOS_PER_REQUEST} фотографий` : undefined}>
+            title={form.photos.length >= MAX_PHOTOS_PER_REQUEST ? `Максимум ${MAX_PHOTOS_PER_REQUEST} фотографий` : undefined}
+            onClick={() => {
+              if (form.photos.length >= MAX_PHOTOS_PER_REQUEST) return;
+              fileInputRef.current?.click();
+            }}
+          >
             <span className="u-row-g8">
               <AppIcon name="camera" size={14} />
               <span>{`Фото: ${form.photos.length}/${MAX_PHOTOS_PER_REQUEST}`}</span>
             </span>
-            <input type="file" accept="image/*" multiple className="u-none"
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="u-none"
               onChange={form.handlePhoto}
-              disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST} />
-          </label>
+              disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST}
+            />
+          </button>
           {form.photos.length > 0 && (
             <div className="photo-grid">
               {form.photos.map((src, i) => (

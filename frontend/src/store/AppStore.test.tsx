@@ -22,7 +22,7 @@ Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
-import { AppProvider, useActions, useRequests } from './AppStore';
+import { AppProvider, useActions, useChat, useRequests } from './AppStore';
 
 const wrapper = ({ children }) => <AppProvider>{children}</AppProvider>;
 
@@ -135,5 +135,39 @@ describe('AppStore — request workflow', () => {
     const arrived = result.current.requests.find(r => r.id === 'r_flow_1');
     expect(arrived.status).toBe('arrived');
     expect(arrived.arrivedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('AppStore — FE-02 context slice stability', () => {
+  it('обновление requests не меняет ссылку chat context', () => {
+    const { result } = renderHook(() => ({
+      actions: useActions(),
+      chat: useChat(),
+    }), { wrapper });
+
+    const initialChatRef = result.current.chat;
+
+    act(() => {
+      result.current.actions.addRequest({
+        id: 'r_ctx_ref',
+        type: 'pass',
+        category: 'guest',
+        status: 'pending',
+        createdByUid: 'u1',
+        createdByName: 'Test',
+        createdByRole: 'owner',
+        createdAt: new Date(),
+        arrivedAt: null,
+        scheduledFor: null,
+        validUntil: null,
+        photos: [],
+        photo: null,
+        passDuration: 'once',
+        comment: '',
+        priority: 'normal',
+      });
+    });
+
+    expect(result.current.chat).toBe(initialChatRef);
   });
 });

@@ -1,4 +1,4 @@
-import { useReducer, useState, useCallback, useEffect } from 'react';
+import { useReducer, useState, useCallback, useEffect, useMemo } from 'react';
 import { isLiveMode } from '../../config/runtimeMode';
 import {
   requestsReducer, INITIAL_REQUESTS, INITIAL_HISTORY,
@@ -80,7 +80,9 @@ export function useBoundedDomainStates() {
     garage: saved?.garage ?? INITIAL_GARAGE,
   }));
 
-  const dispatch = useCallback((action) => routeDomainDispatch(action, {
+  // FE-02: dispatchers map is memoized once so dispatch callback doesn't allocate
+  // a new routing table on every action dispatch.
+  const dispatchers = useMemo(() => ({
     requests: requestsDispatch,
     chat: chatDispatch,
     users: usersDispatch,
@@ -88,6 +90,15 @@ export function useBoundedDomainStates() {
     blacklist: blacklistDispatch,
     garage: garageDispatch,
   }), []);
+
+  const dispatch = useCallback((action) => routeDomainDispatch(action, {
+    requests: dispatchers.requests,
+    chat: dispatchers.chat,
+    users: dispatchers.users,
+    perms: dispatchers.perms,
+    blacklist: dispatchers.blacklist,
+    garage: dispatchers.garage,
+  }), [dispatchers]);
 
   const isDemoMode = !isLiveMode();
   useDebouncedSave(reqState, saveRequests, isDemoMode);
@@ -122,13 +133,33 @@ export function useBoundedDomainStates() {
     return () => clearTimeout(t);
   }, [dispatch]);
 
-  return {
+  // FE-02: each context receives independently memoized slice value.
+  const requestsValue = useMemo(() => reqState, [reqState]);
+  const chatValue = useMemo(() => chatState, [chatState]);
+  const usersValue = useMemo(() => usersState, [usersState]);
+  const permsValue = useMemo(() => permsState, [permsState]);
+  const blacklistValue = useMemo(() => blacklistState.blacklist ?? INITIAL_BLACKLIST, [blacklistState]);
+  const garageValue = useMemo(() => garageState.garage ?? INITIAL_GARAGE, [garageState]);
+
+  return useMemo(() => ({
     dispatch,
-    reqState,
-    chatState,
-    usersState,
-    permsState,
+    reqState: requestsValue,
+    chatState: chatValue,
+    usersState: usersValue,
+    permsState: permsValue,
     blacklistState,
     garageState,
-  };
+    blacklistValue,
+    garageValue,
+  }), [
+    dispatch,
+    requestsValue,
+    chatValue,
+    usersValue,
+    permsValue,
+    blacklistState,
+    garageState,
+    blacklistValue,
+    garageValue,
+  ]);
 }

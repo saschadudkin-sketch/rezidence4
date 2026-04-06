@@ -36,6 +36,16 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
     toast(av ? 'Аватарка сохранена' : 'Аватарка удалена', 'success');
   }, [setAvatar, deleteAvatar, user.uid]);
 
+  const handleLogoutCurrent = useCallback(() => {
+    onLogout?.({ allDevices: false });
+  }, [onLogout]);
+
+  const handleLogoutAllDevices = useCallback(() => {
+    const confirmed = window.confirm('Выйти со всех устройств? Это завершит все активные сессии.');
+    if (!confirmed) return;
+    onLogout?.({ allDevices: true });
+  }, [onLogout]);
+
   return (
     <>
       <div
@@ -80,7 +90,8 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
                 Настроить аватарку
               </button>
             </div>
-            <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
+            <button className="dd-out" onClick={handleLogoutCurrent}>Выйти из аккаунта</button>
+            <button className="dd-out" onClick={handleLogoutAllDevices}>Выйти со всех устройств</button>
           </div>
         )}
       </div>

@@ -1,6 +1,8 @@
 import React from 'react';
-import StateBlock from '../ui/StateBlock';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { AppIcon } from '../ui/AppIcon';
+import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
 
 interface ChatMessageListProps {
   msgsContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -15,7 +17,8 @@ interface ChatMessageListProps {
   onRetryInitialSync: () => void;
   filteredChatLength: number;
   searchQuery: string;
-  renderMessages: () => React.ReactNode;
+  messages: unknown[];
+  renderMessage: (index: number) => React.ReactNode;
   bottomRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -32,27 +35,36 @@ export function ChatMessageList({
   onRetryInitialSync,
   filteredChatLength,
   searchQuery,
-  renderMessages,
+  messages,
+  renderMessage,
   bottomRef,
 }: ChatMessageListProps) {
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => msgsContainerRef.current,
+    estimateSize: () => 120,
+    overscan: 8,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
   return (
     <div className="chat-msgs" ref={msgsContainerRef}>
       {hasMore && (
         <div className="u-py8">
           {loadingOlder ? (
-            <StateBlock type="loading" title="Загрузка истории…" />
+            <ViewStateAdapter entity="history" state="loading" title="Загрузка истории…" subtitle="Пожалуйста, подождите" />
           ) : (
             <button
               onClick={onLoadOlder}
-              className="btn-outline"
-              className="u-block u-mx-auto u-minw160"
+              className="btn-outline u-block u-mx-auto u-minw160"
             >
               <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
             </button>
           )}
           {historyError && (
-            <StateBlock
-              type="error"
+            <ViewStateAdapter
+              entity="history"
+              state="error"
               title="История чата недоступна"
               subtitle={historyError}
               actionLabel="Повторить"
@@ -62,20 +74,29 @@ export function ChatMessageList({
         </div>
       )}
       {serverSearchLoading && (
-        <StateBlock type="loading" title="Поиск по всей истории…" />
+        <ViewStateAdapter entity="history" state="loading" title="Поиск по всей истории…" subtitle="Пожалуйста, подождите" />
       )}
       {serverSearchError && !serverSearchLoading && (
-        <StateBlock
-          type="error"
-          title="Не удалось выполнить поиск"
-          subtitle={serverSearchError}
-          actionLabel="Повторить"
-          onAction={onRetryServerSearch}
-        />
+        <>
+          <ViewStateAdapter
+            entity="history"
+            state="error"
+            title="Не удалось выполнить поиск"
+            subtitle={serverSearchError}
+            actionLabel="Повторить"
+            onAction={onRetryServerSearch}
+          />
+          <ErrorRecoveryPanel
+            message="Поиск по облачной истории недоступен"
+            onRetry={onRetryServerSearch}
+            onFallback={() => { window.location.assign('/dashboard/passes?offlineQueue=1'); }}
+          />
+        </>
       )}
       {initialHistoryError && !hasMore && (
-        <StateBlock
-          type="error"
+        <ViewStateAdapter
+          entity="history"
+          state="error"
           title="История чата временно недоступна"
           subtitle={initialHistoryError}
           actionLabel="Повторить"
@@ -83,14 +104,42 @@ export function ChatMessageList({
         />
       )}
       {filteredChatLength === 0 && !serverSearchLoading && (
-        <StateBlock
-          type="empty"
+        <ViewStateAdapter
+          entity="history"
+          state="empty"
           title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
           subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
         />
       )}
-      {renderMessages()}
-      <div ref={bottomRef}/>
+      {messages.length > 0 && (
+        <div
+          // eslint-disable-next-line no-restricted-syntax
+          style={{
+            height: rowVirtualizer.getTotalSize(),
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualRows.map(virtualRow => (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              // eslint-disable-next-line no-restricted-syntax
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              {renderMessage(virtualRow.index)}
+            </div>
+          ))}
+        </div>
+      )}
+      <div ref={bottomRef} />
     </div>
   );
 }
