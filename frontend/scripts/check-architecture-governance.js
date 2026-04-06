@@ -30,6 +30,7 @@ assertContains('src/services/providers/serviceContainer.ts', 'ServiceContainer',
 // A4: decomposition baseline for ChatView.
 assertContains('src/chat/hooks/useChatSearch.ts', 'export function useChatSearch', 'chat search hook extraction');
 assertContains('src/chat/hooks/useChatComposer.ts', 'export function useChatComposer', 'chat composer hook extraction');
+assertContains('src/chat/hooks/useChatData.ts', 'export function useChatData', 'chat data hook extraction');
 assertContains('src/chat/ChatMessageList.tsx', 'export function ChatMessageList', 'chat message list extraction');
 assertContains('src/chat/ChatView.tsx', 'ChatMessageList', 'ChatView list composition');
 

@@ -14,6 +14,7 @@ import { AppIcon } from '../ui/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useChatSearch } from './hooks/useChatSearch';
 import { useChatComposer } from './hooks/useChatComposer';
+import { useChatData } from './hooks/useChatData';
 import { ChatMessageList } from './ChatMessageList';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
@@ -101,7 +102,7 @@ const EMOJI_GRID = [
 
 export function ChatView({ user }) {
   const { chat, chatLastSeen } = useChat();
-  const { sendMessage, markChatSeen, updateMessage, deleteMessage, setAllMessages } = useActions();
+  const { sendMessage, updateMessage, deleteMessage, setAllMessages } = useActions();
   const { users } = useUsers();
   const { text, setText, replyTo, setReplyTo, editingMsg, setEditingMsg, showEmoji, setShowEmoji } = useChatComposer();
   const [photoSending, setPhotoSending] = useState(false);
@@ -109,13 +110,22 @@ export function ChatView({ user }) {
   const [msgMenu, setMsgMenu] = useState(null);
   // P-05: подтверждение перед удалением сообщения — удаление необратимо
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState(null);
-  // FIX [AUDIT]: пагинация истории чата.
-  // Бэкенд всегда возвращал { messages, hasMore } — но фронт игнорировал hasMore.
-  // Пользователь видел только последние 60 сообщений без возможности прокрутить дальше.
-  const [hasMore, setHasMore]             = useState(false);
-  const [loadingOlder, setLoadingOlder]   = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [initialHistoryError, setInitialHistoryError] = useState('');
+
+  const msgsContainerRef = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const fileRef = useRef(null);
+  const swipeRef = useRef({});
+  const longPressRef = useRef(null);
+
+  const {
+    hasMore,
+    loadingOlder,
+    historyError,
+    initialHistoryError,
+    loadOlderMessages,
+    retryInitialSync,
+  } = useChatData({ chat, setAllMessages, msgsContainerRef });
   // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
   const {
     searchQuery,
@@ -127,12 +137,6 @@ export function ChatView({ user }) {
     setSearchRetryTick,
     filteredChat,
   } = useChatSearch(chat, hasMore, services.chat.getMessages);
-  const msgsContainerRef = useRef(null);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const fileRef = useRef(null);
-  const swipeRef = useRef({});
-  const longPressRef = useRef(null);
   // FIX [BUG-20]: заменяем document.querySelector('[data-msg-id=...]') на ref-Map.
   const msgRefs = useRef(new Map()); // id → DOM-element
 
@@ -171,73 +175,6 @@ export function ChatView({ user }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chat.length]);
-
-  // FIX [AUDIT]: загрузка истории — «Загрузить ещё».
-  // Бэкенд возвращал hasMore=true, но фронт его игнорировал — история была недоступна.
-  // Алгоритм:
-  //   1. Запрашиваем сообщения СТАРШЕ chat[0].id (oldest message in store).
-  //   2. Сохраняем позицию скролла ДО добавления — после prepend скролл смещается.
-  //   3. Prepend к текущему чату через setAllMessages.
-  //   4. Восстанавливаем позицию скролла так чтобы пользователь видел то же место.
-  const loadOlderMessages = useCallback(async () => {
-    if (loadingOlder || !hasMore || !isLiveMode()) return;
-    const oldestMsg = chat[0];
-    if (!oldestMsg) return;
-
-    setLoadingOlder(true);
-    setHistoryError('');
-    const container = msgsContainerRef.current;
-    const prevScrollHeight = container?.scrollHeight ?? 0;
-
-    try {
-      const data = await services.chat.getMessages({ before: oldestMsg.id, limit: 60 });
-      if (data?.messages?.length) {
-        // Prepend: старые сообщения идут перед текущими
-        setAllMessages([...data.messages, ...chat]);
-        setHasMore(data.hasMore ?? false);
-        // Восстанавливаем позицию скролла — иначе пользователя бросает наверх
-        requestAnimationFrame(() => {
-          if (container) {
-            container.scrollTop = container.scrollHeight - prevScrollHeight;
-          }
-        });
-      } else {
-        setHasMore(false);
-      }
-    } catch {
-      setHistoryError('Не удалось загрузить более ранние сообщения');
-      toast('Ошибка загрузки истории чата', 'error');
-    } finally {
-      setLoadingOlder(false);
-    }
-  }, [loadingOlder, hasMore, chat, setAllMessages]);
-
-  // FIX [MEMORY]: markChatSeen при unmount не нужен — при открытии уже помечается
-  useEffect(() => {
-    markChatSeen(user.uid);
-  }, [user.uid, markChatSeen]);
-
-  // FIX [AUDIT]: синхронизируем hasMore при первой загрузке (live-режим).
-  // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
-  // но setAllMessages принимает только массив сообщений.
-  // Решение: при первом монтировании в live-режиме запрашиваем чат напрямую и берём hasMore.
-  const syncHasMoreMeta = useCallback(async () => {
-    if (!isLiveMode()) return;
-    setInitialHistoryError('');
-    const data = await services.chat.getMessages({ limit: 60 });
-    setHasMore(data?.hasMore ?? false);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    syncHasMoreMeta()
-      .catch(() => {
-        if (cancelled) return;
-        setInitialHistoryError('Не удалось загрузить состояние истории чата');
-        toast('Ошибка синхронизации истории чата', 'error');
-      });
-    return () => { cancelled = true; };
-  }, [syncHasMoreMeta]);
 
   // FIX: Ref для popup — закрытие по клику вне меню
   const menuPopupRef = useRef(null);
@@ -454,13 +391,7 @@ export function ChatView({ user }) {
         serverSearchError={serverSearchError}
         onRetryServerSearch={() => setSearchRetryTick(v => v + 1)}
         initialHistoryError={initialHistoryError}
-        onRetryInitialSync={() => {
-          syncHasMoreMeta()
-            .catch(() => {
-              setInitialHistoryError('Не удалось загрузить состояние истории чата');
-              toast('Ошибка синхронизации истории чата', 'error');
-            });
-        }}
+        onRetryInitialSync={retryInitialSync}
         filteredChatLength={filteredChat.length}
         searchQuery={searchQuery}
         renderMessages={() => filteredChat.map((m, i) => {
