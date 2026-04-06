@@ -12,6 +12,7 @@ import { toLocalDateInputValue, parseLocalDateInputValue } from '../utils/dateIn
 import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useScheduleForm';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
+import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
 
 // ─── VisitorFields ────────────────────────────────────────────────────────────
 // FIX [PERF-19]: memo — VisitorFields не имеет внутреннего состояния, рендерится
@@ -26,7 +27,10 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
         <div className="field">
           <label className="field-lbl">Марка и номер авто{cat === 'taxi' ? ' *' : ''}</label>
           <input className="field-inp" placeholder="Toyota Camry А123БВ777"
-            value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+            value={carPlate}
+            onChange={e => setCarPlate(e.target.value)}
+            onBlur={e => setCarPlate(sanitizeCarPlate(e.target.value))}
+            autoCapitalize="characters" />
         </div>
       )}
       {cat === 'team' && (
@@ -41,6 +45,11 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
                 onChange={e => {
                   const a = [...vNames];
                   a[i] = { ...n, value: e.target.value };
+                  setVNames(a);
+                }}
+                onBlur={e => {
+                  const a = [...vNames];
+                  a[i] = { ...n, value: sanitizeText(e.target.value) };
                   setVNames(a);
                 }}
                 autoCapitalize="words" />
@@ -58,7 +67,10 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
         <div className="field">
           <label className="field-lbl">{requiresVisitorName(cat) ? 'Имя посетителя *' : 'Имя посетителя'}</label>
           <input className="field-inp" placeholder="Иван Иванов"
-            value={vName} onChange={e => setVName(e.target.value)} autoCapitalize="words" autoComplete="name" />
+            value={vName}
+            onChange={e => setVName(e.target.value)}
+            onBlur={e => setVName(sanitizeText(e.target.value))}
+            autoCapitalize="words" autoComplete="name" />
           {permsList.length > 0 && (
             <div className="perms-picker-wrap">
               <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker(p => !p)}>
@@ -82,7 +94,10 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
         <div className="field">
           <label className="field-lbl">Телефон</label>
           <input className="field-inp" placeholder="+7 000 000-00-00" type="tel"
-            value={vPhone} onChange={e => setVPhone(e.target.value)} inputMode="tel" autoComplete="tel" />
+            value={vPhone}
+            onChange={e => setVPhone(e.target.value)}
+            onBlur={e => setVPhone(sanitizePhone(e.target.value))}
+            inputMode="tel" autoComplete="tel" />
         </div>
       )}
     </>
@@ -101,6 +116,7 @@ const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSave
             <label className="field-lbl">Название шаблона *</label>
             <input className="field-inp" placeholder="Например: Гость Иван, Сантехник..."
               value={tplName} onChange={e => setTplName(e.target.value)}
+              onBlur={e => setTplName(sanitizeText(e.target.value))}
               autoFocus onKeyDown={e => e.key === 'Enter' && onSave()} />
           </div>
           <div className="u-row-g8-bare">
@@ -165,6 +181,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
 
 export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
+  const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const submitLabel = form.loading             ? 'Сохранение...'
     : form.showSchedule && form.scheduledFor   ? 'Запланировать'
@@ -188,9 +205,9 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         <div className="modal-body">
           {/* P-03: category picker — lets users switch category directly inside
               the modal instead of having to close, pick from outside, and reopen */}
-          {form.cats.length > 1 && (
+          {cats.length > 1 && (
             <div className="modal-cat-picker" role="group" aria-label="Тип заявки">
-              {form.cats.map(c => (
+              {cats.map(c => (
                 <button
                   key={c}
                   type="button"
@@ -260,7 +277,9 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
           <div className="field">
             <label className="field-lbl">Комментарий</label>
             <textarea className="field-textarea" rows={3} placeholder="Дополнительно..."
-              value={form.comment} onChange={e => form.setComment(e.target.value)} />
+              value={form.comment}
+              onChange={e => form.setComment(e.target.value)}
+              onBlur={e => form.setComment(sanitizeText(e.target.value))} />
           </div>
           {/* P-06: кнопка остаётся видимой при достижении лимита — показывает счётчик и disabled */}
           <label className={'photo-btn photo-btn--col' + (form.photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}

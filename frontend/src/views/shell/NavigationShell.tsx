@@ -10,6 +10,7 @@
 
 import { useState, useEffect, memo } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
+import { useModalAccessibility } from '../../ui/useModalAccessibility';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
@@ -36,19 +37,19 @@ function useIsMobile() {
 }
 
 function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, onClose }) {
-  // Закрыть по Escape
-  useEffect(() => {
-    const handler = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', handler);
-    return () => {
-      document.removeEventListener('keydown', handler);
-    };
-  }, [onClose]);
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   return (
-    <div className="mn-quick-sheet" role="dialog" aria-modal="true" aria-label="Быстрые действия">
+    <div className="mn-quick-sheet" {...overlayProps}>
       <button className="mn-quick-sheet__scrim" onClick={onClose} aria-label="Закрыть быстрые действия" />
-      <div className="mn-quick-sheet__panel">
+      <div
+        className="mn-quick-sheet__panel"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Быстрые действия"
+        tabIndex={-1}
+      >
         <div className="mn-quick-sheet__handle" aria-hidden="true" />
         <div className="mn-quick-sheet__header">Быстрые действия</div>
         <div className="mn-quick-grid" role="menu" aria-label="Дополнительные вкладки">

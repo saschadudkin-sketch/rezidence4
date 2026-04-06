@@ -10,6 +10,7 @@ import { parseLocalDateInputValue } from '../utils/dateInput';
 import { usePhotoHandler } from './usePhotoHandler';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm';
 import { useTemplateForm } from './useTemplateForm';
+import { sanitizeRequestFormFields } from '../utils/formPolicy';
 // КРИТ-A1: form field state extracted to its own hook as part of God Hook decomposition
 import { useRequestFormState } from './useRequestFormState';
 
@@ -95,10 +96,18 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     // D-01: sync guard prevents double-submit
     if (submittingRef.current) return;
 
+    const sanitized = sanitizeRequestFormFields({
+      visitorName: vName,
+      visitorNames: vNames.map((n) => n.value),
+      visitorPhone: vPhone,
+      carPlate,
+      comment,
+    });
+
     // Validation
-    if (type === 'pass' && cat === 'taxi'  && !carPlate.trim())                     { toast('Укажите марку и номер авто', 'error');  return; }
-    if (type === 'pass' && cat === 'team'  && !vNames.some(n => n.value.trim()))    { toast('Укажите имена посетителей', 'error'); return; }
-    if (type === 'pass' && requiresVisitorName(cat) && !vName.trim())               { toast('Укажите имя посетителя',    'error');  return; }
+    if (type === 'pass' && cat === 'taxi'  && !sanitized.carPlate)                  { toast('Укажите марку и номер авто', 'error');  return; }
+    if (type === 'pass' && cat === 'team'  && sanitized.visitorNames.length === 0)  { toast('Укажите имена посетителей', 'error'); return; }
+    if (type === 'pass' && requiresVisitorName(cat) && !sanitized.visitorName)      { toast('Укажите имя посетителя',    'error');  return; }
 
     submittingRef.current = true;
     setLoading(true);
@@ -124,11 +133,11 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       createdByApt:  user.apartment,
       visitorName:   type !== 'pass'       ? null
                    : cat  === 'taxi'       ? null
-                   : cat  === 'team'       ? vNames.filter(n => n.value.trim()).map(n => n.value).join(', ') || null
-                   : vName.trim()          || null,
-      carPlate:      needsCarPlate(cat)    ? carPlate.trim() || null : null,
-      visitorPhone:  type === 'pass'       ? vPhone.trim()   || null : null,
-      comment:       comment.trim(),
+                   : cat  === 'team'       ? sanitized.visitorNames.join(', ') || null
+                   : sanitized.visitorName || null,
+      carPlate:      needsCarPlate(cat)    ? sanitized.carPlate || null : null,
+      visitorPhone:  type === 'pass'       ? sanitized.visitorPhone || null : null,
+      comment:       sanitized.comment,
       priority:      'normal',
       passDuration:  type === 'pass' ? (validUntil ? 'temporary' : 'once') : null,
       validUntil:    parsedValidUntil,
