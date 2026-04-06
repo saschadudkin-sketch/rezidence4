@@ -5,10 +5,10 @@
 
 import { chatReducer, INITIAL_CHAT, INITIAL_CHAT_LAST_SEEN } from './chatSlice';
 
-const baseState = {
+const baseState: any = {
   chat: [
-    { id: 'm1', uid: 'u1', text: 'Привет', at: '2026-03-15T10:00:00' },
-    { id: 'm2', uid: 'u2', text: 'Здравствуйте', at: '2026-03-15T10:01:00' },
+    { id: 'm1', uid: 'u1', name: 'User 1', text: 'Привет', at: '2026-03-15T10:00:00' },
+    { id: 'm2', uid: 'u2', name: 'User 2', text: 'Здравствуйте', at: '2026-03-15T10:01:00' },
   ],
   chatLastSeen: { u1: 1000 },
 };
@@ -25,21 +25,21 @@ describe('INITIAL values', () => {
 
 describe('chatReducer — CHAT_SEND', () => {
   test('добавляет сообщение в конец массива', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое', at: '2026-03-15T10:02:00' };
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое', at: '2026-03-15T10:02:00' };
     const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
     expect(result.chat).toHaveLength(3);
     expect(result.chat[2]).toBe(msg);
   });
 
   test('не мутирует исходный массив', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое' };
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое' };
     const original = [...baseState.chat];
     chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
     expect(baseState.chat).toEqual(original);
   });
 
   test('остальные поля состояния не изменяются', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое' };
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое' };
     const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
     expect(result.chatLastSeen).toBe(baseState.chatLastSeen);
   });
@@ -47,7 +47,7 @@ describe('chatReducer — CHAT_SEND', () => {
 
 describe('chatReducer — CHAT_SET_ALL', () => {
   test('заменяет весь массив сообщений', () => {
-    const messages = [{ id: 'x1', uid: 'u3', text: 'Загружено' }];
+    const messages = [{ id: 'x1', uid: 'u3', name: 'User 3', text: 'Загружено' }];
     const result = chatReducer(baseState, { type: 'CHAT_SET_ALL', messages });
     expect(result.chat).toBe(messages);
   });

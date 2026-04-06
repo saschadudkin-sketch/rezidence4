@@ -5,9 +5,9 @@
 import { requestsReducer } from './requestsSlice';
 
 describe('requestsReducer', () => {
-  const req1 = { id: 'r1', type: 'pass', status: 'pending', passDuration: 'once', createdAt: new Date(), arrivedAt: null };
-  const req2 = { id: 'r2', type: 'pass', status: 'approved', passDuration: 'temporary', validUntil: new Date(Date.now() + 86400000), createdAt: new Date(), arrivedAt: null };
-  const baseState = { requests: [req1, req2], history: {} };
+  const req1: any = { id: 'r1', type: 'pass', status: 'pending', passDuration: 'once', createdAt: new Date(), arrivedAt: null };
+  const req2: any = { id: 'r2', type: 'pass', status: 'approved', passDuration: 'temporary', validUntil: new Date(Date.now() + 86400000), createdAt: new Date(), arrivedAt: null };
+  const baseState: any = { requests: [req1, req2], history: {} };
 
   test('REQUEST_SET_STATUS changes status', () => {
     const action = { type: 'REQUEST_SET_STATUS', id: 'r1', status: 'approved' };
@@ -23,7 +23,7 @@ describe('requestsReducer', () => {
   });
 
   test('REQUEST_ADD adds new request', () => {
-    const newReq = { id: 'r3', type: 'tech', status: 'pending' };
+    const newReq: any = { id: 'r3', type: 'tech', status: 'pending' };
     const action = { type: 'REQUEST_ADD', request: newReq };
     const result = requestsReducer(baseState, action);
     expect(result.requests).toHaveLength(3);

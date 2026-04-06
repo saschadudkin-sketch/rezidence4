@@ -5,14 +5,14 @@
 import { usersReducer } from './usersSlice';
 
 describe('usersReducer', () => {
-  const baseState = {
+  const baseState: any = {
     users: { u1: { uid: 'u1', name: 'Тест', phone: '+7 916 123-45-67', role: 'owner', apartment: '12' } },
     phoneDb: { '79161234567': { uid: 'u1', name: 'Тест', phone: '+7 916 123-45-67', role: 'owner', apartment: '12' } },
     avatars: {},
   };
 
   test('USERS_SET_ALL merges, does not overwrite', () => {
-    const action = { type: 'USERS_SET_ALL', users: [{ uid: 'u2', name: 'Новый', phone: '+7 929 000-00-00', role: 'tenant', apartment: '34' }] };
+    const action: any = { type: 'USERS_SET_ALL', users: [{ uid: 'u2', name: 'Новый', phone: '+7 929 000-00-00', role: 'tenant', apartment: '34' }] };
     const result = usersReducer(baseState, action);
     expect(result.users.u1).toBeDefined();
     expect(result.users.u2).toBeDefined();
