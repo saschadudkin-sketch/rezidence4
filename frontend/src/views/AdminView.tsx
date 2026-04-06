@@ -1,5 +1,6 @@
 import { useState, useMemo, memo, useDeferredValue } from 'react';
 import { useParams } from 'react-router-dom';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
@@ -21,6 +22,9 @@ import PageActionBar from '../ui/PageActionBar';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { useTelemetrySla } from '../hooks/useTelemetrySla';
 import SlaDashboard from '../ui/SlaDashboard';
+import { isLiveMode } from '../config/runtimeMode';
+import apiClient from '../services/http/apiClient';
+import { parseRequestsListResponse } from '../services/http/contractParsers';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -180,6 +184,8 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
 
 // FIX [PERF]: memo — не ре-рендерится при переключении других вкладок
 const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }) {
+  const PAGE_SIZE = 200;
+  const liveMode = isLiveMode();
   const [reqQuery,  setReqQuery]  = useState('');
   const [reqType,   setReqType]   = useState('all');
   const [reqStatus, setReqStatus] = useState('all');
@@ -188,15 +194,45 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
   const deferredReqQuery = useDeferredValue(debouncedQuery);
   const rq = deferredReqQuery.trim().toLowerCase();
 
-  const filtered = useMemo(() => filterByPeriod(requests, reqPeriod).filter(r => {
+  const {
+    data: pagedData,
+    isLoading: isPagedLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+    isError: isPagedError,
+  } = useInfiniteQuery({
+    queryKey: ['admin-requests-paged'],
+    enabled: liveMode,
+    initialPageParam: { page: 1, cursor: null as string | null },
+    queryFn: async ({ pageParam }) => {
+      const query = pageParam?.cursor
+        ? `/api/v1/requests?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(pageParam.cursor)}`
+        : `/api/v1/requests?limit=${PAGE_SIZE}&page=${pageParam?.page || 1}`;
+      const payload = await apiClient.get(query);
+      const parsed = parseRequestsListResponse(payload);
+      return parsed;
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.nextCursor) return { cursor: lastPage.nextCursor, page: null };
+      if (lastPage.nextPage) return { page: lastPage.nextPage, cursor: null };
+      return undefined;
+    },
+    staleTime: 30_000,
+  });
+
+  const pagedRows = useMemo(
+    () => (pagedData?.pages || []).flatMap((p) => p.rows || []),
+    [pagedData],
+  );
+  const sourceRows = liveMode && !isPagedError ? pagedRows : requests;
+
+  const filtered = useMemo(() => filterByPeriod(sourceRows, reqPeriod).filter(r => {
     const mq = !rq || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment].some(v => v && v.toLowerCase().includes(rq));
     const mt = reqType   === 'all' || r.type   === reqType;
     const ms = reqStatus === 'all' || r.status === reqStatus;
     return mq && mt && ms;
-  }), [requests, reqPeriod, rq, reqType, reqStatus]);
-  const [visibleCount, setVisibleCount] = useState(200);
-  const visibleItems = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleItems.length < filtered.length;
+  }), [sourceRows, reqPeriod, rq, reqType, reqStatus]);
   const requestsEmptyCopy = getViewStateCopy('admin_requests', 'empty');
 
   return (
@@ -222,12 +258,17 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
           ))}
         </div>
       </div>
-      {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
-      <VirtualList items={visibleItems} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
-      {hasMore && (
+      {liveMode && isPagedLoading && filtered.length === 0 && (
+        <StateBlock type="loading" title="Загрузка заявок" subtitle="Получаем первую страницу журнала заявок…" />
+      )}
+      {filtered.length === 0 && !isPagedLoading && (
+        <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />
+      )}
+      <VirtualList items={filtered} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
+      {liveMode && hasNextPage && (
         <div className="u-flex-center u-mt-12">
-          <button className="btn-outline" onClick={() => setVisibleCount((v) => v + 200)}>
-            Показать ещё ({filtered.length - visibleItems.length})
+          <button className="btn-outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+            {isFetchingNextPage ? 'Загрузка…' : 'Загрузить следующую страницу'}
           </button>
         </div>
       )}
