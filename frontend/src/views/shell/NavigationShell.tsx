@@ -112,6 +112,24 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   // Подсвечивать ли кнопку "•••" (если активная вкладка скрыта)
   const moreIsActive = overflowNav.some(([k]) => isActive(k));
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const updateViewportInset = () => {
+      const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--vk-offset', `${Math.round(keyboardInset)}px`);
+      if (keyboardInset > 0) setShowMore(false);
+    };
+    updateViewportInset();
+    vv.addEventListener('resize', updateViewportInset);
+    vv.addEventListener('scroll', updateViewportInset);
+    return () => {
+      vv.removeEventListener('resize', updateViewportInset);
+      vv.removeEventListener('scroll', updateViewportInset);
+      document.documentElement.style.setProperty('--vk-offset', '0px');
+    };
+  }, []);
+
   return (
     <>
       {/* UI-01: aria-hidden when CSS hides this nav — prevents duplicate landmarks for screen readers */}

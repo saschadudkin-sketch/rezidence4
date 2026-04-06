@@ -1,4 +1,4 @@
-import { useReducer, useState, useCallback } from 'react';
+import { useReducer, useState, useCallback, useEffect } from 'react';
 import { isLiveMode } from '../../config/runtimeMode';
 import {
   requestsReducer, INITIAL_REQUESTS, INITIAL_HISTORY,
@@ -29,6 +29,7 @@ import {
 } from '../persistence/localStorage';
 import { useDebouncedSave } from '../useDebouncedSave';
 import { routeDomainDispatch } from './domainRegistry';
+import { A } from '../storeActions';
 
 function requestsSliceReducer(state, action) {
   const full = requestsReducer({ requests: state.requests, history: state.history }, action);
@@ -51,7 +52,7 @@ function permsSliceReducer(state, action) {
 }
 
 export function useBoundedDomainStates() {
-  const [_saved] = useState(() => loadFromLS());
+  const [_saved] = useState(() => loadFromLS({ criticalOnly: true }));
   const saved = _saved;
 
   const [reqState, requestsDispatch] = useReducer(requestsSliceReducer, null, () => ({
@@ -94,6 +95,27 @@ export function useBoundedDomainStates() {
   useDebouncedSave(permsState, savePerms, isDemoMode);
   useDebouncedSave(blacklistState, saveBlacklist, isDemoMode);
   useDebouncedSave(garageState, saveGarage, isDemoMode);
+
+  useEffect(() => {
+    const applyDeferredHydration = () => {
+      const full = loadFromLS();
+      if (!full) return;
+      if (full.requests) dispatch({ type: A.REQUESTS_SET_ALL, requests: full.requests });
+      if (full.chat) dispatch({ type: A.CHAT_SET_ALL, messages: full.chat });
+      if (full.users) dispatch({ type: A.USERS_SET_ALL, users: Object.values(full.users) });
+      if (full.perms) Object.entries(full.perms).forEach(([uid, perms]) => dispatch({ type: A.PERMS_SET, uid, perms }));
+      if (full.templates) Object.entries(full.templates).forEach(([uid, templates]) => dispatch({ type: A.TEMPLATES_SET, uid, templates }));
+      if (full.blacklist) dispatch({ type: A.BLACKLIST_SET_ALL, entries: full.blacklist });
+      if (full.garage) Object.entries(full.garage).forEach(([uid, cars]) => dispatch({ type: A.GARAGE_SET, uid, cars }));
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = window.requestIdleCallback(applyDeferredHydration, { timeout: 1200 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(applyDeferredHydration, 350);
+    return () => clearTimeout(t);
+  }, [dispatch]);
 
   return {
     dispatch,

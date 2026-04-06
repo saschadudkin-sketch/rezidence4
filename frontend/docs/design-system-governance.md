@@ -26,3 +26,10 @@
 - [ ] Empty/error/loading states are explicit for async resources.
 - [ ] New components added to inventory table.
 - [ ] Playwright visual-state snapshots updated for impacted screens.
+
+## Premium SaaS visual QA (mandatory for release)
+
+- [ ] Login + Dashboard screens reviewed in pair for consistent brand depth (typography, shadows, spacing rhythm).
+- [ ] Smart CTA/promo blocks use tokenized variants only (no ad-hoc colors/shadows).
+- [ ] QA matrix captured for iOS Safari + Android Chrome + tablet landscape screenshots.
+- [ ] Any new utility-style component has a matching design-system variant and story/snapshot.

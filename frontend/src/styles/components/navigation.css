@@ -79,7 +79,7 @@
 /* ── MOBILE NAV ── */
 .mobile-nav{
   display:none;
-  position:fixed;bottom:0;left:0;right:0;z-index:var(--z-nav);
+  position:fixed;bottom:var(--vk-offset, 0px);left:0;right:0;z-index:var(--z-nav);
   background:var(--mobnav-bg);
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border-top:1px solid var(--b1);
@@ -150,6 +150,7 @@
   z-index:var(--z-top);
   display:flex;
   align-items:flex-end;
+  padding-bottom:var(--vk-offset, 0px);
 }
 .mn-quick-sheet__scrim{
   position:absolute;
@@ -161,12 +162,14 @@
   position:relative;
   width:100%;
   max-width:960px;
+  max-height:calc(100dvh - var(--vk-offset, 0px) - 20px);
   margin:0 auto;
   background:var(--dd-bg);
   border-top:1px solid var(--b2);
   border-radius:16px 16px 0 0;
   box-shadow:var(--sh-l);
-  padding:8px 16px calc(16px + var(--sab));
+  padding:8px 16px calc(16px + var(--sab) + var(--vk-offset, 0px));
+  overflow-y:auto;
 }
 .mn-quick-sheet__handle{
   width:42px;height:4px;border-radius:999px;

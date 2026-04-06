@@ -10,6 +10,7 @@ import { formatPhone } from '../utils/phoneUtils';
 import { emitLoginMetric } from '../utils/loginMetrics';
 // CQ-01: live/demo auth branching moved out of component into a hook
 import { useAuthFlow } from '../hooks/useAuthFlow';
+import { presentError } from '../ui/errorPresenter';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
@@ -109,7 +110,7 @@ export default function Login({ onLogin, authNotice = '' }) {
         setSendAttempts(n => n + 1);
         setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
         emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
-        if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
+        if (!signal.aborted) toast(presentError(e, 'auth.send_code').message, 'error');
       }
     } finally {
       setPending('send', false, reqId);
@@ -144,7 +145,7 @@ export default function Login({ onLogin, authNotice = '' }) {
     } catch(e) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
-      if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
+      if (!signal.aborted) toast(presentError(e, 'auth.verify').message, 'error');
     } finally {
       setPending('verify', false, reqId);
     }

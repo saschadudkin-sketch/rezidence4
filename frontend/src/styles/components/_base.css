@@ -45,6 +45,11 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 }
 .demo-welcome-icon{flex-shrink:0;display:inline-flex}
 .demo-welcome-text{flex:1}
+.demo-private-toggle{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:var(--fs-2xs);color:var(--t2);white-space:nowrap;
+}
+.demo-private-toggle input{accent-color:var(--g1)}
 .demo-welcome-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
@@ -69,6 +74,17 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
   padding:0;
 }
 .onboarding-hint-close:hover{opacity:1}
+.smart-action-rail{
+  margin-top:10px;
+  border:1px solid var(--b2);
+  border-radius:12px;
+  background:linear-gradient(135deg, var(--g-bg), rgba(196,150,60,.03));
+  box-shadow:var(--sh-s);
+}
+@media (--bp-sm-down){
+  .smart-action-rail{align-items:flex-start;flex-wrap:wrap}
+  .smart-action-rail .btn-hdr{width:100%}
+}
 /* FA-10: Skip-to-content link for keyboard accessibility */
 .skip-link{
   position:absolute;top:-100%;left:8px;z-index:var(--z-top);
@@ -103,4 +119,3 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .api-config-error{color:var(--danger);margin-top:8px}
 /* FIX [UI-2]: CSS class вместо inline style visibility для page-sub */
 .page-sub--hidden{visibility:hidden}
-

@@ -204,7 +204,8 @@ export function saveGarage(garage) {
 
 // ─── Load all slices ──────────────────────────────────────────────────────────
 
-export function loadFromLS() {
+export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
+  const criticalOnly = !!options.criticalOnly;
   if (isPrivateDemoSession()) return null;
   try {
     // SEC6: Check TTL — if data is older than 24 h, clear and return null
@@ -260,9 +261,13 @@ export function loadFromLS() {
     }
 
     // Post-process
-    if (result.requests) result.requests = loadPhotos(result.requests as Record<string, unknown>[]);
-    if (result.chat) result.chat = (result.chat as Array<Record<string, unknown>>).map(m => ({ ...m, at: m.at ? new Date(m.at as string) : new Date() }));
-    if (result.blacklist) result.blacklist = (result.blacklist as Array<Record<string, unknown>>).map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt as string) : new Date() }));
+    if (result.requests) {
+      result.requests = criticalOnly
+        ? (result.requests as Record<string, unknown>[]).slice(0, 40)
+        : loadPhotos(result.requests as Record<string, unknown>[]);
+    }
+    if (!criticalOnly && result.chat) result.chat = (result.chat as Array<Record<string, unknown>>).map(m => ({ ...m, at: m.at ? new Date(m.at as string) : new Date() }));
+    if (!criticalOnly && result.blacklist) result.blacklist = (result.blacklist as Array<Record<string, unknown>>).map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt as string) : new Date() }));
     if (result.extraUsers) {
       
       const newUsers = { ...INITIAL_USERS };
@@ -273,6 +278,15 @@ export function loadFromLS() {
       result.users = newUsers;
       result.phoneDb = newPhoneDb;
       delete result.extraUsers;
+    }
+
+    if (criticalOnly) {
+      delete result.chat;
+      delete result.chatLastSeen;
+      delete result.perms;
+      delete result.templates;
+      delete result.blacklist;
+      delete result.garage;
     }
 
     return result;
