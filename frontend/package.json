@@ -33,8 +33,8 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "vite build",
-    "build:check": "vite build && node scripts/check-bundle-size.js",
+    "build": "npm run verify:env && vite build",
+    "build:check": "npm run verify:env && vite build && node scripts/check-bundle-size.js",
     "test": "vitest run",
     "test:ux-critical": "vitest run src/views/Login.test.ts src/views/Dashboard.smoke.test.ts src/views/VisitLogView.test.ts src/views/ResidentView.test.ts src/views/AdminView.test.ts src/views/SecurityConciergeViews.test.ts src/views/BlacklistView.test.ts src/perms/PermsList.smoke.test.ts",
     "test:ux-critical:report": "vitest run src/views/Login.test.ts src/views/Dashboard.smoke.test.ts src/views/VisitLogView.test.ts src/views/ResidentView.test.ts src/views/AdminView.test.ts src/views/SecurityConciergeViews.test.ts src/views/BlacklistView.test.ts src/perms/PermsList.smoke.test.ts --reporter=default --reporter=json --outputFile=../artifacts/ux-critical-vitest.json",

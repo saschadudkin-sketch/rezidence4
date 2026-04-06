@@ -1,14 +1,13 @@
-export const DATA_PLANE_POLICY = Object.freeze({
-  requests: 'sse-store',
-  chat: 'sse-store',
-  users: 'sse-store',
-  perms: 'sse-store',
-  templates: 'sse-store',
-  blacklist: 'sse-store',
-  visitLogs: 'query-cache',
-  stats: 'query-cache',
-  garage: 'query-cache',
-});
+import { ENTITY_OWNERSHIP, type AppEntity } from './entityOwnership';
+
+export const DATA_PLANE_POLICY = Object.freeze(
+  Object.fromEntries(
+    Object.entries(ENTITY_OWNERSHIP).map(([entity, plane]) => [
+      entity,
+      plane === 'sse' ? 'sse-store' : 'query-cache',
+    ]),
+  ) as Record<AppEntity, 'sse-store' | 'query-cache'>,
+);
 
 export function getDataPlane(entity: keyof typeof DATA_PLANE_POLICY) {
   return DATA_PLANE_POLICY[entity];

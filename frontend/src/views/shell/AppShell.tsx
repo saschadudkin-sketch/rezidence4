@@ -26,6 +26,7 @@ const AppShell = memo(function AppShell({
   sseOnline,
   isLoading = false,
   isOnline = true,
+  actionRail = null,
 }) {
   const { nav, navClassMap, goTab, activeTab } = useNavigationContext();
 
@@ -90,6 +91,7 @@ const AppShell = memo(function AppShell({
               {/* FIX [D-2]: conditional render instead of hidden class — removes element
                   from DOM and avoids screen readers announcing invisible text */}
               {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
+              {actionRail}
             </div>
           </div>
           <ErrorBoundary name="Экран">

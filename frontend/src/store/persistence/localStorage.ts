@@ -8,6 +8,7 @@
 
 import { normalizePhone } from '../../utils';
 import { PHONE_DB_INITIAL, INITIAL_USERS } from '../slices/usersSlice';
+import { readStorage, STORAGE_KEYS } from './storageRegistry';
 
 const LS_KEY = 'residenze_v5';
 export const LS_SCHEMA_VERSION = 5;
@@ -18,6 +19,18 @@ export const LS_SCHEMA_VERSION = 5;
 
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LS_TTL_KEY = `${LS_KEY}_ttl`;
+const SESSION_PHOTO_PREFIX = `${LS_KEY}_sph_`;
+
+function isPrivateDemoSession() {
+  return readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1';
+}
+
+function sessionGet(key: string) {
+  try { return sessionStorage.getItem(SESSION_PHOTO_PREFIX + key); } catch { return null; }
+}
+function sessionSet(key: string, value: string) {
+  try { sessionStorage.setItem(SESSION_PHOTO_PREFIX + key, value); } catch { /* noop */ }
+}
 
 function saveTTL() {
   try {
@@ -49,6 +62,10 @@ export function clearLS() {
     }
     localStorage.removeItem(LS_TTL_KEY);
     localStorage.removeItem(LS_KEY);
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k?.startsWith(SESSION_PHOTO_PREFIX)) sessionStorage.removeItem(k);
+    }
   } catch { /* ignore */ }
 }
 
@@ -74,35 +91,18 @@ function savePhotos(requests) {
       scheduledFor: r.scheduledFor instanceof Date ? r.scheduledFor.toISOString() : (r.scheduledFor || null),
       validUntil:   r.validUntil   instanceof Date ? r.validUntil.toISOString()   : (r.validUntil || null),
     };
-    if (r.photo?.startsWith('data:')) { photos[r.id] = r.photo; base.photo = '__photo__'; }
+    if (r.photo?.startsWith('data:')) { photos[r.id] = r.photo; base.photo = '__session_photo__'; }
     if (r.photos && r.photos.length > 0) {
       r.photos.forEach((p, i) => { if (p?.startsWith('data:')) photos[r.id + '_' + i] = p; });
-      base.photos = r.photos.map((p, i) => p?.startsWith('data:') ? '__photo_' + i + '__' : p).filter(Boolean);
+      base.photos = r.photos.map((p, i) => p?.startsWith('data:') ? '__session_photo_' + i + '__' : p).filter(Boolean);
     }
     return base;
   });
 
-  // Save photos with LRU eviction
+  // Save photos in sessionStorage only (privacy + localStorage quota safety).
+  // Persistent localStorage stores only pointers, never base64 media blobs.
   Object.entries(photos).forEach(([id, src]) => {
-    try {
-      localStorage.setItem(LS_KEY + '_ph_' + id, src);
-    } catch {
-      console.warn('[persistence] localStorage quota exceeded, cleaning old photos');
-      const activeIds = new Set(
-        requests.filter(r => ['pending','approved','scheduled'].includes(r.status))
-          .flatMap(r => [LS_KEY + '_ph_' + r.id,
-            ...(r.photos || []).map((_, i) => LS_KEY + '_ph_' + r.id + '_' + i)])
-      );
-      const allKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith(LS_KEY + '_ph_')) allKeys.push(k);
-      }
-      allKeys.filter(k => !activeIds.has(k)).forEach(k => { try { localStorage.removeItem(k); } catch { /* noop */ } });
-      try { localStorage.setItem(LS_KEY + '_ph_' + id, src); } catch {
-        console.warn('[persistence] Photo storage unavailable.');
-      }
-    }
+    sessionSet(id, src);
   });
 
   return reqsClean;
@@ -115,9 +115,9 @@ function loadPhotos(requests) {
     arrivedAt: r.arrivedAt ? new Date(r.arrivedAt) : null,
     scheduledFor: r.scheduledFor ? new Date(r.scheduledFor) : null,
     validUntil: r.validUntil ? new Date(r.validUntil) : null,
-    photo: r.photo === '__photo__' ? (localStorage.getItem(LS_KEY + '_ph_' + r.id) || null) : r.photo,
+    photo: r.photo === '__session_photo__' ? (sessionGet(r.id) || null) : r.photo,
     photos: (r.photos || []).map((p, i) =>
-      p?.startsWith('__photo_') ? (localStorage.getItem(LS_KEY + '_ph_' + r.id + '_' + i) || null) : p
+      p?.startsWith('__session_photo_') ? (sessionGet(r.id + '_' + i) || null) : p
     ).filter(Boolean),
   }));
 }
@@ -126,6 +126,7 @@ function loadPhotos(requests) {
 // FIX [P2]: при SSE-обновлении одной заявки — JSON.stringify только этого слайса
 
 export function saveRequests(reqState) {
+  if (isPrivateDemoSession()) return;
   try {
     const reqsClean = savePhotos(reqState.requests);
     localStorage.setItem(SLICE_KEYS.requests, JSON.stringify({
@@ -141,6 +142,7 @@ export function saveRequests(reqState) {
 const MAX_CACHED_MESSAGES = 100;
 
 export function saveChat(chatState) {
+  if (isPrivateDemoSession()) return;
   try {
     const recentMessages = chatState.chat.slice(-MAX_CACHED_MESSAGES);
     localStorage.setItem(SLICE_KEYS.chat, JSON.stringify({
@@ -152,6 +154,7 @@ export function saveChat(chatState) {
 }
 
 export function saveUsers(usersState) {
+  if (isPrivateDemoSession()) return;
   try {
     localStorage.setItem(SLICE_KEYS.users, JSON.stringify({
       avatars: usersState.avatars,
@@ -166,6 +169,7 @@ export function saveUsers(usersState) {
 }
 
 export function savePerms(permsState) {
+  if (isPrivateDemoSession()) return;
   try {
     localStorage.setItem(SLICE_KEYS.perms, JSON.stringify({
       perms: permsState.perms,
@@ -176,6 +180,7 @@ export function savePerms(permsState) {
 }
 
 export function saveBlacklist(blacklist) {
+  if (isPrivateDemoSession()) return;
   try {
     const items = blacklist.blacklist || blacklist || [];
     localStorage.setItem(SLICE_KEYS.blacklist, JSON.stringify({
@@ -188,6 +193,7 @@ export function saveBlacklist(blacklist) {
 }
 
 export function saveGarage(garage) {
+  if (isPrivateDemoSession()) return;
   try {
     localStorage.setItem(SLICE_KEYS.garage, JSON.stringify({
       garage: garage.garage || garage || {},
@@ -199,6 +205,7 @@ export function saveGarage(garage) {
 // ─── Load all slices ──────────────────────────────────────────────────────────
 
 export function loadFromLS() {
+  if (isPrivateDemoSession()) return null;
   try {
     // SEC6: Check TTL — if data is older than 24 h, clear and return null
     if (!checkTTL()) {

@@ -44,6 +44,21 @@ for (const file of storeFiles) {
   }
 }
 
+// A6: data-plane ownership — forbid direct React Query usage for SSE-owned entities.
+const sseOwnedQueryKeys = ['requests', 'chat', 'users', 'perms', 'templates', 'blacklist'];
+const appFiles = walk('src').filter(path => /\.(ts|tsx|js|jsx)$/.test(path));
+for (const file of appFiles) {
+  const text = readFileSync(file, 'utf8');
+  if (!text.includes('useQuery')) continue;
+  for (const entity of sseOwnedQueryKeys) {
+    const directKeyRegex = new RegExp(`queryKey\\s*:\\s*\\[\\s*['"\`]${entity}['"\`]`, 'm');
+    if (directKeyRegex.test(text)) {
+      console.error(`[architecture-governance] SSE-owned entity "${entity}" cannot use queryKey in ${file}. Use AppStore/SSE reducers.`);
+      hasError = true;
+    }
+  }
+}
+
 if (hasError) {
   console.error('\n❌ Architecture governance checks failed.');
   process.exit(1);

@@ -53,6 +53,13 @@ import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
 
 function DemoBanner({ onClose }) {
+  const [privateSession, setPrivateSession] = useState(() => readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1');
+  const togglePrivateSession = () => {
+    const next = !privateSession;
+    setPrivateSession(next);
+    writeStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION, next ? '1' : '0');
+  };
+
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
@@ -61,6 +68,10 @@ function DemoBanner({ onClose }) {
         Попробуйте создать пропуск или вызов техслужбы — всё работает без сервера.
         Данные сохраняются только в браузере и сбросятся при перезагрузке страницы.
       </span>
+      <label className="demo-private-toggle">
+        <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
+        Приватная демо-сессия
+      </label>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
         <AppIcon name="close" size={12} />
       </button>
@@ -89,6 +100,20 @@ function OnboardingHint({ role, onClose }) {
       <button className="onboarding-hint-close" onClick={onClose} aria-label="Закрыть подсказку">
         <AppIcon name="close" size={12} />
       </button>
+    </div>
+  );
+}
+
+function SmartActionRail({ action, feedback }) {
+  if (!action) return null;
+  return (
+    <div className="onboarding-hint smart-action-rail" role="status" aria-live="polite">
+      <span className="onboarding-hint-icon"><AppIcon name="ticket" size={14} /></span>
+      <span className="onboarding-hint-text">
+        <strong>{action.title}.</strong> {action.subtitle}
+        {feedback ? ` ${feedback}` : ''}
+      </span>
+      <button className="btn-outline btn-hdr" onClick={action.onClick}>{action.cta}</button>
     </div>
   );
 }
@@ -186,6 +211,26 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     ? 'Апартаменты ' + user.apartment
     : (roleManifest.pageSubtitle || '');
 
+  const nextBestAction = useMemo(() => {
+    const byRole = {
+      owner: { tab: 'passes', title: 'Следующий шаг: создать пропуск', subtitle: 'Добавьте гостя или курьера', cta: 'Создать пропуск' },
+      tenant: { tab: 'passes', title: 'Следующий шаг: оформить пропуск', subtitle: 'Подготовьте доступ для посетителя', cta: 'Открыть пропуска' },
+      contractor: { tab: 'tech', title: 'Следующий шаг: проверить заявки', subtitle: 'Убедитесь, что новые обращения обработаны', cta: 'Открыть техслужбу' },
+      concierge: { tab: pendingP > 0 ? 'passes' : 'visitlog', title: 'Следующий шаг: обработать очередь', subtitle: 'Подтвердите или отклоните заявки в очереди', cta: 'Открыть очередь' },
+      security: { tab: pendingP > 0 ? 'guardpost' : 'visitlog', title: 'Следующий шаг: проверить пост', subtitle: 'Проверьте pending-пропуска и входы', cta: 'Открыть пост' },
+      admin: { tab: pendingP > 0 ? 'requests' : 'stats', title: 'Следующий шаг: завершить контроль', subtitle: 'Проверьте заявки и ключевые метрики', cta: 'Открыть контроль' },
+    };
+    const action = byRole[user.role];
+    return action ? { ...action, onClick: () => goTab(action.tab) } : null;
+  }, [user.role, pendingP, goTab]);
+
+  const completionFeedback = useMemo(() => {
+    if (user.role === 'security') return `Ожидают проверки: ${pendingP}.`;
+    if (user.role === 'concierge') return `Заявок в очереди: ${pendingP + pendingT}.`;
+    if (user.role === 'admin') return `Новых статусов: ${residentNewStatuses}, непрочитанных чатов: ${unreadMsgs}.`;
+    return `Непрочитанных чатов: ${unreadMsgs}.`;
+  }, [user.role, pendingP, pendingT, residentNewStatuses, unreadMsgs]);
+
   if (isConnErr) {
     return (
       <div className="screen-loading">
@@ -222,6 +267,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         sseOnline={sseOnline}
         isLoading={isLoading}
         isOnline={isOnline}
+        actionRail={<SmartActionRail action={nextBestAction} feedback={completionFeedback} />}
       />
     </NavigationContext.Provider>
   );
