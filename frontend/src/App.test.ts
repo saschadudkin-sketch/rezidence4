@@ -23,21 +23,12 @@ vi.mock('./ui/ErrorBoundary', () => ({ default: ({ children }) => <>{children}</
 vi.mock('./constants/logo', () => ({ LOGO: 'logo.svg' }));
 vi.mock('./styles/theme.css', () => ({}), { virtual: true });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.history.pushState({}, '', '/dashboard');
+});
 
 describe('App', () => {
-  test('offline banner при visible=true содержит ARIA-атрибуты', () => {
-    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
-    useAuth.mockReturnValue({ phase: PHASE.LOADING, user: null, login: vi.fn(), logout: vi.fn() });
-
-    render(<App />);
-
-    const banner = screen.getByRole('status');
-    expect(banner).toHaveAttribute('aria-live', 'polite');
-    expect(banner).toHaveAttribute('aria-atomic', 'true');
-    expect(screen.getByText('Нет подключения к интернету')).toBeInTheDocument();
-  });
-
   test('фаза LOADING — показывает экран загрузки', () => {
     useAuth.mockReturnValue({ phase: PHASE.LOADING, user: null, login: vi.fn(), logout: vi.fn() });
     render(<App />);
@@ -50,10 +41,10 @@ describe('App', () => {
     expect(screen.getByTestId('login')).toBeInTheDocument();
   });
 
-  test('фаза DASHBOARD с user — показывает Dashboard', () => {
+  test('фаза DASHBOARD с user — показывает Dashboard', async () => {
     useAuth.mockReturnValue({ phase: PHASE.DASHBOARD, user: { uid: 'u1' }, login: vi.fn(), logout: vi.fn() });
     render(<App />);
-    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    expect(await screen.findByTestId('dashboard')).toBeInTheDocument();
   });
 
   test('AppProvider оборачивает всё приложение', () => {

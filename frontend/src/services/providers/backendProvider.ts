@@ -11,6 +11,7 @@ import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
+import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
 import type { ServiceContracts } from './ServiceContracts';
 
@@ -198,7 +199,7 @@ export const authProvider = {
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
-  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: unknown[]) => void; background?: boolean }) {
+  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: Record<string, unknown>[]) => void; background?: boolean }) {
     // Incremental hydration:
     // 1) return page=1 immediately for fast first paint
     // 2) fetch remaining pages in background and push cumulative list via onPage callback
@@ -208,13 +209,7 @@ export const requestsProvider = {
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
-    const normalize = (payload) => {
-      const rows = Array.isArray(payload) ? payload : (payload?.data || []);
-      const total = Number(payload?.total || rows.length || 0);
-      const nextCursor = payload?.nextCursor || payload?.cursor || null;
-      const nextPage = Number(payload?.nextPage || 0) || null;
-      return { rows, total, nextCursor, nextPage };
-    };
+    const normalize = (payload: unknown) => parseRequestsListResponse(payload);
 
     const requestOpts = signal ? { signal } : undefined;
     const firstResp = requestOpts
@@ -343,18 +338,16 @@ export const chatProvider = {
     const data = reqOpts
       ? await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`, reqOpts)
       : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
-    // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
-    if (Array.isArray(data)) return { messages: data, hasMore: false };
-    return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
+    return parseChatMessagesResponse(data);
   },
-  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: unknown[]) => void; background?: boolean } = {}) {
+  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: Record<string, unknown>[]) => void; background?: boolean } = {}) {
     const PAGE_SIZE = 60;
     const signal = opts?.signal;
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
     const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
-    const merged = [...(first?.messages || [])];
+    const merged: Record<string, unknown>[] = [...(first?.messages || [])].filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
     if (!background || !first?.hasMore || merged.length === 0) return merged;
 
     (async () => {
@@ -362,9 +355,9 @@ export const chatProvider = {
         let hasMore = Boolean(first?.hasMore);
         while (!signal?.aborted && hasMore) {
           const oldest = merged[0]?.id;
-          if (!oldest) break;
+          if (typeof oldest !== 'string' || !oldest) break;
           const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
-          const nextRows = next?.messages || [];
+          const nextRows: Record<string, unknown>[] = (next?.messages || []).filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
           if (!nextRows.length) break;
           merged.unshift(...nextRows);
           onPage?.([...merged]);
@@ -398,7 +391,8 @@ export const chatProvider = {
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const usersProvider = {
   async getAll(_opts?: { signal?: AbortSignal }) {
-    return apiClient.get('/api/v1/users');
+    const data = await apiClient.get('/api/v1/users');
+    return parseUsersResponse(data);
   },
   async update(uid, patch) {
     return apiClient.patch(`/api/v1/users/${uid}`, patch);
@@ -517,7 +511,7 @@ export function createBackendProvider(): ServiceContracts {
 
         // Subscribe to request_update BEFORE the parallel fetch so events that arrive
         // during initial load are buffered and applied after — not silently dropped.
-        const reqEventBuffer = [];
+        const reqEventBuffer: Record<string, unknown>[] = [];
         const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
         // DA-01: pass signal to every provider call so the underlying apiClient fetch
@@ -525,7 +519,7 @@ export function createBackendProvider(): ServiceContracts {
         const fetchOpts = signal ? { signal } : {};
 
         // Параллельная загрузка ВСЕХ данных при старте
-        let currentRequests = [];
+        let currentRequests: Record<string, unknown>[] = [];
         const promises = [
           requestsProvider.getAll({
             ...fetchOpts,
@@ -574,7 +568,9 @@ export function createBackendProvider(): ServiceContracts {
         if (signal?.aborted || !mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
-        currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        currentRequests = reqs && Array.isArray(reqs)
+          ? reqs.filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null)
+          : ((reqs as { data?: unknown[] } | null)?.data || []).filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null);
         for (const bufferedReq of reqEventBuffer) {
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
@@ -583,7 +579,12 @@ export function createBackendProvider(): ServiceContracts {
 
         if (setAllRequests) setAllRequests(currentRequests);
         if (onRequests) onRequests(currentRequests);
-        if (setAllMessages && chatData) setAllMessages(Array.isArray(chatData) ? chatData : (chatData.messages || []));
+        if (setAllMessages && chatData) {
+          const initialMessages = Array.isArray(chatData)
+            ? chatData
+            : ((chatData as { messages?: unknown[] } | null)?.messages || []);
+          setAllMessages(initialMessages.filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null));
+        }
         if (setAllUsers && users)       setAllUsers(users);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);

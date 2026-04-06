@@ -8,6 +8,13 @@ type ChatMessage = { text?: string };
 type GetMessagesFn = (params?: { search?: string; limit?: number }) => Promise<{ messages: unknown[]; hasMore?: boolean }>;
 
 export function useChatSearch(chat: ChatMessage[], hasMore: boolean, getMessages: GetMessagesFn) {
+  const withAutoRetry = async <T,>(fn: () => Promise<T>) => {
+    try {
+      return await fn();
+    } catch {
+      return fn();
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [serverSearchResults, setServerSearchResults] = useState<ChatMessage[] | null>(null);
@@ -25,7 +32,7 @@ export function useChatSearch(chat: ChatMessage[], hasMore: boolean, getMessages
     let cancelled = false;
     setServerSearchLoading(true);
     setServerSearchError('');
-    getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
+    withAutoRetry(() => getMessages({ search: debouncedSearchQuery.trim(), limit: 60 }))
       .then(data => {
         if (cancelled) return;
         setServerSearchResults((data?.messages ?? []) as ChatMessage[]);

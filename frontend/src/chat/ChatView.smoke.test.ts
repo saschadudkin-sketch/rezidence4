@@ -115,7 +115,9 @@ describe('ChatView', () => {
   });
 
   test('показывает retry-блок при ошибке первичной загрузки истории', async () => {
-    getMessagesMock.mockRejectedValueOnce(new Error('network'));
+    getMessagesMock
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(new Error('network'));
     const user = { uid:'u1', role:'owner', name:'Иван' };
     render(<ChatView user={user} />);
     expect(await screen.findByText('История чата временно недоступна')).toBeInTheDocument();
