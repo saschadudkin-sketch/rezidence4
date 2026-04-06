@@ -1,4 +1,3 @@
-// @ts-check
 import { ROLE_MANIFEST } from './roleManifest';
 /**
  * domain/permissions.js — Permission Engine
@@ -13,26 +12,13 @@ import { ROLE_MANIFEST } from './roleManifest';
  * Или отдельные предикаты:
  *   import { canEditRequest, canDeleteRequest } from '../domain/permissions';
  *
- * @ts-check включён — TypeScript проверяет JSDoc-аннотации в этом файле.
- * tsconfig.json: allowJs:true, checkJs:false (глобально) — но // @ts-check
- * включает проверку точечно для критичных domain-файлов без риска сломать компоненты.
+ * Типизация — нативный TypeScript (без JSDoc typedef в рантайм-коде).
  */
 
-/**
- * @typedef {'owner'|'tenant'|'contractor'|'concierge'|'security'|'admin'} Role
- */
-
-/**
- * @typedef {{ uid: string, role: Role, name?: string, apartment?: string }} AppUser
- */
-
-/**
- * @typedef {{ id: string, createdByUid: string, status: string, type?: string, passDuration?: string }} Request
- */
-
-/**
- * @typedef {{ uid: string, role: Role }} ChatMessage
- */
+export type Role = 'owner' | 'tenant' | 'contractor' | 'concierge' | 'security' | 'admin';
+export type AppUser = { uid?: string; role?: Role | string; name?: string; apartment?: string };
+export type Request = { id: string; createdByUid: string; status: string; type?: string; passDuration?: string };
+export type ChatMessage = { uid?: string; role?: Role | string };
 
 // ─── Роли ────────────────────────────────────────────────────────────────────
 
@@ -53,17 +39,17 @@ const MANAGE_ROLES_SET    = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMI
 // Может одобрять/отклонять заявки (консьерж — только просмотр)
 const APPROVE_ROLES_SET   = new Set([ROLES.SECURITY, ROLES.ADMIN]);
 
-/** @param {Role} role @returns {boolean} Жилец (может создавать заявки и видеть только свои) */
-export const isResident = (role) => RESIDENT_ROLES_SET.has(role);
+/** Жилец (может создавать заявки и видеть только свои). */
+export const isResident = (role?: string): boolean => RESIDENT_ROLES_SET.has(role as Role);
 
-/** @param {Role} role @returns {boolean} Оперативный персонал (обрабатывает заявки в реальном времени) */
-export const isStaff = (role) => STAFF_ROLES_SET.has(role);
+/** Оперативный персонал (обрабатывает заявки в реальном времени). */
+export const isStaff = (role?: string): boolean => STAFF_ROLES_SET.has(role as Role);
 
-/** @param {Role} role @returns {boolean} Видит все заявки + получает уведомления о новых */
-export const canManageRequests = (role) => MANAGE_ROLES_SET.has(role);
+/** Видит все заявки + получает уведомления о новых. */
+export const canManageRequests = (role?: string): boolean => MANAGE_ROLES_SET.has(role as Role);
 
-/** @param {Role} role @returns {boolean} Может одобрять/отклонять заявки */
-export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
+/** Может одобрять/отклонять заявки. */
+export const canApproveRequests = (role?: string): boolean => APPROVE_ROLES_SET.has(role as Role);
 
 // ─── Заявки ──────────────────────────────────────────────────────────────────
 
@@ -72,7 +58,7 @@ export const canApproveRequests = (role) => APPROVE_ROLES_SET.has(role);
  * Только создатель пока заявка в статусе pending
  * @param {AppUser} user @param {Request} req @returns {boolean}
  */
-export const canEditRequest = (user, req) =>
+export const canEditRequest = (user: AppUser, req: Request): boolean =>
   req.createdByUid === user.uid && req.status === 'pending';
 
 /**
@@ -80,7 +66,7 @@ export const canEditRequest = (user, req) =>
  * Создатель (pending) или администратор
  * @param {AppUser} user @param {Request} req @returns {boolean}
  */
-export const canDeleteRequest = (user, req) =>
+export const canDeleteRequest = (user: AppUser, req: Request): boolean =>
   (req.createdByUid === user.uid && req.status === 'pending')
   || user.role === ROLES.ADMIN;
 
@@ -88,33 +74,33 @@ export const canDeleteRequest = (user, req) =>
  * Может ли пользователь одобрить заявку
  * Только роли из canApproveRequests
  */
-export const canApproveRequest = (user, req) =>
+export const canApproveRequest = (user: AppUser, req: Request): boolean =>
   canApproveRequests(user.role) && req.status === 'pending';
 
 /**
  * Может ли пользователь отклонить заявку
  */
-export const canRejectRequest = (user, req) =>
+export const canRejectRequest = (user: AppUser, req: Request): boolean =>
   canApproveRequests(user.role) && req.status === 'pending';
 
 /**
  * Может ли пользователь принять заявку в работу
  */
-export const canAcceptRequest = (user, req) =>
+export const canAcceptRequest = (user: AppUser, req: Request): boolean =>
   canApproveRequests(user.role) && req.status === 'pending';
 
 /**
  * Может ли пользователь отметить приход посетителя
  * Охрана — только approved
  */
-export const canMarkArrival = (user, req) =>
+export const canMarkArrival = (user: AppUser, req: Request): boolean =>
   user.role === ROLES.SECURITY && req.status === 'approved';
 
 /**
  * Может ли пользователь повторить заявку (создать такую же)
  * Только создатель, только завершённые
  */
-export const canRepeatRequest = (user, req) =>
+export const canRepeatRequest = (user: AppUser, req: Request): boolean =>
   req.createdByUid === user.uid
   && ['rejected', 'accepted', 'arrived'].includes(req.status);
 
@@ -122,43 +108,43 @@ export const canRepeatRequest = (user, req) =>
  * Может ли пользователь видеть заявку
  * Жилец видит только свои; персонал и админ — все
  */
-export const canViewRequest = (user, req) =>
+export const canViewRequest = (user: AppUser, req: Request): boolean =>
   !isResident(user.role) || req.createdByUid === user.uid;
 
 // ─── Чат ─────────────────────────────────────────────────────────────────────
 
 /** Доступ к чату — все аутентифицированные пользователи */
-export const canViewChat = (user) => Boolean(user?.uid);
+export const canViewChat = (user: AppUser): boolean => Boolean(user?.uid);
 
 /** Может ли редактировать сообщение — своё или администратор */
-export const canEditMessage = (user, msg) =>
+export const canEditMessage = (user: AppUser, msg: ChatMessage): boolean =>
   msg.uid === user.uid || user.role === ROLES.ADMIN;
 
 /** Может ли удалить сообщение — своё или администратор */
-export const canDeleteMessage = (user, msg) =>
+export const canDeleteMessage = (user: AppUser, msg: ChatMessage): boolean =>
   msg.uid === user.uid || user.role === ROLES.ADMIN;
 
 // ─── Пользователи и роли ─────────────────────────────────────────────────────
 
 /** Может ли управлять пользователями (создавать, редактировать, удалять) */
-export const canManageUsers = (user) => user.role === ROLES.ADMIN;
+export const canManageUsers = (user: AppUser): boolean => user.role === ROLES.ADMIN;
 
 /** Может ли изменить роль другого пользователя */
-export const canChangeRole = (user, targetUser) =>
+export const canChangeRole = (user: AppUser, targetUser: AppUser): boolean =>
   user.role === ROLES.ADMIN && user.uid !== targetUser.uid;
 
 /** Может ли удалить пользователя */
-export const canDeleteUser = (user, targetUser) =>
+export const canDeleteUser = (user: AppUser, targetUser: AppUser): boolean =>
   user.role === ROLES.ADMIN && user.uid !== targetUser.uid;
 
 // ─── Перм-списки (постоянные посетители/рабочие) ────────────────────────────
 
 /** Может ли редактировать перм-список квартиры */
-export const canEditPerms = (user, targetUid) =>
+export const canEditPerms = (user: AppUser, targetUid: string): boolean =>
   user.uid === targetUid || user.role === ROLES.ADMIN;
 
 /** Может ли просматривать перм-список другого жильца */
-export const canViewPerms = (user, targetUid) =>
+export const canViewPerms = (user: AppUser, targetUid: string): boolean =>
   user.uid === targetUid
   || isStaff(user.role)
   || user.role === ROLES.ADMIN;
@@ -174,9 +160,9 @@ export const ALLOWED_TABS_BY_ROLE = {
   [ROLES.ADMIN]:      ROLE_MANIFEST.admin.tabs,
 };
 
-export const getTabsForRole = (role) => ALLOWED_TABS_BY_ROLE[role] || [];
+export const getTabsForRole = (role: string): string[] => ALLOWED_TABS_BY_ROLE[role as Role] || [];
 
-export const canAccessTab = (role, tab) => getTabsForRole(role).includes(tab);
+export const canAccessTab = (role: string, tab: string): boolean => getTabsForRole(role).includes(tab);
 
 // ─── Флюент-интерфейс (опционально, для удобства) ────────────────────────────
 
@@ -187,31 +173,22 @@ export const canAccessTab = (role, tab) => getTabsForRole(role).includes(tab);
  *   if (perms.editRequest(req)) { ... }
  *   if (perms.deleteUser(targetUser)) { ... }
  *
- * @param {AppUser} user
- * @returns {{ editRequest: (req: Request) => boolean, deleteRequest: (req: Request) => boolean,
- *             approveRequest: (req: Request) => boolean, rejectRequest: (req: Request) => boolean,
- *             acceptRequest: (req: Request) => boolean, markArrival: (req: Request) => boolean,
- *             repeatRequest: (req: Request) => boolean, viewRequest: (req: Request) => boolean,
- *             viewChat: () => boolean, editMessage: (msg: ChatMessage) => boolean,
- *             deleteMessage: (msg: ChatMessage) => boolean, manageUsers: () => boolean,
- *             changeRole: (target: AppUser) => boolean, deleteUser: (target: AppUser) => boolean,
- *             editPerms: (targetUid: string) => boolean, viewPerms: (targetUid: string) => boolean }}
  */
-export const can = (user) => ({
-  editRequest:   (req)        => canEditRequest(user, req),
-  deleteRequest: (req)        => canDeleteRequest(user, req),
-  approveRequest:(req)        => canApproveRequest(user, req),
-  rejectRequest: (req)        => canRejectRequest(user, req),
-  acceptRequest: (req)        => canAcceptRequest(user, req),
-  markArrival:   (req)        => canMarkArrival(user, req),
-  repeatRequest: (req)        => canRepeatRequest(user, req),
-  viewRequest:   (req)        => canViewRequest(user, req),
+export const can = (user: AppUser) => ({
+  editRequest:   (req: Request) => canEditRequest(user, req),
+  deleteRequest: (req: Request) => canDeleteRequest(user, req),
+  approveRequest:(req: Request) => canApproveRequest(user, req),
+  rejectRequest: (req: Request) => canRejectRequest(user, req),
+  acceptRequest: (req: Request) => canAcceptRequest(user, req),
+  markArrival:   (req: Request) => canMarkArrival(user, req),
+  repeatRequest: (req: Request) => canRepeatRequest(user, req),
+  viewRequest:   (req: Request) => canViewRequest(user, req),
   viewChat:      ()           => canViewChat(user),
-  editMessage:   (msg)        => canEditMessage(user, msg),
-  deleteMessage: (msg)        => canDeleteMessage(user, msg),
+  editMessage:   (msg: ChatMessage) => canEditMessage(user, msg),
+  deleteMessage: (msg: ChatMessage) => canDeleteMessage(user, msg),
   manageUsers:   ()           => canManageUsers(user),
-  changeRole:    (target)     => canChangeRole(user, target),
-  deleteUser:    (target)     => canDeleteUser(user, target),
-  editPerms:     (targetUid)  => canEditPerms(user, targetUid),
-  viewPerms:     (targetUid)  => canViewPerms(user, targetUid),
+  changeRole:    (target: AppUser) => canChangeRole(user, target),
+  deleteUser:    (target: AppUser) => canDeleteUser(user, target),
+  editPerms:     (targetUid: string) => canEditPerms(user, targetUid),
+  viewPerms:     (targetUid: string) => canViewPerms(user, targetUid),
 });
