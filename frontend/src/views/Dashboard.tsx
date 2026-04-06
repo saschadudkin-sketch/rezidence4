@@ -25,6 +25,7 @@ import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { SmartActionRail } from '../workflow/SmartActionRail';
+import '../styles/components/utilities-polish.css';
 import { useRoleGuidance } from './dashboard/useRoleGuidance';
 import { useConnectivityUX } from './dashboard/useConnectivityUX';
 import { useDashboardExperience } from './dashboard/useDashboardExperience';

@@ -11,6 +11,7 @@ import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
+import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
 import type { ServiceContracts } from './ServiceContracts';
 
@@ -208,15 +209,7 @@ export const requestsProvider = {
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
-    const normalize = (payload: unknown) => {
-      const sourceRows = Array.isArray(payload) ? payload : ((payload as { data?: unknown[] } | null)?.data || []);
-      const rows = sourceRows.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null);
-      const meta = payload as { total?: number; nextCursor?: string; cursor?: string; nextPage?: number } | null;
-      const total = Number(meta?.total || rows.length || 0);
-      const nextCursor = meta?.nextCursor || meta?.cursor || null;
-      const nextPage = Number(meta?.nextPage || 0) || null;
-      return { rows, total, nextCursor, nextPage };
-    };
+    const normalize = (payload: unknown) => parseRequestsListResponse(payload);
 
     const requestOpts = signal ? { signal } : undefined;
     const firstResp = requestOpts
@@ -345,9 +338,7 @@ export const chatProvider = {
     const data = reqOpts
       ? await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`, reqOpts)
       : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
-    // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
-    if (Array.isArray(data)) return { messages: data, hasMore: false };
-    return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
+    return parseChatMessagesResponse(data);
   },
   async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: Record<string, unknown>[]) => void; background?: boolean } = {}) {
     const PAGE_SIZE = 60;
@@ -400,7 +391,8 @@ export const chatProvider = {
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const usersProvider = {
   async getAll(_opts?: { signal?: AbortSignal }) {
-    return apiClient.get('/api/v1/users');
+    const data = await apiClient.get('/api/v1/users');
+    return parseUsersResponse(data);
   },
   async update(uid, patch) {
     return apiClient.patch(`/api/v1/users/${uid}`, patch);
