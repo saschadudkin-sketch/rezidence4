@@ -121,6 +121,7 @@ describe('POST /api/auth/verify-otp', () => {
     expect(cookies).toBeDefined();
     expect(cookies.some(c => c.startsWith('token=') && c.includes('HttpOnly'))).toBe(true);
     expect(cookies.some(c => c.startsWith('refreshToken=') && c.includes('HttpOnly'))).toBe(true);
+    expect(cookies.some(c => c.startsWith('refreshToken=') && c.includes('Path=/api'))).toBe(true);
 
     const refreshInsertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO refresh_tokens'));
     expect(refreshInsertCall).toBeDefined();
@@ -164,6 +165,7 @@ describe('POST /api/auth/logout', () => {
     const cookies = res.headers['set-cookie'];
     expect(cookies).toBeDefined();
     expect(cookies.some(c => c.startsWith('token=;') || c.includes('Max-Age=0'))).toBe(true);
+    expect(cookies.some(c => c.startsWith('refreshToken=;') && c.includes('Path=/api'))).toBe(true);
   });
 
   it('удаляет refresh token по id_hash или legacy id', async () => {
@@ -218,6 +220,8 @@ describe('POST /api/auth/refresh', () => {
       .post('/api/auth/refresh')
       .set('Cookie', [oldRefreshCookie]);
     expect(refreshRes.status).toBe(200);
+    const rotatedCookies = refreshRes.headers['set-cookie'] || [];
+    expect(rotatedCookies.some(c => c.startsWith('refreshToken=') && c.includes('Path=/api'))).toBe(true);
 
     const reuseRes = await request(app)
       .post('/api/auth/refresh')

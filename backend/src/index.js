@@ -28,6 +28,7 @@ const uploadRouter    = require('./routes/upload');
 const clientLogsRouter = require('./routes/clientLogs');
 const requireAuth     = require('./middleware/auth');
 const { deprecate }   = require('./middleware/deprecate');
+const { canUserAccessUpload } = require('./services/uploadAccess');
 
 const app  = express();
 
@@ -234,12 +235,20 @@ app.use('/api/',     globalLimiter);
 // /uploads require authentication — unauthenticated requests receive 401.
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'));
 
-app.get('/uploads/:filename', requireAuth, (req, res) => {
+app.get('/uploads/:filename', requireAuth, async (req, res) => {
   const filename = path.basename(req.params.filename);
   const filepath = path.join(UPLOAD_DIR, filename);
 
   if (!filepath.startsWith(UPLOAD_DIR + path.sep) && filepath !== UPLOAD_DIR) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const allowed = await canUserAccessUpload(req.user, filename);
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+  } catch (err) {
+    logger.error({ err, uid: req.user?.uid, filename }, '[uploads] ACL check failed');
+    return res.status(500).json({ error: 'Access check failed' });
   }
 
   // SEC-01: serve images inline so <img> tags and lightboxes work correctly.
