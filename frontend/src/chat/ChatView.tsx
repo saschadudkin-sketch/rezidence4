@@ -11,10 +11,10 @@ import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
-import StateBlock from '../ui/StateBlock';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useChatSearch } from './hooks/useChatSearch';
 import { useChatComposer } from './hooks/useChatComposer';
+import { ChatMessageList } from './ChatMessageList';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -444,68 +444,26 @@ export function ChatView({ user }) {
           <button className="modal-close" style={{ flexShrink: 0 }} onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
         </div>
       )}
-      <div className="chat-msgs" ref={msgsContainerRef}>
-        {/* FIX [AUDIT]: кнопка «Загрузить ещё» — бэкенд возвращал hasMore,
-            но фронт не предоставлял способа прогрузить историю старше 60 сообщений. */}
-        {hasMore && (
-          <div style={{ padding: '8px 0' }}>
-            {loadingOlder ? (
-              <StateBlock type="loading" title="Загрузка истории…" />
-            ) : (
-              <button
-                onClick={loadOlderMessages}
-                className="btn-outline"
-                style={{ display: 'block', margin: '0 auto', minWidth: 160 }}
-              >
-                <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
-              </button>
-            )}
-            {historyError && (
-              <StateBlock
-                type="error"
-                title="История чата недоступна"
-                subtitle={historyError}
-                actionLabel="Повторить"
-                onAction={loadOlderMessages}
-              />
-            )}
-          </div>
-        )}
-        {serverSearchLoading && (
-          <StateBlock type="loading" title="Поиск по всей истории…" />
-        )}
-        {serverSearchError && !serverSearchLoading && (
-          <StateBlock
-            type="error"
-            title="Не удалось выполнить поиск"
-            subtitle={serverSearchError}
-            actionLabel="Повторить"
-            onAction={() => setSearchRetryTick(v => v + 1)}
-          />
-        )}
-        {initialHistoryError && !hasMore && (
-          <StateBlock
-            type="error"
-            title="История чата временно недоступна"
-            subtitle={initialHistoryError}
-            actionLabel="Повторить"
-            onAction={() => {
-              syncHasMoreMeta()
-                .catch(() => {
-                  setInitialHistoryError('Не удалось загрузить состояние истории чата');
-                  toast('Ошибка синхронизации истории чата', 'error');
-                });
-            }}
-          />
-        )}
-        {filteredChat.length === 0 && !serverSearchLoading && (
-          <StateBlock
-            type="empty"
-            title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
-            subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
-          />
-        )}
-        {filteredChat.map((m, i) => {
+      <ChatMessageList
+        msgsContainerRef={msgsContainerRef}
+        hasMore={hasMore}
+        loadingOlder={loadingOlder}
+        historyError={historyError}
+        onLoadOlder={loadOlderMessages}
+        serverSearchLoading={serverSearchLoading}
+        serverSearchError={serverSearchError}
+        onRetryServerSearch={() => setSearchRetryTick(v => v + 1)}
+        initialHistoryError={initialHistoryError}
+        onRetryInitialSync={() => {
+          syncHasMoreMeta()
+            .catch(() => {
+              setInitialHistoryError('Не удалось загрузить состояние истории чата');
+              toast('Ошибка синхронизации истории чата', 'error');
+            });
+        }}
+        filteredChatLength={filteredChat.length}
+        searchQuery={searchQuery}
+        renderMessages={() => filteredChat.map((m, i) => {
           const readStatus = getReadStatus(m);
           // FIX [BUG-3]: prevMsg должен брать из filteredChat, а не из chat.
           // При активном поиске filteredChat — подмножество chat, и chat[i-1] указывал
@@ -619,8 +577,8 @@ export function ChatView({ user }) {
             </React.Fragment>
           );
         })}
-        <div ref={bottomRef}/>
-      </div>
+        bottomRef={bottomRef}
+      />
       {replyTo && (
         <div className="chat-reply-bar">
           <div className="chat-reply-bar-line"/>

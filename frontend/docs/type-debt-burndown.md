@@ -16,9 +16,10 @@
    - Migrate hooks consuming `services.*` to explicit return types and guards.
    - Remove `unknown` propagation from hooks to UI.
 
-3. **Store boundary hardening (planned)**
+3. **Store boundary hardening (in progress)**
    - Type AppStore selectors/actions to avoid `unknown` fan-out.
    - Introduce typed slice payloads for requests/chat/admin.
+   - Enforce boundary: `src/store/**` must not import React Query directly.
 
 4. **Views cleanup (planned)**
    - Replace ad-hoc prop objects with typed props.
@@ -29,5 +30,7 @@
 - New service APIs **must** update `ServiceContracts.ts`.
 - New provider methods are accepted only with contract tests for both providers.
 - PR must include status line: `A1 fully done: yes/no`.
-- CI/staged gate uses `npm run typecheck` (staged scope), and debt tracking uses `npm run typecheck:full`.
-- CI/staged lint gate uses `npm run lint`, and debt tracking uses `npm run lint:full`.
+- `npm run typecheck` enforces non-regression against `type-debt-baseline.json` over full project typecheck.
+- `npm run typecheck:staged` remains available for fast local feedback.
+- `npm run lint` now scans full `src/**/*.{ts,tsx,js,jsx}` scope (tests excluded by pattern).
+- `npm run lint:staged` remains available for focused local iteration.
