@@ -1,5 +1,5 @@
 import React from 'react';
-import StateBlock from '../ui/StateBlock';
+import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { AppIcon } from '../ui/AppIcon';
 
 interface ChatMessageListProps {
@@ -40,7 +40,7 @@ export function ChatMessageList({
       {hasMore && (
         <div className="u-py8">
           {loadingOlder ? (
-            <StateBlock type="loading" title="Загрузка истории…" />
+            <ViewStateAdapter entity="history" state="loading" title="Загрузка истории…" subtitle="Пожалуйста, подождите" />
           ) : (
             <button
               onClick={onLoadOlder}
@@ -50,8 +50,9 @@ export function ChatMessageList({
             </button>
           )}
           {historyError && (
-            <StateBlock
-              type="error"
+            <ViewStateAdapter
+              entity="history"
+              state="error"
               title="История чата недоступна"
               subtitle={historyError}
               actionLabel="Повторить"
@@ -61,11 +62,12 @@ export function ChatMessageList({
         </div>
       )}
       {serverSearchLoading && (
-        <StateBlock type="loading" title="Поиск по всей истории…" />
+        <ViewStateAdapter entity="history" state="loading" title="Поиск по всей истории…" subtitle="Пожалуйста, подождите" />
       )}
       {serverSearchError && !serverSearchLoading && (
-        <StateBlock
-          type="error"
+        <ViewStateAdapter
+          entity="history"
+          state="error"
           title="Не удалось выполнить поиск"
           subtitle={serverSearchError}
           actionLabel="Повторить"
@@ -73,8 +75,9 @@ export function ChatMessageList({
         />
       )}
       {initialHistoryError && !hasMore && (
-        <StateBlock
-          type="error"
+        <ViewStateAdapter
+          entity="history"
+          state="error"
           title="История чата временно недоступна"
           subtitle={initialHistoryError}
           actionLabel="Повторить"
@@ -82,8 +85,9 @@ export function ChatMessageList({
         />
       )}
       {filteredChatLength === 0 && !serverSearchLoading && (
-        <StateBlock
-          type="empty"
+        <ViewStateAdapter
+          entity="history"
+          state="empty"
           title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
           subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
         />

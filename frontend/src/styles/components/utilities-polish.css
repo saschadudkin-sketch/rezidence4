@@ -207,36 +207,6 @@ html{scroll-behavior:smooth}
   .type-card{width:72px;min-height:68px}
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   POLISH — отступы, тени, hover, transitions
-   ══════════════════════════════════════════════════════════════════════ */
-
-/* Smoother card hovers */
-.req-card{transition:background .15s,border-color .15s,transform .15s,box-shadow .15s}
-.req-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
-html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
-
-/* Guard card hover */
-.guard-card{transition:border-color .15s,transform .15s,box-shadow .15s}
-.guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.4)}
-
-/* Visit log card hover */
-.vlog-card{transition:background .15s,transform .15s,box-shadow .15s}
-.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
-
-/* Buttons — subtle scale on hover */
-.guard-btn{transition:all .15s}
-.guard-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
-
-/* Blacklist items hover */
-.bl-row{transition:background .13s,transform .13s}
-.bl-row:hover{transform:translateY(-1px)}
-
-/* Smoother subtabs */
-.guard-subtab{transition:all .2s}
-.date-pill{transition:all .15s}
-.date-pill:hover:not(.active){background:var(--s3)}
-
 /* ── Landing ── */
 .landing{max-width:1060px;margin:0 auto;padding:24px 18px 28px}
 .landing-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}

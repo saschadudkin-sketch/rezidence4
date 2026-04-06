@@ -1,22 +1,13 @@
 /**
- * Dashboard.jsx — A-01: Thin coordinator after shell decomposition.
+ * Dashboard.jsx — composition root (thin).
  *
- * Layout + navigation are now in shell/ sub-components:
- *   AppShell           — outer layout (header + content + mobile nav)
- *   NavigationShell    — top-nav and mobile-nav with badge semantics
- *   RoleContentRouter  — lazy role-based view switcher
- *   UserMenu           — header user dropdown + avatar modal
- *
- * Business logic remains in hooks (useDashboardHooks.js):
- *   useTheme()             — theme cycling
- *   useNavBadges()         — navigation badge counts
- *   useLiveSync()          — SSE live sync
- *   usePushNotifications() — push + PWA badge
- *   useArrivalNotifier()   — guest arrival notification
- *   useNavigation()        — active tab management
+ * Feature-level controllers:
+ *   useRoleGuidance      — onboarding/demo guidance UX
+ *   useConnectivityUX    — SSE/connectivity/retry orchestration
+ *   useDashboardExperience — nav model, page metadata, telemetry, action rail
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 import {
   useRequests, useChat, useActions, useBlacklist,
 } from '../store/AppStore';
@@ -25,36 +16,23 @@ import { useScheduledActivation } from '../hooks/useScheduledActivation';
 import {
   useTheme,
   useNavBadges,
-  useLiveSync,
   usePushNotifications,
   useArrivalNotifier,
   useNavigation,
 } from '../hooks/useDashboardHooks';
 import { ROLES } from '../domain/permissions';
-import { buildNavItems, buildNavClassMap } from '../domain/navigation';
-import { isDemoMode } from '../config/runtimeMode';
-// CQ-03: connection state logic extracted to dedicated hook
-import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
-// A-01: use centralized event registry
-import { onSseForceReconnect } from '../utils/events';
-import StateBlock from '../ui/StateBlock';
-import { getRoleManifest } from '../domain/roleManifest';
-import {
-  markOnboardingSeen,
-  isOnboardingSeen,
-  readStorage,
-  STORAGE_KEYS,
-  writeStorage,
-} from '../store/persistence/storageRegistry';
-import { getViewStateCopy } from '../ui/viewStateContract';
-import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
+import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { SmartActionRail } from '../workflow/SmartActionRail';
-import { getRoleNextBestAction, getWorkflowCompletionFeedback } from '../workflow/roleWorkflow';
+import { useRoleGuidance } from './dashboard/useRoleGuidance';
+import { useConnectivityUX } from './dashboard/useConnectivityUX';
+import { useDashboardExperience } from './dashboard/useDashboardExperience';
+import { readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
 function DemoBanner({ onClose }) {
   const [privateSession, setPrivateSession] = useState(() => readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1');
+
   const togglePrivateSession = () => {
     const next = !privateSession;
     setPrivateSession(next);
@@ -80,8 +58,6 @@ function DemoBanner({ onClose }) {
   );
 }
 
-// P-06: Role-based onboarding hints — shown once per role on first login.
-// Dismissed permanently per role using localStorage.
 const ONBOARDING_HINTS = {
   [ROLES.OWNER]:       'Нажмите «+» чтобы создать пропуск для гостя, курьера или подрядчика. Пропуска появятся у охраны автоматически.',
   [ROLES.TENANT]:      'Создайте пропуск для гостя или мастера — охрана получит уведомление мгновенно.',
@@ -105,14 +81,8 @@ function OnboardingHint({ role, onClose }) {
   );
 }
 
-const TAB_TITLES = {
-  passes: 'Пропуска', tech: 'Техслужба', perms: 'Постоянный список',
-  templates: 'Шаблоны', history: 'История', chat: 'Чат',
-  visitlog: 'Журнал посещений', residents: 'Жильцы', blacklist: 'Чёрный список',
-  guardpost: 'Пост охраны', stats: 'Аналитика', requests: 'Заявки', users: 'Резиденты',
-};
 export default function Dashboard({ user, onLogout, isOnline = true }) {
-  const requests  = useRequests();
+  const requests = useRequests();
   const blacklist = useBlacklist();
   const { chat, chatLastSeen } = useChat();
   const {
@@ -121,52 +91,12 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     markChatSeen, activateScheduled,
     addToBlacklist, removeFromBlacklist,
     updateUser, deleteUser, addUser,
-    // PERF: incremental SSE request updates — точечные действия вместо full REQUESTS_SET_ALL
     updateRequest, addRequest, deleteRequest,
   } = useActions();
 
   const { cycleTheme, themeIcon, themeLabel } = useTheme();
-
-  
-  const [showDemoBanner, setShowDemoBanner] = useState(() =>
-    isDemoMode() && !readStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN)
-  );
-  const dismissDemoBanner = () => {
-    writeStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN, '1');
-    setShowDemoBanner(false);
-  };
-
-  // P-06: role-based onboarding hint — shown once per role, dismissed to localStorage
-  const [showOnboarding, setShowOnboarding] = useState(() =>
-    !isOnboardingSeen(user.uid, user.role)
-  );
-  const dismissOnboarding = () => {
-    markOnboardingSeen(user.uid, user.role);
-    setShowOnboarding(false);
-  };
-
   const badges = useNavBadges(user, requests, chat, chatLastSeen, blacklist);
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
-
-  const [retryKey, setRetryKey] = useState(0);
-
-  // DO-02: Listen for watchdog-triggered force reconnect.
-  // useLiveSync watchdog emits this when SSE stream is stale for 60s.
-  // A-01: use typed helper from centralized event registry (was magic string 'rz:sse-force-reconnect')
-  useEffect(() => onSseForceReconnect(() => setRetryKey(k => k + 1)), []);
-
-  const liveSync = useLiveSync(user, {
-    setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
-    retryKey,
-    addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
-    // PERF: incremental request SSE updates
-    updateRequest, addRequest, deleteRequest,
-  });
-  // CQ-03: connection state logic in its own hook — Dashboard stays a thin coordinator
-  const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(liveSync, { retryKey, setRetryKey });
-  const requestsErrorCopy = getViewStateCopy('requests', 'error');
-  const [viewReadyEmitted, setViewReadyEmitted] = useState(false);
-
 
   usePushNotifications(user, { pendingT, pendingP, unreadMsgs });
   useArrivalNotifier(user, requests);
@@ -175,48 +105,37 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   const { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId } =
     useNavigation(user, { markChatSeen, onPassesSeen });
 
-  useEffect(() => {
-    if (viewReadyEmitted || isLoading || isConnErr) return;
-    emitUxMetric(UX_METRICS.VIEW_READY, { role: user.role, tab: activeTab });
-    setViewReadyEmitted(true);
-  }, [viewReadyEmitted, isLoading, isConnErr, user.role, activeTab]);
+  const connectivity = useConnectivityUX({
+    user,
+    syncCallbacks: {
+      setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
+      addToBlacklist, removeFromBlacklist, updateUser, deleteUser, addUser,
+      updateRequest, addRequest, deleteRequest,
+    },
+  });
 
-  // Navigation items и CSS-классы вычисляются через domain/navigation.js.
-  // Логика вынесена из компонента — тестируема без React, Dashboard остаётся тонким координатором.
-  const badgesForNav = useMemo(
-    () => ({ pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount }),
-    [pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount],
-  );
-  const navItems   = useMemo(() => buildNavItems(user.role, badgesForNav),   [user.role, badgesForNav]);
-  const navClassMap = useMemo(() => buildNavClassMap(user.role, activeTab, badgesForNav), [user.role, activeTab, badgesForNav]);
-  // NavigationShell ожидает nav как массив [tab, icon, label, badge]
-  const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
+  const guidance = useRoleGuidance(user);
 
-  const roleManifest = getRoleManifest(user.role);
-  const pageTitle = TAB_TITLES[activeTab] || roleManifest.pageTitle;
-  const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
-    ? 'Апартаменты ' + user.apartment
-    : (roleManifest.pageSubtitle || '');
+  const experience = useDashboardExperience({
+    user,
+    activeTab,
+    badges: { pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount },
+    isLoading: connectivity.isLoading,
+    isConnErr: connectivity.isConnErr,
+    goTab,
+  });
 
-  const nextBestAction = useMemo(() => {
-    const action = getRoleNextBestAction(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
-    return action ? { ...action, onClick: () => goTab(action.tab) } : null;
-  }, [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, goTab]);
-
-  const completionFeedback = useMemo(() => {
-    return getWorkflowCompletionFeedback(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
-  }, [user.role, pendingP, pendingT, residentNewStatuses, unreadMsgs]);
-
-  if (isConnErr) {
+  if (connectivity.isConnErr) {
     return (
       <div className="screen-loading">
         <div className="screen-loading-inner">
-          <StateBlock
-            type="error"
-            title={requestsErrorCopy.title}
-            subtitle={requestsErrorCopy.subtitle}
+          <ViewStateAdapter
+            entity="requests"
+            state="error"
+            title={connectivity.requestsErrorCopy.title}
+            subtitle={connectivity.requestsErrorCopy.subtitle}
             actionLabel="Попробовать снова"
-            onAction={handleRetry}
+            onAction={connectivity.handleRetry}
           />
         </div>
       </div>
@@ -224,26 +143,34 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
   }
 
   return (
-    <NavigationContext.Provider value={{ nav, navClassMap, goTab, activeTab, setActiveTab, highlightReqId, setHighlightReqId }}>
-      {showDemoBanner && <DemoBanner onClose={dismissDemoBanner} />}
-      {showOnboarding && !showDemoBanner && (
-        <OnboardingHint role={user.role} onClose={dismissOnboarding} />
+    <NavigationContext.Provider
+      value={{
+        nav: experience.nav,
+        navClassMap: experience.navClassMap,
+        goTab,
+        activeTab,
+        setActiveTab,
+        highlightReqId,
+        setHighlightReqId,
+      }}
+    >
+      {guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
+      {guidance.showOnboarding && !guidance.showDemoBanner && (
+        <OnboardingHint role={user.role} onClose={guidance.dismissOnboarding} />
       )}
-      {/* P-02: pass isLoading so AppShell renders skeleton cards instead of
-          a full-screen spinner — the header and nav are immediately usable */}
       <AppShell
         user={user}
         onLogout={onLogout}
-        pageTitle={pageTitle}
-        pageSubtitle={pageSubtitle}
+        pageTitle={experience.pageTitle}
+        pageSubtitle={experience.pageSubtitle}
         pendingCount={pendingT + pendingP}
         cycleTheme={cycleTheme}
         themeIcon={themeIcon}
         themeLabel={themeLabel}
-        sseOnline={sseOnline}
-        isLoading={isLoading}
+        sseOnline={connectivity.sseOnline}
+        isLoading={connectivity.isLoading}
         isOnline={isOnline}
-        actionRail={<SmartActionRail action={nextBestAction} feedback={completionFeedback} onAction={nextBestAction?.onClick} />}
+        actionRail={<SmartActionRail action={experience.nextBestAction} feedback={experience.completionFeedback} onAction={experience.nextBestAction?.onClick} />}
       />
     </NavigationContext.Provider>
   );
