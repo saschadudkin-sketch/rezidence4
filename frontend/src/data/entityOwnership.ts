@@ -15,10 +15,23 @@ export const ENTITY_OWNERSHIP = {
 export type AppEntity = keyof typeof ENTITY_OWNERSHIP;
 export type DataPlane = (typeof ENTITY_OWNERSHIP)[AppEntity];
 
+
+const isDataPlaneDiagnosticsEnabled = (): boolean => {
+  const flag = import.meta.env.VITE_DATA_PLANE_DIAGNOSTICS;
+  return flag === '1' || flag === 'true';
+};
+
 export function assertEntityPlane(entity: AppEntity, expected: DataPlane) {
   const actual = ENTITY_OWNERSHIP[entity];
-  if (import.meta.env.DEV && actual !== expected) {
-    throw new Error(`[data-plane] ${entity} is owned by ${actual}, but used as ${expected}`);
+  if (actual === expected) return;
+
+  const message = `[data-plane] ${entity} is owned by ${actual}, but used as ${expected}`;
+  if (import.meta.env.DEV) {
+    throw new Error(message);
+  }
+
+  if (isDataPlaneDiagnosticsEnabled()) {
+    console.error(message);
   }
 }
 

@@ -70,6 +70,20 @@ describe('apiClient.get', () => {
     expectRequestIdHeader(opts);
   });
 
+
+  test('пробрасывает AbortSignal в GET-запрос', async () => {
+    mockFetchOk({ ok: true });
+    const client = await getClient();
+    const ctrl = new AbortController();
+
+    await client.get('/api/users', { signal: ctrl.signal });
+
+    const [, opts] = fetch.mock.calls[0];
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+    ctrl.abort();
+    expect(opts.signal.aborted).toBe(true);
+  });
+
   test('возвращает распарсенный JSON', async () => {
     mockFetchOk({ users: ['u1'] });
     const client = await getClient();
@@ -197,6 +211,20 @@ describe('apiClient.post', () => {
     expect(JSON.parse(opts.body)).toEqual({ type: 'pass' });
     expect(opts.headers['Content-Type']).toBe('application/json');
     expectRequestIdHeader(opts);
+  });
+
+
+  test('пробрасывает AbortSignal в POST-запрос', async () => {
+    mockFetchOk({ ok: true });
+    const client = await getClient();
+    const ctrl = new AbortController();
+
+    await client.post('/api/requests', { type: 'pass' }, { signal: ctrl.signal });
+
+    const [, opts] = fetch.mock.calls[0];
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+    ctrl.abort();
+    expect(opts.signal.aborted).toBe(true);
   });
 
   test('credentials: include в POST запросе', async () => {

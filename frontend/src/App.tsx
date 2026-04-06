@@ -84,7 +84,13 @@ const AppInner = memo(function AppInner() {
       console.info('[data-plane-policy]', DATA_PLANE_POLICY);
       assertEntityPlane('requests', 'sse');
       assertEntityPlane('chat', 'sse');
+      assertEntityPlane('users', 'sse');
+      assertEntityPlane('perms', 'sse');
+      assertEntityPlane('templates', 'sse');
+      assertEntityPlane('blacklist', 'sse');
       assertEntityPlane('visitLogs', 'query');
+      assertEntityPlane('stats', 'query');
+      assertEntityPlane('garage', 'query');
     }
   }, []);
 

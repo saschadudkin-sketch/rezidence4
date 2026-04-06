@@ -44,8 +44,7 @@ export function ChatMessageList({
           ) : (
             <button
               onClick={onLoadOlder}
-              className="btn-outline"
-              className="u-block u-mx-auto u-minw160"
+              className="btn-outline u-block u-mx-auto u-minw160"
             >
               <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
             </button>

@@ -198,7 +198,7 @@ export const authProvider = {
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
-  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: unknown[]) => void; background?: boolean }) {
+  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: Record<string, unknown>[]) => void; background?: boolean }) {
     // Incremental hydration:
     // 1) return page=1 immediately for fast first paint
     // 2) fetch remaining pages in background and push cumulative list via onPage callback
@@ -208,11 +208,13 @@ export const requestsProvider = {
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
-    const normalize = (payload) => {
-      const rows = Array.isArray(payload) ? payload : (payload?.data || []);
-      const total = Number(payload?.total || rows.length || 0);
-      const nextCursor = payload?.nextCursor || payload?.cursor || null;
-      const nextPage = Number(payload?.nextPage || 0) || null;
+    const normalize = (payload: unknown) => {
+      const sourceRows = Array.isArray(payload) ? payload : ((payload as { data?: unknown[] } | null)?.data || []);
+      const rows = sourceRows.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null);
+      const meta = payload as { total?: number; nextCursor?: string; cursor?: string; nextPage?: number } | null;
+      const total = Number(meta?.total || rows.length || 0);
+      const nextCursor = meta?.nextCursor || meta?.cursor || null;
+      const nextPage = Number(meta?.nextPage || 0) || null;
       return { rows, total, nextCursor, nextPage };
     };
 
@@ -347,14 +349,14 @@ export const chatProvider = {
     if (Array.isArray(data)) return { messages: data, hasMore: false };
     return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
   },
-  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: unknown[]) => void; background?: boolean } = {}) {
+  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: Record<string, unknown>[]) => void; background?: boolean } = {}) {
     const PAGE_SIZE = 60;
     const signal = opts?.signal;
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
     const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
-    const merged = [...(first?.messages || [])];
+    const merged: Record<string, unknown>[] = [...(first?.messages || [])].filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
     if (!background || !first?.hasMore || merged.length === 0) return merged;
 
     (async () => {
@@ -362,9 +364,9 @@ export const chatProvider = {
         let hasMore = Boolean(first?.hasMore);
         while (!signal?.aborted && hasMore) {
           const oldest = merged[0]?.id;
-          if (!oldest) break;
+          if (typeof oldest !== 'string' || !oldest) break;
           const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
-          const nextRows = next?.messages || [];
+          const nextRows: Record<string, unknown>[] = (next?.messages || []).filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
           if (!nextRows.length) break;
           merged.unshift(...nextRows);
           onPage?.([...merged]);
@@ -517,7 +519,7 @@ export function createBackendProvider(): ServiceContracts {
 
         // Subscribe to request_update BEFORE the parallel fetch so events that arrive
         // during initial load are buffered and applied after — not silently dropped.
-        const reqEventBuffer = [];
+        const reqEventBuffer: Record<string, unknown>[] = [];
         const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
         // DA-01: pass signal to every provider call so the underlying apiClient fetch
@@ -525,7 +527,7 @@ export function createBackendProvider(): ServiceContracts {
         const fetchOpts = signal ? { signal } : {};
 
         // Параллельная загрузка ВСЕХ данных при старте
-        let currentRequests = [];
+        let currentRequests: Record<string, unknown>[] = [];
         const promises = [
           requestsProvider.getAll({
             ...fetchOpts,
@@ -574,7 +576,9 @@ export function createBackendProvider(): ServiceContracts {
         if (signal?.aborted || !mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
-        currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        currentRequests = reqs && Array.isArray(reqs)
+          ? reqs.filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null)
+          : ((reqs as { data?: unknown[] } | null)?.data || []).filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null);
         for (const bufferedReq of reqEventBuffer) {
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
@@ -583,7 +587,12 @@ export function createBackendProvider(): ServiceContracts {
 
         if (setAllRequests) setAllRequests(currentRequests);
         if (onRequests) onRequests(currentRequests);
-        if (setAllMessages && chatData) setAllMessages(Array.isArray(chatData) ? chatData : (chatData.messages || []));
+        if (setAllMessages && chatData) {
+          const initialMessages = Array.isArray(chatData)
+            ? chatData
+            : ((chatData as { messages?: unknown[] } | null)?.messages || []);
+          setAllMessages(initialMessages.filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null));
+        }
         if (setAllUsers && users)       setAllUsers(users);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);
