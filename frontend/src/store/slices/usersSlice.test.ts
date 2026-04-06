@@ -20,31 +20,31 @@ describe('usersReducer', () => {
   });
 
   test('USERS_SET_ALL with empty array does not clear store', () => {
-    const action = { type: 'USERS_SET_ALL', users: [] };
+    const action: any = { type: 'USERS_SET_ALL', users: [] };
     const result = usersReducer(baseState, action);
     expect(result.users.u1).toBeDefined();
   });
 
   test('USERS_SET_ALL with null does not clear store', () => {
-    const action = { type: 'USERS_SET_ALL', users: null };
+    const action: any = { type: 'USERS_SET_ALL', users: null };
     const result = usersReducer(baseState, action);
     expect(result).toBe(baseState);
   });
 
   test('USER_UPDATE updates specific user', () => {
-    const action = { type: 'USER_UPDATE', user: { uid: 'u1', name: 'Обновлён', phone: '+7 916 123-45-67', role: 'owner', apartment: '12' } };
+    const action: any = { type: 'USER_UPDATE', user: { uid: 'u1', name: 'Обновлён', phone: '+7 916 123-45-67', role: 'owner', apartment: '12' } };
     const result = usersReducer(baseState, action);
     expect(result.users.u1.name).toBe('Обновлён');
   });
 
   test('AVATAR_SET sets avatar for user', () => {
-    const action = { type: 'AVATAR_SET', uid: 'u1', avatar: { emoji: '😀', bg: '#ff0000' } };
+    const action: any = { type: 'AVATAR_SET', uid: 'u1', avatar: { emoji: '😀', bg: '#ff0000' } };
     const result = usersReducer(baseState, action);
     expect(result.avatars.u1).toEqual({ emoji: '😀', bg: '#ff0000' });
   });
 
   test('unknown action returns state', () => {
-    const result = usersReducer(baseState, { type: 'UNKNOWN' });
+    const result = usersReducer(baseState, { type: 'UNKNOWN' } as any);
     expect(result).toBe(baseState);
   });
 });

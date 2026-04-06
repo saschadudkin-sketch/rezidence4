@@ -161,7 +161,7 @@ describe('permsReducer — TEMPLATES_SET', () => {
 
 describe('permsReducer — default', () => {
   test('неизвестный экшен возвращает то же самое состояние', () => {
-    const result = permsReducer(baseState, { type: 'UNKNOWN' });
+    const result = permsReducer(baseState, { type: 'UNKNOWN' } as any);
     expect(result).toBe(baseState);
   });
 });
