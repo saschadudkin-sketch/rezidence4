@@ -1,5 +1,5 @@
 import { useState, useMemo, memo, useDeferredValue } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useInRouterContext, useParams, useRoutes } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers } from '../store/AppStore';
@@ -320,7 +320,21 @@ export default function AdminView({ user, activeTab: activeTabProp, setActiveTab
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
   const allUsers = useMemo(() => Object.values(users), [users]);
   const activeTab = tab || activeTabProp || 'stats';
-  const adminTabViews = useMemo(() => ({
+  const hasRouterContext = useInRouterContext();
+  const adminRoutes = useMemo(() => ([
+    { path: '/stats', element: <AdminStatsView allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} /> },
+    { path: '/users', element: <AdminUsersView allUsers={allUsers} currentUser={user} /> },
+    { path: '/contractors', element: <AdminUsersView allUsers={allUsers} currentUser={user} contractorOnly /> },
+    { path: '/requests', element: <AdminRequestsView requests={requests} adminUid={user.uid} /> },
+    { path: '/perms', element: <AdminPermsView /> },
+    { path: '/residents', element: <ResidentsView user={user} /> },
+    { path: '/visitlog', element: <VisitLogView user={user} /> },
+    { path: '/blacklist', element: <BlacklistView user={user} /> },
+    { path: '/chat', element: <ChatView user={user} /> },
+    { path: '*', element: <Navigate to="/stats" replace /> },
+  ]), [allUsers, requests, user]);
+  const routedAdminView = hasRouterContext ? useRoutes(adminRoutes, `/${activeTab}`) : null;
+  const fallbackTabViews = useMemo(() => ({
     stats: <AdminStatsView allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} />,
     users: <AdminUsersView allUsers={allUsers} currentUser={user} />,
     contractors: <AdminUsersView allUsers={allUsers} currentUser={user} contractorOnly />,
@@ -334,7 +348,7 @@ export default function AdminView({ user, activeTab: activeTabProp, setActiveTab
 
   return (
     <>
-      {adminTabViews[activeTab] || adminTabViews.stats}
+      {routedAdminView || fallbackTabViews[activeTab] || fallbackTabViews.stats}
     </>
   );
 }
