@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useActions, useRequests } from '../store/AppStore';
 import { CreateModal } from '../requests/CreateModal';
 import { EditRequestModal } from '../requests/EditRequestModal';
@@ -21,12 +21,28 @@ const COMPLETED_STATUSES = new Set(['arrived', 'rejected', 'expired', 'cancelled
 export default function ResidentView({ user, activeTab, setActiveTab }) {
   const requests = useRequests();
   const { deleteRequest, updateRequest, addRequest } = useActions();
+  const requestsRef = useRef(requests);
+  const opSeqRef = useRef(0);
+  const opLogRef = useRef(new Map());
   const [modal,         setModal]         = useState(null);
   const [editReq,       setEditReq]       = useState(null);
   const [passFilter,    setPassFilter]    = useState('active');
   const [techFilter,    setTechFilter]    = useState('active');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
+
+  useEffect(() => {
+    requestsRef.current = requests;
+  }, [requests]);
+
+  const nextOpId = () => `op_${Date.now()}_${++opSeqRef.current}`;
+  const beginOp = (op) => {
+    opLogRef.current.set(op.opId, op);
+    return op.opId;
+  };
+  const endOp = (opId) => {
+    opLogRef.current.delete(opId);
+  };
 
   const onEdit = useCallback(r => { if (can(user).editRequest(r)) setEditReq(r); }, [user]);
 
@@ -38,39 +54,61 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     type: r.type, cat: r.category, data: { comment: r.comment },
   }), []);
 
-  // T-6: Optimistic updates — update UI immediately, rollback on error
+  // T-6+: optimistic operation-log (not snapshot-only rollback)
   const onDeleteConfirmed = useCallback(async id => {
     setConfirmDelete(null);
-    const originalReq = requests.find(r => r.id === id);
+    const originalReq = requestsRef.current.find(r => r.id === id);
+    if (!originalReq) return;
+    const opId = beginOp({ opId: nextOpId(), type: 'delete', requestId: id, prev: originalReq });
+    // Soft optimistic marker for conflict-safe rollback decision
+    updateRequest(id, { _optimisticOpId: opId });
     deleteRequest(id);
     try {
       if (isLiveMode()) {
         await services.requests.deleteEverywhere({ requestId: id });
       }
+      endOp(opId);
       toast('Заявка удалена', 'success');
     } catch (e) {
-      if (originalReq) addRequest(originalReq);
+      const current = requestsRef.current.find(r => r.id === id);
+      // Rollback only when no fresher SSE state exists for this request id.
+      if (!current) addRequest({ ...originalReq, _optimisticOpId: undefined });
+      endOp(opId);
       toast('Не удалось удалить заявку: ' + (e.message || 'ошибка сервера'), 'error');
     }
-  }, [requests, deleteRequest, addRequest]);
+  }, [deleteRequest, updateRequest, addRequest]);
 
   const onDelete = useCallback((id) => setConfirmDelete(id), []);
 
   const onCancelConfirmed = useCallback(async id => {
     setConfirmCancel(null);
-    const originalReq = requests.find(r => r.id === id);
+    const originalReq = requestsRef.current.find(r => r.id === id);
+    if (!originalReq) return;
+    const opId = beginOp({
+      opId: nextOpId(),
+      type: 'cancel',
+      requestId: id,
+      prevStatus: originalReq.status,
+    });
     const patch = { status: 'cancelled' };
-    updateRequest(id, patch);
+    updateRequest(id, { ...patch, _optimisticOpId: opId });
     try {
       if (isLiveMode()) {
         await services.requests.updateEverywhere({ requestId: id, patch, historyLabel: 'Отменено жильцом' });
       }
+      updateRequest(id, { _optimisticOpId: undefined });
+      endOp(opId);
       toast('Заявка отменена', 'success');
     } catch (e) {
-      if (originalReq) updateRequest(id, { status: originalReq.status });
+      const current = requestsRef.current.find(r => r.id === id);
+      // Rollback only if current row still carries this optimistic operation marker.
+      if (current?._optimisticOpId === opId) {
+        updateRequest(id, { status: originalReq.status, _optimisticOpId: undefined });
+      }
+      endOp(opId);
       toast('Не удалось отменить заявку: ' + (e.message || 'ошибка сервера'), 'error');
     }
-  }, [requests, updateRequest]);
+  }, [updateRequest]);
 
   const onCancel = useCallback((id) => setConfirmCancel(id), []);
 

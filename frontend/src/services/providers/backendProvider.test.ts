@@ -143,6 +143,19 @@ describe('requestsProvider', () => {
     expect(result).toEqual([{ id: 'r1' }]);
   });
 
+  test('getAll — first page immediately, rest in background via onPage', async () => {
+    apiClient.get
+      .mockResolvedValueOnce({ data: [{ id: 'r1' }], total: 400 })
+      .mockResolvedValueOnce({ data: [{ id: 'r2' }], total: 400 });
+    const onPage = vi.fn();
+    const result = await requestsProvider.getAll({ onPage });
+    expect(result).toEqual([{ id: 'r1' }]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onPage).toHaveBeenCalledWith([{ id: 'r1' }, { id: 'r2' }]);
+  });
+
   test('create → POST /api/requests, возвращает serverReq', async () => {
     const req = { type: 'pass', category: 'guest' };
     const serverReq = { id: 'server-uuid', ...req };
