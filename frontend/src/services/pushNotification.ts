@@ -65,7 +65,7 @@ export function pushNotifyResident(req) {
  * @param {string} uid — uid текущего пользователя
  */
 export async function subscribePush() {
-  if (!('Notification' in window)) return;
+  if (!('Notification' in window) || typeof Notification === 'undefined' || !Notification) return;
   if (Notification.permission === 'denied') return;
 
   try {

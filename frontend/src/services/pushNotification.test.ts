@@ -84,22 +84,34 @@ describe('subscribePush', () => {
   let origNotification;
 
   beforeEach(() => {
-    origNotification = (global as any).Notification;
+    origNotification = window.Notification;
   });
 
   afterEach(() => {
-    (global as any).Notification = origNotification;
+    Object.defineProperty(window, 'Notification', {
+      value: origNotification,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(globalThis, 'Notification', {
+      value: origNotification,
+      configurable: true,
+      writable: true,
+    });
   });
 
   test('ничего не делает если Notification недоступен', async () => {
-    Object.defineProperty(global, 'Notification', { value: undefined, configurable: true });
+    Object.defineProperty(window, 'Notification', { value: undefined, configurable: true, writable: true });
+    Object.defineProperty(globalThis, 'Notification', { value: undefined, configurable: true, writable: true });
     await expect(subscribePush()).resolves.toBeUndefined();
   });
 
   test('ничего не делает если разрешение denied', async () => {
-    (global as any).Notification = { permission: 'denied', requestPermission: vi.fn((..._args: any[]) => Promise.resolve('denied')) };
+    const mockNotification = { permission: 'denied', requestPermission: vi.fn((..._args: any[]) => Promise.resolve('denied')) };
+    Object.defineProperty(window, 'Notification', { value: mockNotification, configurable: true, writable: true });
+    Object.defineProperty(globalThis, 'Notification', { value: mockNotification, configurable: true, writable: true });
     await subscribePush();
-    expect((global as any).Notification.requestPermission).not.toHaveBeenCalled();
+    expect(mockNotification.requestPermission).not.toHaveBeenCalled();
   });
 
   test('запрашивает разрешение если default', async () => {
@@ -107,7 +119,9 @@ describe('subscribePush', () => {
     const mockReady = Promise.resolve({ showNotification: mockShowNotification });
     const mockRequestPermission = vi.fn().mockResolvedValue('granted');
 
-    (global as any).Notification = { permission: 'default', requestPermission: mockRequestPermission };
+    const mockNotification = { permission: 'default', requestPermission: mockRequestPermission };
+    Object.defineProperty(window, 'Notification', { value: mockNotification, configurable: true, writable: true });
+    Object.defineProperty(globalThis, 'Notification', { value: mockNotification, configurable: true, writable: true });
     Object.defineProperty(navigator, 'serviceWorker', {
       value: { ready: mockReady },
       configurable: true,
@@ -118,19 +132,23 @@ describe('subscribePush', () => {
   });
 
   test('не падает при отклонении разрешения', async () => {
-    (global as any).Notification = {
+    const mockNotification = {
       permission: 'default',
       requestPermission: vi.fn((..._args: any[]) => Promise.resolve('denied')),
     };
+    Object.defineProperty(window, 'Notification', { value: mockNotification, configurable: true, writable: true });
+    Object.defineProperty(globalThis, 'Notification', { value: mockNotification, configurable: true, writable: true });
     await expect(subscribePush()).resolves.toBeUndefined();
   });
 
   test('не падает при ошибке SW', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    (global as any).Notification = {
+    const mockNotification = {
       permission: 'default',
       requestPermission: vi.fn((..._args: any[]) => Promise.reject(new Error('SW error'))),
     };
+    Object.defineProperty(window, 'Notification', { value: mockNotification, configurable: true, writable: true });
+    Object.defineProperty(globalThis, 'Notification', { value: mockNotification, configurable: true, writable: true });
     await expect(subscribePush()).resolves.toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith('[push] subscribe failed:', expect.any(Error));
     warnSpy.mockRestore();

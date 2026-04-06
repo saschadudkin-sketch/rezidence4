@@ -6,7 +6,7 @@ export const getSwReg = () => _swReg;
 
 /** Регистрирует Service Worker */
 export function registerSW() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker?.register) return;
   navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
     .then((reg) => { _swReg = reg; })
