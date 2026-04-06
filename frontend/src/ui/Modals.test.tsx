@@ -32,12 +32,12 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('AddUserModal', () => {
   test('рендерится с заголовком "Новый жилец"', () => {
-    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="owner" />);
     expect(screen.getByText('Новый жилец')).toBeInTheDocument();
   });
 
   test('поля Имя, Телефон, Роль, Апартамент присутствуют', () => {
-    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="owner" />);
     expect(screen.getByPlaceholderText('Иван Иванов')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('+7 000 000-00-00')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('12')).toBeInTheDocument();
@@ -45,20 +45,20 @@ describe('AddUserModal', () => {
 
   test('кнопка закрытия вызывает onClose', () => {
     const onClose = vi.fn();
-    render(<AddUserModal onClose={onClose} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={onClose} onDone={vi.fn()} initialRole="owner" />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
     expect(onClose).toHaveBeenCalled();
   });
 
   test('кнопка "Отмена" вызывает onClose', () => {
     const onClose = vi.fn();
-    render(<AddUserModal onClose={onClose} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={onClose} onDone={vi.fn()} initialRole="owner" />);
     fireEvent.click(screen.getByText('Отмена'));
     expect(onClose).toHaveBeenCalled();
   });
 
   test('пустое имя показывает toast error', async () => {
-    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="owner" />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 777-88-99' } });
     fireEvent.click(screen.getByText('Добавить'));
     await waitFor(() => {
@@ -67,7 +67,7 @@ describe('AddUserModal', () => {
   });
 
   test('некорректный телефон показывает toast error', async () => {
-    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
+    render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="owner" />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Иван' } });
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916' } });
     fireEvent.click(screen.getByText('Добавить'));
@@ -78,7 +78,7 @@ describe('AddUserModal', () => {
 
   test('initialRole предустанавливает роль', () => {
     render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} initialRole="security" />);
-    const select = screen.getByRole('combobox');
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('security');
   });
 
@@ -86,7 +86,7 @@ describe('AddUserModal', () => {
     const onDone  = vi.fn();
     const onClose = vi.fn();
 
-    render(<AddUserModal onClose={onClose} onDone={onDone} />);
+    render(<AddUserModal onClose={onClose} onDone={onDone} initialRole="owner" />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Новый Пользователь' } });
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 999 888-77-66' } });
     fireEvent.change(screen.getByPlaceholderText('12'), { target: { value: '42' } });

@@ -41,7 +41,7 @@ describe('AppIcon', () => {
   });
 
   test('без имени и с пустым именем работает без предупреждений', () => {
-    render(<AppIcon />);
+    render(<AppIcon name={undefined as any} />);
     render(<AppIcon name="" />);
     expect(warnSpy).not.toHaveBeenCalled();
   });
