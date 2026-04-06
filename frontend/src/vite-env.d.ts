@@ -22,4 +22,9 @@ interface ImportMeta {
 
 declare const process: {
   env: Record<string, string | undefined>;
+  cwd: () => string;
 };
+
+declare const __dirname: string;
+declare const global: typeof globalThis;
+declare function require(id: string): any;
