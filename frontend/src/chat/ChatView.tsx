@@ -24,8 +24,8 @@ function fmtDateSep(date) {
   const d = new Date(date);
   const now = new Date();
   // Сброс времени через арифметику: начало текущего дня
-  const nowMidnight = now - (now.getHours() * 3_600_000 + now.getMinutes() * 60_000 + now.getSeconds() * 1_000 + now.getMilliseconds());
-  const dMidnight = d - (d.getHours() * 3_600_000 + d.getMinutes() * 60_000 + d.getSeconds() * 1_000 + d.getMilliseconds());
+  const nowMidnight = now.getTime() - (now.getHours() * 3_600_000 + now.getMinutes() * 60_000 + now.getSeconds() * 1_000 + now.getMilliseconds());
+  const dMidnight = d.getTime() - (d.getHours() * 3_600_000 + d.getMinutes() * 60_000 + d.getSeconds() * 1_000 + d.getMilliseconds());
   if (dMidnight === nowMidnight) return 'Сегодня';
   if (dMidnight === nowMidnight - 86_400_000) return 'Вчера';
   const sameYear = d.getFullYear() === now.getFullYear();
@@ -43,7 +43,7 @@ function getDayKey(date) {
 // Разрешены только http: и https: — остальные схемы отображаются как текст.
 function linkify(text) {
   // Более строгий regex — не захватывает закрывающие скобки/кавычки/знаки препинания в конце URL
-  const urlRx = /\bhttps?:\/\/[^\s<>"'()\[\]{}|\\^`\u0000-\u001F]+/gi;
+  const urlRx = /\bhttps?:\/\/[^\s<>"'()[\]{}|\\^`]+/gi;
   const parts = text.split(urlRx);
   const matches = text.match(urlRx) || [];
   if (!matches.length) return text;
@@ -124,7 +124,6 @@ export function ChatView({ user }) {
     setShowSearch,
     serverSearchLoading,
     serverSearchError,
-    searchRetryTick,
     setSearchRetryTick,
     filteredChat,
   } = useChatSearch(chat, hasMore);
@@ -290,7 +289,7 @@ export function ChatView({ user }) {
       if (isLiveMode()) {
         await services.chat.deleteMessage(id);
       }
-    } catch (e) {
+    } catch {
       toast('Не удалось удалить', 'error');
       return;
     }
@@ -305,7 +304,7 @@ export function ChatView({ user }) {
       if (isLiveMode()) {
         await services.chat.updateMessage(id, patch);
       }
-    } catch (e) {
+    } catch {
       toast('Не удалось сохранить', 'error');
       setEditingMsg(null);
       return;
@@ -322,7 +321,9 @@ export function ChatView({ user }) {
       text: m.text || (m.photo ? 'Фото' : ''),
       photo: m.photo || null,
     });
-    inputRef.current && setTimeout(() => inputRef.current.focus(), 50);
+    if (inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
   }, [user.uid]);
 
   // Свайп для ответа
@@ -425,7 +426,7 @@ export function ChatView({ user }) {
         localMessage: m,
         sendLocal: sendMessage,
       });
-    } catch (err) {
+    } catch {
       toast('Не удалось загрузить фото', 'error');
     } finally {
       setPhotoSending(false);

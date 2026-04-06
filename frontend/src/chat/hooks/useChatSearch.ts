@@ -4,10 +4,12 @@ import { services } from '../../services/providers/serviceContainer';
 import { isLiveMode } from '../../config/runtimeMode';
 import { toast } from '../../ui/Toasts';
 
-export function useChatSearch(chat: any[], hasMore: boolean) {
+type ChatMessage = { text?: string };
+
+export function useChatSearch(chat: ChatMessage[], hasMore: boolean) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [serverSearchResults, setServerSearchResults] = useState<any[] | null>(null);
+  const [serverSearchResults, setServerSearchResults] = useState<ChatMessage[] | null>(null);
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
   const [serverSearchError, setServerSearchError] = useState('');
   const [searchRetryTick, setSearchRetryTick] = useState(0);
@@ -25,7 +27,7 @@ export function useChatSearch(chat: any[], hasMore: boolean) {
     services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
       .then(data => {
         if (cancelled) return;
-        setServerSearchResults(data?.messages ?? []);
+        setServerSearchResults((data?.messages ?? []) as ChatMessage[]);
       })
       .catch(() => {
         if (cancelled) return;

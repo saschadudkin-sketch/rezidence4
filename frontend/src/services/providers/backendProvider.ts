@@ -315,7 +315,7 @@ export const chatProvider = {
     const data = await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
     if (Array.isArray(data)) return { messages: data, hasMore: false };
-    return data; // { messages: [...], hasMore: bool }
+    return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
   },
   async sendMessage(msg) {
     return apiClient.post('/api/v1/chat/messages', msg);
