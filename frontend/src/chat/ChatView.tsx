@@ -359,7 +359,9 @@ export function ChatView({ user }) {
         onRetryInitialSync={retryInitialSync}
         filteredChatLength={filteredChat.length}
         searchQuery={searchQuery}
-        renderMessages={() => filteredChat.map((m, i) => {
+        messages={filteredChat}
+        renderMessage={(i) => {
+          const m = filteredChat[i];
           const readStatus = getReadStatus(m);
           const dayKey = getDayKey(m.at);
           const prevMsg = filteredChat[i - 1];
@@ -402,7 +404,7 @@ export function ChatView({ user }) {
               onCloseMenu={() => setMsgMenu(null)}
             />
           );
-        })}
+        }}
         bottomRef={bottomRef}
       />
       {replyTo && (

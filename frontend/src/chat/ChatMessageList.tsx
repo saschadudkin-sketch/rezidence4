@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { AppIcon } from '../ui/AppIcon';
 import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
@@ -16,7 +17,8 @@ interface ChatMessageListProps {
   onRetryInitialSync: () => void;
   filteredChatLength: number;
   searchQuery: string;
-  renderMessages: () => React.ReactNode;
+  messages: unknown[];
+  renderMessage: (index: number) => React.ReactNode;
   bottomRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -33,9 +35,18 @@ export function ChatMessageList({
   onRetryInitialSync,
   filteredChatLength,
   searchQuery,
-  renderMessages,
+  messages,
+  renderMessage,
   bottomRef,
 }: ChatMessageListProps) {
+  const rowVirtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => msgsContainerRef.current,
+    estimateSize: () => 120,
+    overscan: 8,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
   return (
     <div className="chat-msgs" ref={msgsContainerRef}>
       {hasMore && (
@@ -100,8 +111,35 @@ export function ChatMessageList({
           subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
         />
       )}
-      {renderMessages()}
-      <div ref={bottomRef}/>
+      {messages.length > 0 && (
+        <div
+          // eslint-disable-next-line no-restricted-syntax
+          style={{
+            height: rowVirtualizer.getTotalSize(),
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualRows.map(virtualRow => (
+            <div
+              key={virtualRow.key}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              // eslint-disable-next-line no-restricted-syntax
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              {renderMessage(virtualRow.index)}
+            </div>
+          ))}
+        </div>
+      )}
+      <div ref={bottomRef} />
     </div>
   );
 }
