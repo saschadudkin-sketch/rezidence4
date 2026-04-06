@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/admin/AdminReqRow.test.js
  * Покрывает: AdminReqRow — рендер, кнопки ред./удаление, синхронизация из props

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CreateModal.test.js — smoke tests for the CreateModal component.
  *

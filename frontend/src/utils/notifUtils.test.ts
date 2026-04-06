@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestNotifPerm, sendNotif } from './notifUtils';
 import { getSwReg } from './swUtils';

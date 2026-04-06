@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * requests/EditRequestModal.test.js
  * Покрывает: EditRequestModal — предзаполнение, сохранение, закрытие, ошибки

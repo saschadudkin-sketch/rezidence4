@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * services/providers/apiClient.test.js
  * Покрывает: apiClient.get/post/patch/delete, uploadPhoto

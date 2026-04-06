@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/GarageView.test.js
  * Покрывает: GarageView — список машин, добавление, редактирование, удаление, валидация

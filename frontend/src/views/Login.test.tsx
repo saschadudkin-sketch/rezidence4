@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/Login.test.js
  * Покрывает: Login — шаг phone, валидацию, шаг otp, демо-режим
