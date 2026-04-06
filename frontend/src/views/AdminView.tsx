@@ -15,6 +15,7 @@ import { ChatView }  from '../chat/ChatView';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
+import { VirtualList } from '../ui/VirtualList';
 import PageActionBar from '../ui/PageActionBar';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { useTelemetrySla } from '../hooks/useTelemetrySla';
@@ -160,7 +161,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
           subtitle={query ? 'Попробуйте изменить запрос' : (contractorOnly ? 'Нажмите «+ Добавить подрядчика»' : usersEmptyCopy.subtitle)}
         />
       )}
-      <div>{filtered.map(u => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />)}</div>
+      <VirtualList items={filtered} estimateSize={72} renderItem={(u) => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />} />
       {addModal && <AddUserModal initialRole={contractorOnly ? 'contractor' : undefined} onClose={handleCloseAdd} onDone={() => {}} />}
     </>
   );
@@ -210,7 +211,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
         </div>
       </div>
       {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
-      <div>{filtered.map(r => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />)}</div>
+      <VirtualList items={filtered} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
     </>
   );
 });

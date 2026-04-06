@@ -6,6 +6,8 @@ import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { VirtualList } from '../ui/VirtualList';
+import { sanitizeText, sanitizeCarPlate, validateAtLeastOne } from '../utils/inputSanitizer';
 
 export default function BlacklistView({ user }) {
   const blacklist = useBlacklist();
@@ -30,15 +32,13 @@ export default function BlacklistView({ user }) {
 
   // FIX [PERF]: useCallback — не пересоздаётся при каждом рендере
   const handleAdd = useCallback(() => {
-    if (!name.trim() && !carPlate.trim()) {
-      toast('Укажите ФИО или номер авто', 'error');
-      return;
-    }
+    const err = validateAtLeastOne([name, carPlate], 'Укажите ФИО или номер авто');
+    if (err) { toast(err, 'error'); return; }
     addToBlacklist({
       id: genId('bl'),
-      name: name.trim(),
-      carPlate: carPlate.trim().toUpperCase(),
-      reason: reason.trim(),
+      name: sanitizeText(name),
+      carPlate: sanitizeCarPlate(carPlate),
+      reason: sanitizeText(reason),
       addedBy: user.uid,
       addedAt: new Date(),
     });
@@ -94,8 +94,11 @@ export default function BlacklistView({ user }) {
         />
       )}
 
-      <div className="bl-list">
-        {filtered.map(entry => (
+      <VirtualList
+        items={filtered}
+        estimateSize={80}
+        className="bl-list"
+        renderItem={(entry) => (
           <div key={entry.id} className="bl-entry">
             <div className="bl-entry-main">
               <div className="bl-entry-icon"><AppIcon name="ban" /></div>
@@ -110,8 +113,8 @@ export default function BlacklistView({ user }) {
               <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 }

@@ -104,8 +104,15 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           // Explicit code-split boundaries to keep chunks under budget.
+          // PF2: explicit chunk boundaries — keeps initial JS payload small.
+          // vendor-react  → react + react-dom + react-router (render engine, always needed)
+          // vendor-query  → tanstack query + virtual (loaded with Dashboard chunk)
+          // vendor-sentry → error monitoring (async, doesn't block first paint)
+          // vendor-qr     → qrcode library (used only in QR modal, smallest chunk)
           manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-query': ['@tanstack/react-query', '@tanstack/react-virtual'],
+            'vendor-sentry': ['@sentry/react'],
             'vendor-qr': ['qrcode'],
           },
         },

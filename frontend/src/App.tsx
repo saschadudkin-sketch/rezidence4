@@ -1,16 +1,11 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// TODO [ВАЖНО-PERF3]: Add ReactQueryDevtools in dev mode once @tanstack/react-query-devtools is installed.
-// import { lazy, Suspense } from 'react';
-// const ReactQueryDevtools = import.meta.env.DEV
-//   ? lazy(() => import('@tanstack/react-query-devtools').then(m => ({ default: m.ReactQueryDevtools })))
-//   : null;
-// Then inside QueryClientProvider: {import.meta.env.DEV && ReactQueryDevtools && (
-//   <Suspense fallback={null}><ReactQueryDevtools initialIsOpen={false} /></Suspense>
-// )}
 import { AppProvider } from './store/AppStore';
-import Dashboard from './views/Dashboard';
+// PF2: Lazy-load Dashboard so login screen ships without the full admin/chat/security chunk.
+// The heavy views (AdminView, SecurityConciergeViews, ChatView) are code-split into a
+// separate async chunk that only loads after successful authentication.
+const Dashboard = lazy(() => import('./views/Dashboard'));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -115,7 +110,12 @@ const AppInner = memo(function AppInner() {
         <ErrorBoundary name="Приложение">
           {/* FIX [КРИТ-P1]: isOnline passed down so AppShell shows ONE unified banner.
               OfflineBanner removed from App — AppShell handles both network and SSE loss. */}
-          <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
+          {/* PF2: Suspense fallback shows the existing LoadingScreen while the Dashboard
+              chunk downloads. On a warm cache this is instant; on first load it prevents
+              a blank flash. */}
+          <Suspense fallback={<LoadingScreen />}>
+            <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
+          </Suspense>
         </ErrorBoundary>
       )}
       <Toasts />

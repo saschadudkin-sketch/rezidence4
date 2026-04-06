@@ -58,5 +58,8 @@
     "typecheck:staged": "tsc --noEmit -p tsconfig.typecheck.staged.json",
     "lint:staged": "eslint src/config/runtimeMode.ts src/services/providers/ServiceContracts.ts src/chat/hooks/*.ts src/ui/StateBlock.tsx"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "serialize-javascript": ">=7.0.5"
+  }
 }
