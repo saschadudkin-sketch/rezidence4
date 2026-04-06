@@ -10,7 +10,7 @@ import { getViewStateCopy } from '../ui/viewStateContract';
  * GarageView — управление машинами квартиры
  * targetUid — uid жильца чей гараж редактируем (для админа). По умолчанию = user.uid.
  */
-export default function GarageView({ user, targetUid }) {
+export default function GarageView({ user, targetUid }: { user: any; targetUid?: string }) {
   const uid = targetUid || user.uid;
   const cars    = useGarage(uid);
   const { addGarageCar, updateGarageCar, deleteGarageCar } = useActions();

@@ -313,7 +313,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 
 // ─── AdminView ────────────────────────────────────────────────────────────────
 
-export default function AdminView({ user, activeTab: activeTabProp }) {
+export default function AdminView({ user, activeTab: activeTabProp, setActiveTab: _setActiveTab }: { user: any; activeTab?: string; setActiveTab?: (tab: string) => void }) {
   const requests = useRequests();
   const { users } = useUsers();
   const { tab } = useParams();

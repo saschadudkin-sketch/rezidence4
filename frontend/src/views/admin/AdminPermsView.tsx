@@ -192,7 +192,7 @@ function AdminPermsAptGroup({ u, tab }) {
 
 // ─── AdminPermsView ───────────────────────────────────────────────────────────
 
-export default function AdminPermsView() {
+export default function AdminPermsView({ user: _user }: { user?: any } = {}) {
   const [tab,   setTab]   = useState('visitors');
   const [query, setQuery] = useState('');
   const { users }  = useUsers();

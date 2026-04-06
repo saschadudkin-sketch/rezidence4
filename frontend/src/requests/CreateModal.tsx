@@ -179,8 +179,24 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
 
 // ─── CreateModal ──────────────────────────────────────────────────────────────
 
-export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }) {
-  const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
+export function CreateModal({
+  user,
+  type,
+  initialCat,
+  category,
+  initialData = null,
+  onClose = () => {},
+  onDone = () => {},
+}: {
+  user: any;
+  type: string;
+  initialCat?: string;
+  category?: string;
+  initialData?: any;
+  onClose?: () => void;
+  onDone?: () => void;
+}) {
+  const form = useCreateRequest({ user, type, initialCat: initialCat || category, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
