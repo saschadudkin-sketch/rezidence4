@@ -7,7 +7,7 @@ import { presentError } from '../ui/errorPresenter';
 import { toastBySyncResult } from '../ui/syncFeedback';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { services } from '../services/providers/serviceContainer';
-import { parseLocalDateInputValue } from '../utils/dateInput';
+import { parseLocalDateInputValue, toLocalDateInputValue, toLocalDateTimeInputValue } from '../utils/dateInput';
 import { usePhotoHandler } from './usePhotoHandler';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm';
 import { useTemplateForm } from './useTemplateForm';
@@ -243,3 +243,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     handleSubmit,
   };
 }
+
+
+// Backward-compatible re-export contract for tests/legacy imports
+export { toLocalDateInputValue, toLocalDateTimeInputValue, parseLocalDateInputValue };

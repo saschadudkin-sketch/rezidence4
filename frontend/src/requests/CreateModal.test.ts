@@ -16,28 +16,30 @@ import { CreateModal } from './CreateModal';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+const useCreateRequestMock = vi.fn(() => ({
+  cat: 'guest',
+  vName: '', setVName: vi.fn(),
+  vNames: [], setVNames: vi.fn(),
+  vPhone: '', setVPhone: vi.fn(),
+  carPlate: '', setCarPlate: vi.fn(),
+  comment: '', setComment: vi.fn(),
+  photos: [], handlePhoto: vi.fn(), removePhoto: vi.fn(),
+  validUntil: '', setValidUntil: vi.fn(),
+  showSchedule: false, setShowSchedule: vi.fn(),
+  scheduledFor: '', setScheduledFor: vi.fn(),
+  showSaveTpl: false, setShowSaveTpl: vi.fn(),
+  tplName: '', setTplName: vi.fn(),
+  handleSaveTpl: vi.fn(),
+  handleSubmit: vi.fn(),
+  handlePickPerm: vi.fn(),
+  permsList: [],
+  showPermsPicker: false, setShowPermsPicker: vi.fn(),
+  applyPreset: vi.fn(),
+  loading: false,
+}));
+
 vi.mock('../hooks/useCreateRequest', () => ({
-  useCreateRequest: () => ({
-    cat: 'guest',
-    vName: '', setVName: vi.fn(),
-    vNames: [], setVNames: vi.fn(),
-    vPhone: '', setVPhone: vi.fn(),
-    carPlate: '', setCarPlate: vi.fn(),
-    comment: '', setComment: vi.fn(),
-    photos: [], handlePhoto: vi.fn(), removePhoto: vi.fn(),
-    validUntil: '', setValidUntil: vi.fn(),
-    showSchedule: false, setShowSchedule: vi.fn(),
-    scheduledFor: '', setScheduledFor: vi.fn(),
-    showSaveTpl: false, setShowSaveTpl: vi.fn(),
-    tplName: '', setTplName: vi.fn(),
-    handleSaveTpl: vi.fn(),
-    handleSubmit: vi.fn(),
-    handlePickPerm: vi.fn(),
-    permsList: [],
-    showPermsPicker: false, setShowPermsPicker: vi.fn(),
-    applyPreset: vi.fn(),
-    loading: false,
-  }),
+  useCreateRequest: (...args) => useCreateRequestMock(...args),
   hasVisitorFields: () => true,
   needsCarPlate: () => false,
   requiresVisitorName: () => false,
@@ -104,15 +106,13 @@ describe('CreateModal — smoke', () => {
     render(
       <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
     );
-    const submitBtn = screen.getByText('Создать заявку');
+    const submitBtn = screen.getByRole('button', { name: 'Создать заявку' });
     expect(submitBtn).toBeTruthy();
-    expect(submitBtn.disabled).toBe(false);
+    expect(submitBtn).not.toBeDisabled();
   });
 
   test('кнопка submit disabled при loading=true', () => {
-    // Override mock to return loading:true
-    const { useCreateRequest } = require('../hooks/useCreateRequest');
-    useCreateRequest.mockReturnValueOnce({
+    useCreateRequestMock.mockReturnValueOnce({
       cat: 'guest', vName: '', setVName: vi.fn(), vNames: [], setVNames: vi.fn(),
       vPhone: '', setVPhone: vi.fn(), carPlate: '', setCarPlate: vi.fn(),
       comment: '', setComment: vi.fn(), photos: [], handlePhoto: vi.fn(), removePhoto: vi.fn(),
@@ -126,8 +126,8 @@ describe('CreateModal — smoke', () => {
     render(
       <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
     );
-    const btn = screen.getByText('Сохранение...');
-    expect(btn.closest('button').disabled).toBe(true);
+    const btn = screen.getByRole('button', { name: 'Сохранение...' });
+    expect(btn).toBeDisabled();
   });
 
   test('клик по overlay вызывает onClose', () => {

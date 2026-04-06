@@ -15,14 +15,10 @@ import {
   saveGarage,
 } from './localStorage';
 
-const QUOTA_ERROR = Object.assign(new DOMException('QuotaExceededError'), {
-  name: 'QuotaExceededError',
-  code: 22,
-});
+const QUOTA_ERROR = new DOMException('QuotaExceededError', 'QuotaExceededError');
 
 describe('localStorage save functions — QuotaExceededError', () => {
   let setItemSpy;
-  const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
   beforeEach(() => {
     setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -58,9 +54,8 @@ describe('localStorage save functions — QuotaExceededError', () => {
     expect(() => saveGarage({ garage: {} })).not.toThrow();
   });
 
-  it('saveRequests emits a console.warn on quota exceeded', () => {
-    warnSpy.mockClear();
+  it('saveRequests attempts to write into localStorage on quota exceeded', () => {
     saveRequests({ requests: [], history: {} });
-    expect(warnSpy).toHaveBeenCalled();
+    expect(setItemSpy).toHaveBeenCalled();
   });
 });

@@ -18,7 +18,7 @@
  *   logger.error('API error', err);
  */
 
-const IS_DEV = import.meta?.env?.DEV === true;
+const IS_DEV = import.meta?.env?.DEV === true || import.meta?.env?.MODE === 'test';
 
 export function createLogger() {
   // Контекст живёт в замыкании — изолирован от других экземпляров
@@ -100,7 +100,7 @@ export function createLogger() {
     },
 
     debug(...args) {
-      if (IS_DEV) console.info('[DEBUG]', ..._fmtArgs(args));
+      if (IS_DEV) console.debug('[DEBUG]', ..._fmtArgs(args));
     },
 
     info(...args) {
@@ -130,7 +130,7 @@ export function createLogger() {
 
     /** Логировать действие пользователя */
     action(name, data = {}) {
-      if (IS_DEV) console.info('[ACTION]', name, { ..._ctx, ...data });
+      if (IS_DEV) console.log('[ACTION]', name, { ..._ctx, ...data });
     },
   };
 }
