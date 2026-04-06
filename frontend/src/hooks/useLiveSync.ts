@@ -153,14 +153,27 @@ export function useLiveSync(user, {
       abortCtrl.abort();
       cleanupFn?.();
     };
-  // A-04: exhaustive-deps intentionally suppressed here.
-  // This effect must only re-run when the user identity (uid/role) changes or when a
-  // manual reconnect is requested (retryKey). The callbacks (setAllRequests, etc.) are
-  // accessed via callbacksRef.current — a stable ref that is kept up-to-date on every
-  // render — so they don't need to be in the dependency array and adding them would
-  // cause the SSE stream to restart on every state update.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role, user.uid, retryKey]);
+  }, [
+    user.role,
+    user.uid,
+    retryKey,
+    setAllRequests,
+    setAllMessages,
+    setAllUsers,
+    setPerms,
+    setTemplates,
+    setBlacklist,
+    addToBlacklist,
+    removeFromBlacklist,
+    updateUser,
+    deleteUser,
+    addUser,
+    updateRequest,
+    addRequest,
+    deleteRequest,
+    notifyNewRequests,
+    notifyStatusChange,
+  ]);
 
   // DO-02: watchdog — if SSE reports online but no events for 60s, force real reconnect.
   // Previously only dispatched a fake rz:sse-status event (UI-only), which changed

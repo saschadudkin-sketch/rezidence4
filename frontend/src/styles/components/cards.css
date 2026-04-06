@@ -143,6 +143,7 @@ html.theme-light .skeleton-line::after{
 .temp-pass-info{font-size:var(--fs-2xs);color:var(--t4);margin-top:6px}
 /* ── Чёрный список ── */
 .bl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.bl-title{font-size:var(--fs-md);font-weight:600;color:var(--t1)}
 .bl-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:8px;border-radius:10px;background:var(--err);color:var(--err-t);font-size:var(--fs-2xs);font-weight:700}
 .bl-form{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:14px;margin-bottom:16px;animation:riseUp .2s ease}
 .bl-form .btn-gold{max-width:280px;width:fit-content;margin-left:auto}

@@ -26,4 +26,16 @@ export default [
       }],
     },
   },
+  {
+    files: ['src/views/BlacklistView.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='style']",
+          message: 'Inline style is forbidden in product UI. Use design tokens/classes instead.',
+        },
+      ],
+    },
+  },
 ];
