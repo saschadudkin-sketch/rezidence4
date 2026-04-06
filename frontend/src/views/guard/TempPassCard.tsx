@@ -44,7 +44,7 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
     try {
       arriveRequest(req.id, userName, 'security');
       if (isMountedRef.current) toast('Вход отмечен', 'success');
-    } catch(e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка операции', 'error');
     } finally {
       if (isMountedRef.current) setLoading(false);

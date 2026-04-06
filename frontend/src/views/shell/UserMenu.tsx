@@ -94,7 +94,7 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
           </div>
         )}
       </div>
-      {avOpen && <AvatarModal user={user} avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />}
+      {avOpen && <AvatarModal avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />}
     </>
   );
 }

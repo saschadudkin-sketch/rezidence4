@@ -145,7 +145,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
           <input type="datetime-local" className="schedule-datetime"
             value={scheduledFor} min={minDT} onChange={e => setScheduledFor(e.target.value)} />
           <div className="schedule-presets">
-            {SCHEDULE_PRESETS.map((p, i) => (
+            {SCHEDULE_PRESETS.map((p) => (
               <button key={p.label} className="schedule-preset" onClick={() => applyPreset(p)}>{p.label}</button>
             ))}
           </div>

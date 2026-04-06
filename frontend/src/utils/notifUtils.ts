@@ -31,7 +31,7 @@ export const sendNotif = (title, body, tag, extra = {}) => {
     } else {
       new Notification(title, { body, icon: '/logo192.png' });
     }
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 };
 
 // FIX [PERF/RESOURCE]: один AudioContext на модуль — не создаём новый при каждом сигнале.
@@ -68,5 +68,5 @@ export const playAlert = (type) => {
       o.stop(ctx.currentTime + delay + dur + 0.05);
     });
     // Не закрываем ctx — переиспользуем в следующем вызове
-  } catch (e) { /* silent */ }
+  } catch { /* silent */ }
 };

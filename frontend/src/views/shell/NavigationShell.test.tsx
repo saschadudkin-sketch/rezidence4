@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import NavigationShell from './NavigationShell';
 
 function setMobileViewport(isMobile: boolean) {
@@ -7,7 +7,7 @@ function setMobileViewport(isMobile: boolean) {
     writable: true,
     value: vi.fn().mockImplementation(() => ({
       matches: isMobile,
-      media: '(max-width:860px)',
+      media: '(max-width:1024px)',
       onchange: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -21,7 +21,7 @@ function setMobileViewport(isMobile: boolean) {
 describe('NavigationShell mobile prioritization', () => {
   beforeEach(() => setMobileViewport(true));
 
-  test('для security оставляет 3 приоритетные вкладки и прячет остальные в "Ещё"', () => {
+  test('для security оставляет 3 приоритетные вкладки и открывает quick actions bottom-sheet', () => {
     const nav = [
       ['residents', 'residents', 'Жильцы', 0],
       ['chat', 'chat', 'Чат', 0],
@@ -52,5 +52,9 @@ describe('NavigationShell mobile prioritization', () => {
     expect(mobile.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /ещё/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^чс$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(mobile.getByRole('button', { name: /ещё/i }));
+    expect(screen.getByRole('dialog', { name: /быстрые действия/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /чс/i })).toBeInTheDocument();
   });
 });

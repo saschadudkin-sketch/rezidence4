@@ -8,26 +8,26 @@
  *            (drawer со скрытыми вкладками), чтобы они не переполняли nav-bar.
  */
 
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
 // Роли с расширенной навигацией получают role-specific лимит мобильных вкладок.
 // Для security оставляем 3 первичных действия, остальное уходит в "Ещё".
-const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 3 };
+const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 3, owner: 4, tenant: 4, concierge: 4 };
 const DEFAULT_MOBILE_MAX_TABS = 4;
 function getMobileMaxTabs(role) {
   return MOBILE_MAX_TABS_BY_ROLE[role] ?? DEFAULT_MOBILE_MAX_TABS;
 }
 
-// UI-01: sync with CSS breakpoint (max-width:860px → mobile nav visible)
+// UI-01: sync with CSS breakpoint (--bp-lg-down => max-width:1024px).
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width:860px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width:1024px)').matches
   );
   useEffect(() => {
-    const mq = window.matchMedia('(max-width:860px)');
+    const mq = window.matchMedia('(max-width:1024px)');
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -35,47 +35,53 @@ function useIsMobile() {
   return isMobile;
 }
 
-// P-02/R-01: Drawer со скрытыми вкладками для мобильного "Ещё"
-function MoreDrawer({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, onClose }) {
-  const ref = useRef(null);
-
-  // Закрыть при клике вне drawer
+function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, onClose }) {
+  // Закрыть по Escape
   useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('touchstart', handler, { passive: true });
+    const handler = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', handler);
     return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('keydown', handler);
     };
   }, [onClose]);
 
   return (
-    <div className="mn-more-drawer" ref={ref} role="menu" aria-label="Дополнительные вкладки">
-      {items.map(([k, icon, label, badge]) => (
-        <button
-          key={k}
-          className={navBtnClassMn(k) + ' mn-more-item'}
-          onClick={() => { goTab(k); onClose(); }}
-          aria-current={isActive(k) ? 'page' : undefined}
-          role="menuitem"
-        >
-          <span className="mn-icon"><AppIcon name={icon} size={20} /></span>
-          <span className="mn-more-label">{label}</span>
-          {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
-        </button>
-      ))}
+    <div className="mn-quick-sheet" role="dialog" aria-modal="true" aria-label="Быстрые действия">
+      <button className="mn-quick-sheet__scrim" onClick={onClose} aria-label="Закрыть быстрые действия" />
+      <div className="mn-quick-sheet__panel">
+        <div className="mn-quick-sheet__handle" aria-hidden="true" />
+        <div className="mn-quick-sheet__header">Быстрые действия</div>
+        <div className="mn-quick-grid" role="menu" aria-label="Дополнительные вкладки">
+          {items.map(([k, icon, label, badge]) => (
+            <button
+              key={k}
+              className={navBtnClassMn(k) + ' mn-quick-item'}
+              onClick={() => { goTab(k); onClose(); }}
+              aria-current={isActive(k) ? 'page' : undefined}
+              role="menuitem"
+            >
+              <span className="mn-icon"><AppIcon name={icon} size={20} /></span>
+              <span className="mn-more-label">{label}</span>
+              {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-const SECURITY_MOBILE_PRIMARY_TABS = ['guardpost', 'passes', 'visitlog'];
+const MOBILE_PRIMARY_TABS_BY_ROLE = {
+  security: ['guardpost', 'passes', 'visitlog'],
+  concierge: ['passes', 'visitlog', 'chat', 'blacklist'],
+  owner: ['passes', 'chat', 'history', 'tech'],
+  tenant: ['passes', 'chat', 'history', 'tech'],
+};
 
 function prioritizeMobileTabs(role, nav) {
-  if (role !== 'security') return nav;
-  const rank = new Map(SECURITY_MOBILE_PRIMARY_TABS.map((tab, i) => [tab, i]));
+  const primaryTabs = MOBILE_PRIMARY_TABS_BY_ROLE[role];
+  if (!primaryTabs) return nav;
+  const rank = new Map(primaryTabs.map((tab, i) => [tab, i]));
   return [...nav].sort((a, b) => {
     const ra = rank.has(a[0]) ? rank.get(a[0]) : 99;
     const rb = rank.has(b[0]) ? rank.get(b[0]) : 99;
@@ -141,7 +147,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
             <button
               className={'mn-btn mn-more-btn' + (moreIsActive ? ' active' : '')}
               onClick={() => setShowMore(v => !v)}
-              aria-haspopup="menu"
+              aria-haspopup="dialog"
               aria-expanded={showMore}
               tabIndex={!isMobile ? -1 : undefined}
             >
@@ -150,7 +156,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
               {moreBadge > 0 && <span className="mn-badge">{formatBadgeCount(moreBadge)}</span>}
             </button>
             {showMore && (
-              <MoreDrawer
+              <QuickActionsSheet
                 items={overflowNav}
                 navBtnClassMn={navBtnClassMn}
                 goTab={goTab}

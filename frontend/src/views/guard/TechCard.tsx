@@ -29,7 +29,7 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
     try {
       acceptRequest(req.id, userName, 'security');
       if (isMountedRef.current) toast('Принято в работу', 'success');
-    } catch(e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка', 'error');
     } finally {
       if (isMountedRef.current) setLoading(null);

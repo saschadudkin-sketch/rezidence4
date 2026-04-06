@@ -8,13 +8,21 @@ const ICON_BY_TYPE = {
   error: 'alert',
 };
 
+type StateBlockProps = {
+  type?: 'loading' | 'empty' | 'error' | string;
+  title?: string;
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
 export default function StateBlock({
   type = 'empty',
   title,
   subtitle,
   actionLabel,
   onAction,
-}) {
+}: StateBlockProps) {
   const icon = ICON_BY_TYPE[type] || 'history';
   return (
     <div className={`state-block state-${type}`} role="status" aria-live="polite">
@@ -27,4 +35,3 @@ export default function StateBlock({
     </div>
   );
 }
-

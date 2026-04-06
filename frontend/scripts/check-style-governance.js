@@ -13,17 +13,23 @@ function walkCss(dir, acc = []) {
 }
 
 const cssFiles = walkCss('src/styles');
-const allowedBreakpoints = new Set(['480', '768', '1024', '1280', '1536']);
 let hasError = false;
 
 for (const file of cssFiles) {
   const text = readFileSync(file, 'utf8');
-  const mediaMatches = text.matchAll(/@media[^{]+\((?:min|max)-width:\s*(\d+)px\)/g);
-  for (const [, bp] of mediaMatches) {
-    if (!allowedBreakpoints.has(bp)) {
-      console.error(`[style-governance] Non-standard breakpoint ${bp}px found in ${file}`);
-      hasError = true;
-    }
+  const mediaLiteralMatches = text.matchAll(/@media[^{]+\((?:min|max)-width:\s*\d+px\)/g);
+  for (const [match] of mediaLiteralMatches) {
+    if (file.endsWith('tokens.css')) continue;
+    console.error(`[style-governance] Literal breakpoint is forbidden in ${file}: ${match}`);
+    hasError = true;
+  }
+
+  const widthMediaAliases = text.matchAll(/@media[^{]+\(--bp-[^)]+\)/g);
+  const widthMediaQueries = text.matchAll(/@media[^{]+\((?:min|max)-width:[^)]+\)/g);
+  const hasWidthQueries = Array.from(widthMediaQueries).length > 0;
+  if (hasWidthQueries && !file.endsWith('tokens.css') && Array.from(widthMediaAliases).length === 0) {
+    console.error(`[style-governance] ${file} has width media queries without --bp-* custom-media aliases`);
+    hasError = true;
   }
 }
 

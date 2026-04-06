@@ -1,13 +1,37 @@
 import { makeDemoRequests } from '../../fixtures/demoData';
+import type { ServiceContracts } from './ServiceContracts';
 
-export function createDemoProvider() {
+const noopUnsubscribe = () => {};
+
+export function createDemoProvider(): ServiceContracts {
   return {
     provider: 'demo',
+    auth: {
+      async sendOtp() { return { ok: true }; },
+      async verifyOtp() { return { ok: true }; },
+      async getMe() { return null; },
+      async logout() { return { ok: true }; },
+    },
     chat: {
+      async getMessages() {
+        return { messages: [], hasMore: false };
+      },
       sendMessage: async ({ localMessage, sendLocal }) => {
         sendLocal(localMessage);
         return 'local';
       },
+      async updateMessage() {
+        return 'local';
+      },
+      async deleteMessage() {
+        return 'local';
+      },
+      async markSeen() {
+        return { ok: true };
+      },
+      onMessage() { return noopUnsubscribe; },
+      onMessageUpdate() { return noopUnsubscribe; },
+      onMessageDelete() { return noopUnsubscribe; },
     },
     requests: {
       resolvePhotos: async (_reqId, photos) => photos || [],

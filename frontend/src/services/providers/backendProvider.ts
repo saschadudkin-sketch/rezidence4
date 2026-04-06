@@ -12,6 +12,7 @@ import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
+import type { ServiceContracts } from './ServiceContracts';
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
@@ -314,7 +315,7 @@ export const chatProvider = {
     const data = await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
     if (Array.isArray(data)) return { messages: data, hasMore: false };
-    return data; // { messages: [...], hasMore: bool }
+    return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
   },
   async sendMessage(msg) {
     return apiClient.post('/api/v1/chat/messages', msg);
@@ -409,15 +410,18 @@ export const permsProvider = {
 /**
  * Фабрика провайдера для createServices.js
  */
-export function createBackendProvider() {
+export function createBackendProvider(): ServiceContracts {
   return {
     provider: 'backend',
     auth: authProvider,
     chat: {
+      getMessages:   chatProvider.getMessages.bind(chatProvider),
       sendMessage:   chatProvider.sendMessage.bind(chatProvider),
       updateMessage: chatProvider.updateMessage.bind(chatProvider),
       deleteMessage: chatProvider.deleteMessage.bind(chatProvider),
       onMessage:     chatProvider.onMessage.bind(chatProvider),
+      onMessageUpdate: chatProvider.onMessageUpdate.bind(chatProvider),
+      onMessageDelete: chatProvider.onMessageDelete.bind(chatProvider),
       markSeen:      chatProvider.markSeen.bind(chatProvider),
     },
     requests: {
@@ -443,7 +447,7 @@ export function createBackendProvider() {
         // onRequestUpdate(req)  — обновить существующую заявку
         // onRequestAdd(req)     — добавить новую заявку
         // onRequestDelete(id)   — удалить заявку (soft-delete broadcast)
-        onRequestUpdate, onRequestAdd, onRequestDelete,
+        onRequestUpdate, onRequestAdd, onRequestDelete, onRequests,
       }) => {
         let mounted = true;
 
@@ -502,6 +506,7 @@ export function createBackendProvider() {
         }
 
         if (setAllRequests) setAllRequests(currentRequests);
+        if (onRequests) onRequests(currentRequests);
         if (setAllMessages && chatData) setAllMessages(chatData.messages || chatData);
         if (setAllUsers && users)       setAllUsers(users);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.

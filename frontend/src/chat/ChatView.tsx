@@ -11,9 +11,11 @@ import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
-import StateBlock from '../ui/StateBlock';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { useDebounce } from '../hooks/useDebounce';
+import { useChatSearch } from './hooks/useChatSearch';
+import { useChatComposer } from './hooks/useChatComposer';
+import { useChatData } from './hooks/useChatData';
+import { ChatMessageList } from './ChatMessageList';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -23,8 +25,8 @@ function fmtDateSep(date) {
   const d = new Date(date);
   const now = new Date();
   // Сброс времени через арифметику: начало текущего дня
-  const nowMidnight = now - (now.getHours() * 3_600_000 + now.getMinutes() * 60_000 + now.getSeconds() * 1_000 + now.getMilliseconds());
-  const dMidnight = d - (d.getHours() * 3_600_000 + d.getMinutes() * 60_000 + d.getSeconds() * 1_000 + d.getMilliseconds());
+  const nowMidnight = now.getTime() - (now.getHours() * 3_600_000 + now.getMinutes() * 60_000 + now.getSeconds() * 1_000 + now.getMilliseconds());
+  const dMidnight = d.getTime() - (d.getHours() * 3_600_000 + d.getMinutes() * 60_000 + d.getSeconds() * 1_000 + d.getMilliseconds());
   if (dMidnight === nowMidnight) return 'Сегодня';
   if (dMidnight === nowMidnight - 86_400_000) return 'Вчера';
   const sameYear = d.getFullYear() === now.getFullYear();
@@ -42,7 +44,7 @@ function getDayKey(date) {
 // Разрешены только http: и https: — остальные схемы отображаются как текст.
 function linkify(text) {
   // Более строгий regex — не захватывает закрывающие скобки/кавычки/знаки препинания в конце URL
-  const urlRx = /\bhttps?:\/\/[^\s<>"'()\[\]{}|\\^`\u0000-\u001F]+/gi;
+  const urlRx = /\bhttps?:\/\/[^\s<>"'()[\]{}|\\^`]+/gi;
   const parts = text.split(urlRx);
   const matches = text.match(urlRx) || [];
   if (!matches.length) return text;
@@ -100,38 +102,41 @@ const EMOJI_GRID = [
 
 export function ChatView({ user }) {
   const { chat, chatLastSeen } = useChat();
-  const { sendMessage, markChatSeen, updateMessage, deleteMessage, setAllMessages } = useActions();
+  const { sendMessage, updateMessage, deleteMessage, setAllMessages } = useActions();
   const { users } = useUsers();
-  const [text, setText] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const { text, setText, replyTo, setReplyTo, editingMsg, setEditingMsg, showEmoji, setShowEmoji } = useChatComposer();
   const [photoSending, setPhotoSending] = useState(false);
   const [lightbox, setLightbox] = useState(null);
-  const [replyTo, setReplyTo] = useState(null);
   const [msgMenu, setMsgMenu] = useState(null);
-  const [editingMsg, setEditingMsg] = useState(null);
-  const [showEmoji, setShowEmoji] = useState(false);
   // P-05: подтверждение перед удалением сообщения — удаление необратимо
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState(null);
-  // FIX [AUDIT]: пагинация истории чата.
-  // Бэкенд всегда возвращал { messages, hasMore } — но фронт игнорировал hasMore.
-  // Пользователь видел только последние 60 сообщений без возможности прокрутить дальше.
-  const [hasMore, setHasMore]             = useState(false);
-  const [loadingOlder, setLoadingOlder]   = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [initialHistoryError, setInitialHistoryError] = useState('');
-  // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
-  const [serverSearchResults, setServerSearchResults] = useState(null);
-  const [serverSearchLoading, setServerSearchLoading] = useState(false);
-  const [serverSearchError, setServerSearchError] = useState('');
-  const [searchRetryTick, setSearchRetryTick] = useState(0);
-  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+
   const msgsContainerRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const swipeRef = useRef({});
   const longPressRef = useRef(null);
+
+  const {
+    hasMore,
+    loadingOlder,
+    historyError,
+    initialHistoryError,
+    loadOlderMessages,
+    retryInitialSync,
+  } = useChatData({ chat, setAllMessages, msgsContainerRef });
+  // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
+  const {
+    searchQuery,
+    setSearchQuery,
+    showSearch,
+    setShowSearch,
+    serverSearchLoading,
+    serverSearchError,
+    setSearchRetryTick,
+    filteredChat,
+  } = useChatSearch(chat, hasMore, services.chat.getMessages);
   // FIX [BUG-20]: заменяем document.querySelector('[data-msg-id=...]') на ref-Map.
   const msgRefs = useRef(new Map()); // id → DOM-element
 
@@ -146,13 +151,6 @@ export function ChatView({ user }) {
 
   // FIX [REACT-3]: filteredChat ПЕРЕД return (было после — используется в JSX)
   // КРИТ-2: prefer server results when hasMore=true (local store is incomplete).
-  const filteredChat = useMemo(() => {
-    if (!searchQuery.trim()) return chat;
-    if (serverSearchResults !== null) return serverSearchResults; // server-side full-history results
-    const q = searchQuery.toLowerCase();
-    return chat.filter(m => m.text?.toLowerCase().includes(q));
-  }, [chat, searchQuery, serverSearchResults]);
-
   // FIX [PERF-4]: кешируем timestamp каждого сообщения — не создаём new Date() внутри map
   // При N сообщениях и каждом ре-рендере chat-bar это экономит 2N Date-аллокаций.
   const msgTimestamps = useMemo(
@@ -176,100 +174,7 @@ export function ChatView({ user }) {
   // [chat.length] — меняется только при добавлении/удалении сообщений.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chat.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // FIX [AUDIT]: загрузка истории — «Загрузить ещё».
-  // Бэкенд возвращал hasMore=true, но фронт его игнорировал — история была недоступна.
-  // Алгоритм:
-  //   1. Запрашиваем сообщения СТАРШЕ chat[0].id (oldest message in store).
-  //   2. Сохраняем позицию скролла ДО добавления — после prepend скролл смещается.
-  //   3. Prepend к текущему чату через setAllMessages.
-  //   4. Восстанавливаем позицию скролла так чтобы пользователь видел то же место.
-  const loadOlderMessages = useCallback(async () => {
-    if (loadingOlder || !hasMore || !isLiveMode()) return;
-    const oldestMsg = chat[0];
-    if (!oldestMsg) return;
-
-    setLoadingOlder(true);
-    setHistoryError('');
-    const container = msgsContainerRef.current;
-    const prevScrollHeight = container?.scrollHeight ?? 0;
-
-    try {
-      const data = await services.chat.getMessages({ before: oldestMsg.id, limit: 60 });
-      if (data?.messages?.length) {
-        // Prepend: старые сообщения идут перед текущими
-        setAllMessages([...data.messages, ...chat]);
-        setHasMore(data.hasMore ?? false);
-        // Восстанавливаем позицию скролла — иначе пользователя бросает наверх
-        requestAnimationFrame(() => {
-          if (container) {
-            container.scrollTop = container.scrollHeight - prevScrollHeight;
-          }
-        });
-      } else {
-        setHasMore(false);
-      }
-    } catch {
-      setHistoryError('Не удалось загрузить более ранние сообщения');
-      toast('Ошибка загрузки истории чата', 'error');
-    } finally {
-      setLoadingOlder(false);
-    }
-  }, [loadingOlder, hasMore, chat, setAllMessages]);
-
-  // FIX [MEMORY]: markChatSeen при unmount не нужен — при открытии уже помечается
-  useEffect(() => {
-    markChatSeen(user.uid);
-  }, [user.uid, markChatSeen]);
-
-  // КРИТ-2: when hasMore=true the local store is incomplete — search on the server.
-  // When hasMore=false or query is empty, clear server results and use local filter.
-  useEffect(() => {
-    if (!debouncedSearchQuery.trim() || !hasMore || !isLiveMode()) {
-      setServerSearchResults(null);
-      setServerSearchError('');
-      return;
-    }
-    let cancelled = false;
-    setServerSearchLoading(true);
-    setServerSearchError('');
-    services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
-      .then(data => {
-        if (cancelled) return;
-        setServerSearchResults(data?.messages ?? []);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setServerSearchResults(null);
-        setServerSearchError('Не удалось выполнить поиск по истории');
-        toast('Поиск по истории временно недоступен', 'error');
-      })
-      .finally(() => { if (!cancelled) setServerSearchLoading(false); });
-    return () => { cancelled = true; };
-  }, [debouncedSearchQuery, hasMore, searchRetryTick]);
-
-  // FIX [AUDIT]: синхронизируем hasMore при первой загрузке (live-режим).
-  // useLiveSync вызывает setAllMessages при инициализации — результат содержит hasMore,
-  // но setAllMessages принимает только массив сообщений.
-  // Решение: при первом монтировании в live-режиме запрашиваем чат напрямую и берём hasMore.
-  const syncHasMoreMeta = useCallback(async () => {
-    if (!isLiveMode()) return;
-    setInitialHistoryError('');
-    const data = await services.chat.getMessages({ limit: 60 });
-    setHasMore(data?.hasMore ?? false);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    syncHasMoreMeta()
-      .catch(() => {
-        if (cancelled) return;
-        setInitialHistoryError('Не удалось загрузить состояние истории чата');
-        toast('Ошибка синхронизации истории чата', 'error');
-      });
-    return () => { cancelled = true; };
-  }, [syncHasMoreMeta]);
+  }, [chat.length]);
 
   // FIX: Ref для popup — закрытие по клику вне меню
   const menuPopupRef = useRef(null);
@@ -321,7 +226,7 @@ export function ChatView({ user }) {
       if (isLiveMode()) {
         await services.chat.deleteMessage(id);
       }
-    } catch (e) {
+    } catch {
       toast('Не удалось удалить', 'error');
       return;
     }
@@ -336,14 +241,14 @@ export function ChatView({ user }) {
       if (isLiveMode()) {
         await services.chat.updateMessage(id, patch);
       }
-    } catch (e) {
+    } catch {
       toast('Не удалось сохранить', 'error');
       setEditingMsg(null);
       return;
     }
     updateMessage(id, patch);
     setEditingMsg(null);
-  }, [updateMessage]);
+  }, [setEditingMsg, updateMessage]);
 
   // Ответ на сообщение
   const startReply = useCallback((m) => {
@@ -353,8 +258,10 @@ export function ChatView({ user }) {
       text: m.text || (m.photo ? 'Фото' : ''),
       photo: m.photo || null,
     });
-    inputRef.current && setTimeout(() => inputRef.current.focus(), 50);
-  }, [user.uid]);
+    if (inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [setReplyTo, user.uid]);
 
   // Свайп для ответа
   // FIX [PERF]: useCallback — эти обработчики вызываются на каждом сообщении;
@@ -407,7 +314,7 @@ export function ChatView({ user }) {
     } finally {
       setText(''); setReplyTo(null); inputRef.current?.focus();
     }
-  }, [text, user, sendMessage, replyTo]);
+  }, [replyTo, sendMessage, setReplyTo, setText, text, user]);
 
   // FIX [PERF-15]: onPhotoClick и onFileChange пересоздавались при каждом рендере
   // (любое изменение text/photoSending). Их передают как onChange/onClick в DOM-элементы,
@@ -421,7 +328,7 @@ export function ChatView({ user }) {
   const insertEmoji = useCallback((emoji) => {
     setText(prev => prev + emoji);
     inputRef.current?.focus();
-  }, []);
+  }, [setText]);
 
   const onFileChange = useCallback(async e => {
     const f = e.target.files[0];
@@ -430,13 +337,13 @@ export function ChatView({ user }) {
     if (f.size > 10 * 1024 * 1024) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
     setPhotoSending(true);
     try {
-      const dataUrl = await new Promise((res, rej) => {
+      const dataUrl = await new Promise<string>((res, rej) => {
         const r = new FileReader();
-        r.onload = ev => res(ev.target.result);
+        r.onload = ev => res(String(ev.target?.result || ''));
         r.onerror = () => rej(new Error('fail'));
         r.readAsDataURL(f);
       });
-      const compressed = await new Promise(resolve => {
+      const compressed = await new Promise<string>(resolve => {
         const img = new Image();
         img.onload = () => {
           const max = 800;
@@ -456,7 +363,7 @@ export function ChatView({ user }) {
         localMessage: m,
         sendLocal: sendMessage,
       });
-    } catch (err) {
+    } catch {
       toast('Не удалось загрузить фото', 'error');
     } finally {
       setPhotoSending(false);
@@ -474,68 +381,20 @@ export function ChatView({ user }) {
           <button className="modal-close" style={{ flexShrink: 0 }} onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
         </div>
       )}
-      <div className="chat-msgs" ref={msgsContainerRef}>
-        {/* FIX [AUDIT]: кнопка «Загрузить ещё» — бэкенд возвращал hasMore,
-            но фронт не предоставлял способа прогрузить историю старше 60 сообщений. */}
-        {hasMore && (
-          <div style={{ padding: '8px 0' }}>
-            {loadingOlder ? (
-              <StateBlock type="loading" title="Загрузка истории…" />
-            ) : (
-              <button
-                onClick={loadOlderMessages}
-                className="btn-outline"
-                style={{ display: 'block', margin: '0 auto', minWidth: 160 }}
-              >
-                <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
-              </button>
-            )}
-            {historyError && (
-              <StateBlock
-                type="error"
-                title="История чата недоступна"
-                subtitle={historyError}
-                actionLabel="Повторить"
-                onAction={loadOlderMessages}
-              />
-            )}
-          </div>
-        )}
-        {serverSearchLoading && (
-          <StateBlock type="loading" title="Поиск по всей истории…" />
-        )}
-        {serverSearchError && !serverSearchLoading && (
-          <StateBlock
-            type="error"
-            title="Не удалось выполнить поиск"
-            subtitle={serverSearchError}
-            actionLabel="Повторить"
-            onAction={() => setSearchRetryTick(v => v + 1)}
-          />
-        )}
-        {initialHistoryError && !hasMore && (
-          <StateBlock
-            type="error"
-            title="История чата временно недоступна"
-            subtitle={initialHistoryError}
-            actionLabel="Повторить"
-            onAction={() => {
-              syncHasMoreMeta()
-                .catch(() => {
-                  setInitialHistoryError('Не удалось загрузить состояние истории чата');
-                  toast('Ошибка синхронизации истории чата', 'error');
-                });
-            }}
-          />
-        )}
-        {filteredChat.length === 0 && !serverSearchLoading && (
-          <StateBlock
-            type="empty"
-            title={searchQuery ? 'Ничего не найдено' : 'Начните переписку'}
-            subtitle={searchQuery ? 'Попробуйте изменить запрос' : 'Напишите первое сообщение в этом чате'}
-          />
-        )}
-        {filteredChat.map((m, i) => {
+      <ChatMessageList
+        msgsContainerRef={msgsContainerRef}
+        hasMore={hasMore}
+        loadingOlder={loadingOlder}
+        historyError={historyError}
+        onLoadOlder={loadOlderMessages}
+        serverSearchLoading={serverSearchLoading}
+        serverSearchError={serverSearchError}
+        onRetryServerSearch={() => setSearchRetryTick(v => v + 1)}
+        initialHistoryError={initialHistoryError}
+        onRetryInitialSync={retryInitialSync}
+        filteredChatLength={filteredChat.length}
+        searchQuery={searchQuery}
+        renderMessages={() => filteredChat.map((m, i) => {
           const readStatus = getReadStatus(m);
           // FIX [BUG-3]: prevMsg должен брать из filteredChat, а не из chat.
           // При активном поиске filteredChat — подмножество chat, и chat[i-1] указывал
@@ -633,11 +492,15 @@ export function ChatView({ user }) {
                   )}
                   {m.reactions && Object.keys(m.reactions).length > 0 && (
                     <div className="msg-reactions">
-                      {Object.entries(m.reactions).map(([emoji, uids]) => uids.length > 0 && (
-                        <button key={emoji} className={'reaction-badge' + (uids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={uids.length + ' чел.'}>
-                          <span>{emoji}</span><span className="reaction-count">{uids.length}</span>
+                      {Object.entries(m.reactions).map(([emoji, uids]) => {
+                        const safeUids = Array.isArray(uids) ? uids : [];
+                        if (!safeUids.length) return null;
+                        return (
+                        <button key={emoji} className={'reaction-badge' + (safeUids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={safeUids.length + ' чел.'}>
+                          <span>{emoji}</span><span className="reaction-count">{safeUids.length}</span>
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -645,8 +508,8 @@ export function ChatView({ user }) {
             </React.Fragment>
           );
         })}
-        <div ref={bottomRef}/>
-      </div>
+        bottomRef={bottomRef}
+      />
       {replyTo && (
         <div className="chat-reply-bar">
           <div className="chat-reply-bar-line"/>

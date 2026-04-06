@@ -1,0 +1,29 @@
+import { useState } from 'react';
+
+type ChatRefMessage = { id?: string; text?: string } | null;
+
+export function useChatComposer() {
+  const [text, setText] = useState('');
+  const [replyTo, setReplyTo] = useState<ChatRefMessage>(null);
+  const [editingMsg, setEditingMsg] = useState<ChatRefMessage>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+
+  const resetComposer = () => {
+    setText('');
+    setReplyTo(null);
+    setEditingMsg(null);
+    setShowEmoji(false);
+  };
+
+  return {
+    text,
+    setText,
+    replyTo,
+    setReplyTo,
+    editingMsg,
+    setEditingMsg,
+    showEmoji,
+    setShowEmoji,
+    resetComposer,
+  };
+}

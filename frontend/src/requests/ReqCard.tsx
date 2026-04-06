@@ -267,7 +267,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     try {
       await fn();
       if (isMountedRef.current) toast(msg, type);
-    } catch (e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка операции', 'error');
     } finally {
       if (isMountedRef.current) setActLoading(null);

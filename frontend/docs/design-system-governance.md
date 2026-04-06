@@ -5,7 +5,7 @@
 | Area | Components | Mandatory states |
 |---|---|---|
 | Actions | `btn-gold`, `btn-outline`, `PageActionBar` | default, hover, active, disabled, focus-visible |
-| Navigation | `NavigationShell` (`tn-btn`, `mn-btn`, `MoreDrawer`) | default, active, badge, overflow-open, focus-visible |
+| Navigation | `NavigationShell` (`tn-btn`, `mn-btn`, `QuickActionsSheet`) | default, active, badge, overflow-open, focus-visible |
 | Feedback | `StateBlock`, `Toasts`, `badge`, `field-err` | loading, empty, error, success |
 | Data display | `ReqCard`, `VirtualList`, `AdminUserRow` | default, hovered, selected/active, high-density |
 | Inputs | `search-inp`, `field-inp`, `textarea` | default, focus, error, disabled |

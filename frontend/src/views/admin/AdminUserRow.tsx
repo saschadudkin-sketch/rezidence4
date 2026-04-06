@@ -33,7 +33,7 @@ export default function AdminUserRow({ u, currentUser }) {
     let mode;
     try {
       mode = await services.admin.saveUserEverywhere({ uid: u.uid, patch, updateLocal: updateUser, oldPhone: u.phone });
-    } catch(e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка сохранения', 'error');
       return;
     }
@@ -48,7 +48,7 @@ export default function AdminUserRow({ u, currentUser }) {
     let mode;
     try {
       mode = await services.admin.removeUserEverywhere({ uid: u.uid, removeLocal: deleteUser });
-    } catch(e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка удаления', 'error');
       return;
     }

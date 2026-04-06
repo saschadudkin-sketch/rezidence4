@@ -95,14 +95,22 @@ describe('ChatView', () => {
     await vi.waitFor(() => expect(input).toHaveValue(''));
   });
 
-  test('кнопка Emoji открывает и закрывает emoji-picker', () => {
+  test('кнопка Emoji открывает и закрывает emoji-picker', async () => {
     const user = { uid:'u1', role:'owner', name:'Иван' };
     const { container } = render(<ChatView user={user} />);
     const emojiBtn = screen.getByLabelText(/emoji/i);
     expect(container.querySelector('.emoji-picker')).toBeNull();
-    fireEvent.click(emojiBtn);
+
+    await act(async () => {
+      fireEvent.click(emojiBtn);
+      await Promise.resolve();
+    });
     expect(container.querySelector('.emoji-picker')).toBeInTheDocument();
-    fireEvent.click(emojiBtn);
+
+    await act(async () => {
+      fireEvent.click(emojiBtn);
+      await Promise.resolve();
+    });
     expect(container.querySelector('.emoji-picker')).toBeNull();
   });
 

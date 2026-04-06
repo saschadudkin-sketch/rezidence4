@@ -31,7 +31,7 @@ export default function AdminReqRow({ r, adminUid }) {
       const mode = await services.requests.deleteEverywhere({ requestId: r.id, deleteLocal: deleteRequest });
       if (!isMountedRef.current) return;
       toastBySyncResult(mode, 'Заявка удалена', 'Удаление выполнено локально. Синхронизация будет повторена позже');
-    } catch(e) { if (isMountedRef.current) toast('Ошибка удаления', 'error'); }
+    } catch { if (isMountedRef.current) toast('Ошибка удаления', 'error'); }
   }
 
   async function save() {
@@ -40,7 +40,7 @@ export default function AdminReqRow({ r, adminUid }) {
       if (!isMountedRef.current) return;
       setEditing(false);
       toastBySyncResult(mode, 'Заявка обновлена', 'Изменения сохранены локально. Синхронизация будет повторена позже');
-    } catch(e) { if (isMountedRef.current) toast('Ошибка сохранения заявки', 'error'); }
+    } catch { if (isMountedRef.current) toast('Ошибка сохранения заявки', 'error'); }
   }
 
   function handleCancel() { setEditing(false); }
