@@ -56,7 +56,7 @@ export default function BlacklistView({ user }) {
     <div>
       <div className="bl-header">
         <div>
-          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--t1)' }}><AppIcon name="ban" className="u-inline-icon" /> Чёрный список</span>
+          <span className="bl-title"><AppIcon name="ban" className="u-inline-icon" /> Чёрный список</span>
           <span className="bl-count">{blacklist.length}</span>
         </div>
         <button className="btn-gold u-pad-icon-btn" onClick={() => setAdding(a => !a)}>
@@ -74,7 +74,7 @@ export default function BlacklistView({ user }) {
           </div>
           <input className="field-inp" placeholder="Причина (необязательно)" value={reason}
             onChange={e => setReason(e.target.value)} />
-          <button className="btn-gold" onClick={handleAdd} style={{ marginTop: 8 }}>
+          <button className="btn-gold u-mt-8" onClick={handleAdd}>
             <span><AppIcon name="ban" className="u-inline-icon" /> Добавить в чёрный список</span>
           </button>
         </div>

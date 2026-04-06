@@ -198,33 +198,60 @@ export const authProvider = {
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
-  async getAll(_opts?: { signal?: AbortSignal }) {
-    // Pages fetched in parallel after the first: 1 sequential + N parallel.
-    // При 1000 заявках: 5 последовательных → 1 + 4 параллельных.
+  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: unknown[]) => void; background?: boolean }) {
+    // Incremental hydration:
+    // 1) return page=1 immediately for fast first paint
+    // 2) fetch remaining pages in background and push cumulative list via onPage callback
+    // Supports either page-based or cursor-based pagination responses.
     const PAGE_SIZE = 200;
-    const first = await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`);
-    const firstData = Array.isArray(first) ? first : (first.data || []);
-    const total = first.total || firstData.length;
+    const signal = opts?.signal;
+    const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
+    const background = opts?.background !== false;
 
-    if (firstData.length < PAGE_SIZE || total <= PAGE_SIZE) return firstData;
+    const normalize = (payload) => {
+      const rows = Array.isArray(payload) ? payload : (payload?.data || []);
+      const total = Number(payload?.total || rows.length || 0);
+      const nextCursor = payload?.nextCursor || payload?.cursor || null;
+      const nextPage = Number(payload?.nextPage || 0) || null;
+      return { rows, total, nextCursor, nextPage };
+    };
 
-    const pages = Math.ceil(total / PAGE_SIZE);
-    const pageNumbers = Array.from({ length: pages - 1 }, (_, i) => i + 2);
-    const CONCURRENCY_LIMIT = 4;
-    /** @type {Map<number, any>} */
-    const pageResults = new Map();
-    for (let i = 0; i < pageNumbers.length; i += CONCURRENCY_LIMIT) {
-      const chunk = pageNumbers.slice(i, i + CONCURRENCY_LIMIT);
-      const chunkResults = await Promise.all(
-        chunk.map((page) =>
-          apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=${page}`)
-            .then((result) => [page, result])
-        )
-      );
-      chunkResults.forEach(([page, result]) => pageResults.set(page, result));
-    }
-    const orderedRest = pageNumbers.map((page) => pageResults.get(page));
-    return [firstData, ...orderedRest.map(r => Array.isArray(r) ? r : (r.data || []))].flat();
+    const requestOpts = signal ? { signal } : undefined;
+    const firstResp = requestOpts
+      ? await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`, requestOpts)
+      : await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`);
+    const first = normalize(firstResp);
+    const merged = [...first.rows];
+    if (!background) return merged;
+    if (merged.length < PAGE_SIZE && first.total <= PAGE_SIZE && !first.nextCursor && !first.nextPage) return merged;
+
+    (async () => {
+      try {
+        let page = 2;
+        let cursor = first.nextCursor;
+        const maxPages = first.total > 0 ? Math.ceil(first.total / PAGE_SIZE) : Number.POSITIVE_INFINITY;
+        while (!signal?.aborted) {
+          if (!cursor && page > maxPages) break;
+          const query = cursor
+            ? `/api/v1/requests?limit=${PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
+            : `/api/v1/requests?limit=${PAGE_SIZE}&page=${page}`;
+          const nextResp = requestOpts ? await apiClient.get(query, requestOpts) : await apiClient.get(query);
+          const nextPayload = normalize(nextResp);
+          if (!nextPayload.rows.length) break;
+          merged.push(...nextPayload.rows);
+          onPage?.([...merged]);
+          cursor = nextPayload.nextCursor;
+          if (!cursor) page = nextPayload.nextPage || (page + 1);
+          // stop if server no longer returns pagination continuation
+          if (!cursor && !nextPayload.nextPage && nextPayload.rows.length < PAGE_SIZE) break;
+        }
+      } catch (e) {
+        if (signal?.aborted) return;
+        logger.warn('[requestsProvider.getAll] background page fetch failed', e?.message);
+      }
+    })();
+
+    return [...merged];
   },
   async create(request) {
     // Idempotency key prevents duplicate submissions on concurrent or retried requests.
@@ -306,16 +333,50 @@ export const requestsProvider = {
 export const chatProvider = {
   // Returns { messages, hasMore }. before= loads history older than that message id.
   // search= performs full-history text search (КРИТ-2).
-  async getMessages({ before, limit, search }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
+  async getMessages({ before, limit, search, signal }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
     const params = new URLSearchParams();
     if (before) params.set('before', before);
     if (limit)  params.set('limit', String(limit));
     if (search) params.set('search', search);
     const qs = params.toString();
-    const data = await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
+    const reqOpts = signal ? { signal } : undefined;
+    const data = reqOpts
+      ? await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`, reqOpts)
+      : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
     if (Array.isArray(data)) return { messages: data, hasMore: false };
     return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
+  },
+  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: unknown[]) => void; background?: boolean } = {}) {
+    const PAGE_SIZE = 60;
+    const signal = opts?.signal;
+    const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
+    const background = opts?.background !== false;
+
+    const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
+    const merged = [...(first?.messages || [])];
+    if (!background || !first?.hasMore || merged.length === 0) return merged;
+
+    (async () => {
+      try {
+        let hasMore = Boolean(first?.hasMore);
+        while (!signal?.aborted && hasMore) {
+          const oldest = merged[0]?.id;
+          if (!oldest) break;
+          const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
+          const nextRows = next?.messages || [];
+          if (!nextRows.length) break;
+          merged.unshift(...nextRows);
+          onPage?.([...merged]);
+          hasMore = Boolean(next?.hasMore);
+        }
+      } catch (e) {
+        if (signal?.aborted) return;
+        logger.warn('[chatProvider.getAllHistory] background history fetch failed', e?.message);
+      }
+    })();
+
+    return merged;
   },
   async sendMessage(msg) {
     return apiClient.post('/api/v1/chat/messages', msg);
@@ -464,9 +525,24 @@ export function createBackendProvider(): ServiceContracts {
         const fetchOpts = signal ? { signal } : {};
 
         // Параллельная загрузка ВСЕХ данных при старте
+        let currentRequests = [];
         const promises = [
-          requestsProvider.getAll(fetchOpts),
-          chatProvider.getMessages(fetchOpts),
+          requestsProvider.getAll({
+            ...fetchOpts,
+            onPage: (nextRequests) => {
+              if (!mounted) return;
+              currentRequests = Array.isArray(nextRequests) ? [...nextRequests] : [];
+              if (setAllRequests) setAllRequests(currentRequests);
+              if (onRequests) onRequests(currentRequests);
+            },
+          }),
+          chatProvider.getAllHistory({
+            ...fetchOpts,
+            onPage: (nextMessages) => {
+              if (!mounted) return;
+              if (setAllMessages) setAllMessages(nextMessages);
+            },
+          }),
           usersProvider.getAll(fetchOpts),
         ];
         // Perms и templates привязаны к uid — загружаем если uid передан
@@ -498,7 +574,7 @@ export function createBackendProvider(): ServiceContracts {
         if (signal?.aborted || !mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
-        let currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
+        currentRequests = reqs && Array.isArray(reqs) ? [...reqs] : (reqs?.data ? [...reqs.data] : []);
         for (const bufferedReq of reqEventBuffer) {
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
@@ -507,7 +583,7 @@ export function createBackendProvider(): ServiceContracts {
 
         if (setAllRequests) setAllRequests(currentRequests);
         if (onRequests) onRequests(currentRequests);
-        if (setAllMessages && chatData) setAllMessages(chatData.messages || chatData);
+        if (setAllMessages && chatData) setAllMessages(Array.isArray(chatData) ? chatData : (chatData.messages || []));
         if (setAllUsers && users)       setAllUsers(users);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);

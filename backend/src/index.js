@@ -28,6 +28,8 @@ const uploadRouter    = require('./routes/upload');
 const clientLogsRouter = require('./routes/clientLogs');
 const requireAuth     = require('./middleware/auth');
 const { deprecate }   = require('./middleware/deprecate');
+const { canUserAccessUpload } = require('./services/uploadAccess');
+const { verifySignedUploadQuery, auditUploadAccess } = require('./services/uploadSecurity');
 
 const app  = express();
 
@@ -234,12 +236,43 @@ app.use('/api/',     globalLimiter);
 // /uploads require authentication — unauthenticated requests receive 401.
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '../uploads'));
 
-app.get('/uploads/:filename', requireAuth, (req, res) => {
+async function tryAuthForUpload(req, res) {
+  let nextCalled = false;
+  await requireAuth(req, res, () => { nextCalled = true; });
+  if (nextCalled) return req.user || null;
+  return null;
+}
+
+app.get('/uploads/:filename', async (req, res) => {
   const filename = path.basename(req.params.filename);
   const filepath = path.join(UPLOAD_DIR, filename);
 
   if (!filepath.startsWith(UPLOAD_DIR + path.sep) && filepath !== UPLOAD_DIR) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const signedAllowed = verifySignedUploadQuery(filename, req.query);
+  let user = null;
+  let accessVia = signedAllowed ? 'signed_url' : 'auth';
+
+  if (!signedAllowed) {
+    user = await tryAuthForUpload(req, res);
+    if (!user) {
+      await auditUploadAccess({ filename, decision: 'deny', reason: 'unauthenticated', via: 'auth', req }).catch(() => {});
+      if (!res.headersSent) return res.status(401).json({ error: 'No token' });
+      return;
+    }
+    try {
+      const allowed = await canUserAccessUpload(user, filename);
+      if (!allowed) {
+        await auditUploadAccess({ filename, uid: user.uid, decision: 'deny', reason: 'acl_forbidden', via: 'auth', req }).catch(() => {});
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } catch (err) {
+      logger.error({ err, uid: user?.uid, filename }, '[uploads] ACL check failed');
+      await auditUploadAccess({ filename, uid: user?.uid, decision: 'deny', reason: 'acl_check_failed', via: 'auth', req }).catch(() => {});
+      return res.status(500).json({ error: 'Access check failed' });
+    }
   }
 
   // SEC-01: serve images inline so <img> tags and lightboxes work correctly.
@@ -259,6 +292,14 @@ app.get('/uploads/:filename', requireAuth, (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // private: files belong to a specific authenticated user
   res.setHeader('Cache-Control', 'private, max-age=3600');
+  await auditUploadAccess({
+    filename,
+    uid: user?.uid,
+    decision: 'allow',
+    reason: signedAllowed ? 'signed_url_valid' : 'acl_allowed',
+    via: accessVia,
+    req,
+  }).catch(() => {});
 
   res.sendFile(filepath, (err) => {
     if (err) {

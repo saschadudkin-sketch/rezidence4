@@ -43,7 +43,26 @@ export function clearAppStorage(): void {
 }
 
 export function onboardingKey(role: string): string {
-  return `rz:onboarding-seen:${role}`;
+  return `rz:onboarding-seen:v1:${role}`;
+}
+
+const ONBOARDING_VERSION = 'v2';
+const ONBOARDING_TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
+
+export function onboardingKeyByUser(uid: string, role: string, version = ONBOARDING_VERSION): string {
+  return `rz:onboarding-seen:${version}:${role}:${uid}`;
+}
+
+export function isOnboardingSeen(uid: string, role: string, now = Date.now()): boolean {
+  const raw = readStorage(onboardingKeyByUser(uid, role));
+  if (!raw) return false;
+  const ts = Number(raw);
+  if (!Number.isFinite(ts)) return false;
+  return (now - ts) < ONBOARDING_TTL_MS;
+}
+
+export function markOnboardingSeen(uid: string, role: string): void {
+  writeStorage(onboardingKeyByUser(uid, role), String(Date.now()));
 }
 
 export { STORAGE_KEYS, STORAGE_PREFIXES };

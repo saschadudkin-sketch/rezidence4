@@ -303,9 +303,9 @@ export function ScanQRModal({ user, onClose }) {
               <div className="qr-scanner-viewport">
                 {camError ? (
                   <div className="qr-scanner-fallback">
-                    <div className="u-inline-icon" style={{ marginBottom: 12, opacity: .3 }}><AppIcon name="camera" size={30} /></div>
-                    <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 4 }}>Камера недоступна</div>
-                    <div style={{ fontSize: 11, color: 'var(--t4)' }}>Используйте поиск ниже</div>
+                    <div className="u-inline-icon scanqr-cam-icon"><AppIcon name="camera" size={30} /></div>
+                    <div className="u-fs13 u-t3 u-mb4">Камера недоступна</div>
+                    <div className="u-fs11 u-t4">Используйте поиск ниже</div>
                   </div>
                 ) : (
                   // FIX [JSX CRITICAL]: два sibling-элемента без Fragment — ошибка сборки Vite/esbuild
@@ -314,21 +314,21 @@ export function ScanQRModal({ user, onClose }) {
                     {!camReady && (
                       <div className="qr-cam-loading">
                         <div className="qr-cam-spinner" />
-                        <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 10 }}>Инициализация камеры...</div>
+                        <div className="u-fs12 u-t4 scanqr-cam-init">Инициализация камеры...</div>
                       </div>
                     )}
                   </>
                 )}
                 <div className="qr-scanner-frame" />
               </div>
-              <div className="field" style={{ marginTop: 16 }}>
+              <div className="field u-mt16">
                 <label className="field-lbl">Или введите имя / номер авто / ID</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input className="field-inp" style={{ flex: 1, marginBottom: 0 }}
+                <div className="u-flex u-gap8">
+                  <input className="field-inp u-grow u-mb0"
                     placeholder="Поиск..."
                     value={manualId} onChange={e => setManualId(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleManualSearch()} />
-                  <button className="btn-gold" style={{ width: 'auto', padding: '0 20px', flexShrink: 0 }}
+                  <button className="btn-gold u-w-auto scanqr-search-btn"
                     onClick={handleManualSearch}>
                     <span>Найти</span>
                   </button>
@@ -354,7 +354,7 @@ export function ScanQRModal({ user, onClose }) {
                 </span>
               </div>
               {validationReason && (
-                <div style={{ fontSize: 12, color: 'var(--err-t)', marginBottom: 10, fontWeight: 600 }}>
+                <div className="u-fs12 u-err u-mb10 u-fw600">
                   {validationReason}
                 </div>
               )}
@@ -366,13 +366,13 @@ export function ScanQRModal({ user, onClose }) {
                 {scannedReq.visitorName && (
                   <div className="qr-info-row">
                     <span className="qr-info-lbl">Посетитель</span>
-                    <span className="qr-info-val" style={{ fontWeight: 600, fontSize: 15 }}>{scannedReq.visitorName}</span>
+                    <span className="qr-info-val u-fw600 u-fs15">{scannedReq.visitorName}</span>
                   </div>
                 )}
                 {scannedReq.carPlate && (
                   <div className="qr-info-row">
                     <span className="qr-info-lbl">Авто</span>
-                    <span className="qr-info-val" style={{ fontWeight: 600 }}>{scannedReq.carPlate}</span>
+                    <span className="qr-info-val u-fw600">{scannedReq.carPlate}</span>
                   </div>
                 )}
                 <div className="qr-info-row">
@@ -396,8 +396,8 @@ export function ScanQRModal({ user, onClose }) {
             <>
               {canApprove ? (
                 <>
-                  <button className="btn-no" onClick={handleReject} style={{ flex: 1 }}>Отказать</button>
-                  <button className="btn-yes" onClick={handleApprove} style={{ flex: 2, fontSize: 14, padding: '14px 20px' }} disabled={checking}>{actionLabel}</button>
+                  <button className="btn-no u-flex1" onClick={handleReject}>Отказать</button>
+                  <button className="btn-yes scanqr-approve-btn" onClick={handleApprove} disabled={checking}>{actionLabel}</button>
                 </>
               ) : (
                 <>

@@ -8,6 +8,7 @@ const sharp      = require('sharp');
 const logger     = require('../logger');
 const requireAuth = require('../middleware/auth');
 const db         = require('../db'); // moved to top
+const { registerUploadMetadata, createSignedUploadUrl, SIGN_TTL_SECONDS } = require('../services/uploadSecurity');
 
 // ─── Image processing config ──────────────────────────────────────────────────
 const MAX_DIMENSION   = 1200; // px — resize if width or height exceeds this
@@ -119,10 +120,36 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     const filepath = path.join(UPLOAD_DIR, filename);
 
     await fs.promises.writeFile(filepath, outputBuffer);
+    await registerUploadMetadata({
+      ownerUid: req.user.uid,
+      filename,
+      mimeType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      byteSize: outputBuffer.length,
+    });
 
     const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
     res.json({ url: `${baseUrl}/uploads/${filename}` });
   } catch (err) { next(err); }
+});
+
+router.post('/sign', express.json(), async (req, res) => {
+  const rawFilename = String(req.body?.filename || '');
+  const filename = path.basename(rawFilename);
+  if (!filename) return res.status(400).json({ error: 'filename required' });
+
+  const { rows } = await db.query(
+    `SELECT owner_uid FROM upload_objects WHERE filename=$1 LIMIT 1`,
+    [filename],
+  );
+  const ownerUid = rows?.[0]?.owner_uid;
+  const isStaff = ['admin', 'security', 'concierge'].includes(req.user?.role);
+  if (!ownerUid || (!isStaff && ownerUid !== req.user?.uid)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+  const signedUrl = createSignedUploadUrl(filename, baseUrl);
+  return res.json({ url: signedUrl, expiresIn: SIGN_TTL_SECONDS });
 });
 
 // NOTE: Файлы отдаются через защищённый endpoint GET /uploads/:filename в index.js

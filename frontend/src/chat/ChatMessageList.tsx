@@ -38,14 +38,14 @@ export function ChatMessageList({
   return (
     <div className="chat-msgs" ref={msgsContainerRef}>
       {hasMore && (
-        <div style={{ padding: '8px 0' }}>
+        <div className="u-py8">
           {loadingOlder ? (
             <StateBlock type="loading" title="Загрузка истории…" />
           ) : (
             <button
               onClick={onLoadOlder}
               className="btn-outline"
-              style={{ display: 'block', margin: '0 auto', minWidth: 160 }}
+              className="u-block u-mx-auto u-minw160"
             >
               <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
             </button>

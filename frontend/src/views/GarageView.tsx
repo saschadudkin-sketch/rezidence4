@@ -62,7 +62,7 @@ export default function GarageView({ user, targetUid }) {
           </div>
         </div>
         {!adding && (
-          <button className="btn-gold" style={{ width: 'auto', padding: '0 16px' }} onClick={() => setAdding(true)}>
+          <button className="btn-gold u-w-auto" onClick={() => setAdding(true)}>
             <span>+ Добавить</span>
           </button>
         )}

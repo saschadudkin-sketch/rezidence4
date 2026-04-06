@@ -3,7 +3,8 @@
    Unified to a single tablet switch at 768px (--bp-md token). */
 .login{min-height:100dvh;display:grid;grid-template-columns:1fr}
 .login-art{display:none}
-@media(min-width:768px){.login{grid-template-columns:1fr 1fr}.login-art{display:flex}}
+/* Tablet breakpoint tuned: keep single column on small tablets, split only on wider landscape */
+@media(min-width:960px){.login{grid-template-columns:1fr 1fr}.login-art{display:flex}}
 
 .login-art{
   position:relative;overflow:hidden;
@@ -86,9 +87,12 @@ html.theme-light .login-art-logo,
   padding:calc(20px + var(--sat)) 22px calc(24px + var(--sab));
   overflow-y:auto;-webkit-overflow-scrolling:touch;
 }
-@media(min-width:768px){.login-panel{padding:calc(40px + var(--sat)) 48px calc(40px + var(--sab));align-items:center}}
+@media(min-width:768px){.login-panel{padding:calc(30px + var(--sat)) 34px calc(30px + var(--sab));align-items:center}}
+@media(min-width:960px){.login-panel{padding:calc(40px + var(--sat)) 48px calc(40px + var(--sab));align-items:center}}
 
-.login-form{width:100%;max-width:316px}
+.login-form{width:100%;max-width:360px}
+@media(min-width:768px){.login-form{max-width:400px}}
+@media(min-width:960px){.login-form{max-width:420px}}
 .login-form .btn-gold,.login-form .btn-outline{width:100%}
 
 /* R-02: mobile-first — mobile-top visible by default, hidden on desktop */
@@ -96,7 +100,7 @@ html.theme-light .login-art-logo,
   display:flex;align-items:center;gap:12px;margin-bottom:20px;
   padding-bottom:16px;border-bottom:1px solid var(--b1);
 }
-@media(min-width:768px){.login-mobile-top{display:none}}
+@media(min-width:960px){.login-mobile-top{display:none}}
 /* CQ-04: use custom property to avoid triplicate filter values */
 .login-mobile-top img{
   width:32px;height:32px;object-fit:contain;flex-shrink:0;
@@ -112,12 +116,16 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
   font-size:var(--fs-xs);color:var(--t3);margin-bottom:20px;
   line-height:var(--lh-body);
 }
-@media(min-width:768px){.login-mobile-hero{display:none}}
+@media(min-width:960px){.login-mobile-hero{display:none}}
 
 .login-h{
   font-family:'Playfair Display',serif;
   font-size:var(--fs-2xl);font-weight:400;color:var(--t1);
   line-height:1.05;margin-bottom:22px;
+}
+@media(min-width:768px) and (max-width:959px){
+  .login-h{font-size:2rem;line-height:1.1;margin-bottom:20px}
+  .login-step{font-size:var(--fs-xs)}
 }
 .login-step{
   font-size:var(--fs-2xs);

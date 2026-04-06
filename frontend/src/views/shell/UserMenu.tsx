@@ -12,16 +12,6 @@ import { useAvatar, useActions } from '../../store/AppStore';
 import { ROLE_LABELS } from '../../constants';
 import { canManageRequests } from '../../domain/permissions';
 
-const BADGE_STYLE = {
-  position: 'absolute', top: -3, right: -3,
-  background: 'var(--err)', color: 'var(--err-t)',
-  fontSize: 11, fontWeight: 700, minWidth: 15, height: 15,
-  borderRadius: 8, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', padding: '0 3px', border: '1.5px solid var(--bg)',
-};
-const AVATAR_STYLE = { background: 'transparent', padding: 0, border: 'none' };
-const DD_AVATAR_CLICKABLE_STYLE = { cursor: 'pointer', position: 'relative' };
-
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
 export default function UserMenu({ user, pendingCount, onLogout }) {
@@ -60,24 +50,24 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
           <div className="header-role">{ROLE_LABELS[user.role]}</div>
         </div>
         <div className="u-rel">
-          <div className="header-avatar" style={AVATAR_STYLE}>
+          <div className="header-avatar usermenu-avatar-reset">
             <AvatarCircle avData={avData} role={user.role} name={user.name} size={34} fontSize={14} />
           </div>
           {canManageRequests(user.role) && pendingCount > 0 && (
-            <span style={BADGE_STYLE}>{formatBadgeCount(pendingCount)}</span>
+            <span className="usermenu-badge">{formatBadgeCount(pendingCount)}</span>
           )}
         </div>
         {menuOpen && (
           <div className="dropdown">
             <div className="dd-avatar-wrap" onClick={e => e.stopPropagation()}>
               <div
-                style={DD_AVATAR_CLICKABLE_STYLE}
+                className="usermenu-avatar-clickable"
                 role="button" tabIndex={0}
                 onClick={() => { setMenuOpen(false); setAvOpen(true); }}
                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(false), setAvOpen(true))}
                 aria-label="Изменить аватарку"
               >
-                <div className="dd-avatar-big" style={AVATAR_STYLE}>
+                <div className="dd-avatar-big usermenu-avatar-reset">
                   <AvatarCircle avData={avData} role={user.role} name={user.name} size={56} fontSize={22} />
                   <div className="dd-avatar-overlay"><AppIcon name="camera" size={14} /></div>
                 </div>

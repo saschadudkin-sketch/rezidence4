@@ -623,6 +623,107 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 
 .search-clear:hover{color:var(--t1)}
 
+/* ── DS governance: inline-style replacement utilities ─────────────────────── */
+.u-mb20{margin-bottom:20px}
+.u-mt12{margin-top:12px}
+.u-mt16{margin-top:16px}
+.u-mb8{margin-bottom:8px}
+.u-mb10{margin-bottom:10px}
+.u-mb4{margin-bottom:4px}
+.u-mb0{margin-bottom:0}
+.u-mt2{margin-top:2px}
+.u-fs11{font-size:11px}
+.u-fs12{font-size:12px}
+.u-fs13{font-size:13px}
+.u-fs14{font-size:14px}
+.u-fs15{font-size:15px}
+.u-fw500{font-weight:500}
+.u-fw600{font-weight:600}
+.u-t1{color:var(--t1)}
+.u-t3{color:var(--t3)}
+.u-t4{color:var(--t4)}
+.u-g2{color:var(--g2)}
+.u-err{color:var(--err-t)}
+.u-center{text-align:center}
+.u-flex{display:flex}
+.u-flex-col{display:flex;flex-direction:column}
+.u-flex-between{display:flex;justify-content:space-between;align-items:center}
+.u-flex-center{display:flex;align-items:center}
+.u-gap6{gap:6px}
+.u-gap8{gap:8px}
+.u-gap10{gap:10px}
+.u-gap12{gap:12px}
+.u-grow{flex:1}
+.u-shrink0{flex-shrink:0}
+.u-w-auto{width:auto}
+.u-w-full{width:100%}
+.u-overflow-hidden{overflow:hidden}
+.u-pad0{padding:0}
+.u-pad10-12{padding:10px 12px}
+.u-pad12-16{padding:12px 16px}
+.u-py8{padding:8px 0}
+.u-round6{border-radius:6px}
+.u-border-b1{border:1px solid var(--b1)}
+.u-bg-s2{background:var(--s2)}
+.u-nowrap{white-space:nowrap}
+.u-block{display:block}
+.u-mx-auto{margin-left:auto;margin-right:auto}
+.u-minw160{min-width:160px}
+.u-role-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.u-role-dot.owner{background:var(--g2)}
+.u-role-dot.tenant{background:#3f7ae0}
+.u-role-dot.admin{background:#8e44ad}
+.u-role-dot.security{background:#16a085}
+.u-role-dot.concierge{background:#f39c12}
+.u-role-dot.contractor{background:#6c757d}
+.u-role-dot.default{background:var(--t4)}
+.admin-role-value{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;color:var(--g2)}
+.admin-role-progress{width:100%;height:4px;appearance:none;border:none}
+.admin-role-progress::-webkit-progress-bar{background:var(--s3);border-radius:2px}
+.admin-role-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px;transition:width .4s ease}
+.admin-role-progress::-moz-progress-bar{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px}
+.chat-search-row{padding:8px 12px;border-bottom:1px solid var(--b1);display:flex;gap:8px;align-items:center;background:var(--s0)}
+.chat-search-icon{font-size:14px}
+.chat-search-input{flex:1;margin-bottom:0;font-size:13px}
+.chat-btn--active{background:var(--g-bg);border-color:var(--g1)}
+.chat-btn--default{background:var(--s2);border-color:var(--b1)}
+.msg-row-rel{position:relative}
+.msg-av-reset{flex-shrink:0;overflow:hidden;padding:0}
+.hidden-input{display:none}
+.admin-req-actions{margin-top:-4px;padding-bottom:8px;border-bottom:1px solid var(--b1);justify-content:flex-end}
+.u-wrap{flex-wrap:wrap}
+.admin-user-row-card{
+  background:var(--s2);border-radius:6px;border:1px solid var(--b1);margin-bottom:6px;overflow:hidden;transition:border-color .13s;
+}
+.admin-user-row-card:hover{border-color:var(--b2)}
+.admin-user-self-mark{font-size:11px;color:var(--g2);letter-spacing:.5px}
+.admin-user-edit-wrap{margin:0 10px 10px;border-radius:6px}
+.admin-user-apt-inp{max-width:80px}
+.admin-user-park-inp{width:80px}
+.admin-user-actions-end{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.qr-error-box{padding:20px}
+.pass-qr-foot{flex-direction:column;gap:8px}
+.scanqr-cam-icon{margin-bottom:12px;opacity:.3}
+.scanqr-cam-init{margin-top:10px}
+.scanqr-search-btn{padding:0 20px;flex-shrink:0}
+.scanqr-approve-btn{flex:2;font-size:14px;padding:14px 20px}
+.admin-perm-row--editing{border-bottom:none;border-radius:var(--r) var(--r) 0 0}
+.admin-perm-edit-inline{border-radius:0 0 var(--r) var(--r);margin-bottom:8px}
+.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:'DM Sans',sans-serif}
+.admin-perm-clear-btn{padding:2px 8px}
+.sla-item-card{min-height:92px}
+.sla-item-value{font-size:24px}
+.sla-ok{color:var(--ok-t)}
+.sla-breached{color:var(--err-t)}
+.sla-samples{margin-top:6px}
+.usermenu-avatar-reset{background:transparent;padding:0;border:none}
+.usermenu-badge{
+  position:absolute;top:-3px;right:-3px;background:var(--err);color:var(--err-t);
+  font-size:11px;font-weight:700;min-width:15px;height:15px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;border:1.5px solid var(--bg);
+}
+.usermenu-avatar-clickable{cursor:pointer;position:relative}
+
 /* ── 3.1: Tablet breakpoint styles (768–1024px) ─────────────────────────────
    These rules specifically address the gap between mobile (<768px) and desktop
    (>1024px). Token values: --bp-md:768px, --bp-lg:1024px (in tokens.css).    */

@@ -263,6 +263,39 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    id: '007_upload_security_metadata',
+    async up(client) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS upload_objects (
+          id         BIGSERIAL PRIMARY KEY,
+          owner_uid  TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          filename   TEXT NOT NULL UNIQUE,
+          mime_type  TEXT,
+          byte_size  INTEGER,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_upload_objects_owner ON upload_objects(owner_uid, created_at DESC)`);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS upload_access_audit (
+          id         BIGSERIAL PRIMARY KEY,
+          filename   TEXT NOT NULL,
+          uid        TEXT,
+          decision   TEXT NOT NULL,
+          reason     TEXT,
+          access_via TEXT,
+          ip         TEXT,
+          user_agent TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_upload_access_audit_file ON upload_access_audit(filename, created_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_upload_access_audit_uid ON upload_access_audit(uid, created_at DESC)`);
+    },
+  },
 ];
 
 async function migrate() {

@@ -26,4 +26,31 @@ export default [
       }],
     },
   },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='style']",
+          message: 'Inline style is forbidden in product UI. Use design tokens/classes instead.',
+        },
+      ],
+    },
+  },
+  // Runtime layout / variable-driven infra components where style is part of behavior
+  // (virtualization coordinates, dynamic avatar sizing, CSS variable progress).
+  {
+    files: [
+      'src/ui/VirtualList.tsx',
+      'src/requests/GroupedReqList.tsx',
+      'src/ui/PhotoLightbox.tsx',
+      'src/ui/AvatarCircle.tsx',
+      'src/requests/ReqCard.tsx',
+      'src/views/Login.tsx',
+    ],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
 ];

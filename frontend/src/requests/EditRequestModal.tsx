@@ -7,6 +7,7 @@ import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
+import { sanitizeCarPlate, sanitizePhone, sanitizeText, validatePhone } from '../utils/inputSanitizer';
 
 export function EditRequestModal({ req, onClose, onDone }) {
   const [vName,    setVName]    = useState(req.visitorName  || '');
@@ -30,12 +31,21 @@ export function EditRequestModal({ req, onClose, onDone }) {
   }, []);
 
   const save = async () => {
+    const cleanName = sanitizeText(vName);
+    const cleanPhone = sanitizePhone(vPhone);
+    const cleanCarPlate = sanitizeCarPlate(carPlate);
+    const cleanComment = sanitizeText(comment);
+    const phoneErr = validatePhone(cleanPhone);
+    if (phoneErr) {
+      toast(phoneErr, 'error');
+      return;
+    }
     setLoading(true);
     const patch = {
-      visitorName:  vName.trim()    || null,
-      visitorPhone: vPhone.trim()   || null,
-      carPlate:     carPlate.trim() || null,
-      comment:      comment.trim(),
+      visitorName:  cleanName     || null,
+      visitorPhone: cleanPhone    || null,
+      carPlate:     cleanCarPlate || null,
+      comment:      cleanComment,
     };
     try {
       const mode = await services.requests.updateEverywhere({ requestId: req.id, patch, updateLocal: updateRequest });
@@ -60,7 +70,7 @@ export function EditRequestModal({ req, onClose, onDone }) {
         <div className="modal-head">
           <div>
             <span className="modal-title">Редактировать заявку</span>
-            <div style={{ fontSize: 11, color: 'var(--g2)', marginTop: 2 }}>
+            <div className="u-fs11 u-g2 u-mt2">
               <span className="u-inline-icon"><AppIcon name={CAT_ICON[req.category] || 'users'} size={12} /> {CAT_LABEL[req.category]}</span>
             </div>
           </div>
@@ -70,30 +80,30 @@ export function EditRequestModal({ req, onClose, onDone }) {
           {req.type === 'pass' && req.category !== 'taxi' && (
             <div className="field">
               <label className="field-lbl">{req.category === 'team' ? 'Имена посетителей' : 'Имя посетителя'}</label>
-              <input className="field-inp" value={vName} onChange={e => setVName(e.target.value)} autoCapitalize="words" />
+              <input className="field-inp" value={vName} onChange={e => setVName(e.target.value)} onBlur={e => setVName(sanitizeText(e.target.value))} autoCapitalize="words" />
             </div>
           )}
           {req.type === 'pass' && req.category !== 'taxi' && req.category !== 'team' && (
             <div className="field">
               <label className="field-lbl">Телефон</label>
-              <input className="field-inp" value={vPhone} onChange={e => setVPhone(e.target.value)} type="tel" inputMode="tel" />
+              <input className="field-inp" value={vPhone} onChange={e => setVPhone(e.target.value)} onBlur={e => setVPhone(sanitizePhone(e.target.value))} type="tel" inputMode="tel" />
             </div>
           )}
           {req.type === 'pass' && req.category === 'taxi' && (
             <div className="field">
               <label className="field-lbl">Марка и номер авто</label>
-              <input className="field-inp" value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+              <input className="field-inp" value={carPlate} onChange={e => setCarPlate(e.target.value)} onBlur={e => setCarPlate(sanitizeCarPlate(e.target.value))} autoCapitalize="characters" />
             </div>
           )}
           {req.type === 'pass' && needsPlate && req.category !== 'taxi' && (
             <div className="field">
               <label className="field-lbl">Марка и номер авто</label>
-              <input className="field-inp" value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+              <input className="field-inp" value={carPlate} onChange={e => setCarPlate(e.target.value)} onBlur={e => setCarPlate(sanitizeCarPlate(e.target.value))} autoCapitalize="characters" />
             </div>
           )}
           <div className="field">
             <label className="field-lbl">Комментарий</label>
-            <textarea className="field-textarea" rows={3} value={comment} onChange={e => setComment(e.target.value)} />
+            <textarea className="field-textarea" rows={3} value={comment} onChange={e => setComment(e.target.value)} onBlur={e => setComment(sanitizeText(e.target.value))} />
           </div>
         </div>
         <div className="modal-foot">

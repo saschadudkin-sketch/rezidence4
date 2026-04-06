@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions';
-import { canAccessTab, getTabsForRole } from '../domain/permissions';
+import { canAccessTab } from '../domain/permissions';
 import { getRoleManifest } from '../domain/roleManifest';
 import { STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 
@@ -29,47 +29,23 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const tabFromUrl = getTabFromPath(location.pathname);
   const validTabFromUrl = tabFromUrl && canAccessTab(user.role, tabFromUrl) ? tabFromUrl : null;
 
-  const [activeTab,      setActiveTabState] = useState(validTabFromUrl || defaultTab);
+  const activeTab = validTabFromUrl || defaultTab;
   const [highlightReqId, setHighlightReqId] = useState(null);
 
-  // Предотвращаем бесконечный цикл navigate при синхронизации
-  const navigatingRef = useRef(false);
-
-  // При монтировании: если URL не содержит валидный таб — перенаправляем
+  // URL — единственный source of truth для activeTab.
+  // Если URL невалидный/недоступный для роли — мягко редиректим на default.
   useEffect(() => {
     if (!validTabFromUrl) {
-      navigate(`/dashboard/${activeTab}`, { replace: true });
+      navigate(`/dashboard/${defaultTab}`, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [validTabFromUrl, defaultTab, navigate]);
 
-  // Синхронизируем state ← URL при браузерной навигации (Back / Forward)
-  useEffect(() => {
-    if (navigatingRef.current) { navigatingRef.current = false; return; }
-    const t = getTabFromPath(location.pathname);
-    if (t && canAccessTab(user.role, t) && t !== activeTab) {
-      setActiveTabState(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
-  // Если роль изменилась и текущий таб недоступен — сбрасываем на первый доступный
-  useEffect(() => {
-    if (!canAccessTab(user.role, activeTab)) {
-      const tabs = getTabsForRole(user.role);
-      const next = tabs[0] || 'passes';
-      setActiveTabState(next);
-      navigate(`/dashboard/${next}`, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.role]);
-
-  // setActiveTab обновляет и state, и URL
+  // URL-only navigation API
   const setActiveTab = useCallback((k) => {
-    navigatingRef.current = true;
-    setActiveTabState(k);
+    if (!canAccessTab(user.role, k)) return;
+    if (k === activeTab) return;
     navigate(`/dashboard/${k}`, { replace: false });
-  }, [navigate]);
+  }, [user.role, activeTab, navigate]);
 
   const goTab = useCallback((k) => {
     if (!canAccessTab(user.role, k)) return;
@@ -92,8 +68,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
     setSearchParams(nextParams, { replace: true }); // удаляем только reqId, сохраняя остальные query params
     setHighlightReqId(reqId);
     setActiveTab('passes');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]); // re-run when searchParams change so in-session deep links work
+  }, [searchParams, setSearchParams, setActiveTab]); // re-run when searchParams change so in-session deep links work
 
   return { activeTab, setActiveTab, goTab, highlightReqId, setHighlightReqId };
 }

@@ -28,6 +28,7 @@ function makeCode() {
 const CRYPTO = require('crypto');
 const ACCESS_TOKEN_EXPIRES  = '15m';
 const REFRESH_TOKEN_EXPIRES = 30 * 24 * 60 * 60 * 1000; // 30 дней в мс
+const REFRESH_COOKIE_PATH   = '/api';
 // SEC: default=false — legacy raw-token fallback disabled unless explicitly opted in.
 // Опасный default: включённый fallback позволяет использовать raw refresh token
 // (если он попал в лог) для аутентификации в обход хэширования.
@@ -74,7 +75,7 @@ async function setRefreshTokenCookie(res, uid) {
     secure:   process.env.NODE_ENV === 'production',
     sameSite: 'strict', // FIX [S2]
     maxAge:   REFRESH_TOKEN_EXPIRES,
-    path:     '/api/auth', // только для auth-запросов
+    path:     REFRESH_COOKIE_PATH, // единый scope для /api/* (включая /api/v1/auth/refresh)
   });
   return refreshTokenRaw;
 }
@@ -279,7 +280,12 @@ router.post('/logout', requireAuth, async (req, res) => {
     ).catch(() => {});
   }
   res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
-  res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/api/auth' });
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: REFRESH_COOKIE_PATH,
+  });
   res.json({ ok: true });
 });
 
@@ -317,7 +323,12 @@ router.post('/refresh', async (req, res, next) => {
 
     if (!rows.length) {
       appMetrics.incrementCounter('authRefreshFailed');
-      res.clearCookie('refreshToken', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/api/auth' });
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: REFRESH_COOKIE_PATH,
+      });
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
 

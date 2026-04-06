@@ -14,6 +14,7 @@ import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 import { readStorage, removeStorage, STORAGE_KEYS } from './store/persistence/storageRegistry';
+import { DATA_PLANE_POLICY } from './data/dataPlanePolicy';
 // A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
 //
 // T-03: Architecture decision — React Query vs Context API.
@@ -30,6 +31,8 @@ import { readStorage, removeStorage, STORAGE_KEYS } from './store/persistence/st
 // Migration path: new feature endpoints should prefer useQuery/useMutation
 // (less boilerplate, automatic loading/error states). Existing SSE-driven slices
 // (requestsSlice, chatSlice, usersSlice) should stay as Context reducers.
+// One-data-plane policy is codified in data/dataPlanePolicy.ts and should be
+// extended there first whenever a new entity is introduced.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -72,6 +75,14 @@ const AppInner = memo(function AppInner() {
   const isOnline = useOnlineStatus(); // passed to Dashboard → AppShell for unified banner
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      // Single place where developers can inspect the live data-plane map.
+      // Helps avoid accidental dual ownership (SSE + Query for same entity).
+      console.info('[data-plane-policy]', DATA_PLANE_POLICY);
+    }
+  }, []);
 
   useEffect(() => {
     if (phase !== PHASE.DASHBOARD || !user) return;

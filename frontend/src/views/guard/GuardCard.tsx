@@ -130,8 +130,9 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
         <div className="guard-avatar">
           <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={48} fontSize={18} />
         </div>
-        <div className="guard-info" onClick={handleInfoTap}
-          style={{ cursor: onViewDetails ? 'pointer' : 'default' }}
+        <div
+          className={'guard-info ' + (onViewDetails ? 'req-head req-head--clickable' : 'req-head')}
+          onClick={handleInfoTap}
           role={onViewDetails ? 'button' : undefined}
           tabIndex={onViewDetails ? 0 : undefined}
           aria-label={onViewDetails ? 'Подробнее о заявке' : undefined}
@@ -158,9 +159,9 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       )}
 
       {req.status === 'approved' && (
-        <button className="qr-pass-btn" onClick={() => setShowQR(true)} style={{ marginBottom: 0 }}>
+        <button className="qr-pass-btn u-mb0" onClick={() => setShowQR(true)}>
           <span className="u-inline-icon"><AppIcon name="phone" size={18} /></span>
-          <div><div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>Показать QR-код</div></div>
+          <div><div className="u-fs13 u-fw500 u-t1">Показать QR-код</div></div>
         </button>
       )}
       {showQR && <PassQRModal req={req} onClose={() => setShowQR(false)} />}

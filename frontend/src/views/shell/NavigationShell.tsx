@@ -10,6 +10,7 @@
 
 import { useState, useEffect, memo } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
+import { useModalAccessibility } from '../../ui/useModalAccessibility';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
@@ -36,19 +37,19 @@ function useIsMobile() {
 }
 
 function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, onClose }) {
-  // Закрыть по Escape
-  useEffect(() => {
-    const handler = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', handler);
-    return () => {
-      document.removeEventListener('keydown', handler);
-    };
-  }, [onClose]);
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   return (
-    <div className="mn-quick-sheet" role="dialog" aria-modal="true" aria-label="Быстрые действия">
+    <div className="mn-quick-sheet" {...overlayProps}>
       <button className="mn-quick-sheet__scrim" onClick={onClose} aria-label="Закрыть быстрые действия" />
-      <div className="mn-quick-sheet__panel">
+      <div
+        className="mn-quick-sheet__panel"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Быстрые действия"
+        tabIndex={-1}
+      >
         <div className="mn-quick-sheet__handle" aria-hidden="true" />
         <div className="mn-quick-sheet__header">Быстрые действия</div>
         <div className="mn-quick-grid" role="menu" aria-label="Дополнительные вкладки">
@@ -71,17 +72,19 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeC
   );
 }
 
-const MOBILE_PRIMARY_TABS_BY_ROLE = {
-  security: ['guardpost', 'passes', 'visitlog'],
-  concierge: ['passes', 'visitlog', 'chat', 'blacklist'],
-  owner: ['passes', 'chat', 'history', 'tech'],
-  tenant: ['passes', 'chat', 'history', 'tech'],
+const ROLE_NAV_ORDER = {
+  security: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
+  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'templates', 'history', 'tech'],
+  owner: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  tenant: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  contractor: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  admin: ['stats', 'requests', 'residents', 'users', 'blacklist', 'chat', 'visitlog'],
 };
 
-function prioritizeMobileTabs(role, nav) {
-  const primaryTabs = MOBILE_PRIMARY_TABS_BY_ROLE[role];
-  if (!primaryTabs) return nav;
-  const rank = new Map<string, number>(primaryTabs.map((tab, i) => [tab, i]));
+function orderMobileTabs(role, nav) {
+  const roleOrder = ROLE_NAV_ORDER[role];
+  if (!roleOrder) return nav;
+  const rank = new Map<string, number>(roleOrder.map((tab, i) => [tab, i]));
   return [...nav].sort((a, b) => {
     const ra = rank.get(a[0]) ?? 99;
     const rb = rank.get(b[0]) ?? 99;
@@ -97,7 +100,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const navBtnClassMn = (k) => navClassMap[k + '_mn'] || 'mn-btn';
   const isActive      = (k) => (navClassMap[k] || '').includes('active');
 
-  const mobileNav = prioritizeMobileTabs(userRole, nav);
+  const mobileNav = orderMobileTabs(userRole, nav);
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore  = mobileNav.length > mobileMaxTabs;
   const visibleNav = needsMore ? mobileNav.slice(0, mobileMaxTabs) : mobileNav;
@@ -149,6 +152,8 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
               onClick={() => setShowMore(v => !v)}
               aria-haspopup="dialog"
               aria-expanded={showMore}
+              aria-label={`Ещё. ${overflowNav.length} скрытых вкладок`}
+              title={`Вкладки ${overflowNav.length} шт. находятся в меню «Ещё»`}
               tabIndex={!isMobile ? -1 : undefined}
             >
               <span className="mn-icon"><AppIcon name="list" size={16} /></span>

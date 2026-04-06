@@ -1,0 +1,32 @@
+export const DATA_PLANE_POLICY = Object.freeze({
+  requests: 'sse-store',
+  chat: 'sse-store',
+  users: 'sse-store',
+  perms: 'sse-store',
+  templates: 'sse-store',
+  blacklist: 'sse-store',
+  visitLogs: 'query-cache',
+  stats: 'query-cache',
+  garage: 'query-cache',
+});
+
+export function getDataPlane(entity: keyof typeof DATA_PLANE_POLICY) {
+  return DATA_PLANE_POLICY[entity];
+}
+
+export function buildDataPlaneContract({
+  syncLoading,
+  timedOut,
+  ssePermanentError,
+  sseOnline,
+}: {
+  syncLoading: boolean;
+  timedOut: boolean;
+  ssePermanentError: boolean;
+  sseOnline: boolean | null;
+}) {
+  const loading = syncLoading && !timedOut;
+  const error = (syncLoading && timedOut) || ssePermanentError;
+  const errorKind = ssePermanentError ? 'sse_permanent_error' : ((syncLoading && timedOut) ? 'sse_timeout' : null);
+  return { loading, error, errorKind, sseOnline };
+}

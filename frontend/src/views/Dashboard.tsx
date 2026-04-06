@@ -41,7 +41,13 @@ import { NavigationContext } from './shell/NavigationContext';
 import { onSseForceReconnect } from '../utils/events';
 import StateBlock from '../ui/StateBlock';
 import { getRoleManifest } from '../domain/roleManifest';
-import { onboardingKey, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import {
+  markOnboardingSeen,
+  isOnboardingSeen,
+  readStorage,
+  STORAGE_KEYS,
+  writeStorage,
+} from '../store/persistence/storageRegistry';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
@@ -120,10 +126,10 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
 
   // P-06: role-based onboarding hint — shown once per role, dismissed to localStorage
   const [showOnboarding, setShowOnboarding] = useState(() =>
-    !readStorage(onboardingKey(user.role))
+    !isOnboardingSeen(user.uid, user.role)
   );
   const dismissOnboarding = () => {
-    writeStorage(onboardingKey(user.role), '1');
+    markOnboardingSeen(user.uid, user.role);
     setShowOnboarding(false);
   };
 

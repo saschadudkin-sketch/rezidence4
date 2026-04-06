@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useActions, useAvatar } from '../../store/AppStore';
-import { ROLE_LABELS, S_END } from '../../constants';
+import { ROLE_LABELS } from '../../constants';
 import { AvatarCircle } from '../../ui/AvatarCircle';
 import { toast } from '../../ui/Toasts';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { canDeleteUser, canChangeRole } from '../../domain/permissions';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
+import { sanitizeUserFormFields, validateUserFormFields } from '../../utils/formPolicy';
 
 export default function AdminUserRow({ u, currentUser }) {
   const isSelf = u.uid === currentUser.uid;
@@ -27,8 +28,22 @@ export default function AdminUserRow({ u, currentUser }) {
   useEffect(() => { isMountedRef.current = true; return () => { isMountedRef.current = false; }; }, []);
 
   async function save() {
-    if (!name.trim()) { toast('Введите имя', 'error'); return; }
-    const patch = { name: name.trim(), phone: phone.trim(), role, apartment: apt.trim() || '—', parkingSpot: parking.trim() || null };
+    const sanitized = sanitizeUserFormFields({
+      name,
+      phone,
+      apartment: apt,
+      parkingSpot: parking,
+    });
+    if (!sanitized.name) { toast('Введите имя', 'error'); return; }
+    const validationErr = validateUserFormFields({ name: sanitized.name, phone: sanitized.phone });
+    if (validationErr) { toast(validationErr, 'error'); return; }
+    const patch = {
+      name: sanitized.name,
+      phone: sanitized.phone,
+      role,
+      apartment: sanitized.apartment || '—',
+      parkingSpot: sanitized.parkingSpot || null,
+    };
     // mode declared outside try so it's accessible in the post-await code
     let mode;
     try {
@@ -59,22 +74,18 @@ export default function AdminUserRow({ u, currentUser }) {
   function handleCancel() { setEditing(false); }
 
   return (
-    <div
-      style={{ background: 'var(--s2)', borderRadius: 6, border: '1px solid var(--b1)', marginBottom: 6, overflow: 'hidden', transition: 'border-color .13s' }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--b2)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--b1)'}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+    <div className="admin-user-row-card">
+      <div className="u-flex u-flex-center u-gap10 u-pad10-12">
         <div className="u-fs0">
           <AvatarCircle avData={avData} role={u.role} name={u.name} size={36} fontSize={14} />
         </div>
         <div className="u-flex1 u-mw0">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{u.name}</span>
+          <div className="u-flex u-flex-center u-gap8 u-wrap">
+            <span className="u-fs13 u-fw500 u-t1">{u.name}</span>
             <span className={'admin-badge ' + u.role}>{ROLE_LABELS[u.role]}</span>
-            {isSelf && <span style={{ fontSize: 11, color: 'var(--g2)', letterSpacing: .5 }}>• это вы</span>}
+            {isSelf && <span className="admin-user-self-mark">• это вы</span>}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="u-fs11 u-t4 u-mt2 u-flex u-gap8 u-wrap">
             <span>{u.phone}</span>
             {u.apartment !== '—' && <span>Апарт. {u.apartment}</span>}
             {u.parkingSpot && <span><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
@@ -89,10 +100,10 @@ export default function AdminUserRow({ u, currentUser }) {
       </div>
 
       {editing && (
-        <div className="edit-inline" style={{ margin: '0 10px 10px', borderRadius: 6 }}>
+        <div className="edit-inline admin-user-edit-wrap">
           <div className="edit-inline-row">
-            <input className="edit-inline-inp" placeholder="Имя" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" autoFocus />
-            <input className="edit-inline-inp" placeholder="Телефон" value={phone} onChange={e => setPhone(e.target.value)} type="tel" inputMode="tel" />
+            <input className="edit-inline-inp" placeholder="Имя" value={name} onChange={e => setName(e.target.value)} onBlur={e => setName(sanitizeUserFormFields({ name: e.target.value, phone, apartment: apt, parkingSpot: parking }).name)} autoCapitalize="words" autoFocus />
+            <input className="edit-inline-inp" placeholder="Телефон" value={phone} onChange={e => setPhone(e.target.value)} onBlur={e => setPhone(sanitizeUserFormFields({ name, phone: e.target.value, apartment: apt, parkingSpot: parking }).phone)} type="tel" inputMode="tel" />
           </div>
           <div className="edit-inline-row">
             <select className="edit-inline-sel" value={role} onChange={e => setRole(e.target.value)}
@@ -101,10 +112,10 @@ export default function AdminUserRow({ u, currentUser }) {
                 <option key={r} value={r}>{ROLE_LABELS[r]}</option>
               ))}
             </select>
-            <input className="edit-inline-inp" placeholder="Апарт." value={apt} onChange={e => setApt(e.target.value)} style={{ maxWidth: 80 }} />
-          <input className="edit-inline-inp" placeholder="Парк." value={parking} onChange={e => setParking(e.target.value)} style={{ width: 80 }} />
+            <input className="edit-inline-inp admin-user-apt-inp" placeholder="Апарт." value={apt} onChange={e => setApt(e.target.value)} onBlur={e => setApt(sanitizeUserFormFields({ name, phone, apartment: e.target.value, parkingSpot: parking }).apartment)} />
+          <input className="edit-inline-inp admin-user-park-inp" placeholder="Парк." value={parking} onChange={e => setParking(e.target.value)} onBlur={e => setParking(sanitizeUserFormFields({ name, phone, apartment: apt, parkingSpot: e.target.value }).parkingSpot)} />
           </div>
-          <div style={S_END}>
+          <div className="admin-user-actions-end">
             <button className="btn-outline" onClick={handleCancel}>Отмена</button>
             <button className="btn-gold u-pad-btn" onClick={save}><span>Сохранить</span></button>
           </div>
