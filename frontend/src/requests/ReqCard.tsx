@@ -272,7 +272,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
-  }, []); // стабильный ref — reads actLoadingRef at call time, not from closure
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
+  }, []);
 
   const doApprove = useCallback(() => act('approve', () => approveRequest(req.id, actorName, userRole), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
   const doReject  = useCallback(() => act('reject',  () => rejectRequest(req.id, actorName, userRole),  'В допуске отказано', 'error'),   [act, rejectRequest,  req.id, actorName, userRole]);

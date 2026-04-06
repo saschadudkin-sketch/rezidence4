@@ -9,10 +9,10 @@ import { A } from '../storeActions';
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
 
 export function useStoreActions() {
-  const dispatch = useContext(DispatchContext) || (() => {});
-
+  const dispatch = useContext(DispatchContext);
 
   const dispatchWithMetric = useCallback((actionName, action) => {
+    if (!dispatch) return;
     try {
       const out = dispatch(action);
       emitUxMetric(UX_METRICS.ACTION_SUCCESS, { action: actionName });

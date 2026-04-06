@@ -11,17 +11,24 @@ import { logger } from '../services/logger';
  *     <ChatView />
  *   </ErrorBoundary>
  */
-export default class ErrorBoundary extends Component {
-  constructor(props) {
+interface EBProps { name?: string; fallback?: React.ReactNode; children?: React.ReactNode; key?: string | number | null; }
+interface EBState { hasError: boolean; error: Error | null; resetKey: number; }
+
+export default class ErrorBoundary extends Component<EBProps, EBState> {
+  declare state: EBState;
+  declare props: EBProps & { children?: React.ReactNode };
+  declare setState: (updater: (s: EBState) => Partial<EBState>) => void;
+
+  constructor(props: EBProps) {
     super(props);
     this.state = { hasError: false, error: null, resetKey: 0 };
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): EBState {
+    return { hasError: true, error, resetKey: 0 };
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
     logger.error(`[ErrorBoundary: ${this.props.name ?? 'App'}]`, { message: error?.message, stack: info.componentStack });
   }
 

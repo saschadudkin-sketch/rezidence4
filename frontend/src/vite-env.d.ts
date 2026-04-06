@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+// Without @types/react, the `key` JSX prop is not stripped from component props.
+// This global declaration accepts `key` on all JSX elements.
+declare namespace JSX {
+  interface IntrinsicAttributes {
+    key?: string | number | null;
+  }
+}
+
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_RUNTIME_MODE?: string;

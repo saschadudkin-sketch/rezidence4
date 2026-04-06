@@ -97,7 +97,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
 
     const completedRequests = requests
       .filter(r => r.createdByUid === user.uid && COMPLETED_STATUSES.has(r.status))
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return { myPasses, myTech, scheduledPasses, filteredPasses, filteredTech, tempCount, permCount, completedRequests };
   }, [requests, user.uid, passFilter, techFilter]);
@@ -127,7 +127,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       {activeTab === 'perms' && (
         <div>
           <PermsList user={user} />
-          {user.role !== ROLES.CONTRACTOR && <GarageView user={user} />}
+          {user.role !== ROLES.CONTRACTOR && <GarageView user={user} targetUid={user.uid} />}
         </div>
       )}
 

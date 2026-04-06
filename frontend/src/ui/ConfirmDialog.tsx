@@ -38,9 +38,9 @@ export function ConfirmDialog({ message, confirmLabel, cancelLabel = 'Отмен
         return;
       }
       if (e.key !== 'Tab') return;
-      const focusable = Array.from(
+      const focusable = Array.from<HTMLElement>(
         panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-      ).filter(el => !el.disabled);
+      ).filter(el => !(el as HTMLButtonElement).disabled);
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last  = focusable[focusable.length - 1];

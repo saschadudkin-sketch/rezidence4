@@ -82,7 +82,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
       <SectionHeader title="Распределение по ролям" />
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
-          const pct = Math.round(count / allUsers.length * 100);
+          const pct = Math.round((count as number) / allUsers.length * 100);
           return (
             <div key={role} style={{ padding: '12px 16px', borderBottom: '1px solid var(--b1)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>

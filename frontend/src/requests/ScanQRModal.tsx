@@ -157,7 +157,7 @@ export function ScanQRModal({ user, onClose }) {
 
         // BarcodeDetector — работает в Chrome, Edge, Safari 17+
         if ('BarcodeDetector' in window) {
-          const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const detector = new (window as Window & { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (img: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({ formats: ['qr_code'] });
           scanRef.current = setInterval(async () => {
             if (!videoRef.current || videoRef.current.readyState < 2) return;
             try {

@@ -245,7 +245,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
                     ].map(([label, days]) => (
                       <button key={days} type="button" className="temp-pass-preset"
                         onClick={() => form.setValidUntil(
-                          toLocalDateInputValue(daysFromNow(days))
+                          toLocalDateInputValue(daysFromNow(days as number))
                         )}>{label}</button>
                     ))}
                   </div>

@@ -66,7 +66,7 @@ const SLICE_KEYS = {
 // ─── Photo cache helpers ──────────────────────────────────────────────────────
 
 function savePhotos(requests) {
-  const photos = {};
+  const photos: Record<string, string> = {};
   const reqsClean = requests.map(r => {
     const base = { ...r,
       createdAt:    r.createdAt    instanceof Date ? r.createdAt.toISOString()    : r.createdAt,
@@ -220,7 +220,7 @@ export function loadFromLS() {
     }
 
     // Per-slice format
-    const result = {};
+    const result: Record<string, unknown> = {};
     for (const [, lsKey] of Object.entries(SLICE_KEYS)) {
       const val = localStorage.getItem(lsKey);
       if (val) {
@@ -253,9 +253,9 @@ export function loadFromLS() {
     }
 
     // Post-process
-    if (result.requests) result.requests = loadPhotos(result.requests);
-    if (result.chat) result.chat = result.chat.map(m => ({ ...m, at: m.at ? new Date(m.at) : new Date() }));
-    if (result.blacklist) result.blacklist = result.blacklist.map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt) : new Date() }));
+    if (result.requests) result.requests = loadPhotos(result.requests as Record<string, unknown>[]);
+    if (result.chat) result.chat = (result.chat as Array<Record<string, unknown>>).map(m => ({ ...m, at: m.at ? new Date(m.at as string) : new Date() }));
+    if (result.blacklist) result.blacklist = (result.blacklist as Array<Record<string, unknown>>).map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt as string) : new Date() }));
     if (result.extraUsers) {
       
       const newUsers = { ...INITIAL_USERS };
@@ -277,17 +277,17 @@ export function loadFromLS() {
 
 // ─── Legacy format parser ─────────────────────────────────────────────────────
 
-function parseLegacy(d) {
-  const result = {};
-  if (d.requests)     result.requests     = loadPhotos(d.requests);
-  if (d.chat)         result.chat         = d.chat.map(m => ({ ...m, at: m.at ? new Date(m.at) : new Date() }));
+function parseLegacy(d: Record<string, unknown>) {
+  const result: Record<string, unknown> = {};
+  if (d.requests)     result.requests     = loadPhotos(d.requests as Record<string, unknown>[]);
+  if (d.chat)         result.chat         = (d.chat as Array<Record<string, unknown>>).map(m => ({ ...m, at: m.at ? new Date(m.at as string) : new Date() }));
   if (d.chatLastSeen) result.chatLastSeen = d.chatLastSeen;
   if (d.history)      result.history      = d.history;
   if (d.avatars)      result.avatars      = d.avatars;
   if (d.perms)        result.perms        = d.perms;
   if (d.templates)    result.templates    = d.templates;
   if (d.garage)       result.garage       = d.garage;
-  if (d.blacklist)    result.blacklist    = d.blacklist.map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt) : new Date() }));
+  if (d.blacklist)    result.blacklist    = (d.blacklist as Array<Record<string, unknown>>).map(e => ({ ...e, addedAt: e.addedAt ? new Date(e.addedAt as string) : new Date() }));
   if (d.extraUsers) {
     
     const newUsers = { ...INITIAL_USERS };

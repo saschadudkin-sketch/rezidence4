@@ -100,7 +100,7 @@ export function createLogger() {
     },
 
     debug(...args) {
-      if (IS_DEV) console.debug('[DEBUG]', ..._fmtArgs(args));
+      if (IS_DEV) console.info('[DEBUG]', ..._fmtArgs(args));
     },
 
     info(...args) {
@@ -130,7 +130,7 @@ export function createLogger() {
 
     /** Логировать действие пользователя */
     action(name, data = {}) {
-      if (IS_DEV) console.log('[ACTION]', name, { ..._ctx, ...data });
+      if (IS_DEV) console.info('[ACTION]', name, { ..._ctx, ...data });
     },
   };
 }

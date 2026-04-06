@@ -81,10 +81,10 @@ const MOBILE_PRIMARY_TABS_BY_ROLE = {
 function prioritizeMobileTabs(role, nav) {
   const primaryTabs = MOBILE_PRIMARY_TABS_BY_ROLE[role];
   if (!primaryTabs) return nav;
-  const rank = new Map(primaryTabs.map((tab, i) => [tab, i]));
+  const rank = new Map<string, number>(primaryTabs.map((tab, i) => [tab, i]));
   return [...nav].sort((a, b) => {
-    const ra = rank.has(a[0]) ? rank.get(a[0]) : 99;
-    const rb = rank.has(b[0]) ? rank.get(b[0]) : 99;
+    const ra = rank.get(a[0]) ?? 99;
+    const rb = rank.get(b[0]) ?? 99;
     if (ra !== rb) return ra - rb;
     return 0;
   });

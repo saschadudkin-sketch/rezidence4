@@ -4,16 +4,16 @@
  * В production используется backendProvider.js → apiClient.js → VPS API.
  */
 
-export const createRequest       = async () => ({ mode: 'local' });
-export const updateRequest       = async () => ({ mode: 'local' });
-export const deleteRequest       = async () => ({ mode: 'local' });
-export const uploadRequestPhoto  = async (_id, url) => url;
-export const sendMessage         = async () => ({ mode: 'local' });
-export const getAllUsers          = async () => [];
-export const saveUser             = async () => ({ mode: 'local' });
-export const removeUser           = async () => ({ mode: 'local' });
-export const savePerms            = async () => ({ mode: 'local' });
-export const saveTemplates        = async () => ({ mode: 'local' });
+export const createRequest       = async (..._args: unknown[]) => ({ mode: 'local' });
+export const updateRequest       = async (..._args: unknown[]) => ({ mode: 'local' });
+export const deleteRequest       = async (..._args: unknown[]) => ({ mode: 'local' });
+export const uploadRequestPhoto  = async (_id: unknown, url: unknown) => url;
+export const sendMessage         = async (..._args: unknown[]) => ({ mode: 'local' });
+export const getAllUsers          = async (..._args: unknown[]) => [] as unknown[];
+export const saveUser             = async (..._args: unknown[]) => ({ mode: 'local' });
+export const removeUser           = async (..._args: unknown[]) => ({ mode: 'local' });
+export const savePerms            = async (..._args: unknown[]) => ({ mode: 'local' });
+export const saveTemplates        = async (..._args: unknown[]) => ({ mode: 'local' });
 export const getTemplates         = async () => [];
 export const getFirestorePerms    = async () => null;
 export const subscribeRequests    = () => () => {};

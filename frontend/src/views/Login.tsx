@@ -106,7 +106,7 @@ export default function Login({ onLogin, authNotice = '' }) {
 
   // FIX [I-5]: accept optional otpValue so auto-submit can pass the value directly
   // (React state update is async — closure would read stale otp on immediate call)
-  const verify = async (otpValue) => {
+  const verify = async (otpValue?: string) => {
     if (inFlightVerifyRef.current) return;
     const code = typeof otpValue === 'string' ? otpValue : otp;
     if (code.length !== 6) {

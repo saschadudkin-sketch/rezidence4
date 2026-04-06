@@ -52,7 +52,8 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
     } finally {
       if (isMountedRef.current) setLoading(null);
     }
-  }, []); // стабильный callback — оба ref читаются в момент вызова
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
+  }, []);
 
   const doPass = () => {
     if (req.passDuration === 'once' || !req.passDuration) {

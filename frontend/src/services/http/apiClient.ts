@@ -22,7 +22,10 @@ const authSession = createAuthSession({
   makeRequestId,
 });
 
-async function api(method, path, body, { maxRetries = 2, headers: extraHeaders = {} } = {}) {
+interface ApiOptions { maxRetries?: number; headers?: Record<string, string>; }
+interface ApiError extends Error { code?: string; kind?: string; status?: number; forbidden?: boolean; }
+
+async function api(method: string, path: string, body?: unknown, { maxRetries = 2, headers: extraHeaders = {} }: ApiOptions = {}) {
   let lastError;
   let nextRetryDelayMs = null;
   const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
@@ -63,7 +66,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
         emitSessionExpired({ reason: 'refresh_failed', returnTo });
         emitUnauthorized();
         // T-05: use error code instead of string matching for reliable catch
-        const sessionErr = new Error('Сессия истекла. Войдите снова.');
+        const sessionErr: ApiError = new Error('Сессия истекла. Войдите снова.');
         sessionErr.code = 'SESSION_EXPIRED';
         sessionErr.kind = classifyHttpError(401, sessionErr.message);
         throw sessionErr;
@@ -71,7 +74,7 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
 
       // ВАЖНО-A5: centralized 403 handling — consistent forbidden error across all callers
       if (res.status === 403) {
-        const err = new Error('Недостаточно прав для выполнения этого действия');
+        const err: ApiError = new Error('Недостаточно прав для выполнения этого действия');
         err.status = 403;
         err.forbidden = true;
         err.kind = classifyHttpError(403, err.message);
@@ -79,8 +82,8 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       }
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        const error = new Error(err.error || `HTTP ${res.status}`);
+        const errBody = await res.json().catch(() => ({ error: res.statusText }));
+        const error: ApiError = new Error(errBody.error || `HTTP ${res.status}`);
         error.status = res.status;
         error.kind = classifyHttpError(res.status, error.message);
 
@@ -94,12 +97,13 @@ async function api(method, path, body, { maxRetries = 2, headers: extraHeaders =
       authSession.markHealthy();
       return parseApiResponse(res);
     } catch (err) {
-      err.kind = err.kind || classifyHttpError(err.status, err.message);
-      if (err.status && NO_RETRY_STATUSES.has(err.status)) throw err;
+      const e = err as ApiError;
+      e.kind = e.kind || classifyHttpError(e.status, e.message);
+      if (e.status && NO_RETRY_STATUSES.has(e.status)) throw e;
       // T-05: error code check — robust against message text changes/translations
-      if (err.code === 'SESSION_EXPIRED') throw err;
+      if (e.code === 'SESSION_EXPIRED') throw e;
       nextRetryDelayMs = null;
-      lastError = err;
+      lastError = e;
     }
   }
 
@@ -114,10 +118,10 @@ const uploadPhoto = createUploadClient({
 });
 
 export const apiClient = {
-  get: (path, opts) => api('GET', path, undefined, opts),
-  post: (path, body, opts) => api('POST', path, body, opts),
-  patch: (path, body, opts) => api('PATCH', path, body, opts),
-  delete: (path, body, opts) => api('DELETE', path, body, opts),
+  get: (path: string, opts?: ApiOptions) => api('GET', path, undefined, opts),
+  post: (path: string, body?: unknown, opts?: ApiOptions) => api('POST', path, body, opts),
+  patch: (path: string, body?: unknown, opts?: ApiOptions) => api('PATCH', path, body, opts),
+  delete: (path: string, body?: unknown, opts?: ApiOptions) => api('DELETE', path, body, opts),
   uploadPhoto,
 };
 

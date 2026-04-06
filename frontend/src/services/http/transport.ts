@@ -17,7 +17,7 @@ function combineSignals(timeoutSignal, externalSignal) {
   return controller.signal;
 }
 
-export async function fetchWithTimeout(url, options = {}, timeoutMs = 15_000) {
+export async function fetchWithTimeout(url: string, options: RequestInit & { signal?: AbortSignal } = {}, timeoutMs = 15_000) {
   const controller = new AbortController();
   const signal = combineSignals(controller.signal, options.signal);
   const timer = setTimeout(() => controller.abort(), timeoutMs);

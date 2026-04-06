@@ -118,7 +118,7 @@ export function useLiveSync(user, {
             if (event.message.uid !== user.uid) {
               sendNotif(
                 'Сообщение от ' + event.message.name,
-                (event.message.text || '').slice(0, 60),
+                ((event.message.text as string) || '').slice(0, 60),
                 'chat',
               );
             }

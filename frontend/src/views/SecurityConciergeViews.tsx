@@ -237,7 +237,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
               <div className="spl-apt-info">
                 {/* FIX [CQ-2]: Заменён inline-style аватар на AvatarCircle — единый компонент,
                     корректно работает в светлой теме (цвет текста зависит от роли). */}
-                <AvatarCircle role={u.role} name={u.name} size={32} fontSize={13} />
+                <AvatarCircle avData={null} role={u.role} name={u.name} size={32} fontSize={13} />
                 <div>
                   <div className="spl-apt-title">{'Апарт. ' + u.apartment}</div>
                   <div className="spl-apt-sub">{u.name} · <span className="u-t4">{ROLE_LABELS[u.role]}</span></div>

@@ -13,5 +13,6 @@ export function useTelemetrySla(windowMs = 24 * 60 * 60 * 1000) {
     };
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- tick is an intentional version counter that triggers recompute on new metrics
   return useMemo(() => getSlaSnapshot(windowMs), [windowMs, tick]);
 }

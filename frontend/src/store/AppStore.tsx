@@ -20,6 +20,8 @@ import {
 import { useBoundedDomainStates } from './boundedContexts/useDomainStates';
 import { useStoreActions } from './boundedContexts/useStoreActions';
 import { A } from './storeActions';
+import type { AppUser } from './slices/usersSlice';
+import type { Car } from './slices/garageSlice';
 
 export { A };
 
@@ -57,19 +59,19 @@ export function useAppDispatch() { return useContext(DispatchContext); }
 
 export function useRequests() { return useContext(RequestsContext)?.requests || []; }
 export function useChat() { return useContext(ChatContext) || { chat: [], unreadByUid: {}, chatLastSeen: {} }; }
-export function useUsers() {
-  const c = useContext(UsersContext) || { users: {}, phoneDb: {}, avatars: {} };
-  return { users: c.users || {}, phoneDb: c.phoneDb || {} };
+export function useUsers(): { users: Record<string, AppUser>; phoneDb: Record<string, AppUser> } {
+  const c = useContext(UsersContext);
+  return { users: c?.users ?? {} as Record<string, AppUser>, phoneDb: c?.phoneDb ?? {} as Record<string, AppUser> };
 }
-export function useAvatar(uid) {
-  const c = useContext(UsersContext) || { avatars: {}, users: {} };
-  return c.avatars?.[uid] || c.users?.[uid]?.avatar || null;
+export function useAvatar(uid: string): string | null {
+  const c = useContext(UsersContext);
+  return c?.avatars?.[uid] || c?.users?.[uid]?.avatar || null;
 }
 export function usePerms(uid) { return useContext(PermsContext)?.perms?.[uid] || { visitors: [], workers: [] }; }
 export function useTemplates(uid) { return useContext(PermsContext)?.templates?.[uid] || []; }
 export function useRequestHistory(reqId) { return useContext(RequestsContext)?.history?.[reqId] || []; }
 export function useBlacklist() { return useContext(BlacklistContext); }
-export function useGarage(uid) { return useContext(GarageContext)[uid] || []; }
+export function useGarage(uid: string): Car[] { return useContext(GarageContext)?.[uid] ?? []; }
 
 export function useAllPerms() { return useContext(PermsContext)?.perms || {}; }
 export function useAllGarage() { return useContext(GarageContext) ?? {}; }

@@ -22,7 +22,7 @@ export function VirtualList({ items, renderItem, estimateSize = 130, className =
 
   useLayoutEffect(() => {
     if (listRef.current) setScrollMargin(listRef.current.offsetTop);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const rowVirtualizer = useWindowVirtualizer({
     count: items.length,

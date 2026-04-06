@@ -23,7 +23,7 @@ function validateImageMagicBytes(file) {
     const slice = file.slice(0, 12);
     const reader = new FileReader();
     reader.onload = (e) => {
-      const arr = new Uint8Array(e.target.result);
+      const arr = new Uint8Array((e.target as FileReader).result as ArrayBuffer);
       const matches = IMAGE_SIGNATURES.some(({ bytes }) =>
         bytes.every((b, i) => arr[i] === b)
       );
@@ -85,7 +85,7 @@ export function usePhotoHandler(isMountedRef) {
   const [photos, setPhotos] = useState([]);
 
   const handlePhoto = async (e) => {
-    const files = Array.from(e.target.files || []);
+    const files = Array.from((e.target as HTMLInputElement).files || []) as File[];
     if (!files.length) return;
     const remaining = MAX_PHOTOS_PER_REQUEST - photos.length;
     if (remaining <= 0) { toast(`Максимум ${MAX_PHOTOS_PER_REQUEST} фото`, 'error'); return; }
@@ -109,7 +109,7 @@ export function usePhotoHandler(isMountedRef) {
         toProcess.map(f => new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = async (ev) => {
-            try { resolve(await compressImageCached(f, ev.target.result)); }
+            try { resolve(await compressImageCached(f as Blob, (ev.target as FileReader).result as string)); }
             catch (err) { reject(err); }
           };
           reader.onerror = () => reject(new Error('Не удалось загрузить фото'));

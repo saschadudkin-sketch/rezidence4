@@ -198,7 +198,7 @@ export const authProvider = {
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
-  async getAll() {
+  async getAll(_opts?: { signal?: AbortSignal }) {
     // Pages fetched in parallel after the first: 1 sequential + N parallel.
     // При 1000 заявках: 5 последовательных → 1 + 4 параллельных.
     const PAGE_SIZE = 200;
@@ -306,7 +306,7 @@ export const requestsProvider = {
 export const chatProvider = {
   // Returns { messages, hasMore }. before= loads history older than that message id.
   // search= performs full-history text search (КРИТ-2).
-  async getMessages({ before, limit, search } = {}) {
+  async getMessages({ before, limit, search }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
     const params = new URLSearchParams();
     if (before) params.set('before', before);
     if (limit)  params.set('limit', String(limit));
@@ -336,7 +336,7 @@ export const chatProvider = {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const usersProvider = {
-  async getAll() {
+  async getAll(_opts?: { signal?: AbortSignal }) {
     return apiClient.get('/api/v1/users');
   },
   async update(uid, patch) {
@@ -387,15 +387,15 @@ export const permsProvider = {
    * Атомарно сохраняет perms через POST /api/v1/perms/batch (одна транзакция).
    * Legacy-формат (flat array) по-прежнему поддерживается через старый endpoint.
    */
-  async savePerms(uid, permsObj) {
+  async savePerms(uid: string, permsObj: unknown[] | { visitors?: unknown; workers?: unknown }) {
     // Legacy: flat array — assume visitors only (backward compat)
     if (Array.isArray(permsObj)) {
       return apiClient.post('/api/v1/perms', { uid, type: 'visitors', items: permsObj });
     }
     // New format: use batch endpoint for atomic save
-    const payload = { uid };
-    if (permsObj.visitors !== undefined) payload.visitors = permsObj.visitors;
-    if (permsObj.workers  !== undefined) payload.workers  = permsObj.workers;
+    const payload: Record<string, unknown> = { uid };
+    if ((permsObj as Record<string, unknown>).visitors !== undefined) payload.visitors = (permsObj as Record<string, unknown>).visitors;
+    if ((permsObj as Record<string, unknown>).workers  !== undefined) payload.workers  = (permsObj as Record<string, unknown>).workers;
     if (!payload.visitors && !payload.workers) return { ok: true };
     return apiClient.post('/api/v1/perms/batch', payload);
   },

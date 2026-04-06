@@ -44,7 +44,6 @@ export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.9 }) 
   if (hasExplicitName && !PATHS[name] && !(import.meta?.env?.PROD === true) && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
     if (warnedUnknownIcons.size > MAX_UNKNOWN_ICON_WARN_CACHE) warnedUnknownIcons.clear();
-    // eslint-disable-next-line no-console
     console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);
   }
   return (

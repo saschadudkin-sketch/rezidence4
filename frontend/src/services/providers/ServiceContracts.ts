@@ -52,6 +52,7 @@ export interface LiveSyncCallbacks {
   onRequestUpdate?: (request: Record<string, unknown>) => void;
   onRequestAdd?: (request: Record<string, unknown>) => void;
   onRequestDelete?: (id: string) => void;
+  currentRequests?: unknown[];
 }
 
 export interface LiveDataService {

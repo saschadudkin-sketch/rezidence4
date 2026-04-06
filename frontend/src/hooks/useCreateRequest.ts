@@ -161,7 +161,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         return;
       }
 
-      if (mode && typeof mode === 'object' && mode.id) {
+      if (mode && typeof mode === 'object' && (mode as Record<string, unknown>).id) {
         deleteRequest(tempId);
         addRequest(mode);
       } else {

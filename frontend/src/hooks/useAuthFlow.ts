@@ -31,8 +31,7 @@ export function useAuthFlow() {
     // Demo: look up user in local phone directory
     const found = findByPhone(phone, phoneDb);
     if (!found) {
-      const err = new Error('Номер не найден в системе');
-      err.notFound = true;
+      const err = Object.assign(new Error('Номер не найден в системе'), { notFound: true });
       throw err;
     }
     await new Promise(r => setTimeout(r, 600));

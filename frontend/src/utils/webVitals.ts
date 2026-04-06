@@ -13,7 +13,7 @@ import { onCLS, onINP, onLCP, onFCP, onTTFB } from 'web-vitals';
 function sendToAnalytics(metric) {
   if (import.meta.env.DEV) {
     // Удобный вывод для локальной разработки: имя, значение, рейтинг
-    console.debug(`[WebVitals] ${metric.name}: ${Math.round(metric.value)}ms (${metric.rating})`);
+    console.info(`[WebVitals] ${metric.name}: ${Math.round(metric.value)}ms (${metric.rating})`);
   }
 
   // Dispatch custom event — подхватывается аналитикой без прямой зависимости

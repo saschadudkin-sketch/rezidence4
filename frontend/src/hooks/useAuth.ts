@@ -40,10 +40,11 @@ export function useAuth() {
       services.auth.getMe()
         .then(u => {
           if (cancelled) return;
-          if (u && u.uid) {
-            setUser(u);
+          const user = u as { uid?: string; role?: string; name?: string } | null;
+          if (user && user.uid) {
+            setUser(user);
             setPhase(PHASE.DASHBOARD);
-            logger.setContext({ uid: u.uid, role: u.role, name: u.name });
+            logger.setContext({ uid: user.uid, role: user.role, name: user.name });
           } else {
             setPhase(PHASE.LOGIN);
           }

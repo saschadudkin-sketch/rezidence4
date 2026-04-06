@@ -21,7 +21,7 @@ function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today - MS_PER_DAY);
+  const yesterday = new Date(today.getTime() - MS_PER_DAY);
   const day = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
   if (day.getTime() === today.getTime()) return 'Сегодня';
   if (day.getTime() === yesterday.getTime()) return 'Вчера';

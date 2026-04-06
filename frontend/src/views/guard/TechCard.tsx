@@ -34,7 +34,8 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
     } finally {
       if (isMountedRef.current) setLoading(null);
     }
-  }, [acceptRequest, req.id, userName]); // стабильный — оба ref читаются в момент вызова
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
+  }, [acceptRequest, req.id, userName]);
 
   return (
     <div className="guard-card">

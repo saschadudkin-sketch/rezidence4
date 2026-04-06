@@ -81,8 +81,7 @@ export async function subscribePush() {
       body: 'Вы будете получать уведомления о входе ваших гостей',
       icon: '/logo192.png',
       tag: 'push-subscribed',
-      vibrate: [100],
-    });
+    } as NotificationOptions);
 
     // ── Live: получаем push-токен и сохраняем в backend ──────────────────────
     // Пример для интеграции push-SDK (при необходимости):

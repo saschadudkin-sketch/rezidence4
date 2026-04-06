@@ -36,7 +36,7 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
       }
 
       if (e.key !== 'Tab') return;
-      const focusables = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      const focusables = Array.from<HTMLElement>(root.querySelectorAll(FOCUSABLE_SELECTOR));
       if (focusables.length === 0) {
         e.preventDefault();
         root.focus();

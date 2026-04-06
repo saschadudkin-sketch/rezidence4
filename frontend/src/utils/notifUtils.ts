@@ -13,7 +13,7 @@ export const requestNotifPerm = () => {
  * @param {string} tag
  * @param {object} [extra] — доп. поля: { url } для deep link при нажатии
  */
-export const sendNotif = (title, body, tag, extra = {}) => {
+export const sendNotif = (title: string, body: string, tag: string, extra: { url?: string } = {}) => {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     const swReg = getSwReg();
@@ -24,10 +24,9 @@ export const sendNotif = (title, body, tag, extra = {}) => {
         renotify: true,
         icon:     '/logo192.png',
         badge:    '/logo192.png',
-        vibrate:  [200, 100, 200],
         // P-07: data.url передаётся SW-обработчику notificationclick для навигации
         data:     { url: extra.url || '/' },
-      });
+      } as NotificationOptions);
     } else {
       new Notification(title, { body, icon: '/logo192.png' });
     }
@@ -39,7 +38,7 @@ export const sendNotif = (title, body, tag, extra = {}) => {
 let _audioCtx = null;
 function getAudioCtx() {
   if (_audioCtx && _audioCtx.state !== 'closed') return _audioCtx;
-  const Ctor = window.AudioContext || window.webkitAudioContext;
+  const Ctor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   _audioCtx = new Ctor();
   return _audioCtx;

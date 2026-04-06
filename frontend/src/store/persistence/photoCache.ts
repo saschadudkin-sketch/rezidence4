@@ -20,7 +20,7 @@ function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
-      const db = e.target.result;
+      const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
@@ -28,7 +28,7 @@ function openDB() {
         db.createObjectStore(COMPRESSED_STORE, { keyPath: 'fingerprint' });
       }
     };
-    request.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
+    request.onsuccess = (e) => { _db = (e.target as IDBOpenDBRequest).result; resolve(_db); };
     request.onerror = () => reject(request.error);
   });
 }
@@ -41,7 +41,7 @@ function openDB() {
 export async function savePhoto(id, data) {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).put({ id, data, savedAt: Date.now() });
       tx.oncomplete = () => resolve();
@@ -77,7 +77,7 @@ export async function getPhoto(id) {
 export async function deletePhoto(id) {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).delete(id);
       tx.oncomplete = () => resolve();
@@ -132,7 +132,7 @@ export async function archiveCompletedPhotos(requests) {
 export async function clearAll() {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).clear();
       tx.oncomplete = () => resolve();
@@ -149,7 +149,7 @@ export async function clearAll() {
 export async function cacheCompressed(fingerprint, dataUrl) {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(COMPRESSED_STORE, 'readwrite');
       tx.objectStore(COMPRESSED_STORE).put({ fingerprint, dataUrl, cachedAt: Date.now() });
       tx.oncomplete = () => resolve();

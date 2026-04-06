@@ -23,7 +23,7 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
   // FIX [PERF]: useMemo — exp/diff пересчитываются только при смене req.validUntil
   const { expired, timeLeft, diff } = useMemo(() => {
     const exp  = new Date(req.validUntil);
-    const diff = exp - new Date();
+    const diff = exp.getTime() - Date.now();
     const expired = diff <= 0;
     const days  = Math.floor(diff / MS_PER_DAY);
     const hours = Math.floor((diff % MS_PER_DAY) / 3600000);
