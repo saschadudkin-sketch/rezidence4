@@ -30,7 +30,7 @@ export const ROLE_MANIFEST: Record<string, RoleManifest> = {
   },
   security: {
     defaultTab: 'guardpost',
-    tabs: ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat'],
+    tabs: ['guardpost', 'passes', 'visitlog', 'residents', 'blacklist', 'chat'],
     pageTitle: 'Пост охраны',
     pageSubtitle: 'Контроль доступа',
   },

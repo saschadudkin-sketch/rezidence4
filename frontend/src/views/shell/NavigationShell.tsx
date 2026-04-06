@@ -13,8 +13,9 @@ import { AppIcon } from '../../ui/AppIcon';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
-// Роли с расширенной навигацией получают 5 вкладок без "•••" drawer
-const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 5 };
+// Роли с расширенной навигацией получают role-specific лимит мобильных вкладок.
+// Для security оставляем 3 первичных действия, остальное уходит в "Ещё".
+const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 3 };
 const DEFAULT_MOBILE_MAX_TABS = 4;
 function getMobileMaxTabs(role) {
   return MOBILE_MAX_TABS_BY_ROLE[role] ?? DEFAULT_MOBILE_MAX_TABS;
@@ -70,6 +71,19 @@ function MoreDrawer({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, o
   );
 }
 
+const SECURITY_MOBILE_PRIMARY_TABS = ['guardpost', 'passes', 'visitlog'];
+
+function prioritizeMobileTabs(role, nav) {
+  if (role !== 'security') return nav;
+  const rank = new Map(SECURITY_MOBILE_PRIMARY_TABS.map((tab, i) => [tab, i]));
+  return [...nav].sort((a, b) => {
+    const ra = rank.has(a[0]) ? rank.get(a[0]) : 99;
+    const rb = rank.has(b[0]) ? rank.get(b[0]) : 99;
+    if (ra !== rb) return ra - rb;
+    return 0;
+  });
+}
+
 const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }) {
   const isMobile      = useIsMobile();
   const [showMore, setShowMore] = useState(false);
@@ -77,10 +91,11 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const navBtnClassMn = (k) => navClassMap[k + '_mn'] || 'mn-btn';
   const isActive      = (k) => (navClassMap[k] || '').includes('active');
 
+  const mobileNav = prioritizeMobileTabs(userRole, nav);
   const mobileMaxTabs = getMobileMaxTabs(userRole);
-  const needsMore  = nav.length > mobileMaxTabs;
-  const visibleNav = needsMore ? nav.slice(0, mobileMaxTabs) : nav;
-  const overflowNav = needsMore ? nav.slice(mobileMaxTabs) : [];
+  const needsMore  = mobileNav.length > mobileMaxTabs;
+  const visibleNav = needsMore ? mobileNav.slice(0, mobileMaxTabs) : mobileNav;
+  const overflowNav = needsMore ? mobileNav.slice(mobileMaxTabs) : [];
 
   // Суммарный badge для кнопки "•••" (сумма badge скрытых вкладок)
   const moreBadge = overflowNav.reduce((sum, [, , , badge]) => sum + (badge || 0), 0);

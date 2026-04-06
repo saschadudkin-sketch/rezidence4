@@ -34,12 +34,12 @@ html.theme-light .skeleton-line::after{
   padding:11px 12px 11px 12px;
   animation:riseUp .22s ease both;
   animation-delay:var(--card-delay,0ms);
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
   overflow:hidden;
   cursor:pointer;
   transition:background .15s,border-color .15s,box-shadow .15s,transform .15s;
 }
-@media(hover:hover){.req-card:hover{background:var(--s3);border-color:var(--b3);box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateY(-1px)}}
+@media(hover:hover){.req-card:hover{background:var(--s3);border-color:var(--b3);box-shadow:0 2px 10px rgba(0,0,0,.26);transform:translateY(-1px)}}
 .req-card:active{background:var(--s3);transform:scale(.99)}
 @media(max-width:480px){.req-card{padding:9px 10px}}
 .req-card.pending   {border-left-color:var(--wrn-t)}
@@ -50,7 +50,7 @@ html.theme-light .skeleton-line::after{
 .req-card.expired   {border-left-color:var(--expired);opacity:.6}
 .req-card.scheduled {border-left-color:var(--clr-scheduled)}
 /* ── Приоритет на карточке ── */
-.req-card.priority-urgent{border-left-color:var(--err-t);box-shadow:0 4px 16px rgba(192,60,60,.25), 0 0 0 1px rgba(192,60,60,.15) inset}
+.req-card.priority-urgent{border-left-color:var(--err-t);box-shadow:0 2px 8px rgba(192,60,60,.18), 0 0 0 1px rgba(192,60,60,.1) inset}
 @keyframes urgentPulse{0%,100%{border-left-color:var(--err-t)}50%{border-left-color:rgba(192,96,96,.4)}}
 .req-card.priority-urgent.pending{animation:urgentPulse 2s ease infinite}
 /* ── Priority (tags + picker) ── */
@@ -250,7 +250,7 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 
 .badge{
   font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;font-weight:600;
-  padding:3px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0;border:1px solid;
+  padding:2px 7px;border-radius:16px;white-space:nowrap;flex-shrink:0;border:1px solid;
 }
 .badge.pending   {color:var(--wrn-t);background:var(--badge-pending-bg);border-color:var(--badge-pending-b)}
 .badge.approved  {color:var(--ok-t); background:var(--badge-approved-bg);border-color:var(--badge-approved-b)}
@@ -305,4 +305,3 @@ html.theme-dark .schedule-datetime{color-scheme:dark}
 .skeleton-bar--w48{width:48px}
 .skeleton-bar--w64{width:64px}
 .skeleton-bar--w80{width:80%}
-

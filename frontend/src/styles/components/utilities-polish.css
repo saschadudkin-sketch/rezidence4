@@ -506,6 +506,21 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 /* ── Кнопки действий охраны (QR + Поиск авто) ─────────────────────────────── */
 .security-action-btns{display:flex;gap:8px;margin-bottom:12px}
 .security-action-btns .scan-qr-btn{flex:1}
+
+.page-action-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative}
+.page-action-primary{min-width:180px}
+.page-action-overflow{position:relative}
+.page-action-overflow-btn{min-width:96px}
+.page-action-overflow-menu{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:20;
+  min-width:180px;background:var(--s0);border:1px solid var(--b1);border-radius:10px;
+  box-shadow:0 10px 24px rgba(0,0,0,.14);padding:6px;
+}
+.page-action-overflow-item{
+  width:100%;text-align:left;padding:9px 10px;border:none;background:transparent;border-radius:8px;color:var(--t1);
+}
+.page-action-overflow-item:hover{background:var(--s2)}
+.admin-toolbar-action{margin-left:auto}
 .car-search-trigger{border-color:var(--b2)!important;color:var(--g1)!important}
 
 /* ── Аудит: утилитарные классы для замены частых inline styles ─────────────── */

@@ -18,6 +18,7 @@ import { AppIcon } from '../ui/AppIcon.jsx';
 import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
 import SectionHeader from '../ui/SectionHeader.jsx';
+import PageActionBar from '../ui/PageActionBar.tsx';
 import { getViewStateCopy } from '../ui/viewStateContract';
 // FIX [C-2]: Виртуализация списков заявок — при 500+ заявок без VirtualList
 // рендерится полный DOM, что вызывает freeze UI на слабых устройствах охраны.
@@ -66,10 +67,14 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         <AppIcon name="info" size={14} className="u-inline-icon" />
         <span>Консьерж контролирует доступ и создаёт заявки. Одобрение — задача охраны.</span>
       </div>
-      <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-        <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
-        <span>Сканировать QR-код</span>
-      </button>
+      <PageActionBar
+        className="u-mb12"
+        primaryLabel="Сканировать QR-код"
+        onPrimary={() => setShowScan(true)}
+        secondary={[
+          { label: 'Создать пропуск гостю', onClick: () => setModal({ type: 'pass', cat: 'guest' }) },
+        ]}
+      />
       <div className="search-wrap">
         <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
@@ -298,16 +303,14 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
 
   return (<>
     {activeTab === 'passes' && (<>
-      <div className="security-action-btns">
-        <button className="scan-qr-btn" onClick={() => setShowScan(true)}>
-          <span className="u-inline-icon"><AppIcon name="camera" size={18} /></span>
-          <span>Сканировать QR</span>
-        </button>
-        <button className="scan-qr-btn car-search-trigger" onClick={() => setShowCarSearch(true)}>
-          <span className="u-inline-icon"><AppIcon name="car" size={18} /></span>
-          <span>Поиск авто</span>
-        </button>
-      </div>
+      <PageActionBar
+        className="security-action-btns"
+        primaryLabel="Сканировать QR"
+        onPrimary={() => setShowScan(true)}
+        secondary={[
+          { label: 'Поиск авто', onClick: () => setShowCarSearch(true) },
+        ]}
+      />
       <div className="sec-filters">
         <div className="sec-filters-row">
           <div className="search-wrap u-search-sm">
