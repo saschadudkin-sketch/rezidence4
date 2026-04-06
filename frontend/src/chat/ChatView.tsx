@@ -170,7 +170,7 @@ export function ChatView({ user }) {
   // [chat.length] — меняется только при добавлении/удалении сообщений.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chat.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chat.length]);
 
   // FIX [AUDIT]: загрузка истории — «Загрузить ещё».
   // Бэкенд возвращал hasMore=true, но фронт его игнорировал — история была недоступна.
@@ -311,7 +311,7 @@ export function ChatView({ user }) {
     }
     updateMessage(id, patch);
     setEditingMsg(null);
-  }, [updateMessage]);
+  }, [setEditingMsg, updateMessage]);
 
   // Ответ на сообщение
   const startReply = useCallback((m) => {
@@ -324,7 +324,7 @@ export function ChatView({ user }) {
     if (inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [user.uid]);
+  }, [setReplyTo, user.uid]);
 
   // Свайп для ответа
   // FIX [PERF]: useCallback — эти обработчики вызываются на каждом сообщении;
@@ -377,7 +377,7 @@ export function ChatView({ user }) {
     } finally {
       setText(''); setReplyTo(null); inputRef.current?.focus();
     }
-  }, [text, user, sendMessage, replyTo]);
+  }, [replyTo, sendMessage, setReplyTo, setText, text, user]);
 
   // FIX [PERF-15]: onPhotoClick и onFileChange пересоздавались при каждом рендере
   // (любое изменение text/photoSending). Их передают как onChange/onClick в DOM-элементы,
@@ -391,7 +391,7 @@ export function ChatView({ user }) {
   const insertEmoji = useCallback((emoji) => {
     setText(prev => prev + emoji);
     inputRef.current?.focus();
-  }, []);
+  }, [setText]);
 
   const onFileChange = useCallback(async e => {
     const f = e.target.files[0];
