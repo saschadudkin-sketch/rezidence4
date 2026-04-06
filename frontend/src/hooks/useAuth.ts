@@ -89,7 +89,7 @@ export function useAuth() {
     logger.action('login', { role: u.role });
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((opts: { allDevices?: boolean } = {}) => {
     logger.action('logout');
     logger.clearContext();
     setUser(null);
@@ -98,7 +98,7 @@ export function useAuth() {
     // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
-      services.auth.logout().catch(() => {});
+      services.auth.logout({ allDevices: !!opts.allDevices }).catch(() => {});
     } else {
       // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
       // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)

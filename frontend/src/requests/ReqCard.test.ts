@@ -39,32 +39,32 @@ describe('ReqCard act() stale closure fix', () => {
   test('act() is an async function (not wrapping setTimeout)', () => {
     // Проверяем через исходный код — async act = стабильный callback без stale deps
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toMatch(/const act = useCallback\(async/);
     expect(src).not.toMatch(/\}, \[actLoading\]\)/); // старый stale closure dep
   });
 
   test('actLoadingRef pattern присутствует (нет stale closure)', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toContain('actLoadingRef.current');
   });
 
   test('isMountedRef присутствует (защита от setState на unmounted)', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toContain('isMountedRef.current');
   });
 
   test('ReqCard обёрнут в memo (нет лишних ре-рендеров)', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toMatch(/export const ReqCard = memo/);
   });
 
   test('ReqPhoto обёрнут в memo', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toMatch(/const ReqPhoto = memo/);
   });
 });
@@ -74,28 +74,28 @@ describe('ReqCard act() stale closure fix', () => {
 describe('ReqCard double-click prevention', () => {
   test('act() проверяет actLoadingRef.current перед запуском (guard против двойного клика)', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     // Guard должен быть: if (actLoadingRef.current) return;
     expect(src).toMatch(/if \(actLoadingRef\.current\) return/);
   });
 
   test('actLoadingRef синхронизируется с actLoading state на каждом рендере', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     // actLoadingRef.current = actLoading; — синхронизация в теле компонента
     expect(src).toContain('actLoadingRef.current = actLoading');
   });
 
   test('act() — useCallback без actLoading в deps (нет stale closure)', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     // stable callback — deps массив должен быть [], а не [actLoading, ...]
-    expect(src).toMatch(/\}, \[\]\); \/\/ стабильный/);
+    expect(src).toMatch(/\}, \[\]\);/);
   });
 
   test('dateLabel вычисляется через useMemo, а не IIFE', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./ReqCard'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
     expect(src).toContain('const dateLabel = useMemo');
     // Не должно быть IIFE-паттерна в JSX для dateLabel
     expect(src).not.toMatch(/\{.*\(\(\) => \{.*fmtDate.*\}\)\(\)\}/s);

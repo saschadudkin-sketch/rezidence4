@@ -6,6 +6,7 @@ import { getRoleManifest, ROLE_MANIFEST } from '../domain/roleManifest';
 import { STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
 import { toast } from '../ui/Toasts';
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
+import { buildNavigationTelemetry, resolveTabGuard } from '../domain/navigationRules';
 
 /**
  * useNavigation — URL-based tab navigation (UX-001).
@@ -31,31 +32,31 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   };
 
   const tabFromUrl = getTabFromPath(location.pathname);
-  const validTabFromUrl = tabFromUrl && canAccessTab(user.role, tabFromUrl) ? tabFromUrl : null;
+  const guardResult = resolveTabGuard({
+    role: user.role,
+    requestedTab: tabFromUrl,
+    defaultTab,
+    knownTabs: knownTabs.current,
+  });
 
-  const activeTab = validTabFromUrl || defaultTab;
+  const activeTab = guardResult.allowed ? guardResult.targetTab : defaultTab;
   const [highlightReqId, setHighlightReqId] = useState(null);
 
   // URL — единственный source of truth для activeTab.
   // Если URL невалидный/недоступный для роли — мягко редиректим на default.
   useEffect(() => {
-    if (!validTabFromUrl) {
+    if (!guardResult.allowed) {
       if (tabFromUrl) {
-        const noticeKey = `${user.role}:${tabFromUrl}:${defaultTab}`;
+        const noticeKey = guardResult.noticeKey;
         if (redirectNoticeRef.current !== noticeKey) {
           redirectNoticeRef.current = noticeKey;
-          emitUxMetric(UX_METRICS.NAV_FORBIDDEN_REDIRECT, {
-            role: user.role,
-            from: tabFromUrl,
-            to: defaultTab,
-            reason: knownTabs.current.has(tabFromUrl) ? 'forbidden' : 'invalid',
-          });
+          emitUxMetric(UX_METRICS.NAV_FORBIDDEN_REDIRECT, buildNavigationTelemetry(guardResult, user.role, tabFromUrl));
           toast('Раздел недоступен вашей роли. Открыт доступный раздел.', 'warn');
         }
       }
-      navigate(`/dashboard/${defaultTab}`, { replace: true });
+      navigate(`/dashboard/${guardResult.targetTab}`, { replace: true });
     }
-  }, [validTabFromUrl, tabFromUrl, defaultTab, navigate, user.role]);
+  }, [guardResult, tabFromUrl, navigate, user.role]);
 
   // URL-only navigation API
   const setActiveTab = useCallback((k) => {

@@ -22,10 +22,10 @@ const authSession = createAuthSession({
   makeRequestId,
 });
 
-interface ApiOptions { maxRetries?: number; headers?: Record<string, string>; }
+interface ApiOptions { maxRetries?: number; headers?: Record<string, string>; signal?: AbortSignal; }
 interface ApiError extends Error { code?: string; kind?: string; status?: number; forbidden?: boolean; }
 
-async function api(method: string, path: string, body?: unknown, { maxRetries = 2, headers: extraHeaders = {} }: ApiOptions = {}) {
+async function api(method: string, path: string, body?: unknown, { maxRetries = 2, headers: extraHeaders = {}, signal }: ApiOptions = {}) {
   let lastError;
   let nextRetryDelayMs = null;
   const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
@@ -51,6 +51,7 @@ async function api(method: string, path: string, body?: unknown, { maxRetries = 
           },
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
+          signal,
         },
         method === 'GET' ? 10_000 : 20_000,
       );

@@ -68,7 +68,7 @@ describe('authProvider', () => {
   test('logout → POST /api/auth/logout', async () => {
     apiClient.post.mockResolvedValueOnce({});
     await authProvider.logout();
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout');
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout', { allDevices: false });
   });
 });
 

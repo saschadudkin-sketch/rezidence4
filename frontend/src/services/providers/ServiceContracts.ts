@@ -5,7 +5,7 @@ export interface AuthService {
   sendOtp: (phone: string) => Promise<unknown>;
   verifyOtp: (phone: string, code: string) => Promise<unknown>;
   getMe: () => Promise<unknown>;
-  logout: () => Promise<unknown>;
+  logout: (opts?: { allDevices?: boolean }) => Promise<unknown>;
 }
 
 export interface ChatService {

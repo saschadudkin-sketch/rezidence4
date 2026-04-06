@@ -11,6 +11,7 @@ import { emitLoginMetric } from '../utils/loginMetrics';
 // CQ-01: live/demo auth branching moved out of component into a hook
 import { useAuthFlow } from '../hooks/useAuthFlow';
 import { presentError } from '../ui/errorPresenter';
+import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
 
 // P-04: порог предупреждения — при N-й попытке отправки OTP показываем предупреждение
 const OTP_WARN_ON_ATTEMPT = 2; // предупреждаем начиная со 2-й попытки (перед последней)
@@ -34,6 +35,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   const [phoneError, setPhoneError] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [recovery, setRecovery] = useState<{ message: string; onRetry: () => void; onFallback: () => void; fallbackLabel: string } | null>(null);
   // P-04: счётчик попыток отправки OTP — показываем предупреждение перед блокировкой
   const [sendAttempts, setSendAttempts] = useState(0);
   const { phoneDb } = useUsers();
@@ -45,6 +47,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   const currentRequestIdRef = useRef({ send: 0, verify: 0 });
   const requestSeqRef = useRef(0);
   const loading = pending.send || pending.verify || pending.demo;
+  const otpAutoSubmitTimerRef = useRef<number | null>(null);
 
   const nextRequestId = useCallback((kind: 'send' | 'verify') => {
     const reqId = ++requestSeqRef.current;
@@ -66,6 +69,13 @@ export default function Login({ onLogin, authNotice = '' }) {
     return () => clearInterval(timer);
   }, [step, resendIn]);
 
+  useEffect(() => () => {
+    if (otpAutoSubmitTimerRef.current) {
+      clearTimeout(otpAutoSubmitTimerRef.current);
+      otpAutoSubmitTimerRef.current = null;
+    }
+  }, []);
+
   const sendCode = async () => {
     if (pending.send) return;
     const isResend = step === 'otp';
@@ -77,6 +87,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       return;
     }
     setPhoneError('');
+    setRecovery(null);
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -92,6 +103,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       setStep('otp');
       setResendIn(OTP_COOLDOWN_SECONDS);
       setOtpError('');
+    setRecovery(null);
       setSendAttempts(n => n + 1);
       emitLoginMetric(isResend ? 'resend_success' : 'send_code_success', { mode: isLiveMode() ? 'live' : 'demo' });
       toast(isLiveMode() ? 'SMS-код отправлен' : 'Демо: введите любой код', 'success');
@@ -100,6 +112,12 @@ export default function Login({ onLogin, authNotice = '' }) {
         // Demo: phone not in fixture data
         if (!signal.aborted) toast('Номер не найден в системе', 'error');
         setPhoneError('Номер не найден в демо-данных');
+        setRecovery({
+          message: 'Номер не найден. Проверьте номер или используйте демо-доступ.',
+          onRetry: () => sendCode(),
+          onFallback: () => setDemoOpen(true),
+          fallbackLabel: 'Открыть демо-доступ',
+        });
       } else {
         // SEC-02: clamp retryAfter — сервер (или MITM) может вернуть 999999 секунд, блокируя UI навсегда
         const retryAfter = Math.min(
@@ -111,6 +129,12 @@ export default function Login({ onLogin, authNotice = '' }) {
         setPhoneError('Не удалось отправить код. Попробуйте ещё раз');
         emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', { mode: isLiveMode() ? 'live' : 'demo' });
         if (!signal.aborted) toast(presentError(e, 'auth.send_code').message, 'error');
+        setRecovery({
+          message: 'Код не отправлен. Мы уже попробовали повторно на сервере, попробуйте снова вручную.',
+          onRetry: () => sendCode(),
+          onFallback: () => setDemoOpen(true),
+          fallbackLabel: isDemoMode() ? 'Открыть демо-доступ' : 'Вернуться к номеру',
+        });
       }
     } finally {
       setPending('send', false, reqId);
@@ -129,6 +153,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       return;
     }
     setOtpError('');
+    setRecovery(null);
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -146,6 +171,12 @@ export default function Login({ onLogin, authNotice = '' }) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast(presentError(e, 'auth.verify').message, 'error');
+      setRecovery({
+        message: 'Проверка кода не удалась. Повторите попытку или запросите новый код.',
+        onRetry: () => verify(code),
+        onFallback: () => setStep('phone'),
+        fallbackLabel: 'Изменить номер',
+      });
     } finally {
       setPending('verify', false, reqId);
     }
@@ -212,6 +243,21 @@ export default function Login({ onLogin, authNotice = '' }) {
             </div>
           )}
 
+          {isDemoMode() && (
+            <div className="field-warn" role="status" aria-live="polite">
+              Демо-режим: данные сохраняются в браузере устройства. Не используйте персональные данные на общих устройствах.
+            </div>
+          )}
+
+          {recovery && (
+            <ErrorRecoveryPanel
+              message={recovery.message}
+              onRetry={recovery.onRetry}
+              onFallback={recovery.onFallback}
+              fallbackLabel={recovery.fallbackLabel}
+            />
+          )}
+
           {step === 'phone' ? (
             <>
               <div className="field">
@@ -243,6 +289,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                         setFound(f);
                         setOtp('');
                         setOtpError('');
+    setRecovery(null);
                         setDemoOpen(false);
                         await new Promise(r => setTimeout(r, 300));
                         setStep('otp');
@@ -278,7 +325,23 @@ export default function Login({ onLogin, authNotice = '' }) {
                 <input
                   className="field-inp field-otp" type="text"
                   inputMode="numeric" maxLength={6} placeholder="• • • • • •"
-                  value={otp} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setOtp(v); if (otpError) setOtpError(''); /* FIX [I-5]: auto-submit when all 6 digits entered */ if (v.length === 6) verify(v); }}
+                  value={otp} onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setOtp(v);
+                    if (otpError) setOtpError('');
+                    // UX-AUDIT P-01: do not verify aggressively on the 6th digit.
+                    // Use delayed auto-submit and cancel it if user edits input meanwhile.
+                    if (otpAutoSubmitTimerRef.current) {
+                      clearTimeout(otpAutoSubmitTimerRef.current);
+                      otpAutoSubmitTimerRef.current = null;
+                    }
+                    if (v.length === 6) {
+                      otpAutoSubmitTimerRef.current = window.setTimeout(() => {
+                        verify(v);
+                        otpAutoSubmitTimerRef.current = null;
+                      }, 350);
+                    }
+                  }}
                   onKeyDown={e => e.key === 'Enter' && verify()}
                   autoComplete="one-time-code" autoFocus
                 />

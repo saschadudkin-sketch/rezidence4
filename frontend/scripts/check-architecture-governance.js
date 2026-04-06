@@ -59,6 +59,42 @@ for (const file of appFiles) {
   }
 }
 
+
+
+// A7: ownership map must match OpenAPI endpoint contract (CI-level schema/endpoint guard).
+const openApi = JSON.parse(readFileSync('../docs/openapi.json', 'utf8'));
+const endpointOwnershipMap = {
+  requests: '/api/v1/requests',
+  chat: '/api/v1/chat/messages',
+  users: '/api/v1/users',
+};
+for (const [entity, path] of Object.entries(endpointOwnershipMap)) {
+  if (!openApi.paths?.[path]) {
+    console.error(`[architecture-governance] Entity "${entity}" is missing endpoint "${path}" in docs/openapi.json`);
+    hasError = true;
+  }
+}
+
+// A8: gateway imports are restricted to hooks and service layer.
+const restrictedGatewayImports = [
+  /from ['"]\.\.\/services\/requestsGateway['"]/,
+  /from ['"]\.\.\/services\/chatGateway['"]/,
+  /from ['"]\.\.\/services\/adminGateway['"]/,
+  /from ['"]\.\/requestsGateway['"]/,
+  /from ['"]\.\/chatGateway['"]/,
+  /from ['"]\.\/adminGateway['"]/,
+];
+for (const file of appFiles) {
+  const normalized = file.replace(/\\/g, '/');
+  const allowed = normalized.startsWith('src/hooks/') || normalized.startsWith('src/services/') || normalized.includes('.test.');
+  if (allowed) continue;
+  const text = readFileSync(file, 'utf8');
+  if (restrictedGatewayImports.some((pattern) => pattern.test(text))) {
+    console.error(`[architecture-governance] Gateway import is forbidden outside hooks/services: ${file}`);
+    hasError = true;
+  }
+}
+
 if (hasError) {
   console.error('\n❌ Architecture governance checks failed.');
   process.exit(1);

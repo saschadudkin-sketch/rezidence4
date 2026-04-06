@@ -1,4 +1,5 @@
 import { useState, useMemo, memo, useDeferredValue } from 'react';
+import { useParams } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
@@ -64,6 +65,16 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
       <div className="stats-grid" aria-busy="true">
         {Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)}
       </div>
+    );
+  }
+
+  if (allUsers.length === 0 && requests.length === 0) {
+    return (
+      <StateBlock
+        type="empty"
+        title="Данных пока нет"
+        subtitle="Когда появятся пользователи и заявки, статистика отобразится здесь."
+      />
     );
   }
 
@@ -183,6 +194,9 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     const ms = reqStatus === 'all' || r.status === reqStatus;
     return mq && mt && ms;
   }), [requests, reqPeriod, rq, reqType, reqStatus]);
+  const [visibleCount, setVisibleCount] = useState(200);
+  const visibleItems = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleItems.length < filtered.length;
   const requestsEmptyCopy = getViewStateCopy('admin_requests', 'empty');
 
   return (
@@ -209,18 +223,27 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
         </div>
       </div>
       {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
-      <VirtualList items={filtered} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
+      <VirtualList items={visibleItems} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
+      {hasMore && (
+        <div className="u-flex-center u-mt-12">
+          <button className="btn-outline" onClick={() => setVisibleCount((v) => v + 200)}>
+            Показать ещё ({filtered.length - visibleItems.length})
+          </button>
+        </div>
+      )}
     </>
   );
 });
 
 // ─── AdminView ────────────────────────────────────────────────────────────────
 
-export default function AdminView({ user, activeTab }) {
+export default function AdminView({ user, activeTab: activeTabProp }) {
   const requests = useRequests();
   const { users } = useUsers();
+  const { tab } = useParams();
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
   const allUsers = useMemo(() => Object.values(users), [users]);
+  const activeTab = tab || activeTabProp || 'stats';
 
   return (
     <>
