@@ -132,66 +132,65 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
 
   return (
     <>
-      {/* UI-01: aria-hidden when CSS hides this nav — prevents duplicate landmarks for screen readers */}
-      <nav className="top-nav" aria-label="Основная навигация" aria-hidden={isMobile || undefined}>
-        {nav.map(([k, icon, label, badge]) => (
-          <button
-            key={k}
-            className={navBtnClass(k)}
-            onClick={() => goTab(k)}
-            aria-current={isActive(k) ? 'page' : undefined}
-            tabIndex={isMobile ? -1 : undefined}
-          >
-            <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
-            <span>{label}</span>
-            {badge > 0 && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
-          </button>
-        ))}
-      </nav>
-      {/* UI-01: aria-hidden when CSS hides this nav */}
-      <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || undefined}>
-        {visibleNav.map(([k, icon, label, badge]) => (
-          <button
-            key={k}
-            className={navBtnClassMn(k)}
-            onClick={() => goTab(k)}
-            aria-current={isActive(k) ? 'page' : undefined}
-            tabIndex={!isMobile ? -1 : undefined}
-          >
-            <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
-            <span className="mn-label">{label}</span>
-            {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
-          </button>
-        ))}
-        {/* P-02/R-01: кнопка "•••" для скрытых вкладок */}
-        {needsMore && (
-          <div className="mn-more-wrap">
+      {!isMobile && (
+        <nav className="top-nav" aria-label="Основная навигация">
+          {nav.map(([k, icon, label, badge]) => (
             <button
-              className={'mn-btn mn-more-btn' + (moreIsActive ? ' active' : '')}
-              onClick={() => setShowMore(v => !v)}
-              aria-haspopup="dialog"
-              aria-expanded={showMore}
-              aria-label={`Ещё. ${overflowNav.length} скрытых вкладок`}
-              title={`Вкладки ${overflowNav.length} шт. находятся в меню «Ещё»`}
-              tabIndex={!isMobile ? -1 : undefined}
+              key={k}
+              className={navBtnClass(k)}
+              onClick={() => goTab(k)}
+              aria-current={isActive(k) ? 'page' : undefined}
             >
-              <span className="mn-icon"><AppIcon name="list" size={16} /></span>
-              <span className="mn-label">Ещё</span>
-              {moreBadge > 0 && <span className="mn-badge">{formatBadgeCount(moreBadge)}</span>}
+              <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
+              <span>{label}</span>
+              {badge > 0 && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
             </button>
-            {showMore && (
-              <QuickActionsSheet
-                items={overflowNav}
-                navBtnClassMn={navBtnClassMn}
-                goTab={goTab}
-                isActive={isActive}
-                formatBadgeCount={formatBadgeCount}
-                onClose={() => setShowMore(false)}
-              />
-            )}
-          </div>
-        )}
-      </nav>
+          ))}
+        </nav>
+      )}
+      {isMobile && (
+        <nav className="mobile-nav" aria-label="Мобильная навигация">
+          {visibleNav.map(([k, icon, label, badge]) => (
+            <button
+              key={k}
+              className={navBtnClassMn(k)}
+              onClick={() => goTab(k)}
+              aria-current={isActive(k) ? 'page' : undefined}
+            >
+              <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
+              <span className="mn-label">{label}</span>
+              {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
+            </button>
+          ))}
+          {/* P-02/R-01: кнопка "•••" для скрытых вкладок */}
+          {needsMore && (
+            <div className="mn-more-wrap">
+              <button
+                className={'mn-btn mn-more-btn' + (moreIsActive ? ' active' : '')}
+                onClick={() => setShowMore(v => !v)}
+                aria-haspopup="dialog"
+                aria-expanded={showMore}
+                aria-label={`Ещё. ${overflowNav.length} скрытых вкладок`}
+                title={`Вкладки ${overflowNav.length} шт. находятся в меню «Ещё»`}
+              >
+                <span className="mn-icon"><AppIcon name="list" size={16} /></span>
+                <span className="mn-label">Ещё</span>
+                {moreBadge > 0 && <span className="mn-badge">{formatBadgeCount(moreBadge)}</span>}
+              </button>
+              {showMore && (
+                <QuickActionsSheet
+                  items={overflowNav}
+                  navBtnClassMn={navBtnClassMn}
+                  goTab={goTab}
+                  isActive={isActive}
+                  formatBadgeCount={formatBadgeCount}
+                  onClose={() => setShowMore(false)}
+                />
+              )}
+            </div>
+          )}
+        </nav>
+      )}
     </>
   );
 });
