@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/admin/AdminPermsView.test.js
  * Покрывает: AdminPermsView — отображение перм-списков, поиск по жильцам, редактирование

@@ -68,7 +68,7 @@ describe('authProvider', () => {
   test('logout → POST /api/auth/logout', async () => {
     apiClient.post.mockResolvedValueOnce({});
     await authProvider.logout();
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout');
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout', { allDevices: false });
   });
 });
 
@@ -304,7 +304,7 @@ describe('createBackendProvider', () => {
   test('requests.submit вызывает requestsProvider.create', async () => {
     const p = createBackendProvider();
     apiClient.post.mockResolvedValueOnce({ id: 'srv-1', type: 'pass' });
-    await p.requests.submit({ request: { type: 'pass' } });
+    await p.requests.submit({ request: { type: 'pass' }, addLocal: vi.fn() } as any);
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/requests',
       { type: 'pass' },

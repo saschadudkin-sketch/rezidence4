@@ -5,9 +5,9 @@
 import { checkBlacklist } from './blacklistSlice';
 
 describe('checkBlacklist', () => {
-  const bl = [
-    { id: 'bl1', name: 'Петров Сергей', carPlate: '' },
-    { id: 'bl2', name: '', carPlate: 'Х666ХХ77' },
+  const bl: any = [
+    { id: 'bl1', name: 'Петров Сергей', carPlate: '', reason: '', addedBy: '', addedAt: '' },
+    { id: 'bl2', name: '', carPlate: 'Х666ХХ77', reason: '', addedBy: '', addedAt: '' },
   ];
 
   test('exact name match', () => {
@@ -16,7 +16,7 @@ describe('checkBlacklist', () => {
   });
 
   test('no substring match (Иван !== Иванченко)', () => {
-    const entry = [{ id: 'bl3', name: 'Иван', carPlate: '' }];
+    const entry: any = [{ id: 'bl3', name: 'Иван', carPlate: '', reason: '', addedBy: '', addedAt: '' }];
     const req = { visitorName: 'Иванченко Петр', carPlate: '' };
     expect(checkBlacklist(req, entry)).toBeNull();
   });
@@ -41,7 +41,7 @@ describe('checkBlacklist', () => {
   });
 
   test('word-by-word match for multi-word names', () => {
-    const entry = [{ id: 'bl4', name: 'Петров Сергей', carPlate: '' }];
+    const entry: any = [{ id: 'bl4', name: 'Петров Сергей', carPlate: '', reason: '', addedBy: '', addedAt: '' }];
     const req = { visitorName: 'Сергей Петров', carPlate: '' };
     expect(checkBlacklist(req, entry)).toEqual(entry[0]);
   });

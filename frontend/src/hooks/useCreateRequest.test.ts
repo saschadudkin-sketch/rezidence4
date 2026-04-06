@@ -36,7 +36,7 @@ const TEST_USER = { uid: 'u1', role: 'owner', name: 'Test', apartment: '1' };
 describe('useCreateRequest — P-04 vNames shape', () => {
   test('vNames initialised as object array, not string array', () => {
     const { result } = renderHook(() =>
-      useCreateRequest({ user: TEST_USER, type: 'pass', initialCat: 'guest' }),
+      useCreateRequest({ user: TEST_USER, type: 'pass', initialCat: 'guest', initialData: null, onClose: vi.fn(), onDone: vi.fn() } as any),
     );
     const { vNames } = result.current;
     expect(Array.isArray(vNames)).toBe(true);
@@ -48,7 +48,7 @@ describe('useCreateRequest — P-04 vNames shape', () => {
 
   test('vNames resets to object array after category change', () => {
     const { result } = renderHook(() =>
-      useCreateRequest({ user: TEST_USER, type: 'pass', initialCat: 'guest' }),
+      useCreateRequest({ user: TEST_USER, type: 'pass', initialCat: 'guest', initialData: null, onClose: vi.fn(), onDone: vi.fn() } as any),
     );
     // Change category — triggers the reset effect
     act(() => { result.current.setCat('team'); });

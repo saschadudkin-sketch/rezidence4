@@ -8,7 +8,7 @@ import { render, screen, act } from '@testing-library/react';
 import Toasts, { toast } from './Toasts';
 
 
-async function emitToast(message, type) {
+async function emitToast(message, type = 'info') {
   await act(async () => {
     toast(message, type);
     await Promise.resolve();

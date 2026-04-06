@@ -21,7 +21,7 @@ let _toastIdCounter = 0;
  *
  * @param {string} msg
  * @param {'info'|'success'|'error'|'warn'} [type]
- * @param {{ label: string, onClick: () => void }} [action] — P-05: optional CTA button
+ * @param {{ label: string, onClick: () => void, secondaryLabel?: string, onSecondaryClick?: () => void }} [action] — P-05: optional CTA buttons
  */
 export const toast = (msg, type = 'info', action = null) => {
   if (_toastCb) _toastCb(msg, type, action);
@@ -80,12 +80,22 @@ export default function Toasts() {
           <span className="toast-msg">{t.msg}</span>
           {/* P-05: optional CTA — e.g. "Повторить" for API error recovery */}
           {t.action && (
-            <button
-              className="toast-action"
-              onClick={() => { t.action.onClick(); dismiss(t.id); }}
-            >
-              {t.action.label}
-            </button>
+            <>
+              <button
+                className="toast-action"
+                onClick={() => { t.action.onClick?.(); dismiss(t.id); }}
+              >
+                {t.action.label}
+              </button>
+              {t.action.secondaryLabel && (
+                <button
+                  className="toast-action toast-action-secondary"
+                  onClick={() => { t.action.onSecondaryClick?.(); dismiss(t.id); }}
+                >
+                  {t.action.secondaryLabel}
+                </button>
+              )}
+            </>
           )}
           <button className="toast-close" onClick={() => dismiss(t.id)} aria-label="Закрыть уведомление">×</button>
         </div>

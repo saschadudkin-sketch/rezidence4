@@ -32,8 +32,8 @@ export function AppProvider({ children }) {
     chatState,
     usersState,
     permsState,
-    blacklistState,
-    garageState,
+    blacklistValue,
+    garageValue,
   } = useBoundedDomainStates();
 
   return (
@@ -42,8 +42,8 @@ export function AppProvider({ children }) {
         <ChatContext.Provider value={chatState}>
           <UsersContext.Provider value={usersState}>
             <PermsContext.Provider value={permsState}>
-              <BlacklistContext.Provider value={blacklistState.blacklist ?? []}>
-                <GarageContext.Provider value={garageState.garage ?? {}}>
+              <BlacklistContext.Provider value={blacklistValue}>
+                <GarageContext.Provider value={garageValue}>
                   {children}
                 </GarageContext.Provider>
               </BlacklistContext.Provider>

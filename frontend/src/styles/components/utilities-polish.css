@@ -207,36 +207,6 @@ html{scroll-behavior:smooth}
   .type-card{width:72px;min-height:68px}
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   POLISH — отступы, тени, hover, transitions
-   ══════════════════════════════════════════════════════════════════════ */
-
-/* Smoother card hovers */
-.req-card{transition:background .15s,border-color .15s,transform .15s,box-shadow .15s}
-.req-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
-html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
-
-/* Guard card hover */
-.guard-card{transition:border-color .15s,transform .15s,box-shadow .15s}
-.guard-card:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.4)}
-
-/* Visit log card hover */
-.vlog-card{transition:background .15s,transform .15s,box-shadow .15s}
-.vlog-card:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
-
-/* Buttons — subtle scale on hover */
-.guard-btn{transition:all .15s}
-.guard-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
-
-/* Blacklist items hover */
-.bl-row{transition:background .13s,transform .13s}
-.bl-row:hover{transform:translateY(-1px)}
-
-/* Smoother subtabs */
-.guard-subtab{transition:all .2s}
-.date-pill{transition:all .15s}
-.date-pill:hover:not(.active){background:var(--s3)}
-
 /* ── Landing ── */
 .landing{max-width:1060px;margin:0 auto;padding:24px 18px 28px}
 .landing-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
@@ -347,7 +317,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 }
 
 /* Login mobile */
-@media (--bp-lg-down){
+@media (--bp-md-down){
   .login{flex-direction:column}
   .login-art{display:none}
   .login-panel{max-width:100%;min-height:100dvh;justify-content:center}
@@ -731,7 +701,7 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 /* Tablet: two-column req-details grid for wider cards */
 @media (--bp-md-up) and (--bp-lg-down){
   .req-details{grid-template-columns:repeat(3,1fr)}
-  .req-list{max-width:680px}
+  .req-list{max-width:900px}
   .req-list--virtual{height:calc(100vh - 160px)}
 }
 
@@ -743,6 +713,11 @@ html.theme-light .req-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08)}
 
 /* Tablet landscape: wider card + slightly larger font */
 @media (--bp-lg-up){
-  .req-list{max-width:768px}
+  .req-list{max-width:1180px}
   .req-list--virtual{height:calc(100vh - 140px)}
 }
+
+/* Error recovery ladder panel */
+.error-recovery-panel{position:sticky;top:8px;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin:8px 0;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
+.error-recovery-message{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);color:var(--t2)}
+.error-recovery-actions{display:flex;gap:8px;flex-wrap:wrap}

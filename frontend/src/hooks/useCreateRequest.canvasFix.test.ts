@@ -8,12 +8,12 @@
 beforeEach(() => {
   global.Image = class {
     constructor() {
-      setTimeout(() => this.onload && this.onload(), 0);
+      setTimeout(() => (this as any).onload && (this as any).onload(), 0);
     }
     get width()  { return 800; }
     get height() { return 600; }
     set src(_v)  { /* trigger onload */ }
-  };
+  } as any;
 });
 
 describe('compressImage — canvas.getContext null safety', () => {
@@ -84,7 +84,7 @@ describe('compressImage — canvas.getContext null safety', () => {
     // Нормальный путь: drawImage вызывается
     canvas.width  = Math.round(800 * 1);
     canvas.height = Math.round(600 * 1);
-    ctx.drawImage({}, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage({} as any, 0, 0, canvas.width, canvas.height);
     const compressed = canvas.toDataURL('image/jpeg', 0.72);
 
     expect(drawImageCalled).toBe(true);
@@ -97,7 +97,7 @@ describe('useCreateRequest — dateInput re-export contract', () => {
     const fs   = require('fs');
     const path = require('path');
     const src  = fs.readFileSync(
-      path.resolve(__dirname, '../hooks/useCreateRequest'),
+      path.resolve(__dirname, '../hooks/useCreateRequest.ts'),
       'utf-8',
     );
     expect(src).toMatch(/^export\s*\{[^}]*toLocalDateInputValue/m);

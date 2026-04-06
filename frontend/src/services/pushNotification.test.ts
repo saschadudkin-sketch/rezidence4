@@ -84,22 +84,22 @@ describe('subscribePush', () => {
   let origNotification;
 
   beforeEach(() => {
-    origNotification = global.Notification;
+    origNotification = (global as any).Notification;
   });
 
   afterEach(() => {
-    global.Notification = origNotification;
+    (global as any).Notification = origNotification;
   });
 
   test('ничего не делает если Notification недоступен', async () => {
-    delete global.Notification;
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
+    Object.defineProperty(global, 'Notification', { value: undefined, configurable: true });
+    await expect(subscribePush()).resolves.toBeUndefined();
   });
 
   test('ничего не делает если разрешение denied', async () => {
-    global.Notification = { permission: 'denied', requestPermission: vi.fn() };
-    await subscribePush('u1');
-    expect(global.Notification.requestPermission).not.toHaveBeenCalled();
+    (global as any).Notification = { permission: 'denied', requestPermission: vi.fn((..._args: any[]) => Promise.resolve('denied')) };
+    await subscribePush();
+    expect((global as any).Notification.requestPermission).not.toHaveBeenCalled();
   });
 
   test('запрашивает разрешение если default', async () => {
@@ -107,31 +107,31 @@ describe('subscribePush', () => {
     const mockReady = Promise.resolve({ showNotification: mockShowNotification });
     const mockRequestPermission = vi.fn().mockResolvedValue('granted');
 
-    global.Notification = { permission: 'default', requestPermission: mockRequestPermission };
+    (global as any).Notification = { permission: 'default', requestPermission: mockRequestPermission };
     Object.defineProperty(navigator, 'serviceWorker', {
       value: { ready: mockReady },
       configurable: true,
     });
 
-    await subscribePush('u1');
+    await subscribePush();
     expect(mockRequestPermission).toHaveBeenCalled();
   });
 
   test('не падает при отклонении разрешения', async () => {
-    global.Notification = {
+    (global as any).Notification = {
       permission: 'default',
-      requestPermission: vi.fn().mockResolvedValue('denied'),
+      requestPermission: vi.fn((..._args: any[]) => Promise.resolve('denied')),
     };
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
+    await expect(subscribePush()).resolves.toBeUndefined();
   });
 
   test('не падает при ошибке SW', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    global.Notification = {
+    (global as any).Notification = {
       permission: 'default',
-      requestPermission: vi.fn().mockRejectedValue(new Error('SW error')),
+      requestPermission: vi.fn((..._args: any[]) => Promise.reject(new Error('SW error'))),
     };
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
+    await expect(subscribePush()).resolves.toBeUndefined();
     expect(warnSpy).toHaveBeenCalledWith('[push] subscribe failed:', expect.any(Error));
     warnSpy.mockRestore();
   });

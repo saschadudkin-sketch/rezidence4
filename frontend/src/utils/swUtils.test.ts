@@ -17,7 +17,7 @@ describe('registerSW', () => {
   it('не падает если serviceWorker отсутствует в navigator', async () => {
     // В JSDOM окружении navigator.serviceWorker может быть не определён
     const orig = navigator.serviceWorker;
-    delete navigator.serviceWorker;
+    Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true });
     const { registerSW } = await import('./swUtils');
     expect(() => registerSW()).not.toThrow();
     if (orig) Object.defineProperty(navigator, 'serviceWorker', { value: orig, configurable: true });

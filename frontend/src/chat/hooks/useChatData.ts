@@ -10,6 +10,13 @@ interface UseChatDataArgs {
 }
 
 export function useChatData({ chat, setAllMessages, msgsContainerRef }: UseChatDataArgs) {
+  const withAutoRetry = async <T,>(fn: () => Promise<T>) => {
+    try {
+      return await fn();
+    } catch {
+      return fn();
+    }
+  };
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [historyError, setHistoryError] = useState('');
@@ -18,7 +25,7 @@ export function useChatData({ chat, setAllMessages, msgsContainerRef }: UseChatD
   const syncHasMoreMeta = useCallback(async () => {
     if (!isLiveMode()) return;
     setInitialHistoryError('');
-    const data = await services.chat.getMessages({ limit: 60 });
+    const data = await withAutoRetry(() => services.chat.getMessages({ limit: 60 }));
     setHasMore(data?.hasMore ?? false);
   }, []);
 
@@ -45,7 +52,7 @@ export function useChatData({ chat, setAllMessages, msgsContainerRef }: UseChatD
     const prevScrollHeight = container?.scrollHeight ?? 0;
 
     try {
-      const data = await services.chat.getMessages({ before: oldestMsg.id, limit: 60 });
+      const data = await withAutoRetry(() => services.chat.getMessages({ before: oldestMsg.id, limit: 60 }));
       if (data?.messages?.length) {
         setAllMessages([...data.messages, ...chat]);
         setHasMore(data.hasMore ?? false);

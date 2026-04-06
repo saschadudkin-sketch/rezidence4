@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/AdminView.test.js
  * Покрывает: AdminView — вкладки stats/requests/users, поиск, фильтрация

@@ -82,7 +82,7 @@ describe('requestsGateway', () => {
     isLiveMode.mockReturnValue(false);
     const updateLocal = vi.fn();
 
-    const mode = await updateRequestEverywhere({ requestId: 'r5', patch: { comment: 'x' }, updateLocal });
+    const mode = await updateRequestEverywhere({ requestId: 'r5', patch: { comment: 'x' }, updateLocal, rollbackLocal: vi.fn() });
 
     expect(mode).toBe(SYNC_STATUS.LOCAL);
     expect(updateLocal).toHaveBeenCalledWith('r5', { comment: 'x' });
@@ -94,7 +94,7 @@ describe('requestsGateway', () => {
     const updateLocal = vi.fn();
     updateRequest.mockResolvedValue(undefined);
 
-    const mode = await updateRequestEverywhere({ requestId: 'r6', patch: { comment: 'y' }, updateLocal });
+    const mode = await updateRequestEverywhere({ requestId: 'r6', patch: { comment: 'y' }, updateLocal, rollbackLocal: vi.fn() });
 
     expect(mode).toBe(SYNC_STATUS.REMOTE);
     expect(updateLocal).toHaveBeenCalledWith('r6', { comment: 'y' });
@@ -106,7 +106,7 @@ describe('requestsGateway', () => {
     const updateLocal = vi.fn();
     updateRequest.mockRejectedValueOnce(new Error('offline'));
 
-    const mode = await updateRequestEverywhere({ requestId: 'r6f', patch: { comment: 'y' }, updateLocal });
+    const mode = await updateRequestEverywhere({ requestId: 'r6f', patch: { comment: 'y' }, updateLocal, rollbackLocal: vi.fn() });
 
     expect(mode).toBe(SYNC_STATUS.LOCAL_FALLBACK);
     expect(updateLocal).toHaveBeenCalledWith('r6f', { comment: 'y' });
@@ -122,7 +122,7 @@ describe('requestsGateway', () => {
       return Promise.resolve();
     });
 
-    await updateRequestEverywhere({ requestId: 'opt1', patch: { comment: 'z' }, updateLocal });
+    await updateRequestEverywhere({ requestId: 'opt1', patch: { comment: 'z' }, updateLocal, rollbackLocal: vi.fn() });
 
     expect(callOrder).toEqual(['local', 'remote']);
   });
@@ -148,7 +148,7 @@ describe('requestsGateway', () => {
     updateRequest.mockRejectedValueOnce(new Error('server error'));
 
     // Should not throw even without rollbackLocal
-    const mode = await updateRequestEverywhere({ requestId: 'rb2', patch: { x: 1 }, updateLocal });
+    const mode = await updateRequestEverywhere({ requestId: 'rb2', patch: { x: 1 }, updateLocal, rollbackLocal: vi.fn() });
     expect(mode).toBe(SYNC_STATUS.LOCAL_FALLBACK);
   });
 

@@ -19,10 +19,10 @@ describe('statusPresentation', () => {
   });
 
   test('maps cancelled status to rejected tone', () => {
-    expect(getStatusToneClass('cancelled')).toBe('rejected');
+    expect(getStatusToneClass('cancelled', undefined)).toBe('rejected');
   });
 
   test('falls back to pending tone for unknown status', () => {
-    expect(getStatusToneClass('mystery_status')).toBe('pending');
+    expect(getStatusToneClass('mystery_status', undefined)).toBe('pending');
   });
 });

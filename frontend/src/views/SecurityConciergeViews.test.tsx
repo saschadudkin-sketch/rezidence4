@@ -18,14 +18,14 @@ const baseReq = (overrides={}) => ({
 
 vi.mock('../store/AppStore', () => ({
   useRequests:  vi.fn(() => [baseReq()]),
-  useUsers:     () => ({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } }),
+  useUsers:     () => ({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } }, phoneDb: {} }),
   useAllPerms:  () => ({}),
   useActions:   () => ({ updateRequest: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn() }),
 }));
 
 beforeEach(() => {
   vi.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
-  vi.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } });
+  vi.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } }, phoneDb: {} });
   vi.spyOn(AppStore, 'useAllPerms').mockReturnValue({});
   vi.spyOn(AppStore, 'useActions').mockReturnValue({ updateRequest: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn() });
 });

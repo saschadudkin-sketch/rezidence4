@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/admin/AdminUserRow.test.js
  * Покрывает: AdminUserRow — отображение пользователя, редактирование, удаление, RBAC

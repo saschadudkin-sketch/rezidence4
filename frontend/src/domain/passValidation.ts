@@ -8,6 +8,7 @@ interface BlacklistItem {
 }
 
 interface PassData {
+  id?: string;
   userId?: string;
   uid?: string;
   visitorPhone?: string;

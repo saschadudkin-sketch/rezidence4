@@ -32,7 +32,7 @@ describe('syncFeedback', () => {
   });
 
   test('uses default message when no message is provided', () => {
-    notifyLocalFallback(SYNC_STATUS.LOCAL_FALLBACK);
+    notifyLocalFallback(SYNC_STATUS.LOCAL_FALLBACK, undefined);
     expect(toast).toHaveBeenCalledWith(DEFAULT_FALLBACK_MESSAGE, 'info');
   });
 
@@ -49,7 +49,7 @@ describe('syncFeedback', () => {
   });
 
   test('toastBySyncResult uses default fallback message when not provided', () => {
-    const status = toastBySyncResult(SYNC_STATUS.LOCAL_FALLBACK, 'Сохранено');
+    const status = toastBySyncResult(SYNC_STATUS.LOCAL_FALLBACK, 'Сохранено', undefined);
     expect(status).toBe('fallback');
     expect(toast).toHaveBeenCalledWith(DEFAULT_FALLBACK_MESSAGE, 'info');
   });
@@ -64,7 +64,7 @@ describe('syncFeedback', () => {
   });
 
   test('toastBySyncResult uses default success message when not provided', () => {
-    const status = toastBySyncResult(SYNC_STATUS.REMOTE);
+    const status = toastBySyncResult(SYNC_STATUS.REMOTE, undefined, undefined);
     expect(status).toBe('success');
     expect(toast).toHaveBeenCalledWith(DEFAULT_SUCCESS_MESSAGE, 'success');
   });

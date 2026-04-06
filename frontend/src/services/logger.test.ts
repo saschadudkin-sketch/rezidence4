@@ -167,10 +167,10 @@ describe('createLogger() — изоляция экземпляров (AUDIT-9)',
     const log = createLogger();
     log.setContext({ uid: 'u1' });
 
-    const ctx = log.getContext();
+    const ctx: any = log.getContext();
     ctx.uid = 'HACKED'; // мутируем снаружи
 
     // Внутренний контекст не изменился
-    expect(log.getContext().uid).toBe('u1');
+    expect((log.getContext() as any).uid).toBe('u1');
   });
 });

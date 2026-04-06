@@ -113,11 +113,15 @@ export default defineConfig(({ mode }) => {
           // vendor-query  → tanstack query + virtual (loaded with Dashboard chunk)
           // vendor-sentry → error monitoring (async, doesn't block first paint)
           // vendor-qr     → qrcode library (used only in QR modal, smallest chunk)
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-query': ['@tanstack/react-query', '@tanstack/react-virtual'],
-            'vendor-sentry': ['@sentry/react'],
-            'vendor-qr': ['qrcode'],
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return;
+            if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react-core';
+            if (id.includes('/react-router-dom/')) return 'vendor-router';
+            if (id.includes('@tanstack/react-query')) return 'vendor-query-core';
+            if (id.includes('@tanstack/react-virtual')) return 'vendor-query-virtual';
+            if (id.includes('@sentry/react')) return 'vendor-sentry';
+            if (id.includes('/qrcode/')) return 'vendor-qr';
+            return 'vendor-misc';
           },
         },
       },

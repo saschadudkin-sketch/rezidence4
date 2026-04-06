@@ -14,13 +14,13 @@ describe('demoProvider', () => {
     expect(sendLocal).toHaveBeenCalledWith({ text: 'hi' });
   });
 
-  test('requests submit/update/delete use local path only', () => {
+  test('requests submit/update/delete use local path only', async () => {
     const provider = createDemoProvider();
     const addLocal = vi.fn();
     const updateLocal = vi.fn();
     const deleteLocal = vi.fn();
 
-    const submitMode = provider.requests.submit({ request: { id: 'r1' }, addLocal });
+    const submitMode = await provider.requests.submit({ request: { id: 'r1' }, addLocal });
     provider.requests.updateEverywhere({ requestId: 'r1', patch: { comment: 'x' }, updateLocal });
     provider.requests.deleteEverywhere({ requestId: 'r1', deleteLocal });
 
@@ -30,9 +30,9 @@ describe('demoProvider', () => {
     expect(deleteLocal).toHaveBeenCalledWith('r1');
   });
 
-  test('liveData sync is no-op and returns cleanup fn', () => {
+  test('liveData sync is no-op and returns cleanup fn', async () => {
     const provider = createDemoProvider();
-    const stop = provider.liveData.startSync();
+    const stop = await provider.liveData.startSync();
     expect(typeof stop).toBe('function');
     expect(() => stop()).not.toThrow();
   });

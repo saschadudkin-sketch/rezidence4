@@ -130,7 +130,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
 
   return (
     <>
-      {activeTab === 'passes' && (
+      <section hidden={activeTab !== 'passes'} aria-hidden={activeTab !== 'passes'}>
         <PassesTab
           user={user}
           passFilter={passFilter} setPassFilter={setPassFilter}
@@ -138,9 +138,9 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
           onRepeatPass={onRepeatPass} onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
           computed={computed}
         />
-      )}
+      </section>
 
-      {activeTab === 'tech' && (
+      <section hidden={activeTab !== 'tech'} aria-hidden={activeTab !== 'tech'}>
         <TechTab
           user={user}
           techFilter={techFilter} setTechFilter={setTechFilter}
@@ -148,24 +148,26 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
           onRepeatTech={onRepeatTech} onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
           computed={computed}
         />
-      )}
+      </section>
 
-      {activeTab === 'perms' && (
+      <section hidden={activeTab !== 'perms'} aria-hidden={activeTab !== 'perms'}>
         <div>
           <PermsList user={user} />
           {user.role !== ROLES.CONTRACTOR && <GarageView user={user} targetUid={user.uid} />}
         </div>
-      )}
+      </section>
 
-      {activeTab === 'templates' && (
+      <section hidden={activeTab !== 'templates'} aria-hidden={activeTab !== 'templates'}>
         <TemplatesTab user={user} setModal={setModal} setActiveTab={setActiveTab} />
-      )}
+      </section>
 
-      {activeTab === 'history' && (
+      <section hidden={activeTab !== 'history'} aria-hidden={activeTab !== 'history'}>
         <HistoryTab user={user} onRepeatPass={onRepeatPass} onRepeatTech={onRepeatTech} computed={computed} />
-      )}
+      </section>
 
-      {activeTab === 'chat' && <ChatView user={user} />}
+      <section hidden={activeTab !== 'chat'} aria-hidden={activeTab !== 'chat'}>
+        <ChatView user={user} />
+      </section>
 
       {modal   && <CreateModal key={modal.cat + '_' + modal.type} user={user} type={modal.type} initialCat={modal.cat} initialData={modal.data} onClose={() => setModal(null)} onDone={() => { setActiveTab(modal.type === 'tech' ? 'tech' : 'passes'); setModal(null); }} />}
       {editReq && <EditRequestModal req={editReq} onClose={() => setEditReq(null)} onDone={() => {}} />}

@@ -1,21 +1,23 @@
 // ChatView извлечён из App.jsx (строки 2359–2646)
 // Импорты добавлены вручную
-import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useActions, useChat, useUsers } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants/index';
-import { fmtTime, genId } from '../utils';
-import { AvatarCircle } from '../ui/AvatarCircle';
+import { genId } from '../utils';
 import { PhotoLightbox } from '../ui/PhotoLightbox';
 import { toast } from '../ui/Toasts';
-import { can } from '../domain/permissions';
 import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
-import { AppIcon } from '../ui/AppIcon';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useChatSearch } from './hooks/useChatSearch';
 import { useChatComposer } from './hooks/useChatComposer';
 import { useChatData } from './hooks/useChatData';
 import { ChatMessageList } from './ChatMessageList';
+import { ChatSearchBar } from './components/ChatSearchBar';
+import { ChatReplyBar } from './components/ChatReplyBar';
+import { ChatComposerBar } from './components/ChatComposerBar';
+import { EmojiPicker } from './components/EmojiPicker';
+import { ChatMessageItem } from './components/ChatMessageItem';
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -64,41 +66,6 @@ function linkify(text) {
     }
   });
 }
-
-// FIX [REACT-4]: CheckIcon вне компонента — не пересоздаётся при каждом рендере ChatView
-// FIX [MEMO]: CheckIcon рендерится для каждого исходящего сообщения.
-// Без memo перерисовывался при любом изменении chatLastSeen или отправке нового сообщения.
-const CheckIcon = memo(function CheckIcon({ status }) {
-  if (!status) return null;
-  const cls = status === 'read' ? 'msg-check-read' : 'msg-check-sent';
-  if (status === 'sent') {
-    return (
-      <span className={'msg-checks ' + cls} aria-label="Отправлено">
-        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-          <path d="M1 5L4.5 8.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </span>
-    );
-  }
-  return (
-    <span className={'msg-checks ' + cls} aria-label="Прочитано">
-      <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-        <path d="M1 5L4.5 8.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M5 5L8.5 8.5L15 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </span>
-  );
-});
-
-const REACTIONS = ['👍', '❤️', '😂', '😮', '👎'];
-
-// Emoji picker — популярные emoji для быстрой вставки
-const EMOJI_GRID = [
-  '😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😏',
-  '😢','😭','😤','🤬','😱','🥺','👋','👍','👎','👏',
-  '🙏','💪','❤️','🔥','⭐','✅','❌','⚡','🎉','🏠',
-  '🚗','📦','🔧','👷','🚕','📞','📸','🔑','🚪','⏰',
-];
 
 export function ChatView({ user }) {
   const { chat, chatLastSeen } = useChat();
@@ -373,13 +340,11 @@ export function ChatView({ user }) {
   return (
     <div className="chat-wrap">
       {showSearch && (
-        <div className="chat-search-row">
-          <span className="chat-search-icon"><AppIcon name="search" size={14} /></span>
-          <input className="search-inp chat-search-input"
-            placeholder="Поиск в чате..." autoFocus
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-          <button className="modal-close u-shrink0" onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
-        </div>
+        <ChatSearchBar
+          searchQuery={searchQuery}
+          onChange={setSearchQuery}
+          onClose={() => { setShowSearch(false); setSearchQuery(''); }}
+        />
       )}
       <ChatMessageList
         msgsContainerRef={msgsContainerRef}
@@ -394,155 +359,76 @@ export function ChatView({ user }) {
         onRetryInitialSync={retryInitialSync}
         filteredChatLength={filteredChat.length}
         searchQuery={searchQuery}
-        renderMessages={() => filteredChat.map((m, i) => {
+        messages={filteredChat}
+        renderMessage={(i) => {
+          const m = filteredChat[i];
           const readStatus = getReadStatus(m);
-          // FIX [BUG-3]: prevMsg должен брать из filteredChat, а не из chat.
-          // При активном поиске filteredChat — подмножество chat, и chat[i-1] указывал
-          // на неверный элемент → неправильные разделители дат и группировка сообщений.
-          const dayKey  = getDayKey(m.at);
+          const dayKey = getDayKey(m.at);
           const prevMsg = filteredChat[i - 1];
           const showSep = !prevMsg || dayKey !== getDayKey(prevMsg.at);
           const quotedMsg = m.replyTo ? chat.find(x => x.id === m.replyTo.id) || m.replyTo : null;
           const isGrouped = prevMsg && !showSep && prevMsg.uid === m.uid && (msgTimestamps.get(m.id) - msgTimestamps.get(prevMsg.id)) < 300000;
           return (
-            <React.Fragment key={m.id}>
-              {showSep && <div className="msg-date-sep"><span>{fmtDateSep(m.at)}</span></div>}
-              <div
-                className={'msg-row ' + (m.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '') + ' msg-row-rel'}
-                onTouchStart={e => { onTouchStart(e, m); onLongPressStart(e, m.id); }}
-                onTouchMove={e => { onTouchMove(e, m); onLongPressEnd(); }}
-                onTouchEnd={e => { onTouchEnd(e); onLongPressEnd(); }}
-                onDoubleClick={() => startReply(m)}
-              >
-                {msgMenu === m.id && (<>
-                  <div className="msg-menu-backdrop" onClick={() => setMsgMenu(null)}/>
-                  <div className="msg-menu-popup" ref={menuPopupRef}
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    onTouchStart={e => e.stopPropagation()}
-                    onTouchEnd={e => e.stopPropagation()}
-                    onTouchMove={e => e.stopPropagation()}
-                    onDoubleClick={e => e.stopPropagation()}>
-                    <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { startReply(m); setMsgMenu(null); }}>↩ Ответить</button>
-                    {can(user).editMessage(m) && !m.photo && <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { setEditingMsg({ id: m.id, text: m.text }); setMsgMenu(null); }}><AppIcon name="edit" className="u-inline-icon" /> Редактировать</button>}
-                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { setConfirmDeleteMsgId(m.id); setMsgMenu(null); }}><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>}
-                    <div className="msg-menu-reactions">
-                      {REACTIONS.map(emoji => (
-                        <button key={emoji} className="reaction-picker-btn" onMouseDown={e => e.stopPropagation()} onClick={() => { toggleReaction(m.id, emoji); setMsgMenu(null); }}>{emoji}</button>
-                      ))}
-                    </div>
-                  </div>
-                </>)}
-                {m.uid !== user.uid && !isGrouped && (
-                  <div className="msg-av msg-av-reset">
-                    <AvatarCircle avData={(users[m.uid] && users[m.uid].avatar) || null} role={m.role} name={m.name || '?'} size={28} fontSize={11}/>
-                  </div>
-                )}
-                {m.uid !== user.uid && isGrouped && <div className="msg-av-spacer"/>}
-                <div>
-                  <div
-                    className={'msg-bubble ' + (m.uid === user.uid ? 'mine' : 'theirs')}
-                    ref={el => {
-                      // FIX [BUG-20]: регистрируем элемент в Map при монтировании,
-                      // удаляем при размонтировании (el === null)
-                      if (el) msgRefs.current.set(m.id, el);
-                      else    msgRefs.current.delete(m.id);
-                    }}
-                  >
-                    {m.uid !== user.uid && !isGrouped && (
-                      <div className="msg-sender">
-                        {(m.role === 'security' || m.role === 'concierge') ? ROLE_LABELS[m.role] : m.name}
-                      </div>
-                    )}
-                    {quotedMsg && (
-                      <div className="msg-reply-quote" role="button" tabIndex={0}
-                        aria-label="Перейти к цитируемому сообщению"
-                        onClick={() => scrollToMsg(quotedMsg.id)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            scrollToMsg(quotedMsg.id);
-                          }
-                        }}>
-                        <div className="msg-reply-quote-name">{quotedMsg.name || m.replyTo?.name}</div>
-                        <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || m.replyTo?.text}</div>
-                      </div>
-                    )}
-                    {m.photo && <img src={m.photo} className="msg-photo" alt="фото" onClick={() => setLightbox(m.photo)}/>}
-                    {m.text && <div className="msg-text">{linkify(m.text)}</div>}
-                    <div className="msg-time">
-                      <span>{fmtTime(m.at)}</span>
-                      {m.edited && <span className="msg-edited-mark">изменено</span>}
-                      <CheckIcon status={readStatus}/>
-                    </div>
-                    <button className="msg-ctx-btn" onClick={e => { e.stopPropagation(); setMsgMenu(p => p === m.id ? null : m.id); }} aria-label="Меню">⋯</button>
-                  </div>
-                  {editingMsg && editingMsg.id === m.id && (
-                    <div className="msg-edit-wrap">
-                      <textarea className="msg-edit-inp" rows={2} value={editingMsg.text}
-                        onChange={e => setEditingMsg({ id: editingMsg.id, text: e.target.value })}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(m.id, editingMsg.text); }
-                          if (e.key === 'Escape') { setEditingMsg(null); }
-                        }}
-                        autoFocus/>
-                      <div className="msg-edit-hint"><span><kbd>Enter</kbd> сохранить</span><span><kbd>Esc</kbd> отменить</span></div>
-                    </div>
-                  )}
-                  {m.reactions && Object.keys(m.reactions).length > 0 && (
-                    <div className="msg-reactions">
-                      {Object.entries(m.reactions).map(([emoji, uids]) => {
-                        const safeUids = Array.isArray(uids) ? uids : [];
-                        if (!safeUids.length) return null;
-                        return (
-                        <button key={emoji} className={'reaction-badge' + (safeUids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={safeUids.length + ' чел.'}>
-                          <span>{emoji}</span><span className="reaction-count">{safeUids.length}</span>
-                        </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </React.Fragment>
+            <ChatMessageItem
+              key={m.id}
+              m={m}
+              showSep={showSep}
+              dayLabel={fmtDateSep(m.at)}
+              user={user}
+              users={users}
+              isGrouped={isGrouped}
+              quotedMsg={quotedMsg}
+              readStatus={readStatus}
+              msgMenu={msgMenu}
+              editingMsg={editingMsg}
+              menuPopupRef={menuPopupRef}
+              setMsgRef={(id, el) => {
+                if (el) msgRefs.current.set(id, el);
+                else msgRefs.current.delete(id);
+              }}
+              linkify={linkify}
+              onSetLightbox={setLightbox}
+              onScrollToMsg={scrollToMsg}
+              onToggleMenu={id => setMsgMenu(p => p === id ? null : id)}
+              onStartReply={startReply}
+              onSetEditingMsg={setEditingMsg}
+              onRequestDelete={setConfirmDeleteMsgId}
+              onToggleReaction={toggleReaction}
+              onSaveEdit={saveEdit}
+              onCancelEdit={() => setEditingMsg(null)}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onLongPressStart={onLongPressStart}
+              onLongPressEnd={onLongPressEnd}
+              onCloseMenu={() => setMsgMenu(null)}
+            />
           );
-        })}
+        }}
         bottomRef={bottomRef}
       />
       {replyTo && (
-        <div className="chat-reply-bar">
-          <div className="chat-reply-bar-line"/>
-          <div className="chat-reply-bar-body">
-            <div className="chat-reply-bar-name">{replyTo.name}</div>
-            <div className="chat-reply-bar-text">{replyTo.photo ? 'Фото' : replyTo.text}</div>
-          </div>
-          <button className="chat-reply-close" onClick={() => setReplyTo(null)} aria-label="Отменить ответ"><AppIcon name="close" size={14} /></button>
-        </div>
-      )}
-      <div className="chat-bar">
-        <button className={'chat-photo-btn ' + (showSearch ? 'chat-btn--active' : 'chat-btn--default')} title="Поиск" onClick={() => setShowSearch(s => !s)}>
-          <AppIcon name="search" size={16} />
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
-        <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">
-          {photoSending ? <AppIcon name="history" size={16} /> : <AppIcon name="file" size={16} />}
-        </button>
-        <button className={'chat-photo-btn ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
-          <AppIcon name="chat" size={16} />
-        </button>
-        <textarea ref={inputRef} className="chat-inp" rows={1}
-          placeholder="Напишите сообщение..." value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+        <ChatReplyBar
+          replyTo={replyTo}
+          onClose={() => setReplyTo(null)}
         />
-        <button className="chat-send" onClick={send} disabled={!text.trim()} aria-label="Отправить сообщение"><AppIcon name="chevronRight" size={14} /></button>
-      </div>
+      )}
+      <ChatComposerBar
+        showSearch={showSearch}
+        showEmoji={showEmoji}
+        photoSending={photoSending}
+        text={text}
+        inputRef={inputRef}
+        fileRef={fileRef}
+        onToggleSearch={() => setShowSearch(s => !s)}
+        onFileChange={onFileChange}
+        onPhotoClick={onPhotoClick}
+        onToggleEmoji={() => setShowEmoji(s => !s)}
+        onTextChange={setText}
+        onSend={send}
+      />
       {showEmoji && (
-        <div className="emoji-picker">
-          {EMOJI_GRID.map(em => (
-            <button key={em} className="emoji-pick-btn" onClick={() => insertEmoji(em)}>{em}</button>
-          ))}
-        </div>
+        <EmojiPicker onPick={insertEmoji} />
       )}
       {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)}/>}
       {/* P-05: подтверждение удаления сообщения — удаление необратимо */}

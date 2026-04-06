@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * requests/EditRequestModal.test.js
  * Покрывает: EditRequestModal — предзаполнение, сохранение, закрытие, ошибки
@@ -150,20 +151,20 @@ describe('EditRequestModal', () => {
 describe('EditRequestModal BUG-22 fix', () => {
   test('isMountedRef присутствует в исходном коде', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.tsx'), 'utf8');
     expect(src).toContain('isMountedRef');
   });
 
   test('setLoading защищён isMountedRef в finally', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.tsx'), 'utf8');
     // finally должен содержать isMountedRef.current перед setLoading
     expect(src).toMatch(/finally\s*\{[\s\S]{0,200}isMountedRef\.current[\s\S]{0,50}setLoading/);
   });
 
   test('lockScroll и isMountedRef объединены в один useEffect', () => {
     const fs = require('fs');
-    const src = fs.readFileSync(require.resolve('./EditRequestModal'), 'utf8');
+    const src = fs.readFileSync(require.resolve('./EditRequestModal.tsx'), 'utf8');
     // Только один useEffect в файле
     const effectCount = (src.match(/useEffect\(/g) || []).length;
     expect(effectCount).toBe(1);

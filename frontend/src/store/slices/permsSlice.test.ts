@@ -5,7 +5,7 @@
 
 import { permsReducer, INITIAL_PERMS, INITIAL_TEMPLATES } from './permsSlice';
 
-const baseState = {
+const baseState: any = {
   perms: {
     u1: {
       visitors: [{ id: 'pv1', name: 'Гость', phone: '+79001234567' }],
@@ -14,8 +14,8 @@ const baseState = {
   },
   templates: {
     u1: [
-      { id: 't1', name: 'Шаблон 1', type: 'pass' },
-      { id: 't2', name: 'Шаблон 2', type: 'tech' },
+      { id: 't1', name: 'Шаблон 1', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' },
+      { id: 't2', name: 'Шаблон 2', type: 'tech', category: 'service', visitorName: '', visitorPhone: '', carPlate: '', comment: '' },
     ],
     u2: [],
   },
@@ -72,28 +72,28 @@ describe('permsReducer — PERMS_SET', () => {
 
 describe('permsReducer — TEMPLATE_ADD', () => {
   test('добавляет шаблон в конец списка', () => {
-    const template = { id: 't3', name: 'Новый шаблон', type: 'pass' };
+    const template = { id: 't3', name: 'Новый шаблон', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' };
     const result = permsReducer(baseState, { type: 'TEMPLATE_ADD', uid: 'u1', template });
     expect(result.templates.u1).toHaveLength(3);
     expect(result.templates.u1[2]).toBe(template);
   });
 
   test('создаёт массив для нового uid', () => {
-    const template = { id: 't10', name: 'Шаблон u3', type: 'tech' };
+    const template = { id: 't10', name: 'Шаблон u3', type: 'tech', category: 'service', visitorName: '', visitorPhone: '', carPlate: '', comment: '' };
     const result = permsReducer(baseState, { type: 'TEMPLATE_ADD', uid: 'u3', template });
     expect(result.templates.u3).toHaveLength(1);
     expect(result.templates.u3[0]).toBe(template);
   });
 
   test('не мутирует существующий массив шаблонов', () => {
-    const template = { id: 't3', name: 'Новый', type: 'pass' };
+    const template = { id: 't3', name: 'Новый', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' };
     const original = [...baseState.templates.u1];
     permsReducer(baseState, { type: 'TEMPLATE_ADD', uid: 'u1', template });
     expect(baseState.templates.u1).toEqual(original);
   });
 
   test('шаблоны u2 (пустой) не трогаются при добавлении в u1', () => {
-    const template = { id: 't3', name: 'Новый', type: 'pass' };
+    const template = { id: 't3', name: 'Новый', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' };
     const result = permsReducer(baseState, { type: 'TEMPLATE_ADD', uid: 'u1', template });
     expect(result.templates.u2).toBe(baseState.templates.u2);
   });
@@ -123,7 +123,7 @@ describe('permsReducer — TEMPLATE_DELETE', () => {
   });
 
   test('удаление последнего шаблона даёт пустой массив', () => {
-    const singleState = { ...baseState, templates: { u1: [{ id: 't1', name: 'X', type: 'pass' }] } };
+    const singleState = { ...baseState, templates: { u1: [{ id: 't1', name: 'X', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' }] } };
     const result = permsReducer(singleState, { type: 'TEMPLATE_DELETE', uid: 'u1', id: 't1' });
     expect(result.templates.u1).toEqual([]);
   });
@@ -136,7 +136,7 @@ describe('permsReducer — TEMPLATE_DELETE', () => {
 
 describe('permsReducer — TEMPLATES_SET', () => {
   test('заменяет весь список шаблонов для uid', () => {
-    const templates = [{ id: 'tnew', name: 'Новый', type: 'tech' }];
+    const templates = [{ id: 'tnew', name: 'Новый', type: 'tech', category: 'service', visitorName: '', visitorPhone: '', carPlate: '', comment: '' }];
     const result = permsReducer(baseState, { type: 'TEMPLATES_SET', uid: 'u1', templates });
     expect(result.templates.u1).toBe(templates);
   });
@@ -152,7 +152,7 @@ describe('permsReducer — TEMPLATES_SET', () => {
   });
 
   test('устанавливает шаблоны для нового uid', () => {
-    const templates = [{ id: 't5', name: 'U3 шаблон', type: 'pass' }];
+    const templates = [{ id: 't5', name: 'U3 шаблон', type: 'pass', category: 'guest', visitorName: '', visitorPhone: '', carPlate: '', comment: '' }];
     const result = permsReducer(baseState, { type: 'TEMPLATES_SET', uid: 'u3', templates });
     expect(result.templates.u3).toBe(templates);
     expect(result.templates.u1).toBe(baseState.templates.u1);
@@ -161,7 +161,7 @@ describe('permsReducer — TEMPLATES_SET', () => {
 
 describe('permsReducer — default', () => {
   test('неизвестный экшен возвращает то же самое состояние', () => {
-    const result = permsReducer(baseState, { type: 'UNKNOWN' });
+    const result = permsReducer(baseState, { type: 'UNKNOWN' } as any);
     expect(result).toBe(baseState);
   });
 });

@@ -5,10 +5,10 @@
 
 import { chatReducer, INITIAL_CHAT, INITIAL_CHAT_LAST_SEEN } from './chatSlice';
 
-const baseState = {
+const baseState: any = {
   chat: [
-    { id: 'm1', uid: 'u1', text: 'Привет', at: '2026-03-15T10:00:00' },
-    { id: 'm2', uid: 'u2', text: 'Здравствуйте', at: '2026-03-15T10:01:00' },
+    { id: 'm1', uid: 'u1', name: 'User 1', text: 'Привет', at: '2026-03-15T10:00:00' },
+    { id: 'm2', uid: 'u2', name: 'User 2', text: 'Здравствуйте', at: '2026-03-15T10:01:00' },
   ],
   chatLastSeen: { u1: 1000 },
 };
@@ -25,30 +25,30 @@ describe('INITIAL values', () => {
 
 describe('chatReducer — CHAT_SEND', () => {
   test('добавляет сообщение в конец массива', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое', at: '2026-03-15T10:02:00' };
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое', at: '2026-03-15T10:02:00' };
     const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
     expect(result.chat).toHaveLength(3);
     expect(result.chat[2]).toBe(msg);
   });
 
   test('не мутирует исходный массив', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое' };
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое', at: '2026-03-15T10:02:30' };
     const original = [...baseState.chat];
-    chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
+    chatReducer(baseState, { type: 'CHAT_SEND', message: msg } as any);
     expect(baseState.chat).toEqual(original);
   });
 
   test('остальные поля состояния не изменяются', () => {
-    const msg = { id: 'm3', uid: 'u1', text: 'Новое' };
-    const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
+    const msg = { id: 'm3', uid: 'u1', name: 'User 1', text: 'Новое', at: '2026-03-15T10:03:00' };
+    const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg } as any);
     expect(result.chatLastSeen).toBe(baseState.chatLastSeen);
   });
 });
 
 describe('chatReducer — CHAT_SET_ALL', () => {
   test('заменяет весь массив сообщений', () => {
-    const messages = [{ id: 'x1', uid: 'u3', text: 'Загружено' }];
-    const result = chatReducer(baseState, { type: 'CHAT_SET_ALL', messages });
+    const messages = [{ id: 'x1', uid: 'u3', name: 'User 3', text: 'Загружено', at: '2026-03-15T10:04:00' }];
+    const result = chatReducer(baseState, { type: 'CHAT_SET_ALL', messages } as any);
     expect(result.chat).toBe(messages);
   });
 
@@ -154,7 +154,7 @@ describe('chatReducer — CHAT_MARK_SEEN', () => {
 
 describe('chatReducer — default', () => {
   test('неизвестный экшен возвращает то же самое состояние', () => {
-    const result = chatReducer(baseState, { type: 'UNKNOWN_ACTION' });
+    const result = chatReducer(baseState, { type: 'UNKNOWN_ACTION' } as any);
     expect(result).toBe(baseState);
   });
 });

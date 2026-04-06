@@ -44,12 +44,9 @@ describe('useDashboardHooks barrel re-exports', () => {
 });
 
 describe('useLiveSync — isLoading state', () => {
-  const { renderHook } = require('@testing-library/react');
-  const { useLiveSync } = require('./useLiveSync');
-
-  const { services: mockServices } = require('../services/providers/serviceContainer');
-
   test('isLoading starts true and becomes false after data arrives', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    const { useLiveSync } = await import('./useLiveSync');
     const { result } = renderHook(() =>
       useLiveSync(
         { uid: 'u1', role: 'owner' },
@@ -57,9 +54,9 @@ describe('useLiveSync — isLoading state', () => {
           setAllRequests: vi.fn(), setAllMessages: vi.fn(),
           setAllUsers: vi.fn(), setPerms: vi.fn(),
           setTemplates: vi.fn(), setBlacklist: vi.fn(),
-          prevPendingP: { current: 0 },
-          prevPendingT: { current: 0 },
-          prevMsgs:     { current: 0 },
+          addToBlacklist: vi.fn(), removeFromBlacklist: vi.fn(),
+          updateUser: vi.fn(), deleteUser: vi.fn(), addUser: vi.fn(),
+          updateRequest: vi.fn(), addRequest: vi.fn(), deleteRequest: vi.fn(),
         },
       ),
     );

@@ -8,6 +8,14 @@ import {
 } from './requestPredicates';
 
 const req = (status) => ({ status, type: 'pass', category: 'guest' });
+const opts = (overrides = {}) => ({
+  userRole: 'owner',
+  onRepeat: null,
+  onEdit: null,
+  onDelete: null,
+  onCancel: null,
+  ...overrides,
+});
 
 test('isActiveRequest: pending и approved активны', () => {
   expect(isActiveRequest(req('pending'))).toBe(true);
@@ -35,12 +43,12 @@ test('isScheduledRequest: только scheduled', () => {
 
 test('shouldShowActions: onCancel раскрывает pending/approved', () => {
   const onCancel = () => {};
-  expect(shouldShowActions(req('pending'),  { onCancel })).toBe(true);
-  expect(shouldShowActions(req('approved'), { onCancel })).toBe(true);
-  expect(shouldShowActions(req('cancelled'),{ onCancel })).toBe(false);
+  expect(shouldShowActions(req('pending'),  opts({ onCancel }) as any)).toBe(true);
+  expect(shouldShowActions(req('approved'), opts({ onCancel }) as any)).toBe(true);
+  expect(shouldShowActions(req('cancelled'), opts({ onCancel }) as any)).toBe(false);
 });
 
 test('shouldShowActions: персонал всегда видит кнопки', () => {
-  expect(shouldShowActions(req('pending'), { userRole: 'security' })).toBe(true);
-  expect(shouldShowActions(req('arrived'), { userRole: 'admin' })).toBe(true);
+  expect(shouldShowActions(req('pending'), opts({ userRole: 'security' }) as any)).toBe(true);
+  expect(shouldShowActions(req('arrived'), opts({ userRole: 'admin' }) as any)).toBe(true);
 });

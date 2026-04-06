@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * views/GuardPostMode.test.js
  */

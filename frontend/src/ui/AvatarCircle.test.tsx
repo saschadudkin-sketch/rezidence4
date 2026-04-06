@@ -23,12 +23,12 @@ describe('AvatarCircle', () => {
   });
 
   test('показывает первую букву имени если нет фото', () => {
-    render(<AvatarCircle role="owner" name="Алексей" size={40} fontSize={14} />);
+    render(<AvatarCircle avData={null as any} role="owner" name="Алексей" size={40} fontSize={14} />);
     expect(screen.getByText('А')).toBeInTheDocument();
   });
 
   test('первая буква латинская тоже работает', () => {
-    render(<AvatarCircle role="security" name="Guard One" size={36} fontSize={14} />);
+    render(<AvatarCircle avData={null as any} role="security" name="Guard One" size={36} fontSize={14} />);
     expect(screen.getByText('G')).toBeInTheDocument();
   });
 
@@ -39,23 +39,23 @@ describe('AvatarCircle', () => {
   });
 
   test('рендерится без avData (undefined)', () => {
-    render(<AvatarCircle role="tenant" name="Светлана" size={40} fontSize={14} />);
+    render(<AvatarCircle avData={undefined as any} role="tenant" name="Светлана" size={40} fontSize={14} />);
     expect(screen.getByText('С')).toBeInTheDocument();
   });
 
   test('для роли owner устанавливается контрастный белый цвет текста', () => {
     const { container } = render(
-      <AvatarCircle role="owner" name="Иван" size={40} fontSize={14} />
+      <AvatarCircle avData={null as any} role="owner" name="Иван" size={40} fontSize={14} />
     );
-    const div = container.firstChild;
+    const div = container.firstChild as HTMLElement;
     expect(div.getAttribute('style')).toContain('color: rgb(255, 255, 255)');
   });
 
   test('без роли не форсирует белый цвет текста', () => {
     const { container } = render(
-      <AvatarCircle name="Иван" size={40} fontSize={14} />
+      <AvatarCircle avData={null as any} role={'' as any} name="Иван" size={40} fontSize={14} />
     );
-    const div = container.firstChild;
+    const div = container.firstChild as HTMLElement;
     expect(div.getAttribute('style')).not.toContain('color: rgb(255, 255, 255)');
   });
 });

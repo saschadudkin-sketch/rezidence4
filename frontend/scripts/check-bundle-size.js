@@ -31,9 +31,15 @@ try {
 }
 
 const jsFiles = files.filter(f => extname(f) === '.js');
+const cssFiles = files.filter(f => extname(f) === '.css');
 
 if (jsFiles.length === 0) {
   console.error('[bundle-check] No JS files found in ' + distDir);
+  process.exit(1);
+}
+
+if (cssFiles.length === 0) {
+  console.error('[bundle-check] No CSS files found in ' + distDir);
   process.exit(1);
 }
 
@@ -53,8 +59,22 @@ for (const file of jsFiles.sort()) {
   if (sizeKB > maxLimit) hasError = true;
 }
 
+
+
+const CSS_WARN_KB = 180;
+const CSS_MAX_KB = 260;
+for (const file of cssFiles.sort()) {
+  const filePath = join(distDir, file);
+  const sizeKB = Math.round(statSync(filePath).size / 1024);
+  const status = sizeKB > CSS_MAX_KB ? '❌ OVER LIMIT'
+    : sizeKB > CSS_WARN_KB ? '⚠️  WARN'
+      : '✓';
+  console.log(`  ${status.padEnd(14)} ${file.padEnd(60)} ${sizeKB} KB (css ${CSS_WARN_KB}/${CSS_MAX_KB} KB)`);
+  if (sizeKB > CSS_MAX_KB) hasError = true;
+}
+
 console.log('');
-console.log(`  Limits: warn >${WARN_CHUNK_KB} KB, error >${MAX_CHUNK_KB} KB per chunk`);
+console.log(`  Limits: warn >${WARN_CHUNK_KB} KB, error >${MAX_CHUNK_KB} KB per JS chunk; css warn >${CSS_WARN_KB} KB, error >${CSS_MAX_KB} KB per CSS chunk`);
 
 if (hasError) {
   console.error('\n❌  Bundle size budget exceeded. Split large chunks in vite.config.js.\n');
