@@ -46,7 +46,8 @@
   font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;
   color:var(--t4);transition:border-color .13s,color .13s;
 }
-.photo-btn:active{border-color:var(--g1);color:var(--g1)}
+.photo-btn:hover,.photo-btn:active{border-color:var(--g1);color:var(--g1)}
+.photo-btn:focus-visible{outline:2px solid var(--g1);outline-offset:2px}
 /* P-06: disabled-состояние — кнопка остаётся видимой, сообщает о лимите */
 .photo-btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .photo-btn--col{flex-direction:column;gap:6px}

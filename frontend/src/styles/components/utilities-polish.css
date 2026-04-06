@@ -317,7 +317,7 @@ html{scroll-behavior:smooth}
 }
 
 /* Login mobile */
-@media (--bp-lg-down){
+@media (--bp-md-down){
   .login{flex-direction:column}
   .login-art{display:none}
   .login-panel{max-width:100%;min-height:100dvh;justify-content:center}
@@ -701,7 +701,7 @@ html{scroll-behavior:smooth}
 /* Tablet: two-column req-details grid for wider cards */
 @media (--bp-md-up) and (--bp-lg-down){
   .req-details{grid-template-columns:repeat(3,1fr)}
-  .req-list{max-width:680px}
+  .req-list{max-width:900px}
   .req-list--virtual{height:calc(100vh - 160px)}
 }
 
@@ -713,7 +713,7 @@ html{scroll-behavior:smooth}
 
 /* Tablet landscape: wider card + slightly larger font */
 @media (--bp-lg-up){
-  .req-list{max-width:768px}
+  .req-list{max-width:1180px}
   .req-list--virtual{height:calc(100vh - 140px)}
 }
 

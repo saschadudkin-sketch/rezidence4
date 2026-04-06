@@ -2,6 +2,27 @@
 /* ── ADMIN TABLE ENHANCED ── */
 .admin-toolbar{display:flex;gap:var(--space-sm);align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .admin-toolbar .search-wrap{flex:1;min-width:180px;margin-bottom:0}
+.admin-filter-toggle-wrap{margin-left:auto}
+.admin-filter-toggle{min-width:120px}
+.admin-filters-drawer{
+  background:var(--s2);
+  border:1px solid var(--b2);
+  border-radius:10px;
+  padding:10px;
+  margin:-6px 0 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.admin-active-filters{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.admin-active-filter-chip{
+  font-size:var(--fs-2xs);
+  color:var(--t3);
+  background:var(--s3);
+  border:1px solid var(--b1);
+  border-radius:999px;
+  padding:2px 8px;
+}
 .t-row-actions{display:flex;gap:var(--space-xs);justify-content:flex-end}
 .btn-edit{
   background:none;border:1px solid var(--b2);border-radius:4px;
@@ -81,6 +102,13 @@
 .stats-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
   gap:var(--space-sm);margin-bottom:24px;
+}
+.admin-stats-section{
+  background:var(--s2);
+  border:1px solid var(--b1);
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:14px;
 }
 @media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr;gap:var(--space-sm)}}
 .stat-card{
