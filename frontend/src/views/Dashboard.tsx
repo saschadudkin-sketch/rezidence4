@@ -28,7 +28,8 @@ import { SmartActionRail } from '../workflow/SmartActionRail';
 import { useRoleGuidance } from './dashboard/useRoleGuidance';
 import { useConnectivityUX } from './dashboard/useConnectivityUX';
 import { useDashboardExperience } from './dashboard/useDashboardExperience';
-import { readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { clearAppStorage, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { toast } from '../ui/Toasts';
 
 function DemoBanner({ onClose }) {
   const [privateSession, setPrivateSession] = useState(() => readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1');
@@ -39,18 +40,25 @@ function DemoBanner({ onClose }) {
     writeStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION, next ? '1' : '0');
   };
 
+  const wipeDemoData = () => {
+    clearAppStorage();
+    toast('Локальные демо-данные очищены', 'success');
+  };
+
+
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
       <span className="demo-welcome-text">
         <strong>Демо-режим.</strong>{' '}
         Попробуйте создать пропуск или вызов техслужбы — всё работает без сервера.
-        Данные сохраняются только в браузере и сбросятся при перезагрузке страницы.
+        Данные сохраняются только в браузере. На общих устройствах не используйте реальные персональные данные.
       </span>
       <label className="demo-private-toggle">
         <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
         Приватная демо-сессия
       </label>
+      <button className="btn-outline" onClick={wipeDemoData}>Очистить демо-данные</button>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
         <AppIcon name="close" size={12} />
       </button>

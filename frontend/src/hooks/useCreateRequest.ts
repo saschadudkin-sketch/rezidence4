@@ -196,7 +196,12 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         toast(
           presentError(e, 'request.submit').message,
           'error',
-          { label: 'Повторить', onClick: handleSubmit },
+          {
+            label: 'Повторить',
+            onClick: handleSubmit,
+            secondaryLabel: 'Открыть офлайн-очередь',
+            onSecondaryClick: () => { window.location.assign('/dashboard/passes?offlineQueue=1'); },
+          },
         );
       }
     } finally {

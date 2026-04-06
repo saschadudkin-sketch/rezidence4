@@ -1,6 +1,7 @@
 import React from 'react';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
 import { AppIcon } from '../ui/AppIcon';
+import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
 
 interface ChatMessageListProps {
   msgsContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -65,14 +66,21 @@ export function ChatMessageList({
         <ViewStateAdapter entity="history" state="loading" title="Поиск по всей истории…" subtitle="Пожалуйста, подождите" />
       )}
       {serverSearchError && !serverSearchLoading && (
-        <ViewStateAdapter
-          entity="history"
-          state="error"
-          title="Не удалось выполнить поиск"
-          subtitle={serverSearchError}
-          actionLabel="Повторить"
-          onAction={onRetryServerSearch}
-        />
+        <>
+          <ViewStateAdapter
+            entity="history"
+            state="error"
+            title="Не удалось выполнить поиск"
+            subtitle={serverSearchError}
+            actionLabel="Повторить"
+            onAction={onRetryServerSearch}
+          />
+          <ErrorRecoveryPanel
+            message="Поиск по облачной истории недоступен"
+            onRetry={onRetryServerSearch}
+            onFallback={() => { window.location.assign('/dashboard/passes?offlineQueue=1'); }}
+          />
+        </>
       )}
       {initialHistoryError && !hasMore && (
         <ViewStateAdapter

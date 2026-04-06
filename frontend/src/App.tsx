@@ -16,6 +16,7 @@ import { API_CONFIG_ERROR } from './config/apiBaseUrl';
 import { readStorage, removeStorage, STORAGE_KEYS } from './store/persistence/storageRegistry';
 import { DATA_PLANE_POLICY } from './data/dataPlanePolicy';
 import { assertEntityPlane } from './data/entityOwnership';
+import { logger } from './services/logger';
 // A-10: QueryClient — retry/stale policy aligned with apiClient (2 retries, exponential backoff)
 //
 // T-03: Architecture decision — React Query vs Context API.
@@ -81,7 +82,7 @@ const AppInner = memo(function AppInner() {
     if (import.meta.env.DEV) {
       // Single place where developers can inspect the live data-plane map.
       // Helps avoid accidental dual ownership (SSE + Query for same entity).
-      console.info('[data-plane-policy]', DATA_PLANE_POLICY);
+      logger.debug('[data-plane-policy]', DATA_PLANE_POLICY);
       assertEntityPlane('requests', 'sse');
       assertEntityPlane('chat', 'sse');
       assertEntityPlane('users', 'sse');

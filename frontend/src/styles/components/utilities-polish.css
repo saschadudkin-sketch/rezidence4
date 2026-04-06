@@ -716,3 +716,8 @@ html{scroll-behavior:smooth}
   .req-list{max-width:768px}
   .req-list--virtual{height:calc(100vh - 140px)}
 }
+
+/* Error recovery ladder panel */
+.error-recovery-panel{position:sticky;top:8px;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin:8px 0;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
+.error-recovery-message{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);color:var(--t2)}
+.error-recovery-actions{display:flex;gap:8px;flex-wrap:wrap}
