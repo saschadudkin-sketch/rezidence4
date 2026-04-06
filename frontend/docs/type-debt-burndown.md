@@ -29,3 +29,4 @@
 - New service APIs **must** update `ServiceContracts.ts`.
 - New provider methods are accepted only with contract tests for both providers.
 - PR must include status line: `A1 fully done: yes/no`.
+- CI/staged gate uses `npm run typecheck` (staged scope), and debt tracking uses `npm run typecheck:full`.

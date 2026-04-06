@@ -126,7 +126,7 @@ export function ChatView({ user }) {
     serverSearchError,
     setSearchRetryTick,
     filteredChat,
-  } = useChatSearch(chat, hasMore);
+  } = useChatSearch(chat, hasMore, services.chat.getMessages);
   const msgsContainerRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);

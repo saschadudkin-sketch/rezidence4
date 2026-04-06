@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
-import { services } from '../../services/providers/serviceContainer';
 import { isLiveMode } from '../../config/runtimeMode';
 import { toast } from '../../ui/Toasts';
 
 type ChatMessage = { text?: string };
 
-export function useChatSearch(chat: ChatMessage[], hasMore: boolean) {
+type GetMessagesFn = (params?: { search?: string; limit?: number }) => Promise<{ messages: unknown[]; hasMore?: boolean }>;
+
+export function useChatSearch(chat: ChatMessage[], hasMore: boolean, getMessages: GetMessagesFn) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [serverSearchResults, setServerSearchResults] = useState<ChatMessage[] | null>(null);
@@ -24,7 +25,7 @@ export function useChatSearch(chat: ChatMessage[], hasMore: boolean) {
     let cancelled = false;
     setServerSearchLoading(true);
     setServerSearchError('');
-    services.chat.getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
+    getMessages({ search: debouncedSearchQuery.trim(), limit: 60 })
       .then(data => {
         if (cancelled) return;
         setServerSearchResults((data?.messages ?? []) as ChatMessage[]);
@@ -37,7 +38,7 @@ export function useChatSearch(chat: ChatMessage[], hasMore: boolean) {
       })
       .finally(() => { if (!cancelled) setServerSearchLoading(false); });
     return () => { cancelled = true; };
-  }, [debouncedSearchQuery, hasMore, searchRetryTick]);
+  }, [debouncedSearchQuery, hasMore, searchRetryTick, getMessages]);
 
   const filteredChat = useMemo(() => {
     if (!searchQuery.trim()) return chat;
