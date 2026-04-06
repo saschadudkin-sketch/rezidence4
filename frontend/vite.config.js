@@ -22,12 +22,16 @@ export default defineConfig(({ mode }) => {
   const appVersion = viteEnv.VITE_APP_VERSION || getGitVersion();
 
   if (isProdBuild && !viteEnv.VITE_API_URL) {
-    throw new Error('VITE_API_URL is required for production build');
+    throw new Error(
+      'VITE_API_URL is required for production build.\n' +
+      'Run `npm run verify:env` for a preflight checklist and remediation file.'
+    );
   }
   if (isProdBuild && !viteEnv.VITE_RUNTIME_MODE) {
     throw new Error(
       'VITE_RUNTIME_MODE is required for production build.\n' +
-      'Set VITE_RUNTIME_MODE=live to prevent demo credentials from shipping in the bundle.'
+      'Set VITE_RUNTIME_MODE=live to prevent demo credentials from shipping in the bundle.\n' +
+      'Run `npm run verify:env` for a preflight checklist and remediation file.'
     );
   }
 

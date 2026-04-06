@@ -3,6 +3,7 @@ import { useActions, usePerms } from '../store/AppStore';
 import { useIsMounted } from './useIsMounted';
 import { genId } from '../utils';
 import { toast } from '../ui/Toasts';
+import { presentError } from '../ui/errorPresenter';
 import { toastBySyncResult } from '../ui/syncFeedback';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { services } from '../services/providers/serviceContainer';
@@ -193,7 +194,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       if (isMountedRef.current) {
         // P-05: offer retry action so users can resubmit without re-filling the form
         toast(
-          'Ошибка при отправке: ' + (e.message || 'попробуйте снова'),
+          presentError(e, 'request.submit').message,
           'error',
           { label: 'Повторить', onClick: handleSubmit },
         );

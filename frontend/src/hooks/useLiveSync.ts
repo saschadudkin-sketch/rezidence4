@@ -5,7 +5,7 @@ import { logger } from '../services/logger';
 import { useNewRequestNotifier } from './useNewRequestNotifier';
 import { useStatusChangeNotifier } from './useStatusChangeNotifier';
 // A-01: use centralized event registry instead of magic string literals
-import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity, onRealtimeState } from '../utils/events.js';
+import { onSseStatus, onSsePermanentError, emitSseForceReconnect, onSseActivity, onRealtimeState, emitRealtimeState } from '../utils/events.js';
 // FIX [C-1]: sendNotif was called but not imported → ReferenceError on every incoming chat message
 import { sendNotif } from '../utils.js';
 
@@ -28,6 +28,7 @@ export function useLiveSync(user, {
   const [sseOnline, setSseOnline] = useState(true);
   // D-04: SSE достиг лимита попыток — требуется ручной retry
   const [ssePermanentError, setSsePermanentError] = useState(false);
+  const [realtimeMode, setRealtimeMode] = useState<'healthy' | 'degraded' | 'open-circuit' | 'recovery'>('healthy');
 
   useEffect(() => {
     // A-01: use typed helpers from centralized event registry
@@ -181,18 +182,85 @@ export function useLiveSync(user, {
   // Now dispatches rz:sse-force-reconnect which Dashboard listens to and increments retryKey.
   useEffect(() => {
     if (!isLiveMode()) return;
-    const WATCHDOG_INTERVAL_MS = 30_000;
+    const WATCHDOG_INTERVAL_MS = 15_000;
     const STALE_THRESHOLD_MS   = 60_000;
+    const RECONNECT_BUDGET_WINDOW_MS = 10 * 60_000;
+    const RECONNECT_BUDGET_MAX = 5;
+    const OPEN_CIRCUIT_MS = 2 * 60_000;
+    const POLLING_FALLBACK_MS = 45_000;
+    const BASE_BACKOFF_MS = 5_000;
+    const MAX_BACKOFF_MS = 60_000;
+
+    const stateRef = {
+      mode: 'healthy' as 'healthy' | 'degraded' | 'open-circuit' | 'recovery',
+      reconnectAttempts: [] as number[],
+      staleHits: 0,
+      openedAt: 0,
+      nextAllowedAt: 0,
+    };
+
+    const toState = (next: 'healthy' | 'degraded' | 'open-circuit' | 'recovery') => {
+      if (stateRef.mode === next) return;
+      const now = Date.now();
+      const prev = stateRef.mode;
+      stateRef.mode = next;
+      setRealtimeMode(next);
+      emitRealtimeState({ from: prev, to: next, at: now, durationMs: 0 });
+    };
+
+    const jitter = (ms: number) => Math.round(ms * (0.7 + Math.random() * 0.6));
+    const pruneAttempts = (now: number) => {
+      stateRef.reconnectAttempts = stateRef.reconnectAttempts.filter((ts) => now - ts <= RECONNECT_BUDGET_WINDOW_MS);
+    };
+
     let lastActivity = Date.now();
     // A-01: use typed helpers from centralized event registry
-    const cleanupActivity = onSseActivity(() => { lastActivity = Date.now(); });
+    const cleanupActivity = onSseActivity(() => {
+      lastActivity = Date.now();
+      stateRef.staleHits = 0;
+      if (stateRef.mode !== 'healthy') toState('healthy');
+    });
+
     const interval = setInterval(() => {
-      if (Date.now() - lastActivity > STALE_THRESHOLD_MS) {
-        logger.warn('[useLiveSync] SSE stream stale — forcing reconnect');
-        // A-01: emit via typed helper instead of magic string literal
+      const now = Date.now();
+      if (stateRef.mode === 'open-circuit' && now - stateRef.openedAt >= OPEN_CIRCUIT_MS) {
+        toState('recovery');
+      }
+      if (stateRef.mode === 'open-circuit') {
+        if (now < stateRef.nextAllowedAt) return;
+        // Fallback polling mode: sparse reconnect probe while circuit is open.
         emitSseForceReconnect();
-        // Reset timer to avoid rapid-fire reconnects
-        lastActivity = Date.now();
+        stateRef.nextAllowedAt = now + POLLING_FALLBACK_MS;
+        return;
+      }
+
+      if (now - lastActivity > STALE_THRESHOLD_MS) {
+        stateRef.staleHits += 1;
+        pruneAttempts(now);
+        if (stateRef.reconnectAttempts.length >= RECONNECT_BUDGET_MAX) {
+          stateRef.openedAt = now;
+          stateRef.nextAllowedAt = now + OPEN_CIRCUIT_MS;
+          logger.warn('[useLiveSync] SSE reconnect budget exhausted — entering open-circuit mode');
+          toState('open-circuit');
+          return;
+        }
+
+        toState(stateRef.mode === 'healthy' ? 'degraded' : stateRef.mode);
+        const backoffMs = Math.min(BASE_BACKOFF_MS * (2 ** (stateRef.staleHits - 1)), MAX_BACKOFF_MS);
+        const scheduleMs = jitter(backoffMs);
+        stateRef.nextAllowedAt = now + scheduleMs;
+        stateRef.reconnectAttempts.push(now);
+        logger.warn('[useLiveSync] SSE stream stale — scheduling reconnect', {
+          mode: stateRef.mode,
+          scheduleMs,
+          attemptsInWindow: stateRef.reconnectAttempts.length,
+        });
+
+        window.setTimeout(() => {
+          if (Date.now() < stateRef.nextAllowedAt) return;
+          emitSseForceReconnect();
+        }, scheduleMs);
+        lastActivity = now;
       }
     }, WATCHDOG_INTERVAL_MS);
     return () => {
@@ -201,5 +269,5 @@ export function useLiveSync(user, {
     };
   }, []);
 
-  return { isLoading, sseOnline, ssePermanentError };
+  return { isLoading, sseOnline, ssePermanentError, realtimeMode };
 }

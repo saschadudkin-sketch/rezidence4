@@ -12,6 +12,7 @@ import { isResident, canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils';
 import { useVisitLogs, useClearVisitLogs } from '../hooks/useVisitLogs';
 import { toast } from '../ui/Toasts';
+import { presentError } from '../ui/errorPresenter';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { MS_PER_DAY } from '../constants/limits';
@@ -182,7 +183,7 @@ export default function VisitLogView({ user }) {
     // FIX [AUDIT-3]: window.confirm заменён на двухшаговое подтверждение
     if (!confirmClear) { setConfirmClear(true); return; }
     setConfirmClear(false);
-    try { await clearLogs(); } catch(e) { toast('Не удалось очистить журнал: ' + (e?.message || 'ошибка сервера'), 'error'); }
+    try { await clearLogs(); } catch(e) { toast(presentError(e, 'visitlog.clear').message, 'error'); }
   };
 
   const handleExportCsv = () => {

@@ -11,6 +11,7 @@ import { can, ROLES } from '../domain/permissions';
 import GarageView from './GarageView';
 import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
+import { presentError } from '../ui/errorPresenter';
 import PassesTab from './resident/PassesTab';
 import TechTab from './resident/TechTab';
 import TemplatesTab from './resident/TemplatesTab';
@@ -67,7 +68,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         addRequest({ ...originalReq, _optimisticOpId: undefined });
       }
       optimisticRef.current.end(opId);
-      toast('Не удалось удалить заявку: ' + (e.message || 'ошибка сервера'), 'error');
+      toast(presentError(e, 'default').message, 'error');
     }
   }, [deleteRequest, updateRequest, addRequest]);
 
@@ -93,7 +94,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         updateRequest(id, { status: originalReq.status, _optimisticOpId: undefined });
       }
       optimisticRef.current.end(opId);
-      toast('Не удалось отменить заявку: ' + (e.message || 'ошибка сервера'), 'error');
+      toast(presentError(e, 'default').message, 'error');
     }
   }, [updateRequest]);
 

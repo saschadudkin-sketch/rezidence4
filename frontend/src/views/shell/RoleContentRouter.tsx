@@ -36,7 +36,17 @@ function TabRoute({ user }) {
 
   // Guard: unknown or role-forbidden tab → redirect to default
   if (!tab || !canAccessTab(user.role, tab)) {
-    return <Navigate to={`/dashboard/${defaultTab}`} replace />;
+    return (
+      <Navigate
+        to={`/dashboard/${defaultTab}`}
+        replace
+        state={{
+          redirectReason: 'forbidden_tab',
+          sourceTab: tab || null,
+          fallbackTab: defaultTab,
+        }}
+      />
+    );
   }
 
   if (user.role === ROLES.SECURITY) {
@@ -74,8 +84,8 @@ function TabRoute({ user }) {
   }
   // FA-06: OWNER, TENANT, CONTRACTOR — все явно получают ResidentView.
   // FIX [FA-4]: Dev-only exhaustive check — новые роли не упадут молча в ResidentView.
-  if (process.env.NODE_ENV !== 'production') {
-    const knownResidentRoles = [ROLES.OWNER, ROLES.TENANT, ROLES.CONTRACTOR];
+  if (import.meta.env.DEV) {
+    const knownResidentRoles = ['owner', 'tenant', 'contractor'];
     if (!knownResidentRoles.includes(user.role)) {
       console.error('[RoleContentRouter] Unknown role, falling back to ResidentView:', user.role);
     }

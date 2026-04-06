@@ -15,6 +15,7 @@ import { pushNotifyResident } from '../../services/pushNotification';
 import { sendNotif } from '../../utils';
 import { logVisit } from '../../shared/api/passesApi';
 import { AppIcon } from '../../ui/AppIcon';
+import { presentError } from '../../ui/errorPresenter';
 
 // FIX [PERF-5]: memo — GuardCard рендерится для каждой заявки в списке.
 // Без memo перерендер при любом изменении requests (например, SSE-обновление одной карточки)
@@ -48,7 +49,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       if (isMountedRef.current) toast(msg, type);
     } catch(e) {
       console.warn('[GuardCard] action error:', e);
-      if (isMountedRef.current) toast('Ошибка операции', 'error');
+      if (isMountedRef.current) toast(presentError(e, 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(null);
     }

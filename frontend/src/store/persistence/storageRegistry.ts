@@ -1,5 +1,6 @@
 const STORAGE_KEYS = {
   DEMO_WELCOME_SEEN: 'rz:demo-welcome-seen',
+  DEMO_PRIVATE_SESSION: 'rz:demo-private-session',
   PASSES_SEEN_AT: 'rz-passes-seen',
   RETURN_TO: 'rz:return-to',
 } as const;

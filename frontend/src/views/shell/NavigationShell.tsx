@@ -11,6 +11,7 @@
 import { useState, useEffect, memo } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
+import { MEDIA_QUERIES } from '../../constants/breakpoints';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
@@ -25,10 +26,10 @@ function getMobileMaxTabs(role) {
 // UI-01: sync with CSS breakpoint (--bp-lg-down => max-width:1024px).
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width:1024px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches
   );
   useEffect(() => {
-    const mq = window.matchMedia('(max-width:1024px)');
+    const mq = window.matchMedia(MEDIA_QUERIES.lgDown);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -110,6 +111,24 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const moreBadge = overflowNav.reduce((sum, [, , , badge]) => sum + (badge || 0), 0);
   // Подсвечивать ли кнопку "•••" (если активная вкладка скрыта)
   const moreIsActive = overflowNav.some(([k]) => isActive(k));
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const updateViewportInset = () => {
+      const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--vk-offset', `${Math.round(keyboardInset)}px`);
+      if (keyboardInset > 0) setShowMore(false);
+    };
+    updateViewportInset();
+    vv.addEventListener('resize', updateViewportInset);
+    vv.addEventListener('scroll', updateViewportInset);
+    return () => {
+      vv.removeEventListener('resize', updateViewportInset);
+      vv.removeEventListener('scroll', updateViewportInset);
+      document.documentElement.style.setProperty('--vk-offset', '0px');
+    };
+  }, []);
 
   return (
     <>

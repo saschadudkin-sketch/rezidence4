@@ -50,9 +50,17 @@ import {
 } from '../store/persistence/storageRegistry';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
-
+import { SmartActionRail } from '../workflow/SmartActionRail';
+import { getRoleNextBestAction, getWorkflowCompletionFeedback } from '../workflow/roleWorkflow';
 
 function DemoBanner({ onClose }) {
+  const [privateSession, setPrivateSession] = useState(() => readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1');
+  const togglePrivateSession = () => {
+    const next = !privateSession;
+    setPrivateSession(next);
+    writeStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION, next ? '1' : '0');
+  };
+
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
@@ -61,6 +69,10 @@ function DemoBanner({ onClose }) {
         Попробуйте создать пропуск или вызов техслужбы — всё работает без сервера.
         Данные сохраняются только в браузере и сбросятся при перезагрузке страницы.
       </span>
+      <label className="demo-private-toggle">
+        <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
+        Приватная демо-сессия
+      </label>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
         <AppIcon name="close" size={12} />
       </button>
@@ -186,6 +198,15 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     ? 'Апартаменты ' + user.apartment
     : (roleManifest.pageSubtitle || '');
 
+  const nextBestAction = useMemo(() => {
+    const action = getRoleNextBestAction(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
+    return action ? { ...action, onClick: () => goTab(action.tab) } : null;
+  }, [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, goTab]);
+
+  const completionFeedback = useMemo(() => {
+    return getWorkflowCompletionFeedback(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
+  }, [user.role, pendingP, pendingT, residentNewStatuses, unreadMsgs]);
+
   if (isConnErr) {
     return (
       <div className="screen-loading">
@@ -222,6 +243,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         sseOnline={sseOnline}
         isLoading={isLoading}
         isOnline={isOnline}
+        actionRail={<SmartActionRail action={nextBestAction} feedback={completionFeedback} onAction={nextBestAction?.onClick} />}
       />
     </NavigationContext.Provider>
   );

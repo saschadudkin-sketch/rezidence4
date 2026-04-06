@@ -21,15 +21,18 @@ Object.defineProperty(global.navigator, 'mediaDevices', {
 });
 
 const originalConsoleError = console.error;
+const unexpectedConsoleErrors: string[] = [];
 beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation((...args) => {
     const [first] = args;
     if (typeof first === 'string' && first.includes('A suspended resource finished loading inside a test')) return;
+    unexpectedConsoleErrors.push(String(first));
     originalConsoleError(...args);
   });
 });
 
 afterAll(() => {
+  expect(unexpectedConsoleErrors).toEqual([]);
   console.error.mockRestore();
 });
 

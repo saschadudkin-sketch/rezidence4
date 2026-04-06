@@ -4,6 +4,7 @@ export const UX_METRICS = {
   VIEW_READY: 'ux.view_ready',
   ACTION_SUCCESS: 'ux.action_success',
   ACTION_FAILURE: 'ux.action_failure',
+  NAV_FORBIDDEN_REDIRECT: 'ux.nav_forbidden_redirect',
   SSE_RECONNECT_MS: 'sse.reconnect.ms',
   CONNECTION_TIMEOUT: 'sse.connection.timeout',
 } as const;
@@ -25,6 +26,8 @@ const metricValidators: Record<MetricName, (payload: MetricPayload) => boolean> 
   [UX_METRICS.VIEW_READY]: (p) => typeof p.role === 'string',
   [UX_METRICS.ACTION_SUCCESS]: (p) => typeof p.action === 'string',
   [UX_METRICS.ACTION_FAILURE]: (p) => typeof p.action === 'string',
+  [UX_METRICS.NAV_FORBIDDEN_REDIRECT]: (p) =>
+    typeof p.role === 'string' && typeof p.from === 'string' && typeof p.to === 'string' && typeof p.reason === 'string',
   [UX_METRICS.SSE_RECONNECT_MS]: (p) => typeof p.durationMs === 'number',
   [UX_METRICS.CONNECTION_TIMEOUT]: () => true,
 };

@@ -6,13 +6,15 @@
  * and a stable { data, isLoading, isError, refetch } API without manual useState.
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { getVisitLogs, clearVisitLogs as apiClearVisitLogs } from '../shared/api/passesApi';
+import { useEntityQuery } from '../data/entityOwnership';
 
 export const VISIT_LOGS_KEY = ['visitLogs'];
 
 export function useVisitLogs() {
-  return useQuery({
+  return useEntityQuery({
+    entity: 'visitLogs',
     queryKey: VISIT_LOGS_KEY,
     queryFn: getVisitLogs,
     // staleTime inherited from QueryClient default (60s) — logs don't change in real-time
