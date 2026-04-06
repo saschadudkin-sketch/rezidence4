@@ -14,6 +14,12 @@ async function canUserAccessUpload(user, filename) {
   if (!user?.uid) return false;
   if (isStaff(user.role)) return true;
 
+  const metadata = await db.query(
+    `SELECT owner_uid FROM upload_objects WHERE filename=$1 LIMIT 1`,
+    [filename],
+  );
+  if (metadata.rows?.[0]?.owner_uid === user.uid) return true;
+
   const { relative, absolute } = buildUploadUrlVariants(filename);
   const { rows } = await db.query(
     `SELECT EXISTS (

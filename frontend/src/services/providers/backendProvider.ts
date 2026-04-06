@@ -333,16 +333,50 @@ export const requestsProvider = {
 export const chatProvider = {
   // Returns { messages, hasMore }. before= loads history older than that message id.
   // search= performs full-history text search (КРИТ-2).
-  async getMessages({ before, limit, search }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
+  async getMessages({ before, limit, search, signal }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
     const params = new URLSearchParams();
     if (before) params.set('before', before);
     if (limit)  params.set('limit', String(limit));
     if (search) params.set('search', search);
     const qs = params.toString();
-    const data = await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
+    const reqOpts = signal ? { signal } : undefined;
+    const data = reqOpts
+      ? await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`, reqOpts)
+      : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     // Поддержка старого формата (плоский массив) и нового ({ messages, hasMore })
     if (Array.isArray(data)) return { messages: data, hasMore: false };
     return { messages: data?.messages || [], hasMore: Boolean(data?.hasMore) };
+  },
+  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: unknown[]) => void; background?: boolean } = {}) {
+    const PAGE_SIZE = 60;
+    const signal = opts?.signal;
+    const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
+    const background = opts?.background !== false;
+
+    const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
+    const merged = [...(first?.messages || [])];
+    if (!background || !first?.hasMore || merged.length === 0) return merged;
+
+    (async () => {
+      try {
+        let hasMore = Boolean(first?.hasMore);
+        while (!signal?.aborted && hasMore) {
+          const oldest = merged[0]?.id;
+          if (!oldest) break;
+          const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
+          const nextRows = next?.messages || [];
+          if (!nextRows.length) break;
+          merged.unshift(...nextRows);
+          onPage?.([...merged]);
+          hasMore = Boolean(next?.hasMore);
+        }
+      } catch (e) {
+        if (signal?.aborted) return;
+        logger.warn('[chatProvider.getAllHistory] background history fetch failed', e?.message);
+      }
+    })();
+
+    return merged;
   },
   async sendMessage(msg) {
     return apiClient.post('/api/v1/chat/messages', msg);
@@ -502,7 +536,13 @@ export function createBackendProvider(): ServiceContracts {
               if (onRequests) onRequests(currentRequests);
             },
           }),
-          chatProvider.getMessages(fetchOpts),
+          chatProvider.getAllHistory({
+            ...fetchOpts,
+            onPage: (nextMessages) => {
+              if (!mounted) return;
+              if (setAllMessages) setAllMessages(nextMessages);
+            },
+          }),
           usersProvider.getAll(fetchOpts),
         ];
         // Perms и templates привязаны к uid — загружаем если uid передан
@@ -543,7 +583,7 @@ export function createBackendProvider(): ServiceContracts {
 
         if (setAllRequests) setAllRequests(currentRequests);
         if (onRequests) onRequests(currentRequests);
-        if (setAllMessages && chatData) setAllMessages(chatData.messages || chatData);
+        if (setAllMessages && chatData) setAllMessages(Array.isArray(chatData) ? chatData : (chatData.messages || []));
         if (setAllUsers && users)       setAllUsers(users);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);

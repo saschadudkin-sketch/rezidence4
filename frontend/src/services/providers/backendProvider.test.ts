@@ -125,6 +125,21 @@ describe('chatProvider', () => {
     await chatProvider.markSeen('u1');
     expect(apiClient.post).toHaveBeenCalledWith('/api/v1/chat/seen', { uid: 'u1' });
   });
+
+  test('getAllHistory — returns first page and hydrates older pages in background', async () => {
+    apiClient.get
+      .mockResolvedValueOnce({ messages: [{ id: 'm2' }, { id: 'm3' }], hasMore: true })
+      .mockResolvedValueOnce({ messages: [{ id: 'm1' }], hasMore: false });
+
+    const onPage = vi.fn();
+    const result = await chatProvider.getAllHistory({ onPage });
+    expect(result).toEqual([{ id: 'm2' }, { id: 'm3' }]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onPage).toHaveBeenCalledWith([{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]);
+    expect(apiClient.get).toHaveBeenNthCalledWith(2, '/api/v1/chat/messages?before=m2&limit=60');
+  });
 });
 
 // ─── requestsProvider ─────────────────────────────────────────────────────────
