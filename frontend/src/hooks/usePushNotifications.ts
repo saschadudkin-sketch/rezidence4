@@ -15,7 +15,7 @@ export function usePushNotifications(user, { pendingT, pendingP, unreadMsgs }) {
     if (isResident(user.role)) {
       if (pushSubscribedUidRef.current !== user.uid) {
         pushSubscribedUidRef.current = user.uid;
-        subscribePush(user.uid);
+        subscribePush();
       }
     } else {
       pushSubscribedUidRef.current = null;

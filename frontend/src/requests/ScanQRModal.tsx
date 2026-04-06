@@ -171,7 +171,7 @@ export function ScanQRModal({ user, onClose }) {
           // Firefox и другие без BarcodeDetector — камера работает, но автосканирование нет
           if (!cancelled) toast('Автосканирование недоступно — используйте поиск ниже', 'info');
         }
-      } catch {
+      } catch (e) {
         console.warn('[QR Scanner] camera error:', e);
         if (!cancelled) setCamError(true);
       }
@@ -239,7 +239,7 @@ export function ScanQRModal({ user, onClose }) {
         createdByUid: scannedReq.createdByUid || null,
         requestSnapshot: buildRequestSnapshot(scannedReq),
       });
-    } catch {
+    } catch (e) {
       console.warn('[ScanQR] logVisit failed:', e);
       // Не блокируем закрытие модала из-за ошибки логирования
     }
@@ -267,7 +267,7 @@ export function ScanQRModal({ user, onClose }) {
           createdByUid: scannedReq.createdByUid || null,
           requestSnapshot: buildRequestSnapshot(scannedReq),
         });
-      } catch {
+      } catch (e) {
         console.warn('[ScanQR] logVisit failed:', e);
       }
     }
