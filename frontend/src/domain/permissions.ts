@@ -75,7 +75,7 @@ export const canDeleteRequest = (user: AppUser, req: Request): boolean =>
  * Только роли из canApproveRequests
  */
 export const canApproveRequest = (user: AppUser, req: Request): boolean =>
-  canApproveRequests(user.role) && req.status === 'pending';
+  canApproveRequests(user.role) && req.type === 'pass' && req.status === 'pending';
 
 /**
  * Может ли пользователь отклонить заявку
@@ -87,7 +87,7 @@ export const canRejectRequest = (user: AppUser, req: Request): boolean =>
  * Может ли пользователь принять заявку в работу
  */
 export const canAcceptRequest = (user: AppUser, req: Request): boolean =>
-  canApproveRequests(user.role) && req.status === 'pending';
+  canManageRequests(user.role) && req.type === 'tech' && req.status === 'pending';
 
 /**
  * Может ли пользователь отметить приход посетителя

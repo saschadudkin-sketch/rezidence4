@@ -17,6 +17,10 @@ export default function SlaDashboard({ snapshot }) {
   const reconnectAvg = snapshot.reconnect.avgMs;
   const timeoutRate = snapshot.availability.timeoutRate;
   const actionRate = snapshot.action.successRate;
+  const trendWindowHours = Math.round(snapshot.trends.windowMs / (60 * 60 * 1000));
+  const reconnectTrend = snapshot.trends.reconnectAvgDeltaMs;
+  const timeoutTrend = snapshot.trends.timeoutRateDeltaPct;
+  const actionTrend = snapshot.trends.actionSuccessDeltaPct;
 
   return (
     <>
@@ -29,6 +33,11 @@ export default function SlaDashboard({ snapshot }) {
       </div>
       <div className="u-fs12 u-t4 sla-samples">
         Samples: reconnect={snapshot.reconnect.samples}, actions={snapshot.action.success + snapshot.action.failure}, views={snapshot.viewReadyCount}
+      </div>
+      <div className="u-fs12 u-t4 u-mt8">
+        Trend ({trendWindowHours}ч vs prev {trendWindowHours}ч): reconnect {reconnectTrend >= 0 ? '+' : ''}{reconnectTrend}ms ·
+        timeout {timeoutTrend >= 0 ? '+' : ''}{timeoutTrend.toFixed(2)}pp ·
+        action success {actionTrend >= 0 ? '+' : ''}{actionTrend.toFixed(1)}pp
       </div>
     </>
   );

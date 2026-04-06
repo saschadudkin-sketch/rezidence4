@@ -25,7 +25,7 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const user = (role, uid = 'u1') => ({ uid, role });
-const req  = (status, createdByUid = 'u1') => ({ status, createdByUid });
+const req  = (status, createdByUid = 'u1', type = 'pass') => ({ status, createdByUid, type });
 const msg  = (uid) => ({ uid });
 
 // ─── Role predicates ──────────────────────────────────────────────────────────
@@ -121,14 +121,17 @@ describe('canRejectRequest', () => {
 });
 
 describe('canAcceptRequest', () => {
-  test('security принимает pending в работу', () => {
-    expect(canAcceptRequest(user('security'), req('pending'))).toBe(true);
+  test('security принимает pending tech в работу', () => {
+    expect(canAcceptRequest(user('security'), req('pending', 'u1', 'tech'))).toBe(true);
   });
-  test('concierge не может принять pending', () => {
-    expect(canAcceptRequest(user('concierge'), req('pending'))).toBe(false);
+  test('concierge может принять pending tech в работу', () => {
+    expect(canAcceptRequest(user('concierge'), req('pending', 'u1', 'tech'))).toBe(true);
+  });
+  test('security не принимает pass через accept flow', () => {
+    expect(canAcceptRequest(user('security'), req('pending', 'u1', 'pass'))).toBe(false);
   });
   test('owner не может принять', () => {
-    expect(canAcceptRequest(user('owner'), req('pending'))).toBe(false);
+    expect(canAcceptRequest(user('owner'), req('pending', 'u1', 'tech'))).toBe(false);
   });
 });
 

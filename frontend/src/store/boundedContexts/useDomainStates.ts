@@ -141,25 +141,19 @@ export function useBoundedDomainStates() {
   const blacklistValue = useMemo(() => blacklistState.blacklist ?? INITIAL_BLACKLIST, [blacklistState]);
   const garageValue = useMemo(() => garageState.garage ?? INITIAL_GARAGE, [garageState]);
 
-  return useMemo(() => ({
-    dispatch,
+  const appState = useMemo(() => ({
     reqState: requestsValue,
     chatState: chatValue,
     usersState: usersValue,
     permsState: permsValue,
-    blacklistState,
-    garageState,
-    blacklistValue,
-    garageValue,
-  }), [
+  }), [requestsValue, chatValue, usersValue, permsValue]);
+
+  return useMemo(() => ({
     dispatch,
-    requestsValue,
-    chatValue,
-    usersValue,
-    permsValue,
+    appState,
     blacklistState,
     garageState,
     blacklistValue,
     garageValue,
-  ]);
+  }), [dispatch, appState, blacklistState, garageState, blacklistValue, garageValue]);
 }

@@ -88,6 +88,10 @@ function percentile(values: number[], p: number) {
   return sorted[Math.max(0, idx)] || 0;
 }
 
+function toPercent(part: number, total: number, digits = 1) {
+  return total ? Number(((part / total) * 100).toFixed(digits)) : 0;
+}
+
 export function getSlaSnapshot(windowMs = SLA_WINDOW_MS) {
   const fromTs = Date.now() - windowMs;
   const events = readEvents().filter((e) => e.at >= fromTs);
@@ -105,6 +109,39 @@ export function getSlaSnapshot(windowMs = SLA_WINDOW_MS) {
 
   const reconnectAvgMs = reconnectDurations.length
     ? Math.round(reconnectDurations.reduce((a, b) => a + b, 0) / reconnectDurations.length)
+    : 0;
+
+  const trendWindowMs = Math.min(6 * 60 * 60 * 1000, Math.floor(windowMs / 2));
+  const now = Date.now();
+  const currentTrendFrom = now - trendWindowMs;
+  const prevTrendFrom = currentTrendFrom - trendWindowMs;
+  const currentWindow = events.filter((e) => e.at >= currentTrendFrom);
+  const prevWindow = events.filter((e) => e.at >= prevTrendFrom && e.at < currentTrendFrom);
+
+  const currentActionTotal = currentWindow.filter((e) => e.name === UX_METRICS.ACTION_SUCCESS || e.name === UX_METRICS.ACTION_FAILURE).length;
+  const currentActionSuccess = currentWindow.filter((e) => e.name === UX_METRICS.ACTION_SUCCESS).length;
+  const prevActionTotal = prevWindow.filter((e) => e.name === UX_METRICS.ACTION_SUCCESS || e.name === UX_METRICS.ACTION_FAILURE).length;
+  const prevActionSuccess = prevWindow.filter((e) => e.name === UX_METRICS.ACTION_SUCCESS).length;
+
+  const currentTimeout = currentWindow.filter((e) => e.name === UX_METRICS.CONNECTION_TIMEOUT).length;
+  const currentViews = currentWindow.filter((e) => e.name === UX_METRICS.VIEW_READY).length;
+  const prevTimeout = prevWindow.filter((e) => e.name === UX_METRICS.CONNECTION_TIMEOUT).length;
+  const prevViews = prevWindow.filter((e) => e.name === UX_METRICS.VIEW_READY).length;
+
+  const currentReconnect = currentWindow
+    .filter((e) => e.name === UX_METRICS.SSE_RECONNECT_MS)
+    .map((e) => Number(e.payload.durationMs || 0))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const prevReconnect = prevWindow
+    .filter((e) => e.name === UX_METRICS.SSE_RECONNECT_MS)
+    .map((e) => Number(e.payload.durationMs || 0))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  const currentReconnectAvg = currentReconnect.length
+    ? Math.round(currentReconnect.reduce((a, b) => a + b, 0) / currentReconnect.length)
+    : 0;
+  const prevReconnectAvg = prevReconnect.length
+    ? Math.round(prevReconnect.reduce((a, b) => a + b, 0) / prevReconnect.length)
     : 0;
 
   return {
@@ -125,8 +162,14 @@ export function getSlaSnapshot(windowMs = SLA_WINDOW_MS) {
       slaMet: actionTotal === 0 ? true : (actionSuccess / actionTotal) >= 0.99,
     },
     availability: {
-      timeoutRate: viewReadyCount ? Number(((timeoutCount / viewReadyCount) * 100).toFixed(2)) : 0,
+      timeoutRate: toPercent(timeoutCount, viewReadyCount, 2),
       slaMet: viewReadyCount === 0 ? true : (timeoutCount / viewReadyCount) <= 0.01,
+    },
+    trends: {
+      windowMs: trendWindowMs,
+      reconnectAvgDeltaMs: currentReconnectAvg - prevReconnectAvg,
+      actionSuccessDeltaPct: toPercent(currentActionSuccess, currentActionTotal, 1) - toPercent(prevActionSuccess, prevActionTotal, 1),
+      timeoutRateDeltaPct: toPercent(currentTimeout, currentViews, 2) - toPercent(prevTimeout, prevViews, 2),
     },
   };
 }

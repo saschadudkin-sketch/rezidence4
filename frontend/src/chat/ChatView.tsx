@@ -3,15 +3,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useActions, useChat, useUsers } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants/index';
-import { genId } from '../utils';
 import { PhotoLightbox } from '../ui/PhotoLightbox';
-import { toast } from '../ui/Toasts';
-import { services } from '../services/providers/serviceContainer';
 import { isLiveMode } from '../config/runtimeMode';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { services } from '../services/providers/serviceContainer';
+import { toast } from '../ui/Toasts';
 import { useChatSearch } from './hooks/useChatSearch';
 import { useChatComposer } from './hooks/useChatComposer';
 import { useChatData } from './hooks/useChatData';
+import { useChatSend } from './hooks/useChatSend';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatSearchBar } from './components/ChatSearchBar';
 import { ChatReplyBar } from './components/ChatReplyBar';
@@ -268,74 +268,17 @@ export function ChatView({ user }) {
   }, []);
   const onLongPressEnd = useCallback(() => clearTimeout(longPressRef.current), []);
 
-  // Отправка
-  const send = useCallback(async () => {
-    if (!text.trim()) return;
-    const m = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: text.trim(), photo: null, replyTo: replyTo || null, at: new Date() };
-    try {
-      await services.chat.sendMessage({
-        remotePayload: { uid: user.uid, name: user.name, role: user.role, text: text.trim(), replyTo: replyTo || null },
-        localMessage: m,
-        sendLocal: sendMessage,
-      });
-    } finally {
-      setText(''); setReplyTo(null); inputRef.current?.focus();
-    }
-  }, [replyTo, sendMessage, setReplyTo, setText, text, user]);
-
-  // FIX [PERF-15]: onPhotoClick и onFileChange пересоздавались при каждом рендере
-  // (любое изменение text/photoSending). Их передают как onChange/onClick в DOM-элементы,
-  // но пересоздание не вызывает ре-рендер нативного input — проблема в читаемости и
-  // потенциальных будущих оборачиваниях в memo. Фиксируем явно.
-  const onPhotoClick = useCallback(() => {
-    fileRef.current?.click();
-  }, []);
-
-  // Вставка emoji в текстовое поле
-  const insertEmoji = useCallback((emoji) => {
-    setText(prev => prev + emoji);
-    inputRef.current?.focus();
-  }, [setText]);
-
-  const onFileChange = useCallback(async e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    e.target.value = '';
-    if (f.size > 10 * 1024 * 1024) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
-    setPhotoSending(true);
-    try {
-      const dataUrl = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = ev => res(String(ev.target?.result || ''));
-        r.onerror = () => rej(new Error('fail'));
-        r.readAsDataURL(f);
-      });
-      const compressed = await new Promise<string>(resolve => {
-        const img = new Image();
-        img.onload = () => {
-          const max = 800;
-          const ratio = Math.min(1, max / Math.max(img.width, img.height));
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(img.width * ratio);
-          canvas.height = Math.round(img.height * ratio);
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.72));
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
-      });
-      const m = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed, at: new Date() };
-      await services.chat.sendMessage({
-        remotePayload: { uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed },
-        localMessage: m,
-        sendLocal: sendMessage,
-      });
-    } catch {
-      toast('Не удалось загрузить фото', 'error');
-    } finally {
-      setPhotoSending(false);
-    }
-  }, [user, sendMessage]);
+  const { send, onPhotoClick, onFileChange, insertEmoji } = useChatSend({
+    user,
+    text,
+    setText,
+    replyTo,
+    setReplyTo,
+    inputRef,
+    fileRef,
+    sendMessage,
+    setPhotoSending,
+  });
 
   return (
     <div className="chat-wrap">

@@ -320,18 +320,21 @@ export default function AdminView({ user, activeTab: activeTabProp, setActiveTab
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
   const allUsers = useMemo(() => Object.values(users), [users]);
   const activeTab = tab || activeTabProp || 'stats';
+  const adminTabViews = useMemo(() => ({
+    stats: <AdminStatsView allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} />,
+    users: <AdminUsersView allUsers={allUsers} currentUser={user} />,
+    contractors: <AdminUsersView allUsers={allUsers} currentUser={user} contractorOnly />,
+    requests: <AdminRequestsView requests={requests} adminUid={user.uid} />,
+    perms: <AdminPermsView />,
+    residents: <ResidentsView user={user} />,
+    visitlog: <VisitLogView user={user} />,
+    blacklist: <BlacklistView user={user} />,
+    chat: <ChatView user={user} />,
+  }), [allUsers, requests, user]);
 
   return (
     <>
-      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} />}
-      {activeTab === 'users'       && <AdminUsersView    allUsers={allUsers} currentUser={user} />}
-      {activeTab === 'contractors' && <AdminUsersView    allUsers={allUsers} currentUser={user} contractorOnly />}
-      {activeTab === 'requests'    && <AdminRequestsView requests={requests} adminUid={user.uid} />}
-      {activeTab === 'perms'       && <AdminPermsView />}
-      {activeTab === 'residents'   && <ResidentsView user={user} />}
-      {activeTab === 'visitlog'    && <VisitLogView user={user} />}
-      {activeTab === 'blacklist'   && <BlacklistView user={user} />}
-      {activeTab === 'chat'        && <ChatView user={user} />}
+      {adminTabViews[activeTab] || adminTabViews.stats}
     </>
   );
 }
