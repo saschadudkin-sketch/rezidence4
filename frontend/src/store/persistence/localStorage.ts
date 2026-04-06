@@ -98,7 +98,7 @@ function savePhotos(requests) {
         const k = localStorage.key(i);
         if (k?.startsWith(LS_KEY + '_ph_')) allKeys.push(k);
       }
-      allKeys.filter(k => !activeIds.has(k)).forEach(k => { try { localStorage.removeItem(k); } catch {} });
+      allKeys.filter(k => !activeIds.has(k)).forEach(k => { try { localStorage.removeItem(k); } catch { /* noop */ } });
       try { localStorage.setItem(LS_KEY + '_ph_' + id, src); } catch {
         console.warn('[persistence] Photo storage unavailable.');
       }

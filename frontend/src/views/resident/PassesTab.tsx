@@ -7,8 +7,6 @@ import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 
-const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
-
 const PassesTab = memo(function PassesTab({
   user, passFilter, setPassFilter, setModal, setActiveTab,
   onRepeatPass, onEdit, onDelete, onCancel, computed,

@@ -367,7 +367,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
                 userName={user.name}
                 userId={user.uid}
                 highlightId={highlightReqId}
-                onHighlighted={() => setHighlightReqId && setHighlightReqId(null)}
+                onHighlighted={() => setHighlightReqId?.(null)}
               />
             )}
             estimateSize={110}
@@ -380,7 +380,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
     {activeTab === 'perms' && <SecurityPermsList />}
     {activeTab === 'visitlog' && <VisitLogView user={user} />}
     {activeTab === 'blacklist' && <BlacklistView user={user} />}
-    {activeTab === 'guardpost' && <GuardPostMode user={user} onViewDetails={(reqId) => { setActiveTab('passes'); setHighlightReqId && setHighlightReqId(reqId); }} />}
+    {activeTab === 'guardpost' && <GuardPostMode user={user} onViewDetails={(reqId) => { setActiveTab('passes'); setHighlightReqId?.(reqId); }} />}
     {activeTab === 'residents' && <ResidentsView user={user} />}
     {showCarSearch && <CarSearchModal onClose={() => setShowCarSearch(false)} />}
     {activeTab === 'chat' && <ChatView user={user} />}

@@ -103,10 +103,9 @@ function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, on
 // large request arrays — re-rendering the virtualized list is expensive.
 export const GroupedReqList = memo(function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
   const groups = useMemo(() => groupReqs(reqs), [reqs]);
-  if (groups.length === 0) return null;
-
   const showHeaders = groups.length > 1 || (groups[0] && groups[0].label !== 'Сегодня');
   const flatItems = useMemo(() => flattenGroups(groups, showHeaders), [groups, showHeaders]);
+  if (groups.length === 0) return null;
 
   // Use virtualization for large lists only
   if (flatItems.length > VIRTUALIZE_THRESHOLD) {

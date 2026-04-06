@@ -26,7 +26,7 @@ const metricValidators: Record<MetricName, (payload: MetricPayload) => boolean> 
   [UX_METRICS.ACTION_SUCCESS]: (p) => typeof p.action === 'string',
   [UX_METRICS.ACTION_FAILURE]: (p) => typeof p.action === 'string',
   [UX_METRICS.SSE_RECONNECT_MS]: (p) => typeof p.durationMs === 'number',
-  [UX_METRICS.CONNECTION_TIMEOUT]: (_p) => true,
+  [UX_METRICS.CONNECTION_TIMEOUT]: () => true,
 };
 
 const listeners = new Set<(event: TelemetryEvent) => void>();

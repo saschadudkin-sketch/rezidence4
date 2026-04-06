@@ -171,7 +171,6 @@ export function useLiveSync(user, {
     const WATCHDOG_INTERVAL_MS = 30_000;
     const STALE_THRESHOLD_MS   = 60_000;
     let lastActivity = Date.now();
-    const onActivity = () => { lastActivity = Date.now(); };
     // A-01: use typed helpers from centralized event registry
     const cleanupActivity = onSseActivity(() => { lastActivity = Date.now(); });
     const interval = setInterval(() => {

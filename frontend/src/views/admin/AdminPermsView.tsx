@@ -36,7 +36,7 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
     let mode;
     try {
       mode = await services.admin.savePermsEverywhere({ uid, perms: updated, saveLocal: setPerms });
-    } catch(e) {
+    } catch {
       if (isMountedRef.current) toast('Ошибка сохранения', 'error');
       return;
     }
@@ -105,7 +105,7 @@ function AdminPermsAptGroup({ u, tab }) {
     let mode;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
-    } catch(e) {
+    } catch {
       if (grpMountedRef.current) toast('Ошибка сохранения', 'error');
       return;
     }
@@ -120,7 +120,7 @@ function AdminPermsAptGroup({ u, tab }) {
     let mode;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
-    } catch(e) {
+    } catch {
       if (grpMountedRef.current) toast('Ошибка сохранения', 'error');
       return;
     }
@@ -133,7 +133,7 @@ function AdminPermsAptGroup({ u, tab }) {
     let mode;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
-    } catch(e) {
+    } catch {
       if (grpMountedRef.current) toast('Ошибка сохранения', 'error');
       return;
     }

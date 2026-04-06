@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useActions, useUsers } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants/index';
 import { normalizePhone, genId } from '../utils';
@@ -101,7 +101,7 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
 // Аватар: maxWidth=256 (квадратный), quality=0.82
 const compressImg = (dataUrl) => compressImage(dataUrl, { maxWidth: 256, quality: 0.82 });
 
-export function AvatarModal({ user, avatar, onSave, onClose }) {
+export function AvatarModal({ avatar, onSave, onClose }) {
   const [src, setSrc] = useState(avatar && avatar.type === 'photo' ? avatar.src : null);
 
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
