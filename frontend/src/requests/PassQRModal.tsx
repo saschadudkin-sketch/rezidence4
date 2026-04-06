@@ -48,21 +48,21 @@ export function PassQRModal({ req, onClose }) {
         <div className="modal-head">
           <div>
             <span className="modal-title">QR-код пропуска</span>
-            <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
+            <div className="u-fs11 u-t4 u-mt2">
               Покажите охране для быстрого прохода
             </div>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
-        <div className="modal-body" style={{ textAlign: 'center' }}>
+        <div className="modal-body u-center">
           {error && (
-            <div style={{ color: 'var(--err-t)', fontSize: 13, textAlign: 'center', padding: 20 }}>
+            <div className="u-err u-fs13 u-center qr-error-box">
               Не удалось сгенерировать QR-код
             </div>
           )}
           {!error && !qrUrl && (
             <div className="qr-loading">
-              <span style={{ color: 'var(--t4)', fontSize: 13 }}>Генерация...</span>
+              <span className="u-t4 u-fs13">Генерация...</span>
             </div>
           )}
           {qrUrl && (
@@ -109,9 +109,9 @@ export function PassQRModal({ req, onClose }) {
             )}
           </div>
         </div>
-        <div className="modal-foot" style={{ flexDirection: 'column', gap: 8 }}>
+        <div className="modal-foot pass-qr-foot">
           {qrUrl && (
-            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <div className="u-flex u-gap8 u-w-full">
               <button className="btn-outline u-flex1" onClick={async () => {
                 try {
                   const blob = dataUrlToBlob(qrUrl);
@@ -136,7 +136,7 @@ export function PassQRModal({ req, onClose }) {
               }}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Скачать</span></button>
             </div>
           )}
-          <button className="btn-gold" style={{ width: '100%' }} onClick={onClose}><span>Закрыть</span></button>
+          <button className="btn-gold u-w-full" onClick={onClose}><span>Закрыть</span></button>
         </div>
       </div>
     </div>,

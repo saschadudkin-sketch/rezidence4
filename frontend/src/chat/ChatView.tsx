@@ -373,12 +373,12 @@ export function ChatView({ user }) {
   return (
     <div className="chat-wrap">
       {showSearch && (
-        <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--b1)', display: 'flex', gap: 8, alignItems: 'center', background: 'var(--s0)' }}>
-          <span style={{ fontSize: 14 }}><AppIcon name="search" size={14} /></span>
-          <input className="search-inp" style={{ flex: 1, marginBottom: 0, fontSize: 13 }}
+        <div className="chat-search-row">
+          <span className="chat-search-icon"><AppIcon name="search" size={14} /></span>
+          <input className="search-inp chat-search-input"
             placeholder="Поиск в чате..." autoFocus
             value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-          <button className="modal-close" style={{ flexShrink: 0 }} onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
+          <button className="modal-close u-shrink0" onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
         </div>
       )}
       <ChatMessageList
@@ -408,8 +408,7 @@ export function ChatView({ user }) {
             <React.Fragment key={m.id}>
               {showSep && <div className="msg-date-sep"><span>{fmtDateSep(m.at)}</span></div>}
               <div
-                className={'msg-row ' + (m.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '')}
-                style={{ position: 'relative' }}
+                className={'msg-row ' + (m.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '') + ' msg-row-rel'}
                 onTouchStart={e => { onTouchStart(e, m); onLongPressStart(e, m.id); }}
                 onTouchMove={e => { onTouchMove(e, m); onLongPressEnd(); }}
                 onTouchEnd={e => { onTouchEnd(e); onLongPressEnd(); }}
@@ -435,7 +434,7 @@ export function ChatView({ user }) {
                   </div>
                 </>)}
                 {m.uid !== user.uid && !isGrouped && (
-                  <div className="msg-av" style={{ flexShrink: 0, overflow: 'hidden', padding: 0 }}>
+                  <div className="msg-av msg-av-reset">
                     <AvatarCircle avData={(users[m.uid] && users[m.uid].avatar) || null} role={m.role} name={m.name || '?'} size={28} fontSize={11}/>
                   </div>
                 )}
@@ -521,16 +520,14 @@ export function ChatView({ user }) {
         </div>
       )}
       <div className="chat-bar">
-        <button className="chat-photo-btn" title="Поиск" onClick={() => setShowSearch(s => !s)}
-          style={{ background: showSearch ? 'var(--g-bg)' : 'var(--s2)', borderColor: showSearch ? 'var(--g1)' : 'var(--b1)' }}>
+        <button className={'chat-photo-btn ' + (showSearch ? 'chat-btn--active' : 'chat-btn--default')} title="Поиск" onClick={() => setShowSearch(s => !s)}>
           <AppIcon name="search" size={16} />
         </button>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onFileChange}/>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
         <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">
           {photoSending ? <AppIcon name="history" size={16} /> : <AppIcon name="file" size={16} />}
         </button>
-        <button className="chat-photo-btn" onClick={() => setShowEmoji(s => !s)} aria-label="Emoji"
-          style={{ background: showEmoji ? 'var(--g-bg)' : 'var(--s2)', borderColor: showEmoji ? 'var(--g1)' : 'var(--b1)' }}>
+        <button className={'chat-photo-btn ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
           <AppIcon name="chat" size={16} />
         </button>
         <textarea ref={inputRef} className="chat-inp" rows={1}

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useActions, useUsers, useAllPerms, usePerms } from '../../store/AppStore';
-import { ROLE_LABELS, S_END } from '../../constants';
+import { ROLE_LABELS } from '../../constants';
 import { genId } from '../../utils';
 import { useDebounce } from '../../hooks/useDebounce';
 import { toast } from '../../ui/Toasts';
@@ -49,10 +49,7 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
 
   return (
     <div>
-      <div className="perm-row" style={{
-        borderBottom: editing ? 'none' : undefined,
-        borderRadius: editing ? 'var(--r) var(--r) 0 0' : undefined,
-      }}>
+      <div className={'perm-row ' + (editing ? 'admin-perm-row--editing' : '')}>
         <div className="perm-info">
           <div className="perm-name">{item.name}</div>
           <div className="perm-meta">{[item.phone, item.carPlate].filter(Boolean).join(' · ')}</div>
@@ -65,7 +62,7 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
         </div>
       </div>
       {editing && (
-        <div className="edit-inline" style={{ borderRadius: '0 0 var(--r) var(--r)', marginBottom: 8 }}>
+        <div className="edit-inline admin-perm-edit-inline">
           <div className="edit-inline-row">
             <input className="edit-inline-inp" placeholder="ФИО *" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" />
             <input className="edit-inline-inp" placeholder="Телефон" type="tel" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" />
@@ -75,7 +72,7 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
               <input className="edit-inline-inp" placeholder="Авто (марка, номер)" value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
             </div>
           )}
-          <div style={S_END}>
+          <div className="admin-user-actions-end">
             <button className="btn-outline" onClick={handleCancel}>Отмена</button>
             <button className="btn-gold u-pad-btn" onClick={save}><span>Сохранить</span></button>
           </div>
@@ -151,12 +148,12 @@ function AdminPermsAptGroup({ u, tab }) {
       <div className="sec-apt-hdr u-row-between">
         <span>
           Апарт. {u.apartment} — {u.name}
-          <span style={{ fontSize: 11, color: 'var(--t4)', fontFamily: "'DM Sans',sans-serif" }}> ({ROLE_LABELS[u.role]})</span>
+          <span className="admin-perm-role-label"> ({ROLE_LABELS[u.role]})</span>
         </span>
         <div className="u-row-g6">
           <span className="u-fs11-t4">{list.length} зап.</span>
           {list.length > 0 && (
-            <button className="btn-del-sm" style={{ padding: '2px 8px' }} onClick={clearAll}>Очистить</button>
+            <button className="btn-del-sm admin-perm-clear-btn" onClick={clearAll}>Очистить</button>
           )}
         </div>
       </div>

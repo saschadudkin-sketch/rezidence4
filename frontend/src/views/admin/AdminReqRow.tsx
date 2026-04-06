@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useActions } from '../../store/AppStore';
-import { STS_LABEL, S_END } from '../../constants';
+import { STS_LABEL } from '../../constants';
 import { ReqCard } from '../../requests/ReqCard';
 import { toastBySyncResult } from '../../ui/syncFeedback';
 import { toast } from '../../ui/Toasts';
@@ -48,7 +48,7 @@ export default function AdminReqRow({ r, adminUid }) {
   return (
     <div className="u-mb8">
       <ReqCard req={{ ...r, status }} userRole="admin" userId={adminUid} />
-      <div style={{ display: 'flex', gap: 6, marginTop: -4, paddingBottom: 8, borderBottom: '1px solid var(--b1)', justifyContent: 'flex-end' }}>
+      <div className="u-flex u-gap6 admin-req-actions">
         <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
           <AppIcon name={editing ? 'close' : 'edit'} className="u-inline-icon" /> Ред.
         </button>
@@ -66,7 +66,7 @@ export default function AdminReqRow({ r, adminUid }) {
             <input className="edit-inline-inp" placeholder="Комментарий" value={comment}
               onChange={e => setComment(e.target.value)} />
           </div>
-          <div style={S_END}>
+          <div className="admin-user-actions-end">
             <button className="btn-outline" onClick={handleCancel}>Отмена</button>
             <button className="btn-gold u-pad-btn" onClick={save}><span>Сохранить</span></button>
           </div>

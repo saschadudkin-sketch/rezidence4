@@ -85,17 +85,15 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
         {Object.entries(roleCount).map(([role, count]) => {
           const pct = Math.round((count as number) / allUsers.length * 100);
           return (
-            <div key={role} style={{ padding: '12px 16px', borderBottom: '1px solid var(--b1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: 'var(--t1)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_COLOR[role] || 'var(--t4)', display: 'inline-block', flexShrink: 0 }} />
+            <div key={role} className="u-pad12-16 role-stat-row">
+              <div className="u-flex-between u-mb8">
+                <span className="u-fs13 u-t1 u-flex-center u-gap8">
+                  <span className={`u-role-dot ${ROLE_COLOR[role] ? role : 'default'}`} />
                   {ROLE_LABELS[role]}
                 </span>
-                <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 400, color: 'var(--g2)' }}>{count}</span>
+                <span className="admin-role-value">{count}</span>
               </div>
-              <div style={{ height: 3, borderRadius: 2, background: 'var(--s3)', overflow: 'hidden' }}>
-                <div style={{ width: pct + '%', height: '100%', background: 'linear-gradient(90deg,var(--g1),var(--g2))', borderRadius: 2, transition: 'width .4s ease' }} />
-              </div>
+              <progress className="admin-role-progress" max={100} value={pct} />
             </div>
           );
         })}
@@ -152,7 +150,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
       </div>
 
       {(query || (!contractorOnly && roleFilter !== 'all')) && (
-        <div style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 8 }}>Найдено: {filtered.length}</div>
+        <div className="u-fs11 u-t4 u-mb8">Найдено: {filtered.length}</div>
       )}
       {filtered.length === 0 && (
         <StateBlock

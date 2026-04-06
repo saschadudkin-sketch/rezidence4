@@ -70,7 +70,7 @@ export function EditRequestModal({ req, onClose, onDone }) {
         <div className="modal-head">
           <div>
             <span className="modal-title">Редактировать заявку</span>
-            <div style={{ fontSize: 11, color: 'var(--g2)', marginTop: 2 }}>
+            <div className="u-fs11 u-g2 u-mt2">
               <span className="u-inline-icon"><AppIcon name={CAT_ICON[req.category] || 'users'} size={12} /> {CAT_LABEL[req.category]}</span>
             </div>
           </div>

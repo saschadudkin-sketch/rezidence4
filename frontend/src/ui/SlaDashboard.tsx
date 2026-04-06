@@ -2,10 +2,10 @@ import SectionHeader from './SectionHeader';
 
 function SlaItem({ label, value, ok }) {
   return (
-    <div className="stat-card" style={{ minHeight: 92 }}>
+    <div className="stat-card sla-item-card">
       <div className="stat-lbl">{label}</div>
-      <div className="stat-val" style={{ fontSize: 24 }}>{value}</div>
-      <div style={{ fontSize: 11, color: ok ? 'var(--ok-t)' : 'var(--err-t)' }}>
+      <div className="stat-val sla-item-value">{value}</div>
+      <div className={'u-fs11 ' + (ok ? 'sla-ok' : 'sla-breached')}>
         {ok ? 'SLA OK' : 'SLA breached'}
       </div>
     </div>
@@ -27,7 +27,7 @@ export default function SlaDashboard({ snapshot }) {
         <SlaItem label="Timeout rate" value={`${timeoutRate}%`} ok={snapshot.availability.slaMet} />
         <SlaItem label="Action success" value={`${actionRate}%`} ok={snapshot.action.slaMet} />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 6 }}>
+      <div className="u-fs12 u-t4 sla-samples">
         Samples: reconnect={snapshot.reconnect.samples}, actions={snapshot.action.success + snapshot.action.failure}, views={snapshot.viewReadyCount}
       </div>
     </>

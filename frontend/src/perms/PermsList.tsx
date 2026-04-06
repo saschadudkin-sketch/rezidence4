@@ -217,7 +217,7 @@ export function MyTemplates({ user, onUse }) {
   return (
     <div>
       {passes.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div className="u-mb20">
           <div className="tpl-section-hdr"><AppIcon name="ticket" className="u-inline-icon" /> Пропуска</div>
           <div className="tpl-list">
             {passes.map(t => (
@@ -250,7 +250,7 @@ export function MyTemplates({ user, onUse }) {
           </div>
         </div>
       )}
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--t4)', textAlign: 'center' }}>
+      <div className="u-mt12 u-fs11 u-t4 u-center">
         Нажмите на шаблон чтобы создать заявку
       </div>
     </div>
