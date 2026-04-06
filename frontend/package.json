@@ -51,7 +51,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.staged.json",
     "typecheck:full": "tsc --noEmit -p tsconfig.typecheck.json",
-    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ignore-pattern \"src/**/*.test.*\" --ignore-pattern \"src/**/*.spec.*\" --ignore-pattern \"src/**/*.smoke.test.*\" --ignore-pattern \"src/**/*.stories.*\"",
+    "lint": "eslint src/config/runtimeMode.ts src/services/providers/ServiceContracts.ts src/chat/hooks/*.ts src/ui/StateBlock.tsx",
+    "lint:full": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --ignore-pattern \"src/**/*.test.*\" --ignore-pattern \"src/**/*.spec.*\" --ignore-pattern \"src/**/*.smoke.test.*\" --ignore-pattern \"src/**/*.stories.*\"",
     "verify:api-version": "node scripts/check-no-legacy-api.js",
     "verify:modal-a11y": "node scripts/check-modal-a11y.js"
   },

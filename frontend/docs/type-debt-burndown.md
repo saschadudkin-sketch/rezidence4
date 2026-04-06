@@ -30,3 +30,4 @@
 - New provider methods are accepted only with contract tests for both providers.
 - PR must include status line: `A1 fully done: yes/no`.
 - CI/staged gate uses `npm run typecheck` (staged scope), and debt tracking uses `npm run typecheck:full`.
+- CI/staged lint gate uses `npm run lint`, and debt tracking uses `npm run lint:full`.
