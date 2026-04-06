@@ -33,6 +33,26 @@ for (const file of cssFiles) {
   }
 }
 
+function walkCode(dir, acc = []) {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const st = statSync(full);
+    if (st.isDirectory()) walkCode(full, acc);
+    else if (/\.(ts|tsx|js|jsx)$/.test(full)) acc.push(full);
+  }
+  return acc;
+}
+
+const codeFiles = walkCode('src');
+for (const file of codeFiles) {
+  const text = readFileSync(file, 'utf8');
+  const literalMatchMedia = text.match(/matchMedia\(\s*['"`]\(.*(?:min|max)-width:\s*\d+px.*\)['"`]\s*\)/);
+  if (literalMatchMedia) {
+    console.error(`[style-governance] Literal matchMedia breakpoint is forbidden in ${file}: ${literalMatchMedia[0]}`);
+    hasError = true;
+  }
+}
+
 const foundations = readFileSync('src/styles/foundations.css', 'utf8');
 if (!foundations.includes(':focus-visible')) {
   console.error('[style-governance] foundations.css must define :focus-visible styles');

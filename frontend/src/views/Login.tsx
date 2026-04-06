@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUsers } from '../store/AppStore';
 import { findByPhone } from '../utils/phoneUtils';
 import { toast } from '../ui/Toasts';
@@ -27,7 +27,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   const [phone,     setPhone]     = useState('+7 ');
   const [otp,       setOtp]       = useState('');
   const [step,      setStep]      = useState('phone');
-  const [loading,   setLoading]   = useState(false);
+  const [pending, setPendingState] = useState({ send: false, verify: false, demo: false });
   const [found,     setFound]     = useState(null);
   const [demoOpen,  setDemoOpen]  = useState(false);
   const [phoneError, setPhoneError] = useState('');
@@ -41,8 +41,21 @@ export default function Login({ onLogin, authNotice = '' }) {
 
   // AbortController — отменяет in-flight запросы при быстрой повторной отправке
   const abortRef = useRef(null);
-  const inFlightSendRef = useRef(false);
-  const inFlightVerifyRef = useRef(false);
+  const currentRequestIdRef = useRef({ send: 0, verify: 0 });
+  const requestSeqRef = useRef(0);
+  const loading = pending.send || pending.verify || pending.demo;
+
+  const nextRequestId = useCallback((kind: 'send' | 'verify') => {
+    const reqId = ++requestSeqRef.current;
+    currentRequestIdRef.current[kind] = reqId;
+    return reqId;
+  }, []);
+
+  const setPending = useCallback((kind: 'send' | 'verify', value: boolean, reqId: number) => {
+    // takeLatest: только актуальный request id управляет pending-флагом своего канала
+    if (currentRequestIdRef.current[kind] !== reqId) return;
+    setPendingState(prev => (prev[kind] === value ? prev : { ...prev, [kind]: value }));
+  }, []);
 
   useEffect(() => {
     if (step !== 'otp' || resendIn <= 0) return;
@@ -53,7 +66,7 @@ export default function Login({ onLogin, authNotice = '' }) {
   }, [step, resendIn]);
 
   const sendCode = async () => {
-    if (inFlightSendRef.current) return;
+    if (pending.send) return;
     const isResend = step === 'otp';
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 10 || digits.length > 11) {
@@ -67,9 +80,9 @@ export default function Login({ onLogin, authNotice = '' }) {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
+    const reqId = nextRequestId('send');
 
-    inFlightSendRef.current = true;
-    setLoading(true);
+    setPending('send', true, reqId);
     try {
       // CQ-01: authFlow.sendOtp handles live vs. demo branching internally
       const demoUser = await authFlow.sendOtp(phone);
@@ -99,15 +112,14 @@ export default function Login({ onLogin, authNotice = '' }) {
         if (!signal.aborted) toast('Не удалось отправить SMS. Проверьте номер.', 'error');
       }
     } finally {
-      inFlightSendRef.current = false;
-      if (!signal.aborted) setLoading(false);
+      setPending('send', false, reqId);
     }
   };
 
   // FIX [I-5]: accept optional otpValue so auto-submit can pass the value directly
   // (React state update is async — closure would read stale otp on immediate call)
   const verify = async (otpValue?: string) => {
-    if (inFlightVerifyRef.current) return;
+    if (pending.verify) return;
     const code = typeof otpValue === 'string' ? otpValue : otp;
     if (code.length !== 6) {
       setOtpError('Код должен содержать 6 цифр');
@@ -120,9 +132,9 @@ export default function Login({ onLogin, authNotice = '' }) {
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     const { signal } = abortRef.current;
+    const reqId = nextRequestId('verify');
 
-    inFlightVerifyRef.current = true;
-    setLoading(true);
+    setPending('verify', true, reqId);
     try {
       // CQ-01: authFlow.verifyOtp handles live vs. demo branching internally
       const user = await authFlow.verifyOtp(phone, code, found);
@@ -134,8 +146,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast(e.message || 'Неверный код. Попробуйте ещё раз.', 'error');
     } finally {
-      inFlightVerifyRef.current = false;
-      if (!signal.aborted) setLoading(false);
+      setPending('verify', false, reqId);
     }
   };
 
@@ -227,7 +238,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                       setPhone(p);
                       const f = findByPhone(p, phoneDb);
                       if (f) {
-                        setLoading(true);
+                        setPendingState(prev => ({ ...prev, demo: true }));
                         setFound(f);
                         setOtp('');
                         setOtpError('');
@@ -235,11 +246,12 @@ export default function Login({ onLogin, authNotice = '' }) {
                         await new Promise(r => setTimeout(r, 300));
                         setStep('otp');
                         setResendIn(OTP_COOLDOWN_SECONDS);
-                        setLoading(false);
+                        setPendingState(prev => ({ ...prev, demo: false }));
                         emitLoginMetric('send_code_success', { mode: 'demo', source: 'demo_shortcut' });
                         toast('Демо: введите любой код', 'success');
                       } else {
                         toast('Пользователь не найден в демо-данных', 'error');
+                        setPendingState(prev => ({ ...prev, demo: false }));
                       }
                     }}>
                       <span className="demo-ph">{p}</span>

@@ -17,6 +17,8 @@ import { ScanQRModal } from '../requests/ScanQRModal';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { AppIcon } from '../ui/AppIcon';
 import { VirtualList } from '../ui/VirtualList';
+import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 import GuardCard from './guard/GuardCard';
 import GuardSection from './guard/GuardSection';
 import TempPassCard from './guard/TempPassCard';
@@ -33,6 +35,8 @@ export default function GuardPostMode({ user, onViewDetails }) {
 
   // P-03: поиск на посту охраны
   const [searchQuery, setSearchQuery] = useState('');
+  const securityPassesEmptyCopy = getViewStateCopy('security_passes', 'empty');
+  const securityTechEmptyCopy = getViewStateCopy('security_tech', 'empty');
   const debouncedSearch = useDebounce(searchQuery, 250);
   const matchSearch = useCallback((r) => {
     if (!debouncedSearch.trim()) return true;
@@ -174,18 +178,14 @@ export default function GuardPostMode({ user, onViewDetails }) {
       {subTab === 'active' && (
         <>
           {pending.length === 0 && approved.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="shield" size={42} /></div>
-              <div className="guard-empty-title">Всё спокойно</div>
-              <div className="guard-empty-sub">Нет активных пропусков</div>
-            </div>
+            <StateBlock
+              type="empty"
+              title={securityPassesEmptyCopy.title}
+              subtitle={securityPassesEmptyCopy.subtitle}
+            />
           )}
           {pending.length > 0 && approved.length > 0 && filteredPending.length === 0 && filteredApproved.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
-              <div className="guard-empty-title">Ничего не найдено</div>
-              <div className="guard-empty-sub">Попробуйте другой запрос</div>
-            </div>
+            <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
           <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={filteredPending.length}>
             <VirtualList
@@ -216,18 +216,14 @@ export default function GuardPostMode({ user, onViewDetails }) {
       {subTab === 'temp' && (
         <>
           {temporary.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="history" size={42} /></div>
-              <div className="guard-empty-title">Нет временных пропусков</div>
-              <div className="guard-empty-sub">Временные пропуска с открытым доступом появятся здесь</div>
-            </div>
+            <StateBlock
+              type="empty"
+              title="Нет временных пропусков"
+              subtitle="Временные пропуска с открытым доступом появятся здесь"
+            />
           )}
           {temporary.length > 0 && filteredTemporary.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
-              <div className="guard-empty-title">Ничего не найдено</div>
-              <div className="guard-empty-sub">Попробуйте другой запрос</div>
-            </div>
+            <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
           <div className="guard-list">
             {filteredTemporary.map(r => (
@@ -243,18 +239,14 @@ export default function GuardPostMode({ user, onViewDetails }) {
       {subTab === 'tech' && (
         <>
           {techActive.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="tools" size={42} /></div>
-              <div className="guard-empty-title">Нет техзаявок</div>
-              <div className="guard-empty-sub">Заявки на электрика и сантехника появятся здесь</div>
-            </div>
+            <StateBlock
+              type="empty"
+              title={securityTechEmptyCopy.title}
+              subtitle={securityTechEmptyCopy.subtitle}
+            />
           )}
           {techActive.length > 0 && filteredTechPending.length === 0 && filteredTechAccepted.length === 0 && (
-            <div className="guard-empty">
-              <div className="guard-empty-icon"><AppIcon name="search" size={42} /></div>
-              <div className="guard-empty-title">Ничего не найдено</div>
-              <div className="guard-empty-sub">Попробуйте другой запрос</div>
-            </div>
+            <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
           <GuardSection title="Новые заявки" icon={<AppIcon name="history" size={14} />} count={filteredTechPending.length}>
             {filteredTechPending.map(r => (

@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { canManageRequests } from '../domain/permissions';
 import { canAccessTab } from '../domain/permissions';
 import { getRoleManifest } from '../domain/roleManifest';
 import { STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { toast } from '../ui/Toasts';
+import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 
 /**
  * useNavigation — URL-based tab navigation (UX-001).
@@ -18,6 +20,7 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const defaultTab = getRoleManifest(user.role).defaultTab;
+  const redirectNoticeRef = useRef('');
 
   // Извлекаем таб из URL: /dashboard/passes → 'passes'
   const getTabFromPath = (pathname) => {
@@ -36,9 +39,21 @@ export function useNavigation(user, { markChatSeen, onPassesSeen }) {
   // Если URL невалидный/недоступный для роли — мягко редиректим на default.
   useEffect(() => {
     if (!validTabFromUrl) {
+      if (tabFromUrl) {
+        const noticeKey = `${user.role}:${tabFromUrl}:${defaultTab}`;
+        if (redirectNoticeRef.current !== noticeKey) {
+          redirectNoticeRef.current = noticeKey;
+          emitUxMetric(UX_METRICS.NAV_FORBIDDEN_REDIRECT, {
+            role: user.role,
+            from: tabFromUrl,
+            to: defaultTab,
+          });
+          toast('Раздел недоступен вашей роли. Открыт доступный раздел.', 'warn');
+        }
+      }
       navigate(`/dashboard/${defaultTab}`, { replace: true });
     }
-  }, [validTabFromUrl, defaultTab, navigate]);
+  }, [validTabFromUrl, tabFromUrl, defaultTab, navigate, user.role]);
 
   // URL-only navigation API
   const setActiveTab = useCallback((k) => {

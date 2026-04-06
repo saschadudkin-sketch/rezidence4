@@ -36,7 +36,17 @@ function TabRoute({ user }) {
 
   // Guard: unknown or role-forbidden tab → redirect to default
   if (!tab || !canAccessTab(user.role, tab)) {
-    return <Navigate to={`/dashboard/${defaultTab}`} replace />;
+    return (
+      <Navigate
+        to={`/dashboard/${defaultTab}`}
+        replace
+        state={{
+          redirectReason: 'forbidden_tab',
+          sourceTab: tab || null,
+          fallbackTab: defaultTab,
+        }}
+      />
+    );
   }
 
   if (user.role === ROLES.SECURITY) {

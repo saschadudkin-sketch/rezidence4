@@ -11,6 +11,7 @@
 import { useState, useEffect, memo } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
+import { MEDIA_QUERIES } from '../../constants/breakpoints';
 
 const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
 
@@ -25,10 +26,10 @@ function getMobileMaxTabs(role) {
 // UI-01: sync with CSS breakpoint (--bp-lg-down => max-width:1024px).
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width:1024px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches
   );
   useEffect(() => {
-    const mq = window.matchMedia('(max-width:1024px)');
+    const mq = window.matchMedia(MEDIA_QUERIES.lgDown);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
