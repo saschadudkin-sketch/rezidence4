@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppIcon } from './AppIcon';
 
 type SecondaryAction = {
@@ -15,24 +15,46 @@ type PageActionBarProps = {
 
 export default function PageActionBar({ primaryLabel, onPrimary, secondary = [], className = '' }: PageActionBarProps) {
   const [open, setOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target;
+      if (overflowRef.current && target instanceof Node && !overflowRef.current.contains(target)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [open]);
 
   return (
     <div className={`page-action-bar ${className}`.trim()}>
       {secondary.length > 0 && (
-        <div className="page-action-overflow">
+        <div className="page-action-overflow" ref={overflowRef}>
           <button
+            type="button"
             className="btn-outline page-action-overflow-btn"
             onClick={() => setOpen(v => !v)}
             aria-expanded={open}
             aria-haspopup="menu"
           >
-            <span className="u-inline-icon"><AppIcon name="list" size={14} /> Ещё</span>
+            <span className="u-inline-icon"><AppIcon name="dots" size={14} /> Ещё</span>
           </button>
           {open && (
             <div className="page-action-overflow-menu" role="menu">
               {secondary.map((action) => (
                 <button
                   key={action.label}
+                  type="button"
                   className="page-action-overflow-item"
                   role="menuitem"
                   onClick={() => {
@@ -47,7 +69,7 @@ export default function PageActionBar({ primaryLabel, onPrimary, secondary = [],
           )}
         </div>
       )}
-      <button className="btn-gold page-action-primary" onClick={onPrimary}>
+      <button type="button" className="btn-gold page-action-primary" onClick={() => { setOpen(false); onPrimary(); }}>
         <span>{primaryLabel}</span>
       </button>
     </div>

@@ -1,8 +1,7 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import ResidentView from './ResidentView';
 import * as AppStore from '../store/AppStore';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const baseReq = (overrides = {}) => ({
   id: 'r1',
@@ -42,8 +41,8 @@ vi.mock('../domain/permissions', () => ({
   isResident: () => true,
 }));
 vi.mock('../requests/ReqCard', () => ({
-  GroupedReqList: ({ reqs }) => <div data-testid="req-list">{reqs.length} заявок</div>,
-  ReqCard: ({ req }) => <div data-testid="req-card">{req.id}</div>,
+  GroupedReqList: ({ reqs }: { reqs: Array<{ id: string }> }) => <div data-testid="req-list">{reqs.length} заявок</div>,
+  ReqCard: ({ req }: { req: { id: string } }) => <div data-testid="req-card">{req.id}</div>,
 }));
 vi.mock('../requests/CreateModal', () => ({ CreateModal: () => <div data-testid="create-modal" /> }));
 vi.mock('../requests/EditRequestModal', () => ({ EditRequestModal: () => <div data-testid="edit-modal" /> }));
@@ -65,10 +64,14 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('ResidentView', () => {
-  test('renders owner passes view with CTA and request list', () => {
+  test('renders owner passes shortcuts and CTA', () => {
     render(<ResidentView user={user} activeTab="passes" setActiveTab={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Создать пропуск' })).toBeInTheDocument();
-    expect(screen.getByText('Гость')).toBeInTheDocument();
+
+    const typeGrid = document.querySelector('.type-grid');
+    expect(typeGrid).not.toBeNull();
+
+    expect(within(typeGrid as HTMLElement).getByRole('button', { name: 'Гость' })).toBeInTheDocument();
+    expect(within(typeGrid as HTMLElement).getByRole('button', { name: 'Курьер' })).toBeInTheDocument();
   });
 
   test('renders perms tab', () => {
@@ -83,14 +86,17 @@ describe('ResidentView', () => {
 
   test('shows current request content on passes tab', () => {
     render(<ResidentView user={user} activeTab="passes" setActiveTab={vi.fn()} />);
-    expect(screen.getByText('Гость')).toBeInTheDocument();
+    expect(screen.getAllByText('Гость')).not.toHaveLength(0);
     expect(screen.getByText('Разовые (1)')).toBeInTheDocument();
   });
 
-  test('opens CreateModal after selecting a category from owner CTA flow', () => {
+  test('opens CreateModal after selecting a category card', () => {
     render(<ResidentView user={user} activeTab="passes" setActiveTab={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Создать пропуск' }));
-    fireEvent.click(screen.getAllByText('Гость')[0]);
+
+    const typeGrid = document.querySelector('.type-grid');
+    expect(typeGrid).not.toBeNull();
+
+    fireEvent.click(within(typeGrid as HTMLElement).getByRole('button', { name: 'Гость' }));
     expect(screen.getByTestId('create-modal')).toBeInTheDocument();
   });
 });

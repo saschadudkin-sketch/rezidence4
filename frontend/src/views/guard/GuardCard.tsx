@@ -192,7 +192,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
             )}
             {confirmAction === 'reject' ? (
               <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
-                {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
+                {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
                 <span>Точно отказать?</span>
               </button>
             ) : (

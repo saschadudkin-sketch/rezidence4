@@ -60,7 +60,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
   const passesEmptyCopy = getViewStateCopy('security_passes', 'empty');
   const techEmptyCopy = getViewStateCopy('security_tech', 'empty');
 
-  const pIcons = [['guest', 'users', 'Гость'], ['courier', 'file', 'Курьер'], ['taxi', 'car', 'Такси'], ['car', 'car', 'Авто'], ['master', 'tools', 'Мастер']];
+  const pIcons = [['guest', 'users', 'Гость'], ['courier', 'courier', 'Курьер'], ['taxi', 'taxi', 'Такси'], ['car', 'car', 'Авто'], ['master', 'tools', 'Мастер']];
 
   return (<>
     {activeTab === 'passes' && (<>
@@ -118,7 +118,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
 
     {activeTab === 'tech' && (<>
       <div className="type-grid">
-        {[['electrician', 'chart', 'Электрик'], ['plumber', 'tools', 'Сантехник']].map(([k, iconName, l]) => (
+        {[['electrician', 'tools', 'Электрик'], ['plumber', 'tools', 'Сантехник']].map(([k, iconName, l]) => (
           // FIX [A11y]: <button> вместо div[role=button]
           <button key={k} type="button" className="type-card" onClick={() => setModal({ type: 'tech', cat: k })}>
             <div className="type-icon"><AppIcon name={iconName} size={20} /></div>

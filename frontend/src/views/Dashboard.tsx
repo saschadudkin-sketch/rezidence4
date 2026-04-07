@@ -44,7 +44,7 @@ function DemoBanner({ onClose }) {
 
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
-      <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
+      <span className="demo-welcome-icon"><AppIcon name="info" size={14} /></span>
       <span className="demo-welcome-text">
         <strong>Демо-режим.</strong>{' '}
         Попробуйте создать пропуск или вызов техслужбы - все работает без сервера.

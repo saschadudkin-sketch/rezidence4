@@ -40,6 +40,16 @@ const EMPTY_STORE: AppStoreApi = {
   subscribe: () => () => {},
 };
 
+const EMPTY_USERS: Record<string, AppUser> = {};
+const EMPTY_PHONE_DB: Record<string, AppUser> = {};
+const EMPTY_PERMS_ENTRY = { visitors: [], workers: [] } as const;
+const EMPTY_TEMPLATES: [] = [];
+const EMPTY_HISTORY: [] = [];
+const EMPTY_BLACKLIST: [] = [];
+const EMPTY_GARAGE_CARS: Car[] = [];
+const EMPTY_ALL_PERMS: Record<string, typeof EMPTY_PERMS_ENTRY> = {};
+const EMPTY_ALL_GARAGE: Record<string, Car[]> = {};
+
 type AppDispatch = ReturnType<typeof useBoundedDomainStates>['dispatch'];
 
 function createAppStore(initialState: AppStoreSnapshot): AppStoreApi & {
@@ -136,19 +146,19 @@ export function useRequests() { return useAppStoreSelector((state) => state.reqS
 export function useChat() { return useAppStoreSelector((state) => state.chatState); }
 export function useUsers(): { users: Record<string, AppUser>; phoneDb: Record<string, AppUser> } {
   const c = useAppStoreSelector((state) => state.usersState);
-  return { users: c?.users ?? {} as Record<string, AppUser>, phoneDb: c?.phoneDb ?? {} as Record<string, AppUser> };
+  return { users: c?.users ?? EMPTY_USERS, phoneDb: c?.phoneDb ?? EMPTY_PHONE_DB };
 }
 export function useAvatar(uid: string): string | null {
   return useAppStoreSelector((state) => state.usersState.avatars?.[uid] || state.usersState.users?.[uid]?.avatar || null);
 }
-export function usePerms(uid) { return useAppStoreSelector((state) => state.permsState.perms?.[uid] || { visitors: [], workers: [] }); }
-export function useTemplates(uid) { return useAppStoreSelector((state) => state.permsState.templates?.[uid] || []); }
-export function useRequestHistory(reqId) { return useAppStoreSelector((state) => state.reqState.history?.[reqId] || []); }
-export function useBlacklist() { return useAppStoreSelector((state) => state.blacklistState.blacklist ?? []); }
-export function useGarage(uid: string): Car[] { return useAppStoreSelector((state) => state.garageState.garage?.[uid] ?? []); }
+export function usePerms(uid) { return useAppStoreSelector((state) => state.permsState.perms?.[uid] ?? EMPTY_PERMS_ENTRY); }
+export function useTemplates(uid) { return useAppStoreSelector((state) => state.permsState.templates?.[uid] ?? EMPTY_TEMPLATES); }
+export function useRequestHistory(reqId) { return useAppStoreSelector((state) => state.reqState.history?.[reqId] ?? EMPTY_HISTORY); }
+export function useBlacklist() { return useAppStoreSelector((state) => state.blacklistState.blacklist ?? EMPTY_BLACKLIST); }
+export function useGarage(uid: string): Car[] { return useAppStoreSelector((state) => state.garageState.garage?.[uid] ?? EMPTY_GARAGE_CARS); }
 
-export function useAllPerms() { return useAppStoreSelector((state) => state.permsState.perms || {}); }
-export function useAllGarage() { return useAppStoreSelector((state) => state.garageState.garage ?? {}); }
+export function useAllPerms() { return useAppStoreSelector((state) => state.permsState.perms || EMPTY_ALL_PERMS); }
+export function useAllGarage() { return useAppStoreSelector((state) => state.garageState.garage ?? EMPTY_ALL_GARAGE); }
 
 export function useActions() {
   return useStoreActions();

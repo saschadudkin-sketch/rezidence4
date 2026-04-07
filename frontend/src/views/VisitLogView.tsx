@@ -85,7 +85,7 @@ const VisitCard = memo(function VisitCard({ r }) {
           {r.result === 'allowed' && <span className="vlog-tag ok"><AppIcon name="check" className="u-inline-icon" /> Допуск</span>}
           {r.result === 'denied' && <span className="vlog-tag bad"><AppIcon name="denied" className="u-inline-icon" /> Отказ</span>}
           {r.carPlate && <span className="vlog-tag car"><AppIcon name="car" className="u-inline-icon" /> {r.carPlate}</span>}
-          {duration && <span className="vlog-tag dur"><AppIcon name="history" className="u-inline-icon" /> {duration}</span>}
+          {duration && <span className="vlog-tag dur"><AppIcon name="clock" className="u-inline-icon" /> {duration}</span>}
           {r.status === 'expired' && <span className="vlog-tag expired">Истёк</span>}
         </div>
         {r.actorName && (

@@ -150,7 +150,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
         <PassesTab
           user={user}
           passFilter={passFilter} setPassFilter={setPassFilter}
-          setModal={setModal} setActiveTab={setActiveTab}
+          setModal={setModal}
           onRepeatPass={onRepeatPass} onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
           computed={computed}
         />
@@ -174,7 +174,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
       )}
 
       {activeTab === 'templates' && (
-        <TemplatesTab user={user} setModal={setModal} setActiveTab={setActiveTab} />
+        <TemplatesTab user={user} setModal={setModal} />
       )}
 
       {activeTab === 'history' && (

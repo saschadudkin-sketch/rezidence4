@@ -120,7 +120,7 @@ export function PassQRModal({ req, onClose }) {
                 } catch {
                   toast('Не удалось скопировать', 'error');
                 }
-              }}><span className="u-inline-icon"><AppIcon name="list" size={14} /> Копировать</span></button>
+              }}><span className="u-inline-icon"><AppIcon name="copy" size={14} /> Копировать</span></button>
               <button className="btn-outline u-flex1" onClick={() => {
                 try {
                   const blob = dataUrlToBlob(qrUrl);
@@ -133,7 +133,7 @@ export function PassQRModal({ req, onClose }) {
                 } catch {
                   toast('Не удалось скачать', 'error');
                 }
-              }}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Скачать</span></button>
+              }}><span className="u-inline-icon"><AppIcon name="download" size={14} /> Скачать</span></button>
             </div>
           )}
           <button className="btn-gold u-w-full" onClick={onClose}><span>Закрыть</span></button>

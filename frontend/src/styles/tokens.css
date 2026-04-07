@@ -1,12 +1,6 @@
 /**
- * tokens.css — A-02: Design token layer.
+ * tokens.css - Design token layer.
  * CSS custom properties for the entire application.
- * Import before foundations.css and theme.css.
- *
- * Layers:
- *   tokens.css       ← you are here
- *   foundations.css  ← resets + base
- *   theme.css        ← components + features
  */
 
 @custom-media --bp-sm-down (max-width: 480px);
@@ -19,292 +13,287 @@
 @custom-media --bp-2xl-up (min-width: 1536px);
 
 :root {
-  /* ── Цвета статусов и типов ──────────────────────── */
-  --clr-scheduled: #5B3A9B;
-  --clr-scheduled-bg: rgba(91,58,155,.12);
-  --clr-scheduled-t: #BFA0E8;
+  --clr-scheduled: #7b5eaa;
+  --clr-scheduled-bg: rgba(123, 94, 170, 0.12);
+  --clr-scheduled-t: #d0bced;
   --clr-temporary: var(--clr-scheduled);
-  --clr-permanent: #4A90D9;
-  --clr-permanent-bg: rgba(74,144,217,.12);
+  --clr-permanent: #6b8eae;
+  --clr-permanent-bg: rgba(107, 142, 174, 0.12);
 
-  /* ── Z-index система ───────────────────────────── */
-  --z-base:    1;
-  --z-sticky:  100;   /* sticky headers */
-  --z-nav:     200;   /* top/bottom nav bars */
-  --z-overlay: 300;   /* backdrop/scrim behind modals */
-  --z-modal:   400;   /* modals, dialogs */
-  --z-top:     500;   /* mobile nav overlay, floating elements above modals */
-  --z-toast:   9999;  /* toasts — always on top */
+  --z-base: 1;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-top: 500;
+  --z-toast: 9999;
 
-  /* surfaces — тёплый почти-чёрный, без синевы */
-  --s0: #13110E;
-  --s1: #191714;
-  --s2: #211E1A;
-  --s3: #2C2820;
-  --s4: #363028;
+  --s0: #11100e;
+  --s1: #181613;
+  --s2: #201d19;
+  --s3: #2a2621;
+  --s4: #35302a;
 
-  /* text */
-  --t1: #EDE5D8;
-  --t2: #C4BAA8;
-  --t3: #A79A8A;
-  --t4: #817463;
+  --t1: #eee7dc;
+  --t2: #c7bdae;
+  --t3: #a29584;
+  --t4: #7a6e5e;
 
-  /* gold */
-  --g1: #C4963C;
-  --g2: #D8AE58;
-  --g3: #EAC878;
-  --g-bg:  rgba(196,150,60,.08);
-  --g-bg2: rgba(196,150,60,.15);
+  --g1: #b8935a;
+  --g2: #c9a96e;
+  --g3: #e4d4b4;
+  --g-bg: rgba(201, 169, 110, 0.08);
+  --g-bg2: rgba(201, 169, 110, 0.16);
 
-  /* status */
-  --ok:    #2D6040;
-  --ok-t:  #5EAA78;
-  --err:   #6A2828;
-  --err-t: #C06060;
-  --wrn:   #6A4818;
-  --wrn-t: #C49040;
+  --ok: #234b34;
+  --ok-t: #6fa07e;
+  --err: #612b2b;
+  --err-t: #c97777;
+  --wrn: #6a4f23;
+  --wrn-t: #c9a96e;
 
-  /* danger — destructive actions */
-  /* NOTE: --danger primary value defined below as var(--err-t) for theme-awareness */
-  --danger-t:  #D06060;
-  --danger-bg: rgba(122,32,32,.12);
+  --danger-t: #d47070;
+  --danger-bg: rgba(184, 92, 92, 0.12);
 
-  /* borders */
-  --b1: rgba(196,150,60,.10);
-  --b2: rgba(196,150,60,.20);
-  --b3: rgba(196,150,60,.38);
+  --b1: rgba(201, 169, 110, 0.12);
+  --b2: rgba(201, 169, 110, 0.22);
+  --b3: rgba(201, 169, 110, 0.38);
 
-  /* shadows */
-  --sh-s: 0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
-  --sh-m: 0 4px 20px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.3);
-  --sh-l: 0 16px 56px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
+  --sh-s: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 22px rgba(0, 0, 0, 0.18);
+  --sh-m: 0 10px 30px rgba(0, 0, 0, 0.26), 0 2px 8px rgba(0, 0, 0, 0.18);
+  --sh-l: 0 24px 60px rgba(0, 0, 0, 0.34), 0 4px 12px rgba(0, 0, 0, 0.2);
 
-  /* role colors */
-  --role-owner:      #5B8FD4;
-  --role-tenant:     #6BAF7A;
-  --role-contractor: #C49040;
-  --role-concierge:  #C4963C;
-  --role-security:   var(--clr-scheduled);
-  --role-admin:      #5A9EBB;
+  --role-owner: #5b8fd4;
+  --role-tenant: #6baf7a;
+  --role-contractor: #c49040;
+  --role-concierge: #c4963c;
+  --role-security: var(--clr-scheduled);
+  --role-admin: #5a9ebb;
 
-  /* arrived / blue accent */
-  --arrived:         #5B8FD4;
-  --arrived-t:       #82B4F0;
-  --arrived-bg:      rgba(65,110,180,.15);
-  --arrived-b:       rgba(91,143,212,.25);
+  --arrived: #6b8eae;
+  --arrived-t: #89a9c8;
+  --arrived-bg: rgba(107, 142, 174, 0.15);
+  --arrived-b: rgba(107, 142, 174, 0.25);
 
-  /* expired / gray */
-  --expired:         #888;
-  --expired-t:       #999;
-  --expired-bg:      rgba(128,128,128,.12);
-  --expired-b:       rgba(128,128,128,.25);
+  --expired: #888;
+  --expired-t: #999;
+  --expired-bg: rgba(128, 128, 128, 0.12);
+  --expired-b: rgba(128, 128, 128, 0.25);
 
-  /* spacing scale — UI-03: добавлены xl/2xl/3xl для замены hardcoded значений */
-  --space-xs:  4px;
-  --space-sm:  8px;
-  --space-md:  16px;
-  --space-lg:  24px;
-  --space-xl:  32px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
   --space-2xl: 48px;
   --space-3xl: 64px;
 
-  /* typography scale — UI-02: полная шкала вместо двух значений */
   --fs-3xs: 10px;
   --fs-2xs: 11px;
-  --fs-xs:  12px;
-  --fs-sm:  13px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
   --fs-body: 14px;
-  --fs-meta: 12px; /* псевдоним для обратной совместимости */
-  --fs-md:  16px;
-  --fs-lg:  18px;
-  --fs-xl:  24px;
+  --fs-meta: 12px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
   --fs-2xl: 32px;
   --lh-tight: 1.2;
   --lh-body: 1.5;
   --lh-loose: 1.65;
 
-  /* ── Breakpoints — UI-bp: responsive layout tokens ─────────────────────── */
-  /*
-   * CSS custom properties CANNOT be used in @media queries (spec limitation).
-   * The numeric values below document intent — use them literally in @media rules.
-   *
-   * Breakpoint rules are defined via @custom-media aliases above.
-   * Use ONLY aliases in component styles and avoid literal pixel breakpoints.
-   *   480px  = --bp-sm   (large mobile)
-   *   768px  = --bp-md   (tablet portrait) ← most common breakpoint
-   *  1024px  = --bp-lg   (tablet landscape)
-   *  1280px  = --bp-xl   (desktop)
-   *  1536px  = --bp-2xl  (wide desktop)
-   */
-  --bp-sm:   480px;   /* large mobile / small phone landscape                                */
-  --bp-md:   768px;   /* tablet portrait (iPad, Android tablet)                              */
-  --bp-lg:  1024px;   /* tablet landscape / small desktop                                    */
-  --bp-xl:  1280px;   /* desktop                                                             */
-  --bp-2xl: 1536px;   /* large desktop / wide monitor                                        */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
 
-  --r: 8px;
-  --sat: env(safe-area-inset-top,0px);
-  --sab: env(safe-area-inset-bottom,0px);
-  --sal: env(safe-area-inset-left,0px);
-  --sar: env(safe-area-inset-right,0px);
+  --r: 12px;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
   --header-h: 64px;
   --nav-h: 60px;
 
-  /* полупрозрачные поверхности */
-  --overlay-bg: rgba(0,0,0,.65);
-  --header-bg:  rgba(19,17,14,.88);
-  --topnav-bg:  rgba(19,17,14,.88);
-  --mobnav-bg:  rgba(19,17,14,.94);
-  --dd-bg:      rgba(0,0,0,.7);
+  --overlay-bg: rgba(8, 8, 8, 0.68);
+  --header-bg: rgba(17, 16, 14, 0.84);
+  --topnav-bg: rgba(17, 16, 14, 0.84);
+  --mobnav-bg: rgba(17, 16, 14, 0.92);
+  --dd-bg: rgba(19, 17, 14, 0.92);
 
-  /* badge backgrounds — меняются в светлой теме */
-  --badge-pending-bg:  rgba(106,72,24,.15);  --badge-pending-b:  rgba(196,144,64,.2);
-  --badge-approved-bg: rgba(45,96,64,.15);   --badge-approved-b: rgba(94,170,120,.2);
-  --badge-rejected-bg: rgba(106,40,40,.15);  --badge-rejected-b: rgba(192,96,96,.2);
+  --badge-pending-bg: rgba(201, 169, 110, 0.12);
+  --badge-pending-b: rgba(201, 169, 110, 0.24);
+  --badge-approved-bg: rgba(74, 124, 89, 0.15);
+  --badge-approved-b: rgba(111, 160, 126, 0.22);
+  --badge-rejected-bg: rgba(184, 92, 92, 0.14);
+  --badge-rejected-b: rgba(201, 119, 119, 0.22);
 
-  /* warn / danger */
-  --warn:   #f59e0b;
-  --warn-t: #000000;
+  --warn: #c38d3c;
+  --warn-t: #1c150a;
   --danger: var(--err-t);
 
-  /* ── Semantic aliases — UI-01: human-readable names for shorthand tokens ─── */
-  /*
-   * RULE: Prefer semantic aliases (--color-*) over shorthand aliases (--t1, --s0, etc.)
-   * in all new component code. Shorthand aliases exist for backward compatibility only.
-   *
-   * ✅ Good: color: var(--color-text-primary)
-   * ⚠️  Legacy: color: var(--t1)  ← still works but don't use in new code
-   *
-   * TOKEN MIGRATION GUIDE (ЖЕЛАТ-UI4):
-   * Phase 1 (current): All NEW component code uses --color-* semantic aliases.
-   * Phase 2 (next sprint): Find and replace legacy tokens in component CSS files:
-   *   grep -r 'var(--t[1-4])\|var(--s[0-4])\|var(--g[1-3])' frontend/src/styles/components/
-   * Phase 3: Remove shorthand aliases (--t1..t4, --s0..s4, --g1..g3) — dead code at that point.
-   *
-   * Benefits of semantic aliases:
-   *   - Self-documenting intent (--color-surface-card vs. --s2)
-   *   - Easier to update theme values without searching the codebase
-   *   - Consistent naming with design system conventions
-   */
-  --color-text-primary:   var(--t1);
+  --color-text-primary: var(--t1);
   --color-text-secondary: var(--t2);
-  --color-text-muted:     var(--t3);
-  --color-text-subtle:    var(--t4);
-  --color-surface-base:   var(--s0);
-  --color-surface-card:   var(--s2);
+  --color-text-muted: var(--t3);
+  --color-text-subtle: var(--t4);
+  --color-surface-base: var(--s0);
+  --color-surface-card: var(--s2);
   --color-surface-raised: var(--s3);
-  --color-border:         var(--b1);
-  --color-border-hover:   var(--b2);
-  --color-accent:         var(--g2);
-  --color-success:        var(--ok-t);
-  --color-error:          var(--err-t);
-  --color-warning:        var(--wrn-t);
+  --color-border: var(--b1);
+  --color-border-hover: var(--b2);
+  --color-accent: var(--g2);
+  --color-success: var(--ok-t);
+  --color-error: var(--err-t);
+  --color-warning: var(--wrn-t);
 }
 
-/* ── Светлая тема (auto) ───────────────────────────────────────────────────── */
 @media (prefers-color-scheme: light) {
   :root {
-    --s0: #FDFCFA; --s1: #F7F5F0; --s2: #FFFFFF; --s3: #EDEAE3; --s4: #DDD9CF;
-    --t1: #1A1814; --t2: #38342C; --t3: #605848; --t4: #8C8272;
-    --g1: #8C6820; --g2: #A67C2E; --g3: #C49A3A;
-    --g-bg: rgba(140,104,32,.08); --g-bg2: rgba(140,104,32,.14);
-    --ok: #1E5C38; --ok-t: #1E5C38; --err: #8B2020; --err-t: #8B2020; --wrn: #7A4A10; --wrn-t: #7A4A10;
-    --b1: rgba(100,80,40,.15); --b2: rgba(100,80,40,.25); --b3: rgba(100,80,40,.45);
-    --sh-s: 0 1px 4px rgba(0,0,0,.07), 0 2px 8px rgba(0,0,0,.05);
-    --sh-m: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
-    --sh-l: 0 12px 40px rgba(0,0,0,.14), 0 4px 12px rgba(0,0,0,.08);
-    --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
-    --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
-    --overlay-bg: rgba(253,252,250,.94);
-    --header-bg: rgba(247,245,240,.95); --topnav-bg: rgba(247,245,240,.95);
-    --mobnav-bg: rgba(247,245,240,.97); --dd-bg: rgba(255,255,255,.97);
-    --badge-pending-bg: rgba(140,90,0,.10); --badge-pending-b: rgba(140,100,0,.25);
-    --badge-approved-bg: rgba(20,80,40,.10); --badge-approved-b: rgba(20,100,50,.25);
-    --badge-rejected-bg: rgba(120,20,20,.10); --badge-rejected-b: rgba(140,30,30,.25);
-    --clr-scheduled: #6B3FAF;
-    /* UI-01: #d97706 на белом = 2.94:1 (ниже WCAG AA). #b45309 = 4.67:1 ✅ */
-    --warn: #b45309; --warn-t: #ffffff;
+    --s0: #fdfcf9;
+    --s1: #f7f3ed;
+    --s2: #ffffff;
+    --s3: #f0ece5;
+    --s4: #ded7cd;
+    --t1: #2b2b2b;
+    --t2: #575148;
+    --t3: #7e7569;
+    --t4: #a0978a;
+    --g1: #b8935a;
+    --g2: #c9a96e;
+    --g3: #e4d4b4;
+    --g-bg: rgba(201, 169, 110, 0.1);
+    --g-bg2: rgba(201, 169, 110, 0.18);
+    --ok: #4a7c59;
+    --ok-t: #356845;
+    --err: #b85c5c;
+    --err-t: #9e4646;
+    --wrn: #a77931;
+    --wrn-t: #8b6323;
+    --b1: rgba(105, 86, 50, 0.14);
+    --b2: rgba(105, 86, 50, 0.22);
+    --b3: rgba(105, 86, 50, 0.34);
+    --sh-s: 0 1px 3px rgba(24, 20, 15, 0.06), 0 12px 28px rgba(24, 20, 15, 0.05);
+    --sh-m: 0 12px 30px rgba(24, 20, 15, 0.1), 0 2px 8px rgba(24, 20, 15, 0.06);
+    --sh-l: 0 24px 56px rgba(24, 20, 15, 0.14), 0 4px 16px rgba(24, 20, 15, 0.08);
+    --arrived: #5c7b9b;
+    --arrived-t: #4e6b88;
+    --expired: #91887a;
+    --expired-t: #7f7568;
+    --arrived-bg: rgba(92, 123, 155, 0.1);
+    --arrived-b: rgba(92, 123, 155, 0.22);
+    --overlay-bg: rgba(253, 252, 249, 0.82);
+    --header-bg: rgba(253, 252, 249, 0.82);
+    --topnav-bg: rgba(253, 252, 249, 0.82);
+    --mobnav-bg: rgba(253, 252, 249, 0.92);
+    --dd-bg: rgba(255, 255, 255, 0.94);
+    --badge-pending-bg: rgba(201, 169, 110, 0.12);
+    --badge-pending-b: rgba(201, 169, 110, 0.24);
+    --badge-approved-bg: rgba(74, 124, 89, 0.1);
+    --badge-approved-b: rgba(74, 124, 89, 0.2);
+    --badge-rejected-bg: rgba(184, 92, 92, 0.1);
+    --badge-rejected-b: rgba(184, 92, 92, 0.2);
+    --clr-scheduled: #7b5eaa;
+    --warn: #a56f1f;
+    --warn-t: #ffffff;
     --danger: var(--err-t);
   }
 }
 
-/* ── Принудительная светлая тема (класс) ─────────────────────────────────── */
 html.theme-light {
-  --s0: #F5F3EE;
-  --s1: #ECEAE4;
-  --s2: #FFFFFF;
-  --s3: #E2DFD7;
-  --s4: #D5D0C6;
-  --t1: #1A1814;
-  --t2: #2E2A24;
-  --t3: #55504A;
-  --t4: #7A7468;
-  --g1: #7A5A18;
-  --g2: #96701E;
-  --g3: #B8902E;
-  --g-bg:  rgba(120,88,24,.08);
-  --g-bg2: rgba(120,88,24,.15);
-  --ok: #1A6B3A; --ok-t: #1A6B3A;
-  --err: #9B2020; --err-t: #9B2020;
-  --wrn: #7A4A10; --wrn-t: #7A4A10;
-  --b1: rgba(80,60,30,.18);
-  --b2: rgba(80,60,30,.28);
-  --b3: rgba(80,60,30,.50);
-  --sh-s: 0 1px 3px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
-  --sh-m: 0 4px 16px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
-  --sh-l: 0 12px 40px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.10);
-  --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
-  --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
-  --overlay-bg: rgba(245,243,238,.94);
-  --header-bg: rgba(236,234,228,.96);
-  --topnav-bg: rgba(236,234,228,.96);
-  --mobnav-bg: rgba(236,234,228,.98);
-  --dd-bg: rgba(255,255,255,.98);
-  --badge-pending-bg: rgba(140,90,0,.12); --badge-pending-b: rgba(140,100,0,.30);
-  --badge-approved-bg: rgba(20,80,40,.12); --badge-approved-b: rgba(20,100,50,.30);
-  --badge-rejected-bg: rgba(130,20,20,.12); --badge-rejected-b: rgba(150,30,30,.30);
-  --clr-scheduled: #6B3FAF;
-  /* UI-01: #d97706 на белом = 2.94:1 (ниже WCAG AA). #b45309 = 4.67:1 ✅ */
-  --warn: #b45309; --warn-t: #ffffff;
+  --s0: #fdfcf9;
+  --s1: #f7f3ed;
+  --s2: #ffffff;
+  --s3: #f0ece5;
+  --s4: #ded7cd;
+  --t1: #2b2b2b;
+  --t2: #504a42;
+  --t3: #7b7368;
+  --t4: #a0978a;
+  --g1: #b8935a;
+  --g2: #c9a96e;
+  --g3: #e4d4b4;
+  --g-bg: rgba(201, 169, 110, 0.1);
+  --g-bg2: rgba(201, 169, 110, 0.18);
+  --ok: #4a7c59;
+  --ok-t: #356845;
+  --err: #b85c5c;
+  --err-t: #9e4646;
+  --wrn: #a77931;
+  --wrn-t: #8b6323;
+  --b1: rgba(105, 86, 50, 0.14);
+  --b2: rgba(105, 86, 50, 0.22);
+  --b3: rgba(105, 86, 50, 0.34);
+  --sh-s: 0 1px 3px rgba(24, 20, 15, 0.06), 0 12px 28px rgba(24, 20, 15, 0.05);
+  --sh-m: 0 12px 30px rgba(24, 20, 15, 0.1), 0 2px 8px rgba(24, 20, 15, 0.06);
+  --sh-l: 0 24px 56px rgba(24, 20, 15, 0.14), 0 4px 16px rgba(24, 20, 15, 0.08);
+  --arrived: #5c7b9b;
+  --arrived-t: #4e6b88;
+  --expired: #91887a;
+  --expired-t: #7f7568;
+  --arrived-bg: rgba(92, 123, 155, 0.1);
+  --arrived-b: rgba(92, 123, 155, 0.22);
+  --overlay-bg: rgba(253, 252, 249, 0.82);
+  --header-bg: rgba(253, 252, 249, 0.82);
+  --topnav-bg: rgba(253, 252, 249, 0.82);
+  --mobnav-bg: rgba(253, 252, 249, 0.92);
+  --dd-bg: rgba(255, 255, 255, 0.94);
+  --badge-pending-bg: rgba(201, 169, 110, 0.12);
+  --badge-pending-b: rgba(201, 169, 110, 0.24);
+  --badge-approved-bg: rgba(74, 124, 89, 0.1);
+  --badge-approved-b: rgba(74, 124, 89, 0.2);
+  --badge-rejected-bg: rgba(184, 92, 92, 0.1);
+  --badge-rejected-b: rgba(184, 92, 92, 0.2);
+  --clr-scheduled: #7b5eaa;
+  --warn: #a56f1f;
+  --warn-t: #ffffff;
   --danger: var(--err-t);
 }
 
-/* ── Принудительная тёмная тема (класс) ──────────────────────────────────── */
 html.theme-dark {
-  --s0: #13110E;
-  --s1: #191714;
-  --s2: #211E1A;
-  --s3: #2A2620;
-  --s4: #36312A;
-  --t1: #EDE5D8;
-  --t2: #C4BAA8;
-  --t3: #8C8272;
-  --t4: #665D50;
-  --g1: #C4963C;
-  --g2: #D4A84A;
-  --g3: #B88A32;
-  --g-bg: rgba(196,150,60,.12);
-  --g-bg2: rgba(196,150,60,.22);
-  --ok: #5EAA78; --ok-t: #5EAA78;
-  --err: #C06060; --err-t: #C06060;
-  --wrn: #C49040; --wrn-t: #C49040;
-  --b1: rgba(196,150,60,.10);
-  --b2: rgba(196,150,60,.20);
-  --b3: rgba(196,150,60,.40);
-  --sh-s: 0 1px 3px rgba(0,0,0,.2), 0 4px 12px rgba(0,0,0,.15);
-  --sh-m: 0 4px 24px rgba(0,0,0,.3), 0 1px 4px rgba(0,0,0,.2);
-  --sh-l: 0 16px 56px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.3);
-  --arrived: #5A8EC8; --arrived-t: #5A8EC8;
-  --arrived-bg: rgba(90,142,200,.12); --arrived-b: rgba(90,142,200,.2);
-  --overlay-bg: rgba(19,17,14,.92);
-  --header-bg: rgba(19,17,14,.92);
-  --topnav-bg: rgba(19,17,14,.92);
-  --mobnav-bg: rgba(19,17,14,.96);
-  --dd-bg: rgba(33,30,26,.96);
-  --badge-pending-bg: rgba(196,144,64,.12); --badge-pending-b: rgba(196,144,64,.2);
-  --badge-approved-bg: rgba(45,96,64,.15); --badge-approved-b: rgba(94,170,120,.2);
-  --badge-rejected-bg: rgba(106,40,40,.15); --badge-rejected-b: rgba(192,96,96,.2);
-  --clr-scheduled: #9B7FDF;
-  --warn: #f59e0b; --warn-t: #000000;
+  --s0: #11100e;
+  --s1: #181613;
+  --s2: #201d19;
+  --s3: #2a2621;
+  --s4: #35302a;
+  --t1: #eee7dc;
+  --t2: #c7bdae;
+  --t3: #a29584;
+  --t4: #7a6e5e;
+  --g1: #b8935a;
+  --g2: #c9a96e;
+  --g3: #e4d4b4;
+  --g-bg: rgba(201, 169, 110, 0.1);
+  --g-bg2: rgba(201, 169, 110, 0.18);
+  --ok: #5a9d6a;
+  --ok-t: #6fa07e;
+  --err: #b85c5c;
+  --err-t: #d47070;
+  --wrn: #a77931;
+  --wrn-t: #c9a96e;
+  --b1: rgba(201, 169, 110, 0.12);
+  --b2: rgba(201, 169, 110, 0.22);
+  --b3: rgba(201, 169, 110, 0.38);
+  --sh-s: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 22px rgba(0, 0, 0, 0.18);
+  --sh-m: 0 10px 30px rgba(0, 0, 0, 0.26), 0 2px 8px rgba(0, 0, 0, 0.18);
+  --sh-l: 0 24px 60px rgba(0, 0, 0, 0.34), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --arrived: #6b8eae;
+  --arrived-t: #89a9c8;
+  --arrived-bg: rgba(107, 142, 174, 0.15);
+  --arrived-b: rgba(107, 142, 174, 0.24);
+  --overlay-bg: rgba(8, 8, 8, 0.68);
+  --header-bg: rgba(17, 16, 14, 0.84);
+  --topnav-bg: rgba(17, 16, 14, 0.84);
+  --mobnav-bg: rgba(17, 16, 14, 0.92);
+  --dd-bg: rgba(19, 17, 14, 0.92);
+  --badge-pending-bg: rgba(201, 169, 110, 0.12);
+  --badge-pending-b: rgba(201, 169, 110, 0.24);
+  --badge-approved-bg: rgba(74, 124, 89, 0.15);
+  --badge-approved-b: rgba(111, 160, 126, 0.22);
+  --badge-rejected-bg: rgba(184, 92, 92, 0.14);
+  --badge-rejected-b: rgba(201, 119, 119, 0.22);
+  --clr-scheduled: #a88ed3;
+  --warn: #c38d3c;
+  --warn-t: #1c150a;
   --danger: var(--err-t);
 }

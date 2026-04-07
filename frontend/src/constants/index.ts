@@ -31,14 +31,14 @@ export const ROLE_COLOR = {
 
 export const CAT_ICON = {
   guest:       'users',
-  courier:     'file',
-  taxi:        'car',
+  courier:     'courier',
+  taxi:        'taxi',
   car:         'car',
   master:      'tools',
   worker:      'tools',
   team:        'users',
   delivery:    'car',
-  electrician: 'alert',
+  electrician: 'tools',
   plumber:     'tools',
 };
 
@@ -84,7 +84,7 @@ export const PASS_DURATION_LABEL = {
 
 export const PASS_DURATION_ICON = {
   once:      'ticket',
-  temporary: 'history',
+  temporary: 'clock',
   permanent: 'shield',
 };
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, beforeEach, expect, test, vi } from 'vitest';
 import NavigationShell from './NavigationShell';
 
 function setMobileViewport(isMobile: boolean) {
@@ -21,7 +22,7 @@ function setMobileViewport(isMobile: boolean) {
 describe('NavigationShell mobile prioritization', () => {
   beforeEach(() => setMobileViewport(true));
 
-  test('для security оставляет 3 приоритетные вкладки и открывает quick actions bottom-sheet', () => {
+  test('keeps three security priority tabs and opens quick actions sheet', () => {
     const nav = [
       ['residents', 'residents', 'Жильцы', 0],
       ['chat', 'chat', 'Чат', 0],
@@ -31,7 +32,7 @@ describe('NavigationShell mobile prioritization', () => {
       ['blacklist', 'ban', 'ЧС', 0],
     ] as Array<[string, string, string, number]>;
     const navClassMap = Object.fromEntries(
-      nav.flatMap(([k]) => [[k, 'tn-btn'], [`${k}_mn`, 'mn-btn']]),
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
     );
 
     const { container } = render(
@@ -51,10 +52,55 @@ describe('NavigationShell mobile prioritization', () => {
     expect(mobile.getByRole('button', { name: /проверка/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /ещё/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^чс$/i })).not.toBeInTheDocument();
+    expect(mobile.queryByRole('button', { name: /^чс$/i })).not.toBeInTheDocument();
 
     fireEvent.click(mobile.getByRole('button', { name: /ещё/i }));
     expect(screen.getByRole('dialog', { name: /быстрые действия/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /чс/i })).toBeInTheDocument();
+  });
+
+  test('for owner keeps only passes tech and perms in the top mobile strip', () => {
+    const nav = [
+      ['passes', 'ticket', 'Пропуска', 0],
+      ['tech', 'tools', 'Техслужба', 0],
+      ['perms', 'list', 'Доступ', 0],
+      ['templates', 'file', 'Шаблоны', 0],
+      ['history', 'history', 'История', 0],
+      ['chat', 'chat', 'Чат', 0],
+    ] as Array<[string, string, string, number]>;
+    const navClassMap = Object.fromEntries(
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
+    );
+
+    const { container } = render(
+      <NavigationShell
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={vi.fn()}
+        userRole="owner"
+      />,
+    );
+
+    const topNav = container.querySelector('.top-nav');
+    const mobileNav = container.querySelector('.mobile-nav');
+    expect(topNav).toBeInTheDocument();
+    expect(mobileNav).toBeInTheDocument();
+
+    const top = within(topNav as HTMLElement);
+    const bottom = within(mobileNav as HTMLElement);
+
+    expect(top.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /техслужба/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /доступ/i })).toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
+
+    expect(bottom.getByRole('button', { name: /шаблоны/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /история/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /чат/i })).toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /пропуска/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /техслужба/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /доступ/i })).not.toBeInTheDocument();
   });
 });

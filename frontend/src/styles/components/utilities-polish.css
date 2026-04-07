@@ -97,44 +97,44 @@
 
 /* Принудительная тема через класс на <html> */
 html.theme-light {
-  --s0: #FAF8F4; --s1: #F5F2EC; --s2: #EEEBE3; --s3: #E5E1D8; --s4: #DAD5CA;
-  --t1: #1C1A16; --t2: #3D3830; --t3: #6B6358; --t4: #9C9285;
-  --g1: #A67C2E; --g2: #B8902E; --g3: #C9A43A;
-  --g-bg: rgba(166,124,46,.10); --g-bg2: rgba(166,124,46,.18);
-  --ok: #1E5C38; --ok-t: #1E5C38; --err: #8B2020; --err-t: #8B2020;
-  --wrn: #7A4A10; --wrn-t: #7A4A10;
-  --b1: rgba(130,100,50,.12); --b2: rgba(130,100,50,.22); --b3: rgba(130,100,50,.40);
-  --sh-s: 0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.06);
-  --sh-m: 0 4px 20px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.07);
-  --sh-l: 0 16px 56px rgba(0,0,0,.16),0 4px 16px rgba(0,0,0,.10);
-  --arrived: #2E5FA3; --arrived-t: #2E5FA3; --expired: #888; --expired-t: #666;
-  --arrived-bg: rgba(46,95,163,.10); --arrived-b: rgba(46,95,163,.25);
-  --overlay-bg: rgba(250,248,244,.92); --header-bg: rgba(245,242,236,.92);
-  --topnav-bg: rgba(245,242,236,.92); --mobnav-bg: rgba(245,242,236,.96);
-  --dd-bg: rgba(238,235,227,.96);
-  --badge-pending-bg:  rgba(140,90,0,.10);   --badge-pending-b:  rgba(140,100,0,.25);
-  --badge-approved-bg: rgba(20,80,40,.10);   --badge-approved-b: rgba(20,100,50,.25);
-  --badge-rejected-bg: rgba(120,20,20,.10);  --badge-rejected-b: rgba(140,30,30,.25);
+  --s0: #FDFCF9; --s1: #F7F3ED; --s2: #FFFFFF; --s3: #F0ECE5; --s4: #DED7CD;
+  --t1: #2B2B2B; --t2: #504A42; --t3: #7B7368; --t4: #A0978A;
+  --g1: #B8935A; --g2: #C9A96E; --g3: #E4D4B4;
+  --g-bg: rgba(201,169,110,.10); --g-bg2: rgba(201,169,110,.18);
+  --ok: #4A7C59; --ok-t: #356845; --err: #B85C5C; --err-t: #9E4646;
+  --wrn: #A77931; --wrn-t: #8B6323;
+  --b1: rgba(105,86,50,.14); --b2: rgba(105,86,50,.22); --b3: rgba(105,86,50,.34);
+  --sh-s: 0 1px 3px rgba(24,20,15,.06),0 12px 28px rgba(24,20,15,.05);
+  --sh-m: 0 12px 30px rgba(24,20,15,.10),0 2px 8px rgba(24,20,15,.06);
+  --sh-l: 0 24px 56px rgba(24,20,15,.14),0 4px 16px rgba(24,20,15,.08);
+  --arrived: #5C7B9B; --arrived-t: #4E6B88; --expired: #91887A; --expired-t: #7F7568;
+  --arrived-bg: rgba(92,123,155,.10); --arrived-b: rgba(92,123,155,.22);
+  --overlay-bg: rgba(253,252,249,.82); --header-bg: rgba(253,252,249,.82);
+  --topnav-bg: rgba(253,252,249,.82); --mobnav-bg: rgba(253,252,249,.92);
+  --dd-bg: rgba(255,255,255,.94);
+  --badge-pending-bg: rgba(201,169,110,.12); --badge-pending-b: rgba(201,169,110,.24);
+  --badge-approved-bg: rgba(74,124,89,.10); --badge-approved-b: rgba(74,124,89,.20);
+  --badge-rejected-bg: rgba(184,92,92,.10); --badge-rejected-b: rgba(184,92,92,.20);
 }
 html.theme-dark {
-  --s0: #13110E; --s1: #191714; --s2: #211E1A; --s3: #2C2820; --s4: #363028;
-  --t1: #EDE5D8; --t2: #C4BAA8; --t3: #A79A8A; --t4: #817463;
-  --g1: #C4963C; --g2: #D8AE58; --g3: #EAC878;
-  --g-bg: rgba(196,150,60,.08); --g-bg2: rgba(196,150,60,.15);
-  --ok: #2D6040; --ok-t: #5EAA78; --err: #6A2828; --err-t: #C06060;
-  --wrn: #6A4818; --wrn-t: #C49040;
-  --b1: rgba(196,150,60,.10); --b2: rgba(196,150,60,.20); --b3: rgba(196,150,60,.38);
-  --sh-s: 0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
-  --sh-m: 0 4px 20px rgba(0,0,0,.4),0 1px 4px rgba(0,0,0,.3);
-  --sh-l: 0 16px 56px rgba(0,0,0,.6),0 4px 16px rgba(0,0,0,.4);
-  --arrived: #5B8FD4; --arrived-t: #82B4F0;
-  --arrived-bg: rgba(65,110,180,.15); --arrived-b: rgba(91,143,212,.25);
-  --overlay-bg: rgba(0,0,0,.65); --header-bg: rgba(19,17,14,.88);
-  --topnav-bg: rgba(19,17,14,.88); --mobnav-bg: rgba(19,17,14,.94);
-  --dd-bg: rgba(0,0,0,.7);
-  --badge-pending-bg: rgba(106,72,24,.15);  --badge-pending-b: rgba(196,144,64,.2);
-  --badge-approved-bg: rgba(45,96,64,.15);  --badge-approved-b: rgba(94,170,120,.2);
-  --badge-rejected-bg: rgba(106,40,40,.15); --badge-rejected-b: rgba(192,96,96,.2);
+  --s0: #11100E; --s1: #181613; --s2: #201D19; --s3: #2A2621; --s4: #35302A;
+  --t1: #EEE7DC; --t2: #C7BDAE; --t3: #A29584; --t4: #7A6E5E;
+  --g1: #B8935A; --g2: #C9A96E; --g3: #E4D4B4;
+  --g-bg: rgba(201,169,110,.10); --g-bg2: rgba(201,169,110,.18);
+  --ok: #5A9D6A; --ok-t: #6FA07E; --err: #B85C5C; --err-t: #D47070;
+  --wrn: #A77931; --wrn-t: #C9A96E;
+  --b1: rgba(201,169,110,.12); --b2: rgba(201,169,110,.22); --b3: rgba(201,169,110,.38);
+  --sh-s: 0 1px 2px rgba(0,0,0,.24),0 8px 22px rgba(0,0,0,.18);
+  --sh-m: 0 10px 30px rgba(0,0,0,.26),0 2px 8px rgba(0,0,0,.18);
+  --sh-l: 0 24px 60px rgba(0,0,0,.34),0 4px 12px rgba(0,0,0,.20);
+  --arrived: #6B8EAE; --arrived-t: #89A9C8;
+  --arrived-bg: rgba(107,142,174,.15); --arrived-b: rgba(107,142,174,.24);
+  --overlay-bg: rgba(8,8,8,.68); --header-bg: rgba(17,16,14,.84);
+  --topnav-bg: rgba(17,16,14,.84); --mobnav-bg: rgba(17,16,14,.92);
+  --dd-bg: rgba(19,17,14,.92);
+  --badge-pending-bg: rgba(201,169,110,.12); --badge-pending-b: rgba(201,169,110,.24);
+  --badge-approved-bg: rgba(74,124,89,.15); --badge-approved-b: rgba(111,160,126,.22);
+  --badge-rejected-bg: rgba(184,92,92,.14); --badge-rejected-b: rgba(201,119,119,.22);
 }
 
 /* Доступность — отключаем все анимации и переходы если пользователь просит */
@@ -215,7 +215,7 @@ html{scroll-behavior:smooth}
 .landing-name{font-size:20px;font-weight:700;color:var(--t1)}
 .landing-sub{font-size:var(--fs-xs);color:var(--t4)}
 .landing-hero{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:22px;margin-bottom:16px}
-.landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:'Playfair Display',serif}
+.landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:'Cormorant Garamond',serif}
 .landing-hero p{margin:0 0 14px;font-size:var(--fs-body);line-height:1.55;color:var(--t3);max-width:768px}
 .landing-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .landing-card{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:14px}
@@ -493,6 +493,36 @@ html{scroll-behavior:smooth}
 .admin-toolbar-action{margin-left:auto}
 .car-search-trigger{border-color:var(--b2)!important;color:var(--g1)!important}
 
+@media (--bp-sm-down) {
+  .page-action-bar{
+    justify-content:stretch;
+    align-items:stretch;
+    gap:6px;
+  }
+  .page-action-overflow{
+    flex:0 0 auto;
+  }
+  .page-action-overflow-btn{
+    min-width:0;
+    width:auto;
+    padding-inline:12px;
+  }
+  .page-action-primary{
+    min-width:0;
+    flex:1 1 auto;
+  }
+  .page-action-primary span,
+  .page-action-overflow-btn .u-inline-icon{
+    white-space:nowrap;
+  }
+  .page-action-overflow-menu{
+    right:0;
+    left:auto;
+    min-width:160px;
+    max-width:min(220px, calc(100vw - 32px));
+  }
+}
+
 /* ── Аудит: утилитарные классы для замены частых inline styles ─────────────── */
 /* FIX [AUDIT-PERF]: inline style={{}} создаёт новый объект при каждом рендере.
    Хотя React оптимизирует сравнение, сборщик мусора всё равно работает.
@@ -647,7 +677,7 @@ html{scroll-behavior:smooth}
 .u-role-dot.concierge{background:#f39c12}
 .u-role-dot.contractor{background:#6c757d}
 .u-role-dot.default{background:var(--t4)}
-.admin-role-value{font-family:'Playfair Display',serif;font-size:22px;font-weight:400;color:var(--g2)}
+.admin-role-value{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--g2)}
 .admin-role-progress{width:100%;height:4px;appearance:none;border:none}
 .admin-role-progress::-webkit-progress-bar{background:var(--s3);border-radius:2px}
 .admin-role-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px;transition:width .4s ease}
@@ -679,7 +709,7 @@ html{scroll-behavior:smooth}
 .scanqr-approve-btn{flex:2;font-size:14px;padding:14px 20px}
 .admin-perm-row--editing{border-bottom:none;border-radius:var(--r) var(--r) 0 0}
 .admin-perm-edit-inline{border-radius:0 0 var(--r) var(--r);margin-bottom:8px}
-.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:'DM Sans',sans-serif}
+.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:'Inter',sans-serif}
 .admin-perm-clear-btn{padding:2px 8px}
 .sla-item-card{min-height:92px}
 .sla-item-value{font-size:24px}

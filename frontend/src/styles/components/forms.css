@@ -1,60 +1,82 @@
-/* ── FIELDS ── */
-.field{margin-bottom:20px}
-.field-lbl{
-  display:block;font-size:var(--fs-2xs);letter-spacing:1px;
-  text-transform:uppercase;color:var(--t4);
-  font-family:'DM Sans',sans-serif;
-  margin-bottom:8px;font-weight:500;
-}
-.field-inp{
-  width:100%;background:var(--s2);
-  border:1px solid var(--b1);border-radius:var(--r);
-  padding:11px 13px;
-  font-family:'DM Sans',sans-serif;font-size:16px!important;
-  font-weight:300;color:var(--t1);
-  transition:border-color .13s,background .13s;
-}
-.field-inp:focus{border-color:var(--g1);background:var(--s1)}
-.field-inp::placeholder{color:var(--t4)}
-.field-err{
-  margin-top:6px;
-  font-size:var(--fs-2xs);
-  color:var(--err-t);
-}
-/* P-04: предупреждение — менее критично чем ошибка, но привлекает внимание */
-.field-warn{
-  margin-top:6px;margin-bottom:4px;
-  font-size:var(--fs-2xs);
-  color:var(--warn);
-  padding:6px 8px;
-  border-radius:4px;
-  background:rgba(196,150,60,.08);
-  border:1px solid rgba(196,150,60,.2);
-}
-.field-otp{text-align:center;font-size:clamp(24px,8vw,32px)!important;font-weight:300;letter-spacing:clamp(8px,4vw,16px)}
-/* P-01: OTP resend countdown — progress bar depletes as cooldown ticks (100% → 0%) */
-.otp-countdown{height:3px;border-radius:2px;background:var(--b1);overflow:hidden;margin-bottom:4px}
-.otp-countdown-bar{height:100%;width:var(--otp-progress,100%);background:var(--g1);transition:width 1s linear;border-radius:2px}
-.field-select{
-  width:100%;background:var(--s2);
-  border:1px solid var(--b1);border-radius:var(--r);
-  padding:12px 40px 12px 13px;
-  font-family:'DM Sans',sans-serif;font-size:16px!important;
-  color:var(--t1);cursor:pointer;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%238E8070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 13px center;
-  transition:border-color .2s;
-}
-.field-select option{background:var(--s2)}
-.field-select:focus{border-color:var(--g1)}
-.field-textarea{
-  width:100%;background:var(--s2);
-  border:1px solid var(--b1);border-radius:var(--r);
-  padding:12px 13px;
-  font-family:'DM Sans',sans-serif;font-size:16px!important;
-  color:var(--t1);resize:none;line-height:1.55;
-  transition:border-color .2s;
-}
-.field-textarea:focus{border-color:var(--g1)}
-.field-textarea::placeholder{color:var(--t4)}
+/* Fields */
 
+.field { margin-bottom: 20px; }
+.field-lbl {
+  display: block;
+  font-size: var(--fs-2xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--t4);
+  font-family: 'Inter', sans-serif;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.field-inp {
+  width: 100%;
+  background: color-mix(in srgb, var(--s2) 88%, transparent);
+  border: 1px solid var(--b1);
+  border-radius: calc(var(--r) + 2px);
+  padding: 13px 15px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px !important;
+  font-weight: 400;
+  color: var(--t1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  transition: border-color .16s, background .16s, box-shadow .16s;
+}
+.field-inp:focus {
+  border-color: var(--g1);
+  background: var(--s2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--g2) 14%, transparent);
+}
+.field-inp::placeholder { color: var(--t4); }
+.field-err {
+  margin-top: 6px;
+  font-size: var(--fs-2xs);
+  color: var(--err-t);
+}
+.field-warn {
+  margin-top: 6px;
+  margin-bottom: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--warn);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(201, 169, 110, .08);
+  border: 1px solid rgba(201, 169, 110, .2);
+}
+.field-otp { text-align: center; font-size: clamp(24px, 8vw, 32px) !important; font-weight: 300; letter-spacing: clamp(8px, 4vw, 16px); }
+.otp-countdown { height: 3px; border-radius: 2px; background: var(--b1); overflow: hidden; margin-bottom: 4px; }
+.otp-countdown-bar { height: 100%; width: var(--otp-progress, 100%); background: var(--g1); transition: width 1s linear; border-radius: 2px; }
+.field-select {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: var(--r);
+  padding: 12px 40px 12px 13px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px !important;
+  color: var(--t1);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%238E8070' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  transition: border-color .2s;
+}
+.field-select option { background: var(--s2); }
+.field-select:focus { border-color: var(--g1); }
+.field-textarea {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: var(--r);
+  padding: 12px 13px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px !important;
+  color: var(--t1);
+  resize: none;
+  line-height: 1.55;
+  transition: border-color .2s;
+}
+.field-textarea:focus { border-color: var(--g1); }
+.field-textarea::placeholder { color: var(--t4); }

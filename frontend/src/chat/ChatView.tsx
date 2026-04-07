@@ -525,7 +525,7 @@ export function ChatView({ user }) {
         </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
         <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">
-          {photoSending ? <AppIcon name="history" size={16} /> : <AppIcon name="file" size={16} />}
+          {photoSending ? <AppIcon name="clock" size={16} /> : <AppIcon name="camera" size={16} />}
         </button>
         <button className={'chat-photo-btn ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
           <AppIcon name="chat" size={16} />

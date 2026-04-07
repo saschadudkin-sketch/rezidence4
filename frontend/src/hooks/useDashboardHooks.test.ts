@@ -33,9 +33,9 @@ describe('useTheme', () => {
     document.documentElement.className = '';
   });
 
-  test('начальная тема "auto" если localStorage пустой', () => {
+  test('начальная тема "dark" если localStorage пустой', () => {
     const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe('auto');
+    expect(result.current.theme).toBe('dark');
   });
 
   test('читает сохранённую тему из localStorage', () => {
@@ -44,70 +44,65 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('dark');
   });
 
-  test('cycleTheme: auto → light → dark → auto', () => {
+  test('cycleTheme: dark → auto → light → dark', () => {
     const { result } = renderHook(() => useTheme());
+
+    act(() => result.current.cycleTheme());
+    expect(result.current.theme).toBe('auto');
 
     act(() => result.current.cycleTheme());
     expect(result.current.theme).toBe('light');
 
     act(() => result.current.cycleTheme());
     expect(result.current.theme).toBe('dark');
-
-    act(() => result.current.cycleTheme());
-    expect(result.current.theme).toBe('auto');
   });
 
-  test('themeIcon: light=alert, dark=history, auto=chart', () => {
+  test('themeIcon: dark=history, auto=chart, light=alert', () => {
     const { result } = renderHook(() => useTheme());
-
-    act(() => result.current.cycleTheme()); // → light
-    expect(result.current.themeIcon).toBe('alert');
-
-    act(() => result.current.cycleTheme()); // → dark
     expect(result.current.themeIcon).toBe('history');
 
     act(() => result.current.cycleTheme()); // → auto
     expect(result.current.themeIcon).toBe('chart');
-  });
-
-  test('themeLabel: light=Светлая, dark=Тёмная, auto=Авто', () => {
-    const { result } = renderHook(() => useTheme());
 
     act(() => result.current.cycleTheme()); // → light
-    expect(result.current.themeLabel).toBe('Светлая');
+    expect(result.current.themeIcon).toBe('alert');
+  });
 
-    act(() => result.current.cycleTheme()); // → dark
+  test('themeLabel: dark=Тёмная, auto=Авто, light=Светлая', () => {
+    const { result } = renderHook(() => useTheme());
     expect(result.current.themeLabel).toBe('Тёмная');
 
     act(() => result.current.cycleTheme()); // → auto
     expect(result.current.themeLabel).toBe('Авто');
+
+    act(() => result.current.cycleTheme()); // → light
+    expect(result.current.themeLabel).toBe('Светлая');
   });
 
   test('тема сохраняется в localStorage при изменении', () => {
     const { result } = renderHook(() => useTheme());
-    act(() => result.current.cycleTheme()); // → light
-    expect(localStorage.getItem('rz-theme')).toBe('light');
+    act(() => result.current.cycleTheme()); // → auto
+    expect(localStorage.getItem('rz-theme')).toBe('auto');
   });
 
   test('тема "light" добавляет класс theme-light на documentElement', () => {
     const { result } = renderHook(() => useTheme());
+    act(() => result.current.cycleTheme()); // → auto
     act(() => result.current.cycleTheme()); // → light
     expect(document.documentElement.classList.contains('theme-light')).toBe(true);
     expect(document.documentElement.classList.contains('theme-dark')).toBe(false);
   });
 
   test('тема "dark" добавляет класс theme-dark на documentElement', () => {
-    const { result } = renderHook(() => useTheme());
-    act(() => result.current.cycleTheme()); // → light
-    act(() => result.current.cycleTheme()); // → dark
+    renderHook(() => useTheme());
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
     expect(document.documentElement.classList.contains('theme-light')).toBe(false);
   });
 
   test('тема "auto" убирает оба класса', () => {
-    document.documentElement.classList.add('theme-light');
+    document.documentElement.classList.add('theme-dark');
     const { result } = renderHook(() => useTheme());
-    // theme=auto при старте, эффект должен убрать theme-light
+    act(() => result.current.cycleTheme()); // → auto
     expect(document.documentElement.classList.contains('theme-light')).toBe(false);
     expect(document.documentElement.classList.contains('theme-dark')).toBe(false);
   });
