@@ -24,6 +24,7 @@ export function useConnectivityUX({ user, syncCallbacks }: ConnectivityParams) {
   const liveSync = useLiveSync(user, {
     ...(syncCallbacks || ({} as LiveSyncOptions)),
     retryKey,
+    enabled: !demoMode,
   });
 
   const { isLoading, isConnErr, sseOnline, handleRetry } = useConnectionStatus(

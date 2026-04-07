@@ -67,7 +67,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       {/* ВАЖНО-1: role reminder — approvals belong to security, not concierge */}
       <div className="concierge-role-hint" role="note">
         <AppIcon name="info" size={14} className="u-inline-icon" />
-        <span>Консьерж контролирует доступ и создаёт заявки. Одобрение — задача охраны.</span>
+        <span>Консьерж проводит доступ: создаёт заявки, находит пропуска и сканирует QR-коды. Подтверждение и отметка прибытия остаются за охраной.</span>
       </div>
       <PageActionBar
         className="u-mb12"

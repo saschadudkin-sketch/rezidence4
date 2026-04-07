@@ -2,17 +2,19 @@ import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 
+const CACHE_NAME = 'rezidence4';
+
 precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
 registerRoute(
   ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({ cacheName: 'pages', networkTimeoutSeconds: 3 }),
+  new NetworkFirst({ cacheName: `${CACHE_NAME}-pages`, networkTimeoutSeconds: 3 }),
 );
 
 registerRoute(
   ({ url }) => url.pathname.match(/\.(png|svg|ico|webmanifest)$/),
-  new StaleWhileRevalidate({ cacheName: 'static-assets' }),
+  new StaleWhileRevalidate({ cacheName: `${CACHE_NAME}-static-assets` }),
 );
 
 self.addEventListener('push', (event) => {

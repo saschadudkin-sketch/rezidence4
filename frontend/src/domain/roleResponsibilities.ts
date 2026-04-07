@@ -37,7 +37,7 @@ export const ROLE_RESPONSIBILITIES: Record<string, RoleResponsibility> = {
   },
   [ROLES.CONCIERGE]: {
     capabilities: ['create', 'search', 'scan', 'manageResidents', 'blacklist'],
-    onboardingHint: 'Консьерж создаёт заявки, ищет пропуска и сканирует QR-коды. Одобрение и отметка прибытия остаются за охраной.',
+    onboardingHint: 'Консьерж проводит доступ: создаёт заявки, находит пропуска и сканирует QR-коды. Подтверждение и отметка прибытия остаются за охраной.',
     passesNavLabel: 'Операции',
     queueTitle: 'Следующий шаг: провести доступ',
     queueSubtitle: 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',

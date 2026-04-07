@@ -39,13 +39,13 @@ export function getRoleNextBestAction(role: string, metrics: WorkflowMetrics): W
     },
     concierge: {
       tab: metrics.pendingP > 0 ? 'passes' : 'visitlog',
-      title: conciergeRole.queueTitle || 'Следующий шаг: помочь с доступом',
+      title: conciergeRole.queueTitle || 'Следующий шаг: провести доступ',
       subtitle: conciergeRole.queueSubtitle || 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',
-      cta: 'Открыть заявки',
+      cta: 'Открыть операции',
     },
     security: {
       tab: metrics.pendingP > 0 ? 'guardpost' : 'visitlog',
-      title: securityRole.queueTitle || 'Следующий шаг: проверить пост',
+      title: securityRole.queueTitle || 'Следующий шаг: подтвердить доступ',
       subtitle: securityRole.queueSubtitle || 'Подтвердите заявку, отсканируйте QR-код или отметьте прибытие посетителя',
       cta: 'Открыть пост',
     },
@@ -62,7 +62,7 @@ export function getRoleNextBestAction(role: string, metrics: WorkflowMetrics): W
 
 export function getWorkflowCompletionFeedback(role: string, metrics: WorkflowMetrics) {
   if (role === 'security') return `Ожидают проверки: ${metrics.pendingP}.`;
-  if (role === 'concierge') return `Заявок в очереди: ${metrics.pendingP + metrics.pendingT}.`;
+  if (role === 'concierge') return `Операций в очереди: ${metrics.pendingP + metrics.pendingT}.`;
   if (role === 'admin') return `Новых статусов: ${metrics.residentNewStatuses}, непрочитанных чатов: ${metrics.unreadMsgs}.`;
   return `Непрочитанных чатов: ${metrics.unreadMsgs}.`;
 }

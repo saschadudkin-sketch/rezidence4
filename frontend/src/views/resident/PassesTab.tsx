@@ -36,7 +36,7 @@ const PassesTab = memo(function PassesTab({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('passQ') || '';
-  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showCreatePicker, setShowCreatePicker] = useState(false);
   const debouncedQuery = useDebounce(query, 250);
   const isOwnerDashboard = user.role === 'owner';
 
@@ -61,23 +61,35 @@ const PassesTab = memo(function PassesTab({
     ? [['worker', 'tools', 'Рабочий'], ['team', 'users', 'Бригада'], ['delivery', 'car', 'Доставка'], ['car', 'car', 'Авто']]
     : [['guest', 'users', 'Гость'], ['courier', 'file', 'Курьер'], ['taxi', 'car', 'Такси'], ['car', 'car', 'Авто'], ['master', 'tools', 'Мастер']];
 
+  const openPrimaryCreate = () => {
+    if (isOwnerDashboard) {
+      setShowCreatePicker(true);
+      return;
+    }
+    setModal({ type: 'pass', cat: user.role === 'contractor' ? 'worker' : 'guest' });
+  };
+
+  const selectPassCategory = (category: string) => {
+    setShowCreatePicker(false);
+    setModal({ type: 'pass', cat: category });
+  };
+
   return (
     <>
       <PageActionBar
         className="u-mb12"
         primaryLabel="Создать пропуск"
-        onPrimary={() => setModal({ type: 'pass', cat: user.role === 'contractor' ? 'worker' : 'guest' })}
+        onPrimary={openPrimaryCreate}
         secondary={[
-          ...(isOwnerDashboard ? [{ label: showTypePicker ? 'Скрыть категории' : 'Выбрать тип', onClick: () => setShowTypePicker((v) => !v) }] : []),
           { label: 'Открыть шаблоны', onClick: () => setActiveTab('templates') },
         ]}
       />
 
-      {(!isOwnerDashboard || showTypePicker) && (
+      {!isOwnerDashboard && (
         <div className="type-grid">
           {passIcons.map(([k, iconName, l]) => (
-            <button key={k} type="button" className="type-card" onClick={() => setModal({ type: 'pass', cat: k })}>
-              <div className="type-icon"><AppIcon name={iconName} /></div>
+            <button key={k} type="button" className="type-card" onClick={() => setModal({ type: 'pass', cat: k as string })}>
+              <div className="type-icon"><AppIcon name={iconName as string} /></div>
               <div className="type-label">{l}</div>
             </button>
           ))}
@@ -85,6 +97,37 @@ const PassesTab = memo(function PassesTab({
             <div className="type-icon"><AppIcon name="file" /></div>
             <div className="type-label">Шаблоны</div>
           </button>
+        </div>
+      )}
+
+      {isOwnerDashboard && showCreatePicker && (
+        <div className="overlay" role="presentation" onClick={() => setShowCreatePicker(false)}>
+          <div className="modal owner-create-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div className="modal-head">
+              <div>
+                <span className="modal-title">Выберите тип пропуска</span>
+                <div className="modal-cat-hint">На экране оставлен один primary CTA, а категории перенесены в этот шаг.</div>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreatePicker(false)} aria-label="Закрыть">
+                <AppIcon name="close" size={14} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="owner-create-grid">
+                {passIcons.map(([k, iconName, l]) => (
+                  <button key={k} type="button" className="type-card owner-create-card" onClick={() => selectPassCategory(k as string)}>
+                    <div className="type-icon"><AppIcon name={iconName as string} /></div>
+                    <div className="type-label">{l}</div>
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => { setShowCreatePicker(false); setActiveTab('templates'); }} className="type-card owner-create-card owner-create-card--template">
+                <div className="type-icon"><AppIcon name="file" /></div>
+                <div className="type-label">Шаблоны</div>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -106,7 +149,7 @@ const PassesTab = memo(function PassesTab({
             ['once', 'Разовые', myPasses.length - tempCount - permCount],
           ].map(([k, l, c]) =>
             c > 0 || k === 'all' || k === 'active' ? (
-              <button key={k} className={`date-pill${passFilter === k ? ' active' : ''}`} onClick={() => setPassFilter(k)}>
+              <button key={k} className={`date-pill${passFilter === k ? ' active' : ''}`} onClick={() => setPassFilter(k as string)}>
                 {l}{c > 0 && k !== 'all' && k !== 'active' ? ` (${c})` : ''}
               </button>
             ) : null,
@@ -120,7 +163,7 @@ const PassesTab = memo(function PassesTab({
           title={passesEmptyCopy.title}
           subtitle={passesEmptyCopy.subtitle}
           actionLabel="Создать пропуск"
-          onAction={() => setModal({ type: 'pass', cat: 'guest' })}
+          onAction={openPrimaryCreate}
         />
       ) : visiblePasses.length === 0 && visibleScheduled.length === 0 ? (
         <StateBlock

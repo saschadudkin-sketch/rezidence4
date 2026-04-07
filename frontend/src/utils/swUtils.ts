@@ -13,5 +13,9 @@ export function registerSW({ force = false } = {}) {
   navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
     .then((reg) => { _swReg = reg; })
-    .catch((e) => console.warn('[SW] registration failed:', e));
+    .catch((e) => {
+      if (import.meta.env.DEV) {
+        console.warn('[SW] registration failed:', e);
+      }
+    });
 }

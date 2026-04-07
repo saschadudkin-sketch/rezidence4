@@ -21,6 +21,7 @@ export const LS_SCHEMA_VERSION = 5;
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LS_TTL_KEY = `${LS_KEY}_ttl`;
 const SESSION_PHOTO_PREFIX = `${LS_KEY}_sph_`;
+const SHOULD_LOG_PERSISTENCE = import.meta.env.DEV;
 
 function isPrivateDemoSession() {
   return isDemoPrivateSessionEnabled();
@@ -151,7 +152,7 @@ export function saveRequests(reqState) {
       history: reqState.history,
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] saveRequests failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] saveRequests failed:', e); }
 }
 
 // FIX [AUDIT-2 #19]: ограничиваем количество кешированных сообщений.
@@ -167,7 +168,7 @@ export function saveChat(chatState) {
       chatLastSeen: chatState.chatLastSeen,
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] saveChat failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] saveChat failed:', e); }
 }
 
 export function saveUsers(usersState) {
@@ -182,7 +183,7 @@ export function saveUsers(usersState) {
       ),
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] saveUsers failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] saveUsers failed:', e); }
 }
 
 export function savePerms(permsState) {
@@ -193,7 +194,7 @@ export function savePerms(permsState) {
       templates: permsState.templates,
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] savePerms failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] savePerms failed:', e); }
 }
 
 export function saveBlacklist(blacklist) {
@@ -206,7 +207,7 @@ export function saveBlacklist(blacklist) {
       })),
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] saveBlacklist failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] saveBlacklist failed:', e); }
 }
 
 export function saveGarage(garage) {
@@ -216,7 +217,7 @@ export function saveGarage(garage) {
       garage: garage.garage || garage || {},
     }));
     saveTTL();
-  } catch (e) { console.warn('[persistence] saveGarage failed:', e); }
+  } catch (e) { if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] saveGarage failed:', e); }
 }
 
 // ─── Load all slices ──────────────────────────────────────────────────────────
@@ -227,7 +228,7 @@ export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
   try {
     // SEC6: Check TTL — if data is older than 24 h, clear and return null
     if (!checkTTL()) {
-      console.info('[persistence] localStorage TTL expired — cleared');
+      if (SHOULD_LOG_PERSISTENCE) console.info('[persistence] localStorage TTL expired — cleared');
       return null;
     }
 
@@ -236,7 +237,7 @@ export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
     if (raw) {
       const d = JSON.parse(raw);
       if (!d || d.schemaVersion !== LS_SCHEMA_VERSION) {
-        console.warn(`[persistence] schema mismatch: expected v${LS_SCHEMA_VERSION}, got v${d?.schemaVersion}. Resetting.`);
+        if (SHOULD_LOG_PERSISTENCE) console.warn(`[persistence] schema mismatch: expected v${LS_SCHEMA_VERSION}, got v${d?.schemaVersion}. Resetting.`);
         localStorage.removeItem(LS_KEY);
         return null;
       }
@@ -255,7 +256,7 @@ export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
           if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             Object.assign(result, parsed);
           } else {
-            console.warn('[persistence] corrupt slice discarded:', lsKey);
+            if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] corrupt slice discarded:', lsKey);
             localStorage.removeItem(lsKey);
           }
         } catch { /* skip corrupt slice */ }
@@ -265,15 +266,15 @@ export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
 
     // FIX [I-12]: validate per-field shapes before consuming
     if (result.requests !== undefined && !Array.isArray(result.requests)) {
-      console.warn('[persistence] requests not an array — discarding');
+      if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] requests not an array — discarding');
       delete result.requests;
     }
     if (result.chat !== undefined && !Array.isArray(result.chat)) {
-      console.warn('[persistence] chat not an array — discarding');
+      if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] chat not an array — discarding');
       delete result.chat;
     }
     if (result.blacklist !== undefined && !Array.isArray(result.blacklist)) {
-      console.warn('[persistence] blacklist not an array — discarding');
+      if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] blacklist not an array — discarding');
       delete result.blacklist;
     }
 
@@ -308,7 +309,7 @@ export function loadFromLS(options: { criticalOnly?: boolean } = {}) {
 
     return result;
   } catch (e) {
-    console.warn('[persistence] load failed:', e);
+    if (SHOULD_LOG_PERSISTENCE) console.warn('[persistence] load failed:', e);
     return null;
   }
 }

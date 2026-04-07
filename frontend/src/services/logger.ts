@@ -108,7 +108,9 @@ export function createLogger() {
     },
 
     warn(...args) {
-      console.warn('[WARN]', ..._fmtArgs(args));
+      if (IS_DEV) {
+        console.warn('[WARN]', ..._fmtArgs(args));
+      }
     },
 
     error(message, error, extra = {}) {
@@ -121,9 +123,9 @@ export function createLogger() {
         extra,
         timestamp: new Date().toISOString(),
       };
-      console.error('[ERROR]', payload);
-
-      if (!IS_DEV) {
+      if (IS_DEV) {
+        console.error('[ERROR]', payload);
+      } else {
         _sendToService(payload);
       }
     },

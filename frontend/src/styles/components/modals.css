@@ -87,6 +87,13 @@
 .perms-picker-item-name{font-size:var(--fs-sm);color:var(--t1)}
 /* ── type-card selected state (e.g. Templates shortcut) ── */
 .type-card.selected{border-color:var(--g2);background:var(--g-bg)}
+.owner-create-modal .modal-body{display:flex;flex-direction:column;gap:12px}
+.owner-create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.owner-create-card{width:100%;min-height:92px}
+.owner-create-card--template{width:100%}
+@media(max-width:480px){
+  .owner-create-card{min-height:84px}
+}
 
 /* ── GUARD POST MODE ── */
 .guard-post{max-width:580px;margin:0 auto}
