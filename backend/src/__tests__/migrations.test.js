@@ -1,14 +1,6 @@
 'use strict';
-/**
- * __tests__/migrations.test.js
- * Проверяет логику versioned migrations в db.js:
- *   - Уже применённые миграции пропускаются
- *   - Новые применяются в транзакции
- *   - При ошибке — ROLLBACK, process не стартует
- *   - schema_migrations таблица создаётся автоматически
- */
 
-describe('db.migrate — versioned migrations', () => {
+describe('db.migrate - versioned migrations', () => {
   let mockQuery;
   let mockConnect;
   let mockClient;
@@ -19,20 +11,17 @@ describe('db.migrate — versioned migrations', () => {
     process.env.DATABASE_URL = 'postgresql://test:test@localhost/test';
 
     mockClient = {
-      query:   jest.fn().mockResolvedValue({ rows: [] }),
+      query: jest.fn().mockResolvedValue({ rows: [] }),
       release: jest.fn(),
     };
 
-    // pool.connect возвращает mock клиент
     mockConnect = jest.fn().mockResolvedValue(mockClient);
 
-    // pool.query для schema_migrations bootstrap
     mockQuery = jest.fn().mockImplementation((sql) => {
       if (sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations')) {
         return Promise.resolve({ rows: [] });
       }
       if (sql.includes('SELECT id FROM schema_migrations')) {
-        // По умолчанию — нет применённых миграций
         return Promise.resolve({ rows: [] });
       }
       return Promise.resolve({ rows: [] });
@@ -40,9 +29,9 @@ describe('db.migrate — versioned migrations', () => {
 
     jest.mock('pg', () => ({
       Pool: jest.fn().mockImplementation(() => ({
-        query:   mockQuery,
+        query: mockQuery,
         connect: mockConnect,
-        on:      jest.fn(),
+        on: jest.fn(),
       })),
     }));
     jest.mock('../logger', () => require('../__mocks__/logger'));
@@ -59,28 +48,27 @@ describe('db.migrate — versioned migrations', () => {
   });
 
   test('skips already-applied migrations', async () => {
-    // Имитируем что все миграции уже применены
+    const appliedMigrationIds = [
+      '001_initial_schema',
+      '002_indexes_and_soft_delete',
+      '003_users_soft_delete',
+      '004_composite_indexes',
+      '005_users_updated_at',
+      '006_otp_codes_lookup_index',
+      '007_upload_security_metadata',
+    ];
+
     mockQuery.mockImplementation((sql) => {
       if (sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations')) {
         return Promise.resolve({ rows: [] });
       }
       if (sql.includes('SELECT id FROM schema_migrations')) {
-        return Promise.resolve({
-          rows: [
-            { id: '001_initial_schema' },
-            { id: '002_indexes_and_soft_delete' },
-            { id: '003_users_soft_delete' },
-            { id: '004_composite_indexes' },
-            { id: '005_users_updated_at' },
-          ],
-        });
+        return Promise.resolve({ rows: appliedMigrationIds.map((id) => ({ id })) });
       }
       return Promise.resolve({ rows: [] });
     });
 
     await db.migrate();
-
-    // pool.connect не должен вызываться — нечего применять
     expect(mockConnect).not.toHaveBeenCalled();
   });
 
@@ -103,10 +91,8 @@ describe('db.migrate — versioned migrations', () => {
 
     await expect(db.migrate()).rejects.toThrow('relation already exists');
 
-    // ROLLBACK должен был быть вызван
     const rollbackCalled = mockClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK');
     expect(rollbackCalled).toBe(true);
-    // client.release() вызван даже при ошибке (finally)
     expect(mockClient.release).toHaveBeenCalled();
   });
 

@@ -1,11 +1,11 @@
 import { memo, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { OperationalRequestList } from '../../requests/OperationalRequestList';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
 
 const TechTab = memo(function TechTab({
   user, techFilter, setTechFilter, setModal,
@@ -13,7 +13,7 @@ const TechTab = memo(function TechTab({
 }) {
   const { filteredTech } = computed;
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useUrlSearchParams();
   const query = searchParams.get('techQ') || '';
   const debouncedQuery = useDebounce(query, 250);
   const updateTechSearch = useCallback((value: string) => {

@@ -1,5 +1,4 @@
 import { memo, useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { OperationalRequestList } from '../../requests/OperationalRequestList';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
@@ -7,6 +6,7 @@ import SectionHeader from '../../ui/SectionHeader';
 import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
 
 type PassesTabProps = {
   user: { role: string; name: string; uid: string };
@@ -34,7 +34,7 @@ const PassesTab = memo(function PassesTab({
   const { myPasses, scheduledPasses, filteredPasses, tempCount, permCount } = computed;
   const scheduledCount = scheduledPasses.length;
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useUrlSearchParams();
   const query = searchParams.get('passQ') || '';
   const [showCreatePicker, setShowCreatePicker] = useState(false);
   const debouncedQuery = useDebounce(query, 250);

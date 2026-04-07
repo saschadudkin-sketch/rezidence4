@@ -35,6 +35,13 @@ const EMPTY_STATE: AppStoreSnapshot = {
   garageState: { garage: INITIAL_GARAGE },
 };
 
+const EMPTY_STORE: AppStoreApi = {
+  getState: () => EMPTY_STATE,
+  subscribe: () => () => {},
+};
+
+type AppDispatch = ReturnType<typeof useBoundedDomainStates>['dispatch'];
+
 function createAppStore(initialState: AppStoreSnapshot): AppStoreApi & {
   setState: (nextState: AppStoreSnapshot) => void;
 } {
@@ -63,8 +70,7 @@ function createAppStore(initialState: AppStoreSnapshot): AppStoreApi & {
 }
 
 function useAppStoreSelector<T>(selector: (state: AppStoreSnapshot) => T): T {
-  const store = useContext(StoreContext);
-  if (!store) return selector(EMPTY_STATE);
+  const store = useContext(StoreContext) ?? EMPTY_STORE;
 
   return useSyncExternalStore(
     store.subscribe,
@@ -75,7 +81,7 @@ function useAppStoreSelector<T>(selector: (state: AppStoreSnapshot) => T): T {
 
 export function AppProvider({ children }) {
   const bounded = useBoundedDomainStates() as AppStoreSnapshot & {
-    dispatch: (action: any) => void;
+    dispatch: AppDispatch;
   };
   const {
     dispatch,

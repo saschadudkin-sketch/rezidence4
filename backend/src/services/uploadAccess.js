@@ -14,14 +14,8 @@ async function canUserAccessUpload(user, filename) {
   if (!user?.uid) return false;
   if (isStaff(user.role)) return true;
 
-  const metadata = await db.query(
-    `SELECT owner_uid FROM upload_objects WHERE filename=$1 LIMIT 1`,
-    [filename],
-  );
-  if (metadata.rows?.[0]?.owner_uid === user.uid) return true;
-
   const { relative, absolute } = buildUploadUrlVariants(filename);
-  const { rows } = await db.query(
+  const result = await db.query(
     `SELECT EXISTS (
       SELECT 1
         FROM requests r
@@ -42,7 +36,7 @@ async function canUserAccessUpload(user, filename) {
     ) AS allowed`,
     [user.uid, relative, absolute],
   );
-  return rows?.[0]?.allowed === true;
+  return result?.rows?.[0]?.allowed === true;
 }
 
 module.exports = { canUserAccessUpload, buildUploadUrlVariants };

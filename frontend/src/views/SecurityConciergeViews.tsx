@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, memo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers, useAllPerms } from '../store/AppStore.jsx';
 import { ROLE_LABELS } from '../constants/index.js';
@@ -22,6 +21,7 @@ import SectionHeader from '../ui/SectionHeader.jsx';
 import PageActionBar from '../ui/PageActionBar.tsx';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { OperationalRequestList } from '../requests/OperationalRequestList.tsx';
+import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 // FIX [C-2]: Виртуализация списков заявок — при 500+ заявок без VirtualList
 // рендерится полный DOM, что вызывает freeze UI на слабых устройствах охраны.
 import { VirtualList } from '../ui/VirtualList.jsx';
@@ -272,7 +272,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
 // ─── SECURITY VIEW ────────────────────────────────────────────────────────────
 
 export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useUrlSearchParams();
   const [showCarSearch, setShowCarSearch] = useState(false);
   const requests = useRequests();
   const filter = searchParams.get('securityRole') || 'all';

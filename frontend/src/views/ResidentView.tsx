@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { createRequestsOptimisticController } from '../services/consistency/requestsOptimistic';
 import { useActions, useRequests } from '../store/AppStore';
 import { CreateModal } from '../requests/CreateModal';
@@ -17,6 +16,7 @@ import PassesTab from './resident/PassesTab';
 import TechTab from './resident/TechTab';
 import TemplatesTab from './resident/TemplatesTab';
 import HistoryTab from './resident/HistoryTab';
+import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
 const COMPLETED_STATUSES = new Set(['arrived', 'rejected', 'expired', 'cancelled']);
@@ -28,7 +28,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   const optimisticRef = useRef(createRequestsOptimisticController());
   const [modal,         setModal]         = useState(null);
   const [editReq,       setEditReq]       = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useUrlSearchParams();
   const passFilter = searchParams.get('passFilter') || 'active';
   const techFilter = searchParams.get('techFilter') || 'active';
   const [confirmDelete, setConfirmDelete] = useState(null);

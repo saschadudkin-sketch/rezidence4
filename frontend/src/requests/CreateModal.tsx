@@ -301,13 +301,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
-  const [showAdvanced, setShowAdvanced] = useState(Boolean(
-    initialData?.comment
-    || initialData?.photos?.length
-    || initialData?.photo
-    || initialData?.validUntil
-    || initialData?.scheduledFor
-  ));
+  const [showAdvanced, setShowAdvanced] = useState(true);
 
   const submitLabel = form.loading
     ? 'Сохранение...'

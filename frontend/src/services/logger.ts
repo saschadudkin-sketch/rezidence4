@@ -100,6 +100,7 @@ export function createLogger() {
     },
 
     debug(...args) {
+      // eslint-disable-next-line no-console
       if (IS_DEV) console.debug('[DEBUG]', ..._fmtArgs(args));
     },
 
@@ -132,6 +133,7 @@ export function createLogger() {
 
     /** Логировать действие пользователя */
     action(name, data = {}) {
+      // eslint-disable-next-line no-console
       if (IS_DEV) console.log('[ACTION]', name, { ..._ctx, ...data });
     },
   };
