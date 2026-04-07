@@ -23,14 +23,16 @@ export function useLiveSync(user, {
   // PERF: Incremental request SSE updates — избегаем full REQUESTS_SET_ALL при каждом событии
   updateRequest, addRequest, deleteRequest,
 }) {
-  const [isLoading,   setIsLoading]   = useState(true);
+  const demoMode = isDemoMode();
+  const [isLoading,   setIsLoading]   = useState(!demoMode);
   // FA-07: статус SSE-соединения для индикатора в header
-  const [sseOnline, setSseOnline] = useState(true);
+  const [sseOnline, setSseOnline] = useState(demoMode ? null : true);
   // D-04: SSE достиг лимита попыток — требуется ручной retry
   const [ssePermanentError, setSsePermanentError] = useState(false);
   const [realtimeMode, setRealtimeMode] = useState<'healthy' | 'degraded' | 'open-circuit' | 'recovery'>('healthy');
 
   useEffect(() => {
+    if (demoMode) return;
     // A-01: use typed helpers from centralized event registry
     const cleanupStatus   = onSseStatus(({ connected }) => setSseOnline(connected));
     const cleanupPermanent = onSsePermanentError(() => setSsePermanentError(true));
@@ -38,7 +40,7 @@ export function useLiveSync(user, {
       logger.info('[realtime-state]', { from, to, durationMs });
     });
     return () => { cleanupStatus(); cleanupPermanent(); cleanupRealtime(); };
-  }, []);
+  }, [demoMode]);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
   const callbacksRef = useRef({});
@@ -67,6 +69,12 @@ export function useLiveSync(user, {
   };
 
   useEffect(() => {
+    if (demoMode) {
+      setIsLoading(false);
+      setSseOnline(null);
+      setSsePermanentError(false);
+      return;
+    }
     if (!isLiveMode() && !isDemoMode()) {
       setIsLoading(false);
       return;
@@ -155,6 +163,7 @@ export function useLiveSync(user, {
       cleanupFn?.();
     };
   }, [
+    demoMode,
     user.role,
     user.uid,
     retryKey,
@@ -181,7 +190,7 @@ export function useLiveSync(user, {
   // the indicator but did NOT actually reconnect the SSE stream.
   // Now dispatches rz:sse-force-reconnect which Dashboard listens to and increments retryKey.
   useEffect(() => {
-    if (!isLiveMode()) return;
+    if (demoMode || !isLiveMode()) return;
     const WATCHDOG_INTERVAL_MS = 15_000;
     const STALE_THRESHOLD_MS   = 60_000;
     const RECONNECT_BUDGET_WINDOW_MS = 10 * 60_000;
@@ -267,7 +276,7 @@ export function useLiveSync(user, {
       clearInterval(interval);
       cleanupActivity();
     };
-  }, []);
+  }, [demoMode]);
 
   return { isLoading, sseOnline, ssePermanentError, realtimeMode };
 }

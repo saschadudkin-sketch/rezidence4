@@ -8,7 +8,7 @@
 
 import { normalizePhone } from '../../utils';
 import { PHONE_DB_INITIAL, INITIAL_USERS } from '../slices/usersSlice';
-import { readStorage, STORAGE_KEYS } from './storageRegistry';
+import { isDemoPrivateSessionEnabled } from './storageRegistry';
 import { putMedia, getMedia, clearMediaStore } from './mediaStore';
 
 const LS_KEY = 'residenze_v5';
@@ -23,7 +23,7 @@ const LS_TTL_KEY = `${LS_KEY}_ttl`;
 const SESSION_PHOTO_PREFIX = `${LS_KEY}_sph_`;
 
 function isPrivateDemoSession() {
-  return readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1';
+  return isDemoPrivateSessionEnabled();
 }
 
 function sessionGet(key: string) {

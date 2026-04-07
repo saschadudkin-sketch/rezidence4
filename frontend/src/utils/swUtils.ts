@@ -1,12 +1,15 @@
-/** Модульная переменная — доступна только внутри модулей utils/, не засоряет window */
 let _swReg = null;
 
-/** Возвращает текущую SW-регистрацию (или null) */
 export const getSwReg = () => _swReg;
 
-/** Регистрирует Service Worker */
-export function registerSW() {
+export function shouldRegisterSW() {
+  return import.meta.env.PROD;
+}
+
+export function registerSW({ force = false } = {}) {
   if (!('serviceWorker' in navigator)) return;
+  if (!force && !shouldRegisterSW()) return;
+
   navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
     .then((reg) => { _swReg = reg; })

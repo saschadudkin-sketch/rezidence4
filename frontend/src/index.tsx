@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
-import { registerSW } from './utils/swUtils';
+import { registerSW, shouldRegisterSW } from './utils/swUtils';
 import { reportWebVitals } from './utils/webVitals';
 
 // ─── Sentry error tracking ─────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('[App] Unhandled rejection:', event.reason);
 });
 
-registerSW();
+if (shouldRegisterSW()) registerSW();
 reportWebVitals();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

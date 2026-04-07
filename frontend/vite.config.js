@@ -9,7 +9,15 @@ import { execSync } from 'child_process';
 function getGitVersion() {
   try {
     const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
-    const tag = execSync('git describe --tags --abbrev=0 2>/dev/null || echo ""', { encoding: 'utf-8' }).trim();
+    let tag = '';
+    try {
+      tag = execSync('git describe --tags --abbrev=0', {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      tag = '';
+    }
     return tag ? `${tag}+${sha}` : sha;
   } catch {
     return process.env.npm_package_version || 'unknown';

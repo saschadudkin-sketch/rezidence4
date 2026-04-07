@@ -1,10 +1,5 @@
 /**
- * Dashboard.jsx — composition root (thin).
- *
- * Feature-level controllers:
- *   useRoleGuidance      — onboarding/demo guidance UX
- *   useConnectivityUX    — SSE/connectivity/retry orchestration
- *   useDashboardExperience — nav model, page metadata, telemetry, action rail
+ * Dashboard.jsx - composition root (thin).
  */
 
 import { useState } from 'react';
@@ -21,6 +16,7 @@ import {
   useNavigation,
 } from '../hooks/useDashboardHooks';
 import { ROLES } from '../domain/permissions';
+import { getRoleResponsibilities } from '../domain/roleResponsibilities';
 import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
@@ -29,11 +25,11 @@ import '../styles/components/utilities-polish.css';
 import { useRoleGuidance } from './dashboard/useRoleGuidance';
 import { useConnectivityUX } from './dashboard/useConnectivityUX';
 import { useDashboardExperience } from './dashboard/useDashboardExperience';
-import { clearAppStorage, readStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import { clearAppStorage, isDemoPrivateSessionEnabled, writeStorage, STORAGE_KEYS } from '../store/persistence/storageRegistry';
 import { toast } from '../ui/Toasts';
 
 function DemoBanner({ onClose }) {
-  const [privateSession, setPrivateSession] = useState(() => readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION) === '1');
+  const [privateSession, setPrivateSession] = useState(() => isDemoPrivateSessionEnabled());
 
   const togglePrivateSession = () => {
     const next = !privateSession;
@@ -46,14 +42,13 @@ function DemoBanner({ onClose }) {
     toast('Локальные демо-данные очищены', 'success');
   };
 
-
   return (
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="alert" size={14} /></span>
       <span className="demo-welcome-text">
         <strong>Демо-режим.</strong>{' '}
-        Попробуйте создать пропуск или вызов техслужбы — всё работает без сервера.
-        Данные сохраняются только в браузере. На общих устройствах не используйте реальные персональные данные.
+        Попробуйте создать пропуск или вызов техслужбы - все работает без сервера.
+        По умолчанию сессия приватная и не сохраняет данные между перезапусками. Постоянное демо-хранение включается только вручную.
       </span>
       <label className="demo-private-toggle">
         <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
@@ -67,18 +62,10 @@ function DemoBanner({ onClose }) {
   );
 }
 
-const ONBOARDING_HINTS = {
-  [ROLES.OWNER]:       'Нажмите «+» чтобы создать пропуск для гостя, курьера или подрядчика. Пропуска появятся у охраны автоматически.',
-  [ROLES.TENANT]:      'Создайте пропуск для гостя или мастера — охрана получит уведомление мгновенно.',
-  [ROLES.CONTRACTOR]:  'Здесь ваши рабочие пропуска. Создайте новый, указав марку и номер авто, если планируется въезд.',
-  [ROLES.CONCIERGE]:   'Пропуска, ожидающие подтверждения, — в разделе «Заявки». Подтвердите или отклоните каждую.',
-  [ROLES.SECURITY]:    'Отсканируйте QR-код гостя или найдите заявку вручную, чтобы зарегистрировать визит.',
-  [ROLES.ADMIN]:       'В разделе «Резиденты» управляйте пользователями. Аналитика доступна во вкладке «Аналитика».',
-};
-
 function OnboardingHint({ role, onClose }) {
-  const hint = ONBOARDING_HINTS[role];
+  const hint = getRoleResponsibilities(role).onboardingHint;
   if (!hint) return null;
+
   return (
     <div className="onboarding-hint" role="status" aria-live="polite">
       <span className="onboarding-hint-icon"><AppIcon name="info" size={14} /></span>
@@ -151,6 +138,10 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     );
   }
 
+  const actionRail = user.role === ROLES.OWNER
+    ? null
+    : <SmartActionRail action={experience.nextBestAction} feedback={experience.completionFeedback} onAction={experience.nextBestAction?.onClick} />;
+
   return (
     <NavigationContext.Provider
       value={{
@@ -179,7 +170,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         sseOnline={connectivity.sseOnline}
         isLoading={connectivity.isLoading}
         isOnline={isOnline}
-        actionRail={<SmartActionRail action={experience.nextBestAction} feedback={experience.completionFeedback} onAction={experience.nextBestAction?.onClick} />}
+        actionRail={actionRail}
       />
     </NavigationContext.Provider>
   );

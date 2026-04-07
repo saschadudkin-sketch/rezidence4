@@ -1,3 +1,5 @@
+import { clearMediaStore } from './mediaStore';
+
 const STORAGE_KEYS = {
   DEMO_WELCOME_SEEN: 'rz:demo-welcome-seen',
   DEMO_PRIVATE_SESSION: 'rz:demo-private-session',
@@ -38,9 +40,24 @@ export function clearAppStorage(): void {
         localStorage.removeItem(key);
       }
     }
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const key = sessionStorage.key(i);
+      if (key && STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        sessionStorage.removeItem(key);
+      }
+      if (key && key.startsWith('residenze_v5_sph_')) {
+        sessionStorage.removeItem(key);
+      }
+    }
+    clearMediaStore().catch(() => {});
   } catch {
     // ignore
   }
+}
+
+export function isDemoPrivateSessionEnabled(): boolean {
+  const stored = readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION);
+  return stored !== '0';
 }
 
 export function onboardingKey(role: string): string {

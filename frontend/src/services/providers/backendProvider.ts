@@ -298,9 +298,12 @@ export const requestsProvider = {
               // FIX [I-11]: validate URL before fetch — reject non-http(s) and non-same-origin external
               // to prevent SSRF-style leaks via crafted blob:/data:/javascript: URLs.
               let parsed;
-              try { parsed = new URL(photo); } catch { throw new Error('Недопустимый URL фото'); }
-              if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-                throw new Error('Недопустимый протокол URL фото');
+              try { parsed = new URL(photo, window.location.origin); } catch { throw new Error('Недопустимый URL фото'); }
+              if (
+                ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.origin !== window.location.origin)
+                && !(parsed.protocol === 'blob:' && parsed.origin === window.location.origin)
+              ) {
+                throw new Error('Разрешены только local blob: и same-origin URL фото');
               }
               blob = await fetch(photo).then(r => r.blob());
             }

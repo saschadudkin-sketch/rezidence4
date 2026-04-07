@@ -1,10 +1,8 @@
 /**
- * AppShell.jsx — A-01: App layout shell extracted from Dashboard.
- * Manages the outer structure: header + layout + nav.
- * Dashboard becomes a thin coordinator using AppShell.
+ * AppShell.jsx - App layout shell extracted from Dashboard.
  */
 
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { LOGO } from '../../constants/logo';
 import { isDemoMode } from '../../config/runtimeMode';
@@ -13,6 +11,21 @@ import UserMenu from './UserMenu';
 import NavigationShell from './NavigationShell';
 import RoleContentRouter from './RoleContentRouter';
 import { useNavigationContext } from './NavigationContext';
+
+type AppShellProps = {
+  user: { role: string };
+  onLogout: () => void;
+  pageTitle: string;
+  pageSubtitle: string;
+  pendingCount: number;
+  cycleTheme: () => void;
+  themeIcon: string;
+  themeLabel: string;
+  sseOnline: boolean | null;
+  isLoading?: boolean;
+  isOnline?: boolean;
+  actionRail?: ReactNode;
+};
 
 const AppShell = memo(function AppShell({
   user,
@@ -27,25 +40,21 @@ const AppShell = memo(function AppShell({
   isLoading = false,
   isOnline = true,
   actionRail = null,
-}) {
+}: AppShellProps) {
   const { nav, navClassMap, goTab, activeTab } = useNavigationContext();
+  const demoMode = isDemoMode();
 
-  // FIX [КРИТ-P1]: single unified offline banner — no more double-stacking.
-  // Priority: network loss > SSE loss. Only one banner is ever visible at once.
-  const noNetwork = isOnline === false;
-  const noSse     = !noNetwork && sseOnline === false;
+  const noNetwork = !demoMode && isOnline === false;
+  const noSse = !demoMode && !noNetwork && sseOnline === false;
   const showBanner = noNetwork || noSse;
 
   const bannerText = noNetwork
     ? 'Нет подключения к интернету'
-    : 'Нет соединения с сервером — переподключение…';
+    : 'Нет соединения с сервером - переподключение...';
   const bannerIcon = noNetwork ? 'ban' : 'refresh';
 
   return (
     <>
-      {/* UI-04/UI-05: unified offline banner for both network loss and SSE disconnection.
-          Always rendered so CSS transition can animate it in/out smoothly.
-          Only one state is shown at a time (network loss takes priority over SSE). */}
       <div
         className={`offline-banner${showBanner ? ' is-visible' : ''}`}
         role="status"
@@ -61,19 +70,18 @@ const AppShell = memo(function AppShell({
           <div className="header-brand">
             <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
             <span className="header-wordmark">Резиденции Замоскворечья</span>
-            {isDemoMode() && (
+            {demoMode && (
               <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
             )}
             {noSse && (
-              <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение…" aria-hidden="true">
-                {/* UI: 'refresh' семантически верен для reconnect; 'history' — это журнал событий */}
+              <span className="sse-reconnecting" title="Нет соединения с сервером, переподключение..." aria-hidden="true">
                 <AppIcon name="refresh" size={12} />
-                <span>Переподключение…</span>
+                <span>Переподключение...</span>
               </span>
             )}
           </div>
           <div className="header-actions">
-            <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={'Тема: ' + themeLabel}>
+            <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={`Тема: ${themeLabel}`}>
               <span><AppIcon name={themeIcon} size={14} /></span>
               <span>{themeLabel}</span>
             </button>
@@ -88,15 +96,11 @@ const AppShell = memo(function AppShell({
           <div className="page-top">
             <div>
               <h1 className="page-title">{pageTitle}</h1>
-              {/* FIX [D-2]: conditional render instead of hidden class — removes element
-                  from DOM and avoids screen readers announcing invisible text */}
               {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
               {actionRail}
             </div>
           </div>
           <ErrorBoundary name="Экран">
-            {/* P-02: isLoading passed so RoleContentRouter can show skeleton
-                cards while SSE data loads — header + nav remain fully usable */}
             <RoleContentRouter user={user} isLoading={isLoading} />
           </ErrorBoundary>
         </main>

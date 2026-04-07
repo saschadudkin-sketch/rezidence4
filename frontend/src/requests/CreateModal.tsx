@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
 import { MAX_PHOTOS_PER_REQUEST, daysFromNow } from '../constants/limits';
@@ -14,47 +14,62 @@ import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
 
-// ─── VisitorFields ────────────────────────────────────────────────────────────
-// FIX [PERF-19]: memo — VisitorFields не имеет внутреннего состояния, рендерится
-// при каждом keystroke в форме CreateModal. Мемоизация экономит перерасчёт
-// всех условных блоков (needsCarPlate, hasVisitorFields, permsList и т.д.)
-const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames, setVNames, vPhone, setVPhone,
-  carPlate, setCarPlate, permsList, showPermsPicker, setShowPermsPicker, onPickPerm }) {
+const VisitorFields = memo(function VisitorFields({
+  cat,
+  vName,
+  setVName,
+  vNames,
+  setVNames,
+  vPhone,
+  setVPhone,
+  carPlate,
+  setCarPlate,
+  permsList,
+  showPermsPicker,
+  setShowPermsPicker,
+  onPickPerm,
+}) {
   return (
     <>
-      {/* CQ-02: unified car plate field — required for taxi, optional for others */}
       {needsCarPlate(cat) && (
         <div className="field">
           <label className="field-lbl">Марка и номер авто{cat === 'taxi' ? ' *' : ''}</label>
-          <input className="field-inp" placeholder="Toyota Camry А123БВ777"
+          <input
+            className="field-inp"
+            placeholder="Toyota Camry А123БВ777"
             value={carPlate}
-            onChange={e => setCarPlate(e.target.value)}
-            onBlur={e => setCarPlate(sanitizeCarPlate(e.target.value))}
-            autoCapitalize="characters" />
+            onChange={(e) => setCarPlate(e.target.value)}
+            onBlur={(e) => setCarPlate(sanitizeCarPlate(e.target.value))}
+            autoCapitalize="characters"
+          />
         </div>
       )}
+
       {cat === 'team' && (
         <div className="field">
           <label className="field-lbl">Имена посетителей *</label>
-          {/* FIX [BUG-14]: key=index ломает фокус и значения инпутов при удалении из середины.
-              Оборачиваем каждое имя в объект {id, value} со стабильным id. */}
           {vNames.map((n, i) => (
             <div key={n.__id} className="vf-name-row">
-              <input className="field-inp vf-name-inp"
-                placeholder={'Посетитель ' + (i + 1)} value={n.value}
-                onChange={e => {
-                  const a = [...vNames];
-                  a[i] = { ...n, value: e.target.value };
-                  setVNames(a);
+              <input
+                className="field-inp vf-name-inp"
+                placeholder={`Посетитель ${i + 1}`}
+                value={n.value}
+                onChange={(e) => {
+                  const next = [...vNames];
+                  next[i] = { ...n, value: e.target.value };
+                  setVNames(next);
                 }}
-                onBlur={e => {
-                  const a = [...vNames];
-                  a[i] = { ...n, value: sanitizeText(e.target.value) };
-                  setVNames(a);
+                onBlur={(e) => {
+                  const next = [...vNames];
+                  next[i] = { ...n, value: sanitizeText(e.target.value) };
+                  setVNames(next);
                 }}
-                autoCapitalize="words" />
+                autoCapitalize="words"
+              />
               {vNames.length > 1 && (
-                <button type="button" className="vf-name-del" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}><AppIcon name="close" size={12} /></button>
+                <button type="button" className="vf-name-del" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}>
+                  <AppIcon name="close" size={12} />
+                </button>
               )}
             </div>
           ))}
@@ -63,25 +78,30 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
           </button>
         </div>
       )}
+
       {hasVisitorFields(cat) && (
         <div className="field">
           <label className="field-lbl">{requiresVisitorName(cat) ? 'Имя посетителя *' : 'Имя посетителя'}</label>
-          <input className="field-inp" placeholder="Иван Иванов"
+          <input
+            className="field-inp"
+            placeholder="Иван Иванов"
             value={vName}
-            onChange={e => setVName(e.target.value)}
-            onBlur={e => setVName(sanitizeText(e.target.value))}
-            autoCapitalize="words" autoComplete="name" />
+            onChange={(e) => setVName(e.target.value)}
+            onBlur={(e) => setVName(sanitizeText(e.target.value))}
+            autoCapitalize="words"
+            autoComplete="name"
+          />
           {permsList.length > 0 && (
             <div className="perms-picker-wrap">
-              <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker(p => !p)}>
+              <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker((value) => !value)}>
                 <span className="u-inline-icon"><AppIcon name="list" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
               </button>
               {showPermsPicker && (
                 <div className="perms-picker-dropdown">
-                  {permsList.map(p => (
-                    <button key={p.id} type="button" className="perms-picker-item" onClick={() => onPickPerm(p)}>
-                      <span className="perms-picker-item-name">{p.name}</span>
-                      {p.phone && <span className="u-fs11-t4">{p.phone}</span>}
+                  {permsList.map((perm) => (
+                    <button key={perm.id} type="button" className="perms-picker-item" onClick={() => onPickPerm(perm)}>
+                      <span className="perms-picker-item-name">{perm.name}</span>
+                      {perm.phone && <span className="u-fs11-t4">{perm.phone}</span>}
                     </button>
                   ))}
                 </div>
@@ -90,23 +110,26 @@ const VisitorFields = memo(function VisitorFields({ cat, vName, setVName, vNames
           )}
         </div>
       )}
+
       {hasVisitorFields(cat) && (
         <div className="field">
           <label className="field-lbl">Телефон</label>
-          <input className="field-inp" placeholder="+7 000 000-00-00" type="tel"
+          <input
+            className="field-inp"
+            placeholder="+7 000 000-00-00"
+            type="tel"
             value={vPhone}
-            onChange={e => setVPhone(e.target.value)}
-            onBlur={e => setVPhone(sanitizePhone(e.target.value))}
-            inputMode="tel" autoComplete="tel" />
+            onChange={(e) => setVPhone(e.target.value)}
+            onBlur={(e) => setVPhone(sanitizePhone(e.target.value))}
+            inputMode="tel"
+            autoComplete="tel"
+          />
         </div>
       )}
     </>
   );
 });
 
-// ─── TemplateSection ──────────────────────────────────────────────────────────
-
-// FIX [PERF-19]: memo — TemplateSection рендерится при каждом keystroke в форме
 const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSaveTpl, tplName, setTplName, onSave }) {
   return (
     <div className="modal-tpl-area">
@@ -114,41 +137,43 @@ const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSave
         <>
           <div className="field u-mb8">
             <label className="field-lbl">Название шаблона *</label>
-            <input className="field-inp" placeholder="Например: Гость Иван, Сантехник..."
-              value={tplName} onChange={e => setTplName(e.target.value)}
-              onBlur={e => setTplName(sanitizeText(e.target.value))}
-              autoFocus onKeyDown={e => e.key === 'Enter' && onSave()} />
+            <input
+              className="field-inp"
+              placeholder="Например: Гость Иван, Сантехник..."
+              value={tplName}
+              onChange={(e) => setTplName(e.target.value)}
+              onBlur={(e) => setTplName(sanitizeText(e.target.value))}
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && onSave()}
+            />
           </div>
           <div className="u-row-g8-bare">
             <button className="btn-outline u-flex1" onClick={() => { setShowSaveTpl(false); setTplName(''); }}>Отмена</button>
-            <button className="btn-gold u-flex2" onClick={onSave}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить шаблон</span></button>
+            <button className="btn-gold u-flex2" onClick={onSave}>
+              <span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить шаблон</span>
+            </button>
           </div>
         </>
       ) : (
-        <button className="tpl-save-btn" onClick={() => setShowSaveTpl(true)}><span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить как шаблон</span></button>
+        <button className="tpl-save-btn" onClick={() => setShowSaveTpl(true)}>
+          <span className="u-inline-icon"><AppIcon name="file" size={14} /> Сохранить как шаблон</span>
+        </button>
       )}
     </div>
   );
 });
 
-// ─── ScheduleSection ──────────────────────────────────────────────────────────
-
-// FIX [PERF-19]: memo — ScheduleSection рендерится при каждом keystroke
 const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSchedule, scheduledFor, setScheduledFor, applyPreset }) {
-  // FIX [PERF-13]: minDateTime() вызывался на каждый рендер даже когда секция закрыта.
-  // Теперь пересчитывается только при открытии секции (showSchedule изменился на true).
-  // Нет смысла в useMemo — значение нужно свежим в момент клика, не кешированным.
   const handleToggle = () => {
     const opening = !showSchedule;
-    setShowSchedule(o => !o);
+    setShowSchedule((value) => !value);
     if (opening && !scheduledFor) setScheduledFor(minDateTime());
   };
   const minDT = showSchedule ? minDateTime() : '';
 
   return (
     <div className="u-p-schedule">
-      <button className={'schedule-toggle' + (showSchedule ? ' active' : '')}
-        onClick={handleToggle}>
+      <button className={'schedule-toggle' + (showSchedule ? ' active' : '')} onClick={handleToggle} type="button">
         <span className="u-row-g8">
           <span className="schedule-toggle-ico"><AppIcon name="history" size={14} /></span>
           <span>{showSchedule && scheduledFor ? 'Запланировано: ' + fmtScheduled(scheduledFor) : 'Запланировать на время'}</span>
@@ -158,11 +183,10 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
       {showSchedule && (
         <div className="schedule-block">
           <label>Дата и время отправки</label>
-          <input type="datetime-local" className="schedule-datetime"
-            value={scheduledFor} min={minDT} onChange={e => setScheduledFor(e.target.value)} />
+          <input type="datetime-local" className="schedule-datetime" value={scheduledFor} min={minDT} onChange={(e) => setScheduledFor(e.target.value)} />
           <div className="schedule-presets">
-            {SCHEDULE_PRESETS.map((p) => (
-              <button key={p.label} className="schedule-preset" onClick={() => applyPreset(p)}>{p.label}</button>
+            {SCHEDULE_PRESETS.map((preset) => (
+              <button key={preset.label} className="schedule-preset" onClick={() => applyPreset(preset)}>{preset.label}</button>
             ))}
           </div>
           {scheduledFor && (
@@ -177,15 +201,133 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
   );
 });
 
-// ─── CreateModal ──────────────────────────────────────────────────────────────
+const AccordionSection = memo(function AccordionSection({ title, subtitle, icon, open, onToggle, children, badge }) {
+  return (
+    <div className="u-p-schedule">
+      <button className={'schedule-toggle' + (open ? ' active' : '')} onClick={onToggle} type="button">
+        <span className="u-row-g8">
+          <span className="schedule-toggle-ico"><AppIcon name={icon} size={14} /></span>
+          <span>
+            {title}
+            {subtitle ? <span className="u-fs11-op6"> {' - '}{subtitle}</span> : null}
+          </span>
+        </span>
+        <span className="u-row-g8">
+          {badge || null}
+          <span className="u-fs11-op6"><AppIcon name={open ? 'chevron-up' : 'chevron-down'} size={12} /></span>
+        </span>
+      </button>
+      {open && <div className="schedule-block">{children}</div>}
+    </div>
+  );
+});
+
+function TemporaryPassSection({ validUntil, setValidUntil }) {
+  if (!validUntil) {
+    return (
+      <button type="button" className="temp-pass-toggle" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(7)))}>
+        <span><AppIcon name="history" size={14} /></span>
+        <span>Временный пропуск</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="temp-pass-block">
+      <div className="temp-pass-header">
+        <span className="temp-pass-label"><AppIcon name="history" size={12} /> Временный пропуск</span>
+        <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
+          <AppIcon name="close" size={12} /> Убрать
+        </button>
+      </div>
+      <label className="field-lbl">Действует до</label>
+      <input
+        type="date"
+        className="field-inp"
+        value={validUntil}
+        min={toLocalDateInputValue(new Date())}
+        onChange={(e) => setValidUntil(e.target.value)}
+      />
+      <div className="temp-pass-presets">
+        {[
+          ['3 дня', 3],
+          ['Неделя', 7],
+          ['2 недели', 14],
+          ['Месяц', 30],
+        ].map(([label, days]) => (
+          <button key={days} type="button" className="temp-pass-preset" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(days)))}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="temp-pass-info">
+        Многоразовый вход до {parseLocalDateInputValue(validUntil)?.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+      </div>
+    </div>
+  );
+}
+
+function PhotoSection({ photos, handlePhoto, removePhoto }) {
+  return (
+    <>
+      <label
+        className={'photo-btn photo-btn--col' + (photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}
+        aria-disabled={photos.length >= MAX_PHOTOS_PER_REQUEST}
+        title={photos.length >= MAX_PHOTOS_PER_REQUEST ? `Максимум ${MAX_PHOTOS_PER_REQUEST} фотографий` : undefined}
+      >
+        <span className="u-row-g8">
+          <AppIcon name="camera" size={14} />
+          <span>{`Фото: ${photos.length}/${MAX_PHOTOS_PER_REQUEST}`}</span>
+        </span>
+        <input type="file" accept="image/*" multiple className="u-none" onChange={handlePhoto} disabled={photos.length >= MAX_PHOTOS_PER_REQUEST} />
+      </label>
+      {photos.length > 0 && (
+        <div className="photo-grid">
+          {photos.map((src, i) => (
+            <div key={i} className="photo-grid-item">
+              <img src={src} alt="" />
+              <button type="button" className="photo-grid-del" onClick={() => removePhoto(i)}>
+                <AppIcon name="close" size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
 
 export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
-  const submitLabel = form.loading             ? 'Сохранение...'
-    : form.showSchedule && form.scheduledFor   ? 'Запланировать'
-    : 'Создать заявку';
+  const [showAdvanced, setShowAdvanced] = useState(Boolean(
+    initialData?.comment
+    || initialData?.photos?.length
+    || initialData?.photo
+    || initialData?.validUntil
+    || initialData?.scheduledFor
+  ));
+
+  const submitLabel = form.loading
+    ? 'Сохранение...'
+    : form.showSchedule && form.scheduledFor
+      ? 'Запланировать'
+      : 'Создать заявку';
+
+  const hasAdvancedSelection = Boolean(
+    form.validUntil
+    || form.comment
+    || form.photos.length
+    || form.showSaveTpl
+    || form.tplName
+    || form.showSchedule
+    || form.scheduledFor
+  );
+
+  const advancedSubtitle = hasAdvancedSelection
+    ? 'Срок, фото, шаблон или расписание уже настроены'
+    : 'Откройте для срока, фото, шаблона, расписания и комментария';
 
   return (
     <div className="overlay" {...overlayProps}>
@@ -203,20 +345,20 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         </div>
 
         <div className="modal-body">
-          {/* P-03: category picker — lets users switch category directly inside
-              the modal instead of having to close, pick from outside, and reopen */}
+          <div className="u-fs11-op6 u-mb8">Шаг 1. Быстрое создание</div>
+
           {cats.length > 1 && (
             <div className="modal-cat-picker" role="group" aria-label="Тип заявки">
-              {cats.map(c => (
+              {cats.map((cat) => (
                 <button
-                  key={c}
+                  key={cat}
                   type="button"
-                  className={`modal-cat-btn${form.cat === c ? ' active' : ''}`}
-                  onClick={() => form.setCat(c)}
-                  aria-pressed={form.cat === c}
+                  className={`modal-cat-btn${form.cat === cat ? ' active' : ''}`}
+                  onClick={() => form.setCat(cat)}
+                  aria-pressed={form.cat === cat}
                 >
-                  <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[c] || 'users'} size={14} /></span>
-                  <span className="modal-cat-btn-label">{CAT_LABEL[c]}</span>
+                  <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[cat] || 'users'} size={14} /></span>
+                  <span className="modal-cat-btn-label">{CAT_LABEL[cat]}</span>
                 </button>
               ))}
             </div>
@@ -225,98 +367,67 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
           {type === 'pass' && (
             <VisitorFields
               cat={form.cat}
-              vName={form.vName}           setVName={form.setVName}
-              vNames={form.vNames}         setVNames={form.setVNames}
-              vPhone={form.vPhone}         setVPhone={form.setVPhone}
-              carPlate={form.carPlate}     setCarPlate={form.setCarPlate}
+              vName={form.vName}
+              setVName={form.setVName}
+              vNames={form.vNames}
+              setVNames={form.setVNames}
+              vPhone={form.vPhone}
+              setVPhone={form.setVPhone}
+              carPlate={form.carPlate}
+              setCarPlate={form.setCarPlate}
               permsList={form.permsList}
               showPermsPicker={form.showPermsPicker}
               setShowPermsPicker={form.setShowPermsPicker}
               onPickPerm={form.handlePickPerm}
             />
           )}
-          {type === 'pass' && ['guest', 'car', 'worker', 'team'].includes(form.cat) && (
-            <div className="field">
-              {!form.validUntil ? (
-                <button type="button" className="temp-pass-toggle" onClick={() => form.setValidUntil(
-                  toLocalDateInputValue(daysFromNow(7))
-                )}>
-                  <span><AppIcon name="history" size={14} /></span>
-                  <span>Временный пропуск</span>
-                </button>
-              ) : (
-                <div className="temp-pass-block">
-                  <div className="temp-pass-header">
-                    <span className="temp-pass-label"><AppIcon name="history" size={12} /> Временный пропуск</span>
-                    <button type="button" className="temp-pass-close" onClick={() => form.setValidUntil('')}><AppIcon name="close" size={12} /> Убрать</button>
-                  </div>
-                  <label className="field-lbl">Действует до</label>
-                  <input type="date" className="field-inp"
-                    value={form.validUntil}
-                    min={toLocalDateInputValue(new Date())}
-                    onChange={e => form.setValidUntil(e.target.value)}
-                    autoFocus />
-                  <div className="temp-pass-presets">
-                    {[
-                      ['3 дня', 3], ['Неделя', 7], ['2 недели', 14], ['Месяц', 30],
-                    ].map(([label, days]) => (
-                      <button key={days} type="button" className="temp-pass-preset"
-                        onClick={() => form.setValidUntil(
-                          toLocalDateInputValue(daysFromNow(days as number))
-                        )}>{label}</button>
-                    ))}
-                  </div>
-                  <div className="temp-pass-info">
-                    Многоразовый вход до {parseLocalDateInputValue(form.validUntil)?.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
-          <div className="field">
-            <label className="field-lbl">Комментарий</label>
-            <textarea className="field-textarea" rows={3} placeholder="Дополнительно..."
-              value={form.comment}
-              onChange={e => form.setComment(e.target.value)}
-              onBlur={e => form.setComment(sanitizeText(e.target.value))} />
-          </div>
-          {/* P-06: кнопка остаётся видимой при достижении лимита — показывает счётчик и disabled */}
-          <label className={'photo-btn photo-btn--col' + (form.photos.length >= MAX_PHOTOS_PER_REQUEST ? ' disabled' : '')}
-            aria-disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST}
-            title={form.photos.length >= MAX_PHOTOS_PER_REQUEST ? `Максимум ${MAX_PHOTOS_PER_REQUEST} фотографий` : undefined}>
-            <span className="u-row-g8">
-              <AppIcon name="camera" size={14} />
-              <span>{`Фото: ${form.photos.length}/${MAX_PHOTOS_PER_REQUEST}`}</span>
-            </span>
-            <input type="file" accept="image/*" multiple className="u-none"
-              onChange={form.handlePhoto}
-              disabled={form.photos.length >= MAX_PHOTOS_PER_REQUEST} />
-          </label>
-          {form.photos.length > 0 && (
-            <div className="photo-grid">
-              {form.photos.map((src, i) => (
-                // FIX [BUG-18]: src.slice(-12)+i нестабилен если URL перезаписывается.
-                // key=index безопасен: фото только добавляются/удаляются, не переставляются.
-                <div key={i} className="photo-grid-item">
-                  <img src={src} alt="" />
-                  <button type="button" className="photo-grid-del" onClick={() => form.removePhoto(i)}><AppIcon name="close" size={12} /></button>
-                </div>
-              ))}
+          <AccordionSection
+            title="Шаг 2. Дополнительные настройки"
+            subtitle={advancedSubtitle}
+            icon="list"
+            open={showAdvanced}
+            onToggle={() => setShowAdvanced((value) => !value)}
+            badge={hasAdvancedSelection ? <span className="vlog-tag ok">вкл</span> : null}
+          >
+            {type === 'pass' && ['guest', 'car', 'worker', 'team'].includes(form.cat) && (
+              <div className="field">
+                <TemporaryPassSection validUntil={form.validUntil} setValidUntil={form.setValidUntil} />
+              </div>
+            )}
+
+            <div className="field">
+              <label className="field-lbl">Комментарий</label>
+              <textarea
+                className="field-textarea"
+                rows={3}
+                placeholder="Дополнительно..."
+                value={form.comment}
+                onChange={(e) => form.setComment(e.target.value)}
+                onBlur={(e) => form.setComment(sanitizeText(e.target.value))}
+              />
             </div>
-          )}
+
+            <PhotoSection photos={form.photos} handlePhoto={form.handlePhoto} removePhoto={form.removePhoto} />
+
+            <TemplateSection
+              showSaveTpl={form.showSaveTpl}
+              setShowSaveTpl={form.setShowSaveTpl}
+              tplName={form.tplName}
+              setTplName={form.setTplName}
+              onSave={form.handleSaveTpl}
+            />
+
+            <ScheduleSection
+              showSchedule={form.showSchedule}
+              setShowSchedule={form.setShowSchedule}
+              scheduledFor={form.scheduledFor}
+              setScheduledFor={form.setScheduledFor}
+              applyPreset={form.applyPreset}
+            />
+          </AccordionSection>
         </div>
 
-        <TemplateSection
-          showSaveTpl={form.showSaveTpl}   setShowSaveTpl={form.setShowSaveTpl}
-          tplName={form.tplName}            setTplName={form.setTplName}
-          onSave={form.handleSaveTpl}
-        />
-        <ScheduleSection
-          showSchedule={form.showSchedule}   setShowSchedule={form.setShowSchedule}
-          scheduledFor={form.scheduledFor}   setScheduledFor={form.setScheduledFor}
-          applyPreset={form.applyPreset}
-        />
         <div className="modal-foot">
           <button className="btn-outline" onClick={onClose}>Отмена</button>
           <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>

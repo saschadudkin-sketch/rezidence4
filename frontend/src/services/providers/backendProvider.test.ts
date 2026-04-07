@@ -36,7 +36,13 @@ import {
   createBackendProvider,
 } from './backendProvider';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  Object.defineProperty(window, 'location', {
+    value: new URL('https://app.example.test/dashboard'),
+    configurable: true,
+  });
+});
 
 // ─── authProvider ─────────────────────────────────────────────────────────────
 
@@ -196,6 +202,28 @@ describe('requestsProvider', () => {
     apiClient.delete.mockResolvedValueOnce({ ok: true });
     await requestsProvider.delete('r1');
     expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/requests/r1');
+  });
+
+  test('resolvePhotos uploads same-origin blob URLs', async () => {
+    const blob = new Blob(['img'], { type: 'image/png' });
+    global.fetch = vi.fn().mockResolvedValue({ blob: () => Promise.resolve(blob) });
+    apiClient.uploadPhoto.mockResolvedValueOnce({ url: 'https://cdn.example.test/photo.png' });
+
+    const result = await requestsProvider.resolvePhotos('r1', ['blob:https://app.example.test/photo-1']);
+
+    expect(global.fetch).toHaveBeenCalledWith('blob:https://app.example.test/photo-1');
+    expect(apiClient.uploadPhoto).toHaveBeenCalledWith(blob);
+    expect(result).toEqual(['https://cdn.example.test/photo.png']);
+  });
+
+  test('resolvePhotos rejects external photo URLs before fetch', async () => {
+    global.fetch = vi.fn();
+
+    const result = await requestsProvider.resolvePhotos('r1', ['https://evil.example.test/photo.png']);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(apiClient.uploadPhoto).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 });
 
