@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDebounce } from '../hooks/useDebounce';
 import { useRequests, useUsers, useAllPerms } from '../store/AppStore.jsx';
 import { ROLE_LABELS } from '../constants/index.js';
@@ -20,6 +21,7 @@ import StateBlock from '../ui/StateBlock.jsx';
 import SectionHeader from '../ui/SectionHeader.jsx';
 import PageActionBar from '../ui/PageActionBar.tsx';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { OperationalRequestList } from '../requests/OperationalRequestList.tsx';
 // FIX [C-2]: Виртуализация списков заявок — при 500+ заявок без VirtualList
 // рендерится полный DOM, что вызывает freeze UI на слабых устройствах охраны.
 import { VirtualList } from '../ui/VirtualList.jsx';
@@ -270,15 +272,25 @@ const SecurityPermsList = memo(function SecurityPermsList() {
 // ─── SECURITY VIEW ────────────────────────────────────────────────────────────
 
 export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showCarSearch, setShowCarSearch] = useState(false);
   const requests = useRequests();
-  const [filter, setFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [datePeriod, setDatePeriod] = useState('all');
-  const [query, setQuery] = useState('');
+  const filter = searchParams.get('securityRole') || 'all';
+  const typeFilter = searchParams.get('securityType') || 'all';
+  const statusFilter = searchParams.get('securityStatus') || 'all';
+  const datePeriod = searchParams.get('securityPeriod') || 'all';
+  const query = searchParams.get('securityQ') || '';
   const [showScan, setShowScan] = useState(false);
   const debouncedQuery = useDebounce(query, 250);
+
+  const updateSecurityFilters = useCallback((patch) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (!value || value === 'all') next.delete(key);
+      else next.set(key, value);
+    });
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const pendingPassCount = useMemo(() => requests.filter(r => r.type === 'pass' && r.status === 'pending').length, [requests]);
   const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
@@ -315,12 +327,12 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
         <div className="sec-filters-row">
           <div className="search-wrap u-search-sm">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
+            <input className="search-inp" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
           </div>
           {/* FIX [I-6]: date-pills перенесены в отдельный скроллируемый ряд
               через класс sec-filters-row--scroll (overflow-x:auto, no-wrap). */}
           <div className="sec-filters-row sec-filters-row--scroll">
-            {datePills.map(([k, l]) => <button key={k} className={'date-pill ' + (datePeriod === k ? 'active' : '')} onClick={() => setDatePeriod(k)}>{l}</button>)}
+            {datePills.map(([k, l]) => <button key={k} className={'date-pill ' + (datePeriod === k ? 'active' : '')} onClick={() => updateSecurityFilters({ securityPeriod: k })}>{l}</button>)}
           </div>
         </div>
         {/* FIX [I-6]: второй ряд фильтров — скроллируемый на mobile,
@@ -331,18 +343,18 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
             ['pass', 'Пропуска', pendingPassCount],
             ['tech', 'Техслужба', pendingTechCount],
           ].map(([k, l, cnt]) => (
-            <button key={k} className={'date-pill ' + (typeFilter === k ? 'active' : '') + (cnt > 0 && k !== 'all' ? ' has-pending' : '')} onClick={() => setTypeFilter(k)}>
+            <button key={k} className={'date-pill ' + (typeFilter === k ? 'active' : '') + (cnt > 0 && k !== 'all' ? ' has-pending' : '')} onClick={() => updateSecurityFilters({ securityType: k })}>
               {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
             </button>
           ))}
           <span className="sec-filter-divider" aria-hidden="true" />
           {[['all', 'Все'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
-            <button key={k} className={'date-pill sm ' + (statusFilter === k ? 'active' : '')} onClick={() => setStatusFilter(k)} title={{'all':'Все статусы','pending':'В ожидании','approved':'Одобрены','rejected':'Отклонены','arrived':'Вошли','expired':'Истёкшие'}[k]}>{l}</button>
+            <button key={k} className={'date-pill sm ' + (statusFilter === k ? 'active' : '')} onClick={() => updateSecurityFilters({ securityStatus: k })} title={{'all':'Все статусы','pending':'В ожидании','approved':'Одобрены','rejected':'Отклонены','arrived':'Вошли','expired':'Истёкшие'}[k]}>{l}</button>
           ))}
           {typeFilter !== 'tech' && <>
             <span className="sec-filter-divider" aria-hidden="true" />
             {[['all','Все'],['owner','Собст.'],['tenant','Аренд.'],['contractor','Подр.']].map(([k, l]) => (
-              <button key={k} className={'date-pill sm ' + (filter === k ? 'active' : '')} onClick={() => setFilter(k)}>{l}</button>
+              <button key={k} className={'date-pill sm ' + (filter === k ? 'active' : '')} onClick={() => updateSecurityFilters({ securityRole: k })}>{l}</button>
             ))}
           </>}
         </div>
@@ -356,22 +368,14 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
         : (
           // FIX [C-2]: VirtualList — при 500+ заявок охраны рендерится только
           // видимая область вместо полного DOM из 500+ ReqCard элементов.
-          <VirtualList
+          <OperationalRequestList
             items={shown}
-            renderItem={(r, i) => (
-              <ReqCard
-                key={r.id}
-                req={r}
-                staggerIdx={i}
-                userRole={user.role}
-                userName={user.name}
-                userId={user.uid}
-                highlightId={highlightReqId}
-                onHighlighted={() => setHighlightReqId?.(null)}
-              />
-            )}
-            estimateSize={110}
-            className="req-list"
+            userRole={user.role}
+            userName={user.name}
+            userId={user.uid}
+            highlightId={highlightReqId}
+            onHighlighted={() => setHighlightReqId?.(null)}
+            className="req-list req-list--compact"
           />
         )
       }

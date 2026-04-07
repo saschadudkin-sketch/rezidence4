@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { createRequestsOptimisticController } from '../services/consistency/requestsOptimistic';
 import { useActions, useRequests } from '../store/AppStore';
 import { CreateModal } from '../requests/CreateModal';
@@ -27,10 +28,25 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   const optimisticRef = useRef(createRequestsOptimisticController());
   const [modal,         setModal]         = useState(null);
   const [editReq,       setEditReq]       = useState(null);
-  const [passFilter,    setPassFilter]    = useState('active');
-  const [techFilter,    setTechFilter]    = useState('active');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const passFilter = searchParams.get('passFilter') || 'active';
+  const techFilter = searchParams.get('techFilter') || 'active';
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
+
+  const setPassFilter = useCallback((value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === 'active') next.delete('passFilter');
+    else next.set('passFilter', value);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const setTechFilter = useCallback((value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === 'active') next.delete('techFilter');
+    else next.set('techFilter', value);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     requestsRef.current = requests;

@@ -1,5 +1,93 @@
 /* ── REQ CARDS ── */
 .req-list{display:flex;flex-direction:column;gap:var(--space-sm);max-width:720px;margin:0 auto}
+.req-list--compact{gap:10px;max-width:760px}
+.opreq{
+  background:var(--s2);
+  border:1px solid var(--b1);
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--sh-s);
+  transition:border-color .15s,box-shadow .15s,transform .15s;
+}
+@media(hover:hover){.opreq:hover{border-color:var(--b2);box-shadow:var(--sh-m);transform:translateY(-1px)}}
+.opreq.is-expanded{border-color:var(--b2);background:color-mix(in srgb,var(--s2) 82%,var(--g-bg) 18%)}
+.opreq-row{
+  width:100%;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  background:transparent;
+  border:none;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+}
+.opreq-main{min-width:0;display:flex;flex-direction:column;gap:6px;flex:1}
+.opreq-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:var(--fs-sm);
+  font-weight:600;
+  color:var(--t1);
+  line-height:1.35;
+}
+.opreq-type{
+  width:28px;
+  height:28px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--g-bg);
+  color:var(--g2);
+  flex-shrink:0;
+}
+.opreq-meta{
+  font-size:var(--fs-xs);
+  color:var(--t4);
+  line-height:1.5;
+}
+.opreq-side{
+  display:flex;
+  align-items:flex-end;
+  flex-direction:column;
+  gap:8px;
+  flex-shrink:0;
+}
+.opreq-date{
+  font-size:var(--fs-2xs);
+  color:var(--t4);
+  white-space:nowrap;
+}
+.opreq-chevron{
+  width:24px;
+  height:24px;
+  border-radius:999px;
+  border:1px solid var(--b1);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--t4);
+}
+.opreq-detail{
+  padding:0 12px 12px;
+  border-top:1px solid var(--b1);
+  background:linear-gradient(180deg, transparent 0%, rgba(0,0,0,.03) 100%);
+}
+.opreq-detail .req-card{
+  margin-top:12px;
+  box-shadow:none;
+  border-color:var(--b1);
+}
+@media(max-width:640px){
+  .opreq-row{padding:13px 14px;gap:12px;flex-direction:column}
+  .opreq-side{width:100%;flex-direction:row;align-items:center;justify-content:space-between}
+  .opreq-date{order:3}
+}
 .group-date-label{font-size:var(--fs-2xs);letter-spacing:1.5px;text-transform:uppercase;color:var(--t4);font-weight:500;padding:4px 0 2px;margin-top:4px;max-width:720px;margin-left:auto;margin-right:auto}
 
 /* ── UI-04: Skeleton loading ─────────────────────────────────────────────── */

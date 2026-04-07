@@ -38,21 +38,21 @@ export const ROLE_RESPONSIBILITIES: Record<string, RoleResponsibility> = {
   [ROLES.CONCIERGE]: {
     capabilities: ['create', 'search', 'scan', 'manageResidents', 'blacklist'],
     onboardingHint: 'Консьерж создаёт заявки, ищет пропуска и сканирует QR-коды. Одобрение и отметка прибытия остаются за охраной.',
-    passesNavLabel: 'Заявки',
-    queueTitle: 'Следующий шаг: помочь с доступом',
+    passesNavLabel: 'Операции',
+    queueTitle: 'Следующий шаг: провести доступ',
     queueSubtitle: 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',
   },
   [ROLES.SECURITY]: {
     capabilities: ['search', 'scan', 'approve', 'arrive', 'blacklist'],
     onboardingHint: 'Охрана подтверждает заявки, сканирует QR-коды и отмечает прибытие посетителей.',
-    passesNavLabel: 'Проверка',
-    queueTitle: 'Следующий шаг: проверить пост',
+    passesNavLabel: 'Контроль',
+    queueTitle: 'Следующий шаг: подтвердить доступ',
     queueSubtitle: 'Подтвердите заявку, отсканируйте QR-код или отметьте прибытие посетителя',
   },
   [ROLES.ADMIN]: {
     capabilities: ['approve', 'manageResidents', 'analytics', 'blacklist'],
     onboardingHint: 'Управляйте пользователями, заявками и ключевыми метриками из административной панели.',
-    passesNavLabel: 'Заявки',
+    passesNavLabel: 'Операции',
   },
 };
 

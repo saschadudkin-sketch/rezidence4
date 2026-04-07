@@ -24,23 +24,23 @@ export function buildNavItems(role, badges) {
   const passesBadge = isSec ? pendingP + pendingT : isCon ? pendingT : residentNewStatuses;
   const roleResponsibilities = getRoleResponsibilities(role);
   const guardpostLabel = isSec ? 'Скан' : 'Пост';
-  const passesLabel = roleResponsibilities.passesNavLabel || (hasRoleCapability(role, 'approve') ? 'Проверка' : 'Пропуска');
+  const passesLabel = roleResponsibilities.passesNavLabel || (hasRoleCapability(role, 'approve') ? 'Контроль' : 'Пропуска');
 
   /** @type {Record<string, [string, string, number]>} */
   const NAV_META = {
     passes: ['ticket', passesLabel, passesBadge],
     tech: ['tools', 'Техслужба', 0],
-    perms: ['list', 'Список', 0],
+    perms: ['list', 'Доступ', 0],
     templates: ['file', 'Шаблоны', 0],
     history: ['history', 'История', 0],
     chat: ['chat', 'Чат', unreadMsgs],
-    visitlog: ['list', 'Журнал', 0],
-    residents: ['residents', 'Жильцы', 0],
-    blacklist: ['ban', 'ЧС', blacklistCount],
+    visitlog: ['list', 'Журнал доступа', 0],
+    residents: ['residents', 'Резиденты', 0],
+    blacklist: ['ban', 'Стоп-лист', blacklistCount],
     guardpost: ['shield', guardpostLabel, pendingP],
     stats: ['chart', 'Аналитика', 0],
-    requests: ['list', 'Заявки', pendingP + pendingT],
-    users: ['users', 'Резиденты', 0],
+    requests: ['list', 'Операции', pendingP + pendingT],
+    users: ['users', 'Пользователи', 0],
   };
 
   const tabs = getTabsForRole(role);

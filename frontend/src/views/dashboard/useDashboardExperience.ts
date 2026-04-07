@@ -5,10 +5,19 @@ import { getRoleNextBestAction, getWorkflowCompletionFeedback } from '../../work
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
 
 const TAB_TITLES: Record<string, string> = {
-  passes: 'Пропуска', tech: 'Техслужба', perms: 'Постоянный список',
-  templates: 'Шаблоны', history: 'История', chat: 'Чат',
-  visitlog: 'Журнал посещений', residents: 'Жильцы', blacklist: 'Чёрный список',
-  guardpost: 'Пост охраны', stats: 'Аналитика', requests: 'Заявки', users: 'Резиденты',
+  passes: 'Пропуска',
+  tech: 'Техслужба',
+  perms: 'Постоянный доступ',
+  templates: 'Шаблоны',
+  history: 'История',
+  chat: 'Чат',
+  visitlog: 'Журнал доступа',
+  residents: 'Резиденты',
+  blacklist: 'Стоп-лист',
+  guardpost: 'Скан-пост',
+  stats: 'Аналитика',
+  requests: 'Операции',
+  users: 'Пользователи',
 };
 
 export function useDashboardExperience({

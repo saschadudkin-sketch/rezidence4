@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useCallback } from 'react';
-import { GroupedReqList } from '../../requests/ReqCard';
+import { useSearchParams } from 'react-router-dom';
+import { OperationalRequestList } from '../../requests/OperationalRequestList';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import SectionHeader from '../../ui/SectionHeader';
@@ -33,10 +34,18 @@ const PassesTab = memo(function PassesTab({
   const { myPasses, scheduledPasses, filteredPasses, tempCount, permCount } = computed;
   const scheduledCount = scheduledPasses.length;
 
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('passQ') || '';
   const [showTypePicker, setShowTypePicker] = useState(false);
   const debouncedQuery = useDebounce(query, 250);
   const isOwnerDashboard = user.role === 'owner';
+
+  const updatePassSearch = useCallback((value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value.trim()) next.delete('passQ');
+    else next.set('passQ', value.trim());
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const matchQ = useCallback((r) => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -82,7 +91,7 @@ const PassesTab = memo(function PassesTab({
       {myPasses.length > 0 && (
         <div className="search-wrap u-mb8">
           <span className="search-ico"><AppIcon name="search" size={14} /></span>
-          <input className="search-inp" placeholder="Поиск по имени, авто, комментарию..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="search-inp" placeholder="Имя, авто или комментарий" value={query} onChange={(e) => updatePassSearch(e.target.value)} />
         </div>
       )}
 
@@ -124,8 +133,8 @@ const PassesTab = memo(function PassesTab({
           {visibleScheduled.length > 0 && passFilter !== 'scheduled' && (
             <div className="u-mb-12">
               <SectionHeader title="Запланированные" count={visibleScheduled.length} />
-              <GroupedReqList
-                reqs={visibleScheduled}
+              <OperationalRequestList
+                items={visibleScheduled}
                 userRole={user.role}
                 userName={user.name}
                 userId={user.uid}
@@ -136,8 +145,8 @@ const PassesTab = memo(function PassesTab({
               />
             </div>
           )}
-          <GroupedReqList
-            reqs={visiblePasses}
+          <OperationalRequestList
+            items={visiblePasses}
             userRole={user.role}
             userName={user.name}
             userId={user.uid}

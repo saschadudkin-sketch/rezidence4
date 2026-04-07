@@ -30,7 +30,11 @@ window.addEventListener('unhandledrejection', (event) => {
   // Игнорируем намеренные отмены AbortController
   if (msg === 'AbortError' || event.reason?.name === 'AbortError') return;
   if (msg.includes('ResizeObserver')) return;
-  console.error('[App] Unhandled rejection:', event.reason);
+  if (import.meta.env.DEV) {
+    console.error('[App] Unhandled rejection:', event.reason);
+  } else if (import.meta.env.VITE_SENTRY_DSN) {
+    Sentry.captureException(event.reason);
+  }
 });
 
 if (shouldRegisterSW()) registerSW();

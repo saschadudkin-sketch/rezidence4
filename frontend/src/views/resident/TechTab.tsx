@@ -1,5 +1,6 @@
-import { memo, useState, useMemo, useCallback } from 'react';
-import { GroupedReqList } from '../../requests/ReqCard';
+import { memo, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { OperationalRequestList } from '../../requests/OperationalRequestList';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import PageActionBar from '../../ui/PageActionBar';
@@ -12,8 +13,15 @@ const TechTab = memo(function TechTab({
 }) {
   const { filteredTech } = computed;
 
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get('techQ') || '';
   const debouncedQuery = useDebounce(query, 250);
+  const updateTechSearch = useCallback((value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value.trim()) next.delete('techQ');
+    else next.set('techQ', value.trim());
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const matchQ = useCallback((r) => {
     const q = debouncedQuery.trim().toLowerCase();
     if (!q) return true;
@@ -46,7 +54,7 @@ const TechTab = memo(function TechTab({
       {filteredTech.length > 0 && (
         <div className="search-wrap u-mb8">
           <span className="search-ico"><AppIcon name="search" size={14} /></span>
-          <input className="search-inp" placeholder="Поиск по комментарию..." value={query} onChange={e => setQuery(e.target.value)} />
+          <input className="search-inp" placeholder="Комментарий или тип работ" value={query} onChange={e => updateTechSearch(e.target.value)} />
         </div>
       )}
       {visibleTech.length === 0
@@ -55,8 +63,8 @@ const TechTab = memo(function TechTab({
             title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
             subtitle={debouncedQuery ? 'Попробуйте другой запрос' : techEmptyCopy.subtitle}
           />
-        : <GroupedReqList
-            reqs={visibleTech} userRole={user.role} userName={user.name} userId={user.uid}
+        : <OperationalRequestList
+            items={visibleTech} userRole={user.role} userName={user.name} userId={user.uid}
             onRepeat={onRepeatTech}
             onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
           />
