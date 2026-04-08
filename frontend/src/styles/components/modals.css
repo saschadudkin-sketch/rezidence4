@@ -4,21 +4,29 @@
   background:var(--overlay-bg);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   display:flex;align-items:flex-end;justify-content:center;
-  animation:fadeIn .18s ease;overscroll-behavior:contain;
+  animation:fadeIn .18s ease;overscroll-behavior:contain;overflow-y:auto;
 }
-@media(min-width:768px){.overlay{align-items:center;padding:var(--space-md)}}
+@media(min-width:768px){.overlay{align-items:flex-start;padding:20px 24px 40px}}
 .modal{
   background:var(--s1);width:100%;max-width:460px;
-  max-height:92dvh;display:flex;flex-direction:column;
+  max-height:min(90dvh, calc(100dvh - 60px));display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   border-radius:10px 10px 0 0;
   border:1px solid var(--b2);border-bottom:none;
   box-shadow:var(--sh-l);
   animation:sheetUp .28s cubic-bezier(.32,0,.67,0);
   padding-bottom:var(--sab);
+  margin:0 auto;
 }
 @media(min-width:768px){
-  .modal{border-radius:var(--r);animation:riseUp .2s ease;border-bottom:1px solid var(--b2);padding-bottom:0}
+  .modal{
+    border-radius:var(--r);
+    animation:riseUp .2s ease;
+    border-bottom:1px solid var(--b2);
+    padding-bottom:0;
+    height:min(760px, calc(100dvh - 72px));
+    max-height:min(760px, calc(100dvh - 72px))
+  }
 }
 .modal-handle{
   display:block;width:30px;height:3px;
@@ -37,8 +45,34 @@
   font-size:var(--fs-sm);border-radius:var(--r);transition:background .13s;
 }
 .modal-close:active{background:var(--s3);color:var(--t1)}
-.modal-body{padding:var(--space-md);overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;min-height:0}
-.modal-foot{padding:0 18px 18px;display:flex;gap:var(--space-sm)}
+.modal-body{
+  padding:var(--space-md);
+  padding-bottom:calc(var(--space-md) + 8px);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  flex:1;
+  min-height:0
+}
+.modal-foot{
+  padding:12px 18px 18px;
+  display:flex;
+  gap:var(--space-sm);
+  align-items:center;
+  background:var(--s1);
+  border-top:1px solid var(--b1);
+  flex-shrink:0;
+  box-shadow:0 -10px 24px rgba(0,0,0,.16);
+  position:relative;
+  z-index:1
+}
+.modal-foot .btn-gold,
+.modal-foot .btn-outline{
+  min-height:56px;
+  max-height:56px;
+  padding-top:0;
+  padding-bottom:0;
+  align-self:center;
+}
 .photo-btn{
   width:100%;background:transparent;
   border:1px dashed var(--b1);border-radius:var(--r);padding:var(--space-md);cursor:pointer;

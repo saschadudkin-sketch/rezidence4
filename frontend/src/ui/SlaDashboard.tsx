@@ -6,7 +6,7 @@ function SlaItem({ label, value, ok }) {
       <div className="stat-lbl">{label}</div>
       <div className="stat-val sla-item-value">{value}</div>
       <div className={'u-fs11 ' + (ok ? 'sla-ok' : 'sla-breached')}>
-        {ok ? 'SLA OK' : 'SLA breached'}
+        {ok ? 'В пределах SLA' : 'Ниже SLA'}
       </div>
     </div>
   );
@@ -20,15 +20,15 @@ export default function SlaDashboard({ snapshot }) {
 
   return (
     <>
-      <SectionHeader title="SLA dashboard (24ч)" />
+      <SectionHeader title="Контроль SLA (24ч)" />
       <div className="stats-grid">
-        <SlaItem label="Reconnect avg" value={`${reconnectAvg} ms`} ok={snapshot.reconnect.slaMet} />
+        <SlaItem label="Средний reconnect" value={`${reconnectAvg} ms`} ok={snapshot.reconnect.slaMet} />
         <SlaItem label="Reconnect p95" value={`${reconnectP95} ms`} ok={reconnectP95 <= 30000} />
-        <SlaItem label="Timeout rate" value={`${timeoutRate}%`} ok={snapshot.availability.slaMet} />
-        <SlaItem label="Action success" value={`${actionRate}%`} ok={snapshot.action.slaMet} />
+        <SlaItem label="Доля timeout" value={`${timeoutRate}%`} ok={snapshot.availability.slaMet} />
+        <SlaItem label="Успешные действия" value={`${actionRate}%`} ok={snapshot.action.slaMet} />
       </div>
       <div className="u-fs12 u-t4 sla-samples">
-        Samples: reconnect={snapshot.reconnect.samples}, actions={snapshot.action.success + snapshot.action.failure}, views={snapshot.viewReadyCount}
+        Выборка: reconnect {snapshot.reconnect.samples}, actions {snapshot.action.success + snapshot.action.failure}, views {snapshot.viewReadyCount}
       </div>
     </>
   );

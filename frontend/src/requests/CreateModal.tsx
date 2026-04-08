@@ -94,7 +94,7 @@ const VisitorFields = memo(function VisitorFields({
           {permsList.length > 0 && (
             <div className="perms-picker-wrap">
               <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker((value) => !value)}>
-                <span className="u-inline-icon"><AppIcon name="list" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
+                <span className="u-inline-icon"><AppIcon name="file" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
               </button>
               {showPermsPicker && (
                 <div className="perms-picker-dropdown">
@@ -175,7 +175,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
     <div className="u-p-schedule">
       <button className={'schedule-toggle' + (showSchedule ? ' active' : '')} onClick={handleToggle} type="button">
         <span className="u-row-g8">
-          <span className="schedule-toggle-ico"><AppIcon name="history" size={14} /></span>
+          <span className="schedule-toggle-ico"><AppIcon name="clock" size={14} /></span>
           <span>{showSchedule && scheduledFor ? 'Запланировано: ' + fmtScheduled(scheduledFor) : 'Запланировать на время'}</span>
         </span>
         <span className="u-fs11-op6"><AppIcon name={showSchedule ? 'chevron-up' : 'chevron-down'} size={12} /></span>
@@ -223,22 +223,52 @@ const AccordionSection = memo(function AccordionSection({ title, subtitle, icon,
 });
 
 function TemporaryPassSection({ validUntil, setValidUntil }) {
+  const [open, setOpen] = useState(false);
+
   if (!validUntil) {
     return (
-      <button type="button" className="temp-pass-toggle" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(7)))}>
-        <span><AppIcon name="history" size={14} /></span>
+      <button
+        type="button"
+        className="temp-pass-toggle"
+        onClick={() => {
+          setValidUntil(toLocalDateInputValue(daysFromNow(7)));
+          setOpen(true);
+        }}
+      >
+        <span><AppIcon name="clock" size={14} /></span>
         <span>Временный пропуск</span>
       </button>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="temp-pass-summary">
+        <button type="button" className="temp-pass-summary-main" onClick={() => setOpen(true)}>
+          <span className="temp-pass-label"><AppIcon name="clock" size={12} /> Временный пропуск</span>
+          <span className="temp-pass-summary-date">
+            до {parseLocalDateInputValue(validUntil)?.toLocaleDateString('ru-RU')}
+          </span>
+        </button>
+        <button type="button" className="temp-pass-summary-remove" onClick={() => setValidUntil('')}>
+          <AppIcon name="close" size={12} />
+        </button>
+      </div>
     );
   }
 
   return (
     <div className="temp-pass-block">
       <div className="temp-pass-header">
-        <span className="temp-pass-label"><AppIcon name="history" size={12} /> Временный пропуск</span>
-        <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
-          <AppIcon name="close" size={12} /> Убрать
-        </button>
+        <span className="temp-pass-label"><AppIcon name="clock" size={12} /> Временный пропуск</span>
+        <span className="u-row-g8">
+          <button type="button" className="temp-pass-close" onClick={() => setOpen(false)}>
+            Свернуть
+          </button>
+          <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
+            <AppIcon name="close" size={12} /> Убрать
+          </button>
+        </span>
       </div>
       <label className="field-lbl">Действует до</label>
       <input
@@ -301,13 +331,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
-  const [showAdvanced, setShowAdvanced] = useState(Boolean(
-    initialData?.comment
-    || initialData?.photos?.length
-    || initialData?.photo
-    || initialData?.validUntil
-    || initialData?.scheduledFor
-  ));
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const submitLabel = form.loading
     ? 'Сохранение...'
@@ -385,7 +409,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
           <AccordionSection
             title="Шаг 2. Дополнительные настройки"
             subtitle={advancedSubtitle}
-            icon="list"
+            icon="file"
             open={showAdvanced}
             onToggle={() => setShowAdvanced((value) => !value)}
             badge={hasAdvancedSelection ? <span className="vlog-tag ok">вкл</span> : null}

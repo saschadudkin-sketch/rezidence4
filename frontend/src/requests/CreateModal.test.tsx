@@ -142,10 +142,11 @@ describe('CreateModal — smoke', () => {
     expect(overlay).toBeTruthy();
   });
 
-  test('поле Комментарий присутствует', () => {
+  test('поле Комментарий появляется после раскрытия шага 2', () => {
     render(
       <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
     );
+    fireEvent.click(screen.getByRole('button', { name: /Шаг 2/i }));
     expect(screen.getByPlaceholderText('Дополнительно...')).toBeTruthy();
   });
 });

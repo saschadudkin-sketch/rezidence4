@@ -30,16 +30,16 @@ export function buildNavItems(role, badges) {
   const NAV_META = {
     passes: ['ticket', passesLabel, passesBadge],
     tech: ['tools', 'Техслужба', 0],
-    perms: ['list', 'Доступ', 0],
+    perms: ['door', 'Доступ', 0],
     templates: ['file', 'Шаблоны', 0],
     history: ['history', 'История', 0],
     chat: ['chat', 'Чат', unreadMsgs],
-    visitlog: ['list', 'Журнал доступа', 0],
+    visitlog: ['history', 'Журнал доступа', 0],
     residents: ['residents', 'Резиденты', 0],
     blacklist: ['ban', 'Стоп-лист', blacklistCount],
     guardpost: ['shield', guardpostLabel, pendingP],
     stats: ['chart', 'Аналитика', 0],
-    requests: ['list', 'Операции', pendingP + pendingT],
+    requests: ['file', 'Операции', pendingP + pendingT],
     users: ['users', 'Пользователи', 0],
   };
 

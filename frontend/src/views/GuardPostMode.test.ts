@@ -18,7 +18,10 @@ const mkReq = (overrides={}) => ({
 
 vi.mock('../ui/AvatarCircle',            () => ({ AvatarCircle: () => null }));
 vi.mock('../requests/PassQRModal',       () => ({ PassQRModal: () => null }));
-vi.mock('../store/slices/blacklistSlice',() => ({ checkBlacklist: () => null }));
+vi.mock('../store/slices/blacklistSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../store/slices/blacklistSlice')>();
+  return { ...actual, checkBlacklist: () => null };
+});
 vi.mock('../ui/Toasts',                  () => ({ toast: vi.fn() }));
 vi.mock('../requests/ScanQRModal',       () => ({ ScanQRModal: () => null }));
 vi.mock('../services/pushNotification',  () => ({ pushNotifyResident: vi.fn() }));

@@ -19,7 +19,7 @@ export function ErrorRecoveryPanel({
         <AppIcon name="alert" size={14} /> {message}
       </div>
       <div className="error-recovery-actions">
-        <button className="btn-outline" onClick={onRetry}>Retry now</button>
+        <button className="btn-outline" onClick={onRetry}>Повторить</button>
         {onFallback && (
           <button className="btn-outline" onClick={onFallback}>{fallbackLabel}</button>
         )}

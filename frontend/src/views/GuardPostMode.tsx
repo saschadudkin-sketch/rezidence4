@@ -165,7 +165,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {(pending.length + approved.length) > 0 && <span className="guard-subtab-badge">{pending.length + approved.length}</span>}
         </button>
         <button className={'guard-subtab' + (subTab === 'temp' ? ' active' : '')} onClick={() => setSubTab('temp')}>
-          <span className="u-inline-icon"><AppIcon name="history" size={14} /></span> Временные
+          <span className="u-inline-icon"><AppIcon name="clock" size={14} /></span> Временные
           {temporary.length > 0 && <span className="guard-subtab-badge">{temporary.length}</span>}
         </button>
         <button className={'guard-subtab' + (subTab === 'tech' ? ' active' : '') + (techPending.length > 0 ? ' has-new' : '')} onClick={() => setSubTab('tech')}>
@@ -187,7 +187,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {pending.length > 0 && approved.length > 0 && filteredPending.length === 0 && filteredApproved.length === 0 && (
             <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
-          <GuardSection title="Ожидают решения" icon={<AppIcon name="history" size={14} />} count={filteredPending.length}>
+          <GuardSection title="Ожидают решения" icon={<AppIcon name="hourglass" size={14} />} count={filteredPending.length}>
             <VirtualList
               items={filteredPending}
               estimateSize={148}
@@ -198,7 +198,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
               )}
             />
           </GuardSection>
-          <GuardSection title="Допущены" icon={<AppIcon name="list" size={14} />} count={filteredApproved.length}>
+          <GuardSection title="Допущены" icon={<AppIcon name="check" size={14} />} count={filteredApproved.length}>
             <VirtualList
               items={filteredApproved}
               estimateSize={148}
@@ -248,7 +248,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
           {techActive.length > 0 && filteredTechPending.length === 0 && filteredTechAccepted.length === 0 && (
             <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
-          <GuardSection title="Новые заявки" icon={<AppIcon name="history" size={14} />} count={filteredTechPending.length}>
+          <GuardSection title="Новые заявки" icon={<AppIcon name="hourglass" size={14} />} count={filteredTechPending.length}>
             {filteredTechPending.map(r => (
               <ErrorBoundary key={r.id} name={`Техзаявка ${r.id}`}>
                 <TechCard req={r} userName={user.name} residentPhone={getPhone(r.createdByUid)} />

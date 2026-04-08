@@ -1,43 +1,96 @@
-/**
- * NavigationShell.jsx — A-01: Navigation extracted from Dashboard.
- * Renders both top-nav (desktop) and mobile-nav with unified badge semantics.
- * A-03: count badges with 9+ cap on both desktop and mobile.
- * UI-01: aria-hidden on the invisible nav prevents screen readers from
- *        announcing duplicate navigation items.
- * P-02/R-01: на мобильном при >4 вкладок последняя заменяется кнопкой "•••"
- *            (drawer со скрытыми вкладками), чтобы они не переполняли nav-bar.
- */
-
-import { useState, useEffect, memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
 import { MEDIA_QUERIES } from '../../constants/breakpoints';
 
-const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
+const formatBadgeCount = (count: number) => (count > 9 ? '9+' : String(count));
 
-// Роли с расширенной навигацией получают role-specific лимит мобильных вкладок.
-// Для security оставляем 3 первичных действия, остальное уходит в "Ещё".
-const MOBILE_MAX_TABS_BY_ROLE = { admin: 5, security: 3, owner: 4, tenant: 4, concierge: 4 };
+const MOBILE_MAX_TABS_BY_ROLE: Record<string, number> = {
+  admin: 5,
+  security: 3,
+  owner: 4,
+  tenant: 4,
+  concierge: 4,
+};
+
 const DEFAULT_MOBILE_MAX_TABS = 4;
-function getMobileMaxTabs(role) {
+
+const ROLE_NAV_ORDER: Record<string, string[]> = {
+  security: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
+  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'templates', 'history', 'tech'],
+  owner: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  tenant: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  contractor: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
+  admin: ['stats', 'requests', 'residents', 'users', 'blacklist', 'chat', 'visitlog'],
+};
+
+const MOBILE_TOP_TABS_BY_ROLE: Record<string, string[]> = {
+  owner: ['passes', 'tech', 'perms'],
+  tenant: ['passes', 'tech', 'perms'],
+  contractor: ['passes', 'tech', 'perms'],
+};
+
+type NavItem = [string, string, string, number];
+
+type NavigationShellProps = {
+  nav: NavItem[];
+  navClassMap: Record<string, string>;
+  goTab: (tab: string) => void;
+  userRole: string;
+};
+
+type QuickActionsSheetProps = {
+  items: NavItem[];
+  navBtnClassMn: (key: string) => string;
+  goTab: (tab: string) => void;
+  isActive: (key: string) => boolean;
+  onClose: () => void;
+};
+
+function getMobileMaxTabs(role: string) {
   return MOBILE_MAX_TABS_BY_ROLE[role] ?? DEFAULT_MOBILE_MAX_TABS;
 }
 
-// UI-01: sync with CSS breakpoint (--bp-lg-down => max-width:1024px).
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches
+    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches,
   );
+
   useEffect(() => {
-    const mq = window.matchMedia(MEDIA_QUERIES.lgDown);
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const mediaQuery = window.matchMedia(MEDIA_QUERIES.lgDown);
+    const handleChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
   return isMobile;
 }
 
-function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeCount, onClose }) {
+function orderMobileTabs(role: string, nav: NavItem[]) {
+  const roleOrder = ROLE_NAV_ORDER[role];
+  if (!roleOrder) return nav;
+
+  const rank = new Map(roleOrder.map((tab, index) => [tab, index]));
+  return [...nav].sort((a, b) => (rank.get(a[0]) ?? 99) - (rank.get(b[0]) ?? 99));
+}
+
+function splitMobileNav(role: string, nav: NavItem[]) {
+  const topTabs = MOBILE_TOP_TABS_BY_ROLE[role];
+  if (!topTabs) {
+    return { topNav: nav, bottomNav: nav };
+  }
+
+  const topRank = new Map(topTabs.map((tab, index) => [tab, index]));
+  const topNav = nav
+    .filter(([key]) => topRank.has(key))
+    .sort((a, b) => (topRank.get(a[0]) ?? 99) - (topRank.get(b[0]) ?? 99));
+  const bottomNav = nav.filter(([key]) => !topRank.has(key));
+
+  return { topNav, bottomNav };
+}
+
+function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: QuickActionsSheetProps) {
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   return (
@@ -54,12 +107,15 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeC
         <div className="mn-quick-sheet__handle" aria-hidden="true" />
         <div className="mn-quick-sheet__header">Быстрые действия</div>
         <div className="mn-quick-grid" role="menu" aria-label="Дополнительные вкладки">
-          {items.map(([k, icon, label, badge]) => (
+          {items.map(([key, icon, label, badge]) => (
             <button
-              key={k}
-              className={navBtnClassMn(k) + ' mn-quick-item'}
-              onClick={() => { goTab(k); onClose(); }}
-              aria-current={isActive(k) ? 'page' : undefined}
+              key={key}
+              className={`${navBtnClassMn(key)} mn-quick-item`}
+              onClick={() => {
+                goTab(key);
+                onClose();
+              }}
+              aria-current={isActive(key) ? 'page' : undefined}
               role="menuitem"
             >
               <span className="mn-icon"><AppIcon name={icon} size={20} /></span>
@@ -73,74 +129,56 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, formatBadgeC
   );
 }
 
-const ROLE_NAV_ORDER = {
-  security: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
-  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'templates', 'history', 'tech'],
-  owner: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  tenant: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  contractor: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  admin: ['stats', 'requests', 'residents', 'users', 'blacklist', 'chat', 'visitlog'],
-};
-
-function orderMobileTabs(role, nav) {
-  const roleOrder = ROLE_NAV_ORDER[role];
-  if (!roleOrder) return nav;
-  const rank = new Map<string, number>(roleOrder.map((tab, i) => [tab, i]));
-  return [...nav].sort((a, b) => {
-    const ra = rank.get(a[0]) ?? 99;
-    const rb = rank.get(b[0]) ?? 99;
-    if (ra !== rb) return ra - rb;
-    return 0;
-  });
-}
-
-const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }) {
-  const isMobile      = useIsMobile();
+const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }: NavigationShellProps) {
+  const isMobile = useIsMobile();
   const [showMore, setShowMore] = useState(false);
-  const navBtnClass   = (k) => navClassMap[k]        || 'tn-btn';
-  const navBtnClassMn = (k) => navClassMap[k + '_mn'] || 'mn-btn';
-  const isActive      = (k) => (navClassMap[k] || '').includes('active');
 
-  const mobileNav = orderMobileTabs(userRole, nav);
+  const navBtnClass = (key: string) => navClassMap[key] || 'tn-btn';
+  const navBtnClassMn = (key: string) => navClassMap[`${key}_mn`] || 'mn-btn';
+  const isActive = (key: string) => (navClassMap[key] || '').includes('active');
+
+  const orderedMobileNav = orderMobileTabs(userRole, nav);
+  const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
+  const topNavItems = isMobile ? topNav : nav;
+  const mobileNavItems = isMobile ? bottomNav : orderedMobileNav;
+
   const mobileMaxTabs = getMobileMaxTabs(userRole);
-  const needsMore  = mobileNav.length > mobileMaxTabs;
-  const visibleNav = needsMore ? mobileNav.slice(0, mobileMaxTabs) : mobileNav;
-  const overflowNav = needsMore ? mobileNav.slice(mobileMaxTabs) : [];
-
-  // Суммарный badge для кнопки "•••" (сумма badge скрытых вкладок)
+  const needsMore = mobileNavItems.length > mobileMaxTabs;
+  const visibleNav = needsMore ? mobileNavItems.slice(0, mobileMaxTabs) : mobileNavItems;
+  const overflowNav = needsMore ? mobileNavItems.slice(mobileMaxTabs) : [];
   const moreBadge = overflowNav.reduce((sum, [, , , badge]) => sum + (badge || 0), 0);
-  // Подсвечивать ли кнопку "•••" (если активная вкладка скрыта)
-  const moreIsActive = overflowNav.some(([k]) => isActive(k));
+  const moreIsActive = overflowNav.some(([key]) => isActive(key));
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return;
-    const vv = window.visualViewport;
+
+    const viewport = window.visualViewport;
     const updateViewportInset = () => {
-      const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       document.documentElement.style.setProperty('--vk-offset', `${Math.round(keyboardInset)}px`);
       if (keyboardInset > 0) setShowMore(false);
     };
+
     updateViewportInset();
-    vv.addEventListener('resize', updateViewportInset);
-    vv.addEventListener('scroll', updateViewportInset);
+    viewport.addEventListener('resize', updateViewportInset);
+    viewport.addEventListener('scroll', updateViewportInset);
+
     return () => {
-      vv.removeEventListener('resize', updateViewportInset);
-      vv.removeEventListener('scroll', updateViewportInset);
+      viewport.removeEventListener('resize', updateViewportInset);
+      viewport.removeEventListener('scroll', updateViewportInset);
       document.documentElement.style.setProperty('--vk-offset', '0px');
     };
   }, []);
 
   return (
     <>
-      {/* UI-01: aria-hidden when CSS hides this nav — prevents duplicate landmarks for screen readers */}
-      <nav className="top-nav" aria-label="Основная навигация" aria-hidden={isMobile || undefined}>
-        {nav.map(([k, icon, label, badge]) => (
+      <nav className="top-nav" aria-label="Основная навигация">
+        {topNavItems.map(([key, icon, label, badge]) => (
           <button
-            key={k}
-            className={navBtnClass(k)}
-            onClick={() => goTab(k)}
-            aria-current={isActive(k) ? 'page' : undefined}
-            tabIndex={isMobile ? -1 : undefined}
+            key={key}
+            className={navBtnClass(key)}
+            onClick={() => goTab(key)}
+            aria-current={isActive(key) ? 'page' : undefined}
           >
             <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
             <span>{label}</span>
@@ -148,14 +186,14 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
           </button>
         ))}
       </nav>
-      {/* UI-01: aria-hidden when CSS hides this nav */}
+
       <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || undefined}>
-        {visibleNav.map(([k, icon, label, badge]) => (
+        {visibleNav.map(([key, icon, label, badge]) => (
           <button
-            key={k}
-            className={navBtnClassMn(k)}
-            onClick={() => goTab(k)}
-            aria-current={isActive(k) ? 'page' : undefined}
+            key={key}
+            className={navBtnClassMn(key)}
+            onClick={() => goTab(key)}
+            aria-current={isActive(key) ? 'page' : undefined}
             tabIndex={!isMobile ? -1 : undefined}
           >
             <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
@@ -163,19 +201,19 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
             {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
-        {/* P-02/R-01: кнопка "•••" для скрытых вкладок */}
+
         {needsMore && (
           <div className="mn-more-wrap">
             <button
-              className={'mn-btn mn-more-btn' + (moreIsActive ? ' active' : '')}
-              onClick={() => setShowMore(v => !v)}
+              className={`mn-btn mn-more-btn${moreIsActive ? ' active' : ''}`}
+              onClick={() => setShowMore((value) => !value)}
               aria-haspopup="dialog"
               aria-expanded={showMore}
               aria-label={`Ещё. ${overflowNav.length} скрытых вкладок`}
-              title={`Вкладки ${overflowNav.length} шт. находятся в меню «Ещё»`}
+              title={`Во вкладке "Ещё" доступно ${overflowNav.length} пунктов`}
               tabIndex={!isMobile ? -1 : undefined}
             >
-              <span className="mn-icon"><AppIcon name="list" size={16} /></span>
+              <span className="mn-icon"><AppIcon name="dots" size={16} /></span>
               <span className="mn-label">Ещё</span>
               {moreBadge > 0 && <span className="mn-badge">{formatBadgeCount(moreBadge)}</span>}
             </button>
@@ -185,7 +223,6 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
                 navBtnClassMn={navBtnClassMn}
                 goTab={goTab}
                 isActive={isActive}
-                formatBadgeCount={formatBadgeCount}
                 onClose={() => setShowMore(false)}
               />
             )}

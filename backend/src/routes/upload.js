@@ -120,12 +120,16 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     const filepath = path.join(UPLOAD_DIR, filename);
 
     await fs.promises.writeFile(filepath, outputBuffer);
-    await registerUploadMetadata({
-      ownerUid: req.user.uid,
-      filename,
-      mimeType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-      byteSize: outputBuffer.length,
-    });
+    try {
+      await registerUploadMetadata({
+        ownerUid: req.user.uid,
+        filename,
+        mimeType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        byteSize: outputBuffer.length,
+      });
+    } catch (metadataErr) {
+      logger.warn({ err: metadataErr, filename }, '[upload] failed to persist upload metadata');
+    }
 
     const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
     res.json({ url: `${baseUrl}/uploads/${filename}` });

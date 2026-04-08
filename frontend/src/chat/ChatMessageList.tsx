@@ -47,7 +47,7 @@ export function ChatMessageList({
               onClick={onLoadOlder}
               className="btn-outline u-block u-mx-auto u-minw160"
             >
-              <span className="u-inline-icon"><AppIcon name="history" size={14} /> Загрузить ещё</span>
+              <span className="u-inline-icon"><AppIcon name="chevron-up" size={14} /> Загрузить ещё</span>
             </button>
           )}
           {historyError && (

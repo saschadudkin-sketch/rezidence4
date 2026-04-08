@@ -1,74 +1,129 @@
-import { memo, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { memo, useCallback, useMemo } from 'react';
 import { OperationalRequestList } from '../../requests/OperationalRequestList';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
-import PageActionBar from '../../ui/PageActionBar';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
+
+type TechTabProps = {
+  user: { role: string; name: string; uid: string };
+  techFilter: string;
+  setTechFilter: (value: string) => void;
+  setModal: (value: { type: string; cat: string }) => void;
+  onRepeatTech: (request: unknown) => void;
+  onEdit: (request: unknown) => void;
+  onDelete: (id: unknown) => void;
+  onCancel: (id: unknown) => void;
+  computed: {
+    filteredTech: Array<Record<string, unknown>>;
+  };
+};
+
+const TECH_CARDS: Array<[string, string, string]> = [
+  ['electrician', 'alert', 'Электрик'],
+  ['plumber', 'tools', 'Сантехник'],
+];
+
+const FILTERS: Array<[string, string]> = [
+  ['active', 'Активные'],
+  ['all', 'Все'],
+];
 
 const TechTab = memo(function TechTab({
-  user, techFilter, setTechFilter, setModal,
-  onRepeatTech, onEdit, onDelete, onCancel, computed,
-}) {
+  user,
+  techFilter,
+  setTechFilter,
+  setModal,
+  onRepeatTech,
+  onEdit,
+  onDelete,
+  onCancel,
+  computed,
+}: TechTabProps) {
   const { filteredTech } = computed;
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useUrlSearchParams();
   const query = searchParams.get('techQ') || '';
   const debouncedQuery = useDebounce(query, 250);
+  const techEmptyCopy = getViewStateCopy('tech', 'empty');
+
   const updateTechSearch = useCallback((value: string) => {
     const next = new URLSearchParams(searchParams);
     if (!value.trim()) next.delete('techQ');
     else next.set('techQ', value.trim());
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
-  const matchQ = useCallback((r) => {
-    const q = debouncedQuery.trim().toLowerCase();
-    if (!q) return true;
-    return [r.comment, r.category].some(v => v && v.toLowerCase().includes(q));
+
+  const matchesQuery = useCallback((request: Record<string, unknown>) => {
+    const normalizedQuery = debouncedQuery.trim().toLowerCase();
+    if (!normalizedQuery) return true;
+
+    return [request.comment, request.category].some((value) =>
+      typeof value === 'string' && value.toLowerCase().includes(normalizedQuery),
+    );
   }, [debouncedQuery]);
-  const visibleTech = useMemo(() => filteredTech.filter(matchQ), [filteredTech, matchQ]);
-  const techEmptyCopy = getViewStateCopy('tech', 'empty');
+
+  const visibleTech = useMemo(() => filteredTech.filter(matchesQuery), [filteredTech, matchesQuery]);
 
   return (
     <>
-      <PageActionBar
-        className="u-mb12"
-        primaryLabel="Создать техзаявку"
-        onPrimary={() => setModal({ type: 'tech', cat: 'electrician' })}
-      />
       <div className="type-grid">
-        {[['electrician','alert','Электрик'],['plumber','tools','Сантехник']].map(([k, iconName, l]) => (
-          <button key={k} type="button" className="type-card"
-            onClick={() => setModal({ type: 'tech', cat: k })}>
+        {TECH_CARDS.map(([key, iconName, label]) => (
+          <button
+            key={key}
+            type="button"
+            className="type-card"
+            onClick={() => setModal({ type: 'tech', cat: key })}
+          >
             <div className="type-icon"><AppIcon name={iconName} /></div>
-            <div className="type-label">{l}</div>
+            <div className="type-label">{label}</div>
           </button>
         ))}
       </div>
+
       <div className="tech-filter-row">
-        {[['active','Активные'],['all','Все']].map(([k, l]) => (
-          <button key={k} className={'date-pill' + (techFilter === k ? ' active' : '')} onClick={() => setTechFilter(k)}>{l}</button>
+        {FILTERS.map(([key, label]) => (
+          <button
+            key={key}
+            className={`date-pill${techFilter === key ? ' active' : ''}`}
+            onClick={() => setTechFilter(key)}
+          >
+            {label}
+          </button>
         ))}
       </div>
+
       {filteredTech.length > 0 && (
         <div className="search-wrap u-mb8">
           <span className="search-ico"><AppIcon name="search" size={14} /></span>
-          <input className="search-inp" placeholder="Комментарий или тип работ" value={query} onChange={e => updateTechSearch(e.target.value)} />
+          <input
+            className="search-inp"
+            placeholder="Комментарий или тип работ"
+            value={query}
+            onChange={(event) => updateTechSearch(event.target.value)}
+          />
         </div>
       )}
-      {visibleTech.length === 0
-        ? <StateBlock
-            type="empty"
-            title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
-            subtitle={debouncedQuery ? 'Попробуйте другой запрос' : techEmptyCopy.subtitle}
-          />
-        : <OperationalRequestList
-            items={visibleTech} userRole={user.role} userName={user.name} userId={user.uid}
-            onRepeat={onRepeatTech}
-            onEdit={onEdit} onDelete={onDelete} onCancel={onCancel}
-          />
-      }
+
+      {visibleTech.length === 0 ? (
+        <StateBlock
+          type="empty"
+          title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
+          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : techEmptyCopy.subtitle}
+        />
+      ) : (
+        <OperationalRequestList
+          items={visibleTech}
+          userRole={user.role}
+          userName={user.name}
+          userId={user.uid}
+          onRepeat={onRepeatTech}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onCancel={onCancel}
+        />
+      )}
     </>
   );
 });

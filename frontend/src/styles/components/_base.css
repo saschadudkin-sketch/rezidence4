@@ -13,9 +13,9 @@
 
 .header-wordmark,.header-role,.header-name,.mn-label,.tn-btn,.demo-badge,.dd-user-phone,.tab-btn,.req-meta,.msg-time,.msg-sender,.vlog-card-comment,.perm-meta,.apt-chip{font-size:var(--fs-meta)}
 
-.app-icon{display:inline-block;vertical-align:middle;flex-shrink:0}
-.u-inline-icon{display:inline-flex;align-items:center;justify-content:center}
-.tn-icon,.mn-icon{display:inline-flex;align-items:center;justify-content:center}
+.app-icon{display:inline-block;vertical-align:middle;flex-shrink:0;width:1em;height:1em}
+.u-inline-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.tn-icon,.mn-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1}
 .header-actions{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end}
 
 /* Light theme card enhancement */
@@ -38,12 +38,12 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 /* P-05: one-time demo welcome banner */
 .demo-welcome-banner{
   display:flex;align-items:center;gap:8px;
-  padding:8px 16px;
-  background:rgba(245,158,11,.12);
-  border-bottom:1px solid rgba(245,158,11,.25);
-  font-size:var(--fs-xs);color:var(--warn);
+  padding:12px 18px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), color-mix(in srgb, var(--g-bg) 36%, transparent));
+  border-bottom:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
+  font-size:var(--fs-xs);color:var(--t2);
 }
-.demo-welcome-icon{flex-shrink:0;display:inline-flex}
+.demo-welcome-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}
 .demo-welcome-text{flex:1}
 .demo-private-toggle{
   display:inline-flex;align-items:center;gap:6px;
@@ -60,9 +60,9 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 /* P-06: Role-based onboarding hint — dismissible, shown once per role */
 .onboarding-hint{
   display:flex;align-items:center;gap:8px;
-  padding:8px 16px;
-  background:var(--g-bg);
-  border-bottom:1px solid var(--b2);
+  padding:12px 18px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 24%, transparent));
+  border-bottom:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
   font-size:var(--fs-xs);color:var(--t2);
 }
 .onboarding-hint-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}

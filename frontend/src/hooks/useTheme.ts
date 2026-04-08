@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 
 /**
- * useTheme — управление темой оформления (авто / светлая / тёмная).
+ * useTheme — управление темой оформления (тёмная / авто / светлая).
  * Хранит выбор в localStorage['rz-theme'], применяет CSS-класс к <html>.
  */
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('rz-theme') || 'auto'; } catch { return 'auto'; }
+    try { return localStorage.getItem('rz-theme') || 'dark'; } catch { return 'dark'; }
   });
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export function useTheme() {
   }, [theme]);
 
   const cycleTheme = useCallback(
-    () => setTheme(t => t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'),
+    () => setTheme(t => t === 'dark' ? 'auto' : t === 'auto' ? 'light' : 'dark'),
     [],
   );
 

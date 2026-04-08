@@ -147,7 +147,7 @@ export function AvatarModal({ avatar, onSave, onClose }) {
         </div>
         <div className="av-actions">
           <label className="av-action-btn">
-            <span className="av-action-ico"><AppIcon name="file" size={14} /></span>
+            <span className="av-action-ico"><AppIcon name="image" size={14} /></span>
             <span>Из галереи</span>
             <input type="file" accept="image/*" className="u-none" onChange={onFile} />
           </label>
