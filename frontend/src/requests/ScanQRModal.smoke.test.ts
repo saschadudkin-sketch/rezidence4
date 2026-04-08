@@ -16,7 +16,10 @@ vi.mock('../ui/Toasts',     () => ({ toast: vi.fn() }));
 vi.mock('../ui/scrollLock', () => ({ lockScroll: vi.fn(), unlockScroll: vi.fn() }));
 vi.mock('../shared/api/passesApi', () => ({ logVisit: vi.fn().mockResolvedValue({}) }));
 vi.mock('../services/pushNotification', () => ({ pushNotifyResident: vi.fn() }));
-vi.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
+vi.mock('../store/slices/blacklistSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../store/slices/blacklistSlice')>();
+  return { ...actual, checkBlacklist: () => null };
+});
 vi.mock('../services/providers/serviceContainer', () => ({
   services: { requests: { updateEverywhere: vi.fn().mockResolvedValue('local') } },
 }));

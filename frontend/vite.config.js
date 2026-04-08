@@ -137,6 +137,8 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
+      pool: 'forks',
+      maxWorkers: 1,
       setupFiles: './src/setupTests.ts',
       css: true,
       include: ['src/**/*.{test,spec}.{js,jsx,ts,tsx}'],

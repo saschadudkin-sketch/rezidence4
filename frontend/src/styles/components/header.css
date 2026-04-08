@@ -32,7 +32,7 @@
 html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .28)) drop-shadow(0 1px 4px rgba(0, 0, 0, .08)) brightness(.98); }
 @media (prefers-color-scheme: light) { html:not(.theme-dark) .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .28)) drop-shadow(0 1px 4px rgba(0, 0, 0, .08)) brightness(.98); } }
 .header-wordmark { font-size: 11px; letter-spacing: 2.8px; text-transform: uppercase; color: color-mix(in srgb, var(--t2) 82%, var(--t4)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
-@media (max-width: 480px) { .header-wordmark { display: none; } }
+@media (--bp-sm-down) { .header-wordmark { display: none; } }
 .demo-badge {
   display: inline-flex;
   align-items: center;
@@ -69,7 +69,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 .header-info { text-align: right; }
 .header-name { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.15; }
 .header-role { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t4); margin-top: 2px; }
-@media (max-width: 480px) { .header-info { display: none; } }
+@media (--bp-sm-down) { .header-info { display: none; } }
 .header-avatar {
   width: 36px;
   height: 36px;
@@ -98,7 +98,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   animation: fadeIn .15s ease;
   padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0 env(safe-area-inset-left, 0);
 }
-@media (min-width: 768px) {
+@media (--bp-md-up) {
   .av-modal {
     align-items: flex-start;
     padding: calc(var(--header-h) + var(--sat) + 24px) 24px 32px;
@@ -116,7 +116,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   box-shadow: var(--sh-l);
   margin: 0 auto;
 }
-@media (min-width: 768px) {
+@media (--bp-md-up) {
   .av-panel {
     border-radius: var(--r);
     max-height: calc(100dvh - (var(--header-h) + var(--sat) + 56px));
@@ -248,7 +248,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 }
 .dd-out:active { background: rgba(106, 40, 40, .1); }
 
-@media (max-width: 768px) {
+@media (--bp-md-down) {
   .header {
     padding-left: max(14px, var(--sal));
     padding-right: max(14px, var(--sar));

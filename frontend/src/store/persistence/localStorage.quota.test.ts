@@ -21,6 +21,7 @@ describe('localStorage save functions — QuotaExceededError', () => {
   let setItemSpy;
 
   beforeEach(() => {
+    localStorage.setItem('rz:demo-private-session', '0');
     setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw QUOTA_ERROR;
     });

@@ -223,12 +223,37 @@ const AccordionSection = memo(function AccordionSection({ title, subtitle, icon,
 });
 
 function TemporaryPassSection({ validUntil, setValidUntil }) {
+  const [open, setOpen] = useState(false);
+
   if (!validUntil) {
     return (
-      <button type="button" className="temp-pass-toggle" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(7)))}>
+      <button
+        type="button"
+        className="temp-pass-toggle"
+        onClick={() => {
+          setValidUntil(toLocalDateInputValue(daysFromNow(7)));
+          setOpen(true);
+        }}
+      >
         <span><AppIcon name="clock" size={14} /></span>
         <span>Временный пропуск</span>
       </button>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="temp-pass-summary">
+        <button type="button" className="temp-pass-summary-main" onClick={() => setOpen(true)}>
+          <span className="temp-pass-label"><AppIcon name="clock" size={12} /> Временный пропуск</span>
+          <span className="temp-pass-summary-date">
+            до {parseLocalDateInputValue(validUntil)?.toLocaleDateString('ru-RU')}
+          </span>
+        </button>
+        <button type="button" className="temp-pass-summary-remove" onClick={() => setValidUntil('')}>
+          <AppIcon name="close" size={12} />
+        </button>
+      </div>
     );
   }
 
@@ -236,9 +261,14 @@ function TemporaryPassSection({ validUntil, setValidUntil }) {
     <div className="temp-pass-block">
       <div className="temp-pass-header">
         <span className="temp-pass-label"><AppIcon name="clock" size={12} /> Временный пропуск</span>
-        <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
-          <AppIcon name="close" size={12} /> Убрать
-        </button>
+        <span className="u-row-g8">
+          <button type="button" className="temp-pass-close" onClick={() => setOpen(false)}>
+            Свернуть
+          </button>
+          <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
+            <AppIcon name="close" size={12} /> Убрать
+          </button>
+        </span>
       </div>
       <label className="field-lbl">Действует до</label>
       <input
@@ -301,7 +331,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
-  const [showAdvanced, setShowAdvanced] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const submitLabel = form.loading
     ? 'Сохранение...'

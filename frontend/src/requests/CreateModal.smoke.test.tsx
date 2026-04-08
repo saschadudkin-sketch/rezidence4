@@ -7,7 +7,7 @@ vi.mock('../services/providers/serviceContainer', () => ({
 }));
 vi.mock('../ui/Toasts', () => ({ toast: vi.fn() }));
 vi.mock('../ui/scrollLock', () => ({ lockScroll: vi.fn(), unlockScroll: vi.fn() }));
-vi.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null }));
+vi.mock('../store/slices/blacklistSlice', () => ({ checkBlacklist: () => null, INITIAL_BLACKLIST: [] }));
 
 describe('CreateModal', () => {
   test('рендерится без ошибок', () => {

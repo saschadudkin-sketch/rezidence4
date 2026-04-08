@@ -32,7 +32,7 @@ describe('registerSW', () => {
     });
 
     const { registerSW, getSwReg } = await import('./swUtils');
-    registerSW();
+    registerSW({ force: true });
 
     // Ждём resolve промиса
     await new Promise(r => setTimeout(r, 0));
@@ -49,7 +49,7 @@ describe('registerSW', () => {
     });
 
     const { registerSW, getSwReg } = await import('./swUtils');
-    registerSW();
+    registerSW({ force: true });
     await new Promise(r => setTimeout(r, 0));
 
     expect(getSwReg()).toBe(mockReg);
@@ -64,7 +64,7 @@ describe('registerSW', () => {
     });
 
     const { registerSW } = await import('./swUtils');
-    registerSW();
+    registerSW({ force: true });
     await new Promise(r => setTimeout(r, 0));
 
     expect(warnSpy).toHaveBeenCalledWith('[SW] registration failed:', expect.any(Error));
