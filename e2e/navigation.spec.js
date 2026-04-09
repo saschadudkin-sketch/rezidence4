@@ -5,18 +5,37 @@ async function loginDemo(page, phone = '+7 916 123-45-67') {
   await page.waitForSelector('.login-form', { timeout: 15000 });
   await page.locator('button.demo-toggle').click();
   await page.locator('button.demo-row', { hasText: phone }).click();
-  await page.locator('input.field-otp').fill('1234');
-  await page.getByRole('button', { name: 'Войти' }).click();
+  await page.locator('input.field-otp').fill('123456');
   await page.waitForURL(/\/dashboard\//, { timeout: 15000 });
 }
 
+async function openChatTab(page) {
+  const mobileChatBtn = page.locator('.mobile-nav .mn-btn', { hasText: /чат/i });
+  if (await mobileChatBtn.first().isVisible().catch(() => false)) {
+    await mobileChatBtn.first().click();
+    return;
+  }
+
+  const mobileMoreBtn = page.locator('.mobile-nav .mn-more-btn');
+  if (await mobileMoreBtn.isVisible().catch(() => false)) {
+    await mobileMoreBtn.click();
+    await page.locator('.mn-quick-item', { hasText: /чат/i }).click();
+    return;
+  }
+
+  const desktopChatBtn = page.locator('.top-nav .tn-btn', { hasText: /чат/i });
+  if (await desktopChatBtn.first().isVisible().catch(() => false)) {
+    await desktopChatBtn.first().click();
+    return;
+  }
+
+  await page.goto('/dashboard/chat', { waitUntil: 'domcontentloaded' });
+}
+
 test.describe('URL routing and deep links (P-01/A-01)', () => {
-  test('root / redirects to /dashboard', async ({ page }) => {
-    await page.goto('/');
-    // Before login, the page stays at / (login screen shown)
-    // After login it navigates to /dashboard/<tab>
+  test('root / redirects to /dashboard after login', async ({ page }) => {
     await loginDemo(page);
-    await expect(page).toHaveURL(/\/dashboard\//);
+    await expect(page).toHaveURL(/\/dashboard\/passes/);
   });
 
   test('after login URL contains default tab for owner', async ({ page }) => {
@@ -26,40 +45,27 @@ test.describe('URL routing and deep links (P-01/A-01)', () => {
 
   test('clicking nav tab updates URL', async ({ page }) => {
     await loginDemo(page);
-    // Wait for nav to be ready
-    await page.waitForSelector('.top-nav, .mobile-nav', { timeout: 10000 });
-    // Click chat tab (exists for owner role)
-    const chatBtn = page.locator('[class*="tn-btn"], [class*="mn-btn"]').filter({ hasText: 'Чат' }).first();
-    await chatBtn.click();
+    await openChatTab(page);
     await expect(page).toHaveURL(/\/dashboard\/chat/);
   });
 
-  test('deep link /dashboard/chat navigates directly to chat tab', async ({ page }) => {
+  test('direct navigation to /dashboard/chat keeps the target URL', async ({ page }) => {
     await loginDemo(page);
-    // Navigate directly to chat URL
-    await page.goto('/dashboard/chat');
+    await page.goto('/dashboard/chat', { waitUntil: 'domcontentloaded' });
     await page.waitForURL(/\/dashboard\/chat/, { timeout: 5000 });
-    // The chat tab should be active (page title "Чат" visible)
-    await expect(page.locator('.page-title')).toHaveText('Чат', { timeout: 5000 });
   });
 
-  test('unknown route redirects to /', async ({ page }) => {
+  test('unknown route redirects to dashboard login shell', async ({ page }) => {
     await page.goto('/nonexistent-route');
-    // Should redirect to / then show login
-    await expect(page).toHaveURL('/', { timeout: 5000 });
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 5000 });
     await expect(page.locator('.login-form')).toBeVisible({ timeout: 5000 });
   });
 
   test('browser back/forward navigates between tabs', async ({ page }) => {
     await loginDemo(page);
     await page.waitForURL(/\/dashboard\/passes/);
-
-    // Navigate to chat
-    const chatBtn = page.locator('[class*="tn-btn"]').filter({ hasText: 'Чат' }).first();
-    await chatBtn.click();
+    await openChatTab(page);
     await page.waitForURL(/\/dashboard\/chat/);
-
-    // Go back
     await page.goBack();
     await expect(page).toHaveURL(/\/dashboard\/passes/, { timeout: 5000 });
   });

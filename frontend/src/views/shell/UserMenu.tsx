@@ -1,9 +1,10 @@
 /**
- * UserMenu.jsx — A-01: UserMenu extracted from Dashboard.
+ * UserMenu.jsx - A-01: UserMenu extracted from Dashboard.
  * Handles the header user button, dropdown menu, and avatar modal trigger.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
 import { AvatarModal } from '../../ui/Modals';
@@ -22,17 +23,24 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
   const headerUserRef = useRef(null);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return undefined;
+
     const close = (e) => {
       if (!headerUserRef.current?.contains(e.target)) setMenuOpen(false);
     };
+
     document.addEventListener('pointerdown', close, true);
     return () => document.removeEventListener('pointerdown', close, true);
   }, [menuOpen]);
 
-  const saveAvatar = useCallback(av => {
+  const openAvatarModal = useCallback(() => {
+    setMenuOpen(false);
+    setAvOpen(true);
+  }, []);
+
+  const saveAvatar = useCallback((av) => {
     if (av) setAvatar(user.uid, av);
-    else    deleteAvatar(user.uid);
+    else deleteAvatar(user.uid);
     toast(av ? 'Аватарка сохранена' : 'Аватарка удалена', 'success');
   }, [setAvatar, deleteAvatar, user.uid]);
 
@@ -40,10 +48,14 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
     <>
       <div
         ref={headerUserRef}
-        className="header-user" role="button" tabIndex={0}
-        aria-label="Меню пользователя" aria-expanded={menuOpen}
+        className="header-user"
+        role="button"
+        tabIndex={0}
+        aria-label="Меню пользователя"
+        aria-expanded={menuOpen}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => setMenuOpen(o => !o)}
-        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(o => !o))}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(o => !o))}
       >
         <div className="header-info">
           <div className="header-name">{user.name}</div>
@@ -59,12 +71,14 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
         </div>
         {menuOpen && (
           <div className="dropdown">
-            <div className="dd-avatar-wrap" onClick={e => e.stopPropagation()}>
+            <div className="dd-avatar-wrap" onClick={(e) => e.stopPropagation()}>
               <div
                 className="usermenu-avatar-clickable"
-                role="button" tabIndex={0}
-                onClick={() => { setMenuOpen(false); setAvOpen(true); }}
-                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(false), setAvOpen(true))}
+                role="button"
+                tabIndex={0}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openAvatarModal}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openAvatarModal())}
                 aria-label="Изменить аватарку"
               >
                 <div className="dd-avatar-big usermenu-avatar-reset">
@@ -76,7 +90,7 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
                 <div className="dd-user-name">{user.name}</div>
                 <div className="dd-user-phone">{user.phone}</div>
               </div>
-              <button className="dd-upload-btn" onClick={() => { setMenuOpen(false); setAvOpen(true); }}>
+              <button className="dd-upload-btn" onMouseDown={(e) => e.preventDefault()} onClick={openAvatarModal}>
                 Настроить аватарку
               </button>
             </div>
@@ -84,7 +98,10 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
           </div>
         )}
       </div>
-      {avOpen && <AvatarModal avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />}
+      {avOpen && typeof document !== 'undefined' && createPortal(
+        <AvatarModal avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />,
+        document.body,
+      )}
     </>
   );
 }

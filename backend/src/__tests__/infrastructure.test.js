@@ -53,7 +53,7 @@ describe('index.js — production guards', () => {
   test('CORS не использует wildcard для credentials=true', () => {
     const fs = require('fs');
     const path = require('path');
-    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
+    const source = fs.readFileSync(path.resolve(__dirname, '../app/createApp.js'), 'utf8');
     expect(source).toContain('credentials: true');
     expect(source).toContain('allowedOrigins.includes(origin)');
     expect(source).not.toContain("allowedOrigins.includes('*')");
@@ -62,16 +62,16 @@ describe('index.js — production guards', () => {
   test('в production наружу не утекает err.message из error-handler', () => {
     const fs = require('fs');
     const path = require('path');
-    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
-    expect(source).toContain("process.env.NODE_ENV === 'production'");
+    const source = fs.readFileSync(path.resolve(__dirname, '../app/createApp.js'), 'utf8');
     expect(source).toContain("Internal server error");
     expect(source).toContain('safeErrorMessage');
+    expect(source).toContain('config.isProd');
   });
 
   test('request correlation id middleware выставляет X-Request-Id', () => {
     const fs = require('fs');
     const path = require('path');
-    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
+    const source = fs.readFileSync(path.resolve(__dirname, '../app/createApp.js'), 'utf8');
     expect(source).toContain("req.headers['x-request-id']");
     expect(source).toContain("res.setHeader('X-Request-Id', requestId)");
     expect(source).toContain('requestId: req.raw?.requestId');
@@ -80,7 +80,7 @@ describe('index.js — production guards', () => {
   test('есть prometheus endpoint для метрик приложения', () => {
     const fs = require('fs');
     const path = require('path');
-    const source = fs.readFileSync(path.resolve(__dirname, '../index.js'), 'utf8');
+    const source = fs.readFileSync(path.resolve(__dirname, '../app/registerObservabilityRoutes.js'), 'utf8');
     expect(source).toContain('/api/metrics/prometheus');
     expect(source).toContain("text/plain; version=0.0.4; charset=utf-8");
     expect(source).toContain('rez_auth_refresh_requests_total');

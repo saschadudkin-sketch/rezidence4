@@ -17,7 +17,6 @@ interface EBState { hasError: boolean; error: Error | null; resetKey: number; }
 export default class ErrorBoundary extends Component<EBProps, EBState> {
   declare state: EBState;
   declare props: EBProps & { children?: React.ReactNode };
-  declare setState: (updater: (s: EBState) => Partial<EBState>) => void;
 
   constructor(props: EBProps) {
     super(props);

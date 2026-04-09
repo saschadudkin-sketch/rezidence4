@@ -23,7 +23,11 @@ if (isProd) {
   }
 }
 
-if (missing.length > 0) {
+const runtimeMode = (process.env.VITE_RUNTIME_MODE || '').trim().toLowerCase();
+const demoFlag = (process.env.VITE_ENABLE_DEMO || '').trim().toLowerCase();
+const demoRequestedWithoutFlag = isProd && runtimeMode === 'demo' && demoFlag !== 'true';
+
+if (missing.length > 0 || demoRequestedWithoutFlag) {
   const remediation = [
     '# Environment preflight failed',
     '',
@@ -31,10 +35,12 @@ if (missing.length > 0) {
     '',
     '## Missing variables',
     ...missing.map((v) => `- \`${v}\``),
+    ...(demoRequestedWithoutFlag ? ['- `VITE_ENABLE_DEMO=true` is required when `VITE_RUNTIME_MODE=demo` on production-like builds'] : []),
     '',
     '## Remediation',
     '- Set `VITE_API_URL` to your backend origin (for example, `https://api.example.com`).',
     '- Set `VITE_RUNTIME_MODE=live` for production builds.',
+    '- Use `VITE_RUNTIME_MODE=demo` only for internal sandbox builds together with `VITE_ENABLE_DEMO=true`.',
     '- Re-run `npm run verify:env` before `npm run build`.',
     '',
   ].join('\n');
@@ -46,6 +52,9 @@ if (missing.length > 0) {
   }
   console.error('[verify:env] ✗ Missing required environment variables:');
   for (const v of missing) console.error(`  - ${v}`);
+  if (demoRequestedWithoutFlag) {
+    console.error('  - VITE_ENABLE_DEMO=true is required when VITE_RUNTIME_MODE=demo in production');
+  }
   console.error('\nSet these variables before running build or CI.');
   console.error('See ../artifacts/verify-env.md for remediation steps.\n');
   process.exit(1);

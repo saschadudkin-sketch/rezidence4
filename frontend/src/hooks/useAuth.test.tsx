@@ -1,23 +1,43 @@
-/**
- * hooks/useAuth.test.js
- * Тесты всех фаз useAuth и событий unauthorized.
- */
-
 import { renderHook, act } from '@testing-library/react';
-import { useAuth, PHASE } from './useAuth';
+
+const requestNotifPermMock = vi.fn();
+
+vi.mock('../config/runtimeMode', () => ({
+  isLiveMode: () => false,
+}));
+
+vi.mock('../services/providers/serviceContainer', () => ({
+  services: {
+    auth: {
+      getMe: vi.fn(),
+      logout: vi.fn().mockResolvedValue(undefined),
+    },
+  },
+}));
+
+vi.mock('../utils', () => ({
+  requestNotifPerm: requestNotifPermMock,
+}));
 
 vi.mock('../services/logger', () => ({
   logger: {
     action: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
     setContext: vi.fn(),
     clearContext: vi.fn(),
   },
 }));
 
 describe('useAuth', () => {
-  beforeEach(() => {
+  let useAuth;
+  let PHASE;
+
+  beforeEach(async () => {
     vi.useFakeTimers();
+    vi.resetModules();
+    requestNotifPermMock.mockReset();
+    ({ useAuth, PHASE } = await import('./useAuth'));
   });
 
   afterEach(() => {
@@ -25,44 +45,53 @@ describe('useAuth', () => {
     vi.useRealTimers();
   });
 
-  it('начинает с фазы LOADING', () => {
+  it('starts in loading phase', () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.phase).toBe(PHASE.LOADING);
   });
 
-  it('переходит в LOGIN после splash delay', () => {
+  it('transitions to login after splash delay', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { vi.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(400); });
     expect(result.current.phase).toBe(PHASE.LOGIN);
   });
 
-  it('login устанавливает user и фазу DASHBOARD', () => {
+  it('login sets user and dashboard phase', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { vi.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(400); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     expect(result.current.phase).toBe(PHASE.DASHBOARD);
     expect(result.current.user.uid).toBe('u1');
   });
 
-  it('logout сбрасывает user и возвращает в LOGIN', () => {
+  it('logout clears user and returns to login', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { vi.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(400); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     act(() => { result.current.logout(); });
     expect(result.current.user).toBeNull();
     expect(result.current.phase).toBe(PHASE.LOGIN);
   });
 
-  it('rz:unauthorized событие сбрасывает сессию', () => {
+  it('logout clears pending notification permission timer', () => {
     const { result } = renderHook(() => useAuth());
-    act(() => { vi.advanceTimersByTime(1200); });
+    act(() => { vi.advanceTimersByTime(400); });
+    act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
+    act(() => { result.current.logout(); });
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(requestNotifPermMock).not.toHaveBeenCalled();
+  });
+
+  it('unauthorized event resets session', () => {
+    const { result } = renderHook(() => useAuth());
+    act(() => { vi.advanceTimersByTime(400); });
     act(() => { result.current.login({ uid: 'u1', name: 'Test', role: 'owner' }); });
     act(() => { window.dispatchEvent(new CustomEvent('rz:unauthorized')); });
     expect(result.current.user).toBeNull();
     expect(result.current.phase).toBe(PHASE.LOGIN);
   });
 
-  it('user null при старте', () => {
+  it('user is null on boot', () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.user).toBeNull();
   });

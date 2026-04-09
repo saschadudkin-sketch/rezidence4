@@ -1,6 +1,12 @@
 /* ── STATS ── */
 /* ── ADMIN TABLE ENHANCED ── */
-.admin-toolbar{display:flex;gap:var(--space-sm);align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.admin-toolbar{
+  display:flex;gap:var(--space-sm);align-items:center;margin-bottom:14px;flex-wrap:wrap;
+  padding:12px;
+  border:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
+  border-radius:16px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 26%, transparent));
+}
 .admin-toolbar .search-wrap{flex:1;min-width:180px;margin-bottom:0}
 .t-row-actions{display:flex;gap:var(--space-xs);justify-content:flex-end}
 .btn-edit{
@@ -170,27 +176,27 @@
     linear-gradient(180deg, color-mix(in srgb, var(--s2) 97%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
   border:1px solid color-mix(in srgb, var(--b2) 84%, transparent);
   border-radius:22px;
-  color:var(--t3);
+  color:var(--t2);
   box-shadow:var(--sh-s);
 }
 .state-icon-shell{
-  width:68px;
-  height:68px;
-  margin:0 auto 14px;
+  width:58px;
+  height:58px;
+  margin:0 auto 12px;
   display:flex;
   align-items:center;
   justify-content:center;
   border-radius:999px;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 72%, transparent), transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), transparent);
   border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
   box-shadow:var(--sh-s);
 }
 .state-icon{opacity:.9;margin-bottom:0;color:var(--g2)}
 .state-loading .state-icon{opacity:.4;animation:spin 1.2s linear infinite}
-.state-eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--g2);margin-bottom:10px}
-.state-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:34px;line-height:.95;color:var(--t1);margin-bottom:10px}
-.state-sub{font-size:13px;color:var(--t3);line-height:1.65;max-width:34ch;margin:0 auto}
-.state-action{margin-top:18px;min-width:180px}
+.state-eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--g2);margin-bottom:8px}
+.state-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:28px;line-height:1;color:var(--t1);margin-bottom:8px}
+.state-sub{font-size:14px;color:var(--t2);line-height:1.55;max-width:38ch;margin:0 auto}
+.state-action{margin-top:16px;min-width:180px}
 /* P-04: EmptyState — dedicated component for empty list/section states */
 .empty-state{
   display:flex;flex-direction:column;align-items:center;
@@ -200,6 +206,12 @@
 .empty-state-title{font-family:'Playfair Display',serif;font-size:var(--fs-md);font-weight:400;color:var(--t2);margin-bottom:8px}
 .empty-state-desc{font-size:var(--fs-sm);color:var(--t4);line-height:1.55;max-width:240px}
 .empty-state-cta{margin-top:16px;min-width:160px}
+@media (--bp-sm-down){
+  .state-block{padding:24px 18px 20px;border-radius:18px}
+  .state-title{font-size:24px}
+  .state-sub{font-size:13px;max-width:30ch}
+  .state-icon-shell{width:52px;height:52px}
+}
 /* ── Skeleton ── */
 .skeleton-card{background:var(--s2);border:1.5px solid var(--b1);border-left:4px solid var(--b1);border-radius:8px;padding:12px;margin-bottom:8px;overflow:hidden}
 .skeleton-row{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)}
@@ -228,6 +240,14 @@
   display:flex;flex-direction:column;gap:var(--space-xs);pointer-events:none;
 }
 @media(min-width:768px){.toast-wrap{bottom:22px;left:auto;min-width:220px}}
+@media(max-width:1024px){
+  .toast-wrap{
+    left:12px;
+    right:12px;
+    bottom:calc(var(--nav-h) + var(--sab) + 14px);
+    gap:8px;
+  }
+}
 .toast{
   background:var(--s3);color:var(--t1);
   padding:11px 15px;border-radius:var(--r);
@@ -239,6 +259,20 @@
   display:flex;align-items:center;gap:10px;
 }
 .toast-msg{flex:1}
+@media(max-width:1024px){
+  .toast{
+    border-radius:16px;
+    padding:12px 14px;
+    font-size:12px;
+    align-items:flex-start;
+  }
+  .toast-msg{
+    line-height:1.45;
+  }
+  .toast:not(:last-child){
+    display:none;
+  }
+}
 .toast-close{
   background:none;border:none;cursor:pointer;
   color:var(--t4);font-size:16px;line-height:1;

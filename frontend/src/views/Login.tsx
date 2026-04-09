@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { CSSProperties } from 'react';
 import { useUsers } from '../store/AppStore';
 import { findByPhone } from '../utils/phoneUtils';
 import { toast } from '../ui/Toasts';
@@ -27,6 +28,7 @@ const HINTS = isDemoMode()
   : [];
 
 export default function Login({ onLogin, authNotice = '' }) {
+  const demoMode = isDemoMode();
   const [phone, setPhone] = useState('+7 ');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState('phone');
@@ -134,7 +136,7 @@ export default function Login({ onLogin, authNotice = '' }) {
           message: 'Код не отправлен. Мы уже попробовали повторно на сервере, попробуйте снова вручную.',
           onRetry: () => sendCode(),
           onFallback: () => setDemoOpen(true),
-          fallbackLabel: isDemoMode() ? 'Открыть демо-доступ' : 'Вернуться к номеру',
+          fallbackLabel: demoMode ? 'Открыть демо-доступ' : 'Вернуться к номеру',
         });
       }
     } finally {
@@ -167,6 +169,7 @@ export default function Login({ onLogin, authNotice = '' }) {
       const user = await authFlow.verifyOtp(phone, code, found);
       if (signal.aborted) return;
       emitLoginMetric('verify_success', { mode: isLiveMode() ? 'live' : 'demo' });
+      toast.clearAll?.();
       onLogin(user);
     } catch (e) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
@@ -293,7 +296,7 @@ export default function Login({ onLogin, authNotice = '' }) {
             </div>
           )}
 
-          {isDemoMode() && (
+          {demoMode && (
             <div className="field-warn" role="status" aria-live="polite">
               Демо-режим: приватная сессия включена по умолчанию и не сохраняет данные между
               перезапусками. Постоянное хранение включайте только вручную.
@@ -333,7 +336,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                 <span>{loading ? 'Проверка...' : 'Получить SMS-код'}</span>
               </button>
 
-              {isDemoMode() && (
+              {demoMode && (
                 <button
                   className={'demo-toggle' + (demoOpen ? ' open' : '')}
                   onClick={() => setDemoOpen(open => !open)}
@@ -343,7 +346,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                 </button>
               )}
 
-              {isDemoMode() && demoOpen && (
+              {demoMode && demoOpen && (
                 <div className="demo-list">
                   {HINTS.map(([demoPhone, roleLabel]) => (
                     <button
@@ -382,7 +385,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                 </div>
               )}
 
-              {!isDemoMode() && (
+              {!demoMode && (
                 <div className="login-help">
                   <span className="login-help-text">Номер изменился? </span>
                   <a href="mailto:admin@rezidencia.ru" className="login-help-link">
@@ -417,7 +420,7 @@ export default function Login({ onLogin, authNotice = '' }) {
                 />
                 {otpError && <div className="field-err">{otpError}</div>}
               </div>
-              <button className="btn-gold" onClick={verify} disabled={loading}>
+              <button className="btn-gold" onClick={() => { void verify(); }} disabled={loading}>
                 <span>{loading ? 'Проверка...' : 'Войти'}</span>
               </button>
 
@@ -426,15 +429,16 @@ export default function Login({ onLogin, authNotice = '' }) {
                   Слишком много попыток: следующая может заблокировать вход на несколько минут
                 </div>
               )}
-
-              {resendIn > 0 && (
-                <div className="otp-countdown" aria-hidden="true">
-                  <div
-                    className="otp-countdown-bar"
-                    style={{ '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%` }}
-                  />
-                </div>
-              )}
+              {(() => {
+                const otpProgressStyle = {
+                  '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%`,
+                } as CSSProperties;
+                return resendIn > 0 ? (
+                  <div className="otp-countdown" aria-hidden="true">
+                    <div className="otp-countdown-bar" style={otpProgressStyle} />
+                  </div>
+                ) : null;
+              })()}
 
               <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
                 {resendIn > 0

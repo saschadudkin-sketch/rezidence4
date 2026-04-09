@@ -4,11 +4,12 @@ import { useLiveSync } from '../../hooks/useDashboardHooks';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { onSseForceReconnect } from '../../utils/events';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import type { AppUser } from '../../store/slices/usersSlice';
 
 type LiveSyncOptions = Parameters<typeof useLiveSync>[1];
 
 interface ConnectivityParams {
-  user: unknown;
+  user: AppUser;
   syncCallbacks: LiveSyncOptions;
 }
 

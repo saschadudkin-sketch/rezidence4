@@ -18,6 +18,7 @@ vi.mock('../ui/PhotoLightbox', () => ({ PhotoLightbox: () => null }));
 
 describe('ChatView', () => {
   beforeEach(() => {
+    vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear();
     sendMessageMock.mockClear();
     getMessagesMock.mockReset();
     getMessagesMock.mockResolvedValue({ messages: [], hasMore: false });

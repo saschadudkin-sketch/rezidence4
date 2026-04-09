@@ -173,11 +173,11 @@ const sseManager = createSSEManager();
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authProvider = {
   async sendOtp(phone) {
-    await apiClient.post('/api/v1/auth/send-otp', { phone });
+    await apiClient.post('/api/v1/auth/send-otp', { phone }, { retryable: false });
   },
   async verifyOtp(phone, code) {
     // Сервер устанавливает HttpOnly cookie — токен не в теле ответа
-    const { user } = await apiClient.post('/api/v1/auth/verify-otp', { phone, code });
+    const { user } = await apiClient.post('/api/v1/auth/verify-otp', { phone, code }, { retryable: false });
     // Reset refresh-failed flag so the new session can obtain tokens normally.
     if (typeof resetRefreshState === 'function') resetRefreshState();
     // Pass uid so SSE manager can detect user switch and reconnect under new session.
@@ -191,7 +191,7 @@ export const authProvider = {
   },
   async logout() {
     // Сервер сбрасывает HttpOnly cookie через Set-Cookie: token=; Max-Age=0
-    await apiClient.post('/api/v1/auth/logout').catch(() => {});
+    await apiClient.post('/api/v1/auth/logout', undefined, { retryable: false }).catch(() => {});
     sseManager.disconnect();
   },
 };
@@ -252,6 +252,7 @@ export const requestsProvider = {
     // Idempotency key prevents duplicate submissions on concurrent or retried requests.
     const idempotencyKey = `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const serverReq = await apiClient.post('/api/v1/requests', request, {
+      retryable: false,
       headers: { 'Idempotency-Key': idempotencyKey },
     });
     return serverReq;

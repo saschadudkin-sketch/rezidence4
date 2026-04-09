@@ -9,6 +9,15 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+function focusWithoutScroll(target: HTMLElement | null) {
+  if (!target) return;
+  try {
+    target.focus({ preventScroll: true });
+  } catch {
+    target.focus();
+  }
+}
+
 export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus = true }:{ onClose: () => void; closeOnEsc?: boolean; restoreFocus?: boolean }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
@@ -20,7 +29,7 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
       const root = dialogRef.current;
       if (!root) return;
       const first = root.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      (first || root).focus();
+      focusWithoutScroll(first || root);
     };
 
     const t = window.setTimeout(focusFirst, 0);
@@ -39,7 +48,7 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
       const focusables = Array.from<HTMLElement>(root.querySelectorAll(FOCUSABLE_SELECTOR));
       if (focusables.length === 0) {
         e.preventDefault();
-        root.focus();
+        focusWithoutScroll(root);
         return;
       }
       const first = focusables[0];
@@ -48,10 +57,10 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
 
       if (e.shiftKey && active === first) {
         e.preventDefault();
-        last.focus();
+        focusWithoutScroll(last);
       } else if (!e.shiftKey && active === last) {
         e.preventDefault();
-        first.focus();
+        focusWithoutScroll(first);
       }
     };
 
@@ -59,7 +68,7 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
     return () => {
       window.clearTimeout(t);
       document.removeEventListener('keydown', onKeyDown);
-      if (restoreFocus) prevFocusRef.current?.focus();
+      if (restoreFocus) focusWithoutScroll(prevFocusRef.current);
     };
   }, [onClose, closeOnEsc, restoreFocus]);
 

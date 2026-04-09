@@ -46,15 +46,26 @@ function DemoBanner({ onClose }) {
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="info" size={14} /></span>
       <span className="demo-welcome-text">
-        <strong>Демо-режим.</strong>{' '}
-        Попробуйте создать пропуск или вызов техслужбы - все работает без сервера.
-        По умолчанию сессия приватная и не сохраняет данные между перезапусками. Постоянное демо-хранение включается только вручную.
+        <span className="demo-welcome-copy demo-welcome-copy-short">
+          <strong>Демо-режим.</strong> Локальные данные без сервера; сохранение включается вручную.
+        </span>
+        <span className="demo-welcome-copy demo-welcome-copy-long">
+          <strong>Демо-режим.</strong>{' '}
+          Попробуйте создать пропуск или вызов техслужбы - все работает без сервера.
+          По умолчанию сессия приватная и не сохраняет данные между перезапусками. Постоянное демо-хранение включается только вручную.
+        </span>
       </span>
-      <label className="demo-private-toggle">
-        <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
-        Приватная демо-сессия
-      </label>
-      <button className="btn-outline" onClick={wipeDemoData}>Очистить демо-данные</button>
+      <div className="demo-welcome-actions">
+        <label className="demo-private-toggle">
+          <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
+          <span className="demo-private-toggle-long">Приватная демо-сессия</span>
+          <span className="demo-private-toggle-short">Приватно</span>
+        </label>
+        <button className="btn-outline demo-welcome-reset" onClick={wipeDemoData}>
+          <span className="demo-welcome-reset-long">Очистить демо-данные</span>
+          <span className="demo-welcome-reset-short">Очистить</span>
+        </button>
+      </div>
       <button className="demo-welcome-close" onClick={onClose} aria-label="Закрыть баннер">
         <AppIcon name="close" size={12} />
       </button>

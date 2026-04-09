@@ -38,6 +38,13 @@ export default [
       ],
     },
   },
+  {
+    files: ['src/**/*.{test,spec}.{ts,tsx}', 'src/**/*.smoke.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
   // Runtime layout / variable-driven infra components where style is part of behavior
   // (virtualization coordinates, dynamic avatar sizing, CSS variable progress).
   {

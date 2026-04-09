@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
 import { MAX_PHOTOS_PER_REQUEST, daysFromNow } from '../constants/limits';
@@ -13,6 +14,67 @@ import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useSchedul
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { RequestType } from '../store/slices/requestsSlice';
+
+type VisitorNameEntry = { __id: string; value: string };
+type PermEntry = { id: string; name: string; phone?: string };
+type TemplateSectionProps = {
+  showSaveTpl: boolean;
+  setShowSaveTpl: Dispatch<SetStateAction<boolean>>;
+  tplName: string;
+  setTplName: Dispatch<SetStateAction<string>>;
+  onSave: () => void;
+};
+type SchedulePreset = (typeof SCHEDULE_PRESETS)[number];
+type ScheduleSectionProps = {
+  showSchedule: boolean;
+  setShowSchedule: Dispatch<SetStateAction<boolean>>;
+  scheduledFor: string;
+  setScheduledFor: Dispatch<SetStateAction<string>>;
+  applyPreset: (preset: SchedulePreset) => void;
+};
+type AccordionSectionProps = {
+  title: string;
+  subtitle?: string;
+  icon: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  badge?: ReactNode;
+};
+type VisitorFieldsProps = {
+  cat: string;
+  vName: string;
+  setVName: Dispatch<SetStateAction<string>>;
+  vNames: VisitorNameEntry[];
+  setVNames: Dispatch<SetStateAction<VisitorNameEntry[]>>;
+  vPhone: string;
+  setVPhone: Dispatch<SetStateAction<string>>;
+  carPlate: string;
+  setCarPlate: Dispatch<SetStateAction<string>>;
+  permsList: PermEntry[];
+  showPermsPicker: boolean;
+  setShowPermsPicker: Dispatch<SetStateAction<boolean>>;
+  onPickPerm: (perm: PermEntry) => void;
+};
+type TemporaryPassSectionProps = {
+  validUntil: string;
+  setValidUntil: Dispatch<SetStateAction<string>>;
+};
+type PhotoSectionProps = {
+  photos: string[];
+  handlePhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  removePhoto: (index: number) => void;
+};
+type CreateModalProps = {
+  user: AppUser;
+  type: RequestType;
+  initialCat?: string;
+  initialData?: Record<string, unknown>;
+  onClose: () => void;
+  onDone: () => void;
+};
 
 const VisitorFields = memo(function VisitorFields({
   cat,
@@ -28,7 +90,7 @@ const VisitorFields = memo(function VisitorFields({
   showPermsPicker,
   setShowPermsPicker,
   onPickPerm,
-}) {
+}: VisitorFieldsProps) {
   return (
     <>
       {needsCarPlate(cat) && (
@@ -130,7 +192,7 @@ const VisitorFields = memo(function VisitorFields({
   );
 });
 
-const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSaveTpl, tplName, setTplName, onSave }) {
+const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSaveTpl, tplName, setTplName, onSave }: TemplateSectionProps) {
   return (
     <div className="modal-tpl-area">
       {showSaveTpl ? (
@@ -163,7 +225,7 @@ const TemplateSection = memo(function TemplateSection({ showSaveTpl, setShowSave
   );
 });
 
-const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSchedule, scheduledFor, setScheduledFor, applyPreset }) {
+const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSchedule, scheduledFor, setScheduledFor, applyPreset }: ScheduleSectionProps) {
   const handleToggle = () => {
     const opening = !showSchedule;
     setShowSchedule((value) => !value);
@@ -201,7 +263,7 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
   );
 });
 
-const AccordionSection = memo(function AccordionSection({ title, subtitle, icon, open, onToggle, children, badge }) {
+const AccordionSection = memo(function AccordionSection({ title, subtitle, icon, open, onToggle, children, badge }: AccordionSectionProps) {
   return (
     <div className="u-p-schedule">
       <button className={'schedule-toggle' + (open ? ' active' : '')} onClick={onToggle} type="button">
@@ -222,7 +284,7 @@ const AccordionSection = memo(function AccordionSection({ title, subtitle, icon,
   );
 });
 
-function TemporaryPassSection({ validUntil, setValidUntil }) {
+function TemporaryPassSection({ validUntil, setValidUntil }: TemporaryPassSectionProps) {
   const [open, setOpen] = useState(false);
 
   if (!validUntil) {
@@ -284,7 +346,7 @@ function TemporaryPassSection({ validUntil, setValidUntil }) {
           ['Неделя', 7],
           ['2 недели', 14],
           ['Месяц', 30],
-        ].map(([label, days]) => (
+        ].map(([label, days]: [string, number]) => (
           <button key={days} type="button" className="temp-pass-preset" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(days)))}>
             {label}
           </button>
@@ -297,7 +359,7 @@ function TemporaryPassSection({ validUntil, setValidUntil }) {
   );
 }
 
-function PhotoSection({ photos, handlePhoto, removePhoto }) {
+function PhotoSection({ photos, handlePhoto, removePhoto }: PhotoSectionProps) {
   return (
     <>
       <label
@@ -327,7 +389,7 @@ function PhotoSection({ photos, handlePhoto, removePhoto }) {
   );
 }
 
-export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }) {
+export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }: CreateModalProps) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
@@ -399,7 +461,7 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
               setVPhone={form.setVPhone}
               carPlate={form.carPlate}
               setCarPlate={form.setCarPlate}
-              permsList={form.permsList}
+              permsList={[...form.permsList]}
               showPermsPicker={form.showPermsPicker}
               setShowPermsPicker={form.setShowPermsPicker}
               onPickPerm={form.handlePickPerm}

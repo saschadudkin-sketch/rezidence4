@@ -6,20 +6,22 @@ import SectionHeader from '../../ui/SectionHeader';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
 type PassesTabProps = {
-  user: { role: string; name: string; uid: string };
+  user: { role: UserRole | string; name: string; uid: string };
   passFilter: string;
   setPassFilter: (value: string) => void;
   setModal: (value: { type: string; cat: string }) => void;
-  onRepeatPass: (request: unknown) => void;
-  onEdit: (request: unknown) => void;
-  onDelete: (id: unknown) => void;
-  onCancel: (id: unknown) => void;
+  onRepeatPass: (request: AppRequest) => void;
+  onEdit: (request: AppRequest) => void;
+  onDelete: (id: string) => void;
+  onCancel: (id: string) => void;
   computed: {
-    myPasses: Array<Record<string, unknown>>;
-    scheduledPasses: Array<Record<string, unknown>>;
-    filteredPasses: Array<Record<string, unknown>>;
+    myPasses: AppRequest[];
+    scheduledPasses: AppRequest[];
+    filteredPasses: AppRequest[];
     tempCount: number;
     permCount: number;
   };
@@ -115,7 +117,7 @@ const PassesTab = memo(function PassesTab({
             ['temporary', 'Временные', tempCount],
             ['permanent', 'Постоянные', permCount],
             ['once', 'Разовые', myPasses.length - tempCount - permCount],
-          ].map(([key, label, count]) =>
+          ].map(([key, label, count]: [string, string, number]) =>
             count > 0 || key === 'all' || key === 'active' ? (
               <button
                 key={key}

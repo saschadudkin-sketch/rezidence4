@@ -2,7 +2,7 @@
  * AppShell.jsx - App layout shell extracted from Dashboard.
  */
 
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { LOGO } from '../../constants/logo';
 import { isDemoMode } from '../../config/runtimeMode';
@@ -11,9 +11,10 @@ import UserMenu from './UserMenu';
 import NavigationShell from './NavigationShell';
 import RoleContentRouter from './RoleContentRouter';
 import { useNavigationContext } from './NavigationContext';
+import type { AppUser } from '../../store/slices/usersSlice';
 
 type AppShellProps = {
-  user: { role: string };
+  user: AppUser;
   onLogout: () => void;
   pageTitle: string;
   pageSubtitle: string;
@@ -43,6 +44,20 @@ const AppShell = memo(function AppShell({
 }: AppShellProps) {
   const { nav, navClassMap, goTab, activeTab } = useNavigationContext();
   const demoMode = isDemoMode();
+  const [isCompactLayout, setIsCompactLayout] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches,
+  );
+  const isChatTab = activeTab === 'chat';
+  const hideChatTitleOnCompact = isCompactLayout && isChatTab;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const media = window.matchMedia('(max-width: 1024px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsCompactLayout(event.matches);
+    setIsCompactLayout(media.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
 
   const noNetwork = !demoMode && isOnline === false;
   const noSse = !demoMode && !noNetwork && sseOnline === false;
@@ -98,9 +113,9 @@ const AppShell = memo(function AppShell({
       <div className="layout">
         <NavigationShell nav={nav} navClassMap={navClassMap} goTab={goTab} userRole={user.role} />
         <main className="content" id="main-content">
-          <div className="page-top">
+          <div className={`page-top${isChatTab ? ' page-top--chat' : ''}${hideChatTitleOnCompact ? ' page-top--chat-compact' : ''}`}>
             <div className="page-top-copy">
-              <h1 className="page-title">{pageTitle}</h1>
+              <h1 className={`page-title${hideChatTitleOnCompact ? ' page-title--chat-compact' : ''}`}>{pageTitle}</h1>
               {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
               {actionRail}
             </div>

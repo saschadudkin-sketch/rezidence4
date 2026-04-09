@@ -1,6 +1,11 @@
 import { useState } from 'react';
 
-type ChatRefMessage = { id?: string; text?: string } | null;
+export type ChatRefMessage = {
+  id: string;
+  text?: string;
+  name?: string;
+  photo?: string | null;
+} | null;
 
 export function useChatComposer() {
   const [text, setText] = useState('');

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
+import type { CSSProperties } from 'react';
 import { useIsMounted } from '../hooks/useIsMounted';
 import { toast } from '../ui/Toasts';
 import { PassQRModal } from './PassQRModal';
@@ -22,12 +23,29 @@ import { fmtDate, fmtTime } from '../utils';
 import { AvatarCircle } from '../ui/AvatarCircle';
 import { PhotoLightbox } from '../ui/PhotoLightbox';
 import { AppIcon } from '../ui/AppIcon';
+import type { AppRequest, HistoryEntry } from '../store/slices/requestsSlice';
+import type { UserRole } from '../store/slices/usersSlice';
+
+type ReqPhotoProps = { src: string };
+export type ReqCardProps = {
+  req: AppRequest;
+  userRole: UserRole | string;
+  userName: string;
+  userId: string;
+  staggerIdx?: number;
+  onRepeat?: (req: AppRequest) => void;
+  onEdit?: (req: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  highlightId?: string | null;
+  onHighlighted?: () => void;
+};
 
 // ─── ReqPhoto ────────────────────────────────────────────────────────────────
 
 // FIX [PERF-5]: memo — ReqPhoto рендерится для каждого фото в карточке.
 // Без memo при раскрытии/закрытии любой другой карточки все фото перерисовывались.
-const ReqPhoto = memo(function ReqPhoto({ src }) {
+const ReqPhoto = memo(function ReqPhoto({ src }: ReqPhotoProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -39,7 +57,7 @@ const ReqPhoto = memo(function ReqPhoto({ src }) {
 
 // Photo order is stable (index key). URL-based key would cause unmount/remount
 // on SSE updates even when photo list hasn't changed.
-const ReqPhotos = memo(function ReqPhotos({ req }) {
+const ReqPhotos = memo(function ReqPhotos({ req }: { req: AppRequest }) {
   const photos = req.photos && req.photos.length > 0 ? req.photos : req.photo ? [req.photo] : [];
   if (photos.length === 0) return null;
   return (
@@ -51,7 +69,7 @@ const ReqPhotos = memo(function ReqPhotos({ req }) {
 
 // ─── ReqSkeleton ─────────────────────────────────────────────────────────────
 
-export function ReqSkeleton({ count = 3 }) {
+export function ReqSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="req-list" aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
@@ -78,7 +96,7 @@ export function ReqSkeleton({ count = 3 }) {
 // ─── ReqCardDetails ──────────────────────────────────────────────────────────
 // 7.2: extracted from ReqCard to reduce responsibilities per component.
 
-const ReqCardDetails = memo(function ReqCardDetails({ req, history }) {
+const ReqCardDetails = memo(function ReqCardDetails({ req, history }: { req: AppRequest; history: HistoryEntry[] }) {
   if (!(req.arrivedAt || req.visitorName || req.carPlate || req.visitorPhone || req.comment)) return null;
   return (
     <div className="req-details">
@@ -113,6 +131,17 @@ const ReqCardDetails = memo(function ReqCardDetails({ req, history }) {
 const ReqCardStaffActions = memo(function ReqCardStaffActions({
   req, actLoading, mayApprove, mayReject, mayAccept, mayMarkArrival,
   doApprove, doReject, doAccept, doArrive,
+}: {
+  req: AppRequest;
+  actLoading: string | null;
+  mayApprove: boolean;
+  mayReject: boolean;
+  mayAccept: boolean;
+  mayMarkArrival: boolean;
+  doApprove: () => Promise<void>;
+  doReject: () => Promise<void>;
+  doAccept: () => Promise<void>;
+  doArrive: () => Promise<void>;
 }) {
   const [confirmReject, setConfirmReject] = useState(false);
   return (
@@ -146,6 +175,14 @@ const ReqCardStaffActions = memo(function ReqCardStaffActions({
 
 const ReqCardResidentActions = memo(function ReqCardResidentActions({
   req, onRepeat, onEdit, onDelete, onCancel, isStaffRole, actLoading,
+}: {
+  req: AppRequest;
+  onRepeat?: (req: AppRequest) => void;
+  onEdit?: (req: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  isStaffRole: boolean;
+  actLoading: string | null;
 }) {
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -197,7 +234,7 @@ const ReqCardResidentActions = memo(function ReqCardResidentActions({
 
 // memo: prevents re-render of all cards when parent state changes (modal open, etc.)
 // Named export preserved via assignment.
-export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
+export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: ReqCardProps) {
   const isStaffRole = canManageRequests(userRole);
   const isActive = isActiveRequest(req);
   const [actLoading, setActLoading] = useState(null);
@@ -282,12 +319,13 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
 
   const hasDetails = !!(req.arrivedAt || req.visitorName || req.carPlate || req.visitorPhone || req.comment || req.photo || (req.photos && req.photos.length) || history.length);
   const showActions = shouldShowActions(req, { userRole, onRepeat, onEdit, onDelete, onCancel });
+  const cardStyle = { '--card-delay': (staggerIdx * 45) + 'ms' } as CSSProperties;
 
   // 5.3: stagger delay via CSS custom property — kept as inline style because it is
   // a runtime value (staggerIdx × 45ms) that cannot be expressed as a static CSS class.
   // All other inline styles have been moved to CSS classes.
   return (
-    <div ref={cardRef} className={'req-card ' + req.status} style={{ '--card-delay': (staggerIdx * 45) + 'ms' }} role="article" aria-label={(req.visitorName || CAT_LABEL[req.category] || '') + ' — ' + (req.createdByName || '')}>
+    <div ref={cardRef} className={'req-card ' + req.status} style={cardStyle} role="article" aria-label={(req.visitorName || CAT_LABEL[req.category] || '') + ' — ' + (req.createdByName || '')}>
       {/* 2.2: cursor/margin moved to CSS (.req-head--clickable); no inline style needed */}
       <div className={'req-head' + ((hasDetails || showActions) ? ' req-head--clickable' : '')}
         onClick={() => (hasDetails || showActions) && setExpanded(o => !o)}>

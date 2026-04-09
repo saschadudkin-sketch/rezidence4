@@ -17,6 +17,7 @@ import TechTab from './resident/TechTab';
 import TemplatesTab from './resident/TemplatesTab';
 import HistoryTab from './resident/HistoryTab';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
+import type { RequestStatus } from '../store/slices/requestsSlice';
 
 const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
 const COMPLETED_STATUSES = new Set(['arrived', 'rejected', 'expired', 'cancelled']);
@@ -95,7 +96,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     const originalReq = requestsRef.current.find(r => r.id === id);
     if (!originalReq) return;
     const opId = optimisticRef.current.begin('cancel', originalReq);
-    const patch = { status: 'cancelled' };
+    const patch: { status: RequestStatus } = { status: 'cancelled' };
     updateRequest(id, { ...patch, _optimisticOpId: opId });
     try {
       if (isLiveMode()) {

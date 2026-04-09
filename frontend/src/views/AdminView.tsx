@@ -20,6 +20,8 @@ import PageActionBar from '../ui/PageActionBar';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { useTelemetrySla } from '../hooks/useTelemetrySla';
 import SlaDashboard from '../ui/SlaDashboard';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ function StatCardSkeleton() {
 }
 
 // FIX [PERF]: memo — не ре-рендерится при смене activeTab если allUsers/requests не изменились
-const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }) {
+const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }: { allUsers: AppUser[]; requests: AppRequest[]; isLoading: boolean }) {
   const sla = useTelemetrySla();
   // FIX [PERF]: stats и roleCount мемоизированы — не пересчитываются при несвязанных ре-рендерах
   const { stats, roleCount } = useMemo(() => {
@@ -52,7 +54,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
         ['history', requests.filter(r => r.status === 'pending').length,    'Ожидают решения'],
         ['check', requests.filter(r => r.status === 'arrived').length,       'Входов отмечено'],
       ],
-      roleCount: allUsers.reduce((acc, u) => {
+      roleCount: allUsers.reduce<Record<string, number>>((acc, u) => {
         acc[u.role] = (acc[u.role] || 0) + 1;
         return acc;
       }, {}),
@@ -105,7 +107,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
 // ─── AdminUsersView ───────────────────────────────────────────────────────────
 
 // FIX [PERF]: memo — не ре-рендерится при переключении других вкладок
-const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, contractorOnly = false }) {
+const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, contractorOnly = false }: { allUsers: AppUser[]; currentUser: AppUser; contractorOnly?: boolean }) {
   const [addModal,   setAddModal]   = useState(false);
   const [query,      setQuery]      = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -168,7 +170,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
 // ─── AdminRequestsView ────────────────────────────────────────────────────────
 
 // FIX [PERF]: memo — не ре-рендерится при переключении других вкладок
-const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }) {
+const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }: { requests: AppRequest[]; adminUid: string }) {
   const [reqQuery,  setReqQuery]  = useState('');
   const [reqType,   setReqType]   = useState('all');
   const [reqStatus, setReqStatus] = useState('all');
@@ -216,7 +218,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 
 // ─── AdminView ────────────────────────────────────────────────────────────────
 
-export default function AdminView({ user, activeTab }) {
+export default function AdminView({ user, activeTab }: { user: AppUser; activeTab: string }) {
   const requests = useRequests();
   const { users } = useUsers();
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах

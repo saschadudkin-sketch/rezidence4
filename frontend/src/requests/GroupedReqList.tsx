@@ -16,6 +16,8 @@ import { useRef, useMemo, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { groupReqs } from '../utils';
 import { ReqCard } from './ReqCard';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { UserRole } from '../store/slices/usersSlice';
 
 const VIRTUALIZE_THRESHOLD = 30; // items; below this, render normally
 
@@ -25,8 +27,25 @@ const VIRTUALIZE_THRESHOLD = 30; // items; below this, render normally
  * @param {boolean} showHeaders — whether to include header items
  * @returns {Array<{type:'header',label:string}|{type:'card',req,staggerIdx:number}>}
  */
-function flattenGroups(groups, showHeaders) {
-  const items = [];
+type FlatGroupItem =
+  | { type: 'header'; label: string }
+  | { type: 'card'; req: AppRequest; staggerIdx: number };
+
+type GroupedReqListProps = {
+  reqs: AppRequest[];
+  userRole: UserRole | string;
+  userName: string;
+  userId: string;
+  onRepeat?: (req: AppRequest) => void;
+  onEdit?: (req: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  highlightId?: string | null;
+  onHighlighted?: () => void;
+};
+
+function flattenGroups(groups: Array<{ label: string; items: AppRequest[] }>, showHeaders: boolean): FlatGroupItem[] {
+  const items: FlatGroupItem[] = [];
   for (const g of groups) {
     if (showHeaders) items.push({ type: 'header', label: g.label });
     for (let i = 0; i < g.items.length; i++) {
@@ -38,7 +57,7 @@ function flattenGroups(groups, showHeaders) {
 
 // ─── VirtualGroupedReqList ───────────────────────────────────────────────────
 
-function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
+function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: { items: FlatGroupItem[] } & Omit<GroupedReqListProps, 'reqs'>) {
   const parentRef = useRef(null);
 
   const virtualizer = useVirtualizer({
@@ -101,7 +120,7 @@ function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, on
 // PERF-03: memo prevents re-renders when parent re-renders but props haven't changed.
 // Critical because GroupedReqList is rendered by multiple role views and can receive
 // large request arrays — re-rendering the virtualized list is expensive.
-export const GroupedReqList = memo(function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }) {
+export const GroupedReqList = memo(function GroupedReqList({ reqs, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: GroupedReqListProps) {
   const groups = useMemo(() => groupReqs(reqs), [reqs]);
   const showHeaders = groups.length > 1 || (groups[0] && groups[0].label !== 'Сегодня');
   const flatItems = useMemo(() => flattenGroups(groups, showHeaders), [groups, showHeaders]);

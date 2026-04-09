@@ -23,8 +23,17 @@ let _toastIdCounter = 0;
  * @param {'info'|'success'|'error'|'warn'} [type]
  * @param {{ label: string, onClick: () => void, secondaryLabel?: string, onSecondaryClick?: () => void }} [action] — P-05: optional CTA buttons
  */
-export const toast = (msg, type = 'info', action = null) => {
+type ToastFn = {
+  (msg: string, type?: 'info' | 'success' | 'error' | 'warn' | string, action?: any): void;
+  clearAll?: () => void;
+};
+
+export const toast: ToastFn = (msg, type = 'info', action = null) => {
   if (_toastCb) _toastCb(msg, type, action);
+};
+
+toast.clearAll = () => {
+  if (_toastCb) _toastCb('__clear_all__', '__system_clear__', null);
 };
 
 // P-05: longer duration for error toasts with an action so the user has time to click
@@ -38,6 +47,12 @@ export default function Toasts() {
   const timersRef = useRef(new Map()); // id → timeoutId
 
   const add = useCallback((msg, type, action) => {
+    if (type === '__system_clear__' && msg === '__clear_all__') {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current.clear();
+      setList([]);
+      return;
+    }
     const id = ++_toastIdCounter;
     const duration = action ? TOAST_DURATION_ACTION : TOAST_DURATION;
     setList(p => [...p, { id, msg, type, action }]);

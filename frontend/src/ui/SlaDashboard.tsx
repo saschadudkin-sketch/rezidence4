@@ -1,6 +1,19 @@
 import SectionHeader from './SectionHeader';
 
-function SlaItem({ label, value, ok }) {
+type SlaSnapshot = {
+  reconnect: { p95Ms: number; avgMs: number; slaMet: boolean; samples: number };
+  availability: { timeoutRate: number; slaMet: boolean };
+  action: { successRate: number; slaMet: boolean; success: number; failure: number };
+  viewReadyCount: number;
+};
+
+type SlaItemProps = {
+  label: string;
+  value: string;
+  ok: boolean;
+};
+
+function SlaItem({ label, value, ok }: SlaItemProps) {
   return (
     <div className="stat-card sla-item-card">
       <div className="stat-lbl">{label}</div>
@@ -12,7 +25,7 @@ function SlaItem({ label, value, ok }) {
   );
 }
 
-export default function SlaDashboard({ snapshot }) {
+export default function SlaDashboard({ snapshot }: { snapshot: SlaSnapshot }) {
   const reconnectP95 = snapshot.reconnect.p95Ms;
   const reconnectAvg = snapshot.reconnect.avgMs;
   const timeoutRate = snapshot.availability.timeoutRate;

@@ -341,4 +341,22 @@ describe('GET /api/requests — DATA-3 + изоляция', () => {
     expect(params[0]).toBe(10); // limit
     expect(params[1]).toBe(10); // offset
   });
+
+  it('ограничивает limit до 100 и page не ниже 1', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await supertest(app)
+      .get('/api/requests?page=-5&limit=100000')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.page).toBe(1);
+    expect(res.body.limit).toBe(100);
+
+    const params = db.query.mock.calls[0][1];
+    expect(params[0]).toBe(100);
+    expect(params[1]).toBe(0);
+  });
 });

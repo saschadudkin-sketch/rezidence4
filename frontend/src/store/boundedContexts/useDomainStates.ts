@@ -53,7 +53,8 @@ function permsSliceReducer(state, action) {
 }
 
 export function useBoundedDomainStates() {
-  const [_saved] = useState(() => loadFromLS({ criticalOnly: true }));
+  const isDemoMode = !isLiveMode();
+  const [_saved] = useState(() => (isDemoMode ? loadFromLS({ criticalOnly: true }) : null));
   const saved = _saved;
 
   const [reqState, requestsDispatch] = useReducer(requestsSliceReducer, null, () => ({
@@ -89,7 +90,6 @@ export function useBoundedDomainStates() {
     garage: garageDispatch,
   }), []);
 
-  const isDemoMode = !isLiveMode();
   useDebouncedSave(reqState, saveRequests, isDemoMode);
   useDebouncedSave(chatState, saveChat, isDemoMode);
   useDebouncedSave(usersState, saveUsers, isDemoMode);
@@ -98,6 +98,8 @@ export function useBoundedDomainStates() {
   useDebouncedSave(garageState, saveGarage, isDemoMode);
 
   useEffect(() => {
+    if (!isDemoMode) return;
+
     const applyDeferredHydration = async () => {
       const full = loadFromLS();
       if (!full) return;
@@ -120,7 +122,7 @@ export function useBoundedDomainStates() {
     }
     const t = setTimeout(applyDeferredHydration, 350);
     return () => clearTimeout(t);
-  }, [dispatch]);
+  }, [dispatch, isDemoMode]);
 
   return {
     dispatch,

@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { isLiveMode } from '../../config/runtimeMode';
 import { toast } from '../../ui/Toasts';
-
-type ChatMessage = { text?: string };
+import type { ChatMessage } from '../../store/slices/chatSlice';
 
 type GetMessagesFn = (params?: { search?: string; limit?: number }) => Promise<{ messages: unknown[]; hasMore?: boolean }>;
 

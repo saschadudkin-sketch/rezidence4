@@ -307,13 +307,13 @@ html{scroll-behavior:smooth}
 @media (--bp-sm-down){
   .header-wordmark{display:none}
   .header-info{display:none}
-  .demo-badge{font-size:8px;padding:1px 4px}
+  .demo-badge{font-size:9px;padding:0 6px}
 }
 
 /* Page top mobile */
 @media (--bp-sm-down){
   .page-top{margin-bottom:16px}
-  .page-sub{font-size:9px;letter-spacing:1.5px}
+  .page-sub{font-size:12px;letter-spacing:0;line-height:1.45}
 }
 
 /* Login mobile */
@@ -474,13 +474,26 @@ html{scroll-behavior:smooth}
 .car-search-phone:hover{text-decoration:underline}
 
 /* ── Кнопки действий охраны (QR + Поиск авто) ─────────────────────────────── */
-.security-action-btns{display:flex;gap:8px;margin-bottom:12px}
+.security-action-btns{
+  display:flex;gap:8px;margin-bottom:12px;
+  padding:12px;
+  border:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
+  border-radius:16px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), color-mix(in srgb, var(--g-bg) 26%, transparent));
+}
 .security-action-btns .scan-qr-btn{flex:1}
 
-.page-action-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative}
-.page-action-primary{min-width:180px}
+.page-action-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative;width:100%}
+.page-action-primary{
+  min-width:180px;
+  box-shadow:0 10px 22px rgba(201,169,110,.18);
+}
 .page-action-overflow{position:relative}
-.page-action-overflow-btn{min-width:96px}
+.page-action-overflow-btn{
+  min-width:96px;
+  border-color:color-mix(in srgb, var(--b3) 88%, transparent);
+  background:color-mix(in srgb, var(--s2) 90%, transparent);
+}
 .page-action-overflow-menu{
   position:absolute;right:0;top:calc(100% + 6px);z-index:20;
   min-width:180px;background:var(--s0);border:1px solid var(--b1);border-radius:10px;

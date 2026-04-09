@@ -5,18 +5,20 @@ import StateBlock from '../../ui/StateBlock';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
 type TechTabProps = {
-  user: { role: string; name: string; uid: string };
+  user: { role: UserRole | string; name: string; uid: string };
   techFilter: string;
   setTechFilter: (value: string) => void;
   setModal: (value: { type: string; cat: string }) => void;
-  onRepeatTech: (request: unknown) => void;
-  onEdit: (request: unknown) => void;
-  onDelete: (id: unknown) => void;
-  onCancel: (id: unknown) => void;
+  onRepeatTech: (request: AppRequest) => void;
+  onEdit: (request: AppRequest) => void;
+  onDelete: (id: string) => void;
+  onCancel: (id: string) => void;
   computed: {
-    filteredTech: Array<Record<string, unknown>>;
+    filteredTech: AppRequest[];
   };
 };
 
@@ -55,7 +57,7 @@ const TechTab = memo(function TechTab({
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const matchesQuery = useCallback((request: Record<string, unknown>) => {
+  const matchesQuery = useCallback((request: AppRequest) => {
     const normalizedQuery = debouncedQuery.trim().toLowerCase();
     if (!normalizedQuery) return true;
 

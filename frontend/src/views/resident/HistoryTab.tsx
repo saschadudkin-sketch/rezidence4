@@ -2,8 +2,17 @@ import { memo } from 'react';
 import { ReqCard } from '../../requests/ReqCard';
 import StateBlock from '../../ui/StateBlock';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
-const HistoryTab = memo(function HistoryTab({ user, onRepeatPass, onRepeatTech, computed }) {
+type HistoryTabProps = {
+  user: { role: UserRole | string; name: string; uid: string };
+  onRepeatPass: (request: AppRequest) => void;
+  onRepeatTech: (request: AppRequest) => void;
+  computed: { completedRequests: AppRequest[] };
+};
+
+const HistoryTab = memo(function HistoryTab({ user, onRepeatPass, onRepeatTech, computed }: HistoryTabProps) {
   const { completedRequests } = computed;
   const historyEmptyCopy = getViewStateCopy('history', 'empty');
 

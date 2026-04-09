@@ -11,7 +11,7 @@ export type WorkflowAction = {
   tab: string;
   title: string;
   subtitle: string;
-  cta: string;
+  cta?: string;
 };
 
 export function getRoleNextBestAction(role: string, metrics: WorkflowMetrics): WorkflowAction | null {
@@ -37,24 +37,45 @@ export function getRoleNextBestAction(role: string, metrics: WorkflowMetrics): W
       subtitle: 'Убедитесь, что новые обращения обработаны',
       cta: 'Открыть техслужбу',
     },
-    concierge: {
-      tab: metrics.pendingP > 0 ? 'passes' : 'visitlog',
-      title: conciergeRole.queueTitle || 'Следующий шаг: провести доступ',
-      subtitle: conciergeRole.queueSubtitle || 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',
-      cta: 'Открыть операции',
-    },
-    security: {
-      tab: metrics.pendingP > 0 ? 'guardpost' : 'visitlog',
-      title: securityRole.queueTitle || 'Следующий шаг: подтвердить доступ',
-      subtitle: securityRole.queueSubtitle || 'Подтвердите заявку, отсканируйте QR-код или отметьте прибытие посетителя',
-      cta: 'Открыть пост',
-    },
-    admin: {
-      tab: metrics.pendingP > 0 ? 'requests' : 'stats',
-      title: 'Следующий шаг: завершить контроль',
-      subtitle: 'Проверьте заявки и ключевые метрики',
-      cta: 'Открыть контроль',
-    },
+    concierge: metrics.pendingP > 0
+      ? {
+          tab: 'passes',
+          title: conciergeRole.queueTitle || 'Следующий шаг: провести доступ',
+          subtitle: conciergeRole.queueSubtitle || 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',
+          cta: 'Открыть операции',
+        }
+      : {
+          tab: 'visitlog',
+          title: 'Следующий шаг: проверить журнал',
+          subtitle: 'Посмотрите последние визиты и решения по доступу.',
+          cta: 'Открыть журнал',
+        },
+    security: metrics.pendingP > 0
+      ? {
+          tab: 'guardpost',
+          title: securityRole.queueTitle || 'Следующий шаг: подтвердить доступ',
+          subtitle: securityRole.queueSubtitle || 'Подтвердите заявку, отсканируйте QR-код или отметьте прибытие посетителя',
+          cta: 'Открыть пост',
+        }
+      : {
+          tab: 'visitlog',
+          title: 'Следующий шаг: проверить журнал доступа',
+          subtitle: 'Посмотрите последние допуски, отказы и QR-проверки.',
+          cta: 'Открыть журнал',
+        },
+    admin: metrics.pendingP > 0
+      ? {
+          tab: 'requests',
+          title: 'Следующий шаг: завершить контроль',
+          subtitle: 'Проверьте заявки и ключевые метрики',
+          cta: 'Открыть контроль',
+        }
+      : {
+          tab: 'stats',
+          title: 'Следующий шаг: проверить аналитику',
+          subtitle: 'Сверьте сводку по ролям, SLA и новым статусам.',
+          cta: 'Открыть аналитику',
+        },
   };
 
   return byRole[role] || null;

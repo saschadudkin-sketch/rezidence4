@@ -12,6 +12,7 @@ export interface Car {
   brand?: string;
   isMain?: boolean;
   note?: string;
+  addedAt?: Date | string;
 }
 
 export interface GarageState {

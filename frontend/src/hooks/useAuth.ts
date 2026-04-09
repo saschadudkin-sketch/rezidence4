@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { requestNotifPerm } from '../utils';
 import { logger } from '../services/logger';
 import { toast } from '../ui/Toasts';
@@ -32,6 +32,7 @@ export function useAuth() {
   const [phase, setPhase] = useState(PHASE.LOADING);
   const [user,  setUser]  = useState(null);
   const [authNotice, setAuthNotice] = useState('');
+  const notifTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (isLiveMode()) {
@@ -71,6 +72,12 @@ export function useAuth() {
     const reasonLabel = detail?.reason === 'refresh_failed' ? 'время входа истекло' : 'сессия завершена';
     setAuthNotice(`Сессия истекла (${reasonLabel}). Войдите снова — мы восстановим ваш последний экран.`);
   }), []);
+  useEffect(() => () => {
+    if (notifTimerRef.current !== null) {
+      window.clearTimeout(notifTimerRef.current);
+      notifTimerRef.current = null;
+    }
+  }, []);
 
   const login = useCallback((u) => {
     if (!u || !u.uid) {
@@ -81,10 +88,17 @@ export function useAuth() {
     setUser(u);
     setPhase(PHASE.DASHBOARD);
     setAuthNotice('');
+    toast.clearAll?.();
     toast('Добро пожаловать, ' + u.name + '!', 'success');
     // FIX [I-19]: defer push notification permission request by 30s after login
     // so the browser dialog appears after the user has seen value, not on first render.
-    setTimeout(requestNotifPerm, 30_000);
+    if (notifTimerRef.current !== null) {
+      window.clearTimeout(notifTimerRef.current);
+    }
+    notifTimerRef.current = window.setTimeout(() => {
+      notifTimerRef.current = null;
+      requestNotifPerm();
+    }, 30_000);
     logger.setContext({ uid: u.uid, role: u.role, name: u.name });
     logger.action('login', { role: u.role });
   }, []);
@@ -92,6 +106,11 @@ export function useAuth() {
   const logout = useCallback(() => {
     logger.action('logout');
     logger.clearContext();
+    clearAppStorage();
+    if (notifTimerRef.current !== null) {
+      window.clearTimeout(notifTimerRef.current);
+      notifTimerRef.current = null;
+    }
     setUser(null);
     setPhase(PHASE.LOGIN);
     setAuthNotice('');
@@ -99,10 +118,6 @@ export function useAuth() {
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
       services.auth.logout().catch(() => {});
-    } else {
-      // SECURITY: очищаем PII из localStorage при выходе в demo-режиме
-      // SEC-02: охватываем все префиксы: rz: / rz- (UI keys) + residenze_v5 (persistence slices)
-      clearAppStorage();
     }
   }, []);
 

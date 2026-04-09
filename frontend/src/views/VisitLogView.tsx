@@ -17,6 +17,31 @@ import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { MS_PER_DAY } from '../constants/limits';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import type { AppRequest, PassDuration, RequestStatus, RequestType } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
+
+type VisitLogRow = {
+  id: string;
+  type: RequestType;
+  status: RequestStatus;
+  createdAt: string | Date;
+  category?: string;
+  createdByUid?: string | null;
+  createdByName?: string;
+  createdByApt?: string;
+  passDuration?: PassDuration | null;
+  visitorName?: string | null;
+  carPlate?: string | null;
+  arrivedAt?: string | Date | null;
+  comment?: string;
+  result?: 'allowed' | 'denied' | string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  requestId?: string | null;
+  timestamp?: string | Date;
+  requestSnapshot?: Partial<AppRequest>;
+  reason?: string;
+};
 
 function fmtDateFull(d) {
   const dt = d instanceof Date ? d : new Date(d);
@@ -44,7 +69,7 @@ function fmtDuration(from, to) {
 }
 
 function groupByDate(items) {
-  const map = {};
+  const map: Record<string, VisitLogRow[]> = {};
   for (const item of items) {
     const key = fmtDateFull(item.arrivedAt || item.createdAt);
     if (!map[key]) map[key] = [];
@@ -56,7 +81,7 @@ function groupByDate(items) {
 // FIX [AUDIT-3]: memo — VisitCard рендерится для каждой записи журнала.
 // Без memo при изменении фильтра period/decision/query все карточки перерисовывались
 // даже если конкретная запись не изменилась.
-const VisitCard = memo(function VisitCard({ r }) {
+const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
   const duration = fmtDuration(r.createdAt, r.arrivedAt);
 
   return (
@@ -99,10 +124,14 @@ const VisitCard = memo(function VisitCard({ r }) {
   );
 });
 
-export default function VisitLogView({ user }) {
+export default function VisitLogView({ user }: { user: AppUser }) {
   const requests = useRequests();
   // A-10: useQuery replaces manual useState/useEffect/useCallback loading pattern
-  const { data: visitEvents = [], isLoading, isError } = useVisitLogs();
+  const { data: visitEvents = [], isLoading, isError } = useVisitLogs() as {
+    data?: VisitLogRow[];
+    isLoading: boolean;
+    isError: boolean;
+  };
   const clearLogs = useClearVisitLogs();
   const [query, setQuery] = useState('');
   const [period, setPeriod] = useState('all');
@@ -128,26 +157,28 @@ export default function VisitLogView({ user }) {
   const allVisits = useMemo(() => {
     // FIX [PERF]: заменили [user] на [user.role, user.uid] — объект user стабилен как prop,
     // но явные примитивные deps помогают линтеру и документируют реальные зависимости
-    let arr = (visitEvents || []).map((event) => {
-      const baseReq = event.requestSnapshot || requestsById.get(event.requestId) || {};
-      const timestamp = event.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
+    let arr: VisitLogRow[] = (visitEvents || []).map((event) => {
+      const visitEvent = event as VisitLogRow;
+      const baseReq = visitEvent.requestSnapshot || (visitEvent.requestId ? requestsById.get(visitEvent.requestId) : undefined) || {};
+      const timestamp = visitEvent.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
       return {
-        id: event.id || event.requestId || `${timestamp}_${event.result}`,
-        requestId: event.requestId || baseReq.id || null,
-        category: event.category || baseReq.category || 'guest',
-        visitorName: event.visitorName || baseReq.visitorName || null,
-        carPlate: event.carPlate || baseReq.carPlate || null,
-        createdByUid: event.createdByUid || baseReq.createdByUid || null,
-        createdByName: event.createdByName || baseReq.createdByName || '—',
-        createdByApt: event.createdByApt || baseReq.createdByApt || '—',
-        passDuration: event.passDuration || baseReq.passDuration || null,
+        id: visitEvent.id || visitEvent.requestId || `${timestamp}_${visitEvent.result}`,
+        requestId: visitEvent.requestId || baseReq.id || null,
+        type: baseReq.type || 'pass',
+        category: visitEvent.category || baseReq.category || 'guest',
+        visitorName: visitEvent.visitorName || baseReq.visitorName || null,
+        carPlate: visitEvent.carPlate || baseReq.carPlate || null,
+        createdByUid: visitEvent.createdByUid || baseReq.createdByUid || null,
+        createdByName: visitEvent.createdByName || baseReq.createdByName || '—',
+        createdByApt: visitEvent.createdByApt || baseReq.createdByApt || '—',
+        passDuration: visitEvent.passDuration || baseReq.passDuration || null,
         createdAt: baseReq.createdAt || timestamp,
         arrivedAt: timestamp,
-        status: event.result === 'denied' ? 'rejected' : 'arrived',
-        result: event.result || null,
-        actorName: event.actorName || null,
-        actorRole: event.actorRole || null,
-        comment: event.reason ? `Проверка QR: ${getValidationReasonLabel(event.reason)}` : '',
+        status: visitEvent.result === 'denied' ? 'rejected' : 'arrived',
+        result: visitEvent.result || null,
+        actorName: visitEvent.actorName || null,
+        actorRole: visitEvent.actorRole || null,
+        comment: visitEvent.reason ? `Проверка QR: ${getValidationReasonLabel(visitEvent.reason)}` : '',
       };
     });
     if (isResident(user.role)) arr = arr.filter(r => r.createdByUid === user.uid);

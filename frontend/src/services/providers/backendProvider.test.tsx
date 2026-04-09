@@ -50,7 +50,7 @@ describe('authProvider', () => {
   test('sendOtp → POST /api/auth/send-otp', async () => {
     apiClient.post.mockResolvedValueOnce({});
     await authProvider.sendOtp('+79001234567');
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/send-otp', { phone: '+79001234567' });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/send-otp', { phone: '+79001234567' }, { retryable: false });
   });
 
   test('verifyOtp → POST /api/auth/verify-otp, возвращает user', async () => {
@@ -59,7 +59,7 @@ describe('authProvider', () => {
     const result = await authProvider.verifyOtp('+79001234567', '123456');
     expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/verify-otp', {
       phone: '+79001234567', code: '123456',
-    });
+    }, { retryable: false });
     expect(result).toEqual(user);
   });
 
@@ -74,7 +74,7 @@ describe('authProvider', () => {
   test('logout → POST /api/auth/logout', async () => {
     apiClient.post.mockResolvedValueOnce({});
     await authProvider.logout();
-    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout');
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/auth/logout', undefined, { retryable: false });
   });
 });
 
@@ -185,7 +185,10 @@ describe('requestsProvider', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/requests',
       req,
-      expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }) }),
+      expect.objectContaining({
+        retryable: false,
+        headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }),
+      }),
     );
     expect(result.id).toBe('server-uuid');
   });
@@ -336,7 +339,10 @@ describe('createBackendProvider', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/v1/requests',
       { type: 'pass' },
-      expect.objectContaining({ headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }) }),
+      expect.objectContaining({
+        retryable: false,
+        headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }),
+      }),
     );
   });
 

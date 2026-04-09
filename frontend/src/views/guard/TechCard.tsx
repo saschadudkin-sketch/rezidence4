@@ -11,9 +11,14 @@ import { toast } from '../../ui/Toasts';
 import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
+import type { AppRequest } from '../../store/slices/requestsSlice';
 
 // FIX [PERF-5]: memo — аналогично TempPassCard
-const TechCard = memo(function TechCard({ req, userName, residentPhone }) {
+const TechCard = memo(function TechCard({ req, userName, residentPhone }: {
+  req: AppRequest;
+  userName: string;
+  residentPhone?: string | null;
+}) {
   const { acceptRequest } = useActions();
   const avData = useAvatar(req.createdByUid);
   const [loading, setLoading] = useState(null);

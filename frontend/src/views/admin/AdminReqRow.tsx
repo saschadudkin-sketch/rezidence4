@@ -47,7 +47,7 @@ export default function AdminReqRow({ r, adminUid }) {
 
   return (
     <div className="u-mb8">
-      <ReqCard req={{ ...r, status }} userRole="admin" userId={adminUid} />
+      <ReqCard req={{ ...r, status }} userRole="admin" userName="Администратор" userId={adminUid} />
       <div className="u-flex u-gap6 admin-req-actions">
         <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
           <AppIcon name={editing ? 'close' : 'edit'} className="u-inline-icon" /> Ред.

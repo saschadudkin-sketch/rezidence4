@@ -38,7 +38,15 @@ export default defineConfig(({ mode }) => {
   if (isProdBuild && !viteEnv.VITE_RUNTIME_MODE) {
     throw new Error(
       'VITE_RUNTIME_MODE is required for production build.\n' +
-      'Set VITE_RUNTIME_MODE=live to prevent demo credentials from shipping in the bundle.\n' +
+      'Set VITE_RUNTIME_MODE=live for the production user journey.\n' +
+      'Use VITE_RUNTIME_MODE=demo only together with VITE_ENABLE_DEMO=true on internal sandbox builds.\n' +
+      'Run `npm run verify:env` for a preflight checklist and remediation file.'
+    );
+  }
+  if (isProdBuild && viteEnv.VITE_RUNTIME_MODE?.trim().toLowerCase() === 'demo' && viteEnv.VITE_ENABLE_DEMO?.trim().toLowerCase() !== 'true') {
+    throw new Error(
+      'Demo mode is disabled for production builds by default.\n' +
+      'Use VITE_RUNTIME_MODE=live for production or set VITE_ENABLE_DEMO=true for an internal sandbox build.\n' +
       'Run `npm run verify:env` for a preflight checklist and remediation file.'
     );
   }
@@ -121,16 +129,21 @@ export default defineConfig(({ mode }) => {
           // vendor-query  → tanstack query + virtual (loaded with Dashboard chunk)
           // vendor-sentry → error monitoring (async, doesn't block first paint)
           // vendor-qr     → qrcode library (used only in QR modal, smallest chunk)
-          manualChunks(id) {
-            if (!id.includes('node_modules')) return;
-            if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react-core';
-            if (id.includes('/react-router-dom/')) return 'vendor-router';
-            if (id.includes('@tanstack/react-query')) return 'vendor-query-core';
-            if (id.includes('@tanstack/react-virtual')) return 'vendor-query-virtual';
-            if (id.includes('@sentry/react')) return 'vendor-sentry';
-            if (id.includes('/qrcode/')) return 'vendor-qr';
-            return 'vendor-misc';
-          },
+            manualChunks(id) {
+              if (!id.includes('node_modules')) return;
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('/react-router-dom/') ||
+                id.includes('/react-router/') ||
+                id.includes('/scheduler/')
+              ) return 'vendor-framework';
+              if (id.includes('@tanstack/react-query')) return 'vendor-query-core';
+              if (id.includes('@tanstack/react-virtual')) return 'vendor-query-virtual';
+              if (id.includes('@sentry/react')) return 'vendor-sentry';
+              if (id.includes('/qrcode/')) return 'vendor-qr';
+              return 'vendor-misc';
+            },
         },
       },
     },

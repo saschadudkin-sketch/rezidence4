@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
 import { MEDIA_QUERIES } from '../../constants/breakpoints';
@@ -132,6 +132,8 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: Q
 const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }: NavigationShellProps) {
   const isMobile = useIsMobile();
   const [showMore, setShowMore] = useState(false);
+  const topNavRef = useRef<HTMLElement | null>(null);
+  const mobileNavRef = useRef<HTMLElement | null>(null);
 
   const navBtnClass = (key: string) => navClassMap[key] || 'tn-btn';
   const navBtnClassMn = (key: string) => navClassMap[`${key}_mn`] || 'mn-btn';
@@ -141,6 +143,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
   const topNavItems = isMobile ? topNav : nav;
   const mobileNavItems = isMobile ? bottomNav : orderedMobileNav;
+  const hasMobileTopTabs = isMobile && topNav.length > 0 && topNav.length !== nav.length;
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;
@@ -170,9 +173,22 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof topNavRef.current?.scrollTo === 'function') {
+      topNavRef.current.scrollTo({ left: 0, behavior: 'auto' });
+    }
+    if (typeof mobileNavRef.current?.scrollTo === 'function') {
+      mobileNavRef.current.scrollTo({ left: 0, behavior: 'auto' });
+    }
+  }, [userRole]);
+
   return (
     <>
-      <nav className="top-nav" aria-label="Основная навигация">
+      <nav
+        className={`top-nav${hasMobileTopTabs ? ' top-nav--mobile-top' : ''}`}
+        aria-label="Основная навигация"
+        ref={topNavRef}
+      >
         {topNavItems.map(([key, icon, label, badge]) => (
           <button
             key={key}
@@ -187,7 +203,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
         ))}
       </nav>
 
-      <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || undefined}>
+      <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || undefined} ref={mobileNavRef}>
         {visibleNav.map(([key, icon, label, badge]) => (
           <button
             key={key}

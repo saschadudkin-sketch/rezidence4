@@ -55,6 +55,7 @@
   .type-grid{
     gap:var(--space-xs);
     margin-bottom:16px;
+    justify-content:flex-start;
   }
   .type-card{
     flex-basis:calc((100% - (2 * var(--space-xs))) / 3);

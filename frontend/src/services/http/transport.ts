@@ -25,7 +25,12 @@ export async function fetchWithTimeout(url: string, options: RequestInit & { sig
   try {
     return await fetch(url, { ...options, signal });
   } catch (err) {
-    if (err.name === 'AbortError') {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      if (options.signal?.aborted) {
+        const aborted = new Error('Request aborted');
+        (aborted as Error & { code?: string }).code = 'ABORTED';
+        throw aborted;
+      }
       throw new Error('Сервер не отвечает. Проверьте соединение.');
     }
     throw new Error('Нет соединения с сервером. Проверьте интернет.');

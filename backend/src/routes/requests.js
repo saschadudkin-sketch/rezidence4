@@ -7,6 +7,7 @@
 'use strict';
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const requireAuth = require('../middleware/auth');
 const idempotency = require('../middleware/idempotency');
 const { broadcastRequestUpdate } = require('../sse');
@@ -18,7 +19,7 @@ const { RequestsService, ServiceError } = require('../services/RequestsService')
 const createRequestLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 минута
   max: 20,              // не более 20 заявок в минуту с одного аккаунта
-  keyGenerator: (req) => req.user?.uid || req.ip,
+  keyGenerator: (req) => req.user?.uid || ipKeyGenerator(req),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'TOO_MANY_REQUESTS', message: 'Слишком много заявок. Попробуйте через минуту.' },
@@ -58,8 +59,8 @@ router.get('/:id', validateId, async (req, res, next) => {
 // ─── GET /api/requests ────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
-    const page  = parseInt(req.query.page)  || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const page  = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
     res.json(await RequestsService.list(req.user, { page, limit }));
   } catch (err) { handleServiceError(err, res, next); }
 });

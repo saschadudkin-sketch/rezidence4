@@ -45,6 +45,12 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 }
 .demo-welcome-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}
 .demo-welcome-text{flex:1}
+.demo-welcome-copy{display:block}
+.demo-welcome-copy-short{display:none}
+.demo-welcome-copy-long{display:block}
+.demo-welcome-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.demo-welcome-reset{min-height:36px;white-space:nowrap}
+.demo-welcome-reset-short,.demo-private-toggle-short{display:none}
 .demo-private-toggle{
   display:inline-flex;align-items:center;gap:6px;
   font-size:var(--fs-2xs);color:var(--t2);white-space:nowrap;
@@ -57,6 +63,112 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
   padding:0;
 }
 .demo-welcome-close:hover{opacity:1}
+@media (--bp-sm-down){
+  .demo-welcome-banner{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+    position:relative;
+    padding:10px 12px 12px;
+    padding-right:44px;
+  }
+  .demo-welcome-icon{display:none}
+  .demo-welcome-text{
+    min-width:0;
+    font-size:12px;
+    line-height:1.45;
+  }
+  .demo-welcome-copy-short{display:block}
+  .demo-welcome-copy-long{display:none}
+  .demo-welcome-copy{
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .demo-welcome-actions{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+    width:100%;
+  }
+  .demo-private-toggle{
+    min-height:34px;
+    padding:7px 10px;
+    border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+    border-radius:10px;
+    background:color-mix(in srgb, var(--s2) 92%, transparent);
+    white-space:nowrap;
+    min-width:0;
+  }
+  .demo-welcome-reset{
+    min-height:34px;
+    padding-inline:12px;
+    width:auto;
+  }
+  .demo-private-toggle-long,.demo-welcome-reset-long{display:none}
+  .demo-private-toggle-short,.demo-welcome-reset-short{display:inline}
+  .demo-welcome-close{
+    position:absolute;
+    top:10px;
+    right:12px;
+    width:28px;
+    height:28px;
+    border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+    background:color-mix(in srgb, var(--s2) 86%, transparent);
+  }
+}
+@media (max-width: 640px){
+  .demo-welcome-banner{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:8px!important;
+    align-items:stretch!important;
+    position:relative;
+    padding:10px 12px 12px!important;
+    padding-right:44px!important;
+  }
+  .demo-welcome-icon{display:none!important}
+  .demo-welcome-text{
+    min-width:0;
+    font-size:12px!important;
+    line-height:1.45!important;
+    flex:none!important;
+  }
+  .demo-welcome-actions{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:8px!important;
+    width:100%!important;
+  }
+  .demo-welcome-copy-short{display:block!important}
+  .demo-welcome-copy-long{display:none!important}
+  .demo-private-toggle{
+    min-height:34px!important;
+    padding:7px 10px!important;
+    border:1px solid color-mix(in srgb, var(--b2) 82%, transparent)!important;
+    border-radius:10px!important;
+    background:color-mix(in srgb, var(--s2) 92%, transparent)!important;
+    white-space:nowrap!important;
+    min-width:0!important;
+  }
+  .demo-welcome-reset{
+    min-height:34px!important;
+    padding-inline:12px!important;
+    white-space:nowrap!important;
+    width:auto!important;
+  }
+  .demo-private-toggle-long,.demo-welcome-reset-long{display:none!important}
+  .demo-private-toggle-short,.demo-welcome-reset-short{display:inline!important}
+  .demo-welcome-close{
+    position:absolute!important;
+    top:10px!important;
+    right:12px!important;
+    width:28px!important;
+    height:28px!important;
+    border:1px solid color-mix(in srgb, var(--b2) 82%, transparent)!important;
+    background:color-mix(in srgb, var(--s2) 86%, transparent)!important;
+  }
+}
 /* P-06: Role-based onboarding hint — dismissible, shown once per role */
 .onboarding-hint{
   display:flex;align-items:center;gap:8px;
@@ -116,6 +228,14 @@ html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:va
 .offline-banner.is-visible{transform:translateY(0);pointer-events:auto}
 .app-content-offset{padding-top:0;transition:padding-top 220ms ease}
 .app-content-offset.has-offline-banner{padding-top:36px}
+@media (--bp-sm-down){
+  .offline-banner{
+    padding:8px 12px;
+    font-size:12px;
+    line-height:1.35;
+  }
+  .app-content-offset.has-offline-banner{padding-top:44px}
+}
 .api-config-error{color:var(--danger);margin-top:8px}
 /* FIX [UI-2]: CSS class вместо inline style visibility для page-sub */
 .page-sub--hidden{visibility:hidden}

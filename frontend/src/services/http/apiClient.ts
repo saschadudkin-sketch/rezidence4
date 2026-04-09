@@ -22,13 +22,29 @@ const authSession = createAuthSession({
   makeRequestId,
 });
 
-interface ApiOptions { maxRetries?: number; headers?: Record<string, string>; signal?: AbortSignal; }
+interface ApiOptions {
+  maxRetries?: number;
+  retryable?: boolean;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+}
 interface ApiError extends Error { code?: string; kind?: string; status?: number; forbidden?: boolean; }
 
-async function api(method: string, path: string, body?: unknown, { maxRetries = 2, headers: extraHeaders = {}, signal }: ApiOptions = {}) {
+function shouldRetryRequest(method: string, retryable?: boolean) {
+  if (typeof retryable === 'boolean') return retryable;
+  return method === 'GET';
+}
+
+async function api(
+  method: string,
+  path: string,
+  body?: unknown,
+  { maxRetries = 2, retryable, headers: extraHeaders = {}, signal }: ApiOptions = {},
+) {
   let lastError;
   let nextRetryDelayMs = null;
-  const retries = Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 2;
+  const retriesEnabled = shouldRetryRequest(method, retryable);
+  const retries = retriesEnabled && Number.isInteger(maxRetries) && maxRetries >= 0 ? maxRetries : 0;
   const requestId = makeRequestId();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -88,7 +104,7 @@ async function api(method: string, path: string, body?: unknown, { maxRetries = 
         error.status = res.status;
         error.kind = classifyHttpError(res.status, error.message);
 
-        if (NO_RETRY_STATUSES.has(res.status)) throw error;
+        if (!retriesEnabled || NO_RETRY_STATUSES.has(res.status)) throw error;
 
         nextRetryDelayMs = getRetryAfterDelayMs(res.headers);
         lastError = error;
@@ -100,7 +116,8 @@ async function api(method: string, path: string, body?: unknown, { maxRetries = 
     } catch (err) {
       const e = err as ApiError;
       e.kind = e.kind || classifyHttpError(e.status, e.message);
-      if (e.status && NO_RETRY_STATUSES.has(e.status)) throw e;
+      if (!retriesEnabled || (e.status && NO_RETRY_STATUSES.has(e.status))) throw e;
+      if (e.code === 'ABORTED') throw e;
       // T-05: error code check — robust against message text changes/translations
       if (e.code === 'SESSION_EXPIRED') throw e;
       nextRetryDelayMs = null;

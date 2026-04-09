@@ -192,8 +192,14 @@
 .pass-filter-pills{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center}
 
 /* ── Security filters ── */
-.sec-filters{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;align-items:center}
-.sec-filters-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
+.sec-filters{
+  display:flex;flex-direction:column;gap:10px;margin-bottom:16px;align-items:stretch;
+  padding:12px;
+  border:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
+  border-radius:16px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 24%, transparent));
+}
+.sec-filters-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-start}
 /* FIX [I-6]: scroll modifier — overflow-x:auto so filter pills don't wrap on narrow screens */
 .sec-filters-row--scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 .sec-filters-row--scroll::-webkit-scrollbar{display:none}

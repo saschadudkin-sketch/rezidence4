@@ -56,7 +56,13 @@ describe('serviceContainer smoke', () => {
 
   test('resolves default mode through runtimeMode -> createServices integration', async () => {
     vi.doUnmock('./createServices');
-    vi.doMock('../../config/runtimeMode', () => ({ MODE: 'live', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
+    vi.doMock('../../config/runtimeMode', () => ({
+      MODE: 'live',
+      LIVE_MODE: 'live',
+      DEMO_MODE: 'demo',
+      DEMO_ENABLED: false,
+      normalizeMode: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''),
+    }));
 
     const { services: liveServices } = await import('./serviceContainer');
 
@@ -66,7 +72,13 @@ describe('serviceContainer smoke', () => {
 
   test('resolves demo mode through runtimeMode -> createServices integration', async () => {
     vi.doUnmock('./createServices');
-    vi.doMock('../../config/runtimeMode', () => ({ MODE: 'demo', LIVE_MODE: 'live', DEMO_MODE: 'demo' }));
+    vi.doMock('../../config/runtimeMode', () => ({
+      MODE: 'demo',
+      LIVE_MODE: 'live',
+      DEMO_MODE: 'demo',
+      DEMO_ENABLED: true,
+      normalizeMode: (value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''),
+    }));
 
     const { services: demoServices } = await import('./serviceContainer');
 

@@ -14,6 +14,7 @@ import {
 } from './boundedContexts/contexts';
 import { useBoundedDomainStates } from './boundedContexts/useDomainStates';
 import { useStoreActions } from './boundedContexts/useStoreActions';
+import type { StoreActions } from './boundedContexts/useStoreActions';
 import { A } from './storeActions';
 import type { AppUser } from './slices/usersSlice';
 import type { Car } from './slices/garageSlice';
@@ -160,6 +161,6 @@ export function useGarage(uid: string): Car[] { return useAppStoreSelector((stat
 export function useAllPerms() { return useAppStoreSelector((state) => state.permsState.perms || EMPTY_ALL_PERMS); }
 export function useAllGarage() { return useAppStoreSelector((state) => state.garageState.garage ?? EMPTY_ALL_GARAGE); }
 
-export function useActions() {
+export function useActions(): StoreActions {
   return useStoreActions();
 }

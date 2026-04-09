@@ -16,11 +16,19 @@ import { sendNotif } from '../../utils';
 import { logVisit } from '../../shared/api/passesApi';
 import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 
 // FIX [PERF-5]: memo — GuardCard рендерится для каждой заявки в списке.
 // Без memo перерендер при любом изменении requests (например, SSE-обновление одной карточки)
 // вызывал полный ре-рендер ВСЕХ видимых GuardCard включая useAvatar/useActions хуки.
-const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPhone, onViewDetails }) {
+const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPhone, onViewDetails }: {
+  req: AppRequest;
+  userName: string;
+  blacklist: BlacklistEntry[];
+  residentPhone?: string | null;
+  onViewDetails?: (reqId: string) => void;
+}) {
   const { approveRequest, rejectRequest, arriveRequest, approveAndArrive } = useActions();
   const avData = useAvatar(req.createdByUid);
   const [loading, setLoading]   = useState(null);

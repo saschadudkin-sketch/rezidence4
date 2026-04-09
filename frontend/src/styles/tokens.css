@@ -7,6 +7,7 @@
 @custom-media --bp-sm-up (min-width: 480px);
 @custom-media --bp-md-down (max-width: 768px);
 @custom-media --bp-lg-down (max-width: 1024px);
+@custom-media --bp-xl-down (max-width: 1280px);
 @custom-media --bp-md-up (min-width: 768px);
 @custom-media --bp-lg-up (min-width: 1024px);
 @custom-media --bp-xl-up (min-width: 1280px);
@@ -36,8 +37,8 @@
 
   --t1: #eee7dc;
   --t2: #c7bdae;
-  --t3: #a29584;
-  --t4: #7a6e5e;
+  --t3: #b2a593;
+  --t4: #908271;
 
   --g1: #b8935a;
   --g2: #c9a96e;
@@ -91,9 +92,9 @@
   --fs-3xs: 10px;
   --fs-2xs: 11px;
   --fs-xs: 12px;
-  --fs-sm: 13px;
+  --fs-sm: 14px;
   --fs-body: 14px;
-  --fs-meta: 12px;
+  --fs-meta: 13px;
   --fs-md: 16px;
   --fs-lg: 18px;
   --fs-xl: 24px;

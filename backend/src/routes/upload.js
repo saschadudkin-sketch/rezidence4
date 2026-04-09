@@ -61,8 +61,35 @@ const ALLOWED_TYPES = new Map([
   ['image/gif',  'gif'],
 ]);
 
+function normalizeUploadBody(body) {
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body);
+  if (body && typeof body === 'object' && body.type === 'Buffer' && Array.isArray(body.data)) {
+    return Buffer.from(body.data);
+  }
+  return null;
+}
+
+function shouldLogSharpFallback(err) {
+  const message = String(err?.message || '').toLowerCase();
+  if (!message) return true;
+  if (message.includes('invalid input')) return false;
+  if (message.includes('unsupported image format')) return false;
+  if (message.includes('corrupt header')) return false;
+  if (message.includes('premature end')) return false;
+  return true;
+}
+
+const rawUploadBody = express.raw({
+  type: () => true,
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = Buffer.from(buf);
+  },
+});
+
 // POST /api/upload/photo — raw binary body
-router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, res, next) => {
+router.post('/photo', rawUploadBody, async (req, res, next) => {
   try {
     if (!uploadDirReady) {
       return res.status(503).json({ error: 'Upload storage is temporarily unavailable' });
@@ -73,6 +100,11 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
       return res.status(429).json({ error: `Upload quota exceeded. Maximum ${MAX_PHOTOS_PER_USER} photos total.` });
     }
 
+    const inputBuffer = normalizeUploadBody(req.body) || normalizeUploadBody(req.rawBody);
+    if (!inputBuffer) {
+      return res.status(400).json({ error: 'Empty or invalid upload body' });
+    }
+
     // FIX [SEC-3]: валидация magic bytes — Content-Type заголовок устанавливает клиент
     // и его можно подделать (например, отправить PHP-скрипт с Content-Type: image/jpeg).
     // fromBuffer читает реальную сигнатуру файла из первых байт буфера.
@@ -80,7 +112,7 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     if (typeof fromBuffer !== 'function') {
       throw new Error('file-type fromBuffer API is unavailable');
     }
-    const detected = await fromBuffer(req.body);
+    const detected = await fromBuffer(inputBuffer);
 
     if (!detected || !ALLOWED_TYPES.has(detected.mime)) {
       return res.status(400).json({
@@ -95,11 +127,11 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
     let outputBuffer;
     let outputExt;
     if (detected.mime === 'image/gif') {
-      outputBuffer = req.body;
+      outputBuffer = inputBuffer;
       outputExt = ALLOWED_TYPES.get(detected.mime);
     } else {
       try {
-        outputBuffer = await sharp(req.body)
+        outputBuffer = await sharp(inputBuffer)
           .resize(MAX_DIMENSION, MAX_DIMENSION, {
             fit: 'inside',        // сохраняем соотношение сторон, не кропаем
             withoutEnlargement: true, // не увеличиваем маленькие изображения
@@ -109,10 +141,16 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
         outputExt = 'webp';
       } catch (sharpErr) {
         // Sharp failed (e.g., corrupted data, native lib issue) — save original
-        logger.warn({ err: sharpErr }, '[upload] sharp resize failed, saving original');
-        outputBuffer = req.body;
+        if (shouldLogSharpFallback(sharpErr)) {
+          logger.warn({ err: sharpErr }, '[upload] sharp resize failed, saving original');
+        }
+        outputBuffer = inputBuffer;
         outputExt = ALLOWED_TYPES.get(detected.mime);
       }
+    }
+
+    if (!Buffer.isBuffer(outputBuffer) || !outputExt) {
+      return res.status(400).json({ error: 'Could not process uploaded image' });
     }
 
     const ext      = outputExt;
@@ -125,7 +163,7 @@ router.post('/photo', express.raw({ type: '*/*', limit: '10mb' }), async (req, r
         ownerUid: req.user.uid,
         filename,
         mimeType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-        byteSize: outputBuffer.length,
+        byteSize: outputBuffer.byteLength,
       });
     } catch (metadataErr) {
       logger.warn({ err: metadataErr, filename }, '[upload] failed to persist upload metadata');

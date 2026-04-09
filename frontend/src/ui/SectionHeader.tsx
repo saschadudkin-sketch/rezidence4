@@ -8,8 +8,17 @@
  *   <SectionHeader title="Жильцы" action={<button>+ Добавить</button>} />
  */
 import { memo } from 'react';
+import type { ReactNode } from 'react';
 
-const SectionHeader = memo(function SectionHeader({ title, subtitle, count, action, className = '' }) {
+type SectionHeaderProps = {
+  title: string;
+  subtitle?: string;
+  count?: number;
+  action?: ReactNode;
+  className?: string;
+};
+
+const SectionHeader = memo(function SectionHeader({ title, subtitle, count, action, className = '' }: SectionHeaderProps) {
   return (
     <div className={'section-header ' + className}>
       <div className="section-header-main">

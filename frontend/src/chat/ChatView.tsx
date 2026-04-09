@@ -16,6 +16,31 @@ import { useChatSearch } from './hooks/useChatSearch';
 import { useChatComposer } from './hooks/useChatComposer';
 import { useChatData } from './hooks/useChatData';
 import { ChatMessageList } from './ChatMessageList';
+import type { ChatMessage } from '../store/slices/chatSlice';
+import type { AppUser, UserRole } from '../store/slices/usersSlice';
+import type { ChatRefMessage } from './hooks/useChatComposer';
+
+type ReadStatus = 'sent' | 'read';
+
+type ChatViewMessage = ChatMessage & {
+  role?: UserRole;
+  photo?: string | null;
+  replyTo?: ChatRefMessage;
+  edited?: boolean;
+  reactions?: Record<string, string[]>;
+};
+
+type SwipeState = {
+  startX?: number;
+  startY?: number;
+  msgId?: string;
+  el?: HTMLDivElement;
+  triggered?: boolean;
+};
+
+interface CheckIconProps {
+  status: ReadStatus | null;
+}
 
 // ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
 
@@ -68,7 +93,7 @@ function linkify(text) {
 // FIX [REACT-4]: CheckIcon вне компонента — не пересоздаётся при каждом рендере ChatView
 // FIX [MEMO]: CheckIcon рендерится для каждого исходящего сообщения.
 // Без memo перерисовывался при любом изменении chatLastSeen или отправке нового сообщения.
-const CheckIcon = memo(function CheckIcon({ status }) {
+const CheckIcon = memo(function CheckIcon({ status }: CheckIconProps) {
   if (!status) return null;
   const cls = status === 'read' ? 'msg-check-read' : 'msg-check-sent';
   if (status === 'sent') {
@@ -100,23 +125,28 @@ const EMOJI_GRID = [
   '🚗','📦','🔧','👷','🚕','📞','📸','🔑','🚪','⏰',
 ];
 
-export function ChatView({ user }) {
+export function ChatView({ user }: { user: AppUser }) {
   const { chat, chatLastSeen } = useChat();
   const { sendMessage, updateMessage, deleteMessage, setAllMessages } = useActions();
   const { users } = useUsers();
   const { text, setText, replyTo, setReplyTo, editingMsg, setEditingMsg, showEmoji, setShowEmoji } = useChatComposer();
   const [photoSending, setPhotoSending] = useState(false);
-  const [lightbox, setLightbox] = useState(null);
-  const [msgMenu, setMsgMenu] = useState(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [msgMenu, setMsgMenu] = useState<string | null>(null);
   // P-05: подтверждение перед удалением сообщения — удаление необратимо
-  const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState(null);
+  const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null);
 
-  const msgsContainerRef = useRef(null);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const fileRef = useRef(null);
-  const swipeRef = useRef({});
-  const longPressRef = useRef(null);
+  const msgsContainerRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const swipeRef = useRef<SwipeState>({});
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatMetaRef = useRef({
+    firstId: chat[0]?.id ?? null,
+    lastId: chat[chat.length - 1]?.id ?? null,
+    length: chat.length,
+  });
 
   const {
     hasMore,
@@ -136,12 +166,12 @@ export function ChatView({ user }) {
     serverSearchError,
     setSearchRetryTick,
     filteredChat,
-  } = useChatSearch(chat, hasMore, services.chat.getMessages);
+  } = useChatSearch(chat as ChatViewMessage[], hasMore, services.chat.getMessages);
   // FIX [BUG-20]: заменяем document.querySelector('[data-msg-id=...]') на ref-Map.
   const msgRefs = useRef(new Map()); // id → DOM-element
 
   // Утилита для скролла к сообщению по id — используется при клике на цитату
-  const scrollToMsg = useCallback((id) => {
+  const scrollToMsg = useCallback((id: string) => {
     const el = msgRefs.current.get(id);
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -163,7 +193,7 @@ export function ChatView({ user }) {
     () => Object.keys(users).filter(uid => uid !== user.uid),
     [users, user.uid],
   );
-  const getReadStatus = useCallback((msg) => {
+  const getReadStatus = useCallback((msg: ChatViewMessage): ReadStatus | null => {
     if (msg.uid !== user.uid) return null;
     const msgTime = new Date(msg.at).getTime();
     if (otherUids.length === 0) return 'sent';
@@ -172,18 +202,50 @@ export function ChatView({ user }) {
 
   // FIX [UX]: скролл только при добавлении новых сообщений, не при редактировании/реакциях.
   // [chat.length] — меняется только при добавлении/удалении сообщений.
+  const focusComposer = useCallback(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chat.length]);
+    const container = msgsContainerRef.current;
+    const nextMeta = {
+      firstId: chat[0]?.id ?? null,
+      lastId: chat[chat.length - 1]?.id ?? null,
+      length: chat.length,
+    };
+
+    if (!container || chat.length === 0) {
+      chatMetaRef.current = nextMeta;
+      return;
+    }
+
+    const prevMeta = chatMetaRef.current;
+    const initialLoad = prevMeta.length === 0 && nextMeta.length > 0;
+    const appendedMessage =
+      nextMeta.length > prevMeta.length &&
+      nextMeta.firstId === prevMeta.firstId &&
+      nextMeta.lastId !== prevMeta.lastId;
+    const distanceFromBottom = container.scrollHeight - container.clientHeight - container.scrollTop;
+    const shouldStickToBottom = initialLoad || distanceFromBottom < 160;
+
+    if ((initialLoad || appendedMessage) && shouldStickToBottom) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+
+    chatMetaRef.current = nextMeta;
+  }, [chat]);
 
   // FIX: Ref для popup — закрытие по клику вне меню
-  const menuPopupRef = useRef(null);
+  const menuPopupRef = useRef<HTMLDivElement | null>(null);
 
   // FIX: Закрытие меню по клику вне popup (вместо backdrop-кнопки которая перехватывала клики)
   useEffect(() => {
     if (!msgMenu) return;
-    function handleOutsideClick(e) {
-      if (menuPopupRef.current && !menuPopupRef.current.contains(e.target)) {
+    function handleOutsideClick(e: MouseEvent | TouchEvent) {
+      const target = e.target;
+      if (menuPopupRef.current && target instanceof Node && !menuPopupRef.current.contains(target)) {
         setMsgMenu(null);
       }
     }
@@ -201,14 +263,14 @@ export function ChatView({ user }) {
 
   // MEMORY-1: cleanup longPressRef on unmount to prevent memory leak
   useEffect(() => {
-    return () => { clearTimeout(longPressRef.current); };
+    return () => { if (longPressRef.current) clearTimeout(longPressRef.current); };
   }, []);
 
   // Реакции
-  const toggleReaction = useCallback(async (msgId, emoji) => {
-    const msg = chat.find(m => m.id === msgId);
+  const toggleReaction = useCallback(async (msgId: string, emoji: string) => {
+    const msg = (chat as ChatViewMessage[]).find(m => m.id === msgId);
     if (!msg) return;
-    const prev = msg.reactions || {};
+    const prev: Record<string, string[]> = msg.reactions || {};
     const uids = prev[emoji] || [];
     const already = uids.includes(user.uid);
     const newUids = already ? uids.filter(u => u !== user.uid) : [...uids, user.uid];
@@ -221,7 +283,7 @@ export function ChatView({ user }) {
   }, [chat, user.uid, updateMessage]);
 
   // Удаление сообщения — API + local
-  const handleDeleteMsg = useCallback(async (id) => {
+  const handleDeleteMsg = useCallback(async (id: string) => {
     try {
       if (isLiveMode()) {
         await services.chat.deleteMessage(id);
@@ -234,7 +296,7 @@ export function ChatView({ user }) {
   }, [deleteMessage]);
 
   // Сохранение редактирования — API + local
-  const saveEdit = useCallback(async (id, newText) => {
+  const saveEdit = useCallback(async (id: string, newText: string) => {
     if (!newText.trim()) return;
     const patch = { text: newText.trim(), edited: true };
     try {
@@ -251,7 +313,7 @@ export function ChatView({ user }) {
   }, [setEditingMsg, updateMessage]);
 
   // Ответ на сообщение
-  const startReply = useCallback((m) => {
+  const startReply = useCallback((m: ChatViewMessage) => {
     setReplyTo({
       id: m.id,
       name: m.uid === user.uid ? 'Вы' : (m.role === 'security' || m.role === 'concierge' ? ROLE_LABELS[m.role] : m.name),
@@ -259,22 +321,22 @@ export function ChatView({ user }) {
       photo: m.photo || null,
     });
     if (inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(focusComposer, 50);
     }
-  }, [setReplyTo, user.uid]);
+  }, [focusComposer, setReplyTo, user.uid]);
 
   // Свайп для ответа
   // FIX [PERF]: useCallback — эти обработчики вызываются на каждом сообщении;
   // без мемоизации создаётся N*4 новых функций при каждом рендере
-  const onTouchStart = useCallback((e, m) => {
+  const onTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>, m: ChatViewMessage) => {
     const t = e.touches[0];
     swipeRef.current = { startX: t.clientX, startY: t.clientY, msgId: m.id, el: e.currentTarget, triggered: false };
   }, []);
-  const onTouchMove = useCallback((e, m) => {
+  const onTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>, m: ChatViewMessage) => {
     const s = swipeRef.current;
     if (!s.startX || s.msgId !== m.id) return;
     const dx = e.touches[0].clientX - s.startX;
-    const dy = Math.abs(e.touches[0].clientY - s.startY);
+    const dy = Math.abs(e.touches[0].clientY - (s.startY || 0));
     if (dy > 20) { swipeRef.current = {}; return; }
     if (dx > 0 && dx < 72) {
       s.el.style.transform = 'translateX(' + Math.min(dx * 0.6, 40) + 'px)';
@@ -293,13 +355,15 @@ export function ChatView({ user }) {
   }, []);
 
   // Long press (мобиль) — открывает меню действий
-  const onLongPressStart = useCallback((e, msgId) => {
+  const onLongPressStart = useCallback((_e: React.TouchEvent<HTMLDivElement>, msgId: string) => {
     longPressRef.current = setTimeout(() => {
       setMsgMenu(p => p === msgId ? null : msgId);
       if (navigator.vibrate) navigator.vibrate(40);
     }, 500);
   }, []);
-  const onLongPressEnd = useCallback(() => clearTimeout(longPressRef.current), []);
+  const onLongPressEnd = useCallback(() => {
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+  }, []);
 
   // Отправка
   const send = useCallback(async () => {
@@ -312,9 +376,9 @@ export function ChatView({ user }) {
         sendLocal: sendMessage,
       });
     } finally {
-      setText(''); setReplyTo(null); inputRef.current?.focus();
+      setText(''); setReplyTo(null); focusComposer();
     }
-  }, [replyTo, sendMessage, setReplyTo, setText, text, user]);
+  }, [focusComposer, replyTo, sendMessage, setReplyTo, setText, text, user]);
 
   // FIX [PERF-15]: onPhotoClick и onFileChange пересоздавались при каждом рендере
   // (любое изменение text/photoSending). Их передают как onChange/onClick в DOM-элементы,
@@ -325,12 +389,12 @@ export function ChatView({ user }) {
   }, []);
 
   // Вставка emoji в текстовое поле
-  const insertEmoji = useCallback((emoji) => {
+  const insertEmoji = useCallback((emoji: string) => {
     setText(prev => prev + emoji);
-    inputRef.current?.focus();
-  }, [setText]);
+    focusComposer();
+  }, [focusComposer, setText]);
 
-  const onFileChange = useCallback(async e => {
+  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files[0];
     if (!f) return;
     e.target.value = '';
@@ -351,7 +415,7 @@ export function ChatView({ user }) {
           const canvas = document.createElement('canvas');
           canvas.width = Math.round(img.width * ratio);
           canvas.height = Math.round(img.height * ratio);
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
           resolve(canvas.toDataURL('image/jpeg', 0.72));
         };
         img.onerror = () => resolve(dataUrl);
@@ -394,7 +458,7 @@ export function ChatView({ user }) {
         onRetryInitialSync={retryInitialSync}
         filteredChatLength={filteredChat.length}
         searchQuery={searchQuery}
-        renderMessages={() => filteredChat.map((m, i) => {
+        renderMessages={() => (filteredChat as ChatViewMessage[]).map((m, i) => {
           const readStatus = getReadStatus(m);
           // FIX [BUG-3]: prevMsg должен брать из filteredChat, а не из chat.
           // При активном поиске filteredChat — подмножество chat, и chat[i-1] указывал
@@ -411,7 +475,7 @@ export function ChatView({ user }) {
                 className={'msg-row ' + (m.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '') + ' msg-row-rel'}
                 onTouchStart={e => { onTouchStart(e, m); onLongPressStart(e, m.id); }}
                 onTouchMove={e => { onTouchMove(e, m); onLongPressEnd(); }}
-                onTouchEnd={e => { onTouchEnd(e); onLongPressEnd(); }}
+                onTouchEnd={() => { onTouchEnd(); onLongPressEnd(); }}
                 onDoubleClick={() => startReply(m)}
               >
                 {msgMenu === m.id && (<>

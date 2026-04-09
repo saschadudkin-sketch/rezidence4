@@ -27,3 +27,20 @@ yarn-error.log*
 e2e/**/*.png
 e2e/**/visual-states.spec.js-snapshots/
 playwright-report/
+.playwright-cli/
+frontend/.playwright-cli/
+frontend/.vite*
+frontend/vitest*.log
+frontend/.codex-eslint.log
+artifacts/
+
+# Claude Code internals
+.claude/
+
+# Dev/test artifacts
+output/
+frontend/output/
+test-results/
+pw-web*.log
+frontend/dev-server.log
+frontend/lint-current.log

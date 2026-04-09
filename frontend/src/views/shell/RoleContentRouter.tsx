@@ -16,6 +16,7 @@ import { ReqSkeleton } from '../../requests/ReqCard';
 import ErrorBoundary from '../../ui/ErrorBoundary';
 import ViewStateAdapter from '../../ui/ViewStateAdapter';
 import { useNavigationContext } from './NavigationContext';
+import type { AppUser } from '../../store/slices/usersSlice';
 
 const ResidentView  = lazy(() => import('../ResidentView'));
 const ConciergeView = lazy(() => import('../SecurityConciergeViews').then(m => ({ default: m.ConciergeView })));
@@ -30,7 +31,7 @@ const fallback = <ReqSkeleton count={3} />;
  * the appropriate role-specific view. Access control is enforced here:
  * forbidden tabs redirect to the role's default first tab.
  */
-function TabRoute({ user }) {
+function TabRoute({ user }: { user: AppUser }) {
   const { tab } = useParams();
   const { highlightReqId, setHighlightReqId, setActiveTab } = useNavigationContext();
   const defaultTab = getTabsForRole(user.role)[0] || 'passes';
@@ -107,7 +108,7 @@ function TabRoute({ user }) {
  * Only `user` is needed as a prop — tab and navigation callbacks come from
  * URL params (useParams) and NavigationContext respectively.
  */
-const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = false }) {
+const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = false }: { user: AppUser; isLoading?: boolean }) {
   const defaultTab = getTabsForRole(user.role)[0] || 'passes';
 
   // P-02: while SSE data is loading, show skeleton cards inside the shell

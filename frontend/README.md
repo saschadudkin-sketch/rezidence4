@@ -1,7 +1,7 @@
 # Резиденции Замоскворечья
 
 PWA-система управления доступом для жилого комплекса. React 18 + nginx + Docker.  
-Два режима: **demo** (без сервера, localStorage) и **live** (Node.js + PostgreSQL backend).
+Основной режим: **live** (Node.js + PostgreSQL backend). **demo** сохранён только как internal sandbox для изменений, QA и тестов.
 
 ## Требования
 
@@ -15,10 +15,16 @@ npm install
 npm start
 ```
 
-Приложение запускается в demo-режиме. Для live-режима создайте `.env.local`:
+По умолчанию production user journey работает только в `live`. Для локальной работы с backend создайте `.env.local`:
 ```env
 VITE_RUNTIME_MODE=live
 VITE_API_URL=http://localhost:3001
+```
+
+Для internal sandbox включите demo явно:
+```env
+VITE_RUNTIME_MODE=demo
+VITE_ENABLE_DEMO=true
 ```
 
 Для Docker production-build используются те же переменные (без legacy `REACT_APP_*`):
@@ -60,8 +66,8 @@ GitHub Actions (`CI` workflow) запускается на каждый push в 
 
 | Путь | Назначение |
 |---|---|
-| `src/config/runtimeMode.js` | Определение режима (demo/live) |
-| `src/services/providers/` | Провайдеры сервисов: demo и backend |
+| `src/config/runtimeMode.js` | Определение режима (live/internal demo sandbox) |
+| `src/services/providers/` | Провайдеры сервисов: backend и internal demo |
 | `src/domain/` | Бизнес-логика: права, статусы, валидация |
 | `src/store/` | Redux-подобный стор (Context + useReducer) |
 | `src/hooks/useAuth.js` | Аутентификация, восстановление сессии |

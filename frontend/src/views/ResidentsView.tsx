@@ -8,13 +8,17 @@ import GarageView from './GarageView';
 import SectionHeader from '../ui/SectionHeader';
 import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { Car } from '../store/slices/garageSlice';
 
 /**
  * ResidentsView — справочник жильцов для охраны и консьержа.
  * Показывает: апартамент, жильцы, их машины, парковочные места,
  * постоянные посетители и рабочие (из perms).
  */
-export default function ResidentsView({ user }) {
+type ResidentPerm = { id?: string; name: string; phone?: string; carPlate?: string };
+
+export default function ResidentsView({ user }: { user: AppUser }) {
   const { users }    = useUsers();
   const garage = useAllGarage();
   const allPerms = useAllPerms();
@@ -26,7 +30,7 @@ export default function ResidentsView({ user }) {
   // Группируем жильцов по апартаментам
   const aptGroups = useMemo(() => {
     const residents = Object.values(users).filter(u => isResident(u.role) && u.apartment && u.apartment !== '—');
-    const byApt = {};
+    const byApt: Record<string, AppUser[]> = {};
     residents.forEach(u => {
       if (!byApt[u.apartment]) byApt[u.apartment] = [];
       byApt[u.apartment].push(u);
@@ -40,9 +44,15 @@ export default function ResidentsView({ user }) {
 
   // FIX [PERF]: getCars мемоизирован через useCallback — не пересоздаётся при ре-рендере
   // garage уже мемоизирован в AppStore, поэтому deps стабилен
-  const getCars = useCallback((uid) => (garage && garage[uid]) || [], [garage]);
+  const getCars = useCallback((uid: string): Car[] => (garage && garage[uid]) || [], [garage]);
   // Постоянные посетители и рабочие жильца
-  const getPermsForUser = useCallback((uid) => allPerms[uid] || { visitors: [], workers: [] }, [allPerms]);
+  const getPermsForUser = useCallback((uid: string): { visitors: ResidentPerm[]; workers: ResidentPerm[] } => {
+    const value = allPerms[uid];
+    if (value && typeof value === 'object' && 'visitors' in value && 'workers' in value) {
+      return value as { visitors: ResidentPerm[]; workers: ResidentPerm[] };
+    }
+    return { visitors: [], workers: [] };
+  }, [allPerms]);
 
   // Все данные плоским списком для поиска
   const filtered = useMemo(() => {
@@ -95,7 +105,7 @@ export default function ResidentsView({ user }) {
       )}
 
       <div className="apt-list">
-        {filtered.map(([apt, residents]) => {
+      {filtered.map(([apt, residents]) => {
           const isOpen = expandedApt === apt;
           // Все машины апартамента
           const allCars = residents.flatMap(u => getCars(u.uid));

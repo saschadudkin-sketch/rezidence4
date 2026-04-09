@@ -60,8 +60,13 @@ export function useDashboardExperience({
 
   const nextBestAction = useMemo(() => {
     const action = getRoleNextBestAction(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
-    return action ? { ...action, onClick: () => goTab(action.tab) } : null;
-  }, [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, goTab]);
+    if (!action) return null;
+    return {
+      ...action,
+      cta: action.tab === activeTab ? undefined : action.cta,
+      onClick: action.tab === activeTab ? undefined : () => goTab(action.tab),
+    };
+  }, [user.role, pendingP, pendingT, unreadMsgs, residentNewStatuses, goTab, activeTab]);
 
   const completionFeedback = useMemo(
     () => getWorkflowCompletionFeedback(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses }),

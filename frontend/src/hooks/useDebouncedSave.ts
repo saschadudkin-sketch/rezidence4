@@ -12,9 +12,9 @@ import { useEffect, useRef } from 'react';
  *   callback invocation live in the same effect, so cleanup is handled in one place.
  *
  * Usage:
- *   useDebouncedSave(query, 300, (debouncedQuery) => {
+ *   useDebouncedSave(query, (debouncedQuery) => {
  *     setFilteredItems(items.filter(...));
- *   });
+ *   }, isEnabled, 300);
  *
  * Notes:
  *   - `fn` is always called with the latest value — stale-closure safe via ref.
@@ -24,16 +24,18 @@ import { useEffect, useRef } from 'react';
  *     rendering, use `useDebounce` instead.
  *
  * @param {*} value - The value to debounce.
- * @param {number} delay - Debounce delay in milliseconds.
  * @param {function(*): void} fn - Callback invoked with the debounced value.
+ * @param {boolean} enabled - Whether the side effect should run.
+ * @param {number} delay - Debounce delay in milliseconds.
  */
-export function useDebouncedSave(value, delay, fn) {
+export function useDebouncedSave(value, fn, enabled = true, delay = 300) {
   // Keep fn in a ref so changing the callback never restarts the timer.
   const fnRef = useRef(fn);
   fnRef.current = fn;
 
   useEffect(() => {
+    if (!enabled) return;
     const timer = setTimeout(() => fnRef.current(value), delay);
     return () => clearTimeout(timer);
-  }, [value, delay]);
+  }, [value, enabled, delay]);
 }

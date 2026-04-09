@@ -11,8 +11,17 @@
  */
 import { memo } from 'react';
 import { ROLE_LABELS, STS_LABEL } from '../constants';
+import type { UserRole } from '../store/slices/usersSlice';
+import type { RequestStatus } from '../store/slices/requestsSlice';
 
-const BadgeStatus = memo(function BadgeStatus({ status, role, label, size = 'md' }) {
+type BadgeStatusProps = {
+  status?: RequestStatus | string | null;
+  role?: UserRole | string | null;
+  label?: string;
+  size?: 'sm' | 'md';
+};
+
+const BadgeStatus = memo(function BadgeStatus({ status, role, label, size = 'md' }: BadgeStatusProps) {
   if (role) {
     const text = label ?? (ROLE_LABELS[role] || role);
     return (

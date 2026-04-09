@@ -9,7 +9,7 @@ export function SmartActionRail({ action, feedback, onAction }) {
         <strong>{action.title}.</strong> {action.subtitle}
         {feedback ? ` ${feedback}` : ''}
       </span>
-      <button className="btn-outline btn-hdr" onClick={onAction}>{action.cta}</button>
+      {onAction && action.cta ? <button className="btn-outline btn-hdr" onClick={onAction}>{action.cta}</button> : null}
     </div>
   );
 }

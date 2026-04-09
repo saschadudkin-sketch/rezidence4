@@ -182,4 +182,5 @@ module.exports.markTokenRevoked = markTokenRevoked;
 module.exports.invalidateUserActiveCache = invalidateUserActiveCache;
 if (process.env.NODE_ENV === 'test') {
   module.exports.__clearUserActiveFallbackCache = () => userActiveFallbackCache.clear();
+  module.exports.__clearRedisWarnThrottle = () => redisWarnAtByScope.clear();
 }

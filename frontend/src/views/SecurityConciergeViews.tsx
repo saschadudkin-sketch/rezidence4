@@ -23,6 +23,7 @@ import { getViewStateCopy } from '../ui/viewStateContract';
 import { OperationalRequestList } from '../requests/OperationalRequestList.tsx';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 import { VirtualList } from '../ui/VirtualList.jsx';
+import type { RequestStatus, RequestType } from '../store/slices/requestsSlice';
 
 export function ConciergeView({ user, activeTab, setActiveTab }) {
   const requests = useRequests();
@@ -262,14 +263,14 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
   const [showCarSearch, setShowCarSearch] = useState(false);
   const requests = useRequests();
   const filter = searchParams.get('securityRole') || 'all';
-  const typeFilter = searchParams.get('securityType') || 'all';
-  const statusFilter = searchParams.get('securityStatus') || 'all';
+  const typeFilter = (searchParams.get('securityType') || 'all') as 'all' | RequestType;
+  const statusFilter = (searchParams.get('securityStatus') || 'all') as 'all' | RequestStatus;
   const datePeriod = searchParams.get('securityPeriod') || 'all';
   const query = searchParams.get('securityQ') || '';
   const [showScan, setShowScan] = useState(false);
   const debouncedQuery = useDebounce(query, 250);
 
-  const updateSecurityFilters = useCallback((patch) => {
+  const updateSecurityFilters = useCallback((patch: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(patch).forEach(([key, value]) => {
       if (!value || value === 'all') next.delete(key);
@@ -322,11 +323,11 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
               </div>
             </div>
             <div className="sec-filters-row sec-filters-row--scroll">
-              {[
+              {([
                 ['all', 'Все', 0],
                 ['pass', 'Пропуска', pendingPassCount],
                 ['tech', 'Техслужба', pendingTechCount],
-              ].map(([k, l, cnt]) => (
+              ] as const).map(([k, l, cnt]) => (
                 <button key={k} className={`date-pill ${typeFilter === k ? 'active' : ''}${cnt > 0 && k !== 'all' ? ' has-pending' : ''}`} onClick={() => updateSecurityFilters({ securityType: k })}>
                   {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
                 </button>

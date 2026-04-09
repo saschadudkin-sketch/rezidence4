@@ -1,6 +1,6 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'arrived' | 'expired' | 'cancelled' | 'scheduled';
+export type RequestStatus = 'pending' | 'approved' | 'accepted' | 'rejected' | 'arrived' | 'expired' | 'cancelled' | 'scheduled';
 export type RequestType = 'pass' | 'tech';
 export type PassDuration = 'once' | 'temporary' | 'permanent';
 
@@ -9,12 +9,23 @@ export interface AppRequest {
   type: RequestType;
   status: RequestStatus;
   createdAt: string | Date;
+  category?: string;
+  createdByUid?: string;
+  createdByRole?: string;
+  createdByName?: string;
+  createdByApt?: string;
   passDuration?: PassDuration;
   visitorName?: string;
+  visitorPhone?: string | null;
   carPlate?: string;
-  scheduledFor?: string | null;
-  validUntil?: string | null;
+  scheduledFor?: string | Date | null;
+  validUntil?: string | Date | null;
   arrivedAt?: Date | null;
+  comment?: string;
+  photo?: string | null;
+  photos?: string[];
+  _pending?: boolean;
+  _optimisticOpId?: string;
   [key: string]: unknown;
 }
 

@@ -13,9 +13,16 @@ import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
 import { MS_PER_DAY } from '../../constants/limits';
 import { presentError } from '../../ui/errorPresenter';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 
 // FIX [PERF-5]: memo — TempPassCard рендерится для каждого временного пропуска.
-const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, blacklist }) {
+const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, blacklist }: {
+  req: AppRequest;
+  userName: string;
+  residentPhone?: string | null;
+  blacklist: BlacklistEntry[];
+}) {
   const { arriveRequest } = useActions();
   const avData = useAvatar(req.createdByUid);
   const [loading, setLoading] = useState(false);

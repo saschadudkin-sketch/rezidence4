@@ -4,12 +4,28 @@ import { ReqCard } from './ReqCard';
 import { AppIcon } from '../ui/AppIcon';
 import { CAT_LABEL, PASS_DURATION_LABEL, STS_LABEL } from '../constants/index';
 import { fmtDate, fmtTime } from '../utils';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { UserRole } from '../store/slices/usersSlice';
 
-function getRequestSummary(req) {
+type OperationalRequestListProps = {
+  items: AppRequest[];
+  userRole: UserRole | string;
+  userName: string;
+  userId: string;
+  onRepeat?: (request: AppRequest) => void;
+  onEdit?: (request: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  highlightId?: string | null;
+  onHighlighted?: () => void;
+  className?: string;
+};
+
+function getRequestSummary(req: AppRequest) {
   return req.visitorName || req.comment || req.carPlate || CAT_LABEL[req.category] || 'Заявка';
 }
 
-function getRequestMeta(req) {
+function getRequestMeta(req: AppRequest) {
   const bits = [
     req.createdByName,
     req.createdByApt && req.createdByApt !== '—' ? `Апарт. ${req.createdByApt}` : null,
@@ -32,6 +48,19 @@ const OperationalRow = memo(function OperationalRow({
   onCancel,
   highlightId,
   onHighlighted,
+}: {
+  req: AppRequest;
+  expanded: boolean;
+  onToggle: () => void;
+  userRole: UserRole | string;
+  userName: string;
+  userId: string;
+  onRepeat?: (request: AppRequest) => void;
+  onEdit?: (request: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  highlightId?: string | null;
+  onHighlighted?: () => void;
 }) {
   const summary = useMemo(() => getRequestSummary(req), [req]);
   const meta = useMemo(() => getRequestMeta(req), [req]);
@@ -88,7 +117,7 @@ export const OperationalRequestList = memo(function OperationalRequestList({
   highlightId,
   onHighlighted,
   className = 'req-list req-list--compact',
-}) {
+}: OperationalRequestListProps) {
   const [expandedId, setExpandedId] = useState(null);
 
   return (

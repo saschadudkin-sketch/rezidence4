@@ -14,6 +14,7 @@ import { useTemplateForm } from './useTemplateForm';
 import { sanitizeRequestFormFields } from '../utils/formPolicy';
 // КРИТ-A1: form field state extracted to its own hook as part of God Hook decomposition
 import { useRequestFormState } from './useRequestFormState';
+import type { AppRequest, RequestStatus } from '../store/slices/requestsSlice';
 
 // ─── Предикаты категорий ─────────────────────────────────────────────────────
 
@@ -124,7 +125,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       return;
     }
 
-    const newReq = {
+    const status: RequestStatus = isScheduled ? 'scheduled' : 'pending';
+    const newReq: AppRequest = {
       id:            genId('r'),
       type,
       category:      cat,
@@ -144,7 +146,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       validUntil:    parsedValidUntil,
       photo:         null,
       photos:        [],
-      status:        isScheduled ? 'scheduled' : 'pending',
+      status,
       createdAt:     new Date(),
       arrivedAt:     null,
       scheduledFor:  schedDate,
@@ -171,9 +173,9 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         return;
       }
 
-      if (mode && typeof mode === 'object' && (mode as Record<string, unknown>).id) {
+      if (mode && typeof mode === 'object' && 'id' in mode) {
         deleteRequest(tempId);
-        addRequest(mode);
+        addRequest(mode as AppRequest);
       } else {
         updateRequest(tempId, { _pending: false });
       }

@@ -7,11 +7,51 @@ import {
 import { DispatchContext } from './contexts';
 import { A } from '../storeActions';
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
+import type { AppRequest } from '../slices/requestsSlice';
+import type { ChatMessage } from '../slices/chatSlice';
+import type { AppUser } from '../slices/usersSlice';
+import type { BlacklistEntry } from '../slices/blacklistSlice';
+import type { Car } from '../slices/garageSlice';
 
-export function useStoreActions() {
+export interface StoreActions {
+  addRequest: (req: AppRequest) => unknown;
+  updateRequest: (id: string, patch: Partial<AppRequest>) => unknown;
+  deleteRequest: (id: string) => unknown;
+  setAllRequests: (requests: AppRequest[]) => unknown;
+  activateScheduled: () => unknown;
+  approveRequest: (id: string, byName: string, byRole: string) => unknown;
+  rejectRequest: (id: string, byName: string, byRole: string) => unknown;
+  acceptRequest: (id: string, byName: string, byRole: string) => unknown;
+  arriveRequest: (id: string, byName: string, byRole: string) => unknown;
+  approveAndArrive: (id: string, byName: string, byRole: string) => unknown;
+  sendMessage: (msg: ChatMessage) => unknown;
+  setAllMessages: (msgs: ChatMessage[]) => unknown;
+  markChatSeen: (uid: string) => unknown;
+  updateMessage: (id: string, patch: Partial<ChatMessage>) => unknown;
+  deleteMessage: (id: string) => unknown;
+  addUser: (user: AppUser) => unknown;
+  updateUser: (uid: string, patch: Partial<AppUser>, oldPhone?: string) => unknown;
+  deleteUser: (uid: string) => unknown;
+  setAllUsers: (users: AppUser[]) => unknown;
+  setAvatar: (uid: string, avatar: string) => unknown;
+  deleteAvatar: (uid: string) => unknown;
+  setPerms: (uid: string, perms: unknown) => unknown;
+  addTemplate: (uid: string, template: unknown) => unknown;
+  deleteTemplate: (uid: string, id: string) => unknown;
+  setTemplates: (uid: string, templates: unknown[]) => unknown;
+  addToBlacklist: (entry: BlacklistEntry) => unknown;
+  removeFromBlacklist: (id: string) => unknown;
+  setBlacklist: (entries: BlacklistEntry[]) => unknown;
+  addGarageCar: (uid: string, car: Car) => unknown;
+  updateGarageCar: (uid: string, carId: string, patch: Partial<Car>) => unknown;
+  deleteGarageCar: (uid: string, carId: string) => unknown;
+  setGarage: (uid: string, cars: Car[]) => unknown;
+}
+
+export function useStoreActions(): StoreActions {
   const dispatch = useContext(DispatchContext);
 
-  const dispatchWithMetric = useCallback((actionName, action) => {
+  const dispatchWithMetric = useCallback((actionName: string, action: unknown) => {
     if (!dispatch) return;
     try {
       const out = dispatch(action);
@@ -23,7 +63,7 @@ export function useStoreActions() {
     }
   }, [dispatch]);
 
-  return useMemo(() => ({
+  return useMemo<StoreActions>(() => ({
     addRequest:        (req)                => dispatchWithMetric('REQUEST_ADD', { type: A.REQUEST_ADD,                request: req }),
     updateRequest:     (id, patch)          => dispatchWithMetric('REQUEST_UPDATE', { type: A.REQUEST_UPDATE,             id, patch }),
     deleteRequest:     (id)                 => dispatchWithMetric('REQUEST_DELETE', { type: A.REQUEST_DELETE,             id }),
