@@ -57,7 +57,7 @@ export function clearAppStorage(): void {
 
 export function isDemoPrivateSessionEnabled(): boolean {
   const stored = readStorage(STORAGE_KEYS.DEMO_PRIVATE_SESSION);
-  return stored !== '0';
+  return stored === '1';
 }
 
 export function onboardingKey(role: string): string {

@@ -16,6 +16,8 @@ type PageActionBarProps = {
 export default function PageActionBar({ primaryLabel, onPrimary, secondary = [], className = '' }: PageActionBarProps) {
   const [open, setOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement | null>(null);
+  const directSecondary = secondary.length === 1 ? secondary[0] : null;
+  const overflowActions = directSecondary ? [] : secondary;
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +40,19 @@ export default function PageActionBar({ primaryLabel, onPrimary, secondary = [],
 
   return (
     <div className={`page-action-bar ${className}`.trim()}>
-      {secondary.length > 0 && (
+      {directSecondary && (
+        <button
+          type="button"
+          className="btn-outline page-action-overflow-btn"
+          onClick={() => {
+            setOpen(false);
+            directSecondary.onClick();
+          }}
+        >
+          <span>{directSecondary.label}</span>
+        </button>
+      )}
+      {overflowActions.length > 0 && (
         <div className="page-action-overflow" ref={overflowRef}>
           <button
             type="button"
@@ -51,7 +65,7 @@ export default function PageActionBar({ primaryLabel, onPrimary, secondary = [],
           </button>
           {open && (
             <div className="page-action-overflow-menu" role="menu">
-              {secondary.map((action) => (
+              {overflowActions.map((action) => (
                 <button
                   key={action.label}
                   type="button"

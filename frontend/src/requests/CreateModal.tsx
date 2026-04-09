@@ -266,7 +266,8 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
 const AccordionSection = memo(function AccordionSection({ title, subtitle, icon, open, onToggle, children, badge }: AccordionSectionProps) {
   return (
     <div className="u-p-schedule">
-      <button className={'schedule-toggle' + (open ? ' active' : '')} onClick={onToggle} type="button">
+      <button className={'schedule-toggle' + (open ? ' active' : '') + (badge ? ' schedule-toggle--has-badge' : '')} onClick={onToggle} type="button">
+        {badge ? <span className="schedule-toggle-badge">{badge}</span> : null}
         <span className="u-row-g8">
           <span className="schedule-toggle-ico"><AppIcon name={icon} size={14} /></span>
           <span>
@@ -275,7 +276,6 @@ const AccordionSection = memo(function AccordionSection({ title, subtitle, icon,
           </span>
         </span>
         <span className="u-row-g8">
-          {badge || null}
           <span className="u-fs11-op6"><AppIcon name={open ? 'chevron-up' : 'chevron-down'} size={12} /></span>
         </span>
       </button>
@@ -322,11 +322,10 @@ function TemporaryPassSection({ validUntil, setValidUntil }: TemporaryPassSectio
   return (
     <div className="temp-pass-block">
       <div className="temp-pass-header">
-        <span className="temp-pass-label"><AppIcon name="clock" size={12} /> Временный пропуск</span>
-        <span className="u-row-g8">
-          <button type="button" className="temp-pass-close" onClick={() => setOpen(false)}>
-            Свернуть
-          </button>
+        <button type="button" className="temp-pass-label temp-pass-label-btn" onClick={() => setOpen((value) => !value)}>
+          <AppIcon name="clock" size={12} /> Временный пропуск <AppIcon name={open ? 'chevron-up' : 'chevron-down'} size={12} />
+        </button>
+        <span className="temp-pass-actions">
           <button type="button" className="temp-pass-close" onClick={() => setValidUntil('')}>
             <AppIcon name="close" size={12} /> Убрать
           </button>
@@ -403,24 +402,20 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
 
   const hasAdvancedSelection = Boolean(
     form.validUntil
-    || form.comment
+    || form.comment.trim()
     || form.photos.length
-    || form.showSaveTpl
-    || form.tplName
-    || form.showSchedule
-    || form.scheduledFor
+    || (form.showSaveTpl && form.tplName.trim())
+    || (form.showSchedule && form.scheduledFor)
   );
 
-  const advancedSubtitle = hasAdvancedSelection
-    ? 'Срок, фото, шаблон или расписание уже настроены'
-    : 'Откройте для срока, фото, шаблона, расписания и комментария';
+  const advancedSubtitle = '';
 
   return (
     <div className="overlay" {...overlayProps}>
-      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
+      <div className="modal modal--request" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
-          <div>
+          <div className="modal-head-main">
             <span className="modal-title">{type === 'pass' ? 'Новый пропуск' : 'Вызов техслужбы'}</span>
             <div className="modal-cat-hint">
               <span className="u-op7"><AppIcon name={CAT_ICON[form.cat] || 'users'} size={12} /></span>

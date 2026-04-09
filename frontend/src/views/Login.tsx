@@ -45,6 +45,7 @@ export default function Login({ onLogin, authNotice = '' }) {
     fallbackLabel: string;
   } | null>(null);
   const [sendAttempts, setSendAttempts] = useState(0);
+  const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
   const { phoneDb } = useUsers();
   const authFlow = useAuthFlow();
 
@@ -73,6 +74,36 @@ export default function Login({ onLogin, authNotice = '' }) {
     }, 1000);
     return () => clearInterval(timer);
   }, [step, resendIn]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const updateViewportHeight = () => {
+      const width = window.innerWidth;
+      if (width > 1024) {
+        setMobileViewportHeight(null);
+        return;
+      }
+
+      const nextHeight = window.visualViewport?.height ?? window.innerHeight;
+      setMobileViewportHeight(Math.round(nextHeight));
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('resize', updateViewportHeight);
+    window.visualViewport?.addEventListener('scroll', updateViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('resize', updateViewportHeight);
+      window.visualViewport?.removeEventListener('scroll', updateViewportHeight);
+    };
+  }, []);
+
+  const loginPanelStyle = mobileViewportHeight
+    ? ({ '--login-mobile-vh': `${mobileViewportHeight}px` } as CSSProperties)
+    : undefined;
 
   const sendCode = async () => {
     if (pending.send) return;
@@ -270,7 +301,8 @@ export default function Login({ onLogin, authNotice = '' }) {
         </div>
       </div>
 
-      <div className="login-panel">
+      <div className="login-panel" style={loginPanelStyle}>
+        <div className="login-panel-balance" aria-hidden="true" />
         <div className="login-form">
           <div className="login-mobile-top">
             <img src={LOGO} alt="Резиденции Замоскворечья" />
@@ -296,7 +328,7 @@ export default function Login({ onLogin, authNotice = '' }) {
             </div>
           )}
 
-          {demoMode && (
+          {false && (
             <div className="field-warn" role="status" aria-live="polite">
               Демо-режим: приватная сессия включена по умолчанию и не сохраняет данные между
               перезапусками. Постоянное хранение включайте только вручную.
@@ -464,6 +496,7 @@ export default function Login({ onLogin, authNotice = '' }) {
             </>
           )}
         </div>
+        <div className="login-panel-balance" aria-hidden="true" />
       </div>
     </div>
   );

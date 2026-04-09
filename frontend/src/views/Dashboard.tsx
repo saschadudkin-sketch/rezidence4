@@ -20,7 +20,6 @@ import { getRoleResponsibilities } from '../domain/roleResponsibilities';
 import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
-import { SmartActionRail } from '../workflow/SmartActionRail';
 import '../styles/components/utilities-polish.css';
 import { useRoleGuidance } from './dashboard/useRoleGuidance';
 import { useConnectivityUX } from './dashboard/useConnectivityUX';
@@ -149,9 +148,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     );
   }
 
-  const actionRail = user.role === ROLES.OWNER
-    ? null
-    : <SmartActionRail action={experience.nextBestAction} feedback={experience.completionFeedback} onAction={experience.nextBestAction?.onClick} />;
+  const actionRail = null;
 
   return (
     <NavigationContext.Provider
@@ -165,8 +162,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         setHighlightReqId,
       }}
     >
-      {guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
-      {guidance.showOnboarding && !guidance.showDemoBanner && (
+      {false && guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
+      {false && guidance.showOnboarding && (
         <OnboardingHint role={user.role} onClose={guidance.dismissOnboarding} />
       )}
       <AppShell

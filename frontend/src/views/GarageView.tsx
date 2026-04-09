@@ -20,11 +20,10 @@ export default function GarageView({ user, targetUid }) {
   const [plate,    setPlate]    = useState('');
   const [brand,    setBrand]    = useState('');
   const [note,     setNote]     = useState('');
-  const [isMain,   setIsMain]   = useState(false);
   const emptyCopy = getViewStateCopy('garage', 'empty');
 
   // FIX [PERF]: useCallback — не пересоздаётся при каждом рендере
-  const resetForm = useCallback(() => { setPlate(''); setBrand(''); setNote(''); setIsMain(false); setAdding(false); setEditId(null); }, []);
+  const resetForm = useCallback(() => { setPlate(''); setBrand(''); setNote(''); setAdding(false); setEditId(null); }, []);
 
   const save = () => {
     const trimPlate = plate.trim().toUpperCase();
@@ -33,17 +32,17 @@ export default function GarageView({ user, targetUid }) {
       toast('Такой номер уже добавлен', 'error'); return;
     }
     if (editId) {
-      updateGarageCar(uid, editId, { plate: trimPlate, brand: brand.trim(), note: note.trim(), isMain });
+      updateGarageCar(uid, editId, { plate: trimPlate, brand: brand.trim(), note: note.trim() });
       toast('Автомобиль обновлён', 'success');
     } else {
-      addGarageCar(uid, { id: genId('car'), plate: trimPlate, brand: brand.trim(), note: note.trim(), isMain, addedAt: new Date() });
+      addGarageCar(uid, { id: genId('car'), plate: trimPlate, brand: brand.trim(), note: note.trim(), addedAt: new Date() });
       toast('Автомобиль добавлен', 'success');
     }
     resetForm();
   };
 
   const startEdit = (car) => {
-    setEditId(car.id); setPlate(car.plate); setBrand(car.brand || ''); setNote(car.note || ''); setIsMain(car.isMain || false); setAdding(true);
+    setEditId(car.id); setPlate(car.plate); setBrand(car.brand || ''); setNote(car.note || ''); setAdding(true);
   };
 
   const remove = useCallback((carId) => {
@@ -84,13 +83,9 @@ export default function GarageView({ user, targetUid }) {
           </div>
           <div className="field">
             <label className="field-lbl">Заметка</label>
-            <input className="field-inp" placeholder="Белый, паркинг B2" value={note}
+            <input className="field-inp" placeholder="Белый, паркинг место 101" value={note}
               onChange={e => setNote(e.target.value)} />
           </div>
-          <label className="field-check">
-            <input type="checkbox" checked={isMain} onChange={e => setIsMain(e.target.checked)} />
-            <span>Основной автомобиль</span>
-          </label>
           <div className="garage-form-btns">
             <button className="btn-outline" onClick={resetForm}>Отмена</button>
             <button className="btn-gold" onClick={save}><span>{editId ? 'Сохранить' : 'Добавить'}</span></button>
@@ -105,12 +100,11 @@ export default function GarageView({ user, targetUid }) {
 
       <div className="garage-list">
         {cars.map(car => (
-          <div key={car.id} className={'garage-card' + (car.isMain ? ' main' : '')}>
+          <div key={car.id} className="garage-card">
             <div className="garage-plate">{car.plate}</div>
             <div className="garage-info">
               {car.brand && <div className="garage-brand">{car.brand}</div>}
               {car.note  && <div className="garage-note">{car.note}</div>}
-              {car.isMain && <span className="garage-badge">Основной</span>}
             </div>
             <div className="garage-actions">
               <button className="icon-btn" onClick={() => startEdit(car)} title="Редактировать" aria-label="Редактировать"><AppIcon name="edit" /></button>

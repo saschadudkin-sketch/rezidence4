@@ -69,7 +69,7 @@ const TechTab = memo(function TechTab({
   const visibleTech = useMemo(() => filteredTech.filter(matchesQuery), [filteredTech, matchesQuery]);
 
   return (
-    <>
+    <div className="tech-tab tech-tab--resident">
       <div className="type-grid">
         {TECH_CARDS.map(([key, iconName, label]) => (
           <button
@@ -126,7 +126,7 @@ const TechTab = memo(function TechTab({
           onCancel={onCancel}
         />
       )}
-    </>
+    </div>
   );
 });
 

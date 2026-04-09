@@ -116,11 +116,16 @@ const SVGS = {
 
 const PATHS = {
   tools: 'M14.7 6.3a3 3 0 0 0 4 4L12 17l-4 1 1-4 6.7-6.7a3 3 0 0 0-4-4L9 5l-1.3 1.3a3 3 0 0 0 4 4',
+  'tools-line': 'M14.7 6.3a3 3 0 0 0 4 4L12 17l-4 1 1-4 6.7-6.7a3 3 0 0 0-4-4L9 5l-1.3 1.3a3 3 0 0 0 4 4',
+  ticket: 'M7 7.5h10a1.5 1.5 0 0 1 1.5 1.5v2a2 2 0 0 0 0 4v2a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 17v-2a2 2 0 0 0 0-4V9A1.5 1.5 0 0 1 7 7.5zM9.5 10.5h5M9.5 15.5h5',
+  'ticket-line': 'M7 7.5h10a1.5 1.5 0 0 1 1.5 1.5v2a2 2 0 0 0 0 4v2a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 17v-2a2 2 0 0 0 0-4V9A1.5 1.5 0 0 1 7 7.5zM9.5 10.5h5M9.5 15.5h5',
   list: 'M9 6h10M9 12h10M9 18h10M5 6h.01M5 12h.01M5 18h.01',
   file: 'M8 3.5h6.5L19.5 8v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2zM14 3.5V8h5.5M9.5 13H15M9.5 16.5H14',
   history: 'M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5M12 8v4.5l3 2',
   chat: 'M5 6.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4.5 3v-3H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z',
   residents: 'M15.5 18v-1a3.5 3.5 0 0 0-3.5-3.5h-1A3.5 3.5 0 0 0 7.5 17v1M11.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M18.5 18v-.5a3 3 0 0 0-2.4-2.9M15.5 4.5a3.5 3.5 0 0 1 0 6',
+  courier: 'M4 9.5h9v6H4zM13 11h3l3 3v1.5h-2M7.5 17.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM16.5 17.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM13 15.5h2',
+  taxi: 'M5 15l1.7-5h10.6L19 15M6 15h12v3a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 18zM8 17.2h.01M16 17.2h.01M8 10l1.5-2h5L16 10M9 7h6',
   ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M8.5 8.5l7 7',
   shield: 'M12 3.5l7 2.8v5.9c0 4.3-2.9 7.6-7 8.8-4.1-1.2-7-4.5-7-8.8V6.3L12 3.5z',
   chart: 'M6 19.5V11M12 19.5V6.5M18 19.5V14M4 19.5h16',
@@ -145,11 +150,18 @@ const PATHS = {
   dots: 'M6 12h.01M12 12h.01M18 12h.01',
   refresh: 'M20 5v5h-5M4 19v-5h5M5.6 9A8 8 0 0 1 19 6.5L20 10M4 14l1 3.5A8 8 0 0 0 18.4 15',
   qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM15 15h1M18 15h2v2h-2zM15 18h2M19 19h1M17 17v3',
+  bell: 'M12 4.5a4.5 4.5 0 0 0-4.5 4.5v2.4c0 .9-.3 1.8-.9 2.5l-1.1 1.4a1 1 0 0 0 .8 1.6h11.4a1 1 0 0 0 .8-1.6l-1.1-1.4a4 4 0 0 1-.9-2.5V9A4.5 4.5 0 0 0 12 4.5zM10 19a2 2 0 0 0 4 0',
+  copy: 'M9 9.5A2.5 2.5 0 0 1 11.5 7h6A2.5 2.5 0 0 1 20 9.5v8a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 9 17.5zM6.5 16A2.5 2.5 0 0 1 4 13.5v-7A2.5 2.5 0 0 1 6.5 4h6',
+  download: 'M12 4.5v9M8.5 10l3.5 3.5 3.5-3.5M5.5 18.5h13',
+  door: 'M7.5 4.5h9a1.5 1.5 0 0 1 1.5 1.5v12.5H6V6a1.5 1.5 0 0 1 1.5-1.5zM10 11.5h.01',
+  hourglass: 'M7.5 4.5h9M7.5 19.5h9M8 4.5c0 3 1.8 4.8 4 6 2.2-1.2 4-3 4-6M8 19.5c0-3 1.8-4.8 4-6 2.2 1.2 4 3 4 6',
 };
 
 export const APP_ICON_NAMES = Object.freeze([
   'ticket',
+  'ticket-line',
   'tools',
+  'tools-line',
   'list',
   'file',
   'history',
@@ -192,9 +204,10 @@ const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
 
 export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 }) {
   const hasExplicitName = typeof name === 'string' && name.trim().length > 0;
-  const svg = SVGS[name];
-  const path = PATHS[name] || PATHS.list;
-  if (hasExplicitName && !svg && !PATHS[name] && !(import.meta?.env?.PROD === true) && !warnedUnknownIcons.has(name)) {
+  const path = PATHS[name];
+  const svg = path ? null : SVGS[name];
+  const resolvedPath = path || PATHS.list;
+  if (hasExplicitName && !svg && !path && !(import.meta?.env?.PROD === true) && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
     if (warnedUnknownIcons.size > MAX_UNKNOWN_ICON_WARN_CACHE) warnedUnknownIcons.clear();
     console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);
@@ -234,7 +247,7 @@ export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 })
       aria-hidden="true"
       focusable="false"
     >
-      <path d={path} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={resolvedPath} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

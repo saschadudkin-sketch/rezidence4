@@ -179,6 +179,22 @@
   color:var(--t2);
   box-shadow:var(--sh-s);
 }
+.guard-post .state-block{
+  padding:30px 18px 24px;
+  border-radius:18px;
+  min-height:auto;
+}
+.guard-post .state-icon-shell{
+  width:52px;
+  height:52px;
+  margin:0 auto 10px;
+}
+.guard-post .sb-title{
+  font-size:16px;
+}
+.guard-post .sb-sub{
+  color:var(--t3);
+}
 .state-icon-shell{
   width:58px;
   height:58px;
@@ -307,7 +323,7 @@
 .u-scheduled-t{color:var(--clr-scheduled-t)}
 .u-row-between{display:flex;justify-content:space-between;align-items:center}
 .u-flex-center{display:flex;justify-content:center}
-.u-p-schedule{padding:0 18px 14px}
+.u-p-schedule{padding:0 18px 10px}
 .u-ls3{letter-spacing:.3px}
 .u-fs11-op6{font-size:var(--fs-2xs);opacity:.6}
 .u-row-g8-bare{display:flex;gap:var(--space-sm)}

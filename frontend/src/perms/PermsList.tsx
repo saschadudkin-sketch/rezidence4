@@ -19,7 +19,7 @@ export function PermsList({ user }) {
   const [addingV,  setAddingV]  = useState(false);
   const [addingW,  setAddingW]  = useState(false);
   const [editId,   setEditId]   = useState(null);
-  const [vForm,    setVForm]    = useState({ name: '', phone: '' });
+  const [vForm,    setVForm]    = useState({ name: '', phone: '', carPlate: '' });
   const [wForm,    setWForm]    = useState({ name: '', phone: '', carPlate: '' });
 
   // FIX [AUDIT-5 #3]: save now also syncs with backend in live mode.
@@ -49,7 +49,7 @@ export function PermsList({ user }) {
   const addVisitor = () => {
     if (!vForm.name.trim()) { toast('Введите ФИО', 'error'); return; }
     save({ ...permsRef.current, visitors: [...permsRef.current.visitors, { id: genId('pv'), ...vForm }] });
-    setVForm({ name: '', phone: '' }); setAddingV(false);
+    setVForm({ name: '', phone: '', carPlate: '' }); setAddingV(false);
     toast('Посетитель добавлен', 'success');
   };
   const addWorker = () => {
@@ -71,7 +71,7 @@ export function PermsList({ user }) {
 
   const startEdit = (item, type) => {
     setEditId(item.id);
-    if (type === 'visitor') setVForm({ name: item.name, phone: item.phone || '' });
+    if (type === 'visitor') setVForm({ name: item.name, phone: item.phone || '', carPlate: item.carPlate || '' });
     else setWForm({ name: item.name, phone: item.phone || '', carPlate: item.carPlate || '' });
   };
   const saveEdit = type => {
@@ -101,6 +101,9 @@ export function PermsList({ user }) {
                       <input className="perm-form-inp" placeholder="ФИО *" value={vForm.name} onChange={e => setVForm(f => ({ ...f, name: e.target.value }))} autoCapitalize="words" autoFocus />
                       <input className="perm-form-inp" placeholder="Телефон" type="tel" value={vForm.phone} onChange={e => setVForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" />
                     </div>
+                    <div className="perm-form-row">
+                      <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={e => setVForm(f => ({ ...f, carPlate: e.target.value }))} autoCapitalize="characters" />
+                    </div>
                     <div className="perm-form-btns">
                       <button className="btn-outline" onClick={() => setEditId(null)}>Отмена</button>
                       <button className="btn-gold u-pad-btn" onClick={() => saveEdit('visitor')}><span>Сохранить</span></button>
@@ -111,7 +114,7 @@ export function PermsList({ user }) {
                   <div className="u-row-full">
                     <div className="perm-info u-flex1">
                       <div className="perm-name">{v.name}</div>
-                      {v.phone && <div className="perm-meta">{v.phone}</div>}
+                      <div className="perm-meta">{[v.phone, v.carPlate].filter(Boolean).join(' · ')}</div>
                     </div>
                     <button className="btn-edit u-mr6" onClick={() => startEdit(v, 'visitor')} aria-label="Редактировать"><AppIcon name="edit" /></button>
                     <button className="perm-del" onClick={() => delVisitor(v.id)} aria-label="Удалить"><AppIcon name="close" /></button>
@@ -127,13 +130,16 @@ export function PermsList({ user }) {
                   <input className="perm-form-inp" placeholder="ФИО *" value={vForm.name} onChange={e => setVForm(f => ({ ...f, name: e.target.value }))} autoCapitalize="words" />
                   <input className="perm-form-inp" placeholder="Телефон" type="tel" value={vForm.phone} onChange={e => setVForm(f => ({ ...f, phone: e.target.value }))} inputMode="tel" />
                 </div>
+                <div className="perm-form-row">
+                  <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={e => setVForm(f => ({ ...f, carPlate: e.target.value }))} autoCapitalize="characters" />
+                </div>
                 <div className="perm-form-btns">
-                  <button className="btn-outline" onClick={() => { setAddingV(false); setVForm({ name: '', phone: '' }); }}>Отмена</button>
+                  <button className="btn-outline" onClick={() => { setAddingV(false); setVForm({ name: '', phone: '', carPlate: '' }); }}>Отмена</button>
                   <button className="btn-gold u-pad-btn" onClick={addVisitor}><span>Добавить</span></button>
                 </div>
               </div>
             )
-            : <button className="perm-add" onClick={() => { setEditId(null); setAddingV(true); }}>＋ Добавить посетителя</button>
+            : <button className="perm-add" onClick={() => { setEditId(null); setVForm({ name: '', phone: '', carPlate: '' }); setAddingV(true); }}>＋ Добавить посетителя</button>
           }
         </div>
       )}
@@ -187,7 +193,7 @@ export function PermsList({ user }) {
               </div>
             </div>
           )
-          : <button className="perm-add" onClick={() => { setEditId(null); setAddingW(true); }}>＋ Добавить рабочего</button>
+          : <button className="perm-add" onClick={() => { setEditId(null); setWForm({ name: '', phone: '', carPlate: '' }); setAddingW(true); }}>＋ Добавить рабочего</button>
         }
       </div>
     </div>
@@ -218,11 +224,11 @@ export function MyTemplates({ user, onUse }) {
     <div>
       {passes.length > 0 && (
         <div className="u-mb20">
-          <div className="tpl-section-hdr"><AppIcon name="ticket" className="u-inline-icon" /> Пропуска</div>
+          <div className="tpl-section-hdr"><AppIcon name="ticket-line" className="u-inline-icon" /> Пропуска</div>
           <div className="tpl-list">
             {passes.map(t => (
               <div key={t.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => onUse(t)}>
-                <span className="tpl-ico"><AppIcon name="ticket" /></span>
+                <span className="tpl-ico"><AppIcon name="ticket-line" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{t.name}</div>
                   <div className="tpl-meta">{CAT_LABEL[t.category]}{t.visitorName ? ' · ' + t.visitorName : ''}{t.comment ? ' · ' + t.comment : ''}</div>
@@ -235,11 +241,11 @@ export function MyTemplates({ user, onUse }) {
       )}
       {tech.length > 0 && (
         <div>
-          <div className="tpl-section-hdr"><AppIcon name="tools" className="u-inline-icon" /> Техслужба</div>
+          <div className="tpl-section-hdr"><AppIcon name="tools-line" className="u-inline-icon" /> Техслужба</div>
           <div className="tpl-list">
             {tech.map(t => (
               <div key={t.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={e => e.key === "Enter" && e.currentTarget.click()} onClick={() => onUse(t)}>
-                <span className="tpl-ico"><AppIcon name="tools" /></span>
+                <span className="tpl-ico"><AppIcon name="tools-line" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{t.name}</div>
                   <div className="tpl-meta">{CAT_LABEL[t.category]}{t.comment ? ' · ' + t.comment : ''}</div>

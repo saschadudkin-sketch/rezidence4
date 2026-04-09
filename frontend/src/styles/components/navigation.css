@@ -26,7 +26,7 @@
 }
 .top-nav::-webkit-scrollbar { display: none; }
 @media (--bp-sm-down) {
-  .top-nav { width: 100%; max-width: 100%; margin: 0; justify-content: flex-start; padding-inline: 8px; gap: 0; scroll-snap-type: x proximity; }
+  .top-nav { width: 100%; max-width: 100%; margin: 0; justify-content: center; padding-inline: 8px; gap: 0; scroll-snap-type: x proximity; }
   .tn-btn { gap: 6px; padding: 0 12px; height: 40px; font-size: 12px; scroll-snap-align: start; }
   .tn-icon { font-size: 13px; }
 }
@@ -96,23 +96,34 @@
   left: 0;
   right: 0;
   z-index: var(--z-nav);
+  justify-content: center;
   background: var(--mobnav-bg);
   backdrop-filter: blur(28px) saturate(140%);
   -webkit-backdrop-filter: blur(28px) saturate(140%);
   border-top: 1px solid var(--b1);
+  padding-inline: 10px;
   padding-bottom: var(--sab);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  gap: 2px;
 }
 .mobile-nav::-webkit-scrollbar { display: none; }
+.mobile-nav::before,
 .mobile-nav::after {
   content: '';
   position: sticky;
-  right: 0;
   width: 28px;
   flex-shrink: 0;
   pointer-events: none;
+}
+.mobile-nav::before {
+  left: 0;
+  background: linear-gradient(to left, transparent, var(--mobnav-bg));
+}
+.mobile-nav::after {
+  right: 0;
+  width: 28px;
   background: linear-gradient(to right, transparent, var(--mobnav-bg));
 }
 @media (--bp-lg-down) { .mobile-nav { display: flex; } }
@@ -128,8 +139,17 @@
   .page-title { font-size: 24px; line-height: 1.02; }
   .page-sub { font-size: 12px; line-height: 1.45; letter-spacing: 0; color: var(--t2); }
   .mobile-nav { padding-bottom: max(var(--sab), 4px); }
-  .mn-btn { min-width: 68px; padding: 8px 6px; }
+  .mn-btn { flex: 0 0 auto; min-width: 68px; padding: 8px 6px; }
   .mn-label { font-size: 12px; }
+}
+@media (max-width: 380px) {
+  .page-title {
+    font-size: 22px;
+    line-height: 1.04;
+  }
+  .page-sub {
+    font-size: 11px;
+  }
 }
 @media (max-width: 1024px) {
   .top-nav {
@@ -143,7 +163,7 @@
     width: 100%;
     max-width: 100%;
     margin: 0;
-    justify-content: flex-start;
+    justify-content: center;
     padding-inline: 8px;
     gap: 0;
     border-top: none;
@@ -201,11 +221,13 @@
     display: none;
   }
   .mn-btn {
+    flex: 0 0 auto;
     min-width: 68px;
     padding: 8px 6px;
   }
   .mn-label {
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1.1;
   }
 }
 @media (min-width: 1025px) {
@@ -274,8 +296,8 @@
 }
 .mn-badge {
   position: absolute;
-  top: 5px;
-  right: calc(50% - 16px);
+  top: 4px;
+  right: calc(50% - 18px);
   min-width: 14px;
   height: 14px;
   border-radius: 7px;
@@ -289,6 +311,10 @@
   background: color-mix(in srgb, var(--err-t) 84%, transparent);
   color: #fff;
   border: 1px solid var(--s0);
+}
+.mn-btn--stop .mn-badge{
+  top: 2px;
+  right: calc(50% - 20px);
 }
 
 .mn-more-wrap { position: relative; flex-shrink: 0; }

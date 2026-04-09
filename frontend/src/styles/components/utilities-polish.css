@@ -194,17 +194,18 @@ html{scroll-behavior:smooth}
   .sec-filters-row{gap:4px}
   .admin-toolbar{flex-direction:column}
   .admin-toolbar .search-wrap{min-width:0;max-width:none}
-  .chat-bar{padding:8px}
-  .chat-inp{font-size:var(--fs-body)}
+  .chat-bar{padding:8px 10px calc(8px + max(var(--sab), 0px));gap:8px;align-items:center}
+  .chat-compose-shell{padding:2px 2px 2px 12px;min-height:42px;border-radius:22px}
+  .chat-inp{font-size:var(--fs-body);min-width:0;min-height:22px;padding:0;line-height:22px;border-radius:0}
   .msg-bubble{padding:8px 10px}
-  .type-card{width:80px;min-height:76px;padding:16px 6px 14px}
-  .type-icon{font-size:var(--fs-lg);margin-bottom:6px}
-  .type-label{font-size:var(--fs-3xs)}
+  .type-card{width:86px;min-height:84px;padding:16px 8px 13px}
+  .type-icon{font-size:var(--fs-lg);margin-bottom:7px}
+  .type-label{font-size:10.5px}
 }
 @media (--bp-sm-down){
   .guard-header-stats{flex-wrap:wrap;justify-content:center}
   .guard-subtab{font-size:var(--fs-3xs);padding:8px 6px}
-  .type-card{width:72px;min-height:68px}
+  .type-card{width:86px;min-height:84px}
 }
 
 /* ── Landing ── */
@@ -278,9 +279,9 @@ html{scroll-behavior:smooth}
 
 /* Type grid mobile */
 @media (--bp-sm-down){
-  .type-card{width:80px;min-height:78px;padding:16px 6px 14px}
-  .type-icon{font-size:var(--fs-lg);margin-bottom:8px}
-  .type-label{font-size:9px}
+  .type-card{width:86px;min-height:84px;padding:16px 8px 13px}
+  .type-icon{font-size:var(--fs-lg);margin-bottom:7px}
+  .type-label{font-size:10.5px}
 }
 
 /* Admin toolbar mobile — FIX [I-13]: column layout + full-width children prevent overflow */
@@ -391,48 +392,49 @@ html{scroll-behavior:smooth}
 
 /* ── Вкладка Жильцы (ResidentsView) ──────────────────────────────────────── */
 .residents-view{padding-bottom:24px}
-.residents-summary{display:flex;gap:12px;font-size:var(--fs-xs);color:var(--t4);margin-bottom:10px}
-.residents-summary span{background:var(--s2);padding:2px 8px;border-radius:8px}
+.residents-summary{display:flex;gap:8px;font-size:var(--fs-xs);color:var(--t4);margin-bottom:12px;flex-wrap:wrap}
+.residents-summary span{display:inline-flex;align-items:center;min-height:24px;background:linear-gradient(180deg,color-mix(in srgb, var(--s2) 94%, transparent),color-mix(in srgb, var(--g-bg) 14%, transparent));padding:0 9px;border-radius:999px;border:1px solid color-mix(in srgb, var(--b2) 80%, transparent)}
 
-.apt-list{display:flex;flex-direction:column;gap:6px}
+.apt-list{display:flex;flex-direction:column;gap:8px}
 .apt-card{
-  border:1px solid var(--s3);border-radius:12px;
-  overflow:hidden;background:var(--s1);
-  transition:box-shadow .15s;
+  border:1px solid color-mix(in srgb, var(--b2) 80%, transparent);border-radius:16px;
+  overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb, var(--s2) 96%, transparent),color-mix(in srgb, var(--s1) 92%, transparent));
+  transition:box-shadow .15s,border-color .15s,background .15s;
+  box-shadow:var(--sh-s);
 }
-.apt-card.open{border-color:var(--b2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.apt-card.open{border-color:color-mix(in srgb, var(--g1) 46%, var(--b2));box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .apt-header{
   display:flex;align-items:center;gap:10px;
-  padding:12px 14px;cursor:pointer;user-select:none;
+  padding:13px 14px;cursor:pointer;user-select:none;
 }
-.apt-header:hover{background:var(--s2)}
+.apt-header:hover{background:color-mix(in srgb, var(--s2) 90%, var(--g-bg) 10%)}
 .apt-num{display:flex;align-items:center;gap:6px;min-width:100px}
-.apt-num-ico{font-size:var(--fs-md)}
-.apt-num-val{font-size:var(--fs-body);font-weight:500;color:var(--t1)}
+.apt-num-ico{font-size:var(--fs-md);color:var(--g2);opacity:.86}
+.apt-num-val{font-size:var(--fs-body);font-weight:600;color:var(--t1)}
 .apt-meta{display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap}
 .apt-chip{
-  font-size:var(--fs-2xs);padding:2px 8px;border-radius:10px;
-  background:var(--s3);color:var(--t3);
+  font-size:var(--fs-2xs);padding:2px 8px;border-radius:999px;
+  background:color-mix(in srgb, var(--s3) 88%, transparent);color:var(--t3);border:1px solid color-mix(in srgb, var(--b1) 84%, transparent);
 }
-.apt-chip.car{background:var(--b1);color:var(--g2)}
-.apt-chip.park{background:#fef3c7;color:#92400e}
+.apt-chip.car{background:color-mix(in srgb, var(--g-bg) 88%, transparent);color:var(--g2);border-color:color-mix(in srgb, var(--g1) 28%, transparent)}
+.apt-chip.park{background:#fef3c7;color:#92400e;border-color:rgba(146,64,14,.14)}
 .dark .apt-chip.park{background:#2d2000;color:#f59e0b}
-.apt-chevron{font-size:var(--fs-2xs);color:var(--t4);flex-shrink:0}
+.apt-chevron{font-size:var(--fs-2xs);color:var(--t4);flex-shrink:0;opacity:.8}
 
-.apt-body{border-top:1px solid var(--s3);padding:12px 14px;display:flex;flex-direction:column;gap:12px}
-.resident-row{display:flex;align-items:flex-start;gap:10px}
+.apt-body{border-top:1px solid color-mix(in srgb, var(--b2) 72%, transparent);padding:12px 14px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb, var(--g-bg) 10%, transparent) 100%)}
+.resident-row{display:flex;align-items:flex-start;gap:10px;padding:2px 0}
 .resident-info{flex:1;min-width:0}
-.resident-name{font-size:var(--fs-body);font-weight:500;color:var(--t1);margin-bottom:3px}
-.resident-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px}
-.resident-phone{font-size:var(--fs-xs);color:var(--g1);text-decoration:none}
+.resident-name{font-size:var(--fs-body);font-weight:600;color:var(--t1);margin-bottom:3px}
+.resident-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.resident-phone{font-size:var(--fs-xs);color:var(--g2);text-decoration:none}
 .resident-phone:hover{text-decoration:underline}
-.resident-parking{font-size:var(--fs-xs);color:var(--t3);background:var(--s3);padding:1px 7px;border-radius:8px}
+.resident-parking{font-size:var(--fs-xs);color:var(--t3);background:color-mix(in srgb, var(--s3) 88%, transparent);padding:1px 7px;border-radius:999px;border:1px solid color-mix(in srgb, var(--b1) 84%, transparent)}
 
 .resident-cars{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .car-tag{
   display:flex;align-items:center;gap:5px;
-  padding:3px 8px;border-radius:8px;font-size:var(--fs-xs);
-  background:var(--s2);border:1px solid var(--s3);
+  padding:3px 8px;border-radius:999px;font-size:var(--fs-xs);
+  background:color-mix(in srgb, var(--s2) 94%, transparent);border:1px solid color-mix(in srgb, var(--b2) 80%, transparent);
 }
 .car-tag.main{border-color:var(--g1);background:var(--b1)}
 .car-plate{font-family:var(--font-mono,'monospace');font-weight:600;color:var(--t1);letter-spacing:.04em}
@@ -475,24 +477,101 @@ html{scroll-behavior:smooth}
 
 /* ── Кнопки действий охраны (QR + Поиск авто) ─────────────────────────────── */
 .security-action-btns{
-  display:flex;gap:8px;margin-bottom:12px;
-  padding:12px;
-  border:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
+  display:flex;gap:8px;margin-bottom:10px;
+  padding:10px;
+  border:1px solid color-mix(in srgb, var(--b2) 84%, transparent);
   border-radius:16px;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), color-mix(in srgb, var(--g-bg) 26%, transparent));
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 40%, transparent), color-mix(in srgb, var(--s2) 94%, transparent));
+}
+
+@media (max-width: 640px){
+  .garage-header{
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+  }
+  .garage-title{
+    align-items:flex-start;
+  }
+  .garage-title > div{
+    min-width:0;
+  }
+  .garage-header .btn-gold.u-w-auto{
+    align-self:stretch;
+    width:100%;
+    min-width:0;
+    justify-content:center;
+  }
+}
+
+@media(max-width:480px){
+  .garage-view{
+    padding:4px 0 calc(var(--nav-h) + var(--sab) + 12px);
+  }
+  .garage-header{
+    gap:10px;
+    margin-bottom:12px;
+    padding:14px 0 0;
+    border-top:1px solid color-mix(in srgb, var(--b1) 82%, transparent);
+    border-bottom:none;
+  }
+  .garage-title{
+    gap:8px;
+  }
+  .garage-title-text{
+    font-size:16px;
+    line-height:1.15;
+  }
+  .garage-title-sub{
+    font-size:11px;
+    line-height:1.35;
+    color:var(--t3);
+    max-width:22ch;
+  }
+  .garage-header .btn-gold.u-w-auto{
+    min-height:46px;
+    border-radius:16px;
+    font-size:14px;
+    box-shadow:0 8px 18px rgba(201,169,110,.14);
+  }
+  .garage-form{
+    border-radius:16px;
+    margin-bottom:12px;
+  }
+  .garage-card{
+    border-radius:14px;
+    padding:11px 12px;
+  }
+  .garage-view .state-block{
+    margin-top:6px;
+    padding:24px 18px 20px;
+    border-radius:18px;
+  }
+  .garage-view .state-title{
+    font-size:18px;
+    margin-bottom:6px;
+  }
+  .garage-view .state-sub{
+    font-size:12px;
+    max-width:24ch;
+  }
 }
 .security-action-btns .scan-qr-btn{flex:1}
+.security-action-btns .page-action-primary{flex:1 1 auto}
+.security-action-btns .page-action-overflow-btn{flex:0 0 auto}
 
-.page-action-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative;width:100%}
+.page-action-bar{display:flex;justify-content:flex-start;align-items:center;gap:8px;position:relative;width:100%}
 .page-action-primary{
-  min-width:180px;
-  box-shadow:0 10px 22px rgba(201,169,110,.18);
+  min-width:0;
+  box-shadow:0 8px 18px rgba(201,169,110,.14);
 }
 .page-action-overflow{position:relative}
 .page-action-overflow-btn{
-  min-width:96px;
+  min-width:72px;
   border-color:color-mix(in srgb, var(--b3) 88%, transparent);
-  background:color-mix(in srgb, var(--s2) 90%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  color:var(--t2);
+  font-weight:600;
 }
 .page-action-overflow-menu{
   position:absolute;right:0;top:calc(100% + 6px);z-index:20;
@@ -519,6 +598,7 @@ html{scroll-behavior:smooth}
     min-width:0;
     width:auto;
     padding-inline:12px;
+    border-color:color-mix(in srgb, var(--b2) 88%, transparent);
   }
   .page-action-primary{
     min-width:0;
@@ -715,7 +795,25 @@ html{scroll-behavior:smooth}
 .admin-user-park-inp{width:80px}
 .admin-user-actions-end{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .qr-error-box{padding:20px}
-.pass-qr-foot{flex-direction:column;gap:8px}
+.pass-qr-foot{
+  flex-direction:column;
+  gap:10px;
+}
+@media (max-width: 480px){
+  .pass-qr-foot .u-flex.u-gap8.u-w-full{
+    gap:10px;
+  }
+  .pass-qr-foot .btn-outline{
+    min-height:48px;
+    border-radius:16px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 18%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 78%, transparent);
+  }
+  .pass-qr-foot .btn-gold{
+    min-height:54px;
+    border-radius:18px;
+  }
+}
 .scanqr-cam-icon{margin-bottom:12px;opacity:.3}
 .scanqr-cam-init{margin-top:10px}
 .scanqr-search-btn{padding:0 20px;flex-shrink:0}
@@ -764,3 +862,186 @@ html{scroll-behavior:smooth}
 .error-recovery-panel{position:sticky;top:8px;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin:8px 0;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
 .error-recovery-message{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);color:var(--t2)}
 .error-recovery-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+@media (--bp-md-down){
+  .vlog-filters{
+    margin-bottom:12px;
+  }
+  .vlog-header{
+    gap:12px;
+    padding:11px 12px;
+    margin-bottom:12px;
+    border-radius:14px;
+  }
+  .vlog-actions{
+    gap:6px;
+  }
+  .vlog-actions .btn-hdr{
+    min-height:36px;
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:var(--fs-2xs);
+  }
+  .vlog-wrap .date-pills-row{
+    margin-bottom:10px;
+    justify-content:flex-start;
+    gap:6px;
+  }
+  .vlog-wrap .date-pill{
+    min-height:34px;
+    padding:6px 10px;
+    font-size:var(--fs-2xs);
+  }
+  .vlog-wrap .search-wrap{
+    min-height:42px;
+    margin-bottom:12px;
+  }
+}
+
+@media (--bp-sm-down){
+  .bl-header{
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .bl-header-copy{
+    min-width:0;
+    gap:6px;
+  }
+  .bl-title{
+    font-size:var(--fs-body);
+    gap:7px;
+  }
+  .bl-count{
+    min-width:18px;
+    height:18px;
+    padding:0 5px;
+  }
+  .bl-header .btn-gold{
+    min-height:38px;
+    padding:0 14px;
+    border-radius:12px;
+    flex:0 0 auto;
+  }
+  .bl-list{
+    gap:7px;
+  }
+  .bl-entry{
+    border-radius:14px;
+  }
+  .bl-entry-main{
+    gap:10px;
+    padding:12px 13px;
+  }
+  .bl-entry-icon{
+    width:28px;
+    height:28px;
+    border-radius:9px;
+  }
+  .bl-entry-name,
+  .bl-entry-plate{
+    font-size:13px;
+    line-height:1.2;
+  }
+  .bl-entry-reason{
+    line-height:1.32;
+  }
+  .vlog-filters{
+    margin-bottom:10px;
+  }
+  .vlog-header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:10px;
+    padding:10px 12px;
+  }
+  .vlog-title{
+    font-size:var(--fs-body);
+    gap:7px;
+  }
+  .vlog-actions{
+    width:100%;
+    justify-content:flex-start;
+    align-items:center;
+  }
+  .vlog-total{
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .vlog-total-badge{
+    min-height:24px;
+    padding:0 8px;
+  }
+  .vlog-export-btn{
+    padding-inline:10px;
+  }
+  .vlog-export-full{
+    display:none;
+  }
+  .vlog-export-short{
+    display:inline;
+  }
+  .vlog-actions .inline-confirm{
+    width:100%;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+  .vlog-wrap .date-pills-row{
+    flex-wrap:wrap;
+  }
+  .vlog-wrap .date-pill{
+    flex:0 0 auto;
+  }
+  .vlog-cards{
+    gap:8px;
+  }
+  .vlog-card{
+    gap:10px;
+    padding:12px 13px;
+    border-radius:16px;
+  }
+  .vlog-card-left{
+    min-width:42px;
+    gap:6px;
+  }
+  .vlog-card-time{
+    font-size:13px;
+    line-height:1;
+  }
+  .vlog-card-icon{
+    width:28px;
+    height:28px;
+    border-radius:9px;
+  }
+  .vlog-card-row1{
+    gap:6px;
+    margin-bottom:3px;
+  }
+  .vlog-card-name{
+    font-size:14px;
+    line-height:1.2;
+  }
+  .vlog-card-details{
+    margin-bottom:5px;
+    line-height:1.35;
+  }
+  .vlog-card-tags{
+    gap:5px;
+  }
+  .vlog-tag{
+    padding:2px 7px;
+    font-size:9px;
+    letter-spacing:.25px;
+  }
+  .vlog-card-comment{
+    margin-top:5px;
+    line-height:1.35;
+  }
+  .vlog-date-label{
+    padding:7px 0 5px;
+    margin-bottom:8px;
+  }
+}

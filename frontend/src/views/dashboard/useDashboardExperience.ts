@@ -11,7 +11,7 @@ const TAB_TITLES: Record<string, string> = {
   templates: 'Шаблоны',
   history: 'История',
   chat: 'Чат',
-  visitlog: 'Журнал доступа',
+  visitlog: 'Журнал',
   residents: 'Резиденты',
   blacklist: 'Стоп-лист',
   guardpost: 'Скан-пост',

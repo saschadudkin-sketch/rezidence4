@@ -55,7 +55,7 @@ export default function BlacklistView({ user }) {
   return (
     <div>
       <div className="bl-header">
-        <div>
+        <div className="bl-header-copy">
           <span className="bl-title"><AppIcon name="ban" className="u-inline-icon" /> Чёрный список</span>
           <span className="bl-count">{blacklist.length}</span>
         </div>

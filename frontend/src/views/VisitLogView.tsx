@@ -136,6 +136,7 @@ export default function VisitLogView({ user }: { user: AppUser }) {
   const [query, setQuery] = useState('');
   const [period, setPeriod] = useState('all');
   const [decision, setDecision] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   // FIX [AUDIT-3]: confirmClear заменяет window.confirm() — нативный confirm блокирует
   // UI thread и не стилизуется. Вместо него — inline-кнопка подтверждения.
   const [confirmClear, setConfirmClear] = useState(false);
@@ -232,7 +233,7 @@ export default function VisitLogView({ user }: { user: AppUser }) {
     const csv = [header, ...rows]
       .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
       .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -248,6 +249,7 @@ export default function VisitLogView({ user }: { user: AppUser }) {
   // loadLogs, любого state). visits уже мемоизирован, поэтому groups тоже должен быть.
   const groups = useMemo(() => groupByDate(visits), [visits]);
   const totalCount = visits.length;
+  const activeFilterCount = Number(period !== 'all') + Number(decision !== 'all');
   const loadingCopy = getViewStateCopy('visitlog', 'loading');
   const errorCopy = getViewStateCopy('visitlog', 'error');
   const emptyCopy = getViewStateCopy('visitlog', 'empty');
@@ -272,12 +274,13 @@ export default function VisitLogView({ user }: { user: AppUser }) {
       {!isLoading && !isError && (
       <>
       <div className="vlog-header">
-        <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал посещений</span>
-        <div className="u-row-g8">
-          <span className="vlog-total">{totalCount} {totalCount === 1 ? 'визит' : totalCount < 5 ? 'визита' : 'визитов'}</span>
+        <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал</span>
+        <div className="vlog-actions">
+          <span className="vlog-total vlog-total-badge">{totalCount} {totalCount === 1 ? 'визит' : totalCount < 5 ? 'визита' : 'визитов'}</span>
           {canExport && (
-            <button className="btn-outline btn-hdr" onClick={handleExportCsv}>
-              Экспорт CSV
+            <button className="btn-outline btn-hdr vlog-export-btn" onClick={handleExportCsv}>
+              <span className="vlog-export-full">Экспорт CSV</span>
+              <span className="vlog-export-short">CSV</span>
             </button>
           )}
           {canClearLogs && !confirmClear && (
@@ -295,28 +298,51 @@ export default function VisitLogView({ user }: { user: AppUser }) {
         </div>
       </div>
 
-      <div className="date-pills date-pills-row">
-        {[['today','Сегодня'],['week','Неделя'],['month','Месяц'],['all','Всё время']].map(([k, l]) => (
-          <button key={k} className={'date-pill' + (period === k ? ' active' : '')} onClick={() => setPeriod(k)}>{l}</button>
-        ))}
+      <div className="sec-filters-toggle-row">
+        <button
+          type="button"
+          className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
+          onClick={() => setShowFilters((value) => !value)}
+          aria-expanded={showFilters}
+        >
+          <AppIcon name="filters" className="u-inline-icon" />
+          Фильтры
+          {activeFilterCount > 0 && <span className="tab-pending-badge">{activeFilterCount}</span>}
+        </button>
       </div>
 
-      <div className="date-pills date-pills-row">
-        {[
-          ['all', null, 'Все решения'],
-          ['allowed', 'check', 'Допущены'],
-          ['denied', 'denied', 'Отказы'],
-        ].map(([k, iconName, l]) => (
-          <button key={k} className={'date-pill' + (decision === k ? ' active' : '')} onClick={() => setDecision(k)}>
-            {iconName ? <AppIcon name={iconName} className="u-inline-icon" /> : null}
-            {l}
-          </button>
-        ))}
-      </div>
+      {showFilters && (
+        <div className="sec-filters vlog-filters">
+          <div className="sec-filter-group">
+            <div className="sec-filter-group-title">Период</div>
+            <div className="sec-filters-row sec-filters-row--scroll">
+              {[['today','Сегодня'],['week','Неделя'],['month','Месяц'],['all','Всё время']].map(([k, l]) => (
+                <button key={k} className={'date-pill' + (period === k ? ' active' : '')} onClick={() => setPeriod(k)}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="sec-filter-group">
+            <div className="sec-filter-group-title">Решение</div>
+            <div className="sec-filters-row sec-filters-row--scroll">
+              {[
+                ['all', null, 'Все решения'],
+                ['allowed', 'check', 'Допущены'],
+                ['denied', 'denied', 'Отказы'],
+              ].map(([k, iconName, l]) => (
+                <button key={k} className={'date-pill' + (decision === k ? ' active' : '')} onClick={() => setDecision(k)}>
+                  {iconName ? <AppIcon name={iconName} className="u-inline-icon" /> : null}
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="search-wrap u-mb16">
         <span className="search-ico"><AppIcon name="search" /></span>
-        <input className="search-inp" placeholder="Поиск по имени, авто, квартире, комментарию..."
+        <input className="search-inp" placeholder="Поиск по имени, авто, квартире"
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>
 

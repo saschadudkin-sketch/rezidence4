@@ -133,6 +133,7 @@ export function ChatView({ user }: { user: AppUser }) {
   const [photoSending, setPhotoSending] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [msgMenu, setMsgMenu] = useState<string | null>(null);
+  const [showTools, setShowTools] = useState(false);
   // P-05: подтверждение перед удалением сообщения — удаление необратимо
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null);
 
@@ -205,6 +206,17 @@ export function ChatView({ user }: { user: AppUser }) {
   const focusComposer = useCallback(() => {
     inputRef.current?.focus({ preventScroll: true });
   }, []);
+
+  const syncComposerHeight = useCallback(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    textarea.style.height = '0px';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 88)}px`;
+  }, []);
+
+  useEffect(() => {
+    syncComposerHeight();
+  }, [text, syncComposerHeight]);
 
   useEffect(() => {
     const container = msgsContainerRef.current;
@@ -386,6 +398,7 @@ export function ChatView({ user }: { user: AppUser }) {
   // потенциальных будущих оборачиваниях в memo. Фиксируем явно.
   const onPhotoClick = useCallback(() => {
     fileRef.current?.click();
+    setShowTools(false);
   }, []);
 
   // Вставка emoji в текстовое поле
@@ -584,21 +597,37 @@ export function ChatView({ user }: { user: AppUser }) {
         </div>
       )}
       <div className="chat-bar">
-        <button className={'chat-photo-btn ' + (showSearch ? 'chat-btn--active' : 'chat-btn--default')} title="Поиск" onClick={() => setShowSearch(s => !s)}>
-          <AppIcon name="search" size={16} />
-        </button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
-        <button className="chat-photo-btn" onClick={onPhotoClick} disabled={photoSending} aria-label="Прикрепить фото">
-          {photoSending ? <AppIcon name="clock" size={16} /> : <AppIcon name="camera" size={16} />}
-        </button>
-        <button className={'chat-photo-btn ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
-          <AppIcon name="chat" size={16} />
-        </button>
-        <textarea ref={inputRef} className="chat-inp" rows={1}
-          placeholder="Напишите сообщение..." value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-        />
+        <div className="chat-tools" aria-label="Действия чата">
+          <button className={'chat-photo-btn chat-tool-btn chat-tool-btn--plus ' + (showTools ? 'chat-btn--active' : 'chat-btn--default')} title="Действия" onClick={() => setShowTools(s => !s)} aria-label="Открыть действия чата">
+            <span className="chat-plus-glyph" aria-hidden="true">+</span>
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
+          {showTools && (
+            <div className="chat-tools-menu" role="menu" aria-label="Меню действий чата">
+              <button className={'chat-tools-menu-btn ' + (showSearch ? 'chat-btn--active' : '')} onClick={() => { setShowSearch(s => !s); setShowTools(false); }} role="menuitem">
+                <AppIcon name="search" size={15} />
+                <span>Поиск</span>
+              </button>
+              <button className="chat-tools-menu-btn" onClick={onPhotoClick} disabled={photoSending} role="menuitem">
+                <AppIcon name={photoSending ? 'clock' : 'camera'} size={15} />
+                <span>Фото</span>
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="chat-compose-shell">
+          <textarea ref={inputRef} className="chat-inp" rows={1}
+            placeholder="Напишите сообщение..." value={text}
+            onChange={e => {
+              setText(e.target.value);
+              syncComposerHeight();
+            }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+          />
+          <button className={'chat-photo-btn chat-inline-emoji ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
+            <AppIcon name="chat" size={16} />
+          </button>
+        </div>
         <button className="chat-send" onClick={send} disabled={!text.trim()} aria-label="Отправить сообщение"><AppIcon name="chevronRight" size={14} /></button>
       </div>
       {showEmoji && (

@@ -29,24 +29,26 @@
 .btn-outline:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
 
 .btn-outline {
-  background: color-mix(in srgb, var(--s2) 78%, transparent);
-  border: 1.5px solid var(--b3);
-  border-radius: var(--r);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 84%, transparent));
+  border: 1.5px solid color-mix(in srgb, var(--b3) 82%, transparent);
+  border-radius: calc(var(--r) + 2px);
   padding: var(--space-md);
   font-family: 'Inter', sans-serif;
   font-size: var(--fs-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: var(--t2);
+  color: var(--t1);
   cursor: pointer;
-  transition: border-color .16s, color .16s, background .16s, box-shadow .16s;
+  transition: border-color .16s, color .16s, background .16s, box-shadow .16s, transform .16s;
+  box-shadow: var(--sh-s);
 }
 @media (hover: hover) {
   .btn-outline:hover {
     border-color: var(--g1);
     color: var(--t1);
     background: var(--g-bg);
-    box-shadow: var(--sh-s);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, .14);
+    transform: translateY(-1px);
   }
 }
 .btn-outline:active { border-color: var(--g1); color: var(--g1); }

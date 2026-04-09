@@ -81,7 +81,7 @@ const PassesTab = memo(function PassesTab({
       ];
 
   return (
-    <>
+    <div className={`passes-tab${user.role === 'contractor' ? ' passes-tab--contractor' : ' passes-tab--resident'}`}>
       <div className="type-grid">
         {passIcons.map(([key, iconName, label]) => (
           <button
@@ -173,7 +173,7 @@ const PassesTab = memo(function PassesTab({
           />
         </>
       )}
-    </>
+    </div>
   );
 });
 

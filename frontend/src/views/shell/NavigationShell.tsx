@@ -7,7 +7,7 @@ const formatBadgeCount = (count: number) => (count > 9 ? '9+' : String(count));
 
 const MOBILE_MAX_TABS_BY_ROLE: Record<string, number> = {
   admin: 5,
-  security: 3,
+  security: 7,
   owner: 4,
   tenant: 4,
   concierge: 4,
@@ -28,6 +28,17 @@ const MOBILE_TOP_TABS_BY_ROLE: Record<string, string[]> = {
   owner: ['passes', 'tech', 'perms'],
   tenant: ['passes', 'tech', 'perms'],
   contractor: ['passes', 'tech', 'perms'],
+};
+
+const MOBILE_LABELS_BY_ROLE: Record<string, Record<string, string>> = {
+  security: {
+    guardpost: 'Пост',
+    passes: 'Контроль',
+    visitlog: 'Журнал',
+    chat: 'Чат',
+    blacklist: 'Стоп',
+    residents: 'Резиденты',
+  },
 };
 
 type NavItem = [string, string, string, number];
@@ -90,6 +101,15 @@ function splitMobileNav(role: string, nav: NavItem[]) {
   return { topNav, bottomNav };
 }
 
+function getMobileLabel(role: string, key: string, fallback: string) {
+  return MOBILE_LABELS_BY_ROLE[role]?.[key] ?? fallback;
+}
+
+function getMobileNavItems(role: string, items: NavItem[]) {
+  if (role === 'security') return items.filter(([key]) => key !== 'chat');
+  return items;
+}
+
 function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: QuickActionsSheetProps) {
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
@@ -142,7 +162,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const orderedMobileNav = orderMobileTabs(userRole, nav);
   const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
   const topNavItems = isMobile ? topNav : nav;
-  const mobileNavItems = isMobile ? bottomNav : orderedMobileNav;
+  const mobileNavItems = isMobile ? getMobileNavItems(userRole, bottomNav) : orderedMobileNav;
   const hasMobileTopTabs = isMobile && topNav.length > 0 && topNav.length !== nav.length;
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
@@ -207,14 +227,14 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
         {visibleNav.map(([key, icon, label, badge]) => (
           <button
             key={key}
-            className={navBtnClassMn(key)}
+            className={`${navBtnClassMn(key)}${key === 'blacklist' ? ' mn-btn--stop' : ''}`}
             onClick={() => goTab(key)}
             aria-current={isActive(key) ? 'page' : undefined}
             tabIndex={!isMobile ? -1 : undefined}
           >
             <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
-            <span className="mn-label">{label}</span>
-            {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
+            <span className="mn-label">{getMobileLabel(userRole, key, label)}</span>
+            {badge > 0 && key !== 'blacklist' && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
 

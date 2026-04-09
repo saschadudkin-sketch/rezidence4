@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, beforeEach, expect, test, vi } from 'vitest';
 import NavigationShell from './NavigationShell';
 
@@ -22,7 +22,7 @@ function setMobileViewport(isMobile: boolean) {
 describe('NavigationShell mobile prioritization', () => {
   beforeEach(() => setMobileViewport(true));
 
-  test('keeps three security priority tabs and opens quick actions sheet', () => {
+  test('shows all security tabs in the mobile bottom navigation', () => {
     const nav = [
       ['residents', 'residents', 'Жильцы', 0],
       ['chat', 'chat', 'Чат', 0],
@@ -49,14 +49,12 @@ describe('NavigationShell mobile prioritization', () => {
     const mobile = within(mobileNav as HTMLElement);
 
     expect(mobile.getByRole('button', { name: /скан/i })).toBeInTheDocument();
-    expect(mobile.getByRole('button', { name: /проверка/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /контроль/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
-    expect(mobile.getByRole('button', { name: /ещё/i })).toBeInTheDocument();
-    expect(mobile.queryByRole('button', { name: /^чс$/i })).not.toBeInTheDocument();
-
-    fireEvent.click(mobile.getByRole('button', { name: /ещё/i }));
-    expect(screen.getByRole('dialog', { name: /быстрые действия/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /чс/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /^чс$/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /жильцы/i })).toBeInTheDocument();
+    expect(mobile.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
+    expect(mobile.queryByRole('button', { name: /ещё/i })).not.toBeInTheDocument();
   });
 
   test('for owner keeps only passes tech and perms in the top mobile strip', () => {

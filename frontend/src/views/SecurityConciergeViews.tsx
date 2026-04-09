@@ -261,6 +261,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
 export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }) {
   const [searchParams, setSearchParams] = useUrlSearchParams();
   const [showCarSearch, setShowCarSearch] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const requests = useRequests();
   const filter = searchParams.get('securityRole') || 'all';
   const typeFilter = (searchParams.get('securityType') || 'all') as 'all' | RequestType;
@@ -282,6 +283,13 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
   const pendingPassCount = useMemo(() => requests.filter(r => r.type === 'pass' && r.status === 'pending').length, [requests]);
   const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
   const requestsEmptyCopy = getViewStateCopy('requests', 'empty');
+  const activeFilterCount = [
+    Boolean(query),
+    datePeriod !== 'all',
+    typeFilter !== 'all',
+    statusFilter !== 'all',
+    filter !== 'all',
+  ].filter(Boolean).length;
 
   const shown = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
@@ -307,47 +315,74 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
             primaryLabel="Сканировать QR"
             onPrimary={() => setShowScan(true)}
             secondary={[
-              { label: 'Поиск авто', onClick: () => setShowCarSearch(true) },
+              { label: 'Авто', onClick: () => setShowCarSearch(true) },
             ]}
           />
-          <div className="sec-filters">
-            <div className="sec-filters-row">
-              <div className="search-wrap u-search-sm">
-                <span className="search-ico"><AppIcon name="search" size={14} /></span>
-                <input className="search-inp" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
-              </div>
-              <div className="sec-filters-row sec-filters-row--scroll">
-                {datePills.map(([k, l]) => (
-                  <button key={k} className={`date-pill ${datePeriod === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityPeriod: k })}>{l}</button>
-                ))}
-              </div>
-            </div>
-            <div className="sec-filters-row sec-filters-row--scroll">
-              {([
-                ['all', 'Все', 0],
-                ['pass', 'Пропуска', pendingPassCount],
-                ['tech', 'Техслужба', pendingTechCount],
-              ] as const).map(([k, l, cnt]) => (
-                <button key={k} className={`date-pill ${typeFilter === k ? 'active' : ''}${cnt > 0 && k !== 'all' ? ' has-pending' : ''}`} onClick={() => updateSecurityFilters({ securityType: k })}>
-                  {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
-                </button>
-              ))}
-              <span className="sec-filter-divider" aria-hidden="true" />
-              {[['all', 'Все'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
-                <button key={k} className={`date-pill sm ${statusFilter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityStatus: k })} title={{ all: 'Все статусы', pending: 'В ожидании', approved: 'Одобрены', rejected: 'Отклонены', arrived: 'Вошли', expired: 'Истёкшие' }[k]}>
-                  {l}
-                </button>
-              ))}
-              {typeFilter !== 'tech' && (
-                <>
-                  <span className="sec-filter-divider" aria-hidden="true" />
-                  {[['all', 'Все'], ['owner', 'Собст.'], ['tenant', 'Аренд.'], ['contractor', 'Подр.']].map(([k, l]) => (
-                    <button key={k} className={`date-pill sm ${filter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityRole: k })}>{l}</button>
+          <div className="sec-filters-toggle-row">
+            <button
+              type="button"
+              className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
+              onClick={() => setShowFilters(v => !v)}
+              aria-expanded={showFilters}
+            >
+              <span className="u-inline-icon"><AppIcon name="filter" size={14} /></span>
+              <span>Фильтры</span>
+              {activeFilterCount > 0 && <span className="tab-pending-badge">{activeFilterCount}</span>}
+            </button>
+          </div>
+          <div className="search-wrap u-search-sm sec-filters-search">
+            <span className="search-ico"><AppIcon name="search" size={14} /></span>
+            <input className="search-inp" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
+          </div>
+          {showFilters && (
+            <div className="sec-filters">
+              <section className="sec-filter-group">
+                <div className="sec-filter-group-title">Период</div>
+                <div className="sec-filters-row sec-filters-row--scroll">
+                  {datePills.map(([k, l]) => (
+                    <button key={k} className={`date-pill ${datePeriod === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityPeriod: k })}>{l}</button>
                   ))}
-                </>
+                </div>
+              </section>
+
+              <section className="sec-filter-group">
+                <div className="sec-filter-group-title">Тип</div>
+                <div className="sec-filters-row sec-filters-row--scroll">
+                  {([
+                    ['all', 'Все типы', 0],
+                    ['pass', 'Пропуска', pendingPassCount],
+                    ['tech', 'Техслужба', pendingTechCount],
+                  ] as const).map(([k, l, cnt]) => (
+                    <button key={k} className={`date-pill ${typeFilter === k ? 'active' : ''}${cnt > 0 && k !== 'all' ? ' has-pending' : ''}`} onClick={() => updateSecurityFilters({ securityType: k })}>
+                      {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="sec-filter-group">
+                <div className="sec-filter-group-title">Статус</div>
+                <div className="sec-filters-grid sec-filters-grid--status">
+                  {[['all', 'Все статусы'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
+                    <button key={k} className={`date-pill sm ${statusFilter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityStatus: k })}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {typeFilter !== 'tech' && (
+                <section className="sec-filter-group">
+                  <div className="sec-filter-group-title">Роль</div>
+                  <div className="sec-filters-grid sec-filters-grid--roles">
+                    {[['all', 'Все роли'], ['owner', 'Собственники'], ['tenant', 'Арендаторы'], ['contractor', 'Подрядчики']].map(([k, l]) => (
+                      <button key={k} className={`date-pill sm ${filter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityRole: k })}>{l}</button>
+                    ))}
+                  </div>
+                </section>
               )}
             </div>
-          </div>
+          )}
           {shown.length === 0 ? (
             <StateBlock
               type="empty"

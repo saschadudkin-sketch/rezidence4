@@ -74,7 +74,9 @@ describe('APP_ICON_NAMES', () => {
   test('реестр иконок остаётся стабильным (контракт)', () => {
     expect(APP_ICON_NAMES).toEqual([
       'ticket',
+      'ticket-line',
       'tools',
+      'tools-line',
       'list',
       'file',
       'history',
