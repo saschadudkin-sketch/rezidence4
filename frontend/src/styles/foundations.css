@@ -32,7 +32,11 @@ body {
 #root { height: 100%; }
 
 body { font-size: var(--fs-body); line-height: var(--lh-body); }
-h1, h2, h3, .page-title, .login-h, .login-art-name, .login-art-headline, .av-panel-title, .vlog-card-time {
+/* FIX [TYPOGRAPHY]: единая серифная гарнитура — только Cormorant Garamond.
+   Playfair Display удалён из modal-title (см. modals.css).
+   Три serif-семейства заменены одним для визуальной согласованности. */
+h1, h2, h3, .page-title, .modal-title,
+.login-h, .login-art-name, .login-art-headline, .av-panel-title, .vlog-card-time {
   font-family: 'Cormorant Garamond', 'Times New Roman', serif;
   letter-spacing: -0.025em;
 }

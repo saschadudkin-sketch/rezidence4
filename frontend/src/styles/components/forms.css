@@ -1,12 +1,16 @@
 /* Fields */
 
 .field { margin-bottom: 20px; }
+/* FIX [FORMS]: лейбл полей — три правки:
+   1. uppercase → обычный регистр (uppercase ухудшает читаемость на 11px)
+   2. --t4 → --t3 (t4 не проходил WCAG AA даже после fix токена)
+   3. letter-spacing убран (добавлял воздух только для uppercase-стиля) */
 .field-lbl {
   display: block;
-  font-size: var(--fs-2xs);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--t4);
+  font-size: var(--fs-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--t3);
   font-family: 'Inter', sans-serif;
   margin-bottom: 8px;
   font-weight: 500;
@@ -75,7 +79,9 @@
   font-family: 'Inter', sans-serif;
   font-size: 16px !important;
   color: var(--t1);
-  resize: none;
+  /* FIX [FORMS]: было resize: none — пользователь не мог изменить высоту поля.
+     resize: vertical позволяет тянуть только по вертикали. */
+  resize: vertical;
   line-height: 1.6;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
   transition: border-color .2s, background .2s, box-shadow .2s;
@@ -86,3 +92,26 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--g2) 12%, transparent);
 }
 .field-textarea::placeholder { color: var(--t4); }
+@media (min-width: 768px) and (max-width: 1024px){
+  .field-lbl {
+    font-size: 10px;
+    letter-spacing: 1.25px;
+    margin-bottom: 9px;
+  }
+  .field-inp,
+  .field-select {
+    min-height: 50px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    font-size: 16px !important;
+  }
+  .field-select {
+    padding-right: 42px;
+  }
+  .field-textarea {
+    min-height: 112px;
+    padding: 14px 15px;
+    border-radius: 16px;
+    font-size: 16px !important;
+  }
+}

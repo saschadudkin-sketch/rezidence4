@@ -29,7 +29,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px 15px;
+  /* FIX [LAYOUT]: было padding: 16px 18px 15px — 1px асимметрия top/bottom. */
+  padding: 16px 18px;
   background: transparent;
   border: none;
   color: inherit;
@@ -216,15 +217,16 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
 .qr-info {
   width: 100%;
   max-width: 320px;
+  margin: 0 auto;
   border: 1px solid color-mix(in srgb, var(--b1) 78%, transparent);
   border-radius: 16px;
   overflow: hidden;
   background: linear-gradient(180deg, color-mix(in srgb, var(--s1) 88%, transparent), color-mix(in srgb, var(--s0) 94%, transparent));
 }
 .qr-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: minmax(88px, 104px) minmax(0, 1fr);
+  align-items: center;
   gap: 12px;
   padding: 11px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--b1) 74%, transparent);
@@ -244,6 +246,34 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
   text-align: right;
   font-weight: 600;
   line-height: 1.35;
+  min-width: 0;
+}
+@media (min-width: 768px) and (max-width: 1024px) {
+  .qr-container {
+    max-width: 404px;
+    margin-bottom: 18px;
+    padding: 20px;
+    border-radius: 22px;
+    gap: 14px;
+  }
+  .qr-loading,
+  .qr-img {
+    max-width: 284px;
+    border-radius: 14px;
+  }
+  .qr-info {
+    max-width: 100%;
+    border-radius: 18px;
+  }
+  .qr-info-row {
+    padding: 13px 16px;
+  }
+  .qr-info-lbl {
+    font-size: 11px;
+  }
+  .qr-info-val {
+    font-size: 15px;
+  }
 }
 .qr-scanner-viewport { position: relative; width: 100%; aspect-ratio: 4 / 3; background: var(--s3); border-radius: var(--r); overflow: hidden; border: 1px solid var(--b2); }
 .qr-scanner-video { width: 100%; height: 100%; object-fit: cover; display: block; }

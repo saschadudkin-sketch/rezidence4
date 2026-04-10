@@ -24,8 +24,31 @@
     animation:riseUp .2s ease;
     border-bottom:1px solid var(--b2);
     padding-bottom:0;
-    height:min(760px, calc(100dvh - 72px));
-    max-height:min(760px, calc(100dvh - 72px))
+    /* FIX [LAYOUT]: было min(760px, ...) — на 900px экране модалка занимала 84% высоты.
+       Теперь min(640px, ...) — оставляет минимум 60px сверху и снизу, фон остаётся виден. */
+    height:min(640px, calc(100dvh - 120px));
+    max-height:min(640px, calc(100dvh - 120px))
+  }
+}
+@media (min-width: 768px) and (max-width: 1024px){
+  .modal:has(.pass-qr-foot){
+    max-width:560px;
+    height:auto;
+    max-height:min(880px, calc(100dvh - 56px));
+  }
+  .modal:has(.pass-qr-foot) .modal-head{
+    padding:18px 22px 14px;
+    align-items:flex-start;
+  }
+  .modal:has(.pass-qr-foot) .modal-title{
+    font-size:28px;
+    line-height:1.02;
+  }
+  .modal:has(.pass-qr-foot) .modal-body{
+    padding:18px 22px 20px;
+  }
+  .modal:has(.pass-qr-foot) .modal-foot{
+    padding:14px 22px 20px;
   }
 }
 .modal-handle{
@@ -38,14 +61,20 @@
   display:flex;justify-content:space-between;align-items:center;
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 58%, transparent), transparent);
 }
-.modal-title{font-family:'Playfair Display',serif;font-size:var(--fs-md);font-weight:400;color:var(--t1)}
+/* FIX [TYPOGRAPHY]: Playfair Display удалён — теперь .modal-title наследует
+   Cormorant Garamond из foundations.css (h1-h3, .modal-title selector добавлен туда). */
+.modal-title{font-size:var(--fs-lg);font-weight:500;color:var(--t1)}
 .modal-head-main{min-width:0;display:flex;flex-direction:column}
+/* FIX [TOUCH]: было 36×36px — ниже минимума 44px (Apple HIG, Material).
+   Теперь 44×44px через padding, визуально иконка та же. */
 .modal-close{
   background:none;border:none;color:var(--t3);
-  width:36px;height:36px;cursor:pointer;
+  width:44px;height:44px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  font-size:var(--fs-sm);border-radius:var(--r);transition:background .13s;
+  font-size:var(--fs-body);border-radius:var(--r);transition:background .13s, color .13s;
+  flex-shrink:0;
 }
+.modal-close:hover{background:var(--s3);color:var(--t2)}
 .modal-close:active{background:var(--s3);color:var(--t1)}
 .modal-body{
   padding:var(--space-md);
@@ -143,6 +172,114 @@
 .owner-create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .owner-create-card{width:100%;min-height:92px}
 .owner-create-card--template{width:100%}
+@media (min-width: 768px) and (max-width: 1024px){
+  .modal.modal--request{
+    width:min(720px, calc(100vw - 72px));
+    max-width:720px;
+    height:auto;
+    max-height:min(860px, calc(100dvh - 40px));
+    border-radius:22px;
+  }
+  .modal--request .modal-head{
+    padding:20px 26px 16px;
+    align-items:flex-start;
+    gap:12px;
+  }
+  .modal--request .modal-title{
+    font-size:30px;
+    line-height:1.02;
+  }
+  .modal--request .modal-cat-hint{
+    margin-top:5px;
+    font-size:11px;
+    letter-spacing:.02em;
+  }
+  .modal--request .modal-close{
+    width:38px;
+    height:38px;
+    margin-top:2px;
+  }
+  .modal--request .modal-body{
+    padding:20px 26px 24px;
+    gap:16px;
+    overscroll-behavior:contain;
+    flex:none;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s1) 96%, transparent), color-mix(in srgb, var(--s0) 94%, transparent));
+  }
+  .modal--request .modal-body > .u-fs11-op6.u-mb8{
+    margin-bottom:12px;
+    font-size:10px;
+    letter-spacing:1.3px;
+    color:var(--t4);
+  }
+  .modal--request .modal-cat-picker{
+    gap:10px;
+    padding-bottom:14px;
+    margin-bottom:14px;
+  }
+  .modal--request .modal-cat-btn{
+    min-width:84px;
+    min-height:74px;
+    padding:13px 14px 12px;
+    gap:5px;
+    border-radius:18px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.03),
+      0 10px 24px rgba(0,0,0,.12);
+  }
+  .modal--request .modal-cat-btn-label{
+    font-size:12.5px;
+  }
+  .modal--request .field{
+    margin-bottom:18px;
+  }
+  .modal--request .modal-foot{
+    padding:16px 26px 22px;
+    gap:12px;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s1) 82%, transparent), var(--s1));
+    box-shadow:none;
+    border-top:1px solid color-mix(in srgb, var(--b2) 72%, transparent);
+  }
+  .modal--request .modal-foot .btn-gold,
+  .modal--request .modal-foot .btn-outline{
+    min-height:56px;
+    max-height:56px;
+    border-radius:16px;
+    font-size:15px;
+  }
+  .modal--request .vf-add-btn{
+    min-height:46px;
+    margin-top:6px;
+    border-style:solid;
+    border-radius:16px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 54%, transparent), color-mix(in srgb, var(--g-bg) 24%, transparent));
+    border-color:color-mix(in srgb, var(--b3) 80%, transparent);
+    color:var(--g2);
+    font-size:12px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  }
+  .modal--request .perms-picker-wrap{
+    margin-top:12px;
+  }
+  .modal--request .perms-picker-trigger{
+    min-height:44px;
+    border-radius:14px;
+    font-size:12px;
+    letter-spacing:.15px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg) 46%, var(--s2) 54%), color-mix(in srgb, var(--s2) 96%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 80%, transparent);
+  }
+  .modal--request .schedule-toggle{
+    min-height:48px;
+    padding:12px 14px;
+    border-radius:16px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
+    border-color:color-mix(in srgb, var(--b3) 68%, transparent);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.02);
+  }
+}
 @media(max-width:480px){
   .owner-create-card{min-height:84px}
 }
@@ -256,6 +393,16 @@
   }
   .modal:has(.pass-qr-foot) .modal-body{
     padding:14px 14px 16px;
+  }
+  .modal:has(.pass-qr-foot) .modal-foot{
+    padding:12px 14px calc(18px + var(--sab));
+    gap:10px;
+  }
+  .modal:has(.pass-qr-foot) .modal-foot .btn-gold,
+  .modal:has(.pass-qr-foot) .modal-foot .btn-outline{
+    min-height:50px;
+    max-height:50px;
+    border-radius:16px;
   }
 }
 
@@ -446,8 +593,13 @@
 @media(min-width:480px){.guard-btn{font-size:15px;min-height:56px;padding:16px 12px}}
 .guard-btn:active{transform:scale(.97)}
 .guard-btn:disabled{opacity:.4;cursor:not-allowed}
-.guard-btn.approve{background:var(--ok);color:#fff}
-.guard-btn.approve:hover{background:#2d6b45}
+.guard-btn.approve{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--ok) 92%, #8fd0a2), color-mix(in srgb, var(--ok) 100%, #2d6b45));
+  color:#f8fff9;
+  text-shadow:0 1px 0 rgba(0,0,0,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+}
+.guard-btn.approve:hover{background:linear-gradient(180deg, color-mix(in srgb, var(--ok) 88%, #9fddb0), color-mix(in srgb, var(--ok) 100%, #25573a))}
 .guard-btn.reject{background:transparent;border:2px solid var(--err-t);color:var(--err-t)}
 .guard-btn.reject:hover{background:rgba(192,96,96,.1)}
 .guard-btn.reject.confirm{background:var(--err-t);color:#fff;border-color:var(--err-t);animation:urgentPulse 1.5s ease infinite}
