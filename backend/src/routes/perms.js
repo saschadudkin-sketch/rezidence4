@@ -115,7 +115,10 @@ router.post('/batch', async (req, res, next) => {
     if (updates.length === 0) return res.status(400).json({ error: 'Provide visitors or workers' });
 
     // Single transaction — both types saved or neither
-    const client = await db.connect();
+    // FIX [BUG]: db.connect() не существует — должен быть db.pool.connect().
+    // db.js экспортирует { query, pool, migrate, ... }, connect() не в API.
+    // Каждый вызов /batch бросал TypeError: db.connect is not a function.
+    const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
       for (const [type, items] of updates) {

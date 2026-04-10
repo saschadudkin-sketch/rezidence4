@@ -1,6 +1,7 @@
 'use strict';
 
 const logger = require('../logger');
+const { broadcastRequestUpdate } = require('../sse');
 
 function startRuntimeJobs({ db }) {
   const cleanupJob = setInterval(async () => {
@@ -17,7 +18,11 @@ function startRuntimeJobs({ db }) {
 
   const expirationJob = setInterval(async () => {
     try {
-      const { rowCount: expired } = await db.query(`
+      // FIX [BUG]: добавлен SSE broadcast при изменении статуса через фоновый джоб.
+      // Без broadcast охрана и консьерж не узнают об истечении/активации заявок
+      // до следующего переподключения SSE или перезагрузки страницы.
+      // RETURNING позволяет broadcast только изменённых строк — не перегружаем SSE.
+      const { rows: expiredRows } = await db.query(`
         UPDATE requests
         SET status = 'expired', updated_at = NOW()
         WHERE status IN ('pending', 'approved')
@@ -28,18 +33,38 @@ function startRuntimeJobs({ db }) {
             OR
             (valid_until IS NOT NULL AND valid_until < NOW())
           )
+        RETURNING id, type, category, status, created_by_uid,
+          created_by_name, created_by_role, created_by_apt,
+          visitor_name, visitor_phone, car_plate, comment,
+          pass_duration, valid_until, scheduled_for, arrived_at,
+          photos, created_at, updated_at
       `);
 
-      const { rowCount: activated } = await db.query(`
+      const { rows: activatedRows } = await db.query(`
         UPDATE requests
         SET status = 'pending', scheduled_for = NULL, updated_at = NOW()
         WHERE status = 'scheduled'
           AND scheduled_for <= NOW()
           AND deleted_at IS NULL
+        RETURNING id, type, category, status, created_by_uid,
+          created_by_name, created_by_role, created_by_apt,
+          visitor_name, visitor_phone, car_plate, comment,
+          pass_duration, valid_until, scheduled_for, arrived_at,
+          photos, created_at, updated_at
       `);
 
-      if (expired > 0) logger.info(`[expiration] expired ${expired} requests`);
-      if (activated > 0) logger.info(`[expiration] activated ${activated} scheduled requests`);
+      if (expiredRows.length > 0) {
+        logger.info(`[expiration] expired ${expiredRows.length} requests`);
+        expiredRows.forEach(r => {
+          try { broadcastRequestUpdate(r); } catch { /* SSE не должна ронять джоб */ }
+        });
+      }
+      if (activatedRows.length > 0) {
+        logger.info(`[expiration] activated ${activatedRows.length} scheduled requests`);
+        activatedRows.forEach(r => {
+          try { broadcastRequestUpdate(r); } catch { /* SSE не должна ронять джоб */ }
+        });
+      }
     } catch (err) {
       logger.error({ err }, '[expiration] request status update failed');
     }

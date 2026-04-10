@@ -5,8 +5,11 @@ const logger = require('../logger');
 function validateConfig(env, prod) {
   const errors = [];
 
-  if (!env.JWT_SECRET || env.JWT_SECRET.length < 16) {
-    errors.push('JWT_SECRET must be set and at least 16 characters long');
+  // FIX [SEC]: минимальная длина JWT_SECRET увеличена с 16 до 32 символов.
+  // 16 символов = 128 бит — недостаточно для HMAC-SHA256 (рекомендуется 256 бит).
+  // Генерировать: openssl rand -hex 32
+  if (!env.JWT_SECRET || env.JWT_SECRET.length < 32) {
+    errors.push('JWT_SECRET must be at least 32 characters (256 bits). Generate with: openssl rand -hex 32');
   }
 
   if (!env.DATABASE_URL) {
@@ -15,6 +18,12 @@ function validateConfig(env, prod) {
 
   if (prod && !env.FRONTEND_URL) {
     errors.push('FRONTEND_URL must be set in production (cannot use wildcard CORS in prod)');
+  }
+
+  // FIX: UPLOAD_SIGNING_SECRET обязателен в production — uploadSecurity.js выбрасывает без него.
+  // Добавлено ПЕРЕД process.exit() чтобы ошибка попала в список и сервер не запустился.
+  if (prod && !env.UPLOAD_SIGNING_SECRET) {
+    errors.push('UPLOAD_SIGNING_SECRET is required in production. Generate: openssl rand -hex 32');
   }
 
   if (errors.length) {

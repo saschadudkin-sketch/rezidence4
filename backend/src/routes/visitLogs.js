@@ -39,32 +39,22 @@ router.get('/', async (req, res, next) => {
     const limit  = Math.min(100, parseInt(req.query.limit) || 50);
     const offset = (page - 1) * limit;
 
-    // Приблизительный счётчик строк через pg_class.reltuples (обновляется VACUUM/ANALYZE).
-    // FIX: убрано дублирование — reltuples читался ДВАЖДЫ в одном запросе через два
-    // независимых подзапроса. Теперь — один CTE, одно чтение pg_class.
-    const [{ rows }, { rows: countRows }] = await Promise.all([
-      db.query(
-        `SELECT id, user_id, request_id, visitor_name, category, car_plate,
-                created_by_apt, created_by_name, created_by_uid,
-                actor_name, actor_role, result, reason, timestamp
-         FROM visit_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
-        [limit, offset],
-      ),
-      db.query(
-        `WITH stats AS (
-           SELECT reltuples::bigint AS est
-           FROM pg_class WHERE relname = 'visit_logs'
-         )
-         SELECT CASE
-           WHEN (SELECT est FROM stats) < 1
-           THEN (SELECT COUNT(*) FROM visit_logs)
-           ELSE (SELECT est FROM stats)
-         END AS count`
-      ),
-    ]);
+    // FIX [PERF+CORRECTNESS]: window function COUNT(*) OVER() вместо двух запросов.
+    // Было: два параллельных roundtrip + reltuples из pg_class (устаревает без VACUUM,
+    //   может показывать 100 при 10000 реальных строках → неверная пагинация).
+    // Стало: один запрос, точный COUNT, паттерн идентичен RequestsService.list().
+    const { rows } = await db.query(
+      `SELECT id, user_id, request_id, visitor_name, category, car_plate,
+              created_by_apt, created_by_name, created_by_uid,
+              actor_name, actor_role, result, reason, timestamp,
+              COUNT(*) OVER() AS total_count
+       FROM visit_logs ORDER BY timestamp DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    const total = rows.length > 0 ? Number(rows[0].total_count) : 0;
     res.json({
       data:  rows.map(fmt),
-      total: Number(countRows[0].count),
+      total,
       page,
       limit,
     });

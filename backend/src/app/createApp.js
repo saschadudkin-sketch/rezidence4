@@ -23,9 +23,21 @@ function createApp({ config, db }) {
 
   app.set('trust proxy', config.trustProxy);
 
+  // FIX [SEC]: включён Content-Security-Policy.
+  // Бэкенд раздаёт JSON (API) и изображения (/uploads/). HTML не раздаётся,
+  // поэтому CSP ограничиваем до минимума — главное запретить framing и
+  // установить безопасный default для гипотетических error-страниц.
   app.use(helmet({
-    hsts: config.isProd ? { maxAge: 31536000, includeSubDomains: true } : false,
-    contentSecurityPolicy: false,
+    hsts: config.isProd ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'none'"],
+        imgSrc:     ["'self'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'none'"],
+      },
+    },
   }));
 
   app.use(cors({

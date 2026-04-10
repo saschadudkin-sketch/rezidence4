@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { CSSProperties } from 'react';
+import type { AppUser } from '../store/slices/usersSlice';
 import { useUsers } from '../store/AppStore';
 import { findByPhone } from '../utils/phoneUtils';
 import { toast } from '../ui/Toasts';
@@ -27,13 +28,14 @@ const HINTS = isDemoMode()
     ]
   : [];
 
-export default function Login({ onLogin, authNotice = '' }) {
+export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: AppUser) => void; authNotice?: string }) {
   const demoMode = isDemoMode();
   const [phone, setPhone] = useState('+7 ');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState('phone');
   const [pending, setPendingState] = useState({ send: false, verify: false, demo: false });
-  const [found, setFound] = useState(null);
+  // FIX [TYPES]: found типизирован как AppUser | null (ранее null без generic)
+  const [found, setFound] = useState<AppUser | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -50,7 +52,11 @@ export default function Login({ onLogin, authNotice = '' }) {
   const authFlow = useAuthFlow();
 
   // Отменяем старые запросы, если пользователь быстро повторяет действия.
-  const abortRef = useRef(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // FIX [CLEANUP]: при unmount отменяем in-flight запросы, чтобы не тратить
+  // ресурсы сервера и избежать setState на размонтированном компоненте.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
   const currentRequestIdRef = useRef({ send: 0, verify: 0 });
   const requestSeqRef = useRef(0);
   const loading = pending.send || pending.verify || pending.demo;
@@ -328,13 +334,6 @@ export default function Login({ onLogin, authNotice = '' }) {
             </div>
           )}
 
-          {false && (
-            <div className="field-warn" role="status" aria-live="polite">
-              Демо-режим: приватная сессия включена по умолчанию и не сохраняет данные между
-              перезапусками. Постоянное хранение включайте только вручную.
-            </div>
-          )}
-
           {recovery && (
             <ErrorRecoveryPanel
               message={recovery.message}
@@ -461,16 +460,15 @@ export default function Login({ onLogin, authNotice = '' }) {
                   Слишком много попыток: следующая может заблокировать вход на несколько минут
                 </div>
               )}
-              {(() => {
-                const otpProgressStyle = {
-                  '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%`,
-                } as CSSProperties;
-                return resendIn > 0 ? (
-                  <div className="otp-countdown" aria-hidden="true">
-                    <div className="otp-countdown-bar" style={otpProgressStyle} />
-                  </div>
-                ) : null;
-              })()}
+              {/* FIX [CODE]: IIFE в JSX заменён на читаемую переменную */}
+              {resendIn > 0 && (
+                <div className="otp-countdown" aria-hidden="true">
+                  <div
+                    className="otp-countdown-bar"
+                    style={{ '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%` } as CSSProperties}
+                  />
+                </div>
+              )}
 
               <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
                 {resendIn > 0

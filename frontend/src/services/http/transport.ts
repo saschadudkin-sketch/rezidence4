@@ -39,7 +39,8 @@ export async function fetchWithTimeout(url: string, options: RequestInit & { sig
   }
 }
 
-export async function parseApiResponse(res) {
+// FIX [TYPES]: явная типизация параметра Response
+export async function parseApiResponse(res: Response) {
   if (res.status === 204) return null;
 
   const contentType = (

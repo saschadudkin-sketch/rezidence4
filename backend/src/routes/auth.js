@@ -204,10 +204,13 @@ router.post('/verify-otp', async (req, res, next) => {
     }
 
     if (!matchedId) {
-      // Инкрементируем счётчик попыток для всех активных кодов этого телефона
+      // FIX [RACE]: добавлен AND attempts < 5 в UPDATE.
+      // Без него два параллельных запроса могли оба пройти SELECT (видели attempts=4),
+      // оба не совпасть с кодом, и оба инкрементировать — итого attempts=6 вместо 5.
+      // С условием в UPDATE: при attempts=5 строка уже не обновляется — безвредно.
       await db.query(
         `UPDATE otp_codes SET attempts = attempts + 1
-         WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
+         WHERE phone=$1 AND expires_at > NOW() AND used=FALSE AND attempts < 5`,
         [phone],
       );
       appMetrics.incrementCounter('otpVerifyFailed');

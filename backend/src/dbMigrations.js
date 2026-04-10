@@ -263,6 +263,19 @@ const MIGRATIONS = [
       await client.query(`CREATE INDEX IF NOT EXISTS idx_upload_access_audit_uid ON upload_access_audit(uid, created_at DESC)`);
     },
   },
+  {
+    // FIX [PERF]: GIN-индекс для поиска по тексту чата.
+    // ILIKE '%term%' без индекса — full table scan. При 100k+ сообщений это O(n).
+    // pg_trgm GIN позволяет ILIKE с leading wildcard использовать индекс (O(log n)).
+    id: '008_chat_search_trgm_index',
+    async up(client) {
+      await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_text_trgm
+        ON chat_messages USING GIN (text gin_trgm_ops)
+      `);
+    },
+  },
 ];
 const LATEST_MIGRATION_ID = MIGRATIONS[MIGRATIONS.length - 1]?.id || null;
 

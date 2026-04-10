@@ -1,4 +1,4 @@
-import { memo, useEffect, lazy, Suspense } from 'react';
+import { memo, useEffect, lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
@@ -35,16 +35,23 @@ import { logger } from './services/logger';
 // (requestsSlice, chatSlice, usersSlice) should stay as Context reducers.
 // One-data-plane policy is codified in data/dataPlanePolicy.ts and should be
 // extended there first whenever a new entity is introduced.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
-      staleTime: 60_000,
-      gcTime: 5 * 60_000,
+//
+// FIX [TEST]: QueryClient создаётся внутри App через useState (lazy initializer),
+// а не на уровне модуля. Singleton на уровне модуля разделяется между тест-кейсами —
+// кеш из одного теста протекает в следующий. useState(() => new QueryClient(...))
+// гарантирует изолированный инстанс на каждый рендер приложения.
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 2,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+      },
     },
-  },
-});
+  });
+}
 
 /* A-02: CSS layer architecture — tokens → foundations → components/features */
 import './styles/tokens.css';
@@ -168,6 +175,7 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [queryClient] = useState(createQueryClient);
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>

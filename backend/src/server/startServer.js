@@ -7,12 +7,16 @@ const { startRuntimeJobs } = require('./runtimeJobs');
 async function startServer({ app, db, config }) {
   await db.assertSchemaCurrent();
 
-  const server = app.listen(config.port, () => logger.info(`[server] :${config.port} ready (prod=${config.isProd})`));
+  // FIX [RACE]: Redis pub/sub инициализируется ДО старта HTTP-сервера.
+  // Ранее sseRedis.init() вызывался ПОСЛЕ app.listen() — первые SSE-клиенты,
+  // подключившиеся в узком окне до завершения init(), не получали Redis-события.
   const sseRedis = require('../sse-redis');
   if (process.env.REDIS_URL) {
     sseRedis.init();
     logger.info('[server] Redis SSE pub/sub enabled');
   }
+
+  const server = app.listen(config.port, () => logger.info(`[server] :${config.port} ready (prod=${config.isProd})`));
 
   const jobs = startRuntimeJobs({ db });
   const shutdownTimeout = 10_000;

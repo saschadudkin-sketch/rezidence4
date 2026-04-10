@@ -162,8 +162,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         setHighlightReqId,
       }}
     >
-      {false && guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
-      {false && guidance.showOnboarding && (
+      {guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
+      {guidance.showOnboarding && (
         <OnboardingHint role={user.role} onClose={guidance.dismissOnboarding} />
       )}
       <AppShell

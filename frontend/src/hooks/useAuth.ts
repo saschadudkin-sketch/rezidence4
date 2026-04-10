@@ -7,6 +7,7 @@ import { services } from '../services/providers/serviceContainer';
 // A-01: use centralized event registry instead of magic string
 import { onSessionExpired, onUnauthorized } from '../utils/events';
 import { clearAppStorage, STORAGE_KEYS, writeStorage } from '../store/persistence/storageRegistry';
+import type { AppUser } from '../store/slices/usersSlice';
 
 // ─── Security model ──────────────────────────────────────────────────────────
 // SEC: JWT stored in HttpOnly cookie (not accessible to JS).
@@ -30,7 +31,9 @@ export const PHASE = {
 
 export function useAuth() {
   const [phase, setPhase] = useState(PHASE.LOADING);
-  const [user,  setUser]  = useState(null);
+  // FIX [TYPES]: явная типизация — без generic useState(null) имеет тип null,
+  // что приводит к any-cast при доступе к user.uid, user.role и т.д.
+  const [user,  setUser]  = useState<AppUser | null>(null);
   const [authNotice, setAuthNotice] = useState('');
   const notifTimerRef = useRef<number | null>(null);
 
@@ -41,7 +44,7 @@ export function useAuth() {
       services.auth.getMe()
         .then(u => {
           if (cancelled) return;
-          const user = u as { uid?: string; role?: string; name?: string } | null;
+          const user = u as AppUser | null;
           if (user && user.uid) {
             setUser(user);
             setPhase(PHASE.DASHBOARD);
@@ -79,7 +82,7 @@ export function useAuth() {
     }
   }, []);
 
-  const login = useCallback((u) => {
+  const login = useCallback((u: AppUser) => {
     if (!u || !u.uid) {
       logger.error('Login called with invalid user', u);
       toast('Ошибка входа', 'error');

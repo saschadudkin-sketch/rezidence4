@@ -5,8 +5,18 @@ const db = require('../db');
 
 const SIGN_TTL_SECONDS = Math.max(30, parseInt(process.env.UPLOAD_SIGNED_URL_TTL_SECONDS || '300', 10));
 
+// FIX [SEC]: отдельный секрет от JWT_SECRET — компрометация одного не компрометирует другой.
+// В production UPLOAD_SIGNING_SECRET обязателен — фейл-фаст при запуске предотвращает
+// использование небезопасного дефолта.
 function getSecret() {
-  return process.env.UPLOAD_SIGNING_SECRET || process.env.JWT_SECRET || 'dev-upload-signing-secret';
+  const secret = process.env.UPLOAD_SIGNING_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('[uploadSecurity] UPLOAD_SIGNING_SECRET is required in production. Set it in your environment.');
+    }
+    return 'dev-upload-signing-secret-change-in-production';
+  }
+  return secret;
 }
 
 function signUploadAccess(filename, expiresAt) {
@@ -29,7 +39,13 @@ function verifySignedUploadQuery(filename, query) {
   if (!exp || !sig) return false;
   if (exp < Math.floor(Date.now() / 1000)) return false;
   const expected = signUploadAccess(filename, exp);
-  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  // FIX [BUG]: crypto.timingSafeEqual бросает RangeError если буферы разной длины.
+  // Malformed sig (не 64 hex-символа) → unhandled throw → 500 вместо 403.
+  // Проверяем длину заранее — это не timing leak, так как длина expected фиксирована (64).
+  const sigBuf = Buffer.from(sig, 'utf8');
+  const expBuf = Buffer.from(expected, 'utf8');
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, expBuf);
 }
 
 async function registerUploadMetadata({ ownerUid, filename, mimeType, byteSize }) {

@@ -54,8 +54,9 @@ function permsSliceReducer(state, action) {
 
 export function useBoundedDomainStates() {
   const isDemoMode = !isLiveMode();
-  const [_saved] = useState(() => (isDemoMode ? loadFromLS({ criticalOnly: true }) : null));
-  const saved = _saved;
+  // FIX [MED-2]: убран бессмысленный алиас _saved → saved.
+  // Префикс _ сигнализировал "не используется", но переменная сразу же копировалась.
+  const [saved] = useState(() => (isDemoMode ? loadFromLS({ criticalOnly: true }) : null));
 
   const [reqState, requestsDispatch] = useReducer(requestsSliceReducer, null, () => ({
     requests: saved?.requests ?? INITIAL_REQUESTS,

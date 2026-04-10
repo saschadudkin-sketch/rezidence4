@@ -259,6 +259,24 @@ class RequestsService {
     const { uid, name, role } = user;
     const staff = isStaff(role);
 
+    // FIX [SECURITY]: валидация photos в update — идентична проверке в create().
+    // Без этого авторизованный пользователь мог через PATCH установить произвольные
+    // внешние URL (трекеры, javascript:) или массив из 1000 строк, раздувая SSE-broadcast.
+    if (patch.photos !== undefined) {
+      if (!Array.isArray(patch.photos)) {
+        throw new ServiceError('photos must be an array');
+      }
+      if (patch.photos.length > 10) {
+        throw new ServiceError('photos: max 10 items per request');
+      }
+      const backendUrl = process.env.BACKEND_URL || '';
+      for (const url of patch.photos) {
+        if (typeof url !== 'string') throw new ServiceError('photos: each item must be a string');
+        const isLocal = url.startsWith('/uploads/') || (backendUrl && url.startsWith(backendUrl + '/uploads/'));
+        if (!isLocal) throw new ServiceError('photos: only local upload URLs allowed (/uploads/...)');
+      }
+    }
+
     const fields = [];
     const vals   = [];
     let   i      = 1;

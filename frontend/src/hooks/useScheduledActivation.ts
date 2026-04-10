@@ -9,7 +9,11 @@ export function useScheduledActivation(requests, activateScheduled) {
   requestsRef.current = requests;
 
   useEffect(() => {
-    activateScheduled();
+    // FIX [MED-4]: guard при монтировании симметричен интервалу.
+    // Раньше dispatch уходил вхолостую даже при отсутствии scheduled заявок.
+    if (requestsRef.current.some(r => r.status === 'scheduled')) {
+      activateScheduled();
+    }
     const id = setInterval(() => {
       if (requestsRef.current.some(r => r.status === 'scheduled')) {
         activateScheduled();

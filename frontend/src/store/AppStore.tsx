@@ -5,7 +5,7 @@
  * selector hooks over a single store context instead of a deep provider chain.
  */
 
-import { useContext, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useContext, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import {
   StoreContext,
   DispatchContext,
@@ -90,7 +90,8 @@ function useAppStoreSelector<T>(selector: (state: AppStoreSnapshot) => T): T {
   );
 }
 
-export function AppProvider({ children }) {
+// FIX [TYPES]: явная типизация children — React 18 убрал implicit children из React.FC.
+export function AppProvider({ children }: { children: ReactNode }) {
   const bounded = useBoundedDomainStates() as AppStoreSnapshot & {
     dispatch: AppDispatch;
   };
@@ -152,9 +153,9 @@ export function useUsers(): { users: Record<string, AppUser>; phoneDb: Record<st
 export function useAvatar(uid: string): string | null {
   return useAppStoreSelector((state) => state.usersState.avatars?.[uid] || state.usersState.users?.[uid]?.avatar || null);
 }
-export function usePerms(uid) { return useAppStoreSelector((state) => state.permsState.perms?.[uid] ?? EMPTY_PERMS_ENTRY); }
-export function useTemplates(uid) { return useAppStoreSelector((state) => state.permsState.templates?.[uid] ?? EMPTY_TEMPLATES); }
-export function useRequestHistory(reqId) { return useAppStoreSelector((state) => state.reqState.history?.[reqId] ?? EMPTY_HISTORY); }
+export function usePerms(uid: string) { return useAppStoreSelector((state) => state.permsState.perms?.[uid] ?? EMPTY_PERMS_ENTRY); }
+export function useTemplates(uid: string) { return useAppStoreSelector((state) => state.permsState.templates?.[uid] ?? EMPTY_TEMPLATES); }
+export function useRequestHistory(reqId: string) { return useAppStoreSelector((state) => state.reqState.history?.[reqId] ?? EMPTY_HISTORY); }
 export function useBlacklist() { return useAppStoreSelector((state) => state.blacklistState.blacklist ?? EMPTY_BLACKLIST); }
 export function useGarage(uid: string): Car[] { return useAppStoreSelector((state) => state.garageState.garage?.[uid] ?? EMPTY_GARAGE_CARS); }
 

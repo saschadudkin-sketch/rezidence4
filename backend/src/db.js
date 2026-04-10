@@ -7,7 +7,11 @@ const pool = new Pool({
   max:                     20,
   idleTimeoutMillis:       30_000,
   connectionTimeoutMillis:  5_000,
-  statement_timeout:       30_000,
+  // FIX [PERF]: снижен с 30s до 10s.
+  // 30s позволяло медленным запросам удерживать соединение из пула, при пике нагрузки
+  // пул из 20 соединений исчерпывался. Для веб-запросов 10s — достаточный потолок.
+  // Долгоживущие операции (migrate, seed) переопределяют timeout локально через client.query().
+  statement_timeout:       10_000,
 });
 
 pool.on('error', (err) => logger.error({ err }, '[db] unexpected pool error'));

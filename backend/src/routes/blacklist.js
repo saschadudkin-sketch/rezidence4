@@ -11,6 +11,17 @@ router.use(requireAuth);
 // Разрешённые роли для чтения/записи чёрного списка
 const ALLOWED_ROLES = new Set(['admin', 'security', 'concierge']);
 
+// FIX [HIGH-1]: валидация UUID — без неё DELETE /api/blacklist/<мусор> бросает
+// PG-ошибку "invalid input syntax for type uuid" → необработанный 500.
+// Паттерн скопирован из users.js validateUid.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validateId(req, res, next) {
+  if (!UUID_RE.test(String(req.params.id || ''))) {
+    return res.status(400).json({ error: 'Invalid id format' });
+  }
+  next();
+}
+
 // FIX [AUDIT]: ограничения длины полей — без них злоумышленник записывает 1MB в name/reason
 const BL_FIELD_MAX = Object.freeze({
   name:     200,
@@ -84,7 +95,7 @@ router.post('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', validateId, async (req, res, next) => {
   try {
     if (!ALLOWED_ROLES.has(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' });
