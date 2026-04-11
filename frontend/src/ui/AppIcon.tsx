@@ -155,6 +155,9 @@ const PATHS = {
   download: 'M12 4.5v9M8.5 10l3.5 3.5 3.5-3.5M5.5 18.5h13',
   door: 'M7.5 4.5h9a1.5 1.5 0 0 1 1.5 1.5v12.5H6V6a1.5 1.5 0 0 1 1.5-1.5zM10 11.5h.01',
   hourglass: 'M7.5 4.5h9M7.5 19.5h9M8 4.5c0 3 1.8 4.8 4 6 2.2-1.2 4-3 4-6M8 19.5c0-3 1.8-4.8 4-6 2.2 1.2 4 3 4 6',
+  sun: 'M12 3v1.5M12 19.5V21M4.2 4.2l1.1 1.1M18.7 18.7l1.1 1.1M3 12h1.5M19.5 12H21M5.3 18.7l-1.1 1.1M18.7 5.3l1.1-1.1M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  monitor: 'M3 5.5h18a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 16V7A1.5 1.5 0 0 1 3 5.5zM8 20.5h8M12 17.5v3',
 };
 
 export const APP_ICON_NAMES = Object.freeze([
@@ -198,6 +201,9 @@ export const APP_ICON_NAMES = Object.freeze([
   'download',
   'door',
   'hourglass',
+  'sun',
+  'moon',
+  'monitor',
 ]);
 const warnedUnknownIcons = new Set();
 const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
