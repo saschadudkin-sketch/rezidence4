@@ -145,13 +145,13 @@ function AdminPermsAptGroup({ u, tab }) {
 
   return (
     <div className="sec-apt-group">
-      <div className="sec-apt-hdr u-row-between">
-        <span>
+      <div className="sec-apt-hdr admin-perm-group-hdr u-row-between">
+        <span className="admin-perm-group-title">
           Апарт. {u.apartment} — {u.name}
           <span className="admin-perm-role-label"> ({ROLE_LABELS[u.role]})</span>
         </span>
-        <div className="u-row-g6">
-          <span className="u-fs11-t4">{list.length} зап.</span>
+        <div className="u-row-g6 admin-perm-group-actions">
+          <span className="u-fs11-t4 admin-perm-group-count">{list.length} зап.</span>
           {list.length > 0 && (
             <button className="btn-del-sm admin-perm-clear-btn" onClick={clearAll}>Очистить</button>
           )}

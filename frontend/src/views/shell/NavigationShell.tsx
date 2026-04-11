@@ -10,14 +10,14 @@ const MOBILE_MAX_TABS_BY_ROLE: Record<string, number> = {
   security: 7,
   owner: 4,
   tenant: 4,
-  concierge: 4,
+  concierge: 5,
 };
 
 const DEFAULT_MOBILE_MAX_TABS = 4;
 
 const ROLE_NAV_ORDER: Record<string, string[]> = {
   security: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
-  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'templates', 'history', 'tech'],
+  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'residents', 'templates', 'history', 'tech'],
   owner: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
   tenant: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
   contractor: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
@@ -25,6 +25,7 @@ const ROLE_NAV_ORDER: Record<string, string[]> = {
 };
 
 const MOBILE_TOP_TABS_BY_ROLE: Record<string, string[]> = {
+  admin: ['stats', 'requests', 'residents'],
   owner: ['passes', 'tech', 'perms'],
   tenant: ['passes', 'tech', 'perms'],
   contractor: ['passes', 'tech', 'perms'],
@@ -78,6 +79,22 @@ function useIsMobile() {
   return isMobile;
 }
 
+function useIsTablet() {
+  const [isTablet, setIsTablet] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width:768px) and (max-width:1024px)').matches,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width:768px) and (max-width:1024px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsTablet(event.matches);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  return isTablet;
+}
+
 function orderMobileTabs(role: string, nav: NavItem[]) {
   const roleOrder = ROLE_NAV_ORDER[role];
   if (!roleOrder) return nav;
@@ -102,10 +119,37 @@ function splitMobileNav(role: string, nav: NavItem[]) {
 }
 
 function getMobileLabel(role: string, key: string, fallback: string) {
-  return MOBILE_LABELS_BY_ROLE[role]?.[key] ?? fallback;
+  if (role === 'admin') {
+    const adminLabels: Record<string, string> = {
+      users: '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438',
+      blacklist: '\u0421\u0442\u043e\u043f',
+      visitlog: '\u0416\u0443\u0440\u043d\u0430\u043b',
+    };
+    return adminLabels[key] ?? fallback;
+  }
+  if (role === 'concierge') {
+    const conciergeLabels: Record<string, string> = {
+      passes: 'Пропуска',
+      visitlog: 'Журнал',
+      chat: 'Чат',
+      blacklist: 'Стоп',
+      residents: 'Резиденты',
+    };
+    return conciergeLabels[key] ?? fallback;
+  }
+  const commonCompactLabels: Record<string, string> = {
+    visitlog: '\u0416\u0443\u0440\u043d\u0430\u043b',
+    blacklist: '\u0421\u0442\u043e\u043f',
+  };
+  return MOBILE_LABELS_BY_ROLE[role]?.[key] ?? commonCompactLabels[key] ?? fallback;
 }
 
 function getMobileNavItems(role: string, items: NavItem[]) {
+  if (role === 'concierge') {
+    const conciergeBottomTabs = new Set(['passes', 'visitlog', 'chat', 'blacklist', 'residents']);
+    return items.filter(([key]) => conciergeBottomTabs.has(key));
+  }
+  if (role === 'admin') return items.filter(([key]) => key !== 'chat');
   if (role === 'security') return items.filter(([key]) => key !== 'chat');
   return items;
 }
@@ -151,6 +195,7 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: Q
 
 const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }: NavigationShellProps) {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [showMore, setShowMore] = useState(false);
   const topNavRef = useRef<HTMLElement | null>(null);
   const mobileNavRef = useRef<HTMLElement | null>(null);
@@ -161,9 +206,9 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
 
   const orderedMobileNav = orderMobileTabs(userRole, nav);
   const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
-  const topNavItems = isMobile ? topNav : nav;
+  const topNavItems = isTablet ? getMobileNavItems(userRole, orderedMobileNav) : isMobile ? topNav : nav;
   const mobileNavItems = isMobile ? getMobileNavItems(userRole, bottomNav) : orderedMobileNav;
-  const hasMobileTopTabs = isMobile && topNav.length > 0 && topNav.length !== nav.length;
+  const hasMobileTopTabs = isTablet || (isMobile && topNav.length > 0 && topNav.length !== nav.length);
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;
@@ -217,13 +262,13 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
             aria-current={isActive(key) ? 'page' : undefined}
           >
             <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
-            <span>{label}</span>
+            <span>{isMobile ? getMobileLabel(userRole, key, label) : label}</span>
             {badge > 0 && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
       </nav>
 
-      <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || undefined} ref={mobileNavRef}>
+      <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || isTablet || undefined} ref={mobileNavRef}>
         {visibleNav.map(([key, icon, label, badge]) => (
           <button
             key={key}

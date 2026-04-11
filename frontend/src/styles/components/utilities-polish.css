@@ -192,8 +192,12 @@ html{scroll-behavior:smooth}
   .vlog-card-name{font-size:var(--fs-sm)}
   .bl-header{flex-direction:column;align-items:flex-start;gap:8px}
   .sec-filters-row{gap:4px}
-  .admin-toolbar{flex-direction:column}
-  .admin-toolbar .search-wrap{min-width:0;max-width:none}
+  .admin-toolbar{flex-direction:column;align-items:stretch;gap:10px}
+  .admin-toolbar .search-wrap,
+  .admin-toolbar .sec-filters-toggle-row,
+  .admin-toolbar .sec-filters{width:100%;min-width:0;max-width:none;box-sizing:border-box}
+  .admin-toolbar .sec-filters-toggle-row{display:flex;justify-content:flex-start;margin-bottom:0}
+  .admin-toolbar .sec-filters-toggle{min-width:0}
   .chat-bar{padding:8px 10px calc(8px + max(var(--sab), 0px));gap:8px;align-items:center}
   .chat-compose-shell{padding:2px 2px 2px 12px;min-height:42px;border-radius:22px}
   .chat-inp{font-size:var(--fs-body);min-width:0;min-height:22px;padding:0;line-height:22px;border-radius:0}
@@ -203,9 +207,42 @@ html{scroll-behavior:smooth}
   .type-label{font-size:10.5px}
 }
 @media (--bp-sm-down){
+  .admin-toolbar{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:stretch !important;
+    flex-wrap:nowrap !important;
+    gap:8px !important;
+  }
+  .admin-toolbar .search-wrap,
+  .admin-toolbar .sec-filters-toggle-row,
+  .admin-toolbar .sec-filters{
+    width:100% !important;
+    min-width:0 !important;
+    max-width:none !important;
+    flex:0 0 auto !important;
+  }
+  .admin-toolbar .sec-filters-toggle{
+    width:100%;
+    justify-content:center;
+  }
+  .admin-toolbar .sec-filters{max-height:none}
   .guard-header-stats{flex-wrap:wrap;justify-content:center}
   .guard-subtab{font-size:var(--fs-3xs);padding:8px 6px}
   .type-card{width:86px;min-height:84px}
+  .guard-post{
+    padding-bottom:calc(var(--nav-h) + var(--sab) + 34px);
+  }
+  .guard-section:last-child{
+    margin-bottom:calc(var(--nav-h) + var(--sab) + 26px);
+  }
+  .guard-list{
+    padding-bottom:6px;
+  }
+  .guard-card-wrap:last-child,
+  .guard-card:last-child{
+    margin-bottom:14px;
+  }
 }
 
 /* ── Landing ── */
@@ -388,6 +425,86 @@ html{scroll-behavior:smooth}
 }
 .icon-btn:hover{background:var(--s3);color:var(--t1)}
 .icon-btn.danger:hover{background:rgba(220,50,50,.12);color:var(--err-t)}
+@media (min-width: 768px) and (max-width: 1024px){
+  .garage-view{
+    padding:8px 0 32px;
+  }
+  .garage-header{
+    margin-bottom:18px;
+    padding-bottom:14px;
+    border-bottom-color:color-mix(in srgb, var(--b1) 84%, transparent);
+  }
+  .garage-title{
+    gap:12px;
+  }
+  .garage-title-text{
+    font-size:17px;
+    line-height:1.18;
+  }
+  .garage-title-sub{
+    font-size:12px;
+    line-height:1.45;
+    max-width:34ch;
+  }
+  .garage-header .btn-gold.u-w-auto{
+    min-height:48px;
+    min-width:132px;
+    padding-inline:18px;
+    border-radius:16px;
+    font-size:14px;
+  }
+  .garage-form{
+    padding:18px;
+    margin-bottom:16px;
+    border-radius:18px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 76%, transparent);
+  }
+  .garage-form-btns{
+    gap:10px;
+    justify-content:flex-end;
+  }
+  .garage-form-btns .btn-gold,
+  .garage-form-btns .btn-outline{
+    min-width:118px;
+    min-height:48px;
+    border-radius:14px;
+    font-size:14px;
+  }
+  .garage-card{
+    padding:14px 16px;
+    border-radius:16px;
+    border-color:color-mix(in srgb, var(--b2) 76%, transparent);
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  }
+  .garage-plate{
+    font-size:16px;
+    padding:5px 12px;
+    border-radius:8px;
+  }
+  .garage-brand{
+    font-size:14px;
+  }
+  .garage-note{
+    font-size:12px;
+    line-height:1.4;
+  }
+  .garage-view .state-block{
+    margin-top:8px;
+    padding:42px 28px 36px;
+    border-radius:22px;
+  }
+  .garage-view .state-title{
+    font-size:28px;
+    margin-bottom:8px;
+  }
+  .garage-view .state-sub{
+    font-size:13px;
+    line-height:1.5;
+    max-width:34ch;
+    margin-inline:auto;
+  }
+}
 
 
 /* ── Вкладка Жильцы (ResidentsView) ──────────────────────────────────────── */
@@ -482,6 +599,55 @@ html{scroll-behavior:smooth}
   border:1px solid color-mix(in srgb, var(--b2) 84%, transparent);
   border-radius:16px;
   background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 40%, transparent), color-mix(in srgb, var(--s2) 94%, transparent));
+}
+
+@media(max-width:480px){
+  .concierge-role-hint{
+    margin-bottom:8px;
+    padding:6px 10px;
+    font-size:10px;
+    line-height:1.35;
+  }
+  .concierge-role-hint + .page-action-bar{
+    margin-bottom:8px !important;
+    gap:8px;
+  }
+  .concierge-role-hint + .page-action-bar .page-action-primary,
+  .concierge-role-hint + .page-action-bar .page-action-overflow-btn{
+    min-height:44px;
+    padding:0 12px;
+    font-size:12px;
+    border-radius:14px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap{
+    margin-bottom:10px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap .search-inp{
+    min-height:42px;
+    font-size:13px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap + .type-grid{
+    margin-bottom:12px;
+    gap:10px;
+    max-width:360px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap + .type-grid .type-card{
+    width:82px;
+    min-height:80px;
+    padding:14px 8px 12px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap + .type-grid + .u-flex-center{
+    margin-bottom:10px !important;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap + .type-grid + .u-flex-center .date-pill{
+    min-height:38px;
+    padding:7px 14px;
+    font-size:11px;
+  }
+  .concierge-role-hint + .page-action-bar + .search-wrap + .type-grid + .u-flex-center + .req-list{
+    margin-top:0;
+    padding-bottom:calc(var(--nav-h) + var(--sab) + 26px);
+  }
 }
 
 @media (max-width: 640px){
@@ -586,6 +752,15 @@ html{scroll-behavior:smooth}
 .car-search-trigger{border-color:var(--b2)!important;color:var(--g1)!important}
 
 @media (--bp-sm-down) {
+  .page-action-bar.admin-toolbar-action{
+    margin-left:0;
+    width:100%;
+  }
+  .page-action-bar.admin-toolbar-action .page-action-primary{
+    display:flex;
+    flex:1 1 auto;
+    width:100%;
+  }
   .page-action-bar{
     justify-content:stretch;
     align-items:stretch;
@@ -783,6 +958,7 @@ html{scroll-behavior:smooth}
 .msg-row-rel{position:relative}
 .msg-av-reset{flex-shrink:0;overflow:hidden;padding:0}
 .hidden-input{display:none}
+.admin-req-shell{position:relative}
 .admin-req-actions{margin-top:-4px;padding-bottom:8px;border-bottom:1px solid var(--b1);justify-content:flex-end}
 .u-wrap{flex-wrap:wrap}
 .admin-user-row-card{
@@ -790,6 +966,17 @@ html{scroll-behavior:smooth}
 }
 .admin-user-row-card:hover{border-color:var(--b2)}
 .admin-user-self-mark{font-size:11px;color:var(--g2);letter-spacing:.5px}
+.admin-user-meta{row-gap:4px}
+.admin-user-meta-item{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.admin-user-meta-item:not(:first-child)::before{
+  content:'•';
+  color:var(--b3);
+  margin-right:4px;
+}
 .admin-user-edit-wrap{margin:0 10px 10px;border-radius:6px}
 .admin-user-apt-inp{max-width:80px}
 .admin-user-park-inp{width:80px}
@@ -798,6 +985,48 @@ html{scroll-behavior:smooth}
 .pass-qr-foot{
   flex-direction:column;
   gap:10px;
+}
+@media (max-width: 480px){
+  .admin-req-shell{
+    border-radius:18px;
+    overflow:hidden;
+  }
+  .admin-req-shell > .req-card{
+    border-bottom-left-radius:0;
+    border-bottom-right-radius:0;
+  }
+  .admin-req-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:0;
+    padding:10px 10px 12px;
+    border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+    border-top:none;
+    border-radius:0 0 18px 18px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  }
+  .admin-req-actions .btn-edit,
+  .admin-req-actions .btn-del-sm{
+    width:100%;
+    min-width:0;
+    justify-content:center;
+    padding:8px 10px;
+    font-size:11px;
+    line-height:1.2;
+    box-sizing:border-box;
+  }
+}
+@media (min-width: 768px) and (max-width: 1024px){
+  .pass-qr-foot .u-flex.u-gap8.u-w-full{
+    gap:12px;
+  }
+  .pass-qr-foot .btn-outline,
+  .pass-qr-foot .btn-gold{
+    min-height:52px;
+    border-radius:16px;
+    font-size:14px;
+  }
 }
 @media (max-width: 480px){
   .pass-qr-foot .u-flex.u-gap8.u-w-full{
@@ -952,31 +1181,36 @@ html{scroll-behavior:smooth}
     margin-bottom:10px;
   }
   .vlog-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:10px;
-    padding:10px 12px;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:start;
+    gap:8px 10px;
+    padding:9px 11px;
+    border-radius:14px;
   }
   .vlog-title{
-    font-size:var(--fs-body);
-    gap:7px;
+    font-size:13px;
+    gap:6px;
+    min-width:0;
   }
   .vlog-actions{
-    width:100%;
-    justify-content:flex-start;
+    width:auto;
+    justify-content:flex-end;
     align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
   }
   .vlog-total{
-    font-size:10px;
-    letter-spacing:1px;
+    font-size:9px;
+    letter-spacing:.8px;
     text-transform:uppercase;
   }
   .vlog-total-badge{
-    min-height:24px;
-    padding:0 8px;
+    min-height:22px;
+    padding:0 7px;
   }
   .vlog-export-btn{
-    padding-inline:10px;
+    padding-inline:9px;
   }
   .vlog-export-full{
     display:none;
@@ -986,8 +1220,20 @@ html{scroll-behavior:smooth}
   }
   .vlog-actions .inline-confirm{
     width:100%;
-    justify-content:flex-start;
+    justify-content:flex-end;
     flex-wrap:wrap;
+  }
+  .vlog-actions .btn-hdr{
+    min-height:32px;
+    padding:7px 9px;
+    border-radius:10px;
+    font-size:10px;
+  }
+  .vlog-wrap .sec-filters-toggle-row{
+    margin-bottom:8px;
+  }
+  .vlog-wrap .search-wrap{
+    margin-bottom:12px;
   }
   .vlog-wrap .date-pills-row{
     flex-wrap:wrap;

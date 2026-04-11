@@ -111,6 +111,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
   const [addModal,   setAddModal]   = useState(false);
   const [query,      setQuery]      = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   // A-15: deferred query keeps typing responsive while filtering large user lists
   const debouncedQuery = useDebounce(query, 150);
   const deferredQuery  = useDeferredValue(debouncedQuery);
@@ -130,7 +131,7 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
 
   return (
     <>
-      <div className="admin-toolbar">
+      <div className="admin-toolbar admin-toolbar--requests">
         <div className="search-wrap u-mb0">
           <span className="search-ico"><AppIcon name="search" size={13} /></span>
           <input className="search-inp"
@@ -138,11 +139,32 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
             value={query} onChange={e => setQuery(e.target.value)} />
         </div>
         {!contractorOnly && (
-          <div className="date-pills u-mb0">
-            {ROLE_FILTERS.map(([k, l]) => (
-              <button key={k} className={'date-pill ' + (roleFilter === k ? 'active' : '')} onClick={() => setRoleFilter(k)}>{l}</button>
-            ))}
-          </div>
+          <>
+            <div className="sec-filters-toggle-row">
+              <button
+                type="button"
+                className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
+                aria-expanded={showFilters}
+                onClick={() => setShowFilters(v => !v)}
+              >
+                <span className="u-inline-icon"><AppIcon name="filter" size={14} /></span>
+                <span>Фильтры</span>
+                {roleFilter !== 'all' && <span className="pill-count">1</span>}
+              </button>
+            </div>
+            {showFilters && (
+              <div className="sec-filters vlog-filters">
+                <div className="sec-filter-group">
+                  <div className="sec-filter-group-title">Роль</div>
+                  <div className="sec-filters-grid sec-filters-grid--roles">
+                    {ROLE_FILTERS.map(([k, l]) => (
+                      <button key={k} className={`date-pill sm ${roleFilter === k ? 'active' : ''}`} onClick={() => setRoleFilter(k)}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         <PageActionBar
           className="admin-toolbar-action"
@@ -175,13 +197,15 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
   const [reqType,   setReqType]   = useState('all');
   const [reqStatus, setReqStatus] = useState('all');
   const [reqPeriod, setReqPeriod] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
   const debouncedQuery = useDebounce(reqQuery, 150);
   const deferredReqQuery = useDeferredValue(debouncedQuery);
   const rq = deferredReqQuery.trim().toLowerCase();
+  const activeFiltersCount = [reqPeriod !== 'all', reqType !== 'all', reqStatus !== 'all'].filter(Boolean).length;
 
   const filtered = useMemo(() => filterByPeriod(requests, reqPeriod).filter(r => {
     const mq = !rq || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment].some(v => v && v.toLowerCase().includes(rq));
-    const mt = reqType   === 'all' || r.type   === reqType;
+    const mt = reqType === 'all' || r.type === reqType;
     const ms = reqStatus === 'all' || r.status === reqStatus;
     return mq && mt && ms;
   }), [requests, reqPeriod, rq, reqType, reqStatus]);
@@ -189,26 +213,51 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 
   return (
     <>
-      <div className="admin-toolbar">
+      <div className="admin-toolbar admin-toolbar--requests">
         <div className="search-wrap u-mb0">
           <span className="search-ico"><AppIcon name="search" size={13} /></span>
-          <input className="search-inp" placeholder="Поиск по имени, апарт., авто..." value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
+          <input className="search-inp" placeholder={'Поиск по имени, апарт., авто...'} value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
         </div>
-        <div className="date-pills u-mb0">
-          {[['today','Сегодня'],['week','Неделя'],['all','Все даты']].map(([k, l]) => (
-            <button key={k} className={'date-pill ' + (reqPeriod === k ? 'active' : '')} onClick={() => setReqPeriod(k)}>{l}</button>
-          ))}
+        <div className="sec-filters-toggle-row">
+          <button
+            type="button"
+            className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <span className="u-inline-icon"><AppIcon name="filter" size={14} /></span>
+            <span>{'Фильтры'}</span>
+            {activeFiltersCount > 0 && <span className="pill-count">{activeFiltersCount}</span>}
+          </button>
         </div>
-        <div className="date-pills u-mb0">
-          {[['all','Все'],['pass','Пропуска'],['tech','Техзаявки']].map(([k, l]) => (
-            <button key={k} className={'date-pill ' + (reqType === k ? 'active' : '')} onClick={() => setReqType(k)}>{l}</button>
-          ))}
-        </div>
-        <div className="date-pills u-mb0">
-          {[['all','Все статусы'],['pending','В обработке'],['approved','Допуск'],['rejected','Отказ'],['accepted','Принято'],['expired','Истёк']].map(([k, l]) => (
-            <button key={k} className={'date-pill ' + (reqStatus === k ? 'active' : '')} onClick={() => setReqStatus(k)}>{l}</button>
-          ))}
-        </div>
+        {showFilters && (
+          <div className="sec-filters vlog-filters">
+            <div className="sec-filter-group">
+              <div className="sec-filter-group-title">{'Период'}</div>
+              <div className="sec-filters-row sec-filters-row--scroll">
+                {[["today", 'Сегодня'], ["week", 'Неделя'], ["all", 'Все даты']].map(([k, l]) => (
+                  <button key={k} className={`date-pill sm ${reqPeriod === k ? 'active' : ''}`} onClick={() => setReqPeriod(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="sec-filter-group">
+              <div className="sec-filter-group-title">{'Тип'}</div>
+              <div className="sec-filters-row sec-filters-row--scroll">
+                {[["all", 'Все'], ["pass", 'Пропуска'], ["tech", 'Техзаявки']].map(([k, l]) => (
+                  <button key={k} className={`date-pill sm ${reqType === k ? 'active' : ''}`} onClick={() => setReqType(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="sec-filter-group">
+              <div className="sec-filter-group-title">{'Статус'}</div>
+              <div className="sec-filters-grid sec-filters-grid--status">
+                {[["all", 'Все статусы'], ["pending", 'В обработке'], ["approved", 'Допуск'], ["rejected", 'Отказ'], ["accepted", 'Принято'], ["expired", 'Истёк']].map(([k, l]) => (
+                  <button key={k} className={`date-pill sm ${reqStatus === k ? 'active' : ''}`} onClick={() => setReqStatus(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
       <VirtualList items={filtered} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
@@ -216,7 +265,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
   );
 });
 
-// ─── AdminView ────────────────────────────────────────────────────────────────
+// ??? AdminView ????????????????????????????????????????????????????????????????
 
 export default function AdminView({ user, activeTab }: { user: AppUser; activeTab: string }) {
   const requests = useRequests();

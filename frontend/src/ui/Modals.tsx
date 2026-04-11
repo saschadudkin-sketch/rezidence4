@@ -15,6 +15,7 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
   const [phone, setPhone] = useState('+7 ');
   const [role, setRole] = useState(initialRole || 'owner');
   const [apt, setApt] = useState('');
+  const [parking, setParking] = useState('');
   const [loading, setLoading] = useState(false);
   const { phoneDb } = useUsers();
   const { addUser } = useActions();
@@ -40,7 +41,7 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
     setLoading(true);
     try {
       const uid = genId('u');
-      const newUser = { uid, name: name.trim(), phone, role, apartment: apt.trim() || '—' };
+      const newUser = { uid, name: name.trim(), phone, role, apartment: apt.trim() || '—', parkingSpot: parking.trim() || null };
       addUser(newUser);
       if (!isMountedRef.current) return;
       toast(`${name.trim()} добавлен в систему`, 'success');
@@ -79,6 +80,10 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
           <div className="field">
             <label className="field-lbl">Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}</label>
             <input className="field-inp" placeholder="12" value={apt} onChange={e => setApt(e.target.value)} inputMode="numeric" />
+          </div>
+          <div className="field">
+            <label className="field-lbl">Паркинг</label>
+            <input className="field-inp" placeholder="A-12" value={parking} onChange={e => setParking(e.target.value)} />
           </div>
         </div>
         <div className="modal-foot">

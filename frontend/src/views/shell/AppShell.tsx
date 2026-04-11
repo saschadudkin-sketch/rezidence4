@@ -50,7 +50,7 @@ const AppShell = memo(function AppShell({
   const isChatTab = activeTab === 'chat';
   const hideChatTitleOnCompact = isCompactLayout && isChatTab;
   const securityChatBadge = nav.find(([key]) => key === 'chat')?.[3] || 0;
-  const showSecurityHeaderChat = user.role === 'security';
+  const showHeaderChat = isCompactLayout && (user.role === 'security' || user.role === 'admin');
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -102,8 +102,8 @@ const AppShell = memo(function AppShell({
               </div>
             </div>
           </div>
-          <div className={`header-actions header-actions-shell${showSecurityHeaderChat ? ' header-actions-shell--security' : ''}`}>
-            {showSecurityHeaderChat && (
+          <div className={`header-actions header-actions-shell${showHeaderChat ? ' header-actions-shell--security' : ''}`}>
+            {showHeaderChat && (
               <button className={`theme-btn header-chat-btn${isChatTab ? ' active' : ''}`} onClick={() => goTab('chat')} title="Открыть чат" aria-label="Открыть чат">
                 <span><AppIcon name="chat" size={14} /></span>
                 <span>Чат</span>

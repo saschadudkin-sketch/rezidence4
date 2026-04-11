@@ -73,32 +73,378 @@
   max-width:640px;
   margin:0 auto;
 }
+@media (min-width: 768px) and (max-width: 1024px){
+  .passes-tab--resident{
+    padding-bottom:calc(var(--nav-h) + var(--sab) + 32px);
+  }
+  .passes-tab--resident .page-sub,
+  .passes-tab--resident .u-fs11-t4{
+    font-size:12.5px;
+    line-height:1.5;
+    color:var(--t3);
+  }
+  .passes-tab--resident .type-grid{
+    max-width:100%;
+    justify-content:flex-start;
+    gap:14px;
+    margin-bottom:26px;
+  }
+  .passes-tab--resident .type-card{
+    width:124px;
+    min-height:112px;
+    flex-basis:auto;
+    flex:0 0 124px;
+    padding:22px 12px 16px;
+    border-radius:22px;
+  }
+  .passes-tab--resident .type-icon{
+    width:40px;
+    height:40px;
+    margin-bottom:10px;
+    border-radius:13px;
+  }
+  .passes-tab--resident .type-label{
+    font-size:12.5px;
+    line-height:1.28;
+  }
+  .passes-tab--resident .search-wrap,
+  .passes-tab--resident .pass-filter-pills,
+  .passes-tab--resident .req-list--compact,
+  .passes-tab--resident .state-block{
+    max-width:100%;
+    width:100%;
+    margin-left:0;
+    margin-right:0;
+  }
+  .passes-tab--resident .search-wrap{
+    margin-bottom:16px;
+  }
+  .passes-tab--resident .search-inp{
+    min-height:56px;
+    padding-inline:50px 18px;
+    font-size:15px;
+    border-radius:20px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 82%, transparent);
+  }
+  .passes-tab--resident .pass-filter-pills{
+    justify-content:flex-start;
+    gap:12px;
+    margin-bottom:22px;
+  }
+  .passes-tab--resident .pass-filter-pills .date-pill{
+    min-height:42px;
+    padding:9px 16px;
+    font-size:12px;
+    border-radius:999px;
+  }
+  .passes-tab--resident .req-list--compact{
+    gap:16px;
+  }
+  .passes-tab--resident .opreq{
+    border-radius:24px;
+    overflow:hidden;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s2) 97%, transparent), color-mix(in srgb, var(--s1) 95%, transparent));
+    border:1px solid color-mix(in srgb, var(--b2) 80%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.03),
+      0 14px 34px rgba(0,0,0,.2);
+  }
+  .passes-tab--resident .opreq-row{
+    flex-direction:row;
+    align-items:flex-start;
+    justify-content:space-between;
+    padding:18px 20px 17px;
+    gap:18px;
+  }
+  .passes-tab--resident .opreq-main{
+    gap:7px;
+  }
+  .passes-tab--resident .opreq-title{
+    font-size:18px;
+    line-height:1.2;
+    font-weight:600;
+  }
+  .passes-tab--resident .opreq-meta{
+    font-size:13px;
+    line-height:1.55;
+    color:var(--t3);
+  }
+  .passes-tab--resident .opreq-side{
+    width:auto;
+    align-items:flex-end;
+    justify-content:flex-start;
+    gap:10px;
+  }
+  .passes-tab--resident .opreq-detail{
+    padding:0 18px 20px;
+  }
+  .passes-tab--resident .opreq-detail .req-card{
+    margin-top:12px;
+    padding:18px 18px 16px;
+    border-radius:22px;
+    border-left-width:3px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.025),
+      0 10px 24px rgba(0,0,0,.12);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s3) 80%, transparent), color-mix(in srgb, var(--s2) 95%, transparent));
+  }
+  .passes-tab--resident .opreq-detail .req-head{
+    margin-bottom:2px;
+  }
+  .passes-tab--resident .opreq-detail .req-left{
+    gap:14px;
+  }
+  .passes-tab--resident .opreq-detail .req-ico{
+    width:42px;
+    height:42px;
+    border-radius:14px;
+  }
+  .passes-tab--resident .opreq-detail .req-cat{
+    font-size:17px;
+    line-height:1.18;
+    font-weight:600;
+  }
+  .passes-tab--resident .opreq-detail .req-meta{
+    font-size:12.5px;
+    line-height:1.45;
+    margin-top:5px;
+    white-space:normal;
+    color:var(--t3);
+  }
+  .passes-tab--resident .opreq-detail .req-details{
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:12px 18px;
+    margin:14px 0 12px;
+    padding-top:14px;
+    border-top:1px solid color-mix(in srgb, var(--b2) 70%, transparent);
+  }
+  .passes-tab--resident .opreq-detail .det-lbl{
+    font-size:10.5px;
+    letter-spacing:1.1px;
+    color:var(--t4);
+  }
+  .passes-tab--resident .opreq-detail .det-val{
+    font-size:14px;
+    line-height:1.38;
+    color:var(--t2);
+  }
+  .passes-tab--resident .opreq-detail .u-grid-span{
+    grid-column:span 3;
+  }
+  .passes-tab--resident .opreq-detail .qr-pass-btn{
+    margin:12px 0 8px;
+    padding:13px 15px;
+    border-radius:18px;
+    gap:12px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg) 34%, var(--s2) 66%), color-mix(in srgb, var(--s2) 96%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 78%, transparent);
+  }
+  .passes-tab--resident .opreq-detail .qr-pass-btn .u-inline-icon{
+    width:30px;
+    height:30px;
+    border-radius:11px;
+  }
+  .passes-tab--resident .opreq-detail .qr-pass-label{
+    font-size:13.5px;
+    margin-bottom:4px;
+    font-weight:600;
+    color:var(--t2);
+  }
+  .passes-tab--resident .opreq-detail .qr-pass-hint{
+    font-size:11.5px;
+    line-height:1.42;
+    color:var(--t3);
+  }
+  .passes-tab--resident .opreq-detail .u-flex.u-flex-end.u-gap-6,
+  .passes-tab--resident .opreq-detail .u-flex.u-flex-end.u-mt-8{
+    display:grid;
+    grid-template-columns:1fr auto;
+    align-items:center;
+    gap:10px 12px;
+    margin-top:10px;
+  }
+  .passes-tab--resident .opreq-detail .btn-edit,
+  .passes-tab--resident .opreq-detail .btn-del-sm,
+  .passes-tab--resident .opreq-detail .btn-cancel-req{
+    min-height:40px;
+    padding:9px 14px;
+    font-size:12px;
+    border-radius:14px;
+  }
+  .passes-tab--resident .opreq-detail .btn-cancel-req{
+    justify-self:end;
+  }
+  .passes-tab--resident .opreq-detail .req-status,
+  .passes-tab--resident .opreq-row .req-status,
+  .passes-tab--resident .opreq-row .st,
+  .passes-tab--resident .opreq-detail .st{
+    filter:saturate(.78) brightness(.96);
+  }
+  .tech-tab--resident{
+    padding-bottom:calc(var(--nav-h) + var(--sab) + 24px);
+  }
+  .tech-tab--resident .type-grid{
+    max-width:100%;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:22px;
+  }
+  .tech-tab--resident .type-card{
+    width:108px;
+    min-height:96px;
+    flex-basis:auto;
+    flex:0 0 108px;
+    padding:18px 10px 14px;
+  }
+  .tech-tab--resident .type-icon{
+    width:36px;
+    height:36px;
+    margin-bottom:8px;
+  }
+  .tech-tab--resident .tech-filter-row,
+  .tech-tab--resident .search-wrap,
+  .tech-tab--resident .req-list--compact,
+  .tech-tab--resident .state-block{
+    max-width:100%;
+    width:100%;
+    margin-left:0;
+    margin-right:0;
+  }
+  .tech-tab--resident .tech-filter-row{
+    justify-content:flex-start;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .tech-tab--resident .tech-filter-row .date-pill{
+    min-height:40px;
+    padding:8px 14px;
+    font-size:11px;
+  }
+  .tech-tab--resident .search-wrap{
+    margin-bottom:16px;
+  }
+  .tech-tab--resident .search-inp{
+    min-height:50px;
+    font-size:14px;
+    border-radius:18px;
+  }
+  .tech-tab--resident .req-list--compact{
+    gap:14px;
+  }
+  .tech-tab--resident .opreq-row{
+    flex-direction:row;
+    align-items:flex-start;
+    justify-content:space-between;
+    padding:16px 18px 15px;
+    gap:16px;
+  }
+  .tech-tab--resident .opreq-main{
+    gap:6px;
+  }
+  .tech-tab--resident .opreq-title{
+    font-size:16px;
+    line-height:1.22;
+  }
+  .tech-tab--resident .opreq-meta{
+    font-size:12px;
+    line-height:1.5;
+  }
+  .tech-tab--resident .opreq-side{
+    width:auto;
+    align-items:flex-end;
+    justify-content:flex-start;
+    gap:8px;
+  }
+  .tech-tab--resident .opreq-detail{
+    padding:0 14px 14px;
+  }
+  .tech-tab--resident .opreq-detail .req-card{
+    margin-top:10px;
+    padding:14px;
+    border-radius:20px;
+    border-left-width:3px;
+    box-shadow:none;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 95%, transparent));
+  }
+  .tech-tab--resident .opreq-detail .req-left{
+    gap:12px;
+  }
+  .tech-tab--resident .opreq-detail .req-ico{
+    width:38px;
+    height:38px;
+    border-radius:13px;
+  }
+  .tech-tab--resident .opreq-detail .req-cat{
+    font-size:15px;
+    line-height:1.2;
+  }
+  .tech-tab--resident .opreq-detail .req-meta{
+    font-size:11px;
+    line-height:1.45;
+    margin-top:4px;
+    white-space:normal;
+  }
+  .tech-tab--resident .opreq-detail .u-flex.u-flex-end.u-gap-6,
+  .tech-tab--resident .opreq-detail .u-flex.u-flex-end.u-mt-8{
+    justify-content:flex-end;
+    gap:10px;
+  }
+  .tech-tab--resident .opreq-detail .btn-edit,
+  .tech-tab--resident .opreq-detail .btn-del-sm,
+  .tech-tab--resident .opreq-detail .btn-cancel-req{
+    min-height:38px;
+    padding:8px 12px;
+    font-size:11px;
+    border-radius:13px;
+  }
+}
 @media(max-width:480px){
   .passes-tab--resident{
     padding-bottom:calc(var(--nav-h) + var(--sab) + 18px);
   }
   .passes-tab--resident .type-grid{
-    margin-bottom:20px;
-    gap:10px;
+    margin-bottom:16px;
+    gap:8px;
+    max-width:320px;
+  }
+  .passes-tab--resident .type-card{
+    width:84px;
+    min-height:82px;
+    padding:14px 8px 12px;
+    border-radius:20px;
+  }
+  .passes-tab--resident .type-icon{
+    width:34px;
+    height:34px;
+    margin-bottom:7px;
+  }
+  .passes-tab--resident .type-label{
+    font-size:10px;
+    line-height:1.2;
   }
   .passes-tab--resident .search-wrap{
     width:100%;
     max-width:640px;
-    margin:2px auto 12px;
+    margin:0 auto 10px;
   }
   .passes-tab--resident .search-inp{
-    min-height:46px;
-    padding:12px 14px 12px 38px;
-    border-radius:16px;
+    min-height:42px;
+    padding:10px 14px 10px 38px;
+    border-radius:15px;
+    font-size:13px;
     background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--g-bg) 12%, transparent));
     border-color:color-mix(in srgb, var(--b2) 78%, transparent);
   }
   .passes-tab--resident .pass-filter-pills{
     width:100%;
     max-width:640px;
-    margin:0 auto 14px;
-    padding:2px 0 4px;
-    gap:8px;
+    margin:0 auto 12px;
+    padding:0 0 2px;
+    gap:6px;
     flex-wrap:nowrap;
     overflow-x:auto;
     justify-content:flex-start;
@@ -106,20 +452,20 @@
   }
   .passes-tab--resident .pass-filter-pills::-webkit-scrollbar{display:none}
   .passes-tab--resident .pass-filter-pills .date-pill{
-    min-height:38px;
-    padding:7px 13px;
+    min-height:34px;
+    padding:6px 12px;
     border-radius:999px;
     font-size:10px;
   }
   .passes-tab--resident .req-list--compact{
-    gap:12px;
-    padding-bottom:calc(var(--nav-h) + var(--sab) + 14px);
+    gap:10px;
+    padding-bottom:calc(var(--nav-h) + var(--sab) + 28px);
   }
   .passes-tab--resident .opreq{
-    border-radius:22px;
+    border-radius:20px;
   }
   .passes-tab--resident .opreq-row{
-    padding:14px 15px 13px;
+    padding:13px 14px 12px;
     gap:11px;
   }
   .passes-tab--resident .opreq-title{
@@ -131,7 +477,7 @@
     line-height:1.42;
   }
   .passes-tab--resident .opreq-detail{
-    padding:0 10px 10px;
+    padding:0 10px 14px;
     background:linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--g-bg) 12%, transparent) 100%);
   }
   .passes-tab--resident .opreq-detail .req-card{
@@ -218,23 +564,18 @@
   }
   .passes-tab--resident .state-block{
     width:100%;
-    margin-top:4px;
-    padding:30px 18px 24px;
-    border-radius:20px;
-  }
-  .passes-tab--resident .state-icon-shell{
-    width:50px;
-    height:50px;
-    margin:0 auto 10px;
+    margin-top:2px;
+    padding:24px 18px 22px;
+    border-radius:18px;
   }
   .passes-tab--resident .state-title{
-    font-size:18px;
+    font-size:17px;
     line-height:1.06;
-    margin-bottom:7px;
+    margin-bottom:6px;
   }
   .passes-tab--resident .state-sub{
-    font-size:13px;
-    line-height:1.5;
+    font-size:12px;
+    line-height:1.45;
     max-width:24ch;
   }
   .tech-tab--resident{
@@ -258,11 +599,6 @@
     margin-top:2px;
     padding:30px 18px 24px;
     border-radius:20px;
-  }
-  .tech-tab--resident .state-icon-shell{
-    width:50px;
-    height:50px;
-    margin:0 auto 10px;
   }
   .tech-tab--resident .state-title{
     font-size:18px;

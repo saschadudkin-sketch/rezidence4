@@ -46,7 +46,7 @@ export default function AdminReqRow({ r, adminUid }) {
   function handleCancel() { setEditing(false); }
 
   return (
-    <div className="u-mb8">
+    <div className="u-mb8 admin-req-shell">
       <ReqCard req={{ ...r, status }} userRole="admin" userName="Администратор" userId={adminUid} />
       <div className="u-flex u-gap6 admin-req-actions">
         <button className="btn-edit" onClick={() => setEditing(e => !e)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>

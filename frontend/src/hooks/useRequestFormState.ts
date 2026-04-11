@@ -13,11 +13,18 @@ export function useRequestFormState({ type, user, initialCat, initialData }) {
         : ['guest', 'courier', 'taxi', 'car', 'master'])
     : ['electrician', 'plumber'];
 
+  const initialVisitorNames = typeof initialData?.visitorName === 'string'
+    ? initialData.visitorName
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
+    : [];
+
   const [cat,        setCat]        = useState(initialData?.category    || initialCat || cats[0]);
   const [vName,      setVName]      = useState(initialData?.visitorName  || '');
   const [vNames,     setVNames]     = useState(() =>
-    initialData?.visitorName
-      ? [{ __id: genId(), value: initialData.visitorName }]
+    initialVisitorNames.length > 0
+      ? initialVisitorNames.map((name) => ({ __id: genId(), value: name }))
       : [{ __id: genId(), value: '' }]
   );
   const [vPhone,     setVPhone]     = useState(initialData?.visitorPhone || '');

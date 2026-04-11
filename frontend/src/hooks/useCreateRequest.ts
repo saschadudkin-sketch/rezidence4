@@ -20,7 +20,7 @@ import type { AppRequest, RequestStatus } from '../store/slices/requestsSlice';
 
 /** Нужно ли поле «марка и номер авто» */
 export const needsCarPlate = (cat) =>
-  ['taxi', 'car', 'master', 'delivery'].includes(cat);
+  ['guest', 'taxi', 'car', 'master', 'delivery'].includes(cat);
 
 /** Нужно ли обязательное имя посетителя */
 export const requiresVisitorName = (cat) =>
@@ -89,7 +89,17 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handlePickPerm = (perm) => {
-    setVName(perm.name);
+    if (cat === 'guest') {
+      setVNames((current) => {
+        const nextNames = current.filter((entry) => entry.value.trim());
+        if (nextNames.some((entry) => entry.value.trim().toLowerCase() === perm.name.trim().toLowerCase())) {
+          return current;
+        }
+        return [...nextNames, { __id: genId(), value: perm.name }];
+      });
+    } else {
+      setVName(perm.name);
+    }
     if (perm.phone) setVPhone(perm.phone);
     setShowPermsPicker(false);
   };
@@ -108,8 +118,8 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
 
     // Validation
     if (type === 'pass' && cat === 'taxi'  && !sanitized.carPlate)                  { toast('Укажите марку и номер авто', 'error');  return; }
-    if (type === 'pass' && cat === 'team'  && sanitized.visitorNames.length === 0)  { toast('Укажите имена посетителей', 'error'); return; }
-    if (type === 'pass' && requiresVisitorName(cat) && !sanitized.visitorName)      { toast('Укажите имя посетителя',    'error');  return; }
+    if (type === 'pass' && ['guest', 'team'].includes(cat) && sanitized.visitorNames.length === 0) { toast('Укажите имена посетителей', 'error'); return; }
+    if (type === 'pass' && cat !== 'guest' && requiresVisitorName(cat) && !sanitized.visitorName) { toast('Укажите имя посетителя', 'error'); return; }
 
     submittingRef.current = true;
     setLoading(true);
@@ -136,7 +146,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       createdByApt:  user.apartment,
       visitorName:   type !== 'pass'       ? null
                    : cat  === 'taxi'       ? null
-                   : cat  === 'team'       ? sanitized.visitorNames.join(', ') || null
+                   : ['guest', 'team'].includes(cat) ? sanitized.visitorNames.join(', ') || null
                    : sanitized.visitorName || null,
       carPlate:      needsCarPlate(cat)    ? sanitized.carPlate || null : null,
       visitorPhone:  type === 'pass'       ? sanitized.visitorPhone || null : null,

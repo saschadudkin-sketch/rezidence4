@@ -8,6 +8,45 @@
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 26%, transparent));
 }
 .admin-toolbar .search-wrap{flex:1;min-width:180px;margin-bottom:0}
+.admin-toolbar--requests .sec-filters-toggle-row,
+.admin-toolbar--requests .sec-filters{width:100%}
+
+@media (max-width: 767px){
+  .admin-toolbar--requests{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    flex-wrap:nowrap;
+    gap:8px;
+  }
+  .admin-toolbar--requests .search-wrap,
+  .admin-toolbar--requests .sec-filters-toggle-row,
+  .admin-toolbar--requests .sec-filters{
+    width:100%;
+    min-width:0;
+    max-width:none;
+    flex:0 0 auto;
+    box-sizing:border-box;
+  }
+  .admin-toolbar--requests .sec-filters-toggle{
+    width:100%;
+    justify-content:center;
+  }
+  .admin-toolbar--requests .sec-filters{
+    max-height:none;
+  }
+  .admin-toolbar--requests.page-action-bar,
+  .admin-toolbar--requests > .page-action-bar.admin-toolbar-action{
+    width:100%;
+    align-self:stretch;
+  }
+  .admin-toolbar--requests > .page-action-bar.admin-toolbar-action .page-action-primary{
+    display:flex;
+    width:100%;
+    flex:1 1 100%;
+    justify-content:center;
+  }
+}
 .t-row-actions{display:flex;gap:var(--space-xs);justify-content:flex-end}
 .btn-edit{
   background:none;border:1px solid var(--b2);border-radius:4px;
@@ -184,32 +223,12 @@
   border-radius:18px;
   min-height:auto;
 }
-.guard-post .state-icon-shell{
-  width:52px;
-  height:52px;
-  margin:0 auto 10px;
-}
 .guard-post .sb-title{
   font-size:16px;
 }
 .guard-post .sb-sub{
   color:var(--t3);
 }
-.state-icon-shell{
-  width:58px;
-  height:58px;
-  margin:0 auto 12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border-radius:999px;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), transparent);
-  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
-  box-shadow:var(--sh-s);
-}
-.state-icon{opacity:.9;margin-bottom:0;color:var(--g2)}
-.state-loading .state-icon{opacity:.4;animation:spin 1.2s linear infinite}
-.state-eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--g2);margin-bottom:8px}
 .state-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:28px;line-height:1;color:var(--t1);margin-bottom:8px}
 .state-sub{font-size:14px;color:var(--t2);line-height:1.55;max-width:38ch;margin:0 auto}
 .state-action{margin-top:16px;min-width:180px}
@@ -226,7 +245,6 @@
   .state-block{padding:24px 18px 20px;border-radius:18px}
   .state-title{font-size:24px}
   .state-sub{font-size:13px;max-width:30ch}
-  .state-icon-shell{width:52px;height:52px}
 }
 /* ── Skeleton ── */
 .skeleton-card{background:var(--s2);border:1.5px solid var(--b1);border-left:4px solid var(--b1);border-radius:8px;padding:12px;margin-bottom:8px;overflow:hidden}

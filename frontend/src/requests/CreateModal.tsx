@@ -91,9 +91,11 @@ const VisitorFields = memo(function VisitorFields({
   setShowPermsPicker,
   onPickPerm,
 }: VisitorFieldsProps) {
+  const usesMultiVisitorNames = cat === 'guest' || cat === 'team';
+
   return (
     <>
-      {needsCarPlate(cat) && (
+      {needsCarPlate(cat) && cat !== 'guest' && (
         <div className="field">
           <label className="field-lbl">Марка и номер авто{cat === 'taxi' ? ' *' : ''}</label>
           <input
@@ -107,14 +109,14 @@ const VisitorFields = memo(function VisitorFields({
         </div>
       )}
 
-      {cat === 'team' && (
+      {usesMultiVisitorNames && (
         <div className="field">
           <label className="field-lbl">Имена посетителей *</label>
           {vNames.map((n, i) => (
             <div key={n.__id} className="vf-name-row">
               <input
                 className="field-inp vf-name-inp"
-                placeholder={`Посетитель ${i + 1}`}
+                placeholder={i === 0 ? 'Иван Иванов' : `Посетитель ${i + 1}`}
                 value={n.value}
                 onChange={(e) => {
                   const next = [...vNames];
@@ -138,10 +140,27 @@ const VisitorFields = memo(function VisitorFields({
           <button type="button" className="vf-add-btn" onClick={() => setVNames([...vNames, { __id: genId(), value: '' }])}>
             + Добавить посетителя
           </button>
+          {cat === 'guest' && permsList.length > 0 && (
+            <div className="perms-picker-wrap">
+              <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker((value) => !value)}>
+                <span className="u-inline-icon"><AppIcon name="file" size={12} /> Выбрать из постоянного списка ({permsList.length})</span>
+              </button>
+              {showPermsPicker && (
+                <div className="perms-picker-dropdown">
+                  {permsList.map((perm) => (
+                    <button key={perm.id} type="button" className="perms-picker-item" onClick={() => onPickPerm(perm)}>
+                      <span className="perms-picker-item-name">{perm.name}</span>
+                      {perm.phone && <span className="u-fs11-t4">{perm.phone}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {hasVisitorFields(cat) && (
+      {hasVisitorFields(cat) && !usesMultiVisitorNames && (
         <div className="field">
           <label className="field-lbl">{requiresVisitorName(cat) ? 'Имя посетителя *' : 'Имя посетителя'}</label>
           <input
@@ -170,6 +189,20 @@ const VisitorFields = memo(function VisitorFields({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {needsCarPlate(cat) && cat === 'guest' && (
+        <div className="field">
+          <label className="field-lbl">Марка и номер авто</label>
+          <input
+            className="field-inp"
+            placeholder="Toyota Camry А123БВ777"
+            value={carPlate}
+            onChange={(e) => setCarPlate(e.target.value)}
+            onBlur={(e) => setCarPlate(sanitizeCarPlate(e.target.value))}
+            autoCapitalize="characters"
+          />
         </div>
       )}
 

@@ -3,12 +3,14 @@ import { render, within } from '@testing-library/react';
 import { describe, beforeEach, expect, test, vi } from 'vitest';
 import NavigationShell from './NavigationShell';
 
-function setMobileViewport(isMobile: boolean) {
+function setViewportWidth(width: number) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation(() => ({
-      matches: isMobile,
-      media: '(max-width:1024px)',
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches:
+        (query === '(max-width:1024px)' && width <= 1024) ||
+        (query === '(min-width:768px) and (max-width:1024px)' && width >= 768 && width <= 1024),
+      media: query,
       onchange: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -20,7 +22,7 @@ function setMobileViewport(isMobile: boolean) {
 }
 
 describe('NavigationShell mobile prioritization', () => {
-  beforeEach(() => setMobileViewport(true));
+  beforeEach(() => setViewportWidth(390));
 
   test('shows all security tabs in the mobile bottom navigation', () => {
     const nav = [
@@ -48,11 +50,11 @@ describe('NavigationShell mobile prioritization', () => {
     expect(mobileNav).toBeInTheDocument();
     const mobile = within(mobileNav as HTMLElement);
 
-    expect(mobile.getByRole('button', { name: /скан/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /пост/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /контроль/i })).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
-    expect(mobile.getByRole('button', { name: /^чс$/i })).toBeInTheDocument();
-    expect(mobile.getByRole('button', { name: /жильцы/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /^стоп$/i })).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /резиденты/i })).toBeInTheDocument();
     expect(mobile.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
     expect(mobile.queryByRole('button', { name: /ещё/i })).not.toBeInTheDocument();
   });

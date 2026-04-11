@@ -85,10 +85,10 @@ export default function AdminUserRow({ u, currentUser }) {
             <span className={'admin-badge ' + u.role}>{ROLE_LABELS[u.role]}</span>
             {isSelf && <span className="admin-user-self-mark">• это вы</span>}
           </div>
-          <div className="u-fs11 u-t4 u-mt2 u-flex u-gap8 u-wrap">
-            <span>{u.phone}</span>
-            {u.apartment !== '—' && <span>Апарт. {u.apartment}</span>}
-            {u.parkingSpot && <span><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
+          <div className="u-fs11 u-t4 u-mt2 u-flex u-gap8 u-wrap admin-user-meta">
+            <span className="admin-user-meta-item">{u.phone}</span>
+            {u.apartment !== '—' && <span className="admin-user-meta-item">Апарт. {u.apartment}</span>}
+            {u.parkingSpot && <span className="admin-user-meta-item"><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
           </div>
         </div>
         <div className="u-row-g5-fs0">
