@@ -23,6 +23,10 @@ html.theme-light .req-card,
 html.theme-light .guard-card,
 html.theme-light .bl-entry{box-shadow:var(--sh-s);border-color:var(--b2)}
 html.theme-light .type-card{box-shadow:0 1px 4px rgba(0,0,0,.06);border-color:var(--b2)}
+/* Light theme nav separators — --b1 at 14% is invisible on cream bg */
+html.theme-light .mobile-nav{border-top:1px solid var(--b2);box-shadow:0 -6px 20px rgba(24,20,15,.07)}
+html.theme-light .top-nav,
+html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 
 .screen-loading{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--s0)}
 .screen-loading-inner{text-align:center;color:var(--t3)}
