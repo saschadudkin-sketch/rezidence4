@@ -222,7 +222,7 @@
 .u-role-dot.concierge{background:#f39c12}
 .u-role-dot.contractor{background:#6c757d}
 .u-role-dot.default{background:var(--t4)}
-.admin-role-value{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--g2)}
+.admin-role-value{font-family:var(--font-display);font-size:24px;font-weight:600;color:var(--g2)}
 .admin-role-progress{width:100%;height:4px;appearance:none;border:none}
 .admin-role-progress::-webkit-progress-bar{background:var(--s3);border-radius:2px}
 .admin-role-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px;transition:width .4s ease}
@@ -326,7 +326,7 @@
 .scanqr-approve-btn{flex:2;font-size:14px;padding:14px 20px}
 .admin-perm-row--editing{border-bottom:none;border-radius:var(--r) var(--r) 0 0}
 .admin-perm-edit-inline{border-radius:0 0 var(--r) var(--r);margin-bottom:8px}
-.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:'Inter',sans-serif}
+.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:var(--font-body)}
 .admin-perm-clear-btn{padding:2px 8px}
 .sla-item-card{min-height:92px}
 .sla-item-value{font-size:24px}

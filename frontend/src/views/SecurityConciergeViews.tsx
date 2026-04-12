@@ -226,7 +226,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
         const isOpen = openApts[u.uid] === true;
         return (
           <div key={u.uid} className="u-mb8">
-            <div className={`spl-apt-row${isOpen ? ' open' : ''}`} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && toggleApt(u.uid)} onClick={() => toggleApt(u.uid)}>
+            <button type="button" className={`spl-apt-row${isOpen ? ' open' : ''}`} aria-expanded={isOpen} onClick={() => toggleApt(u.uid)}>
               <div className="spl-apt-info">
                 <AvatarCircle avData={null} role={u.role} name={u.name} size={32} fontSize={13} />
                 <div>
@@ -238,7 +238,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
                 <span className="spl-count">{list.length}</span>
                 <span className={`spl-arrow${isOpen ? ' open' : ''}`}>▾</span>
               </div>
-            </div>
+            </button>
             {isOpen && (
               <div className="spl-items">
                 {list.map(item => (

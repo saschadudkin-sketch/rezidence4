@@ -11,7 +11,7 @@
   letter-spacing: 0;
   text-transform: none;
   color: var(--t3);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -21,7 +21,7 @@
   border: 1px solid var(--b1);
   border-radius: calc(var(--r) + 2px);
   padding: 13px 15px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-size: 16px !important;
   font-weight: 400;
   color: var(--t1);
@@ -58,7 +58,7 @@
   border: 1px solid var(--b1);
   border-radius: var(--r);
   padding: 12px 40px 12px 13px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-size: 16px !important;
   color: var(--t1);
   cursor: pointer;
@@ -76,7 +76,7 @@
   border: 1px solid color-mix(in srgb, var(--b2) 72%, transparent);
   border-radius: calc(var(--r) + 2px);
   padding: 13px 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-size: 16px !important;
   color: var(--t1);
   /* FIX [FORMS]: было resize: none — пользователь не мог изменить высоту поля.

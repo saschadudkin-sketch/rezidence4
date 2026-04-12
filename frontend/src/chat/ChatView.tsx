@@ -545,7 +545,7 @@ export function ChatView({ user }: { user: AppUser }) {
                         <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || m.replyTo?.text}</div>
                       </div>
                     )}
-                    {m.photo && <img src={m.photo} className="msg-photo" alt="фото" onClick={() => setLightbox(m.photo)}/>}
+                    {m.photo && <img src={m.photo} className="msg-photo" alt="фото" loading="lazy" decoding="async" onClick={() => setLightbox(m.photo)}/>}
                     {m.text && <div className="msg-text">{linkify(m.text)}</div>}
                     <div className="msg-time">
                       <span>{fmtTime(m.at)}</span>

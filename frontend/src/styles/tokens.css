@@ -119,6 +119,9 @@
   --lh-tight: 1.2;
   --lh-body: 1.5;
   --lh-loose: 1.65;
+  --font-body: 'Aptos', 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --font-display: 'Georgia Pro', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 
   --bp-sm: 480px;
   --bp-md: 768px;

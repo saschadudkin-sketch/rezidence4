@@ -95,48 +95,6 @@
 }
 
 
-/* Принудительная тема через класс на <html> */
-html.theme-light {
-  --s0: #FDFCF9; --s1: #F7F3ED; --s2: #FFFFFF; --s3: #F0ECE5; --s4: #DED7CD;
-  --t1: #2B2B2B; --t2: #504A42; --t3: #7B7368; --t4: #A0978A;
-  --g1: #B8935A; --g2: #C9A96E; --g3: #E4D4B4;
-  --g-bg: rgba(201,169,110,.10); --g-bg2: rgba(201,169,110,.18);
-  --ok: #4A7C59; --ok-t: #356845; --err: #B85C5C; --err-t: #9E4646;
-  --wrn: #A77931; --wrn-t: #8B6323;
-  --b1: rgba(105,86,50,.14); --b2: rgba(105,86,50,.22); --b3: rgba(105,86,50,.34);
-  --sh-s: 0 1px 3px rgba(24,20,15,.06),0 12px 28px rgba(24,20,15,.05);
-  --sh-m: 0 12px 30px rgba(24,20,15,.10),0 2px 8px rgba(24,20,15,.06);
-  --sh-l: 0 24px 56px rgba(24,20,15,.14),0 4px 16px rgba(24,20,15,.08);
-  --arrived: #5C7B9B; --arrived-t: #4E6B88; --expired: #91887A; --expired-t: #7F7568;
-  --arrived-bg: rgba(92,123,155,.10); --arrived-b: rgba(92,123,155,.22);
-  --overlay-bg: rgba(253,252,249,.82); --header-bg: rgba(253,252,249,.82);
-  --topnav-bg: rgba(253,252,249,.82); --mobnav-bg: rgba(253,252,249,.92);
-  --dd-bg: rgba(255,255,255,.94);
-  --badge-pending-bg: rgba(201,169,110,.12); --badge-pending-b: rgba(201,169,110,.24);
-  --badge-approved-bg: rgba(74,124,89,.10); --badge-approved-b: rgba(74,124,89,.20);
-  --badge-rejected-bg: rgba(184,92,92,.10); --badge-rejected-b: rgba(184,92,92,.20);
-}
-html.theme-dark {
-  --s0: #11100E; --s1: #181613; --s2: #201D19; --s3: #2A2621; --s4: #35302A;
-  --t1: #EEE7DC; --t2: #C7BDAE; --t3: #A29584; --t4: #7A6E5E;
-  --g1: #B8935A; --g2: #C9A96E; --g3: #E4D4B4;
-  --g-bg: rgba(201,169,110,.10); --g-bg2: rgba(201,169,110,.18);
-  --ok: #5A9D6A; --ok-t: #6FA07E; --err: #B85C5C; --err-t: #D47070;
-  --wrn: #A77931; --wrn-t: #C9A96E;
-  --b1: rgba(201,169,110,.12); --b2: rgba(201,169,110,.22); --b3: rgba(201,169,110,.38);
-  --sh-s: 0 1px 2px rgba(0,0,0,.24),0 8px 22px rgba(0,0,0,.18);
-  --sh-m: 0 10px 30px rgba(0,0,0,.26),0 2px 8px rgba(0,0,0,.18);
-  --sh-l: 0 24px 60px rgba(0,0,0,.34),0 4px 12px rgba(0,0,0,.20);
-  --arrived: #6B8EAE; --arrived-t: #89A9C8;
-  --arrived-bg: rgba(107,142,174,.15); --arrived-b: rgba(107,142,174,.24);
-  --overlay-bg: rgba(8,8,8,.68); --header-bg: rgba(17,16,14,.84);
-  --topnav-bg: rgba(17,16,14,.84); --mobnav-bg: rgba(17,16,14,.92);
-  --dd-bg: rgba(19,17,14,.92);
-  --badge-pending-bg: rgba(201,169,110,.12); --badge-pending-b: rgba(201,169,110,.24);
-  --badge-approved-bg: rgba(74,124,89,.15); --badge-approved-b: rgba(111,160,126,.22);
-  --badge-rejected-bg: rgba(184,92,92,.14); --badge-rejected-b: rgba(201,119,119,.22);
-}
-
 /* Доступность — отключаем все анимации и переходы если пользователь просит */
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
@@ -253,7 +211,7 @@ html{scroll-behavior:smooth}
 .landing-name{font-size:20px;font-weight:700;color:var(--t1)}
 .landing-sub{font-size:var(--fs-xs);color:var(--t4)}
 .landing-hero{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:22px;margin-bottom:16px}
-.landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:'Cormorant Garamond',serif}
+.landing-hero h1{margin:0 0 10px;font-size:28px;line-height:1.15;color:var(--t1);font-family:var(--font-display)}
 .landing-hero p{margin:0 0 14px;font-size:var(--fs-body);line-height:1.55;color:var(--t3);max-width:768px}
 .landing-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .landing-card{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:14px}
@@ -365,7 +323,7 @@ html{scroll-behavior:smooth}
 .photo-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .photo-grid-item{position:relative;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--b2)}
 .photo-grid-item img{width:100%;height:100%;object-fit:cover}
-.photo-grid-del{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;border:none;font-size:var(--fs-2xs);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .13s}
+.photo-grid-del{position:absolute;top:0;right:0;width:44px;height:44px;border-radius:50%;background:color-mix(in srgb, #000 62%, transparent);color:#fff;border:none;font-size:var(--fs-2xs);cursor:pointer;display:flex;align-items:flex-start;justify-content:flex-end;line-height:1;padding:5px;transition:background .13s}
 .photo-grid-del:hover{background:var(--err)}
 
 /* ── Photo grid (req card) ── */
@@ -373,7 +331,7 @@ html{scroll-behavior:smooth}
 .req-photos-grid img{max-width:140px;max-height:140px}
 
 /* Guard detail button */
-.guard-detail-btn{background:none;border:1px solid var(--b2);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;transition:all .15s}
+.guard-detail-btn{background:none;border:1px solid var(--b2);border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;transition:all .15s}
 .guard-detail-btn:hover{background:var(--g-bg);border-color:var(--g1)}
 
 /* ReqCard highlight animation */
@@ -522,6 +480,7 @@ html{scroll-behavior:smooth}
 .apt-card.open{border-color:color-mix(in srgb, var(--g1) 46%, var(--b2));box-shadow:0 8px 24px rgba(0,0,0,.18)}
 .apt-header{
   display:flex;align-items:center;gap:10px;
+  width:100%;border:0;background:transparent;color:inherit;text-align:left;font:inherit;
   padding:13px 14px;cursor:pointer;user-select:none;
 }
 .apt-header:hover{background:color-mix(in srgb, var(--s2) 90%, var(--g-bg) 10%)}

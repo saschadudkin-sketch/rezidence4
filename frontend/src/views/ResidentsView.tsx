@@ -115,10 +115,9 @@ export default function ResidentsView({ user }: { user: AppUser }) {
           return (
             <div key={apt} className={'apt-card' + (isOpen ? ' open' : '')}>
               {/* Заголовок апартамента */}
-              <div className="apt-header" role="button" tabIndex={0}
+              <button type="button" className="apt-header"
                 aria-expanded={isOpen} aria-label={'Апартаменты ' + apt}
-                onClick={() => setExpandedApt(isOpen ? null : apt)}
-                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setExpandedApt(isOpen ? null : apt))}>
+                onClick={() => setExpandedApt(isOpen ? null : apt)}>
                 <div className="apt-num">
                   <span className="apt-num-ico"><AppIcon name="residents" size={14} /></span>
                   <span className="apt-num-val">Апарт. {apt}</span>
@@ -129,7 +128,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                   {parkingSpots.length > 0 && <span className="apt-chip park">🅿 {parkingSpots.join(', ')}</span>}
                 </div>
                 <span className="apt-chevron">{isOpen ? '▲' : '▼'}</span>
-              </div>
+              </button>
 
               {/* Раскрытая карточка */}
               {isOpen && (

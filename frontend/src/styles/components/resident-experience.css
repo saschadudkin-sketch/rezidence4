@@ -38,7 +38,7 @@
 
 .resident-pass-hero h2 {
   margin: 0;
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 40px;
   line-height: 1;
   color: var(--t1);
@@ -229,7 +229,7 @@
 }
 
 .resident-status-strip strong {
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 30px;
   line-height: 1;
   color: var(--g2);
@@ -290,7 +290,7 @@
 
 .resident-ready-title {
   margin: 6px 0 8px;
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 38px;
   line-height: 1;
 }
@@ -384,7 +384,7 @@
 .resident-wizard-copy h3 {
   margin: 0;
   color: var(--t1);
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: var(--font-display);
   font-size: 32px;
   line-height: 1;
 }

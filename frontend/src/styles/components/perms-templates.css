@@ -27,7 +27,7 @@
   display:flex;align-items:center;justify-content:center;gap:8px;
   width:100%;background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 66%, transparent), color-mix(in srgb, var(--g-bg) 42%, transparent));border:1px solid color-mix(in srgb, var(--b3) 82%, transparent);border-radius:calc(var(--r) + 2px);
   padding:11px 14px;color:var(--g2);cursor:pointer;
-  font-family:'Inter',sans-serif;font-size:var(--fs-2xs);letter-spacing:.2px;font-weight:500;
+  font-family:var(--font-body);font-size:var(--fs-2xs);letter-spacing:.2px;font-weight:500;
   transition:border-color .13s,background .13s,color .13s,box-shadow .13s;margin-top:8px;
 }
 .tpl-save-btn:hover,.tpl-save-btn:active{border-color:var(--g1);background:var(--g-bg2);box-shadow:var(--sh-s)}
@@ -38,7 +38,7 @@
 }
 .tpl-section-hdr{
   font-size:var(--fs-2xs);letter-spacing:2px;text-transform:uppercase;
-  color:var(--t4);margin-bottom:8px;font-family:'DM Sans',sans-serif;
+  color:var(--t4);margin-bottom:8px;font-family:var(--font-body);
 }
 @media(max-width:480px){
   .tpl-list{
@@ -101,7 +101,7 @@
 .perms-section{margin-bottom:20px}
 .perms-title{
   font-size:var(--fs-2xs);letter-spacing:2.5px;text-transform:uppercase;
-  color:var(--t4);margin-bottom:10px;font-family:'DM Sans',sans-serif;
+  color:var(--t4);margin-bottom:10px;font-family:var(--font-body);
 }
 .perm-row{
   display:flex;align-items:center;gap:var(--space-sm);
@@ -122,7 +122,7 @@
   display:flex;align-items:center;gap:var(--space-sm);width:100%;
   background:none;border:1px dashed var(--b2);border-radius:var(--r);
   padding:10px 14px;color:var(--g2);cursor:pointer;
-  font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);
+  font-family:var(--font-body);font-size:var(--fs-2xs);
   transition:border-color .13s,background .13s;margin-top:4px;
 }
 .perm-add:hover,.perm-add:active{border-color:var(--b3);background:var(--g-bg)}
@@ -198,6 +198,7 @@
 /* ── SecurityPermsList аккордеон ── */
 .spl-apt-row{
   display:flex;align-items:center;justify-content:space-between;
+  width:100%;color:inherit;text-align:left;font:inherit;
   padding:11px 14px;background:var(--s2);
   border:1px solid var(--b2);border-radius:var(--r);
   cursor:pointer;user-select:none;
@@ -235,7 +236,7 @@
 .perm-form-row{display:flex;gap:var(--space-sm);margin-bottom:8px;flex-wrap:wrap}
 .perm-form-inp{
   flex:1;min-width:120px;background:var(--s2);border:1px solid var(--b1);
-  border-radius:4px;padding:8px 10px;font-family:'DM Sans',sans-serif;
+  border-radius:4px;padding:8px 10px;font-family:var(--font-body);
   font-size:var(--fs-sm);color:var(--t1);outline:none;
 }
 .perm-form-inp:focus{border-color:var(--b3)}
@@ -317,7 +318,7 @@
 /* ── SECURITY PERMS ── */
 .sec-apt-group{margin-bottom:20px}
 .sec-apt-hdr{
-  font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:var(--fs-md);color:var(--t1);
+  font-family:var(--font-display);font-size:var(--fs-md);color:var(--t1);
   padding:8px 0 10px;border-bottom:1px solid var(--b1);margin-bottom:10px;
 }
 @media(max-width:480px){
@@ -351,7 +352,7 @@
   .admin-perm-group-title{
     display:block;
     min-width:0;
-    font-family:'DM Sans',sans-serif;
+    font-family:var(--font-body);
     font-size:13px;
     font-weight:600;
     line-height:1.35;

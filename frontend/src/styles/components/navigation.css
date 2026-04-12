@@ -41,7 +41,7 @@
   background: none;
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-sm);
   font-weight: 500;
   letter-spacing: 0;
@@ -327,7 +327,7 @@
 }
 .mn-btn:active { background: var(--g-bg); }
 .mn-icon { font-size: var(--fs-md); line-height: 1; color: var(--t4); transition: color .13s, transform .13s; }
-.mn-label { font-size: var(--fs-2xs); letter-spacing: 0; text-transform: none; color: var(--t3); font-family: 'Inter', sans-serif; }
+.mn-label { font-size: var(--fs-2xs); letter-spacing: 0; text-transform: none; color: var(--t3); font-family: var(--font-body); }
 .mn-btn.active .mn-icon, .mn-btn.active .mn-label { color: var(--g2); }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .mn-btn.blink .mn-label { color: var(--err-t); }

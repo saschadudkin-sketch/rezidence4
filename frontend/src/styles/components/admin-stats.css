@@ -50,7 +50,7 @@
 .t-row-actions{display:flex;gap:var(--space-xs);justify-content:flex-end}
 .btn-edit{
   background:none;border:1px solid var(--b2);border-radius:4px;
-  padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);
+  padding:4px 10px;font-family:var(--font-body);font-size:var(--fs-2xs);
   color:var(--t3);cursor:pointer;transition:all .13s;white-space:nowrap;
 }
 .btn-edit:hover{border-color:var(--g2);color:var(--g2)}
@@ -59,7 +59,7 @@
 .req-confirm-label{font-size:var(--fs-2xs);color:var(--t3)}
 .btn-del-sm{
   background:none;border:1px solid rgba(106,40,40,.3);border-radius:4px;
-  padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);
+  padding:4px 10px;font-family:var(--font-body);font-size:var(--fs-2xs);
   color:var(--err-t);cursor:pointer;transition:all .13s;white-space:nowrap;
 }
 .btn-del-sm:hover{background:rgba(106,40,40,.1)}
@@ -71,7 +71,7 @@
 .admin-badge{
   display:inline-block;padding:2px 8px;border-radius:20px;
   font-size:var(--fs-2xs);font-weight:600;letter-spacing:.5px;
-  font-family:'DM Sans',sans-serif;
+  font-family:var(--font-body);
 }
 .admin-badge.owner{background:rgba(91,143,212,.15);color:var(--role-owner)}
 .admin-badge.tenant{background:rgba(107,175,122,.15);color:var(--role-tenant)}
@@ -87,13 +87,13 @@
 .edit-inline-inp{
   flex:1;min-width:100px;background:var(--s2);border:1px solid var(--b1);
   border-radius:4px;padding:7px 10px;
-  font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);color:var(--t1);outline:none;
+  font-family:var(--font-body);font-size:var(--fs-2xs);color:var(--t1);outline:none;
 }
 .edit-inline-inp:focus{border-color:var(--b3)}
 .edit-inline-sel{
   flex:1;min-width:100px;background:var(--s2);border:1px solid var(--b1);
   border-radius:4px;padding:7px 10px;
-  font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);color:var(--t1);outline:none;
+  font-family:var(--font-body);font-size:var(--fs-2xs);color:var(--t1);outline:none;
   cursor:pointer;
 }
 /* table expanded for actions */
@@ -204,7 +204,7 @@
 }
 .empty-ico{font-size:var(--fs-2xl);margin-bottom:12px;opacity:.18}
 .empty-svg{margin:0 auto 18px;opacity:.15;display:block}
-.empty-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:var(--fs-md);font-weight:500;color:var(--t3);margin-bottom:6px}
+.empty-title{font-family:var(--font-display);font-size:var(--fs-md);font-weight:500;color:var(--t3);margin-bottom:6px}
 .empty-hint{font-size:var(--fs-2xs);color:var(--t4);margin-top:8px;line-height:1.5;max-width:200px;text-align:center}
 .empty-sub{font-size:var(--fs-2xs);color:var(--t4)}
 .state-block{
@@ -229,7 +229,7 @@
 .guard-post .sb-sub{
   color:var(--t3);
 }
-.state-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:28px;line-height:1;color:var(--t1);margin-bottom:8px}
+.state-title{font-family:var(--font-display);font-size:28px;line-height:1;color:var(--t1);margin-bottom:8px}
 .state-sub{font-size:14px;color:var(--t2);line-height:1.55;max-width:38ch;margin:0 auto}
 .state-action{margin-top:16px;min-width:180px}
 /* P-04: EmptyState — dedicated component for empty list/section states */
@@ -238,7 +238,7 @@
   padding:40px 20px;text-align:center;
 }
 .empty-state-icon{opacity:.2;margin-bottom:14px}
-.empty-state-title{font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:var(--fs-md);font-weight:500;color:var(--t2);margin-bottom:8px}
+.empty-state-title{font-family:var(--font-display);font-size:var(--fs-md);font-weight:500;color:var(--t2);margin-bottom:8px}
 .empty-state-desc{font-size:var(--fs-sm);color:var(--t4);line-height:1.55;max-width:240px}
 .empty-state-cta{margin-top:16px;min-width:160px}
 @media (--bp-sm-down){
@@ -317,7 +317,7 @@
 /* P-05: retry / CTA action button inside error toast */
 .toast-action{
   background:none;border:1px solid currentColor;border-radius:4px;
-  cursor:pointer;font-family:'DM Sans',sans-serif;font-size:var(--fs-2xs);
+  cursor:pointer;font-family:var(--font-body);font-size:var(--fs-2xs);
   font-weight:500;padding:3px 9px;flex-shrink:0;
   color:inherit;opacity:.85;transition:opacity .13s;
 }

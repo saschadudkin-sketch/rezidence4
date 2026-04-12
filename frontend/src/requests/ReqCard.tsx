@@ -49,7 +49,7 @@ const ReqPhoto = memo(function ReqPhoto({ src }: ReqPhotoProps) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <img src={src} alt="фото" className="req-photo-img" onClick={() => setOpen(true)} />
+      <img src={src} alt="фото" className="req-photo-img" loading="lazy" decoding="async" onClick={() => setOpen(true)} />
       {open && <PhotoLightbox src={src} onClose={() => setOpen(false)} />}
     </>
   );

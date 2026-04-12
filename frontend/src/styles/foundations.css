@@ -22,7 +22,7 @@ html { height: 100%; -webkit-text-size-adjust: 100%; }
 body {
   height: 100%;
   overflow-x: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   background: var(--s0);
   color: var(--t1);
   overscroll-behavior: none;
@@ -32,12 +32,10 @@ body {
 #root { height: 100%; }
 
 body { font-size: var(--fs-body); line-height: var(--lh-body); }
-/* FIX [TYPOGRAPHY]: единая серифная гарнитура — только Cormorant Garamond.
-   Playfair Display удалён из modal-title (см. modals.css).
-   Три serif-семейства заменены одним для визуальной согласованности. */
+/* Display typography is centralized through --font-display for visual consistency. */
 h1, h2, h3, .page-title, .modal-title,
 .login-h, .login-art-name, .login-art-headline, .av-panel-title, .vlog-card-time {
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-family: var(--font-display);
   letter-spacing: -0.025em;
 }
 
@@ -100,7 +98,7 @@ h1, h2, h3, .page-title, .modal-title,
 .u-flex2 { flex: 2; }
 .u-w-full { width: 100%; }
 
-.u-touch-target { min-height: 36px; padding: var(--space-sm) 12px; }
+.u-touch-target { min-height: 44px; padding: var(--space-sm) 12px; }
 
 .req-date-label {
   font-size: var(--fs-2xs);

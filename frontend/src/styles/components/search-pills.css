@@ -11,7 +11,7 @@
 .search-clear:hover{background:var(--s3);color:var(--t1)}
 .search-inp{
   width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);
-  padding:11px 14px 11px 38px;font-family:"Inter",sans-serif;font-size:var(--fs-sm);
+  padding:11px 14px 11px 38px;font-family:var(--font-body);font-size:var(--fs-sm);
   color:var(--t1);outline:none;transition:border-color .13s, box-shadow .13s;box-sizing:border-box;
 }
 .search-inp::placeholder{color:var(--t4)}
@@ -20,7 +20,7 @@
 .date-pills{display:flex;gap:var(--space-xs);margin-bottom:12px;flex-wrap:wrap}
 .date-pill{
   background:none;border:1px solid var(--b1);border-radius:20px;
-  padding:4px 14px;font-family:"Inter",sans-serif;font-size:var(--fs-2xs);
+  padding:4px 14px;font-family:var(--font-body);font-size:var(--fs-2xs);
   letter-spacing:.5px;color:var(--t3);cursor:pointer;
   transition:background .13s,border-color .13s,color .13s;white-space:nowrap;
 }
@@ -34,7 +34,7 @@
 .tabs::-webkit-scrollbar{display:none}
 .tab-btn{
   background:none;border:none;padding:11px 16px;
-  font-family:'Inter',sans-serif;font-size:var(--fs-2xs);letter-spacing:1.2px;text-transform:uppercase;
+  font-family:var(--font-body);font-size:var(--fs-2xs);letter-spacing:1.2px;text-transform:uppercase;
   color:var(--t4);cursor:pointer;
   border-bottom:1.5px solid transparent;margin-bottom:-1px;
   white-space:nowrap;flex-shrink:0;transition:color .13s,border-color .13s;
@@ -184,7 +184,7 @@
     margin-top:12px;
     padding:18px 18px 16px;
     border-radius:22px;
-    border-left-width:3px;
+    border-color:color-mix(in srgb, var(--g1) 30%, var(--b2));
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.025),
       0 10px 24px rgba(0,0,0,.12);
@@ -365,7 +365,7 @@
     margin-top:10px;
     padding:14px;
     border-radius:20px;
-    border-left-width:3px;
+    border-color:color-mix(in srgb, var(--g1) 28%, var(--b2));
     box-shadow:none;
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 95%, transparent));
@@ -484,8 +484,7 @@
     margin-top:8px;
     padding:12px 12px 10px;
     border-radius:18px;
-    border-left-width:2px;
-    border-left-color:color-mix(in srgb, var(--g1) 48%, var(--b2));
+    border-color:color-mix(in srgb, var(--g1) 32%, var(--b2));
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 95%, transparent));
     box-shadow:none;
@@ -720,4 +719,3 @@ html.theme-light .chat-wrap{box-shadow:var(--sh-s)}
   white-space:nowrap;
   max-width:100%;
 }
-

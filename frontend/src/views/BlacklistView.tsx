@@ -67,12 +67,19 @@ export default function BlacklistView({ user }) {
       {adding && (
         <div className="bl-form">
           <div className="bl-form-row">
-            <input className="field-inp" placeholder="ФИО" value={name}
-              onChange={e => setName(e.target.value)} autoCapitalize="words" autoFocus />
-            <input className="field-inp" placeholder="Номер авто" value={carPlate}
-              onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+            <div className="bl-field">
+              <label className="field-lbl" htmlFor="blacklist-name">ФИО</label>
+              <input id="blacklist-name" className="field-inp" placeholder="ФИО" value={name}
+                onChange={e => setName(e.target.value)} autoCapitalize="words" autoFocus />
+            </div>
+            <div className="bl-field">
+              <label className="field-lbl" htmlFor="blacklist-car">Номер авто</label>
+              <input id="blacklist-car" className="field-inp" placeholder="Номер авто" value={carPlate}
+                onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+            </div>
           </div>
-          <input className="field-inp" placeholder="Причина (необязательно)" value={reason}
+          <label className="field-lbl" htmlFor="blacklist-reason">Причина <span className="u-t4">(необязательно)</span></label>
+          <input id="blacklist-reason" className="field-inp" placeholder="Краткий комментарий для поста охраны" value={reason}
             onChange={e => setReason(e.target.value)} />
           <button className="btn-gold u-mt-8" onClick={handleAdd}>
             <span><AppIcon name="ban" className="u-inline-icon" /> Добавить в чёрный список</span>
@@ -82,7 +89,7 @@ export default function BlacklistView({ user }) {
 
       <div className="search-wrap u-mb16">
         <span className="search-ico"><AppIcon name="search" /></span>
-        <input className="search-inp" placeholder="Поиск по ФИО, номеру авто..."
+        <input className="search-inp" aria-label="Поиск по чёрному списку" placeholder="Поиск по ФИО, номеру авто..."
           value={query} onChange={e => setQuery(e.target.value)} />
       </div>
 
