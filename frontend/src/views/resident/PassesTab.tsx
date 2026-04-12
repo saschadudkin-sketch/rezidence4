@@ -13,7 +13,7 @@ type PassesTabProps = {
   user: { role: UserRole | string; name: string; uid: string };
   passFilter: string;
   setPassFilter: (value: string) => void;
-  setModal: (value: { type: RequestType; cat: string }) => void;
+  setModal: (value: { type: RequestType; cat: string; initialStep?: number; fast?: boolean }) => void;
   onRepeatPass: (request: AppRequest) => void;
   onEdit: (request: AppRequest) => void;
   onDelete: (id: string) => void;
@@ -134,7 +134,7 @@ const PassesTab = memo(function PassesTab({
                 type="button"
                 className="resident-quick-card"
                 aria-label={label as string}
-                onClick={() => setModal({ type: 'pass', cat: key as string })}
+                onClick={() => setModal({ type: 'pass', cat: key as string, initialStep: 1, fast: true })}
               >
                 <span className="resident-quick-icon"><AppIcon name={iconName as string} size={18} /></span>
                 <span className="resident-quick-copy">

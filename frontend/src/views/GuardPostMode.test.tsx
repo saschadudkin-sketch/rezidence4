@@ -7,6 +7,8 @@ import GuardPostMode from './GuardPostMode';
 import * as AppStore from '../store/AppStore';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+let blacklistMatch: null | { name?: string; reason?: string; carPlate?: string } = null;
+
 const mkReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
   visitorName:'Гость', visitorPhone:'+79001234567', carPlate:null, comment:'',
@@ -20,7 +22,7 @@ vi.mock('../ui/AvatarCircle',            () => ({ AvatarCircle: () => null }));
 vi.mock('../requests/PassQRModal',       () => ({ PassQRModal: () => null }));
 vi.mock('../store/slices/blacklistSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../store/slices/blacklistSlice')>();
-  return { ...actual, checkBlacklist: () => null };
+  return { ...actual, checkBlacklist: () => blacklistMatch };
 });
 vi.mock('../ui/Toasts',                  () => ({ toast: vi.fn() }));
 vi.mock('../requests/ScanQRModal',       () => ({ ScanQRModal: () => null }));
@@ -31,6 +33,7 @@ vi.mock('../utils', () => ({ sortReqs: v => v, playAlert: vi.fn(), sendNotif: vi
 
 
 beforeEach(() => {
+  blacklistMatch = null;
   vi.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq()]);
   vi.spyOn(AppStore, 'useActions').mockReturnValue({
     approveRequest: vi.fn(), rejectRequest: vi.fn(),
@@ -59,6 +62,15 @@ describe('GuardPostMode', () => {
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
     expect(screen.getByRole('button', { name: /активные/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /временные/i })).toBeInTheDocument();
+  });
+
+  test('стоп-лист не показывает обычное действие пропуска', () => {
+    blacklistMatch = { name: 'Гость', reason: 'Запрет УК' };
+    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
+
+    expect(screen.getByText('ЧЁРНЫЙ СПИСОК')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /разрешить вручную/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /пропустить и отметить вход/i })).not.toBeInTheDocument();
   });
 });
 

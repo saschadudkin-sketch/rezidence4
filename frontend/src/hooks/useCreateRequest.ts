@@ -24,7 +24,7 @@ export const needsCarPlate = (cat) =>
 
 /** Нужно ли обязательное имя посетителя */
 export const requiresVisitorName = (cat) =>
-  !['taxi', 'car', 'master', 'team', 'courier'].includes(cat);
+  !['taxi', 'car', 'master', 'team'].includes(cat);
 
 /** Показывать ли поля посетителя вообще */
 export const hasVisitorFields = (cat) =>
@@ -117,7 +117,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     });
 
     // Validation
-    if (type === 'pass' && cat === 'taxi'  && !sanitized.carPlate)                  { toast('Укажите марку и номер авто', 'error');  return; }
+    if (type === 'pass' && ['taxi', 'car'].includes(cat) && !sanitized.carPlate)     { toast('Укажите марку и номер авто', 'error');  return; }
     if (type === 'pass' && ['guest', 'team'].includes(cat) && sanitized.visitorNames.length === 0) { toast('Укажите имена посетителей', 'error'); return; }
     if (type === 'pass' && cat !== 'guest' && requiresVisitorName(cat) && !sanitized.visitorName) { toast('Укажите имя посетителя', 'error'); return; }
 

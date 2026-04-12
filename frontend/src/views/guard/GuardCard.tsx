@@ -36,6 +36,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   // CQ-01: два boolean → один enum — исключает невалидное состояние confirmApprove && confirmReject
   const [confirmAction, setConfirmAction] = useState(null); // null | 'approve' | 'reject'
   const blMatch = checkBlacklist(req, blacklist);
+  const isBlacklisted = Boolean(blMatch);
 
   const handleInfoTap = () => {
     if (!onViewDetails) return;
@@ -65,6 +66,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   }, []);
 
   const doPass = () => {
+    setConfirmAction(null);
     if (req.passDuration === 'once' || !req.passDuration) {
       act('approve', async () => {
         approveAndArrive(req.id, userName, 'security');
@@ -120,7 +122,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   }, 'Вход отмечен', 'success');
 
   return (
-    <div className={'guard-card' + (blMatch ? ' bl-flagged' : '')} role="article">
+    <div className={'guard-card' + (isBlacklisted ? ' bl-flagged' : '')} role="article">
       {blMatch && (
         <div className="bl-warning">
           <span className="u-inline-icon"><AppIcon name="denied" size={22} /></span>
@@ -161,8 +163,13 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
 
       {(req.visitorName || req.carPlate || req.comment) && (
         <div className="guard-details">
+          {req.carPlate && (
+            <div className="guard-plate-block">
+              <span className="guard-plate-label">Авто</span>
+              <span className="guard-plate-value">{req.carPlate}</span>
+            </div>
+          )}
           {req.visitorName && <div className="guard-detail"><span className="guard-detail-lbl">Гость</span><span className="guard-detail-val">{req.visitorName}</span></div>}
-          {req.carPlate && <div className="guard-detail"><span className="guard-detail-lbl">Авто</span><span className="guard-detail-val">{req.carPlate}</span></div>}
           {req.comment && <div className="guard-detail"><span className="guard-detail-lbl">Коммент.</span><span className="guard-detail-val">{req.comment}</span></div>}
         </div>
       )}
@@ -188,25 +195,46 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       <div className="guard-actions">
         {req.status === 'pending' && (
           <>
-            {confirmAction === 'approve' ? (
-              <button className="guard-btn approve confirm" onClick={doPass} disabled={!!loading}>
-                {loading === 'approve' ? <span className="btn-spin" /> : <AppIcon name="check" size={14} />}
-                <span>Точно пропустить?</span>
-              </button>
+            {isBlacklisted ? (
+              <>
+                {confirmAction === 'reject' ? (
+                  <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
+                    {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+                    <span>Подтвердить отказ</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn reject guard-btn--primary-risk" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+                  </button>
+                )}
+                {confirmAction === 'approve' ? (
+                  <button className="guard-btn override confirm" onClick={doPass} disabled={!!loading}>
+                    {loading === 'approve' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
+                    <span>Разрешить вопреки стоп-листу?</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn override" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Разрешить вручную</span>
+                  </button>
+                )}
+              </>
             ) : (
-              <button className="guard-btn approve" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
-                <span className="u-inline-icon"><AppIcon name="check" size={14} /></span><span>Пропустить</span>
-              </button>
-            )}
-            {confirmAction === 'reject' ? (
-              <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
-                {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
-                <span>Точно отказать?</span>
-              </button>
-            ) : (
-              <button className="guard-btn reject" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
-                <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
-              </button>
+              <>
+                <button className="guard-btn approve" onClick={doPass} disabled={!!loading}>
+                  {loading === 'approve' ? <span className="btn-spin" /> : <span className="u-inline-icon"><AppIcon name="check" size={14} /></span>}
+                  <span>Пропустить и отметить вход</span>
+                </button>
+                {confirmAction === 'reject' ? (
+                  <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
+                    {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+                    <span>Точно отказать?</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn reject" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+                  </button>
+                )}
+              </>
             )}
           </>
         )}

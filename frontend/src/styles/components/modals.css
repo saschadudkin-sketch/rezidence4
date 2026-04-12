@@ -579,6 +579,30 @@
 .guard-name{font-size:15px;color:var(--t1);margin-top:2px}
 .guard-cat{font-size:var(--fs-xs);color:var(--t3);margin-top:2px;letter-spacing:.5px}
 .guard-details{display:flex;flex-direction:column;gap:6px;padding:12px;background:var(--s1);border-radius:8px;margin-bottom:14px}
+.guard-plate-block{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border:1px solid color-mix(in srgb, var(--g1) 62%, var(--b2));
+  border-radius:10px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 50%, var(--s2)), color-mix(in srgb, var(--s1) 94%, transparent));
+}
+.guard-plate-label{
+  font-size:10px;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--t4);
+  font-weight:700;
+}
+.guard-plate-value{
+  color:var(--t1);
+  font-size:20px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
 .guard-detail{display:flex;gap:8px;align-items:baseline}
 .guard-detail-lbl{font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;color:var(--t4);min-width:60px;flex-shrink:0}
 .guard-detail-val{font-size:var(--fs-body);color:var(--t1)}
@@ -602,6 +626,10 @@
 .guard-btn.reject{background:transparent;border:2px solid var(--err-t);color:var(--err-t)}
 .guard-btn.reject:hover{background:rgba(192,96,96,.1)}
 .guard-btn.reject.confirm{background:var(--err-t);color:#fff;border-color:var(--err-t);animation:urgentPulse 1.5s ease infinite}
+.guard-btn--primary-risk{background:color-mix(in srgb, var(--err-t) 10%, transparent)}
+.guard-btn.override{background:var(--s3);color:var(--wrn-t);border:1.5px solid color-mix(in srgb, var(--wrn-t) 54%, var(--b2))}
+.guard-btn.override:hover{background:color-mix(in srgb, var(--wrn-t) 10%, var(--s3))}
+.guard-btn.override.confirm{background:color-mix(in srgb, var(--wrn-t) 16%, var(--s3));border-color:var(--wrn-t);animation:urgentPulse 1.5s ease infinite}
 .guard-btn.arrive{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border:none}
 .guard-btn.arrive:hover{filter:brightness(1.1)}
 .guard-btn.call{background:var(--s3);color:var(--t1);border:1.5px solid var(--b2);flex:0 0 auto;padding:16px 20px}

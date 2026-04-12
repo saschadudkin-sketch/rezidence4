@@ -33,6 +33,8 @@ type ResidentModalState = {
     carPlate?: unknown;
     comment?: unknown;
   };
+  initialStep?: number;
+  fast?: boolean;
 };
 
 function getPassReadyText(request) {
@@ -292,6 +294,8 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
           type={modal.type}
           initialCat={modal.cat}
           initialData={modal.data}
+          initialStep={modal.initialStep}
+          initialFast={modal.fast}
           onClose={() => setModal(null)}
           onDone={(request) => {
             setActiveTab(modal.type === 'tech' ? 'tech' : 'passes');

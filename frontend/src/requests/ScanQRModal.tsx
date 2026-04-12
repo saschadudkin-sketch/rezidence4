@@ -188,6 +188,8 @@ export function ScanQRModal({ user, onClose }) {
       r.id === q
       || (r.visitorName && r.visitorName.toLowerCase().includes(q))
       || (r.carPlate && r.carPlate.toLowerCase().includes(q))
+      || (r.createdByApt && r.createdByApt.toLowerCase().includes(q))
+      || (r.createdByName && r.createdByName.toLowerCase().includes(q))
     );
     if (!found) { toast('Пропуск не найден', 'error'); return; }
     stopCamera();
@@ -322,10 +324,10 @@ export function ScanQRModal({ user, onClose }) {
                 <div className="qr-scanner-frame" />
               </div>
               <div className="field u-mt16">
-                <label className="field-lbl">Или введите имя / номер авто / ID</label>
+                <label className="field-lbl">Или введите имя / авто / апартамент / ID</label>
                 <div className="u-flex u-gap8">
                   <input className="field-inp u-grow u-mb0"
-                    placeholder="Поиск..."
+                    placeholder="Имя, авто, апарт. или ID"
                     value={manualId} onChange={e => setManualId(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleManualSearch()} />
                   <button className="btn-gold u-w-auto scanqr-search-btn"

@@ -20,8 +20,8 @@ const createRequestState = (overrides = {}) => ({
   cat: 'guest',
   cats: ['guest', 'courier', 'taxi'],
   setCat: vi.fn(),
-  vName: '', setVName: vi.fn(),
-  vNames: [], setVNames: vi.fn(),
+  vName: 'Иван Иванов', setVName: vi.fn(),
+  vNames: [{ __id: 'n1', value: 'Иван Иванов' }], setVNames: vi.fn(),
   vPhone: '', setVPhone: vi.fn(),
   carPlate: '', setCarPlate: vi.fn(),
   comment: '', setComment: vi.fn(),
@@ -171,6 +171,40 @@ describe('CreateModal — smoke', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
     fireEvent.click(screen.getByRole('button', { name: /Точное время и детали/i }));
     expect(screen.getByPlaceholderText('Например: встретить у КПП, позвонить перед проходом')).toBeTruthy();
+  });
+
+  test('fast-mode открывает ввод данных и создаёт пропуск без шагов времени', () => {
+    const handleSubmit = vi.fn();
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      cat: 'courier',
+      vName: 'СДЭК',
+      handleSubmit,
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="pass" initialCat="courier" initialStep={1} initialFast onClose={onClose} onDone={onDone} />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Заполните пропуск' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сейчас' }));
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  test('не пропускает дальше без обязательных данных на шаге жильца', () => {
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      cat: 'guest',
+      vNames: [{ __id: 'n1', value: '' }],
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+
+    expect(screen.getByRole('heading', { name: 'Кого ждёте?' })).toBeTruthy();
+    expect(screen.getByText('Укажите имя хотя бы одного посетителя.')).toBeTruthy();
   });
 
   test('быстрый выбор Завтра утром ставит 08:00', () => {

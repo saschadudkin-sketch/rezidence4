@@ -397,6 +397,14 @@
   max-width: 48ch;
 }
 
+.resident-step-error {
+  margin-top: -4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--err-t) 42%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--err-t) 9%, var(--s2));
+}
+
 .resident-wizard-cats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -501,6 +509,30 @@
   text-align: right;
 }
 
+.courier-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.courier-preset-chip {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--g-bg) 38%, var(--s2));
+  color: var(--t2);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.courier-preset-chip:hover {
+  border-color: var(--g1);
+  color: var(--g2);
+}
+
 @media (--bp-resident-down) {
   .resident-pass-home {
     gap: 14px;
@@ -510,6 +542,7 @@
     grid-template-columns: 1fr;
     padding: 18px;
     border-radius: 16px;
+    order: 2;
   }
 
   .resident-pass-hero h2 {
@@ -522,6 +555,7 @@
 
   .resident-quick-grid {
     grid-template-columns: 1fr;
+    order: 1;
   }
 
   .resident-quick-card {

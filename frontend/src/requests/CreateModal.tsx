@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
@@ -72,10 +72,19 @@ type CreateModalProps = {
   type: RequestType;
   initialCat?: string;
   initialData?: Record<string, unknown>;
+  initialStep?: number;
+  initialFast?: boolean;
   onClose: () => void;
   onDone: (request?: AppRequest) => void;
 };
 type CreateRequestForm = ReturnType<typeof useCreateRequest>;
+
+const COURIER_PRESETS = ['Ozon', 'Wildberries', 'Яндекс Доставка', 'СДЭК', 'Самокат'];
+
+function clampResidentStep(value?: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0;
+  return Math.max(0, Math.min(3, Math.trunc(value)));
+}
 
 const VisitorFields = memo(function VisitorFields({
   cat,
@@ -93,12 +102,18 @@ const VisitorFields = memo(function VisitorFields({
   onPickPerm,
 }: VisitorFieldsProps) {
   const usesMultiVisitorNames = cat === 'guest' || cat === 'team';
+  const visitorLabel = cat === 'courier'
+    ? 'Служба доставки или имя курьера *'
+    : requiresVisitorName(cat) ? 'Имя посетителя *' : 'Имя посетителя';
+  const visitorPlaceholder = cat === 'courier'
+    ? 'СДЭК, Ozon, Яндекс Доставка'
+    : 'Иван Иванов';
 
   return (
     <>
       {needsCarPlate(cat) && cat !== 'guest' && (
         <div className="field">
-          <label className="field-lbl">Марка и номер авто{cat === 'taxi' ? ' *' : ''}</label>
+          <label className="field-lbl">Марка и номер авто{['taxi', 'car'].includes(cat) ? ' *' : ''}</label>
           <input
             className="field-inp"
             placeholder="Toyota Camry А123БВ777"
@@ -163,16 +178,25 @@ const VisitorFields = memo(function VisitorFields({
 
       {hasVisitorFields(cat) && !usesMultiVisitorNames && (
         <div className="field">
-          <label className="field-lbl">{requiresVisitorName(cat) ? 'Имя посетителя *' : 'Имя посетителя'}</label>
+          <label className="field-lbl">{visitorLabel}</label>
           <input
             className="field-inp"
-            placeholder="Иван Иванов"
+            placeholder={visitorPlaceholder}
             value={vName}
             onChange={(e) => setVName(e.target.value)}
             onBlur={(e) => setVName(sanitizeText(e.target.value))}
             autoCapitalize="words"
             autoComplete="name"
           />
+          {cat === 'courier' && (
+            <div className="courier-preset-chips" aria-label="Быстрый выбор службы доставки">
+              {COURIER_PRESETS.map((name) => (
+                <button key={name} type="button" className="courier-preset-chip" onClick={() => setVName(name)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
           {permsList.length > 0 && (
             <div className="perms-picker-wrap">
               <button type="button" className="perms-picker-trigger" onClick={() => setShowPermsPicker((value) => !value)}>
@@ -433,16 +457,36 @@ function getResidentPassSummary(form: CreateRequestForm) {
   return { who, when, car };
 }
 
+function getResidentStepError(form: CreateRequestForm, step: number) {
+  if (step !== 1) return '';
+  const carPlate = form.carPlate.trim();
+  const visitorName = form.vName.trim();
+  const visitorNames = form.vNames.map((item) => item.value.trim()).filter(Boolean);
+
+  if (['taxi', 'car'].includes(form.cat) && !carPlate) return 'Укажите марку и номер авто, чтобы охрана быстро сверила машину.';
+  if (['guest', 'team'].includes(form.cat) && visitorNames.length === 0) return 'Укажите имя хотя бы одного посетителя.';
+  if (form.cat !== 'guest' && requiresVisitorName(form.cat) && !visitorName) {
+    return form.cat === 'courier'
+      ? 'Укажите службу доставки или имя курьера.'
+      : 'Укажите имя посетителя.';
+  }
+  return '';
+}
+
 function ResidentPassWizard({
   form,
   cats,
   step,
+  fastMode,
+  residentError,
   showAdvanced,
   setShowAdvanced,
 }: {
   form: CreateRequestForm;
   cats: string[];
   step: number;
+  fastMode: boolean;
+  residentError: string;
   showAdvanced: boolean;
   setShowAdvanced: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -467,13 +511,15 @@ function ResidentPassWizard({
 
   return (
     <div className="resident-wizard">
-      <div className="resident-wizard-progress" aria-label={`Шаг ${step + 1} из 4`}>
-        {['Тип', 'Гость', 'Время', 'Готово'].map((label, index) => (
-          <span key={label} className={index <= step ? 'active' : ''}>
-            {label}
-          </span>
-        ))}
-      </div>
+      {!fastMode && (
+        <div className="resident-wizard-progress" aria-label={`Шаг ${step + 1} из 4`}>
+          {['Тип', 'Гость', 'Время', 'Готово'].map((label, index) => (
+            <span key={label} className={index <= step ? 'active' : ''}>
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {step === 0 && (
         <section className="resident-wizard-step">
@@ -501,8 +547,8 @@ function ResidentPassWizard({
       {step === 1 && (
         <section className="resident-wizard-step">
           <div className="resident-wizard-copy">
-            <h3>Кого ждёте?</h3>
-            <p>Можно выбрать из постоянного списка или ввести данные вручную.</p>
+            <h3>{fastMode ? 'Заполните пропуск' : 'Кого ждёте?'}</h3>
+            <p>{fastMode ? 'Минимум данных — и охрана сразу увидит пропуск.' : 'Можно выбрать из постоянного списка или ввести данные вручную.'}</p>
           </div>
           <VisitorFields
             cat={form.cat}
@@ -519,6 +565,11 @@ function ResidentPassWizard({
             setShowPermsPicker={form.setShowPermsPicker}
             onPickPerm={form.handlePickPerm}
           />
+          {residentError && (
+            <div className="field-err resident-step-error" role="alert" aria-live="polite">
+              {residentError}
+            </div>
+          )}
         </section>
       )}
 
@@ -612,13 +663,21 @@ function ResidentPassWizard({
   );
 }
 
-export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }: CreateModalProps) {
+export function CreateModal({ user, type, initialCat, initialData, initialStep, initialFast = false, onClose, onDone }: CreateModalProps) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [residentStep, setResidentStep] = useState(0);
   const isResidentPass = type === 'pass' && user.role !== 'contractor';
+  const [residentStep, setResidentStep] = useState(() => clampResidentStep(initialStep));
+  const [residentError, setResidentError] = useState('');
+  const fastMode = Boolean(isResidentPass && initialFast);
+
+  useEffect(() => {
+    if (!residentError) return;
+    setResidentError('');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- vNames is the resident visitor field state; clearing the step error is UI-only
+  }, [form.cat, form.vName, form.vNames, form.carPlate]);
 
   const submitLabel = form.loading
     ? 'Сохранение...'
@@ -635,10 +694,29 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
   );
 
   const advancedSubtitle = '';
+  const goResidentNext = () => {
+    const error = getResidentStepError(form, residentStep);
+    if (error) {
+      setResidentError(error);
+      return;
+    }
+    setResidentError('');
+    setResidentStep((step) => Math.min(3, step + 1));
+  };
+  const submitResidentNow = () => {
+    const error = getResidentStepError(form, 1);
+    if (error) {
+      setResidentStep(1);
+      setResidentError(error);
+      return;
+    }
+    setResidentError('');
+    form.handleSubmit();
+  };
 
   return (
     <div className="overlay" {...overlayProps}>
-      <div className="modal modal--request" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
+      <div className={`modal modal--request${fastMode ? ' modal--resident-fast' : ''}`} ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
           <div className="modal-head-main">
@@ -657,6 +735,8 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
               form={form}
               cats={cats}
               step={residentStep}
+              fastMode={fastMode}
+              residentError={residentError}
               showAdvanced={showAdvanced}
               setShowAdvanced={setShowAdvanced}
             />
@@ -750,17 +830,28 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         <div className="modal-foot">
           {isResidentPass ? (
             <>
-              <button className="btn-outline" onClick={residentStep === 0 ? onClose : () => setResidentStep((step) => Math.max(0, step - 1))}>
-                {residentStep === 0 ? 'Отмена' : 'Назад'}
-              </button>
-              {residentStep < 3 ? (
-                <button className="btn-gold u-flex2" onClick={() => setResidentStep((step) => Math.min(3, step + 1))}>
-                  <span>Продолжить</span>
-                </button>
+              {fastMode && residentStep === 1 ? (
+                <>
+                  <button className="btn-outline" onClick={goResidentNext}>Время и детали</button>
+                  <button className="btn-gold u-flex2" onClick={submitResidentNow} disabled={form.loading}>
+                    <span>{form.loading ? 'Сохранение...' : 'Создать сейчас'}</span>
+                  </button>
+                </>
               ) : (
-                <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>
-                  <span>{submitLabel}</span>
-                </button>
+                <>
+                  <button className="btn-outline" onClick={residentStep === 0 ? onClose : () => setResidentStep((step) => Math.max(0, step - 1))}>
+                    {residentStep === 0 ? 'Отмена' : 'Назад'}
+                  </button>
+                  {residentStep < 3 ? (
+                    <button className="btn-gold u-flex2" onClick={goResidentNext}>
+                      <span>Продолжить</span>
+                    </button>
+                  ) : (
+                    <button className="btn-gold u-flex2" onClick={submitResidentNow} disabled={form.loading}>
+                      <span>{submitLabel}</span>
+                    </button>
+                  )}
+                </>
               )}
             </>
           ) : (

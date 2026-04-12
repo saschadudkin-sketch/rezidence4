@@ -141,7 +141,7 @@ html{scroll-behavior:smooth}
   .guard-subtabs{border-radius:8px}
   .guard-subtab{padding:10px 8px;font-size:var(--fs-2xs);gap:4px}
   .guard-card{padding:14px}
-  .guard-btn{padding:12px 8px;font-size:var(--fs-sm);min-height:48px}
+  .guard-btn{padding:12px 8px;font-size:var(--fs-sm);min-height:52px}
   .guard-card-top{gap:10px}
   .guard-apt{font-size:var(--fs-md)}
   .guard-name{font-size:var(--fs-sm)}
@@ -245,7 +245,7 @@ html{scroll-behavior:smooth}
 @media (--bp-md-down){
   .guard-post{max-width:100%}
   .guard-card{padding:14px}
-  .guard-btn{padding:12px 10px;font-size:var(--fs-sm);min-height:48px}
+  .guard-btn{padding:12px 10px;font-size:var(--fs-sm);min-height:52px}
   .guard-header-stats{gap:12px}
   .guard-stat-val{font-size:22px}
   .guard-subtabs{border-radius:8px}
