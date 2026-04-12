@@ -5,14 +5,14 @@ import StateBlock from '../../ui/StateBlock';
 import { useDebounce } from '../../hooks/useDebounce';
 import { getViewStateCopy } from '../../ui/viewStateContract';
 import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
-import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { AppRequest, RequestType } from '../../store/slices/requestsSlice';
 import type { UserRole } from '../../store/slices/usersSlice';
 
 type TechTabProps = {
   user: { role: UserRole | string; name: string; uid: string };
   techFilter: string;
   setTechFilter: (value: string) => void;
-  setModal: (value: { type: string; cat: string }) => void;
+  setModal: (value: { type: RequestType; cat: string }) => void;
   onRepeatTech: (request: AppRequest) => void;
   onEdit: (request: AppRequest) => void;
   onDelete: (id: string) => void;

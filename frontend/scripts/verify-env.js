@@ -10,7 +10,14 @@ import { mkdirSync, writeFileSync } from 'fs';
 const REQUIRED_PROD = ['VITE_API_URL', 'VITE_RUNTIME_MODE'];
 const REQUIRED_ALWAYS = [];
 
-const mode = process.env.NODE_ENV || 'development';
+const explicitModeArg = process.argv[2];
+const inferredMode =
+  process.env.VITE_BUILD_MODE ||
+  process.env.MODE ||
+  process.env.VITE_USER_NODE_ENV ||
+  process.env.NODE_ENV ||
+  'production';
+const mode = (explicitModeArg || inferredMode).trim().toLowerCase();
 const isProd = mode === 'production';
 
 const missing = [];
@@ -42,6 +49,7 @@ if (missing.length > 0 || demoRequestedWithoutFlag) {
     '- Set `VITE_RUNTIME_MODE=live` for production builds.',
     '- Use `VITE_RUNTIME_MODE=demo` only for internal sandbox builds together with `VITE_ENABLE_DEMO=true`.',
     '- Re-run `npm run verify:env` before `npm run build`.',
+    '- For non-production checks use `npm run verify:env -- development`.',
     '',
   ].join('\n');
   try {

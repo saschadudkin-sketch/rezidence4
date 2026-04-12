@@ -1,62 +1,78 @@
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { ChatMessage } from '../../store/slices/chatSlice';
+import type { AppUser } from '../../store/slices/usersSlice';
+import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
+import type { Template, UserPerms } from '../../store/slices/permsSlice';
+import type {
+  AuthUser,
+  ChatDeletePayload,
+  ChatMessageInput,
+  LiveSyncChatEvent,
+  PermsPayload,
+  ServiceAck,
+  SyncStatus,
+} from './serviceDtos';
+
 export type ServiceMode = 'demo' | 'live';
 export type ServiceProviderName = 'demo' | 'backend';
+export type ServiceMutationResult = SyncStatus | ServiceAck | void;
 
 export interface AuthService {
-  sendOtp: (phone: string) => Promise<unknown>;
-  verifyOtp: (phone: string, code: string) => Promise<unknown>;
-  getMe: () => Promise<unknown>;
-  logout: () => Promise<unknown>;
+  sendOtp: (phone: string) => Promise<ServiceAck | void>;
+  verifyOtp: (phone: string, code: string) => Promise<AuthUser>;
+  getMe: () => Promise<AuthUser>;
+  logout: () => Promise<ServiceAck | void>;
 }
 
 export interface ChatService {
-  getMessages: (params?: { before?: string; limit?: number; search?: string }) => Promise<{ messages: unknown[]; hasMore?: boolean }>;
-  sendMessage: (message: unknown) => Promise<unknown>;
-  updateMessage: (id: string, patch: Record<string, unknown>) => Promise<unknown>;
-  deleteMessage: (id: string) => Promise<unknown>;
-  markSeen: (uid: string) => Promise<unknown>;
-  onMessage: (fn: (payload: unknown) => void) => () => void;
-  onMessageUpdate: (fn: (payload: unknown) => void) => () => void;
-  onMessageDelete: (fn: (payload: unknown) => void) => () => void;
+  getMessages: (params?: { before?: string; limit?: number; search?: string; signal?: AbortSignal }) => Promise<{ messages: ChatMessage[]; hasMore?: boolean }>;
+  sendMessage: (message: ChatMessage | ChatMessageInput) => Promise<ChatMessage | ServiceMutationResult>;
+  updateMessage: (id: string, patch: Partial<ChatMessage>) => Promise<ServiceMutationResult>;
+  deleteMessage: (id: string) => Promise<ServiceMutationResult>;
+  markSeen: (uid: string) => Promise<ServiceMutationResult>;
+  onMessage: (fn: (payload: ChatMessage) => void) => () => void;
+  onMessageUpdate: (fn: (payload: ChatMessage) => void) => () => void;
+  onMessageDelete: (fn: (payload: ChatDeletePayload) => void) => () => void;
 }
 
 export interface RequestsService {
   resolvePhotos: (requestId: string, photos: string[]) => Promise<string[]>;
-  submit: (args: { request: Record<string, unknown>; addLocal: (request: Record<string, unknown>) => void }) => Promise<unknown> | unknown;
-  updateEverywhere: (args: { requestId: string; patch: Record<string, unknown>; updateLocal?: (id: string, patch: Record<string, unknown>) => void; historyLabel?: string }) => Promise<unknown> | unknown;
-  deleteEverywhere: (args: { requestId: string; deleteLocal?: (id: string) => void }) => Promise<unknown> | unknown;
+  submit: (args: { request: Partial<AppRequest>; addLocal: (request: AppRequest) => void }) => Promise<AppRequest | ServiceMutationResult> | AppRequest | ServiceMutationResult;
+  updateEverywhere: (args: { requestId: string; patch: Partial<AppRequest>; updateLocal?: (id: string, patch: Partial<AppRequest>) => void; historyLabel?: string }) => Promise<ServiceMutationResult> | ServiceMutationResult;
+  deleteEverywhere: (args: { requestId: string; deleteLocal?: (id: string) => void }) => Promise<ServiceMutationResult> | ServiceMutationResult;
 }
 
 export interface AdminService {
-  savePermsEverywhere: (args: { uid: string; perms: unknown; saveLocal?: (uid: string, perms: unknown) => void }) => Promise<unknown> | unknown;
-  saveUserEverywhere: (args: { uid: string; patch: Record<string, unknown>; updateLocal?: (uid: string, patch: Record<string, unknown>, oldPhone?: string) => void; oldPhone?: string }) => Promise<unknown> | unknown;
-  removeUserEverywhere: (args: { uid: string; removeLocal?: (uid: string) => void }) => Promise<unknown> | unknown;
+  savePermsEverywhere: (args: { uid: string; perms: PermsPayload; saveLocal?: (uid: string, perms: UserPerms) => void }) => Promise<ServiceMutationResult> | ServiceMutationResult;
+  saveUserEverywhere: (args: { uid: string; patch: Partial<AppUser>; updateLocal?: (uid: string, patch: Partial<AppUser>, oldPhone?: string) => void; oldPhone?: string }) => Promise<ServiceMutationResult> | ServiceMutationResult;
+  removeUserEverywhere: (args: { uid: string; removeLocal?: (uid: string) => void }) => Promise<ServiceMutationResult> | ServiceMutationResult;
 }
 
-export interface LiveSyncCallbacks {
-  onChat?: (payload: { type?: string; message?: Record<string, unknown>; id?: string }) => void;
-  setAllRequests?: (requests: Record<string, unknown>[]) => void;
-  onRequests?: (requests: Record<string, unknown>[]) => void;
-  setAllMessages?: (messages: Record<string, unknown>[]) => void;
-  setAllUsers?: (users: Record<string, unknown>[]) => void;
-  onPerms?: (payload: unknown) => void;
-  onTemplates?: (payload: unknown) => void;
-  setBlacklist?: (entries: unknown[]) => void;
+export interface LiveDataCallbacks {
+  onChat?: (payload: LiveSyncChatEvent) => void;
+  setAllRequests?: (requests: AppRequest[]) => void;
+  onRequests?: (requests: AppRequest[]) => void;
+  setAllMessages?: (messages: ChatMessage[]) => void;
+  setAllUsers?: (users: AppUser[]) => void;
+  onPerms?: (payload: UserPerms) => void;
+  onTemplates?: (payload: Template[]) => void;
+  setBlacklist?: (entries: BlacklistEntry[]) => void;
   userUid?: string;
   signal?: AbortSignal;
-  onBlacklistAdd?: (entry: Record<string, unknown>) => void;
+  onBlacklistAdd?: (entry: BlacklistEntry) => void;
   onBlacklistRemove?: (entryId: string) => void;
-  onUsers?: (users: Record<string, unknown>[]) => void;
-  onUserAdd?: (user: Record<string, unknown>) => void;
-  onUserUpdate?: (user: Record<string, unknown>) => void;
+  onUsers?: (users: AppUser[]) => void;
+  onUserAdd?: (user: AppUser) => void;
+  onUserUpdate?: (user: AppUser) => void;
   onUserDelete?: (uid: string) => void;
-  onRequestUpdate?: (request: Record<string, unknown>) => void;
-  onRequestAdd?: (request: Record<string, unknown>) => void;
+  onRequestUpdate?: (request: AppRequest) => void;
+  onRequestAdd?: (request: AppRequest) => void;
   onRequestDelete?: (id: string) => void;
-  currentRequests?: unknown[];
+  currentRequests?: AppRequest[];
 }
 
 export interface LiveDataService {
-  startSync: (callbacks?: LiveSyncCallbacks) => Promise<() => void> | (() => void);
+  startSync: (callbacks?: LiveDataCallbacks) => Promise<() => void> | (() => void);
 }
 
 export interface ServiceContracts {
@@ -70,6 +86,20 @@ export interface ServiceContracts {
 
 export interface ServiceContainer extends ServiceContracts {
   mode: ServiceMode;
+}
+
+function getContractValue(target: object, path: string): unknown {
+  const segments = path.split('.');
+  let current: unknown = target;
+
+  for (const segment of segments) {
+    if (typeof current !== 'object' || current === null || !(segment in current)) {
+      return undefined;
+    }
+    current = current[segment as keyof typeof current];
+  }
+
+  return current;
 }
 
 export function assertServiceContracts(services: ServiceContracts): ServiceContracts {
@@ -94,14 +124,10 @@ export function assertServiceContracts(services: ServiceContracts): ServiceContr
     'admin.saveUserEverywhere',
     'admin.removeUserEverywhere',
     'liveData.startSync',
-  ];
+  ] as const;
 
   for (const path of requiredPaths) {
-    const value = path.split('.').reduce<unknown>((acc, key) => {
-      if (typeof acc !== 'object' || acc === null) return undefined;
-      return (acc as Record<string, unknown>)[key];
-    }, services as unknown);
-    if (typeof value !== 'function') {
+    if (typeof getContractValue(services, path) !== 'function') {
       throw new Error(`[services] Contract violation: "${path}" is missing`);
     }
   }

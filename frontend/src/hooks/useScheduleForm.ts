@@ -26,7 +26,7 @@ export const SCHEDULE_PRESETS = [
   { label: 'Через 1 час',       mins: 60  },
   { label: 'Через 2 часа',      mins: 120 },
   { label: 'Сегодня в 18:00',   fn: () => { const d = new Date(); d.setHours(18, 0, 0, 0); return d; } },
-  { label: 'Завтра утром',       fn: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d; } },
+  { label: 'Завтра утром',       fn: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d; } },
 ];
 
 /**

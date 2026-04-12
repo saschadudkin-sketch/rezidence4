@@ -11,6 +11,7 @@ import UserMenu from './UserMenu';
 import NavigationShell from './NavigationShell';
 import RoleContentRouter from './RoleContentRouter';
 import { useNavigationContext } from './NavigationContext';
+import { MEDIA_QUERIES } from '../../constants/breakpoints';
 import type { AppUser } from '../../store/slices/usersSlice';
 
 type AppShellProps = {
@@ -44,8 +45,9 @@ const AppShell = memo(function AppShell({
 }: AppShellProps) {
   const { nav, navClassMap, goTab, activeTab } = useNavigationContext();
   const demoMode = isDemoMode();
+  const isResidentExperience = user.role === 'owner' || user.role === 'tenant';
   const [isCompactLayout, setIsCompactLayout] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches,
+    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches,
   );
   const isChatTab = activeTab === 'chat';
   const hideChatTitleOnCompact = isCompactLayout && isChatTab;
@@ -54,7 +56,7 @@ const AppShell = memo(function AppShell({
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    const media = window.matchMedia('(max-width: 1024px)');
+    const media = window.matchMedia(MEDIA_QUERIES.lgDown);
     const handleChange = (event: MediaQueryListEvent) => setIsCompactLayout(event.matches);
     setIsCompactLayout(media.matches);
     media.addEventListener('change', handleChange);
@@ -72,25 +74,27 @@ const AppShell = memo(function AppShell({
 
   return (
     <>
-      <div
-        className={`offline-banner${showBanner ? ' is-visible' : ''}`}
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <AppIcon name={bannerIcon} size={13} />
-        {' '}
-        <span className={showBanner ? undefined : 'u-sr-only'}>{bannerText}</span>
-      </div>
+      {showBanner && (
+        <div
+          className="offline-banner is-visible"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <AppIcon name={bannerIcon} size={13} />
+          {' '}
+          <span>{bannerText}</span>
+        </div>
+      )}
 
-      <header className={`header${showBanner ? ' app-content-offset has-offline-banner' : ''}`}>
+      <header className={`header${isResidentExperience ? ' header--resident' : ''}${showBanner ? ' app-content-offset has-offline-banner' : ''}`}>
         <div className="header-inner">
           <div className="header-brand">
             <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
             <div className="header-brand-copy">
               <span className="header-wordmark">Резиденции Замоскворечья</span>
               <div className="header-brand-status">
-                {demoMode && (
+                {demoMode && !isResidentExperience && (
                   <span className="demo-badge" title="Демо-режим: данные хранятся только локально">DEMO</span>
                 )}
                 {noSse && (
@@ -112,7 +116,7 @@ const AppShell = memo(function AppShell({
             )}
             <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={`Тема: ${themeLabel}`}>
               <span><AppIcon name={themeIcon} size={14} /></span>
-              <span>{themeLabel}</span>
+              <span className={isResidentExperience ? 'theme-btn-label--resident' : undefined}>{themeLabel}</span>
             </button>
             <UserMenu user={user} pendingCount={pendingCount} onLogout={onLogout} />
           </div>

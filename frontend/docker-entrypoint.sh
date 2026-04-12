@@ -17,6 +17,7 @@ set -e
 
 BACKEND_URL="${BACKEND_URL:-}"
 YOUR_DOMAIN="${YOUR_DOMAIN:-localhost}"
+ENABLE_HTTPS="${ENABLE_HTTPS:-false}"
 
 if [ -z "$BACKEND_URL" ]; then
   echo "[entrypoint] ERROR: BACKEND_URL is not set."
@@ -24,11 +25,11 @@ if [ -z "$BACKEND_URL" ]; then
   exit 1
 fi
 
-echo "[entrypoint] BACKEND_URL=$BACKEND_URL  YOUR_DOMAIN=$YOUR_DOMAIN"
+echo "[entrypoint] BACKEND_URL=$BACKEND_URL  YOUR_DOMAIN=$YOUR_DOMAIN  ENABLE_HTTPS=$ENABLE_HTTPS"
 
 # ── Основной конфиг (dev / http) ──────────────────────────────────────────────
 DEV_TEMPLATE="/etc/nginx/nginx.conf.template"
-DEV_TARGET="/etc/nginx/nginx.conf"
+DEV_TARGET="/etc/nginx/conf.d/default.conf"
 
 if [ -f "$DEV_TEMPLATE" ]; then
   envsubst '$BACKEND_URL $YOUR_DOMAIN' < "$DEV_TEMPLATE" > "$DEV_TARGET"
@@ -39,7 +40,7 @@ fi
 
 # ── Production HTTPS конфиг (если подключён как volume) ───────────────────────
 PROD_TEMPLATE="/etc/nginx/nginx.prod.conf.template"
-if [ -f "$PROD_TEMPLATE" ]; then
+if [ "$ENABLE_HTTPS" = "true" ] && [ -f "$PROD_TEMPLATE" ]; then
   PROD_TARGET="/etc/nginx/conf.d/default.conf"
   envsubst '$BACKEND_URL $YOUR_DOMAIN' < "$PROD_TEMPLATE" > "$PROD_TARGET"
   echo "[entrypoint] Generated $PROD_TARGET from $PROD_TEMPLATE"

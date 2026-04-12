@@ -78,6 +78,8 @@ describe('APP_ICON_NAMES', () => {
       'tools',
       'tools-line',
       'list',
+      'filter',
+      'filters',
       'file',
       'history',
       'chat',
@@ -113,6 +115,9 @@ describe('APP_ICON_NAMES', () => {
       'download',
       'door',
       'hourglass',
+      'sun',
+      'moon',
+      'monitor',
     ]);
   });
 

@@ -7,7 +7,7 @@ const LIVE_MODE = runtimeMode.LIVE_MODE || 'live';
 const DEMO_MODE = runtimeMode.DEMO_MODE || 'demo';
 const DEMO_ENABLED = runtimeMode.DEMO_ENABLED ?? false;
 
-function normalizeServiceMode(mode) {
+function normalizeServiceMode(mode: unknown): ServiceMode {
   const normalized = runtimeMode.normalizeMode
     ? runtimeMode.normalizeMode(mode)
     : (typeof mode === 'string' ? mode.trim().toLowerCase() : '');
@@ -22,7 +22,7 @@ function normalizeServiceMode(mode) {
  * demo  → demoProvider (localStorage, без сервера, только internal sandbox)
  */
 export function createServices(mode = runtimeMode.MODE) {
-  const resolvedMode = normalizeServiceMode(mode) as ServiceMode;
+  const resolvedMode = normalizeServiceMode(mode);
   const provider = resolvedMode === LIVE_MODE
     ? createBackendProvider()
     : createDemoProvider();

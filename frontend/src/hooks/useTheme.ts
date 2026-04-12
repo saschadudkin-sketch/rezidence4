@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
  * useTheme — управление темой оформления (тёмная / авто / светлая).
  * Хранит выбор в localStorage['rz-theme'], применяет CSS-класс к <html>.
  */
-export function useTheme() {
+export function useTheme(defaultTheme = 'dark') {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('rz-theme') || 'dark'; } catch { return 'dark'; }
+    try { return localStorage.getItem('rz-theme') || defaultTheme; } catch { return defaultTheme; }
   });
 
   useEffect(() => {

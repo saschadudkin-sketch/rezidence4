@@ -21,6 +21,7 @@ import AppShell from './shell/AppShell';
 import { NavigationContext } from './shell/NavigationContext';
 import ViewStateAdapter from '../ui/ViewStateAdapter';
 import '../styles/components/utilities-polish.css';
+import '../styles/components/utilities-layout.css';
 import { useRoleGuidance } from './dashboard/useRoleGuidance';
 import { useConnectivityUX } from './dashboard/useConnectivityUX';
 import { useDashboardExperience } from './dashboard/useDashboardExperience';
@@ -100,7 +101,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     updateRequest, addRequest, deleteRequest,
   } = useActions();
 
-  const { cycleTheme, themeIcon, themeLabel } = useTheme();
+  const residentDefaultTheme = user.role === ROLES.OWNER || user.role === ROLES.TENANT ? 'light' : 'dark';
+  const { cycleTheme, themeIcon, themeLabel } = useTheme(residentDefaultTheme);
   const badges = useNavBadges(user, requests, chat, chatLastSeen, blacklist);
   const { pendingT, pendingP, unreadMsgs, residentNewStatuses, blacklistCount, onPassesSeen } = badges;
 
@@ -130,6 +132,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
     isConnErr: connectivity.isConnErr,
     goTab,
   });
+  const isResidentExperience = user.role === ROLES.OWNER || user.role === ROLES.TENANT;
 
   if (connectivity.isConnErr) {
     return (
@@ -162,8 +165,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }) {
         setHighlightReqId,
       }}
     >
-      {guidance.showDemoBanner && <DemoBanner onClose={guidance.dismissDemoBanner} />}
-      {guidance.showOnboarding && (
+      {guidance.showDemoBanner && !isResidentExperience && <DemoBanner onClose={guidance.dismissDemoBanner} />}
+      {guidance.showOnboarding && !isResidentExperience && (
         <OnboardingHint role={user.role} onClose={guidance.dismissOnboarding} />
       )}
       <AppShell

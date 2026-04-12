@@ -10,7 +10,22 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 // экземпляр выигрывает (LIFO) — ожидаемое поведение для стека модалов.
 // toast() — стабильная функция: safe to call before mount (silently drops).
 
-let _toastCb = null;
+type ToastType = 'info' | 'success' | 'error' | 'warn' | string;
+type ToastAction = {
+  label: string;
+  onClick?: () => void;
+  secondaryLabel?: string;
+  onSecondaryClick?: () => void;
+} | null;
+type ToastItem = {
+  id: number;
+  msg: string;
+  type: ToastType;
+  action: ToastAction;
+};
+type ToastCallback = (msg: string, type: ToastType, action: ToastAction) => void;
+
+let _toastCb: ToastCallback | null = null;
 // Монотонный счётчик — Date.now() мог совпасть для двух toast() в одном тике
 let _toastIdCounter = 0;
 
@@ -24,7 +39,7 @@ let _toastIdCounter = 0;
  * @param {{ label: string, onClick: () => void, secondaryLabel?: string, onSecondaryClick?: () => void }} [action] — P-05: optional CTA buttons
  */
 type ToastFn = {
-  (msg: string, type?: 'info' | 'success' | 'error' | 'warn' | string, action?: any): void;
+  (msg: string, type?: ToastType, action?: ToastAction): void;
   clearAll?: () => void;
 };
 
@@ -41,12 +56,12 @@ const TOAST_DURATION        = 3_500; // мс до автоудаления
 const TOAST_DURATION_ACTION = 7_000; // мс — extra time when toast has an action button
 
 export default function Toasts() {
-  const [list, setList] = useState([]);
+  const [list, setList] = useState<ToastItem[]>([]);
   // FIX [AUDIT-8]: timers хранятся в ref, а не в замыкании useEffect —
   // это позволяет dismiss-кнопке (если добавим) обращаться к ним без перерегистрации.
   const timersRef = useRef(new Map()); // id → timeoutId
 
-  const add = useCallback((msg, type, action) => {
+  const add = useCallback<ToastCallback>((msg, type, action) => {
     if (type === '__system_clear__' && msg === '__clear_all__') {
       timersRef.current.forEach(clearTimeout);
       timersRef.current.clear();

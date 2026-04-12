@@ -79,7 +79,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
           />
           <div className="search-wrap">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
+            <input className="search-inp" aria-label="Поиск пропусков" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
           </div>
           <div className="type-grid">
             {passIcons.map(([key, iconName, label]) => (
@@ -130,7 +130,7 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
           </div>
           <div className="search-wrap">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
+            <input className="search-inp" aria-label="Поиск заявок" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
           </div>
           {allT.length > 0 && (
             <>
@@ -213,7 +213,7 @@ const SecurityPermsList = memo(function SecurityPermsList() {
       </div>
       <div className="search-wrap u-mb16">
         <span className="search-ico"><AppIcon name="search" size={14} /></span>
-        <input className="search-inp" placeholder="Поиск по апартаменту или ФИО..." value={query} onChange={e => setQuery(e.target.value)} />
+        <input className="search-inp" aria-label="Поиск жителей" placeholder="Поиск по апартаменту или ФИО..." value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {residentItems.length === 0 && (
         <StateBlock
@@ -332,7 +332,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
           </div>
           <div className="search-wrap u-search-sm sec-filters-search">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
+            <input className="search-inp" aria-label="Поиск по имени, квартире, авто или комментарию" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
           </div>
           {showFilters && (
             <div className="sec-filters">

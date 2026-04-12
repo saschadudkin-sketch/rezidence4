@@ -2,47 +2,18 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
 import { MEDIA_QUERIES } from '../../constants/breakpoints';
+import {
+  filterMobileNavItems,
+  getMobileLabel,
+  getMobileMaxTabs,
+  orderMobileTabs,
+  splitMobileNav,
+  type MobileNavItem,
+} from '../../domain/navigationSchema';
 
 const formatBadgeCount = (count: number) => (count > 9 ? '9+' : String(count));
 
-const MOBILE_MAX_TABS_BY_ROLE: Record<string, number> = {
-  admin: 5,
-  security: 7,
-  owner: 4,
-  tenant: 4,
-  concierge: 5,
-};
-
-const DEFAULT_MOBILE_MAX_TABS = 4;
-
-const ROLE_NAV_ORDER: Record<string, string[]> = {
-  security: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
-  concierge: ['passes', 'visitlog', 'chat', 'blacklist', 'residents', 'templates', 'history', 'tech'],
-  owner: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  tenant: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  contractor: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-  admin: ['stats', 'requests', 'residents', 'users', 'blacklist', 'chat', 'visitlog'],
-};
-
-const MOBILE_TOP_TABS_BY_ROLE: Record<string, string[]> = {
-  admin: ['stats', 'requests', 'residents'],
-  owner: ['passes', 'tech', 'perms'],
-  tenant: ['passes', 'tech', 'perms'],
-  contractor: ['passes', 'tech', 'perms'],
-};
-
-const MOBILE_LABELS_BY_ROLE: Record<string, Record<string, string>> = {
-  security: {
-    guardpost: 'Пост',
-    passes: 'Контроль',
-    visitlog: 'Журнал',
-    chat: 'Чат',
-    blacklist: 'Стоп',
-    residents: 'Резиденты',
-  },
-};
-
-type NavItem = [string, string, string, number];
+type NavItem = MobileNavItem;
 
 type NavigationShellProps = {
   nav: NavItem[];
@@ -58,10 +29,6 @@ type QuickActionsSheetProps = {
   isActive: (key: string) => boolean;
   onClose: () => void;
 };
-
-function getMobileMaxTabs(role: string) {
-  return MOBILE_MAX_TABS_BY_ROLE[role] ?? DEFAULT_MOBILE_MAX_TABS;
-}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -81,11 +48,11 @@ function useIsMobile() {
 
 function useIsTablet() {
   const [isTablet, setIsTablet] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width:768px) and (max-width:1024px)').matches,
+    () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.tablet).matches,
   );
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(min-width:768px) and (max-width:1024px)');
+    const mediaQuery = window.matchMedia(MEDIA_QUERIES.tablet);
     const handleChange = (event: MediaQueryListEvent) => setIsTablet(event.matches);
 
     mediaQuery.addEventListener('change', handleChange);
@@ -93,65 +60,6 @@ function useIsTablet() {
   }, []);
 
   return isTablet;
-}
-
-function orderMobileTabs(role: string, nav: NavItem[]) {
-  const roleOrder = ROLE_NAV_ORDER[role];
-  if (!roleOrder) return nav;
-
-  const rank = new Map(roleOrder.map((tab, index) => [tab, index]));
-  return [...nav].sort((a, b) => (rank.get(a[0]) ?? 99) - (rank.get(b[0]) ?? 99));
-}
-
-function splitMobileNav(role: string, nav: NavItem[]) {
-  const topTabs = MOBILE_TOP_TABS_BY_ROLE[role];
-  if (!topTabs) {
-    return { topNav: nav, bottomNav: nav };
-  }
-
-  const topRank = new Map(topTabs.map((tab, index) => [tab, index]));
-  const topNav = nav
-    .filter(([key]) => topRank.has(key))
-    .sort((a, b) => (topRank.get(a[0]) ?? 99) - (topRank.get(b[0]) ?? 99));
-  const bottomNav = nav.filter(([key]) => !topRank.has(key));
-
-  return { topNav, bottomNav };
-}
-
-function getMobileLabel(role: string, key: string, fallback: string) {
-  if (role === 'admin') {
-    const adminLabels: Record<string, string> = {
-      users: '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438',
-      blacklist: '\u0421\u0442\u043e\u043f',
-      visitlog: '\u0416\u0443\u0440\u043d\u0430\u043b',
-    };
-    return adminLabels[key] ?? fallback;
-  }
-  if (role === 'concierge') {
-    const conciergeLabels: Record<string, string> = {
-      passes: 'Пропуска',
-      visitlog: 'Журнал',
-      chat: 'Чат',
-      blacklist: 'Стоп',
-      residents: 'Резиденты',
-    };
-    return conciergeLabels[key] ?? fallback;
-  }
-  const commonCompactLabels: Record<string, string> = {
-    visitlog: '\u0416\u0443\u0440\u043d\u0430\u043b',
-    blacklist: '\u0421\u0442\u043e\u043f',
-  };
-  return MOBILE_LABELS_BY_ROLE[role]?.[key] ?? commonCompactLabels[key] ?? fallback;
-}
-
-function getMobileNavItems(role: string, items: NavItem[]) {
-  if (role === 'concierge') {
-    const conciergeBottomTabs = new Set(['passes', 'visitlog', 'chat', 'blacklist', 'residents']);
-    return items.filter(([key]) => conciergeBottomTabs.has(key));
-  }
-  if (role === 'admin') return items.filter(([key]) => key !== 'chat');
-  if (role === 'security') return items.filter(([key]) => key !== 'chat');
-  return items;
 }
 
 function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: QuickActionsSheetProps) {
@@ -206,8 +114,8 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
 
   const orderedMobileNav = orderMobileTabs(userRole, nav);
   const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
-  const topNavItems = isTablet ? getMobileNavItems(userRole, orderedMobileNav) : isMobile ? topNav : nav;
-  const mobileNavItems = isMobile ? getMobileNavItems(userRole, bottomNav) : orderedMobileNav;
+  const topNavItems = isTablet ? filterMobileNavItems(userRole, orderedMobileNav) : isMobile ? topNav : nav;
+  const mobileNavItems = isMobile ? filterMobileNavItems(userRole, bottomNav) : orderedMobileNav;
   const hasMobileTopTabs = isTablet || (isMobile && topNav.length > 0 && topNav.length !== nav.length);
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);

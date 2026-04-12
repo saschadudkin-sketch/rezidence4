@@ -22,6 +22,7 @@ function buildApp() {
   return app;
 }
 const app = buildApp();
+const VALID_BLACKLIST_ID = '11111111-1111-1111-1111-111111111111';
 
 function makeToken(payload) {
   return jwt.sign(payload, 'test-secret', { expiresIn: '1h' });
@@ -147,7 +148,7 @@ describe('DELETE /api/blacklist/:id', () => {
   it('403 для жильца', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Иванов' });
     const res = await request(app)
-      .delete('/api/blacklist/bl-1')
+      .delete(`/api/blacklist/${VALID_BLACKLIST_ID}`)
       .set('Cookie', `token=${token}`);
     expect(res.status).toBe(403);
   });
@@ -156,7 +157,7 @@ describe('DELETE /api/blacklist/:id', () => {
     const token = makeToken({ uid: 'g1', role: 'security', name: 'Охранник' });
     db.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
-      .delete('/api/blacklist/bl-1')
+      .delete(`/api/blacklist/${VALID_BLACKLIST_ID}`)
       .set('Cookie', `token=${token}`);
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);

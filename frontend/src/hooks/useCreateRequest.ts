@@ -183,9 +183,11 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         return;
       }
 
+      let savedRequest: AppRequest = { ...newReq, _pending: false };
       if (mode && typeof mode === 'object' && 'id' in mode) {
         deleteRequest(tempId);
         addRequest(mode as AppRequest);
+        savedRequest = mode as AppRequest;
       } else {
         updateRequest(tempId, { _pending: false });
       }
@@ -198,7 +200,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         successMsg,
         'Заявка сохранена локально. Синхронизация будет повторена позже',
       );
-      onDone();
+      onDone(savedRequest);
       onClose();
     } catch(e) {
       // FIX [UX-2]: rollback optimistic update on server error

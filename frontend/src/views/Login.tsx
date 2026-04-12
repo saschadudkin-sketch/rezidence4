@@ -136,7 +136,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
       const demoUser = await authFlow.sendOtp(phone);
       if (signal.aborted) return;
 
-      if (demoUser) setFound(demoUser);
+      if (demoUser) setFound(demoUser as AppUser);
       setStep('otp');
       setResendIn(OTP_COOLDOWN_SECONDS);
       setOtpError('');
@@ -203,7 +203,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
 
     setPending('verify', true, reqId);
     try {
-      const user = await authFlow.verifyOtp(phone, code, found);
+      const user = await authFlow.verifyOtp(phone, code, found) as AppUser;
       if (signal.aborted) return;
       emitLoginMetric('verify_success', { mode: isLiveMode() ? 'live' : 'demo' });
       toast.clearAll?.();
@@ -346,8 +346,9 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
           {step === 'phone' ? (
             <>
               <div className="field">
-                <label className="field-lbl">Номер телефона</label>
+                <label className="field-lbl" htmlFor="login-phone">Номер телефона</label>
                 <input
+                  id="login-phone"
                   className="field-inp"
                   type="tel"
                   placeholder="+7 000 000-00-00"
@@ -389,7 +390,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
                         const matched = findByPhone(demoPhone, phoneDb);
                         if (matched) {
                           setPendingState(prev => ({ ...prev, demo: true }));
-                          setFound(matched);
+                          setFound(matched as AppUser);
                           setOtp('');
                           setOtpError('');
                           setRecovery(null);
@@ -431,8 +432,9 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
                 Код отправлен на <strong>{phone}</strong>
               </div>
               <div className="field">
-                <label className="field-lbl">Код из SMS</label>
+                <label className="field-lbl" htmlFor="login-code">Код из SMS</label>
                 <input
+                  id="login-code"
                   className="field-inp field-otp"
                   type="text"
                   inputMode="numeric"

@@ -77,7 +77,7 @@
   .opreq-side { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
   .opreq-date { order: 3; }
 }
-@media (max-width: 480px) {
+@media (--bp-sm-down) {
   .opreq-row { padding: 12px 13px; gap: 10px; }
   .opreq-main { gap: 5px; }
   .opreq-title { gap: 9px; font-size: 15px; line-height: 1.22; }
@@ -107,7 +107,6 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
 .req-card--skeleton {
   background: var(--s2);
   border: 1px solid var(--b1);
-  border-left: 4px solid var(--b1);
   border-radius: 18px;
   padding: 14px;
   cursor: default;
@@ -121,7 +120,6 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
     radial-gradient(circle at top right, color-mix(in srgb, var(--g-bg2) 42%, transparent) 0%, transparent 28%),
     linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
   border: 1px solid color-mix(in srgb, var(--b2) 82%, transparent);
-  border-left: 4px solid var(--b3);
   border-radius: 22px;
   padding: 16px;
   animation: riseUp .22s ease both;
@@ -135,15 +133,15 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
 @media (hover: hover) { .req-card:hover { background: color-mix(in srgb, var(--s2) 90%, var(--g-bg) 10%); border-color: var(--g1); box-shadow: var(--sh-m); transform: translateY(-2px); } }
 .req-card:active { background: var(--s3); transform: scale(.99); }
 @media (--bp-sm-down) { .req-card { padding: 12px; } }
-.req-card.pending { border-left-color: var(--wrn-t); }
-.req-card.approved { border-left-color: var(--ok-t); }
-.req-card.rejected { border-left-color: var(--err-t); }
-.req-card.accepted { border-left-color: var(--g1); }
-.req-card.arrived { border-left-color: var(--arrived); }
-.req-card.expired { border-left-color: var(--expired); opacity: .6; }
-.req-card.scheduled { border-left-color: var(--clr-scheduled); }
-.req-card.priority-urgent { border-left-color: var(--err-t); box-shadow: 0 2px 8px rgba(192, 60, 60, .18), 0 0 0 1px rgba(192, 60, 60, .1) inset; }
-@keyframes urgentPulse { 0%, 100% { border-left-color: var(--err-t); } 50% { border-left-color: rgba(192, 96, 96, .4); } }
+.req-card.pending { border-color: color-mix(in srgb, var(--wrn-t) 64%, var(--b2)); }
+.req-card.approved { border-color: color-mix(in srgb, var(--ok-t) 64%, var(--b2)); }
+.req-card.rejected { border-color: color-mix(in srgb, var(--err-t) 64%, var(--b2)); }
+.req-card.accepted { border-color: color-mix(in srgb, var(--g1) 68%, var(--b2)); }
+.req-card.arrived { border-color: color-mix(in srgb, var(--arrived) 62%, var(--b2)); }
+.req-card.expired { border-color: color-mix(in srgb, var(--expired) 58%, var(--b1)); opacity: .6; }
+.req-card.scheduled { border-color: color-mix(in srgb, var(--clr-scheduled) 62%, var(--b2)); }
+.req-card.priority-urgent { border-color: color-mix(in srgb, var(--err-t) 74%, var(--b2)); box-shadow: 0 2px 8px rgba(192, 60, 60, .18), 0 0 0 1px rgba(192, 60, 60, .1) inset; }
+@keyframes urgentPulse { 0%, 100% { border-color: color-mix(in srgb, var(--err-t) 74%, var(--b2)); } 50% { border-color: rgba(192, 96, 96, .4); } }
 .req-card.priority-urgent.pending { animation: urgentPulse 2s ease infinite; }
 .priority-tag { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; font-size: 10px; font-weight: 700; letter-spacing: .8px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; }
 .priority-tag.urgent { color: var(--err-t); background: rgba(192, 96, 96, .12); }
@@ -248,7 +246,7 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
   line-height: 1.35;
   min-width: 0;
 }
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (--bp-md-up) and (--bp-lg-down) {
   .qr-container {
     max-width: 404px;
     margin-bottom: 18px;
@@ -365,7 +363,7 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
 .bl-form-row { display: flex; gap: 8px; }
 @media (--bp-sm-down) { .bl-form-row { flex-direction: column; } }
 .bl-list { display: flex; flex-direction: column; gap: 8px; }
-.bl-entry { background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 97%, transparent), color-mix(in srgb, var(--s1) 92%, transparent)); border: 1px solid color-mix(in srgb, var(--b2) 82%, transparent); border-left: 2px solid color-mix(in srgb, var(--err-t) 72%, transparent); border-radius: 16px; overflow: hidden; transition: border-color .13s, background .13s, box-shadow .13s; box-shadow: var(--sh-s); }
+.bl-entry { background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 97%, transparent), color-mix(in srgb, var(--s1) 92%, transparent)); border: 1px solid color-mix(in srgb, var(--err-t) 44%, var(--b2)); border-radius: 16px; overflow: hidden; transition: border-color .13s, background .13s, box-shadow .13s; box-shadow: var(--sh-s); }
 @media (hover: hover) { .bl-entry:hover { border-color: var(--b2); } }
 .bl-entry-main { display: flex; align-items: center; gap: 12px; padding: 13px 14px; }
 .bl-entry-icon { font-size: var(--fs-lg); flex-shrink: 0; opacity: .45; width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--err) 10%, transparent); color:color-mix(in srgb, var(--t4) 82%, var(--err-t)); }
@@ -462,7 +460,7 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
   justify-content:center;
   z-index:1;
 }
-@media (max-width: 640px){
+@media (--bp-form-down){
   .schedule-toggle > .u-row-g8:first-of-type{
     gap:6px;
     align-items:center;
@@ -552,7 +550,7 @@ html.theme-dark .schedule-datetime { color-scheme: dark; }
 .det-val { font-size: 14px; color: var(--t1); line-height: 1.45; }
 .req-actions { display: flex; gap: var(--space-xs); margin-top: 10px; justify-content: flex-end; }
 .req-actions[aria-busy="true"] > * { opacity: .55; pointer-events: none; }
-@media (max-width: 480px) {
+@media (--bp-sm-down) {
   .req-head { gap: 10px; }
   .req-left { gap: 10px; }
   .req-cat { font-size: 14px; line-height: 1.18; }

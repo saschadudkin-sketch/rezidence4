@@ -22,12 +22,12 @@ type RoleResponsibility = {
 export const ROLE_RESPONSIBILITIES: Record<string, RoleResponsibility> = {
   [ROLES.OWNER]: {
     capabilities: ['create', 'templates'],
-    onboardingHint: 'Нажмите «Создать пропуск», чтобы оформить доступ для гостя, курьера или мастера. Охрана получит заявку автоматически.',
+    onboardingHint: 'Создайте пропуск для гостя, курьера или мастера. Охрана увидит его сразу.',
     passesNavLabel: 'Пропуска',
   },
   [ROLES.TENANT]: {
     capabilities: ['create', 'templates'],
-    onboardingHint: 'Создайте пропуск для гостя или мастера. Охрана получит заявку автоматически.',
+    onboardingHint: 'Создайте пропуск для гостя или мастера. Охрана увидит его сразу.',
     passesNavLabel: 'Пропуска',
   },
   [ROLES.CONTRACTOR]: {
@@ -37,21 +37,21 @@ export const ROLE_RESPONSIBILITIES: Record<string, RoleResponsibility> = {
   },
   [ROLES.CONCIERGE]: {
     capabilities: ['create', 'search', 'scan', 'manageResidents', 'blacklist'],
-    onboardingHint: 'Консьерж проводит доступ: создаёт заявки, находит пропуска и сканирует QR-коды. Подтверждение и отметка прибытия остаются за охраной.',
+    onboardingHint: 'Создавайте пропуска, находите гостей и сканируйте QR-коды. Решение по допуску остаётся за охраной.',
     passesNavLabel: 'Операции',
-    queueTitle: 'Следующий шаг: провести доступ',
-    queueSubtitle: 'Создайте заявку, найдите пропуск или отсканируйте QR-код для посетителя',
+    queueTitle: 'Следующий шаг: помочь с доступом',
+    queueSubtitle: 'Создайте пропуск, найдите гостя или отсканируйте QR-код',
   },
   [ROLES.SECURITY]: {
     capabilities: ['search', 'scan', 'approve', 'arrive', 'blacklist'],
-    onboardingHint: 'Охрана подтверждает заявки, сканирует QR-коды и отмечает прибытие посетителей.',
+    onboardingHint: 'Проверяйте пропуска, сканируйте QR-коды и отмечайте прибытие гостей.',
     passesNavLabel: 'Контроль',
-    queueTitle: 'Следующий шаг: подтвердить доступ',
-    queueSubtitle: 'Подтвердите заявку, отсканируйте QR-код или отметьте прибытие посетителя',
+    queueTitle: 'Следующий шаг: проверить доступ',
+    queueSubtitle: 'Подтвердите пропуск, отсканируйте QR-код или отметьте прибытие',
   },
   [ROLES.ADMIN]: {
     capabilities: ['approve', 'manageResidents', 'analytics', 'blacklist'],
-    onboardingHint: 'Управляйте пользователями, заявками и ключевыми метриками из административной панели.',
+    onboardingHint: 'Контролируйте резидентов, пропуска и служебные показатели комплекса.',
     passesNavLabel: 'Операции',
   },
 };

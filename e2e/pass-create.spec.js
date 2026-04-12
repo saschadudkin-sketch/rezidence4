@@ -19,8 +19,8 @@ test.describe('Pass creation flow (T-04)', () => {
   test('owner can open create-pass modal', async ({ page }) => {
     await loginAs(page, '+7 916 123-45-67');
     await page.waitForURL(/\/dashboard\/passes/);
-    await page.locator('.type-card').first().click();
-    await expect(page.locator('[class*="modal"], [role="dialog"]').first()).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: /Новый пропуск/i }).click();
+    await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('security guard sees guardpost tab after login', async ({ page }) => {

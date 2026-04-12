@@ -139,11 +139,18 @@ describe('chatProvider', () => {
 
     const onPage = vi.fn();
     const result = await chatProvider.getAllHistory({ onPage });
-    expect(result).toEqual([{ id: 'm2' }, { id: 'm3' }]);
+    expect(result).toEqual([
+      expect.objectContaining({ id: 'm2' }),
+      expect.objectContaining({ id: 'm3' }),
+    ]);
 
     await Promise.resolve();
     await Promise.resolve();
-    expect(onPage).toHaveBeenCalledWith([{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]);
+    expect(onPage).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'm1' }),
+      expect.objectContaining({ id: 'm2' }),
+      expect.objectContaining({ id: 'm3' }),
+    ]);
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/api/v1/chat/messages?before=m2&limit=60');
   });
 });
@@ -155,13 +162,13 @@ describe('requestsProvider', () => {
     apiClient.get.mockResolvedValueOnce({ data: [{ id: 'r1' }], total: 1 });
     const result = await requestsProvider.getAll();
     expect(apiClient.get).toHaveBeenCalledWith('/api/v1/requests?limit=200&page=1');
-    expect(result).toEqual([{ id: 'r1' }]);
+    expect(result).toEqual([expect.objectContaining({ id: 'r1' })]);
   });
 
   test('getAll — обратная совместимость с массивом (без data)', async () => {
     apiClient.get.mockResolvedValueOnce([{ id: 'r1' }]);
     const result = await requestsProvider.getAll();
-    expect(result).toEqual([{ id: 'r1' }]);
+    expect(result).toEqual([expect.objectContaining({ id: 'r1' })]);
   });
 
   test('getAll — first page immediately, rest in background via onPage', async () => {
@@ -170,11 +177,14 @@ describe('requestsProvider', () => {
       .mockResolvedValueOnce({ data: [{ id: 'r2' }], total: 400 });
     const onPage = vi.fn();
     const result = await requestsProvider.getAll({ onPage });
-    expect(result).toEqual([{ id: 'r1' }]);
+    expect(result).toEqual([expect.objectContaining({ id: 'r1' })]);
 
     await Promise.resolve();
     await Promise.resolve();
-    expect(onPage).toHaveBeenCalledWith([{ id: 'r1' }, { id: 'r2' }]);
+    expect(onPage).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'r1' }),
+      expect.objectContaining({ id: 'r2' }),
+    ]);
   });
 
   test('create → POST /api/requests, возвращает serverReq', async () => {

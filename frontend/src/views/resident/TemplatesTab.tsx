@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import { MyTemplates } from '../../perms/PermsList';
+import type { RequestType } from '../../store/slices/requestsSlice';
 
 type TemplatesTabProps = {
   user: { uid: string; role: string; name: string };
   setModal: (value: {
-    type: string;
+    type: RequestType;
     cat: string;
     data: {
       visitorName: unknown;
@@ -21,7 +22,7 @@ const TemplatesTab = memo(function TemplatesTab({ user, setModal }: TemplatesTab
       user={user}
       onUse={(template) => {
         setModal({
-          type: template.type,
+          type: template.type as RequestType,
           cat: template.category,
           data: {
             visitorName: template.visitorName,

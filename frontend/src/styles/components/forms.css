@@ -92,7 +92,7 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--g2) 12%, transparent);
 }
 .field-textarea::placeholder { color: var(--t4); }
-@media (min-width: 768px) and (max-width: 1024px){
+@media (--bp-md-up) and (--bp-lg-down){
   .field-lbl {
     font-size: 10px;
     letter-spacing: 1.25px;

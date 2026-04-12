@@ -100,10 +100,15 @@ services:
       # docker-entrypoint.sh читает эти переменные и генерирует nginx.conf из шаблона.
       BACKEND_URL: ${BACKEND_URL:?BACKEND_URL must be set}
       YOUR_DOMAIN: ${YOUR_DOMAIN:?YOUR_DOMAIN must be set}
+      ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
     ports:
       - "80:80"
       # Раскомментируйте для HTTPS (требуется certbot + nginx.prod.conf):
       # - "443:443"
+    # Uncomment for HTTPS after certificates are issued on the host.
+    # volumes:
+    #   - /etc/letsencrypt:/etc/letsencrypt:ro
+    #   - /var/www/certbot:/var/www/certbot:ro
     # DO-04: nginx log rotation — без ограничений access.log при 1000 req/day = GB за неделю
     logging:
       driver: "json-file"

@@ -22,6 +22,7 @@ yarn-error.log*
 .DS_Store
 .idea/
 .vscode/
+.vs/
 
 # Playwright visual artifacts (binary snapshots are not supported in this environment)
 e2e/**/*.png
@@ -36,11 +37,16 @@ artifacts/
 
 # Claude Code internals
 .claude/
+.claude/worktrees/
 
 # Dev/test artifacts
 output/
 frontend/output/
 test-results/
+frontend/test-results/
+frontend/playwright-report/
 pw-web*.log
+frontend/pw-web*.log
 frontend/dev-server.log
 frontend/lint-current.log
+frontend/vite*.log

@@ -48,15 +48,8 @@ describe('db.migrate - versioned migrations', () => {
   });
 
   test('skips already-applied migrations', async () => {
-    const appliedMigrationIds = [
-      '001_initial_schema',
-      '002_indexes_and_soft_delete',
-      '003_users_soft_delete',
-      '004_composite_indexes',
-      '005_users_updated_at',
-      '006_otp_codes_lookup_index',
-      '007_upload_security_metadata',
-    ];
+    const { MIGRATIONS } = require('../dbMigrations');
+    const appliedMigrationIds = MIGRATIONS.map((migration) => migration.id);
 
     mockQuery.mockImplementation((sql) => {
       if (sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations')) {

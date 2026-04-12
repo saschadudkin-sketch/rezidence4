@@ -147,6 +147,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
         <span className="search-ico"><AppIcon name="search" size={14} /></span>
         <input
           className="search-inp"
+          aria-label="Поиск по имени, авто или апартаментам"
           placeholder="Поиск по имени, авто, апарт.…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}

@@ -11,7 +11,7 @@ The production build already fails fast when `VITE_API_URL` is absent (enforced 
 ## Decision
 
 Add `scripts/verify-env.js` — a Node.js script that:
-1. Reads `NODE_ENV` to determine production vs development mode.
+1. Resolves build mode from the explicit CLI argument first and otherwise defaults to a production-like preflight.
 2. Validates all required env variables for the given mode.
 3. Exits with code 0 (success) or 1 (missing variables).
 
@@ -33,7 +33,7 @@ And integrated into `verify:all`:
 
 ## CI integration
 
-Run `npm run verify:env` as the **first step** in CI before any build or test job. This provides a fast, explicit failure with a clear error message listing which variables are missing.
+Run `npm run verify:env` as the **first step** in CI before any build or test job. It now validates the same production-like requirements that `vite build` relies on, so preflight and build use the same release assumptions.
 
 ## Consequences
 

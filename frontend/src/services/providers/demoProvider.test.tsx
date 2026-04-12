@@ -25,7 +25,7 @@ describe('demoProvider', () => {
     provider.requests.deleteEverywhere({ requestId: 'r1', deleteLocal });
 
     expect(submitMode).toBe('local');
-    expect(addLocal).toHaveBeenCalledWith({ id: 'r1' });
+    expect(addLocal).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }));
     expect(updateLocal).toHaveBeenCalledWith('r1', { comment: 'x' });
     expect(deleteLocal).toHaveBeenCalledWith('r1');
   });

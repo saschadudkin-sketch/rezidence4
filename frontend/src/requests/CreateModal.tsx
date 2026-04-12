@@ -9,13 +9,13 @@ import {
   needsCarPlate,
   requiresVisitorName,
 } from '../hooks/useCreateRequest';
-import { toLocalDateInputValue, parseLocalDateInputValue } from '../utils/dateInput';
+import { toLocalDateInputValue, parseLocalDateInputValue, toLocalDateTimeInputValue } from '../utils/dateInput';
 import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useScheduleForm';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
 import type { AppUser } from '../store/slices/usersSlice';
-import type { RequestType } from '../store/slices/requestsSlice';
+import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
 
 type VisitorNameEntry = { __id: string; value: string };
 type PermEntry = { id: string; name: string; phone?: string };
@@ -73,8 +73,9 @@ type CreateModalProps = {
   initialCat?: string;
   initialData?: Record<string, unknown>;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (request?: AppRequest) => void;
 };
+type CreateRequestForm = ReturnType<typeof useCreateRequest>;
 
 const VisitorFields = memo(function VisitorFields({
   cat,
@@ -421,17 +422,209 @@ function PhotoSection({ photos, handlePhoto, removePhoto }: PhotoSectionProps) {
   );
 }
 
+function getResidentPassSummary(form: CreateRequestForm) {
+  const names = form.vNames.map((item) => item.value.trim()).filter(Boolean);
+  const visitor = names.length > 0 ? names.join(', ') : form.vName.trim();
+  const who = visitor || form.carPlate.trim() || CAT_LABEL[form.cat] || 'Гость';
+  const when = form.showSchedule && form.scheduledFor
+    ? fmtScheduled(form.scheduledFor)
+    : 'сразу после создания';
+  const car = form.carPlate.trim();
+  return { who, when, car };
+}
+
+function ResidentPassWizard({
+  form,
+  cats,
+  step,
+  showAdvanced,
+  setShowAdvanced,
+}: {
+  form: CreateRequestForm;
+  cats: string[];
+  step: number;
+  showAdvanced: boolean;
+  setShowAdvanced: Dispatch<SetStateAction<boolean>>;
+}) {
+  const summary = getResidentPassSummary(form);
+  const setQuickTime = (mode: 'now' | 'evening' | 'tomorrow') => {
+    if (mode === 'now') {
+      form.setShowSchedule(false);
+      form.setScheduledFor('');
+      return;
+    }
+    const next = new Date();
+    if (mode === 'evening') {
+      next.setHours(19, 0, 0, 0);
+      if (next <= new Date()) next.setDate(next.getDate() + 1);
+    } else {
+      next.setDate(next.getDate() + 1);
+      next.setHours(8, 0, 0, 0);
+    }
+    form.setScheduledFor(toLocalDateTimeInputValue(next));
+    form.setShowSchedule(true);
+  };
+
+  return (
+    <div className="resident-wizard">
+      <div className="resident-wizard-progress" aria-label={`Шаг ${step + 1} из 4`}>
+        {['Тип', 'Гость', 'Время', 'Готово'].map((label, index) => (
+          <span key={label} className={index <= step ? 'active' : ''}>
+            {label}
+          </span>
+        ))}
+      </div>
+
+      {step === 0 && (
+        <section className="resident-wizard-step">
+          <div className="resident-wizard-copy">
+            <h3>Кто к вам приедет?</h3>
+            <p>Выберите сценарий, а мы покажем только нужные поля.</p>
+          </div>
+          <div className="resident-wizard-cats" role="group" aria-label="Тип пропуска">
+            {cats.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={`resident-wizard-cat${form.cat === cat ? ' active' : ''}`}
+                onClick={() => form.setCat(cat)}
+                aria-pressed={form.cat === cat}
+              >
+                <span><AppIcon name={CAT_ICON[cat] || 'users'} size={18} /></span>
+                <strong>{CAT_LABEL[cat]}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {step === 1 && (
+        <section className="resident-wizard-step">
+          <div className="resident-wizard-copy">
+            <h3>Кого ждёте?</h3>
+            <p>Можно выбрать из постоянного списка или ввести данные вручную.</p>
+          </div>
+          <VisitorFields
+            cat={form.cat}
+            vName={form.vName}
+            setVName={form.setVName}
+            vNames={form.vNames}
+            setVNames={form.setVNames}
+            vPhone={form.vPhone}
+            setVPhone={form.setVPhone}
+            carPlate={form.carPlate}
+            setCarPlate={form.setCarPlate}
+            permsList={[...form.permsList]}
+            showPermsPicker={form.showPermsPicker}
+            setShowPermsPicker={form.setShowPermsPicker}
+            onPickPerm={form.handlePickPerm}
+          />
+        </section>
+      )}
+
+      {step === 2 && (
+        <section className="resident-wizard-step">
+          <div className="resident-wizard-copy">
+            <h3>Когда пропустить?</h3>
+            <p>Для срочного визита оставьте “Сейчас”. Детали можно добавить ниже.</p>
+          </div>
+          <div className="resident-time-grid">
+            <button type="button" className={!form.showSchedule ? 'active' : ''} onClick={() => setQuickTime('now')}>
+              Сейчас
+            </button>
+            <button type="button" onClick={() => setQuickTime('evening')}>
+              Сегодня вечером
+            </button>
+            <button type="button" onClick={() => setQuickTime('tomorrow')}>
+              Завтра утром
+            </button>
+          </div>
+          <AccordionSection
+            title="Точное время и детали"
+            icon="clock"
+            open={showAdvanced}
+            onToggle={() => setShowAdvanced((value) => !value)}
+          >
+            <ScheduleSection
+              showSchedule={form.showSchedule}
+              setShowSchedule={form.setShowSchedule}
+              scheduledFor={form.scheduledFor}
+              setScheduledFor={form.setScheduledFor}
+              applyPreset={form.applyPreset}
+            />
+            {['guest', 'car', 'worker', 'team'].includes(form.cat) && (
+              <div className="field">
+                <TemporaryPassSection validUntil={form.validUntil} setValidUntil={form.setValidUntil} />
+              </div>
+            )}
+            <div className="field">
+              <label className="field-lbl">Комментарий для охраны</label>
+              <textarea
+                className="field-textarea"
+                rows={3}
+                placeholder="Например: встретить у КПП, позвонить перед проходом"
+                value={form.comment}
+                onChange={(e) => form.setComment(e.target.value)}
+                onBlur={(e) => form.setComment(sanitizeText(e.target.value))}
+              />
+            </div>
+            <PhotoSection photos={form.photos} handlePhoto={form.handlePhoto} removePhoto={form.removePhoto} />
+          </AccordionSection>
+        </section>
+      )}
+
+      {step === 3 && (
+        <section className="resident-wizard-step">
+          <div className="resident-wizard-copy">
+            <h3>Проверьте пропуск</h3>
+            <p>После создания охрана увидит его в своей очереди.</p>
+          </div>
+          <div className="resident-review-card">
+            <div>
+              <span>Тип</span>
+              <strong>{CAT_LABEL[form.cat]}</strong>
+            </div>
+            <div>
+              <span>Кому</span>
+              <strong>{summary.who}</strong>
+            </div>
+            <div>
+              <span>Когда</span>
+              <strong>{summary.when}</strong>
+            </div>
+            {summary.car && (
+              <div>
+                <span>Авто</span>
+                <strong>{summary.car}</strong>
+              </div>
+            )}
+          </div>
+          <TemplateSection
+            showSaveTpl={form.showSaveTpl}
+            setShowSaveTpl={form.setShowSaveTpl}
+            tplName={form.tplName}
+            setTplName={form.setTplName}
+            onSave={form.handleSaveTpl}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
+
 export function CreateModal({ user, type, initialCat, initialData, onClose, onDone }: CreateModalProps) {
   const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [residentStep, setResidentStep] = useState(0);
+  const isResidentPass = type === 'pass' && user.role !== 'contractor';
 
   const submitLabel = form.loading
     ? 'Сохранение...'
     : form.showSchedule && form.scheduledFor
       ? 'Запланировать'
-      : 'Создать заявку';
+      : type === 'pass' ? 'Создать пропуск' : 'Создать заявку';
 
   const hasAdvancedSelection = Boolean(
     form.validUntil
@@ -459,94 +652,125 @@ export function CreateModal({ user, type, initialCat, initialData, onClose, onDo
         </div>
 
         <div className="modal-body">
-          <div className="u-fs11-op6 u-mb8">Шаг 1. Быстрое создание</div>
+          {isResidentPass ? (
+            <ResidentPassWizard
+              form={form}
+              cats={cats}
+              step={residentStep}
+              showAdvanced={showAdvanced}
+              setShowAdvanced={setShowAdvanced}
+            />
+          ) : (
+            <>
+              <div className="u-fs11-op6 u-mb8">{type === 'pass' ? 'Шаг 1. Кого ждёте' : 'Шаг 1. Быстрое создание'}</div>
 
-          {cats.length > 1 && (
-            <div className="modal-cat-picker" role="group" aria-label="Тип заявки">
-              {cats.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`modal-cat-btn${form.cat === cat ? ' active' : ''}`}
-                  onClick={() => form.setCat(cat)}
-                  aria-pressed={form.cat === cat}
-                >
-                  <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[cat] || 'users'} size={14} /></span>
-                  <span className="modal-cat-btn-label">{CAT_LABEL[cat]}</span>
-                </button>
-              ))}
-            </div>
+              {cats.length > 1 && (
+                <div className="modal-cat-picker" role="group" aria-label="Тип заявки">
+                  {cats.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`modal-cat-btn${form.cat === cat ? ' active' : ''}`}
+                      onClick={() => form.setCat(cat)}
+                      aria-pressed={form.cat === cat}
+                    >
+                      <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[cat] || 'users'} size={14} /></span>
+                      <span className="modal-cat-btn-label">{CAT_LABEL[cat]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {type === 'pass' && (
+                <VisitorFields
+                  cat={form.cat}
+                  vName={form.vName}
+                  setVName={form.setVName}
+                  vNames={form.vNames}
+                  setVNames={form.setVNames}
+                  vPhone={form.vPhone}
+                  setVPhone={form.setVPhone}
+                  carPlate={form.carPlate}
+                  setCarPlate={form.setCarPlate}
+                  permsList={[...form.permsList]}
+                  showPermsPicker={form.showPermsPicker}
+                  setShowPermsPicker={form.setShowPermsPicker}
+                  onPickPerm={form.handlePickPerm}
+                />
+              )}
+
+              <AccordionSection
+                title={type === 'pass' ? 'Шаг 2. Время, авто и детали' : 'Шаг 2. Дополнительные настройки'}
+                subtitle={advancedSubtitle}
+                icon="file"
+                open={showAdvanced}
+                onToggle={() => setShowAdvanced((value) => !value)}
+                badge={hasAdvancedSelection ? <span className="vlog-tag ok">вкл</span> : null}
+              >
+                {type === 'pass' && ['guest', 'car', 'worker', 'team'].includes(form.cat) && (
+                  <div className="field">
+                    <TemporaryPassSection validUntil={form.validUntil} setValidUntil={form.setValidUntil} />
+                  </div>
+                )}
+
+                <div className="field">
+                  <label className="field-lbl">Комментарий</label>
+                  <textarea
+                    className="field-textarea"
+                    rows={3}
+                    placeholder="Дополнительно..."
+                    value={form.comment}
+                    onChange={(e) => form.setComment(e.target.value)}
+                    onBlur={(e) => form.setComment(sanitizeText(e.target.value))}
+                  />
+                </div>
+
+                <PhotoSection photos={form.photos} handlePhoto={form.handlePhoto} removePhoto={form.removePhoto} />
+
+                <TemplateSection
+                  showSaveTpl={form.showSaveTpl}
+                  setShowSaveTpl={form.setShowSaveTpl}
+                  tplName={form.tplName}
+                  setTplName={form.setTplName}
+                  onSave={form.handleSaveTpl}
+                />
+
+                <ScheduleSection
+                  showSchedule={form.showSchedule}
+                  setShowSchedule={form.setShowSchedule}
+                  scheduledFor={form.scheduledFor}
+                  setScheduledFor={form.setScheduledFor}
+                  applyPreset={form.applyPreset}
+                />
+              </AccordionSection>
+            </>
           )}
-
-          {type === 'pass' && (
-            <VisitorFields
-              cat={form.cat}
-              vName={form.vName}
-              setVName={form.setVName}
-              vNames={form.vNames}
-              setVNames={form.setVNames}
-              vPhone={form.vPhone}
-              setVPhone={form.setVPhone}
-              carPlate={form.carPlate}
-              setCarPlate={form.setCarPlate}
-              permsList={[...form.permsList]}
-              showPermsPicker={form.showPermsPicker}
-              setShowPermsPicker={form.setShowPermsPicker}
-              onPickPerm={form.handlePickPerm}
-            />
-          )}
-
-          <AccordionSection
-            title="Шаг 2. Дополнительные настройки"
-            subtitle={advancedSubtitle}
-            icon="file"
-            open={showAdvanced}
-            onToggle={() => setShowAdvanced((value) => !value)}
-            badge={hasAdvancedSelection ? <span className="vlog-tag ok">вкл</span> : null}
-          >
-            {type === 'pass' && ['guest', 'car', 'worker', 'team'].includes(form.cat) && (
-              <div className="field">
-                <TemporaryPassSection validUntil={form.validUntil} setValidUntil={form.setValidUntil} />
-              </div>
-            )}
-
-            <div className="field">
-              <label className="field-lbl">Комментарий</label>
-              <textarea
-                className="field-textarea"
-                rows={3}
-                placeholder="Дополнительно..."
-                value={form.comment}
-                onChange={(e) => form.setComment(e.target.value)}
-                onBlur={(e) => form.setComment(sanitizeText(e.target.value))}
-              />
-            </div>
-
-            <PhotoSection photos={form.photos} handlePhoto={form.handlePhoto} removePhoto={form.removePhoto} />
-
-            <TemplateSection
-              showSaveTpl={form.showSaveTpl}
-              setShowSaveTpl={form.setShowSaveTpl}
-              tplName={form.tplName}
-              setTplName={form.setTplName}
-              onSave={form.handleSaveTpl}
-            />
-
-            <ScheduleSection
-              showSchedule={form.showSchedule}
-              setShowSchedule={form.setShowSchedule}
-              scheduledFor={form.scheduledFor}
-              setScheduledFor={form.setScheduledFor}
-              applyPreset={form.applyPreset}
-            />
-          </AccordionSection>
         </div>
 
         <div className="modal-foot">
-          <button className="btn-outline" onClick={onClose}>Отмена</button>
-          <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>
-            <span>{submitLabel}</span>
-          </button>
+          {isResidentPass ? (
+            <>
+              <button className="btn-outline" onClick={residentStep === 0 ? onClose : () => setResidentStep((step) => Math.max(0, step - 1))}>
+                {residentStep === 0 ? 'Отмена' : 'Назад'}
+              </button>
+              {residentStep < 3 ? (
+                <button className="btn-gold u-flex2" onClick={() => setResidentStep((step) => Math.min(3, step + 1))}>
+                  <span>Продолжить</span>
+                </button>
+              ) : (
+                <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>
+                  <span>{submitLabel}</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn-outline" onClick={onClose}>Отмена</button>
+              <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>
+                <span>{submitLabel}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

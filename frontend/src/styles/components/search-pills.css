@@ -73,7 +73,7 @@
   max-width:640px;
   margin:0 auto;
 }
-@media (min-width: 768px) and (max-width: 1024px){
+@media (--bp-md-up) and (--bp-lg-down){
   .passes-tab--resident{
     padding-bottom:calc(var(--nav-h) + var(--sab) + 32px);
   }

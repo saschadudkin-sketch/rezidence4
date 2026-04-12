@@ -1,10 +1,26 @@
 {
-  "name": "rezidence4-e2e",
+  "name": "rezidence4",
   "private": true,
   "devDependencies": {
     "@playwright/test": "^1.59.1"
   },
   "scripts": {
+    "install": "npm run install:all",
+    "install:all": "npm ci && npm --prefix backend ci && npm --prefix frontend ci",
+    "dev": "node scripts/dev.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "npm run backend:test && npm run frontend:test",
+    "backend:test": "npm --prefix backend run test:ci",
+    "lint": "npm run frontend:lint",
+    "frontend:lint": "npm --prefix frontend run lint",
+    "typecheck": "npm run frontend:typecheck",
+    "frontend:typecheck": "npm --prefix frontend run typecheck:strict",
+    "frontend:test": "npm --prefix frontend run test",
+    "build": "npm run frontend:build",
+    "frontend:build": "node -e \"const { spawnSync } = require('node:child_process'); const env = { ...process.env, VITE_API_URL: process.env.VITE_API_URL || 'http://localhost:3001', VITE_RUNTIME_MODE: process.env.VITE_RUNTIME_MODE || 'live' }; const result = spawnSync('npm', ['--prefix', 'frontend', 'run', 'build'], { stdio: 'inherit', shell: true, env }); process.exit(result.status ?? 1);\"",
+    "verify": "npm run backend:test && npm run frontend:lint && npm run frontend:typecheck && npm run frontend:test && npm run frontend:build",
+    "e2e": "npm run test:e2e",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
     "test:e2e": "playwright test",
     "test:e2e:visual": "playwright test e2e/visual-states.spec.js"

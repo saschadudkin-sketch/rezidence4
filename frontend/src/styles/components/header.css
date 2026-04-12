@@ -19,6 +19,9 @@
   padding-left: max(22px, var(--sal));
   padding-right: max(22px, var(--sar));
 }
+.header--resident {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .04), 0 8px 24px rgba(24, 20, 15, .08);
+}
 .header-inner { display: flex; align-items: center; justify-content: space-between; width: 100%; height: var(--header-h); gap: 16px; }
 .header-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .header-brand-copy { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -33,13 +36,13 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 @media (prefers-color-scheme: light) { html:not(.theme-dark) .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .28)) drop-shadow(0 1px 4px rgba(0, 0, 0, .08)) brightness(.98); } }
 .header-wordmark { font-size: 11px; letter-spacing: 2.8px; text-transform: uppercase; color: color-mix(in srgb, var(--t2) 82%, var(--t4)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
 @media (--bp-sm-down) { .header-wordmark { display: none; } }
-@media (max-width: 1180px) {
+@media (--bp-wide-header-down) {
   .header-wordmark {
     max-width: 24ch;
     letter-spacing: 2.2px;
   }
 }
-@media (max-width: 1024px) {
+@media (--bp-lg-down) {
   .header-wordmark {
     max-width: 18ch;
     letter-spacing: 1.8px;
@@ -51,7 +54,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 /* FIX [BRAND]: было display:none при 920px — на iPad (768px) бренд пропадал.
    Теперь: укороченный вариант через max-width + overflow скрывает хвост.
    Полное название скрывается при 680px → только "Резиденции". */
-@media (max-width: 920px) {
+@media (--bp-header-down) {
   .header-wordmark {
     max-width: 16ch;
     letter-spacing: 1.4px;
@@ -61,7 +64,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     gap: 6px;
   }
 }
-@media (max-width: 680px) {
+@media (--bp-header-compact-down) {
   .header-wordmark {
     display: none;
   }
@@ -81,6 +84,18 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   border: 1px solid color-mix(in srgb, var(--b2) 82%, transparent);
   box-shadow: var(--sh-s);
 }
+.header--resident .header-brand-status {
+  display: none;
+}
+.header--resident .theme-btn-label--resident {
+  display: none;
+}
+.header--resident .theme-btn {
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+}
 .theme-btn {
   background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 82%, transparent));
   border: 1px solid color-mix(in srgb, var(--b2) 82%, transparent);
@@ -89,6 +104,9 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
   gap: 5px;
   font-family: 'Inter', sans-serif;
   font-size: var(--fs-2xs);
@@ -163,11 +181,12 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   }
   .theme-btn {
     padding: 7px 10px;
+    min-height: 40px;
     gap: 4px;
     font-size: 12px;
   }
   .header-actions-shell--security .theme-btn{
-    min-width:0;
+    min-width:40px;
     padding:7px 9px;
     gap:4px;
   }
@@ -177,7 +196,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   .header-user { gap: 6px; padding: 5px 6px 5px 8px; }
   .header-avatar { width: 32px; height: 32px; font-size: 15px; }
 }
-@media (max-width: 1024px) {
+@media (--bp-lg-down) {
   .header {
     padding-left: max(12px, var(--sal));
     padding-right: max(12px, var(--sar));
@@ -214,7 +233,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     gap:4px;
   }
   .header-actions-shell--security .theme-btn{
-    min-width:0;
+    min-width:40px;
     padding:7px 9px;
     gap:4px;
   }
@@ -236,7 +255,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     font-size: 15px;
   }
 }
-@media (min-width: 1025px) {
+@media (--bp-lg-above) {
   .header-wordmark {
     display: block;
   }
@@ -262,7 +281,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     padding: 24px;
   }
 }
-@media (min-width: 768px) {
+@media (--bp-md-up) {
   .av-modal {
     align-items: center;
     justify-content: center;
@@ -463,7 +482,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 }
 
 /* Mode normalization: desktop / tablet / phone */
-@media (min-width: 1025px) {
+@media (--bp-lg-above) {
   .header {
     padding-left: max(22px, var(--sal));
     padding-right: max(22px, var(--sar));
@@ -485,7 +504,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   }
 }
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (--bp-md-up) and (--bp-lg-down) {
   .header {
     padding-left: max(14px, var(--sal));
     padding-right: max(14px, var(--sar));
@@ -527,7 +546,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   }
 }
 
-@media (max-width: 767px) {
+@media (--bp-md-below) {
   .header {
     padding-left: max(12px, var(--sal));
     padding-right: max(12px, var(--sar));
@@ -562,7 +581,8 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     gap: 4px;
   }
   .header-actions-shell--security .theme-btn {
-    min-width: 0;
+    min-width: 40px;
+    min-height: 40px;
     padding: 7px 9px;
     gap: 4px;
   }

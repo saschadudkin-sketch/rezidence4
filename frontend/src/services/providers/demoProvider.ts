@@ -1,33 +1,69 @@
 import { makeDemoRequests } from '../../fixtures/demoData';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { PermEntry, Template, UserPerms } from '../../store/slices/permsSlice';
+import { PHONE_DB_INITIAL, type AppUser } from '../../store/slices/usersSlice';
 import type { ServiceContracts } from './ServiceContracts';
+import type { ServiceAck, SyncStatus } from './serviceDtos';
 
 const noopUnsubscribe = () => {};
+const demoFallbackUser = PHONE_DB_INITIAL['79161234567'];
+
+function ok(): ServiceAck {
+  return { ok: true };
+}
+
+function toSyncStatus(status: SyncStatus): SyncStatus {
+  return status;
+}
+
+function toDemoRequest(request: Record<string, unknown> | Partial<AppRequest>): AppRequest {
+  const source = request as Partial<AppRequest>;
+  return {
+    id: typeof source.id === 'string' ? source.id : `demo-${Date.now()}`,
+    type: source.type === 'tech' ? 'tech' : 'pass',
+    status: source.status ?? 'pending',
+    createdAt: source.createdAt ?? new Date().toISOString(),
+    ...source,
+  };
+}
+
+function normalizePermsPayload(perms: UserPerms | { visitors: readonly PermEntry[]; workers: readonly PermEntry[] } | Template[]): UserPerms | null {
+  if (Array.isArray(perms)) return null;
+  return {
+    visitors: [...perms.visitors],
+    workers: [...perms.workers],
+  };
+}
 
 export function createDemoProvider(): ServiceContracts {
+  const fallbackUser: AppUser = demoFallbackUser;
+
   return {
     provider: 'demo',
     auth: {
-      async sendOtp() { return { ok: true }; },
-      async verifyOtp() { return { ok: true }; },
-      async getMe() { return null; },
-      async logout() { return { ok: true }; },
+      async sendOtp() { return ok(); },
+      async verifyOtp() { return fallbackUser; },
+      async getMe() { return fallbackUser; },
+      async logout() { return ok(); },
     },
     chat: {
       async getMessages() {
         return { messages: [], hasMore: false };
       },
-      sendMessage: async ({ localMessage, sendLocal }) => {
-        sendLocal(localMessage);
-        return 'local';
+      async sendMessage(message) {
+        if ('sendLocal' in message && typeof message.sendLocal === 'function' && 'localMessage' in message && message.localMessage) {
+          message.sendLocal(message.localMessage);
+        }
+        return toSyncStatus('local');
       },
       async updateMessage() {
-        return 'local';
+        return toSyncStatus('local');
       },
       async deleteMessage() {
-        return 'local';
+        return toSyncStatus('local');
       },
       async markSeen() {
-        return { ok: true };
+        return ok();
       },
       onMessage() { return noopUnsubscribe; },
       onMessageUpdate() { return noopUnsubscribe; },
@@ -36,31 +72,38 @@ export function createDemoProvider(): ServiceContracts {
     requests: {
       resolvePhotos: async (_reqId, photos) => photos || [],
       submit: ({ request, addLocal }) => {
-        addLocal(request);
-        return 'local';
+        const localRequest = toDemoRequest(request);
+        addLocal(localRequest);
+        return toSyncStatus('local');
       },
       updateEverywhere: ({ requestId, patch, updateLocal }) => {
-        updateLocal(requestId, patch);
+        updateLocal?.(requestId, patch);
+        return toSyncStatus('local');
       },
       deleteEverywhere: ({ requestId, deleteLocal }) => {
-        deleteLocal(requestId);
+        deleteLocal?.(requestId);
+        return toSyncStatus('local');
       },
     },
     admin: {
-      savePermsEverywhere: ({ uid, perms, saveLocal }) => saveLocal(uid, perms),
-      saveUserEverywhere: ({ uid, patch, updateLocal, oldPhone }) => updateLocal(uid, patch, oldPhone),
-      removeUserEverywhere: ({ uid, removeLocal }) => removeLocal(uid),
+      savePermsEverywhere: ({ uid, perms, saveLocal }) => {
+        const normalizedPerms = normalizePermsPayload(perms);
+        if (normalizedPerms) saveLocal?.(uid, normalizedPerms);
+        return toSyncStatus('local');
+      },
+      saveUserEverywhere: ({ uid, patch, updateLocal, oldPhone }) => {
+        updateLocal?.(uid, patch, oldPhone);
+        return toSyncStatus('local');
+      },
+      removeUserEverywhere: ({ uid, removeLocal }) => {
+        removeLocal?.(uid);
+        return toSyncStatus('local');
+      },
     },
     liveData: {
-      /**
-       * Заполняем store демо-данными только если localStorage не содержал
-       * сохранённых заявок (currentRequests пришли из INITIAL_STATE — пустой массив).
-       * Если пользователь уже работал с приложением — его данные сохраняются.
-       */
       startSync: ({ setAllRequests, currentRequests } = {}) => {
         if (setAllRequests && (!currentRequests || currentRequests.length === 0)) {
-          // FIX: вызываем фабрику — получаем свежие даты, а не замороженные при импорте
-          setAllRequests(makeDemoRequests());
+          setAllRequests(makeDemoRequests().map((request) => toDemoRequest(request)));
         }
         return () => {};
       },

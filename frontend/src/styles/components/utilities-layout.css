@@ -1,0 +1,570 @@
+/* Extracted from utilities-polish.css to keep utility governance budget focused. */
+.security-action-btns .scan-qr-btn{flex:1}
+.security-action-btns .page-action-primary{flex:1 1 auto}
+.security-action-btns .page-action-overflow-btn{flex:0 0 auto}
+
+.page-action-bar{display:flex;justify-content:flex-start;align-items:center;gap:8px;position:relative;width:100%}
+.page-action-primary{
+  min-width:0;
+  box-shadow:0 8px 18px rgba(201,169,110,.14);
+}
+.page-action-overflow{position:relative}
+.page-action-overflow-btn{
+  min-width:72px;
+  border-color:color-mix(in srgb, var(--b3) 88%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  color:var(--t2);
+  font-weight:600;
+}
+.page-action-overflow-menu{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:20;
+  min-width:180px;background:var(--s0);border:1px solid var(--b1);border-radius:10px;
+  box-shadow:0 10px 24px rgba(0,0,0,.14);padding:6px;
+}
+.page-action-overflow-item{
+  width:100%;text-align:left;padding:9px 10px;border:none;background:transparent;border-radius:8px;color:var(--t1);
+}
+.page-action-overflow-item:hover{background:var(--s2)}
+.admin-toolbar-action{margin-left:auto}
+.car-search-trigger{border-color:var(--b2)!important;color:var(--g1)!important}
+
+@media (--bp-sm-down) {
+  .page-action-bar.admin-toolbar-action{
+    margin-left:0;
+    width:100%;
+  }
+  .page-action-bar.admin-toolbar-action .page-action-primary{
+    display:flex;
+    flex:1 1 auto;
+    width:100%;
+  }
+  .page-action-bar{
+    justify-content:stretch;
+    align-items:stretch;
+    gap:6px;
+  }
+  .page-action-overflow{
+    flex:0 0 auto;
+  }
+  .page-action-overflow-btn{
+    min-width:0;
+    width:auto;
+    padding-inline:12px;
+    border-color:color-mix(in srgb, var(--b2) 88%, transparent);
+  }
+  .page-action-primary{
+    min-width:0;
+    flex:1 1 auto;
+  }
+  .page-action-primary span,
+  .page-action-overflow-btn .u-inline-icon{
+    white-space:nowrap;
+  }
+  .page-action-overflow-menu{
+    right:0;
+    left:auto;
+    min-width:160px;
+    max-width:min(220px, calc(100vw - 32px));
+  }
+}
+
+/* ── Аудит: утилитарные классы для замены частых inline styles ─────────────── */
+/* FIX [AUDIT-PERF]: inline style={{}} создаёт новый объект при каждом рендере.
+   Хотя React оптимизирует сравнение, сборщик мусора всё равно работает.
+   Утилитарные классы — zero-cost после первого render. */
+
+/* Кнопки-иконки без оформления */
+.btn-icon-sm{background:none;border:1px solid var(--b2);border-radius:4px;
+  color:var(--t3);padding:0 10px;cursor:pointer;font-size:var(--fs-md);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;height:36px}
+.btn-icon-sm:hover{background:var(--s3)}
+
+/* Строки подтверждения (inline confirm) */
+.inline-confirm{display:flex;align-items:center;gap:4px;font-size:var(--fs-2xs)}
+.inline-confirm__label{color:var(--err);font-weight:500}
+
+/* Кнопки заголовка (мелкие action-кнопки в header) */
+.btn-hdr{width:auto;padding:0 10px;font-size:var(--fs-3xs)}
+
+/* Контейнер статистики ролей */
+.role-stat-row{padding:12px 16px;border-bottom:1px solid var(--b1)}
+
+/* Аватар-круг (AdminView и SecurityConciergeViews) */
+.avatar-circle-sm{width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--fs-sm);font-weight:600;color:#fff;flex-shrink:0}
+
+/* Полоса прогресса роли */
+.role-bar{height:4px;border-radius:2px;background:var(--b2);overflow:hidden;margin-top:4px}
+.role-bar__fill{height:100%;border-radius:2px;transition:width .3s ease}
+
+/* Текст "Точно?" в двухшаговом подтверждении */
+.confirm-label{color:var(--err);font-weight:500}
+/* UX-003: confirm-диалог для деструктивных действий */
+.confirm-overlay{
+  position:fixed;inset:0;z-index:var(--z-modal);
+  background:var(--overlay-bg);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:var(--space-md);
+  animation:fadeIn .15s ease;
+}
+.confirm-panel{
+  background:var(--s1);border:1px solid var(--b2);
+  border-radius:var(--r);padding:var(--space-md) var(--space-lg);
+  max-width:340px;width:100%;box-shadow:var(--sh-m);
+}
+.confirm-msg{margin:0 0 var(--space-md);color:var(--t1);font-size:var(--fs-body);line-height:var(--lh-body)}
+.confirm-actions{display:flex;gap:var(--space-sm);justify-content:flex-end}
+
+/* Обёртка дат VisitLogView */
+.date-pills-row{margin-bottom:12px;justify-content:center}
+
+/* Метки истории заявки */
+.req-history-row{font-size:var(--fs-2xs);color:var(--t4);line-height:1.6}
+.req-history-time{color:var(--t3)}
+
+/* ── UI-01: ErrorBoundary — заменяем все inline styles на классы ── */
+.eb-card{
+  padding:24px 20px;margin:12px 0;
+  background:var(--s2);
+  border:1px solid rgba(220,60,60,.25);
+  border-radius:var(--r);
+  text-align:center;
+}
+.eb-icon{margin-bottom:10px}
+.eb-title{font-size:14px;font-weight:500;color:var(--t1);margin-bottom:6px}
+.eb-message{font-size:12px;color:var(--t4);margin-bottom:16px}
+.eb-retry-btn{
+  background:var(--g-bg);border:1px solid var(--b2);
+  border-radius:6px;color:var(--g2);
+  padding:7px 16px;font-size:12px;cursor:pointer;
+  font-family:inherit;
+  transition:background .13s,border-color .13s;
+}
+.eb-retry-btn:hover{background:var(--g-bg2);border-color:var(--g1)}
+
+/* ── UI-05: screen-reader-only hidden text ── */
+.u-sr-only{
+  position:absolute;width:1px;height:1px;
+  padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+/* ── UI-02: guard empty state text classes (replaces inline styles) ── */
+.guard-empty-title{font-size:var(--fs-lg);color:var(--t3);margin-bottom:8px}
+.guard-empty-sub{font-size:var(--fs-sm);color:var(--t4)}
+
+/* ── Guard post search clear button ── */
+.search-clear{
+  background:none;border:none;cursor:pointer;
+  color:var(--t4);padding:0 6px;display:flex;align-items:center;
+  flex-shrink:0;transition:color .13s;
+}
+
+/* ── PERF-01: content-visibility — browser skips layout/paint for off-screen cards ── */
+/* Provides a free rendering boost for all lists without JS virtualization overhead.    */
+/* contain-intrinsic-size matches the typical card height to avoid scroll-bar jump.    */
+.req-card,.guard-card-wrap,.guard-card{content-visibility:auto;contain-intrinsic-block-size:130px}
+
+.search-clear:hover{color:var(--t1)}
+
+/* ── DS governance: inline-style replacement utilities ─────────────────────── */
+.u-mb20{margin-bottom:20px}
+.u-mt12{margin-top:12px}
+.u-mt16{margin-top:16px}
+.u-mb8{margin-bottom:8px}
+.u-mb10{margin-bottom:10px}
+.u-mb4{margin-bottom:4px}
+.u-mb0{margin-bottom:0}
+.u-mt2{margin-top:2px}
+.u-fs11{font-size:11px}
+.u-fs12{font-size:12px}
+.u-fs13{font-size:13px}
+.u-fs14{font-size:14px}
+.u-fs15{font-size:15px}
+.u-fw500{font-weight:500}
+.u-fw600{font-weight:600}
+.u-t1{color:var(--t1)}
+.u-t3{color:var(--t3)}
+.u-t4{color:var(--t4)}
+.u-g2{color:var(--g2)}
+.u-err{color:var(--err-t)}
+.u-center{text-align:center}
+.u-flex{display:flex}
+.u-flex-col{display:flex;flex-direction:column}
+.u-flex-between{display:flex;justify-content:space-between;align-items:center}
+.u-flex-center{display:flex;align-items:center}
+.u-gap6{gap:6px}
+.u-gap8{gap:8px}
+.u-gap10{gap:10px}
+.u-gap12{gap:12px}
+.u-grow{flex:1}
+.u-shrink0{flex-shrink:0}
+.u-w-auto{width:auto}
+.u-w-full{width:100%}
+.u-overflow-hidden{overflow:hidden}
+.u-pad0{padding:0}
+.u-pad10-12{padding:10px 12px}
+.u-pad12-16{padding:12px 16px}
+.u-py8{padding:8px 0}
+.u-round6{border-radius:6px}
+.u-border-b1{border:1px solid var(--b1)}
+.u-bg-s2{background:var(--s2)}
+.u-nowrap{white-space:nowrap}
+.u-block{display:block}
+.u-mx-auto{margin-left:auto;margin-right:auto}
+.u-minw160{min-width:160px}
+.u-role-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.u-role-dot.owner{background:var(--g2)}
+.u-role-dot.tenant{background:#3f7ae0}
+.u-role-dot.admin{background:#8e44ad}
+.u-role-dot.security{background:#16a085}
+.u-role-dot.concierge{background:#f39c12}
+.u-role-dot.contractor{background:#6c757d}
+.u-role-dot.default{background:var(--t4)}
+.admin-role-value{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--g2)}
+.admin-role-progress{width:100%;height:4px;appearance:none;border:none}
+.admin-role-progress::-webkit-progress-bar{background:var(--s3);border-radius:2px}
+.admin-role-progress::-webkit-progress-value{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px;transition:width .4s ease}
+.admin-role-progress::-moz-progress-bar{background:linear-gradient(90deg,var(--g1),var(--g2));border-radius:2px}
+.chat-search-row{padding:8px 12px;border-bottom:1px solid var(--b1);display:flex;gap:8px;align-items:center;background:var(--s0)}
+.chat-search-icon{font-size:14px}
+.chat-search-input{flex:1;margin-bottom:0;font-size:13px}
+.chat-btn--active{background:var(--g-bg);border-color:var(--g1)}
+.chat-btn--default{background:var(--s2);border-color:var(--b1)}
+.msg-row-rel{position:relative}
+.msg-av-reset{flex-shrink:0;overflow:hidden;padding:0}
+.hidden-input{display:none}
+.admin-req-shell{position:relative}
+.admin-req-actions{margin-top:-4px;padding-bottom:8px;border-bottom:1px solid var(--b1);justify-content:flex-end}
+.u-wrap{flex-wrap:wrap}
+.admin-user-row-card{
+  background:var(--s2);border-radius:6px;border:1px solid var(--b1);margin-bottom:6px;overflow:hidden;transition:border-color .13s;
+}
+.admin-user-row-card:hover{border-color:var(--b2)}
+.admin-user-self-mark{font-size:11px;color:var(--g2);letter-spacing:.5px}
+.admin-user-meta{row-gap:4px}
+.admin-user-meta-item{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.admin-user-meta-item:not(:first-child)::before{
+  content:'•';
+  color:var(--b3);
+  margin-right:4px;
+}
+.admin-user-edit-wrap{margin:0 10px 10px;border-radius:6px}
+.admin-user-apt-inp{max-width:80px}
+.admin-user-park-inp{width:80px}
+.admin-user-actions-end{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.qr-error-box{padding:20px}
+.pass-qr-foot{
+  flex-direction:column;
+  gap:10px;
+}
+@media (--bp-sm-down){
+  .admin-req-shell{
+    border-radius:18px;
+    overflow:hidden;
+  }
+  .admin-req-shell > .req-card{
+    border-bottom-left-radius:0;
+    border-bottom-right-radius:0;
+  }
+  .admin-req-actions{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin-top:0;
+    padding:10px 10px 12px;
+    border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+    border-top:none;
+    border-radius:0 0 18px 18px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  }
+  .admin-req-actions .btn-edit,
+  .admin-req-actions .btn-del-sm{
+    width:100%;
+    min-width:0;
+    justify-content:center;
+    padding:8px 10px;
+    font-size:11px;
+    line-height:1.2;
+    box-sizing:border-box;
+  }
+}
+@media (--bp-md-up) and (--bp-lg-down){
+  .pass-qr-foot .u-flex.u-gap8.u-w-full{
+    gap:12px;
+  }
+  .pass-qr-foot .btn-outline,
+  .pass-qr-foot .btn-gold{
+    min-height:52px;
+    border-radius:16px;
+    font-size:14px;
+  }
+}
+@media (--bp-sm-down){
+  .pass-qr-foot .u-flex.u-gap8.u-w-full{
+    gap:10px;
+  }
+  .pass-qr-foot .btn-outline{
+    min-height:48px;
+    border-radius:16px;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 18%, transparent));
+    border-color:color-mix(in srgb, var(--b2) 78%, transparent);
+  }
+  .pass-qr-foot .btn-gold{
+    min-height:54px;
+    border-radius:18px;
+  }
+}
+.scanqr-cam-icon{margin-bottom:12px;opacity:.3}
+.scanqr-cam-init{margin-top:10px}
+.scanqr-search-btn{padding:0 20px;flex-shrink:0}
+.scanqr-approve-btn{flex:2;font-size:14px;padding:14px 20px}
+.admin-perm-row--editing{border-bottom:none;border-radius:var(--r) var(--r) 0 0}
+.admin-perm-edit-inline{border-radius:0 0 var(--r) var(--r);margin-bottom:8px}
+.admin-perm-role-label{font-size:11px;color:var(--t4);font-family:'Inter',sans-serif}
+.admin-perm-clear-btn{padding:2px 8px}
+.sla-item-card{min-height:92px}
+.sla-item-value{font-size:24px}
+.sla-ok{color:var(--ok-t)}
+.sla-breached{color:var(--err-t)}
+.sla-samples{margin-top:6px}
+.usermenu-avatar-reset{background:transparent;padding:0;border:none}
+.usermenu-badge{
+  position:absolute;top:-3px;right:-3px;background:var(--err);color:var(--err-t);
+  font-size:11px;font-weight:700;min-width:15px;height:15px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;border:1.5px solid var(--bg);
+}
+.usermenu-avatar-clickable{cursor:pointer;position:relative}
+
+/* ── 3.1: Tablet breakpoint styles (768–1024px) ─────────────────────────────
+   These rules specifically address the gap between mobile (<768px) and desktop
+   (>1024px). Token values: --bp-md:768px, --bp-lg:1024px (in tokens.css).    */
+
+/* Tablet: two-column req-details grid for wider cards */
+@media (--bp-md-up) and (--bp-lg-down){
+  .req-details{grid-template-columns:repeat(3,1fr)}
+  .req-list{max-width:680px}
+  .req-list--virtual{height:calc(100vh - 160px)}
+}
+
+/* Tablet: nav layout adjustments — show text labels on larger screens */
+@media (--bp-md-up){
+  .mobnav-lbl{display:inline}
+  .req-photo-img{max-width:280px;max-height:260px}
+}
+
+/* Tablet landscape: wider card + slightly larger font */
+@media (--bp-lg-up){
+  .req-list{max-width:768px}
+  .req-list--virtual{height:calc(100vh - 140px)}
+}
+
+/* Error recovery ladder panel */
+.error-recovery-panel{position:sticky;top:8px;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px 12px;margin:8px 0;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
+.error-recovery-message{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);color:var(--t2)}
+.error-recovery-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+@media (--bp-md-down){
+  .vlog-filters{
+    margin-bottom:12px;
+  }
+  .vlog-header{
+    gap:12px;
+    padding:11px 12px;
+    margin-bottom:12px;
+    border-radius:14px;
+  }
+  .vlog-actions{
+    gap:6px;
+  }
+  .vlog-actions .btn-hdr{
+    min-height:36px;
+    padding:8px 10px;
+    border-radius:10px;
+    font-size:var(--fs-2xs);
+  }
+  .vlog-wrap .date-pills-row{
+    margin-bottom:10px;
+    justify-content:flex-start;
+    gap:6px;
+  }
+  .vlog-wrap .date-pill{
+    min-height:34px;
+    padding:6px 10px;
+    font-size:var(--fs-2xs);
+  }
+  .vlog-wrap .search-wrap{
+    min-height:42px;
+    margin-bottom:12px;
+  }
+}
+
+@media (--bp-sm-down){
+  .bl-header{
+    flex-direction:row;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .bl-header-copy{
+    min-width:0;
+    gap:6px;
+  }
+  .bl-title{
+    font-size:var(--fs-body);
+    gap:7px;
+  }
+  .bl-count{
+    min-width:18px;
+    height:18px;
+    padding:0 5px;
+  }
+  .bl-header .btn-gold{
+    min-height:38px;
+    padding:0 14px;
+    border-radius:12px;
+    flex:0 0 auto;
+  }
+  .bl-list{
+    gap:7px;
+  }
+  .bl-entry{
+    border-radius:14px;
+  }
+  .bl-entry-main{
+    gap:10px;
+    padding:12px 13px;
+  }
+  .bl-entry-icon{
+    width:28px;
+    height:28px;
+    border-radius:9px;
+  }
+  .bl-entry-name,
+  .bl-entry-plate{
+    font-size:13px;
+    line-height:1.2;
+  }
+  .bl-entry-reason{
+    line-height:1.32;
+  }
+  .vlog-filters{
+    margin-bottom:10px;
+  }
+  .vlog-header{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:start;
+    gap:8px 10px;
+    padding:9px 11px;
+    border-radius:14px;
+  }
+  .vlog-title{
+    font-size:13px;
+    gap:6px;
+    min-width:0;
+  }
+  .vlog-actions{
+    width:auto;
+    justify-content:flex-end;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .vlog-total{
+    font-size:9px;
+    letter-spacing:.8px;
+    text-transform:uppercase;
+  }
+  .vlog-total-badge{
+    min-height:22px;
+    padding:0 7px;
+  }
+  .vlog-export-btn{
+    padding-inline:9px;
+  }
+  .vlog-export-full{
+    display:none;
+  }
+  .vlog-export-short{
+    display:inline;
+  }
+  .vlog-actions .inline-confirm{
+    width:100%;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+  .vlog-actions .btn-hdr{
+    min-height:32px;
+    padding:7px 9px;
+    border-radius:10px;
+    font-size:10px;
+  }
+  .vlog-wrap .sec-filters-toggle-row{
+    margin-bottom:8px;
+  }
+  .vlog-wrap .search-wrap{
+    margin-bottom:12px;
+  }
+  .vlog-wrap .date-pills-row{
+    flex-wrap:wrap;
+  }
+  .vlog-wrap .date-pill{
+    flex:0 0 auto;
+  }
+  .vlog-cards{
+    gap:8px;
+  }
+  .vlog-card{
+    gap:10px;
+    padding:12px 13px;
+    border-radius:16px;
+  }
+  .vlog-card-left{
+    min-width:42px;
+    gap:6px;
+  }
+  .vlog-card-time{
+    font-size:13px;
+    line-height:1;
+  }
+  .vlog-card-icon{
+    width:28px;
+    height:28px;
+    border-radius:9px;
+  }
+  .vlog-card-row1{
+    gap:6px;
+    margin-bottom:3px;
+  }
+  .vlog-card-name{
+    font-size:14px;
+    line-height:1.2;
+  }
+  .vlog-card-details{
+    margin-bottom:5px;
+    line-height:1.35;
+  }
+  .vlog-card-tags{
+    gap:5px;
+  }
+  .vlog-tag{
+    padding:2px 7px;
+    font-size:9px;
+    letter-spacing:.25px;
+  }
+  .vlog-card-comment{
+    margin-top:5px;
+    line-height:1.35;
+  }
+  .vlog-date-label{
+    padding:7px 0 5px;
+    margin-bottom:8px;
+  }
+}

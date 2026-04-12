@@ -11,9 +11,159 @@ import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
-import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse } from '../http/contractParsers';
+import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse, type EntityRow } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
-import type { ServiceContracts } from './ServiceContracts';
+import type { LiveDataCallbacks, ServiceContracts } from './ServiceContracts';
+import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { ChatMessage } from '../../store/slices/chatSlice';
+import type { AppUser } from '../../store/slices/usersSlice';
+import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
+import type { PermEntry, Template, UserPerms } from '../../store/slices/permsSlice';
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toStringValue(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function toNullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function toDateValue(value: unknown): string | Date {
+  return value instanceof Date || typeof value === 'string' ? value : new Date().toISOString();
+}
+
+function toRequestStatus(value: unknown): AppRequest['status'] {
+  switch (value) {
+    case 'approved':
+    case 'accepted':
+    case 'rejected':
+    case 'arrived':
+    case 'expired':
+    case 'cancelled':
+    case 'scheduled':
+      return value;
+    default:
+      return 'pending';
+  }
+}
+
+function toPermEntry(value: unknown): PermEntry | null {
+  if (!isObject(value)) return null;
+  return {
+    id: toStringValue(value.id),
+    name: toStringValue(value.name),
+    phone: toStringValue(value.phone),
+    carPlate: typeof value.carPlate === 'string' ? value.carPlate : undefined,
+  };
+}
+
+function toUserPerms(value: unknown): UserPerms {
+  if (!isObject(value)) return { visitors: [], workers: [] };
+  const toEntries = (entries: unknown): PermEntry[] =>
+    Array.isArray(entries) ? entries.map(toPermEntry).filter((entry): entry is PermEntry => entry !== null) : [];
+
+  return {
+    visitors: toEntries(value.visitors),
+    workers: toEntries(value.workers),
+  };
+}
+
+function toTemplate(value: unknown): Template | null {
+  if (!isObject(value)) return null;
+  return {
+    id: toStringValue(value.id),
+    name: toStringValue(value.name),
+    type: toStringValue(value.type),
+    category: toStringValue(value.category),
+    visitorName: toStringValue(value.visitorName),
+    visitorPhone: toStringValue(value.visitorPhone),
+    carPlate: toStringValue(value.carPlate),
+    comment: toStringValue(value.comment),
+  };
+}
+
+function toBlacklistEntry(value: unknown): BlacklistEntry | null {
+  if (!isObject(value)) return null;
+  return {
+    id: toStringValue(value.id),
+    name: toStringValue(value.name),
+    carPlate: toStringValue(value.carPlate),
+    reason: toStringValue(value.reason),
+    addedBy: toStringValue(value.addedBy),
+    addedAt: new Date(value.addedAt instanceof Date || typeof value.addedAt === 'string' ? value.addedAt : Date.now()),
+  };
+}
+
+function toAppRequest(row: EntityRow): AppRequest {
+  const request: AppRequest = {
+    id: toStringValue(row.id),
+    type: row.type === 'tech' ? 'tech' : 'pass',
+    status: toRequestStatus(row.status),
+    createdAt: toDateValue(row.createdAt ?? row.created_at),
+  };
+
+  for (const [key, value] of Object.entries(row)) {
+    request[key] = value;
+  }
+
+  return request;
+}
+
+function toChatMessage(row: EntityRow): ChatMessage {
+  const message: ChatMessage = {
+    id: toStringValue(row.id),
+    uid: toStringValue(row.uid),
+    name: toStringValue(row.name),
+    text: toStringValue(row.text),
+    at: toDateValue(row.at),
+  };
+
+  for (const [key, value] of Object.entries(row)) {
+    message[key] = value;
+  }
+
+  return message;
+}
+
+function toAppUser(row: EntityRow): AppUser {
+  return {
+    uid: toStringValue(row.uid),
+    name: toStringValue(row.name),
+    phone: toStringValue(row.phone),
+    role: typeof row.role === 'string' ? row.role as AppUser['role'] : 'owner',
+    apartment: typeof row.apartment === 'string' ? row.apartment : undefined,
+    parkingSpot: toNullableString(row.parkingSpot),
+    avatar: toNullableString(row.avatar),
+  };
+}
+
+function toAppRequests(rows: EntityRow[]): AppRequest[] {
+  return rows.map(toAppRequest);
+}
+
+function toChatMessages(rows: EntityRow[]): ChatMessage[] {
+  return rows.map(toChatMessage);
+}
+
+function toUsers(rows: EntityRow[]): AppUser[] {
+  return rows.map(toAppUser);
+}
+
+function toPerms(payload: unknown): UserPerms {
+  return toUserPerms(payload);
+}
+
+function toTemplates(payload: unknown): Template[] {
+  return Array.isArray(payload) ? payload.map(toTemplate).filter((entry): entry is Template => entry !== null) : [];
+}
+
+function toBlacklist(payload: unknown): BlacklistEntry[] {
+  return Array.isArray(payload) ? payload.map(toBlacklistEntry).filter((entry): entry is BlacklistEntry => entry !== null) : [];
+}
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
@@ -199,7 +349,7 @@ export const authProvider = {
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export const requestsProvider = {
-  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: Record<string, unknown>[]) => void; background?: boolean }) {
+  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: AppRequest[]) => void; background?: boolean }) {
     // Incremental hydration:
     // 1) return page=1 immediately for fast first paint
     // 2) fetch remaining pages in background and push cumulative list via onPage callback
@@ -216,7 +366,7 @@ export const requestsProvider = {
       ? await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`, requestOpts)
       : await apiClient.get(`/api/v1/requests?limit=${PAGE_SIZE}&page=1`);
     const first = normalize(firstResp);
-    const merged = [...first.rows];
+    const merged = toAppRequests([...first.rows]);
     if (!background) return merged;
     if (merged.length < PAGE_SIZE && first.total <= PAGE_SIZE && !first.nextCursor && !first.nextPage) return merged;
 
@@ -233,7 +383,7 @@ export const requestsProvider = {
           const nextResp = requestOpts ? await apiClient.get(query, requestOpts) : await apiClient.get(query);
           const nextPayload = normalize(nextResp);
           if (!nextPayload.rows.length) break;
-          merged.push(...nextPayload.rows);
+          merged.push(...toAppRequests(nextPayload.rows));
           onPage?.([...merged]);
           cursor = nextPayload.nextCursor;
           if (!cursor) page = nextPayload.nextPage || (page + 1);
@@ -344,14 +494,16 @@ export const chatProvider = {
       : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
     return parseChatMessagesResponse(data);
   },
-  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: Record<string, unknown>[]) => void; background?: boolean } = {}) {
+  async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: ChatMessage[]) => void; background?: boolean } = {}) {
     const PAGE_SIZE = 60;
     const signal = opts?.signal;
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;
 
     const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
-    const merged: Record<string, unknown>[] = [...(first?.messages || [])].filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
+    const merged = toChatMessages(
+      [...(first?.messages || [])].filter((message): message is EntityRow => typeof message === 'object' && message !== null),
+    );
     if (!background || !first?.hasMore || merged.length === 0) return merged;
 
     (async () => {
@@ -361,7 +513,9 @@ export const chatProvider = {
           const oldest = merged[0]?.id;
           if (typeof oldest !== 'string' || !oldest) break;
           const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
-          const nextRows: Record<string, unknown>[] = (next?.messages || []).filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null);
+          const nextRows = toChatMessages(
+            (next?.messages || []).filter((message): message is EntityRow => typeof message === 'object' && message !== null),
+          );
           if (!nextRows.length) break;
           merged.unshift(...nextRows);
           onPage?.([...merged]);
@@ -396,7 +550,7 @@ export const chatProvider = {
 export const usersProvider = {
   async getAll(_opts?: { signal?: AbortSignal }) {
     const data = await apiClient.get('/api/v1/users');
-    return parseUsersResponse(data);
+    return toUsers(parseUsersResponse(data));
   },
   async update(uid, patch) {
     return apiClient.patch(`/api/v1/users/${uid}`, patch);
@@ -409,7 +563,7 @@ export const usersProvider = {
 // ─── Blacklist ────────────────────────────────────────────────────────────────
 export const blacklistProvider = {
   async getAll() {
-    return apiClient.get('/api/v1/blacklist');
+    return toBlacklist(await apiClient.get('/api/v1/blacklist'));
   },
   async add(entry) {
     return apiClient.post('/api/v1/blacklist', entry);
@@ -440,26 +594,26 @@ export const visitLogsProvider = {
 // ─── Permissions & Templates ──────────────────────────────────────────────────
 export const permsProvider = {
   async getPerms(uid) {
-    return apiClient.get(`/api/v1/perms/${uid}`);
+    return toPerms(await apiClient.get(`/api/v1/perms/${uid}`));
   },
   /**
    * Атомарно сохраняет perms через POST /api/v1/perms/batch (одна транзакция).
    * Legacy-формат (flat array) по-прежнему поддерживается через старый endpoint.
    */
-  async savePerms(uid: string, permsObj: unknown[] | { visitors?: unknown; workers?: unknown }) {
+  async savePerms(uid: string, permsObj: UserPerms | { visitors: readonly PermEntry[]; workers: readonly PermEntry[] } | Template[]) {
     // Legacy: flat array — assume visitors only (backward compat)
     if (Array.isArray(permsObj)) {
       return apiClient.post('/api/v1/perms', { uid, type: 'visitors', items: permsObj });
     }
-    // New format: use batch endpoint for atomic save
-    const payload: Record<string, unknown> = { uid };
-    if ((permsObj as Record<string, unknown>).visitors !== undefined) payload.visitors = (permsObj as Record<string, unknown>).visitors;
-    if ((permsObj as Record<string, unknown>).workers  !== undefined) payload.workers  = (permsObj as Record<string, unknown>).workers;
-    if (!payload.visitors && !payload.workers) return { ok: true };
-    return apiClient.post('/api/v1/perms/batch', payload);
+    if (!permsObj.visitors.length && !permsObj.workers.length) return { ok: true };
+    return apiClient.post('/api/v1/perms/batch', {
+      uid,
+      visitors: [...permsObj.visitors],
+      workers: [...permsObj.workers],
+    });
   },
   async getTemplates(uid) {
-    return apiClient.get(`/api/v1/templates/${uid}`);
+    return toTemplates(await apiClient.get(`/api/v1/templates/${uid}`));
   },
   async saveTemplates(uid, items) {
     return apiClient.post('/api/v1/templates', { uid, items });
@@ -507,7 +661,7 @@ export function createBackendProvider(): ServiceContracts {
         // onRequestAdd(req)     — добавить новую заявку
         // onRequestDelete(id)   — удалить заявку (soft-delete broadcast)
         onRequestUpdate, onRequestAdd, onRequestDelete, onRequests,
-      }) => {
+      }: LiveDataCallbacks = {}) => {
         let mounted = true;
 
         // DA-01: bail out immediately if the caller already aborted (rapid retryKey change)
@@ -515,7 +669,7 @@ export function createBackendProvider(): ServiceContracts {
 
         // Subscribe to request_update BEFORE the parallel fetch so events that arrive
         // during initial load are buffered and applied after — not silently dropped.
-        const reqEventBuffer: Record<string, unknown>[] = [];
+        const reqEventBuffer: AppRequest[] = [];
         const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
 
         // DA-01: pass signal to every provider call so the underlying apiClient fetch
@@ -523,47 +677,59 @@ export function createBackendProvider(): ServiceContracts {
         const fetchOpts = signal ? { signal } : {};
 
         // Параллельная загрузка ВСЕХ данных при старте
-        let currentRequests: Record<string, unknown>[] = [];
-        const promises = [
-          requestsProvider.getAll({
-            ...fetchOpts,
-            onPage: (nextRequests) => {
-              if (!mounted) return;
-              currentRequests = Array.isArray(nextRequests) ? [...nextRequests] : [];
-              if (setAllRequests) setAllRequests(currentRequests);
-              if (onRequests) onRequests(currentRequests);
-            },
-          }),
-          chatProvider.getAllHistory({
-            ...fetchOpts,
-            onPage: (nextMessages) => {
-              if (!mounted) return;
-              if (setAllMessages) setAllMessages(nextMessages);
-            },
-          }),
-          usersProvider.getAll(fetchOpts),
-        ];
-        // Perms и templates привязаны к uid — загружаем если uid передан
-        if (userUid) {
-          promises.push(permsProvider.getPerms(userUid));
-          promises.push(permsProvider.getTemplates(userUid));
-        } else {
-          promises.push(Promise.resolve(null));
-          promises.push(Promise.resolve(null));
-        }
-        // Blacklist — загружаем (может вернуть 403 для жильцов — ловим)
-        promises.push(blacklistProvider.getAll().catch(() => []));
+        let currentRequests: AppRequest[] = [];
+        const requestsPromise = requestsProvider.getAll({
+          ...fetchOpts,
+          onPage: (nextRequests) => {
+            if (!mounted) return;
+            currentRequests = Array.isArray(nextRequests) ? [...nextRequests] : [];
+            if (setAllRequests) setAllRequests(currentRequests);
+            if (onRequests) onRequests(currentRequests);
+          },
+        });
+        const chatPromise = chatProvider.getAllHistory({
+          ...fetchOpts,
+          onPage: (nextMessages) => {
+            if (!mounted) return;
+            if (setAllMessages) setAllMessages(nextMessages);
+          },
+        });
+        const usersPromise = usersProvider.getAll(fetchOpts);
+        const permsPromise = userUid ? permsProvider.getPerms(userUid) : Promise.resolve(null);
+        const templatesPromise = userUid ? permsProvider.getTemplates(userUid) : Promise.resolve(null);
+        const blacklistPromise = blacklistProvider.getAll().catch(() => []);
 
-        // D-03: allSettled — если один эндпоинт упал, остальные данные всё равно загружаются
-        const settled = await Promise.allSettled(promises);
-        const settled_values = settled.map((r, i) => {
+        const [
+          reqsResult,
+          chatResult,
+          usersResult,
+          permsResult,
+          templatesResult,
+          blacklistResult,
+        ] = await Promise.allSettled([
+          requestsPromise,
+          chatPromise,
+          usersPromise,
+          permsPromise,
+          templatesPromise,
+          blacklistPromise,
+        ]);
+
+        const settledValues = [reqsResult, chatResult, usersResult, permsResult, templatesResult, blacklistResult].map((r, i) => {
           if (r.status === 'rejected') {
             logger.warn('[startSync] partial load failure at index ' + i, { message: r.reason?.message });
             return null;
           }
           return r.value;
         });
-        const [reqs, chatData, users, permsData, templatesData, blacklistData] = settled_values;
+        const [reqs, chatData, users, permsData, templatesData, blacklistData] = settledValues as [
+          AppRequest[] | null,
+          ChatMessage[] | null,
+          AppUser[] | null,
+          UserPerms | null,
+          Template[] | null,
+          BlacklistEntry[] | null,
+        ];
 
         // Отписаться от буфера — теперь будет live subscription ниже
         bufferReqSub();
@@ -572,9 +738,7 @@ export function createBackendProvider(): ServiceContracts {
         if (signal?.aborted || !mounted) return () => {};
 
         // Применить буферизированные события к начальным данным перед отправкой в стор
-        currentRequests = reqs && Array.isArray(reqs)
-          ? reqs.filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null)
-          : ((reqs as { data?: unknown[] } | null)?.data || []).filter((request): request is Record<string, unknown> => typeof request === 'object' && request !== null);
+        currentRequests = Array.isArray(reqs) ? [...reqs] : [];
         for (const bufferedReq of reqEventBuffer) {
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
@@ -584,12 +748,9 @@ export function createBackendProvider(): ServiceContracts {
         if (setAllRequests) setAllRequests(currentRequests);
         if (onRequests) onRequests(currentRequests);
         if (setAllMessages && chatData) {
-          const initialMessages = Array.isArray(chatData)
-            ? chatData
-            : ((chatData as { messages?: unknown[] } | null)?.messages || []);
-          setAllMessages(initialMessages.filter((message): message is Record<string, unknown> => typeof message === 'object' && message !== null));
+          setAllMessages([...chatData]);
         }
-        if (setAllUsers && users)       setAllUsers(users);
+        if (setAllUsers && users)       setAllUsers([...users]);
         // Push initial perms/templates/blacklist into AppStore after parallel fetch completes.
         if (permsData && onPerms)       onPerms(permsData);
         if (templatesData && onTemplates) onTemplates(templatesData);

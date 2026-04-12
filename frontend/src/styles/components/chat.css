@@ -20,17 +20,17 @@
   height:calc(100dvh - var(--header-h) - var(--sat) - var(--mobile-top-nav-h) - var(--nav-h) - var(--sab) - 8px);
   border-radius:18px;border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);margin:0;max-width:none;
 }}
-@media (min-width: 1025px) {
+@media (--bp-lg-above) {
   :root { --page-top-h: 60px; }
 }
-@media (max-width: 1024px) {
+@media (--bp-lg-down) {
   :root { --page-top-h: 48px; }
 }
 @media (--bp-sm-down){
   :root { --page-top-h: 48px; }
   .chat-wrap{margin:0}
 }
-@media (max-width:1024px){
+@media (--bp-lg-down){
   .chat-wrap{
     min-height:0;
     height:calc(100dvh - var(--header-h) - var(--sat) - var(--mobile-top-nav-h) - var(--nav-h) - var(--sab) - 18px);
@@ -74,7 +74,7 @@
     box-sizing:border-box;
   }
 }
-@media (min-width:768px) and (max-width:1024px){
+@media (--bp-md-up) and (--bp-lg-down){
   .chat-wrap{
     width:min(900px, calc(100vw - 56px));
     max-width:900px;
@@ -338,7 +338,7 @@
   color:var(--g2);
   background:color-mix(in srgb, var(--g-bg) 82%, transparent);
 }
-@media (max-width:1024px){
+@media (--bp-lg-down){
   .chat-tools{
     gap:4px;
     padding:2px;
@@ -372,7 +372,7 @@
 .msg-date-sep::before,.msg-date-sep::after{content:'';flex:1;height:1px;background:var(--b1)}
 .msg-date-sep span{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--t4);white-space:nowrap;background:color-mix(in srgb, var(--s1) 94%, transparent);padding:5px 12px;border-radius:999px;border:1px solid color-mix(in srgb, var(--b2) 78%, transparent)}
 /* ── Ответ на сообщение ── */
-.msg-reply-quote{border-left:3px solid var(--g1);background:var(--s3);border-radius:4px;padding:5px 8px;margin-bottom:6px;cursor:pointer}
+.msg-reply-quote{border:1px solid color-mix(in srgb, var(--g1) 58%, var(--b2));background:var(--s3);border-radius:6px;padding:5px 8px;margin-bottom:6px;cursor:pointer}
 .msg-bubble.mine .msg-reply-quote{background:rgba(0,0,0,.12)}
 .msg-reply-quote-name{font-size:var(--fs-2xs);font-weight:600;color:var(--g2);margin-bottom:2px}
 .msg-reply-quote-text{font-size:var(--fs-2xs);color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -413,7 +413,7 @@
 .msg-edited-mark{font-size:var(--fs-3xs);color:var(--t4);margin-left:4px;font-style:italic}
 
 /* Mode normalization: desktop / tablet / phone */
-@media (min-width: 1025px) {
+@media (--bp-lg-above) {
   :root { --page-top-h: 60px; }
   .chat-wrap {
     max-width: 760px;
@@ -430,7 +430,7 @@
   }
 }
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (--bp-md-up) and (--bp-lg-down) {
   :root { --page-top-h: 48px; }
   .chat-wrap {
     width: min(900px, calc(100vw - 56px));
@@ -484,7 +484,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (--bp-md-below) {
   :root { --page-top-h: 48px; }
   .chat-wrap {
     min-height: 0;

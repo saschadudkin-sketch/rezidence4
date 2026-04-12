@@ -8,7 +8,10 @@ describe('PageActionBar', () => {
       <PageActionBar
         primaryLabel="Создать"
         onPrimary={vi.fn()}
-        secondary={[{ label: 'Открыть шаблоны', onClick: vi.fn() }]}
+        secondary={[
+          { label: 'Открыть шаблоны', onClick: vi.fn() },
+          { label: 'Extra', onClick: vi.fn() },
+        ]}
       />,
     );
 
@@ -26,7 +29,10 @@ describe('PageActionBar', () => {
       <PageActionBar
         primaryLabel="Создать"
         onPrimary={onPrimary}
-        secondary={[{ label: 'Открыть шаблоны', onClick: vi.fn() }]}
+        secondary={[
+          { label: 'Открыть шаблоны', onClick: vi.fn() },
+          { label: 'Extra', onClick: vi.fn() },
+        ]}
       />,
     );
 

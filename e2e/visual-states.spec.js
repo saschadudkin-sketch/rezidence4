@@ -19,7 +19,7 @@ test.describe('Visual smoke states', () => {
     await loginDemo(page);
     await page.waitForURL(/\/dashboard\/passes/);
     await expect(page.locator('.page-title')).toBeVisible();
-    await expect(page.locator('.type-card').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Новый пропуск/i })).toBeVisible();
   });
 
   test('dashboard chat route is reachable for owner', async ({ page }) => {

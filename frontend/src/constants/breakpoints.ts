@@ -8,4 +8,5 @@ export const BREAKPOINTS = {
 
 export const MEDIA_QUERIES = {
   lgDown: `(max-width:${BREAKPOINTS.lg}px)`,
+  tablet: `(min-width:${BREAKPOINTS.md}px) and (max-width:${BREAKPOINTS.lg}px)`,
 } as const;

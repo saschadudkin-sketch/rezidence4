@@ -42,9 +42,8 @@ export function useAuth() {
       // Live: пробуем восстановить сессию по HttpOnly cookie (/api/auth/me)
       let cancelled = false;
       services.auth.getMe()
-        .then(u => {
+        .then((user) => {
           if (cancelled) return;
-          const user = u as AppUser | null;
           if (user && user.uid) {
             setUser(user);
             setPhase(PHASE.DASHBOARD);
@@ -92,7 +91,6 @@ export function useAuth() {
     setPhase(PHASE.DASHBOARD);
     setAuthNotice('');
     toast.clearAll?.();
-    toast('Добро пожаловать, ' + u.name + '!', 'success');
     // FIX [I-19]: defer push notification permission request by 30s after login
     // so the browser dialog appears after the user has seen value, not on first render.
     if (notifTimerRef.current !== null) {

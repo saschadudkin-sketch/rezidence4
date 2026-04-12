@@ -53,9 +53,14 @@ export function useDashboardExperience({
   const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
 
   const roleManifest = getRoleManifest(user.role);
-  const pageTitle = TAB_TITLES[activeTab] || roleManifest.pageTitle;
-  const pageSubtitle = user.role === 'owner' || user.role === 'tenant'
-    ? 'Апартаменты ' + user.apartment
+  const isResident = user.role === 'owner' || user.role === 'tenant';
+  const pageTitle = isResident && activeTab === 'passes'
+    ? 'Пропуска для гостей'
+    : TAB_TITLES[activeTab] || roleManifest.pageTitle;
+  const pageSubtitle = isResident
+    ? activeTab === 'passes'
+      ? `Апартаменты ${user.apartment}. Гости, курьеры и авто без звонков и ожидания.`
+      : 'Апартаменты ' + user.apartment
     : (roleManifest.pageSubtitle || '');
 
   const nextBestAction = useMemo(() => {

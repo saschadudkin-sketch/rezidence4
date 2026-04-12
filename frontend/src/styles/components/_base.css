@@ -63,7 +63,7 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .demo-welcome-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:50%;color:var(--warn);opacity:.7;
+  width:40px;height:40px;border-radius:50%;color:var(--warn);opacity:.7;
   padding:0;
 }
 .demo-welcome-close:hover{opacity:1}
@@ -115,13 +115,14 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
     position:absolute;
     top:10px;
     right:12px;
-    width:28px;
+    width:40px;
+    height:40px;
     height:28px;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
     background:color-mix(in srgb, var(--s2) 86%, transparent);
   }
 }
-@media (max-width: 640px){
+@media (--bp-form-down){
   .demo-welcome-banner{
     display:flex!important;
     flex-direction:column!important;
@@ -167,8 +168,8 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
     position:absolute!important;
     top:10px!important;
     right:12px!important;
-    width:28px!important;
-    height:28px!important;
+    width:40px!important;
+    height:40px!important;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent)!important;
     background:color-mix(in srgb, var(--s2) 86%, transparent)!important;
   }
@@ -186,7 +187,7 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .onboarding-hint-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:50%;color:var(--t4);opacity:.7;
+  width:40px;height:40px;border-radius:50%;color:var(--t4);opacity:.7;
   padding:0;
 }
 .onboarding-hint-close:hover{opacity:1}
@@ -204,6 +205,7 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 /* FA-10: Skip-to-content link for keyboard accessibility */
 .skip-link{
   position:absolute;top:-100%;left:8px;z-index:var(--z-top);
+  display:inline-flex;align-items:center;min-height:40px;
   background:var(--g1);color:var(--s0);
   padding:8px 16px;border-radius:var(--r);font-size:var(--fs-sm);font-weight:600;
   text-decoration:none;

@@ -1,211 +1,233 @@
-# Деплой на Timeweb VPS — пошаговая инструкция
+# Deploy to Timeweb VPS/VDS
 
-## Что получится в итоге
+Canonical release guide for this repo. `DEPLOY_TIMEWEB.md` now points here so there is only one authoritative flow.
 
+## Target Topology
+
+```text
+Internet
+  |
+  v
+Timeweb VPS :80/:443
+  |- frontend  nginx + Vite build
+  |- backend   Express API (internal Docker port 3001)
+  |- db        PostgreSQL 16
+  |- redis     Redis 7
+  `- backup    scheduled pg dumps into ./backups
 ```
-Интернет
-   │
-   ▼
-[Сервер Timeweb]  :80
-   ├── frontend  — React-приложение (nginx)
-   ├── backend   — Node.js API         :3001
-   └── db        — PostgreSQL
-```
 
-Жильцы открывают сайт по IP сервера, логинятся через SMS, охрана видит заявки в реальном времени.
+Browser traffic must go to the frontend host only. nginx proxies `/api/` and `/uploads/` to the backend container. Do not expose backend port `3001` publicly.
 
----
+## 1. Prepare the Server
 
-## Шаг 1. Создать VPS на Timeweb
+Recommended baseline:
 
-1. Войдите в панель Timeweb → **Облачные серверы** → **Создать сервер**
-2. Выберите: **Ubuntu 22.04**, минимум **2 GB RAM** (для 300 пользователей достаточно)
-3. Запишите **IP-адрес** сервера
-
----
-
-## Шаг 2. Подключиться и установить Docker
+- Ubuntu 22.04 LTS or 24.04 LTS
+- 2 GB RAM minimum, 4 GB preferred
+- 30 GB disk minimum
+- Open ports `22`, `80`, `443`
 
 ```bash
-ssh root@YOUR_SERVER_IP
+ssh root@SERVER_IP
+apt update && apt upgrade -y
+apt install -y git curl ca-certificates ufw
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
+```
 
-# Установить Docker
+## 2. Install Docker
+
+```bash
 curl -fsSL https://get.docker.com | sh
-
-# Установить Docker Compose Plugin
-apt-get install -y docker-compose-plugin
-
-# Проверить
-docker --version && docker compose version
+docker version
+docker compose version
 ```
 
----
+## 3. Upload the Project
 
-## Шаг 3. Загрузить проект на сервер
+Preferred path if you have Git:
 
-**На вашем компьютере** (в папке с архивом):
 ```bash
-scp residenze_full.zip root@YOUR_SERVER_IP:/root/
+mkdir -p /var/www
+git clone REPOSITORY_URL /var/www/rezidence4
+cd /var/www/rezidence4
 ```
 
-**На сервере:**
+Fallback if you deploy from an archive:
+
 ```bash
-apt-get install -y unzip
-cd /root
-unzip residenze_full.zip
-cd residenze_full
+mkdir -p /var/www/rezidence4
+# upload files with scp/SFTP/Timeweb file manager
+cd /var/www/rezidence4
 ```
 
----
-
-## Шаг 4. Создать файл с настройками
+## 4. Configure `.env`
 
 ```bash
 cp .env.example .env
 nano .env
 ```
 
-Заполните **три обязательных поля**:
+First HTTP launch by server IP:
 
 ```env
-DB_PASSWORD=придумайте_пароль_только_буквы_и_цифры
-JWT_SECRET=вставьте_32_случайных_символа
-BACKEND_URL=http://YOUR_SERVER_IP:3001
-FRONTEND_URL=http://YOUR_SERVER_IP
+DB_PASSWORD=generate_a_long_database_password
+JWT_SECRET=generate_with_openssl_rand_hex_32
+REDIS_PASSWORD=generate_with_openssl_rand_hex_24
 SMSRU_API_ID=STUB
+BACKEND_URL=http://SERVER_IP
+FRONTEND_URL=http://SERVER_IP
+YOUR_DOMAIN=SERVER_IP
+ENABLE_HTTPS=false
 ```
 
-Для `JWT_SECRET` выполните прямо на сервере и скопируйте результат:
+Generate secrets on the server:
+
 ```bash
+openssl rand -hex 24
 openssl rand -hex 32
 ```
 
-Сохранить файл: `Ctrl+O` → `Enter` → `Ctrl+X`
+If you have a real domain, create DNS `A` records before enabling HTTPS:
 
----
+```text
+example.com     A     SERVER_IP
+www.example.com A     SERVER_IP
+```
 
-## Шаг 5. Запустить всё
+Then use:
+
+```env
+BACKEND_URL=https://example.com
+FRONTEND_URL=https://example.com
+YOUR_DOMAIN=example.com
+ENABLE_HTTPS=true
+```
+
+## 5. Build and Launch
 
 ```bash
 docker compose up -d --build
-```
-
-Первый запуск займёт **3–7 минут** (скачивает образы, ставит npm-пакеты, компилирует React).
-
-Проверить что всё запустилось:
-```bash
 docker compose ps
+curl -I http://SERVER_IP
+curl http://SERVER_IP/api/health
 ```
 
-Должны быть `healthy` или `running` три контейнера: `db`, `backend`, `frontend`.
+Healthy first launch means `db`, `backend`, `frontend`, `redis`, and `backup` are `running` or `healthy`.
 
----
-
-## Шаг 6. Создать первого администратора
+## 6. Seed the First Admin
 
 ```bash
 docker compose exec backend node src/seed.js
 ```
 
-Это создаст администратора с номером `+70000000000`.
+This creates the initial admin with phone `+70000000000`. Replace it immediately:
 
-**Сразу измените номер** — зайдите в базу:
 ```bash
 docker compose exec db psql -U residenze -d residenze -c \
-  "UPDATE users SET phone='+7ВАШИ10ЦИФР', name='Ваше Имя' WHERE role='admin';"
+  "UPDATE users SET phone='+7YOUR10DIGITS', name='Admin Name' WHERE role='admin';"
 ```
 
----
+## 7. Verify Login Flow
 
-## Шаг 7. Проверить работу
+Open `http://SERVER_IP` and request an SMS code for the seeded admin.
 
-Откройте в браузере: `http://YOUR_SERVER_IP`
-
-Введите номер администратора → нажмите «Получить SMS-код».
-
-Поскольку `SMSRU_API_ID=STUB`, реальный SMS не придёт — код смотрите в логах:
-```bash
-docker compose logs backend | grep "STUB"
-# Увидите: [sms] STUB — phone=+7... code=123456
-```
-
-Введите этот код → вы вошли как администратор.
-
----
-
-## Шаг 8. Добавить пользователей (жильцов, охрану)
-
-В приложении войдите как администратор → вкладка **Резиденты** → добавить пользователя.
-
-Или напрямую через базу:
-```bash
-docker compose exec db psql -U residenze -d residenze
-```
-
-```sql
-INSERT INTO users(uid, phone, name, role, apartment)
-VALUES(gen_random_uuid(), '+71234567890', 'Иванов Иван', 'owner', '12');
-
-INSERT INTO users(uid, phone, name, role, apartment)
-VALUES(gen_random_uuid(), '+79876543210', 'Петров Сергей', 'security', null);
-```
-
----
-
-## Шаг 9. Подключить реальные SMS (когда будете готовы)
-
-1. Зарегистрируйтесь на [sms.ru](https://sms.ru)
-2. Пополните баланс (~ 1-2 руб./SMS)
-3. Скопируйте **API ID** из раздела Настройки → API
-4. В файле `.env` замените `SMSRU_API_ID=STUB` на ваш реальный ID
-5. Перезапустите backend:
-```bash
-docker compose restart backend
-```
-
----
-
-## Полезные команды
+With `SMSRU_API_ID=STUB`, the OTP is printed to backend logs:
 
 ```bash
-# Посмотреть логи всех сервисов
-docker compose logs -f
+docker compose logs backend | grep STUB
+```
 
-# Логи только backend (включая коды OTP в режиме STUB)
-docker compose logs -f backend
+Use that code to log in and confirm the dashboard loads.
 
-# Перезапустить один сервис
-docker compose restart backend
+## 8. Enable HTTPS
 
-# Обновить после изменений кода
+HTTPS requires a real domain. Let's Encrypt does not issue normal certificates for bare IP addresses.
+
+```bash
+docker compose stop frontend
+docker run --rm -p 80:80 \
+  -v /etc/letsencrypt:/etc/letsencrypt \
+  -v /var/www/certbot:/var/www/certbot \
+  certbot/certbot certonly --standalone \
+  -d example.com
+```
+
+Make sure `docker-compose.yml` exposes `443` and mounts the certificate volumes, then update `.env`:
+
+```env
+BACKEND_URL=https://example.com
+FRONTEND_URL=https://example.com
+YOUR_DOMAIN=example.com
+ENABLE_HTTPS=true
+```
+
+Rebuild because `VITE_API_URL` is compiled into the frontend bundle:
+
+```bash
 docker compose up -d --build
+curl -I https://example.com
+curl https://example.com/api/health
+```
 
-# Остановить всё
+Renew certificates:
+
+```bash
+docker run --rm -p 80:80 \
+  -v /etc/letsencrypt:/etc/letsencrypt \
+  -v /var/www/certbot:/var/www/certbot \
+  certbot/certbot renew
+docker compose restart frontend
+```
+
+## 9. Release Updates
+
+```bash
+cd /var/www/rezidence4
+git pull
+docker compose up -d --build
+docker compose ps
+```
+
+If the server is updated by file upload instead of Git, upload the new files and still run `docker compose up -d --build`.
+
+## 10. Useful Operations
+
+```bash
+docker compose ps
+docker compose logs --tail=100 backend
+docker compose logs --tail=100 frontend
+docker compose exec db pg_isready -U residenze
+docker compose exec redis redis-cli -a "$REDIS_PASSWORD" ping
+docker compose run --rm backup /backup.sh
+ls -lah backups
 docker compose down
-
-# Остановить и удалить данные (ОСТОРОЖНО — удалит базу!)
-docker compose down -v
 ```
 
----
+## 11. Common Failures
 
-## Если что-то не работает
+Site not reachable:
 
-**Сайт не открывается по IP:**
 ```bash
-docker compose ps          # проверить что frontend запущен
-docker compose logs frontend  # смотреть ошибки nginx
+docker compose ps
+docker compose logs frontend
 ```
 
-**SMS-коды не приходят:**
+OTP not arriving:
+
 ```bash
-docker compose logs backend | grep -i sms   # проверить статус отправки
+docker compose logs backend | grep -i sms
 ```
 
-**Ошибка "Номер не зарегистрирован":**
-Пользователь ещё не добавлен в базу. Добавьте через интерфейс администратора или SQL выше.
+User phone not found:
 
-**База не поднимается:**
+- The user is missing from `users`.
+- Create it from the admin UI or insert it directly in PostgreSQL.
+
+Database not starting:
+
 ```bash
-docker compose logs db   # смотреть ошибки postgres
+docker compose logs db
 ```

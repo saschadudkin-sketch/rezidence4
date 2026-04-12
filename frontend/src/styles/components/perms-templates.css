@@ -242,7 +242,7 @@
 .perm-form-inp::placeholder{color:var(--t4)}
 .perm-form-btns{display:flex;gap:var(--space-xs);justify-content:flex-end;flex-wrap:wrap}
 .perm-form-btns .btn-gold,.perm-form-btns .btn-outline{max-width:200px}
-@media (min-width: 768px) and (max-width: 1024px){
+@media (--bp-md-up) and (--bp-lg-down){
   .perms-wrap{
     max-width:100%;
     gap:6px;
@@ -317,7 +317,7 @@
 /* ── SECURITY PERMS ── */
 .sec-apt-group{margin-bottom:20px}
 .sec-apt-hdr{
-  font-family:'Playfair Display',serif;font-size:var(--fs-md);color:var(--t1);
+  font-family:'Cormorant Garamond', 'Times New Roman', serif;font-size:var(--fs-md);color:var(--t1);
   padding:8px 0 10px;border-bottom:1px solid var(--b1);margin-bottom:10px;
 }
 @media(max-width:480px){

@@ -25,7 +25,7 @@ export async function resolveRequestPhotos(reqId: string, photos: string[]): Pro
       photos.map((photo, i) => uploadRequestPhoto(reqId + '_' + i, photo)),
     );
     const uploaded: string[] = [];
-    results.forEach((r, i) => {
+    results.forEach((r) => {
       if (r.status === 'fulfilled') {
         uploaded.push(r.value as string);
       } else {
