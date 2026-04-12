@@ -114,3 +114,17 @@ describe('GET /api/visit-logs — пагинация', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /api/visit-logs/:id', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('400 при невалидном id', async () => {
+    const token = makeToken({ uid: 'g1', role: 'security', name: 'Охранник' });
+    const res = await require('supertest')(app)
+      .get('/api/visit-logs/!!!')
+      .set('Cookie', `token=${token}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid id format/i);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+});

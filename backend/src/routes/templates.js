@@ -2,6 +2,7 @@
 const express = require('express');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
+const { isStaff } = require('../constants');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -36,10 +37,21 @@ function validateItems(items, res) {
   return true;
 }
 
+function canReadTemplates(user, targetUid) {
+  return user.uid === targetUid || isStaff(user.role);
+}
+
+function canWriteTemplates(user, targetUid) {
+  return user.uid === targetUid || user.role === 'admin';
+}
+
 // ─── GET /api/templates/:uid ──────────────────────────────────────────────────
 
 router.get('/:uid', async (req, res, next) => {
   try {
+    if (!canReadTemplates(req.user, req.params.uid)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const { rows } = await db.query(
       `SELECT items FROM templates WHERE uid=$1`,
       [req.params.uid],
@@ -52,10 +64,9 @@ router.get('/:uid', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { uid: callerUid, role } = req.user;
     const { uid, items } = req.body;
 
-    if (callerUid !== uid && role !== 'admin') {
+    if (!canWriteTemplates(req.user, uid)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

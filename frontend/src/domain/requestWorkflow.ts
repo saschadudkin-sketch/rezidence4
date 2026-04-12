@@ -6,7 +6,7 @@ import {
   HISTORY_ADD,
 } from '../store/requestActionTypes';
 
-type Dispatch = (action: Record<string, unknown>) => void;
+type Dispatch = (action: { type: string; [key: string]: unknown }) => void;
 
 function addHistory(
   dispatch: Dispatch,

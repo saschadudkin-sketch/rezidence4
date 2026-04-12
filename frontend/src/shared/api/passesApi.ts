@@ -10,6 +10,7 @@
 
 import { validatePassByRules } from '../../domain/passValidation';
 import { isLiveMode as _isLive } from '../../config/runtimeMode';
+import type { VisitLogPage } from '../../services/http/visitLogs';
 
 const DEMO_VISIT_LOGS_KEY = 'residenze_demo_visit_logs_v1';
 
@@ -157,10 +158,15 @@ export async function logVisit(entry) {
 export async function getVisitLogs() {
   if (_isLive()) {
     const provider = await _getVisitLogsProvider();
-    const result = await provider.getAll();
-    return result.data || result;
+    return provider.getAll();
   }
-  return passesApiInstance.getVisitLogs();
+  const data = await passesApiInstance.getVisitLogs();
+  return {
+    data,
+    total: data.length,
+    page: 1,
+    limit: Number.MAX_SAFE_INTEGER,
+  } satisfies VisitLogPage;
 }
 
 export async function clearVisitLogs() {

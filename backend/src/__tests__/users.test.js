@@ -6,6 +6,10 @@
  */
 jest.mock('../db');
 const db = require('../db');
+jest.mock('../sse', () => ({
+  broadcastUserUpdate: jest.fn(),
+  broadcastUserDelete: jest.fn(),
+}));
 jest.mock('../middleware/auth', () => {
   const jwt = require('jsonwebtoken');
   const mw = (req, res, next) => {
@@ -37,6 +41,7 @@ process.env.BACKEND_URL   = 'http://localhost:3001';
 
 const usersRouter = require('../routes/users');
 const requireAuth = require('../middleware/auth');
+const { broadcastUserUpdate } = require('../sse');
 
 function buildApp() {
   const app = express();
@@ -422,12 +427,13 @@ describe('PATCH /api/users/:uid/restore', () => {
   });
 
   it('200 восстанавливает пользователя и инвалидирует active cache', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ ...USER_ROW, uid: 'u1' }] });
     const res = await request(app)
       .patch('/api/users/u1/restore').set('Cookie', `token=${T_ADMIN}`);
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
+    expect(broadcastUserUpdate).toHaveBeenCalledWith(expect.objectContaining({ uid: 'u1' }));
     const sql = db.query.mock.calls[0][0];
     expect(sql).toMatch(/SET deleted_at=NULL/i);
   });

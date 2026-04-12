@@ -33,6 +33,7 @@ import {
   usersProvider,
   permsProvider,
   blacklistProvider,
+  visitLogsProvider,
   createBackendProvider,
 } from './backendProvider';
 
@@ -323,6 +324,21 @@ describe('blacklistProvider', () => {
     apiClient.delete.mockResolvedValueOnce({ ok: true });
     await blacklistProvider.remove('bl1');
     expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/blacklist/bl1');
+  });
+});
+
+describe('visitLogsProvider', () => {
+  test('getAll fetches all pages when backend paginates audit log', async () => {
+    apiClient.get
+      .mockResolvedValueOnce({ data: [{ id: 'v1' }], total: 150, page: 1, limit: 100 })
+      .mockResolvedValueOnce({ data: [{ id: 'v2' }], total: 150, page: 2, limit: 100 });
+
+    const result = await visitLogsProvider.getAll();
+
+    expect(apiClient.get).toHaveBeenNthCalledWith(1, '/api/v1/visit-logs?page=1&limit=100');
+    expect(apiClient.get).toHaveBeenNthCalledWith(2, '/api/v1/visit-logs?page=2&limit=100');
+    expect(result.total).toBe(150);
+    expect(result.data).toEqual([{ id: 'v1' }, { id: 'v2' }]);
   });
 });
 

@@ -9,11 +9,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { getVisitLogs, clearVisitLogs as apiClearVisitLogs } from '../shared/api/passesApi';
 import { useEntityQuery } from '../data/entityOwnership';
+import type { VisitLogPage } from '../services/http/visitLogs';
 
 export const VISIT_LOGS_KEY = ['visitLogs'];
 
 export function useVisitLogs() {
-  return useEntityQuery({
+  return useEntityQuery<VisitLogPage>({
     entity: 'visitLogs',
     queryKey: VISIT_LOGS_KEY,
     queryFn: getVisitLogs,

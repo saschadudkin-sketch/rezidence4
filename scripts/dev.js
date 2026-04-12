@@ -1,19 +1,19 @@
 const { spawn } = require('node:child_process');
 
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 const processes = [
   {
     name: 'backend',
-    child: spawn('npm', ['--prefix', 'backend', 'run', 'dev'], {
+    child: spawn(npmCmd, ['--prefix', 'backend', 'run', 'dev'], {
       cwd: process.cwd(),
-      shell: true,
       stdio: 'inherit',
     }),
   },
   {
     name: 'frontend',
-    child: spawn('npm', ['--prefix', 'frontend', 'run', 'dev'], {
+    child: spawn(npmCmd, ['--prefix', 'frontend', 'run', 'dev'], {
       cwd: process.cwd(),
-      shell: true,
       stdio: 'inherit',
     }),
   },

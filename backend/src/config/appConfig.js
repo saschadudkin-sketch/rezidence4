@@ -43,10 +43,10 @@ function validateConfig(env, prod) {
     logger.info('[config] TRUST_PROXY_HOPS not set — defaulting to 1 hop (nginx → backend). Set explicitly if topology differs.');
   }
 
-  if (env.REFRESH_LEGACY_FALLBACK_ENABLED === '0') {
-    logger.info('[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=0)');
+  if (env.REFRESH_LEGACY_FALLBACK_ENABLED === '1') {
+    logger.warn('[auth] legacy refresh fallback enabled (REFRESH_LEGACY_FALLBACK_ENABLED=1); disable after migration window');
   } else {
-    logger.warn('[auth] legacy refresh fallback is enabled; disable after migration window');
+    logger.info(`[auth] legacy refresh fallback disabled (REFRESH_LEGACY_FALLBACK_ENABLED=${env.REFRESH_LEGACY_FALLBACK_ENABLED ?? 'unset'})`);
   }
 }
 

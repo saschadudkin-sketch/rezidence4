@@ -37,7 +37,12 @@ const mockRequests = [
 
 beforeEach(() => {
   vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
-  vi.spyOn(passesApi, 'getVisitLogs').mockResolvedValue([{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }]);
+  vi.spyOn(passesApi, 'getVisitLogs').mockResolvedValue({
+    data: [{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }],
+    total: 1,
+    page: 1,
+    limit: 100,
+  });
   vi.spyOn(passesApi, 'clearVisitLogs').mockResolvedValue(undefined);
 });
 afterEach(() => vi.restoreAllMocks());

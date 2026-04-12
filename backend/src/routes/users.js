@@ -189,11 +189,12 @@ router.patch('/:uid/restore', validateUid, async (req, res, next) => {
       `UPDATE users
        SET deleted_at=NULL, updated_at=NOW()
        WHERE uid=$1 AND deleted_at IS NOT NULL
-       RETURNING uid`,
+       RETURNING *`,
       [req.params.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
     await invalidateUserActiveCache(req.params.uid);
+    broadcastUserUpdate(fmt(rows[0]));
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

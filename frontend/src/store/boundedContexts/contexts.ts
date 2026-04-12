@@ -20,6 +20,10 @@ export type AppStoreApi = {
   subscribe: (listener: () => void) => () => void;
 };
 
+export type AppStoreAction = {
+  type: string;
+  [key: string]: unknown;
+};
+
 export const StoreContext = createContext<AppStoreApi | null>(null);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const DispatchContext = createContext<((action: any) => void) | null>(null);
+export const DispatchContext = createContext<((action: AppStoreAction) => void) | null>(null);

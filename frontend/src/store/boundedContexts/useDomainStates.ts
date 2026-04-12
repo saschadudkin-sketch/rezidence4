@@ -31,6 +31,7 @@ import {
 import { useDebouncedSave } from '../useDebouncedSave';
 import { routeDomainDispatch } from './domainRegistry';
 import { A } from '../storeActions';
+import type { AppStoreAction } from './contexts';
 
 function requestsSliceReducer(state, action) {
   const full = requestsReducer({ requests: state.requests, history: state.history }, action);
@@ -82,7 +83,7 @@ export function useBoundedDomainStates() {
     garage: saved?.garage ?? INITIAL_GARAGE,
   }));
 
-  const dispatch = useCallback((action) => routeDomainDispatch(action, {
+  const dispatch = useCallback((action: AppStoreAction) => routeDomainDispatch(action, {
     requests: requestsDispatch,
     chat: chatDispatch,
     users: usersDispatch,

@@ -48,8 +48,8 @@ describe('passesApi: mode-aware visit logging', () => {
       expect(mockAdd).not.toHaveBeenCalled();
 
       const logs = await getVisitLogs();
-      // В demo режиме getVisitLogs возвращает in-memory данные
-      expect(Array.isArray(logs)).toBe(true);
+      expect(Array.isArray(logs.data)).toBe(true);
+      expect(typeof logs.total).toBe('number');
     });
   });
 

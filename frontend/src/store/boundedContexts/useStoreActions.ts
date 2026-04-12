@@ -4,7 +4,7 @@ import {
   arriveWithHistory,
   approveAndArriveWithHistory,
 } from '../../domain/requestWorkflow';
-import { DispatchContext } from './contexts';
+import { DispatchContext, type AppStoreAction } from './contexts';
 import { A } from '../storeActions';
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
 import type { AppRequest } from '../slices/requestsSlice';
@@ -12,51 +12,51 @@ import type { ChatMessage } from '../slices/chatSlice';
 import type { AppUser } from '../slices/usersSlice';
 import type { BlacklistEntry } from '../slices/blacklistSlice';
 import type { Car } from '../slices/garageSlice';
+import type { Template, UserPerms } from '../slices/permsSlice';
 
 export interface StoreActions {
-  addRequest: (req: AppRequest) => unknown;
-  updateRequest: (id: string, patch: Partial<AppRequest>) => unknown;
-  deleteRequest: (id: string) => unknown;
-  setAllRequests: (requests: AppRequest[]) => unknown;
-  activateScheduled: () => unknown;
-  approveRequest: (id: string, byName: string, byRole: string) => unknown;
-  rejectRequest: (id: string, byName: string, byRole: string) => unknown;
-  acceptRequest: (id: string, byName: string, byRole: string) => unknown;
-  arriveRequest: (id: string, byName: string, byRole: string) => unknown;
-  approveAndArrive: (id: string, byName: string, byRole: string) => unknown;
-  sendMessage: (msg: ChatMessage) => unknown;
-  setAllMessages: (msgs: ChatMessage[]) => unknown;
-  markChatSeen: (uid: string) => unknown;
-  updateMessage: (id: string, patch: Partial<ChatMessage>) => unknown;
-  deleteMessage: (id: string) => unknown;
-  addUser: (user: AppUser) => unknown;
-  updateUser: (uid: string, patch: Partial<AppUser>, oldPhone?: string) => unknown;
-  deleteUser: (uid: string) => unknown;
-  setAllUsers: (users: AppUser[]) => unknown;
-  setAvatar: (uid: string, avatar: string) => unknown;
-  deleteAvatar: (uid: string) => unknown;
-  setPerms: (uid: string, perms: unknown) => unknown;
-  addTemplate: (uid: string, template: unknown) => unknown;
-  deleteTemplate: (uid: string, id: string) => unknown;
-  setTemplates: (uid: string, templates: unknown[]) => unknown;
-  addToBlacklist: (entry: BlacklistEntry) => unknown;
-  removeFromBlacklist: (id: string) => unknown;
-  setBlacklist: (entries: BlacklistEntry[]) => unknown;
-  addGarageCar: (uid: string, car: Car) => unknown;
-  updateGarageCar: (uid: string, carId: string, patch: Partial<Car>) => unknown;
-  deleteGarageCar: (uid: string, carId: string) => unknown;
-  setGarage: (uid: string, cars: Car[]) => unknown;
+  addRequest: (req: AppRequest) => void;
+  updateRequest: (id: string, patch: Partial<AppRequest>) => void;
+  deleteRequest: (id: string) => void;
+  setAllRequests: (requests: AppRequest[]) => void;
+  activateScheduled: () => void;
+  approveRequest: (id: string, byName: string, byRole: string) => void;
+  rejectRequest: (id: string, byName: string, byRole: string) => void;
+  acceptRequest: (id: string, byName: string, byRole: string) => void;
+  arriveRequest: (id: string, byName: string, byRole: string) => void;
+  approveAndArrive: (id: string, byName: string, byRole: string) => void;
+  sendMessage: (msg: ChatMessage) => void;
+  setAllMessages: (msgs: ChatMessage[]) => void;
+  markChatSeen: (uid: string) => void;
+  updateMessage: (id: string, patch: Partial<ChatMessage>) => void;
+  deleteMessage: (id: string) => void;
+  addUser: (user: AppUser) => void;
+  updateUser: (uid: string, patch: Partial<AppUser>, oldPhone?: string) => void;
+  deleteUser: (uid: string) => void;
+  setAllUsers: (users: AppUser[]) => void;
+  setAvatar: (uid: string, avatar: string) => void;
+  deleteAvatar: (uid: string) => void;
+  setPerms: (uid: string, perms: UserPerms) => void;
+  addTemplate: (uid: string, template: Template) => void;
+  deleteTemplate: (uid: string, id: string) => void;
+  setTemplates: (uid: string, templates: Template[]) => void;
+  addToBlacklist: (entry: BlacklistEntry) => void;
+  removeFromBlacklist: (id: string) => void;
+  setBlacklist: (entries: BlacklistEntry[]) => void;
+  addGarageCar: (uid: string, car: Car) => void;
+  updateGarageCar: (uid: string, carId: string, patch: Partial<Car>) => void;
+  deleteGarageCar: (uid: string, carId: string) => void;
+  setGarage: (uid: string, cars: Car[]) => void;
 }
 
 export function useStoreActions(): StoreActions {
   const dispatch = useContext(DispatchContext);
 
-  const dispatchWithMetric = useCallback((actionName: string, action: unknown) => {
+  const dispatchWithMetric = useCallback((actionName: string, action: AppStoreAction): void => {
     if (!dispatch) return;
     try {
-      const out = dispatch(action);
+      dispatch(action);
       emitUxMetric(UX_METRICS.ACTION_SUCCESS, { action: actionName });
-      return out;
     } catch (error) {
       emitUxMetric(UX_METRICS.ACTION_FAILURE, { action: actionName, message: error instanceof Error ? error.message : String(error) });
       throw error;

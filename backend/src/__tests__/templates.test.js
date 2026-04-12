@@ -61,6 +61,23 @@ describe('GET /api/templates/:uid', () => {
     expect(res.body[1].comment).toBe('Течёт кран');
   });
 
+  it('403 если пользователь читает чужие шаблоны без staff-роли', async () => {
+    const res = await request(app)
+      .get('/api/templates/u1').set('Cookie', `token=${T_U2}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Forbidden');
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('200 staff может читать чужие шаблоны', async () => {
+    const tSecurity = mk({ uid: 'sec1', role: 'security', name: 'Охр' });
+    db.query.mockResolvedValueOnce({ rows: [{ items: SAMPLE_TEMPLATES }] });
+    const res = await request(app)
+      .get('/api/templates/u1').set('Cookie', `token=${tSecurity}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+
   it('200 возвращает [] если нет записей', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)

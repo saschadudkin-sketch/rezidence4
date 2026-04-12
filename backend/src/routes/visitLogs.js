@@ -29,6 +29,13 @@ function fmt(r) {
   };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SAFE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+
+function isValidVisitLogId(id) {
+  return UUID_RE.test(id) || SAFE_ID_RE.test(id);
+}
+
 router.get('/', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) {
@@ -123,6 +130,9 @@ router.delete('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!isValidVisitLogId(String(req.params.id || ''))) {
+      return res.status(400).json({ error: 'Invalid id format' });
+    }
     const { rows } = await db.query(
       `SELECT id, user_id, request_id, visitor_name, category, car_plate,
               created_by_apt, created_by_name, created_by_uid,

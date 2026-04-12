@@ -19,6 +19,7 @@ import { MS_PER_DAY } from '../constants/limits';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import type { AppRequest, PassDuration, RequestStatus, RequestType } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
+import type { VisitLogPage } from '../services/http/visitLogs';
 
 type VisitLogRow = {
   id: string;
@@ -127,11 +128,12 @@ const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
 export default function VisitLogView({ user }: { user: AppUser }) {
   const requests = useRequests();
   // A-10: useQuery replaces manual useState/useEffect/useCallback loading pattern
-  const { data: visitEvents = [], isLoading, isError } = useVisitLogs() as {
-    data?: VisitLogRow[];
+  const { data: visitLogsPage, isLoading, isError } = useVisitLogs() as {
+    data?: VisitLogPage<VisitLogRow>;
     isLoading: boolean;
     isError: boolean;
   };
+  const visitEvents = useMemo(() => visitLogsPage?.data ?? [], [visitLogsPage]);
   const clearLogs = useClearVisitLogs();
   const [query, setQuery] = useState('');
   const [period, setPeriod] = useState('all');
@@ -248,7 +250,7 @@ export default function VisitLogView({ user }: { user: AppUser }) {
   // FIX [AUDIT-5]: groupByDate вызывался при каждом рендере (изменение confirmClear,
   // loadLogs, любого state). visits уже мемоизирован, поэтому groups тоже должен быть.
   const groups = useMemo(() => groupByDate(visits), [visits]);
-  const totalCount = visits.length;
+  const totalCount = visitLogsPage?.total ?? visits.length;
   const activeFilterCount = Number(period !== 'all') + Number(decision !== 'all');
   const loadingCopy = getViewStateCopy('visitlog', 'loading');
   const errorCopy = getViewStateCopy('visitlog', 'error');

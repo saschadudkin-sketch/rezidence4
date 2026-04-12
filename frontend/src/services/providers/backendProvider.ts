@@ -19,6 +19,7 @@ import type { ChatMessage } from '../../store/slices/chatSlice';
 import type { AppUser } from '../../store/slices/usersSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 import type { PermEntry, Template, UserPerms } from '../../store/slices/permsSlice';
+import type { VisitLogPage } from '../http/visitLogs';
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -163,6 +164,23 @@ function toTemplates(payload: unknown): Template[] {
 
 function toBlacklist(payload: unknown): BlacklistEntry[] {
   return Array.isArray(payload) ? payload.map(toBlacklistEntry).filter((entry): entry is BlacklistEntry => entry !== null) : [];
+}
+
+function normalizeVisitLogPage(payload: unknown): VisitLogPage {
+  if (!isObject(payload)) {
+    return { data: [], total: 0, page: 1, limit: 100 };
+  }
+
+  const data = Array.isArray(payload.data)
+    ? payload.data.filter((row): row is Record<string, unknown> => isObject(row))
+    : [];
+
+  return {
+    data,
+    total: typeof payload.total === 'number' ? payload.total : data.length,
+    page: typeof payload.page === 'number' ? payload.page : 1,
+    limit: typeof payload.limit === 'number' ? payload.limit : Math.max(data.length, 1),
+  };
 }
 
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
@@ -575,8 +593,39 @@ export const blacklistProvider = {
 
 // ─── Visit Logs ───────────────────────────────────────────────────────────────
 export const visitLogsProvider = {
-  async getAll() {
-    return apiClient.get('/api/v1/visit-logs');
+  async getAll({ signal, page = 1, limit = 100, allPages = true }: {
+    signal?: AbortSignal;
+    page?: number;
+    limit?: number;
+    allPages?: boolean;
+  } = {}): Promise<VisitLogPage> {
+    const requestOpts = signal ? { signal } : undefined;
+    const buildPath = (pageNumber: number) => `/api/v1/visit-logs?page=${pageNumber}&limit=${limit}`;
+    const firstResponse = requestOpts
+      ? await apiClient.get(buildPath(page), requestOpts)
+      : await apiClient.get(buildPath(page));
+    const initial = normalizeVisitLogPage(firstResponse);
+
+    if (!allPages || initial.total <= initial.data.length) {
+      return initial;
+    }
+
+    const merged = [...initial.data];
+    const totalPages = Math.max(1, Math.ceil(initial.total / initial.limit));
+
+    for (let pageNumber = page + 1; pageNumber <= totalPages; pageNumber += 1) {
+      const nextResponse = requestOpts
+        ? await apiClient.get(buildPath(pageNumber), requestOpts)
+        : await apiClient.get(buildPath(pageNumber));
+      const nextPage = normalizeVisitLogPage(nextResponse);
+      merged.push(...nextPage.data);
+      if (nextPage.data.length < nextPage.limit) break;
+    }
+
+    return {
+      ...initial,
+      data: merged,
+    };
   },
   async add(entry) {
     return apiClient.post('/api/v1/visit-logs', entry);
