@@ -30,6 +30,7 @@
   width: 32px;
   height: 32px;
   object-fit: contain;
+  flex-shrink: 0;
   filter: drop-shadow(0 0 10px rgba(201, 169, 110, .45)) drop-shadow(0 1px 3px rgba(0, 0, 0, .22)) brightness(1.02);
 }
 html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .28)) drop-shadow(0 1px 4px rgba(0, 0, 0, .08)) brightness(.98); }
@@ -174,10 +175,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   .header-brand-copy { gap: 8px; }
   .header-logo { width: 26px; height: 26px; }
   .demo-badge {
-    min-height: 20px;
-    padding: 0 7px;
-    font-size: 9px;
-    letter-spacing: 1.2px;
+    display: none;
   }
   .theme-btn {
     padding: 7px 10px;
@@ -602,5 +600,26 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     width: 32px;
     height: 32px;
     font-size: 15px;
+  }
+}
+
+@media (--bp-md-below) {
+  .demo-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .header-brand {
+    flex: 0 0 auto;
+    min-width: 26px;
+  }
+  .header-brand-copy,
+  .header-wordmark,
+  .header-info {
+    display: none !important;
+  }
+  .demo-badge {
+    display: none !important;
   }
 }

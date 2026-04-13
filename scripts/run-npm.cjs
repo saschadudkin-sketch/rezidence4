@@ -2,8 +2,18 @@ const { spawnSync } = require('node:child_process');
 
 const args = process.argv.slice(2);
 const npmExecPath = process.env.npm_execpath;
+const env = { ...process.env };
+delete env.npm_execpath;
 
 function getNpmCommand() {
+  if (process.platform === 'win32') {
+    return {
+      command: 'npm.cmd',
+      prefixArgs: [],
+      shell: true,
+    };
+  }
+
   if (npmExecPath?.endsWith('.js')) {
     return {
       command: process.execPath,
@@ -30,7 +40,7 @@ function getNpmCommand() {
 const npm = getNpmCommand();
 const result = spawnSync(npm.command, [...npm.prefixArgs, ...args], {
   cwd: process.cwd(),
-  env: process.env,
+  env,
   stdio: 'inherit',
   shell: npm.shell,
 });

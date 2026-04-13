@@ -14,8 +14,10 @@
 .tpl-name{font-size:var(--fs-sm);font-weight:500;color:var(--t1)}
 .tpl-meta{font-size:var(--fs-2xs);color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tpl-del{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:40px;min-height:40px;
   background:none;border:none;color:var(--t4);cursor:pointer;
-  font-size:var(--fs-md);padding:4px 6px;border-radius:4px;flex-shrink:0;
+  font-size:var(--fs-md);padding:0;border-radius:6px;flex-shrink:0;
   transition:color .13s,background .13s;
 }
 .tpl-del:hover,.tpl-del:active{color:var(--err-t);background:rgba(106,40,40,.15)}
@@ -72,8 +74,8 @@
     margin-top:3px;
   }
   .tpl-del{
-    width:28px;
-    height:28px;
+    min-width:40px;
+    min-height:40px;
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -113,8 +115,10 @@
 .perm-name{font-size:var(--fs-sm);color:var(--t1);font-weight:500}
 .perm-meta{font-size:var(--fs-2xs);color:var(--t3);margin-top:2px}
 .perm-del{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:40px;min-height:40px;
   background:none;border:none;color:var(--t4);cursor:pointer;
-  font-size:var(--fs-md);padding:4px 6px;border-radius:4px;
+  font-size:var(--fs-md);padding:0;border-radius:6px;
   transition:color .13s,background .13s;flex-shrink:0;
 }
 .perm-del:hover,.perm-del:active{color:var(--err-t);background:rgba(106,40,40,.15)}
