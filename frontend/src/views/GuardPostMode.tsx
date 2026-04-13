@@ -5,7 +5,7 @@
  * вынесены в отдельные файлы views/guard/ для соблюдения SRP.
  *
  * Подвкладки: Активные | Временные пропуска | Техслужба
- * - Активные: pending + approved (одноразовые)
+ * - Активные: approved + legacy pending (все уже считаются открытыми к проходу)
  * - Временные: approved/arrived с passDuration=temporary
  */
 
@@ -46,13 +46,13 @@ export default function GuardPostMode({ user, onViewDetails }) {
   }, [debouncedSearch]);
 
   // PERF-03: single memo for base lists — one pass over requests instead of 5
-  const { pending, approved, temporary, techPending, techActive } = useMemo(() => {
-    const _pending  = [], _approved = [], _tempRaw = [], _techPending = [], _techActive = [];
+  const { approved, temporary, techPending, techActive } = useMemo(() => {
+    const _approved = [], _tempRaw = [], _techPending = [], _techActive = [];
     for (const r of requests) {
       if (r.type === 'pass') {
-        if (r.status === 'pending') { _pending.push(r); }
-        else if (r.status === 'approved' && r.passDuration !== 'temporary') { _approved.push(r); }
-        else if (r.passDuration === 'temporary' && r.validUntil && (r.status === 'approved' || r.status === 'arrived')) { _tempRaw.push(r); }
+        const isOpenForSecurity = r.status === 'pending' || r.status === 'approved';
+        if (r.passDuration === 'temporary' && r.validUntil && (isOpenForSecurity || r.status === 'arrived')) { _tempRaw.push(r); }
+        else if (isOpenForSecurity && r.passDuration !== 'temporary') { _approved.push(r); }
       } else if (r.type === 'tech' && (r.status === 'pending' || r.status === 'accepted')) {
         if (r.status === 'pending') _techPending.push(r);
         _techActive.push(r);
@@ -62,7 +62,6 @@ export default function GuardPostMode({ user, onViewDetails }) {
     const withTs = _tempRaw.map(r => ({ r, ts: new Date(r.validUntil).getTime() }));
     withTs.sort((a, b) => a.ts - b.ts);
     return {
-      pending:     sortReqs(_pending),
       approved:    sortReqs(_approved),
       temporary:   withTs.map(({ r }) => r),
       techPending: sortReqs(_techPending),
@@ -71,33 +70,32 @@ export default function GuardPostMode({ user, onViewDetails }) {
   }, [requests]);
 
   // PERF-03: single filtered memo — avoids 5 separate useMemo + 5 separate filter passes
-  const { filteredPending, filteredApproved, filteredTemporary, filteredTechPending, filteredTechAccepted } = useMemo(() => {
+  const { filteredApproved, filteredTemporary, filteredTechPending, filteredTechAccepted } = useMemo(() => {
     const techPendingCards  = techActive.filter(r => r.status === 'pending');
     const techAcceptedCards = techActive.filter(r => r.status === 'accepted');
     if (!debouncedSearch.trim()) {
       return {
-        filteredPending: pending, filteredApproved: approved, filteredTemporary: temporary,
+        filteredApproved: approved, filteredTemporary: temporary,
         filteredTechPending: techPendingCards, filteredTechAccepted: techAcceptedCards,
       };
     }
     return {
-      filteredPending:     pending.filter(matchSearch),
       filteredApproved:    approved.filter(matchSearch),
       filteredTemporary:   temporary.filter(matchSearch),
       filteredTechPending: techPendingCards.filter(matchSearch),
       filteredTechAccepted: techAcceptedCards.filter(matchSearch),
     };
-  }, [pending, approved, temporary, techActive, matchSearch, debouncedSearch]);
+  }, [approved, temporary, techActive, matchSearch, debouncedSearch]);
 
-  // Звук при новой pending (pass или tech)
-  const prevPassCount = useRef(pending.length);
+  // Звук при новом пропуске к проходу или pending-техзаявке
+  const prevPassCount = useRef(approved.length);
   const prevTechCount = useRef(techPending.length);
   useEffect(() => {
-    if (pending.length > prevPassCount.current) playAlert('pass');
+    if (approved.length > prevPassCount.current) playAlert('pass');
     if (techPending.length > prevTechCount.current) playAlert('tech');
-    prevPassCount.current = pending.length;
+    prevPassCount.current = approved.length;
     prevTechCount.current = techPending.length;
-  }, [pending.length, techPending.length]);
+  }, [approved.length, techPending.length]);
 
   // FIX [PERF]: useCallback — getPhone не пересоздаётся при ре-рендере
   const getPhone = useCallback((uid) => { const u = users[uid]; return u ? u.phone : null; }, [users]);
@@ -115,13 +113,9 @@ export default function GuardPostMode({ user, onViewDetails }) {
       {/* Статистика */}
       <div className="guard-header">
         <div className="guard-header-stats">
-          <div className={'guard-stat' + (pending.length > 0 ? ' urgent' : '')}>
-            <span className="guard-stat-val">{pending.length}</span>
-            <span className="guard-stat-lbl">ожидают</span>
-          </div>
           <div className="guard-stat">
             <span className="guard-stat-val">{approved.length}</span>
-            <span className="guard-stat-lbl">допущены</span>
+            <span className="guard-stat-lbl">к проходу</span>
           </div>
           <div className="guard-stat">
             <span className="guard-stat-val">{temporary.length}</span>
@@ -163,7 +157,7 @@ export default function GuardPostMode({ user, onViewDetails }) {
       <div className="guard-subtabs">
         <button className={'guard-subtab' + (subTab === 'active' ? ' active' : '')} onClick={() => setSubTab('active')}>
           <span className="u-inline-icon"><AppIcon name="shield" size={14} /></span> Активные
-          {(pending.length + approved.length) > 0 && <span className="guard-subtab-badge">{pending.length + approved.length}</span>}
+          {approved.length > 0 && <span className="guard-subtab-badge">{approved.length}</span>}
         </button>
         <button className={'guard-subtab' + (subTab === 'temp' ? ' active' : '')} onClick={() => setSubTab('temp')}>
           <span className="u-inline-icon"><AppIcon name="clock" size={14} /></span> Временные
@@ -178,27 +172,16 @@ export default function GuardPostMode({ user, onViewDetails }) {
       {/* Активные */}
       {subTab === 'active' && (
         <>
-          {pending.length === 0 && approved.length === 0 && (
+          {approved.length === 0 && (
             <StateBlock
               type="empty"
               title={securityPassesEmptyCopy.title}
               subtitle={securityPassesEmptyCopy.subtitle}
             />
           )}
-          {pending.length > 0 && approved.length > 0 && filteredPending.length === 0 && filteredApproved.length === 0 && (
+          {approved.length > 0 && filteredApproved.length === 0 && (
             <StateBlock type="empty" title="Ничего не найдено" subtitle="Попробуйте другой запрос" />
           )}
-          <GuardSection title="Ожидают решения" icon={<AppIcon name="hourglass" size={14} />} count={filteredPending.length}>
-            <VirtualList
-              items={filteredPending}
-              estimateSize={148}
-              renderItem={r => (
-                <ErrorBoundary key={r.id} name={`Карточка ${r.id}`}>
-                  <GuardCard req={r} userName={user.name} blacklist={blacklist} residentPhone={getPhone(r.createdByUid)} onViewDetails={onViewDetails} />
-                </ErrorBoundary>
-              )}
-            />
-          </GuardSection>
           <GuardSection title="Допущены" icon={<AppIcon name="check" size={14} />} count={filteredApproved.length}>
             <VirtualList
               items={filteredApproved}

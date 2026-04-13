@@ -71,10 +71,10 @@ const VALID_CATS  = new Set([
 ]);
 const ALLOWED_INITIAL_STATUSES = new Set(['pending', 'scheduled']);
 
-function isResidentOneTimePass({ type, passDuration, role }) {
+function isAutoApprovedPass({ type, scheduledFor, requestedStatus }) {
   return type === 'pass'
-    && (passDuration || 'once') === 'once'
-    && (role === 'owner' || role === 'tenant');
+    && !scheduledFor
+    && requestedStatus !== 'scheduled';
 }
 
 // FIX [DRY]: единая карта ограничений длины — была продублирована в create() и update().
@@ -228,13 +228,15 @@ class RequestsService {
     const id = uuid();
     const requestedStatus = body.status || 'pending';
     const passDuration = body.passDuration || 'once';
-    const autoApproveResidentOncePass = !body.scheduledFor
-      && requestedStatus !== 'scheduled'
-      && isResidentOneTimePass({ type: body.type, passDuration, role });
-    const initialStatus = autoApproveResidentOncePass ? 'approved' : requestedStatus;
+    const autoApprovePass = isAutoApprovedPass({
+      type: body.type,
+      scheduledFor: body.scheduledFor,
+      requestedStatus,
+    });
+    const initialStatus = autoApprovePass ? 'approved' : requestedStatus;
 
-    if (!isStaff(role) && !ALLOWED_INITIAL_STATUSES.has(initialStatus) && !autoApproveResidentOncePass) {
-      throw new ServiceError('Residents can only create pending, approved (one-time pass), or scheduled requests', 403);
+    if (!isStaff(role) && !ALLOWED_INITIAL_STATUSES.has(initialStatus) && !autoApprovePass) {
+      throw new ServiceError('Residents can only create pending, approved pass, or scheduled requests', 403);
     }
 
     const { rows } = await db.query(

@@ -12,6 +12,7 @@ import { usePhotoHandler } from './usePhotoHandler';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm';
 import { useTemplateForm } from './useTemplateForm';
 import { sanitizeRequestFormFields } from '../utils/formPolicy';
+import { sanitizeText } from '../utils/inputSanitizer';
 import { getRequestInitialStatus } from '../domain/passLifecycle';
 // КРИТ-A1: form field state extracted to its own hook as part of God Hook decomposition
 import { useRequestFormState } from './useRequestFormState';
@@ -53,6 +54,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     vNames, setVNames,
     vPhone, setVPhone,
     carPlate, setCarPlate,
+    apartment, setApartment,
     comment, setComment,
     validUntil, setValidUntil,
   } = useRequestFormState({ type, user, initialCat, initialData });
@@ -116,8 +118,12 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       carPlate,
       comment,
     });
+    const targetApartment = type === 'pass' && user.role === 'concierge'
+      ? sanitizeText(apartment)
+      : user.apartment;
 
     // Validation
+    if (type === 'pass' && user.role === 'concierge' && !targetApartment) { toast('Укажите апартамент, для которого оформляется пропуск', 'error'); return; }
     if (type === 'pass' && ['taxi', 'car'].includes(cat) && !sanitized.carPlate)     { toast('Укажите марку и номер авто', 'error');  return; }
     if (type === 'pass' && ['guest', 'team'].includes(cat) && sanitized.visitorNames.length === 0) { toast('Укажите имена посетителей', 'error'); return; }
     if (type === 'pass' && cat !== 'guest' && requiresVisitorName(cat) && !sanitized.visitorName) { toast('Укажите имя посетителя', 'error'); return; }
@@ -150,7 +156,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       createdByUid:  user.uid,
       createdByRole: user.role,
       createdByName: user.name,
-      createdByApt:  user.apartment,
+      createdByApt:  targetApartment,
       visitorName:   type !== 'pass'       ? null
                    : cat  === 'taxi'       ? null
                    : ['guest', 'team'].includes(cat) ? sanitized.visitorNames.join(', ') || null
@@ -240,6 +246,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
     vNames, setVNames,
     vPhone, setVPhone,
     carPlate, setCarPlate,
+    apartment, setApartment,
     comment, setComment,
     validUntil, setValidUntil,
     photos, removePhoto,

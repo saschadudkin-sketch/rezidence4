@@ -256,14 +256,17 @@ describe('POST /api/requests', () => {
     expect(res.body.status).toBe('approved');
   });
 
-  it('403 contractor не может создать разовый пропуск со статусом approved', async () => {
+  it('201 contractor может создать пропуск со статусом approved', async () => {
     const token = makeToken({ uid: 'u3', role: 'contractor', name: 'Test' });
+    db.query.mockResolvedValueOnce({
+      rows: [makeReqRow({ id: 'contractor-approved', status: 'approved', created_by_uid: 'u3', created_by_role: 'contractor' })],
+    });
     const res = await supertest(app)
       .post('/api/requests')
       .set('Cookie', `token=${token}`)
       .send({ type: 'pass', category: 'guest', status: 'approved' });
-    expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/approved \(one-time pass\), or scheduled/i);
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('approved');
   });
 
   it('201 при валидных данных — id генерируется сервером (BUG-1)', async () => {

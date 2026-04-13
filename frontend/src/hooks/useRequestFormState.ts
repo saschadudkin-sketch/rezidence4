@@ -29,6 +29,7 @@ export function useRequestFormState({ type, user, initialCat, initialData }) {
   );
   const [vPhone,     setVPhone]     = useState(initialData?.visitorPhone || '');
   const [carPlate,   setCarPlate]   = useState(initialData?.carPlate    || '');
+  const [apartment,  setApartment]  = useState(initialData?.createdByApt || '');
   const [comment,    setComment]    = useState(initialData?.comment     || '');
   const [validUntil, setValidUntil] = useState(initialData?.validUntil  || '');
 
@@ -49,6 +50,7 @@ export function useRequestFormState({ type, user, initialCat, initialData }) {
     vNames,     setVNames,
     vPhone,     setVPhone,
     carPlate,   setCarPlate,
+    apartment,  setApartment,
     comment,    setComment,
     validUntil, setValidUntil,
   };

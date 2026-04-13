@@ -59,7 +59,51 @@ describe('NavigationShell mobile prioritization', () => {
     expect(mobile.queryByRole('button', { name: /ещё/i })).not.toBeInTheDocument();
   });
 
-  test('for owner keeps only passes tech and perms in the top mobile strip', () => {
+  test('for concierge uses top tabs instead of hiding residents and stop behind more', () => {
+    const nav = [
+      ['residents', 'residents', 'Жильцы', 0],
+      ['chat', 'chat', 'Чат', 0],
+      ['passes', 'ticket', 'Пропуска', 0],
+      ['visitlog', 'list', 'Журнал', 0],
+      ['blacklist', 'ban', 'ЧС', 2],
+    ] as Array<[string, string, string, number]>;
+    const navClassMap = Object.fromEntries(
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
+    );
+
+    const { container } = render(
+      <NavigationShell
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={vi.fn()}
+        userRole="concierge"
+      />,
+    );
+
+    const topNav = container.querySelector('.top-nav');
+    const mobileNav = container.querySelector('.mobile-nav');
+    expect(topNav).toBeInTheDocument();
+    expect(mobileNav).toBeInTheDocument();
+
+    const top = within(topNav as HTMLElement);
+    const bottom = within(mobileNav as HTMLElement);
+
+    expect(top.getByRole('button', { name: /резиденты/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /^стоп$/i })).toBeInTheDocument();
+    expect(top.queryByText('2')).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /пропуска/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /журнал/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
+
+    expect(bottom.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /чат/i })).toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /резиденты/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /^стоп$/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /ещё/i })).not.toBeInTheDocument();
+  });
+
+  test('for owner keeps templates history and access on top, passes tech and chat on bottom', () => {
     const nav = [
       ['passes', 'ticket', 'Пропуска', 0],
       ['tech', 'tools', 'Техслужба', 0],
@@ -89,18 +133,63 @@ describe('NavigationShell mobile prioritization', () => {
     const top = within(topNav as HTMLElement);
     const bottom = within(mobileNav as HTMLElement);
 
-    expect(top.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
-    expect(top.getByRole('button', { name: /техслужба/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /шаблоны/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /история/i })).toBeInTheDocument();
     expect(top.getByRole('button', { name: /доступ/i })).toBeInTheDocument();
-    expect(top.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
-    expect(top.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /пропуска/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /техслужба/i })).not.toBeInTheDocument();
     expect(top.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
 
-    expect(bottom.getByRole('button', { name: /шаблоны/i })).toBeInTheDocument();
-    expect(bottom.getByRole('button', { name: /история/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /техслужба/i })).toBeInTheDocument();
     expect(bottom.getByRole('button', { name: /чат/i })).toBeInTheDocument();
-    expect(bottom.queryByRole('button', { name: /пропуска/i })).not.toBeInTheDocument();
-    expect(bottom.queryByRole('button', { name: /техслужба/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /доступ/i })).not.toBeInTheDocument();
+  });
+
+  test('for contractor keeps templates history and access on top, passes tech and chat on bottom', () => {
+    const nav = [
+      ['passes', 'ticket', 'Пропуска', 0],
+      ['tech', 'tools', 'Техслужба', 0],
+      ['perms', 'list', 'Доступ', 0],
+      ['templates', 'file', 'Шаблоны', 0],
+      ['history', 'history', 'История', 0],
+      ['chat', 'chat', 'Чат', 0],
+    ] as Array<[string, string, string, number]>;
+    const navClassMap = Object.fromEntries(
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
+    );
+
+    const { container } = render(
+      <NavigationShell
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={vi.fn()}
+        userRole="contractor"
+      />,
+    );
+
+    const topNav = container.querySelector('.top-nav');
+    const mobileNav = container.querySelector('.mobile-nav');
+    expect(topNav).toBeInTheDocument();
+    expect(mobileNav).toBeInTheDocument();
+
+    const top = within(topNav as HTMLElement);
+    const bottom = within(mobileNav as HTMLElement);
+
+    expect(top.getByRole('button', { name: /шаблоны/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /история/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /доступ/i })).toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /пропуска/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /техслужба/i })).not.toBeInTheDocument();
+    expect(top.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
+
+    expect(bottom.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /техслужба/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /чат/i })).toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
     expect(bottom.queryByRole('button', { name: /доступ/i })).not.toBeInTheDocument();
   });
 });

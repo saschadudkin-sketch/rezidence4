@@ -16,7 +16,6 @@ import { sendNotif } from '../../utils';
 import { logVisit } from '../../shared/api/passesApi';
 import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
-import { isResidentOneTimePass } from '../../domain/passLifecycle';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 
@@ -30,7 +29,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   residentPhone?: string | null;
   onViewDetails?: (reqId: string) => void;
 }) {
-  const { approveRequest, rejectRequest, arriveRequest, approveAndArrive } = useActions();
+  const { rejectRequest, arriveRequest, approveAndArrive } = useActions();
   const avData = useAvatar(req.createdByUid);
   const [loading, setLoading]   = useState(null);
   const [showQR, setShowQR]     = useState(false);
@@ -38,7 +37,6 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   const [confirmAction, setConfirmAction] = useState(null); // null | 'approve' | 'reject'
   const blMatch = checkBlacklist(req, blacklist);
   const isBlacklisted = Boolean(blMatch);
-  const isResidentOncePass = isResidentOneTimePass(req);
 
   const handleInfoTap = () => {
     if (!onViewDetails) return;
@@ -87,12 +85,12 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
           createdByName: req.createdByName,
           createdByUid: req.createdByUid || null,
         }).catch(() => {});
-      }, 'Гость допущен', 'success');
+      }, 'Вход отмечен', 'success');
     } else {
       act('approve', () => {
-        approveRequest(req.id, userName, 'security');
-        sendNotif('Допуск открыт', (req.visitorName || 'Гость') + ' — пропуск одобрен', 'status-' + req.id);
-      }, 'Допуск открыт', 'success');
+        approveAndArrive(req.id, userName, 'security');
+        sendNotif('Вход отмечен', (req.visitorName || 'Гость') + ' — вход отмечен охраной', 'status-' + req.id);
+      }, 'Вход отмечен', 'success');
     }
   };
 
@@ -212,11 +210,11 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
                 {confirmAction === 'approve' ? (
                   <button className="guard-btn override confirm" onClick={doPass} disabled={!!loading}>
                     {loading === 'approve' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
-                    <span>Разрешить вопреки стоп-листу?</span>
+                    <span>Отметить вход вопреки стоп-листу?</span>
                   </button>
                 ) : (
                   <button className="guard-btn override" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
-                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Разрешить вручную</span>
+                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Отметить вход вручную</span>
                   </button>
                 )}
               </>
@@ -224,7 +222,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
               <>
                 <button className="guard-btn approve" onClick={doPass} disabled={!!loading}>
                   {loading === 'approve' ? <span className="btn-spin" /> : <span className="u-inline-icon"><AppIcon name="check" size={14} /></span>}
-                  <span>Пропустить и отметить вход</span>
+                  <span>Отметить вход</span>
                 </button>
                 {confirmAction === 'reject' ? (
                   <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
@@ -240,7 +238,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
             )}
           </>
         )}
-        {req.status === 'approved' && isResidentOncePass && (
+        {req.status === 'approved' && (req.passDuration === 'once' || !req.passDuration) && (
           <>
             {isBlacklisted ? (
               <>
@@ -257,11 +255,11 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
                 {confirmAction === 'approve' ? (
                   <button className="guard-btn override confirm" onClick={doArrive} disabled={!!loading}>
                     {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
-                    <span>Разрешить вопреки стоп-листу?</span>
+                    <span>Отметить вход вопреки стоп-листу?</span>
                   </button>
                 ) : (
                   <button className="guard-btn override" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
-                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Отметить проход вручную</span>
+                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Отметить вход вручную</span>
                   </button>
                 )}
               </>
@@ -269,7 +267,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
               <>
                 <button className="guard-btn arrive" onClick={doArrive} disabled={!!loading}>
                   {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
-                  <span>Отметить проход</span>
+                  <span>Отметить вход</span>
                 </button>
                 {confirmAction === 'reject' ? (
                   <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
@@ -286,10 +284,22 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
           </>
         )}
         {req.status === 'approved' && (req.passDuration === 'permanent' || req.passDuration === 'temporary') && (
-          <button className="guard-btn arrive" onClick={doArrive} disabled={!!loading}>
-            {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
-            <span>Отметить вход</span>
-          </button>
+          <>
+            <button className="guard-btn arrive" onClick={doArrive} disabled={!!loading}>
+              {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
+              <span>Отметить вход</span>
+            </button>
+            {confirmAction === 'reject' ? (
+              <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
+                {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+                <span>Точно отказать?</span>
+              </button>
+            ) : (
+              <button className="guard-btn reject" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
+                <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+              </button>
+            )}
+          </>
         )}
         {residentPhone && (
           <a href={'tel:' + residentPhone.replace(/\s/g, '')} className="guard-btn call">

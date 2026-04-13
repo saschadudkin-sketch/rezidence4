@@ -7,6 +7,10 @@ export function isResidentAutoApprovedRole(role?: string | null): boolean {
   return role === ROLES.OWNER || role === ROLES.TENANT;
 }
 
+export function isAutoApprovedPass(type: RequestType, isScheduled: boolean): boolean {
+  return type === 'pass' && !isScheduled;
+}
+
 export function isOneTimePassDuration(passDuration?: PassDuration | null): boolean {
   return (passDuration ?? 'once') === 'once';
 }
@@ -29,7 +33,7 @@ export function getRequestInitialStatus({
   isScheduled: boolean;
 }): RequestStatus {
   if (isScheduled) return 'scheduled';
-  if (type === 'pass' && isOneTimePassDuration(passDuration) && isResidentAutoApprovedRole(userRole)) {
+  if (isAutoApprovedPass(type, isScheduled)) {
     return 'approved';
   }
   return 'pending';
@@ -37,8 +41,5 @@ export function getRequestInitialStatus({
 
 export function isSecurityActionablePass(req: PassLike): boolean {
   return req.type === 'pass'
-    && (
-      req.status === 'pending'
-      || (req.status === 'approved' && isResidentOneTimePass(req))
-    );
+    && (req.status === 'pending' || req.status === 'approved');
 }

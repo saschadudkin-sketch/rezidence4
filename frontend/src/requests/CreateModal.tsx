@@ -44,6 +44,9 @@ type AccordionSectionProps = {
   badge?: ReactNode;
 };
 type VisitorFieldsProps = {
+  showApartmentField: boolean;
+  apartment: string;
+  setApartment: Dispatch<SetStateAction<string>>;
   cat: string;
   vName: string;
   setVName: Dispatch<SetStateAction<string>>;
@@ -86,7 +89,50 @@ function clampResidentStep(value?: number) {
   return Math.max(0, Math.min(3, Math.trunc(value)));
 }
 
+function getResidentQuickDate(mode: 'evening' | 'tomorrow') {
+  const next = new Date();
+  if (mode === 'evening') {
+    next.setHours(19, 0, 0, 0);
+    if (next <= new Date()) next.setDate(next.getDate() + 1);
+    return next;
+  }
+  next.setDate(next.getDate() + 1);
+  next.setHours(8, 0, 0, 0);
+  return next;
+}
+
+function formatResidentQuickMeta(date: Date) {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+
+  const sameDay =
+    date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  const nextDay =
+    date.getFullYear() === tomorrow.getFullYear()
+    && date.getMonth() === tomorrow.getMonth()
+    && date.getDate() === tomorrow.getDate();
+
+  const dayLabel = sameDay
+    ? 'Сегодня'
+    : nextDay
+      ? 'Завтра'
+      : date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+
+  const timeLabel = date.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `${dayLabel}, ${timeLabel}`;
+}
+
 const VisitorFields = memo(function VisitorFields({
+  showApartmentField,
+  apartment,
+  setApartment,
   cat,
   vName,
   setVName,
@@ -111,6 +157,22 @@ const VisitorFields = memo(function VisitorFields({
 
   return (
     <>
+      {showApartmentField && (
+        <div className="field">
+          <label className="field-lbl" htmlFor="request-apartment">Для какого апартамента пропуск *</label>
+          <input
+            id="request-apartment"
+            className="field-inp"
+            placeholder="Например: 1203"
+            value={apartment}
+            onChange={(e) => setApartment(e.target.value)}
+            onBlur={(e) => setApartment(sanitizeText(e.target.value))}
+            inputMode="numeric"
+            autoComplete="off"
+          />
+        </div>
+      )}
+
       {needsCarPlate(cat) && cat !== 'guest' && (
         <div className="field">
           <label className="field-lbl">Марка и номер авто{['taxi', 'car'].includes(cat) ? ' *' : ''}</label>
@@ -454,11 +516,13 @@ function getResidentPassSummary(form: CreateRequestForm) {
     ? fmtScheduled(form.scheduledFor)
     : 'сразу после создания';
   const car = form.carPlate.trim();
-  return { who, when, car };
+  const apartment = form.apartment.trim();
+  return { who, when, car, apartment };
 }
 
-function getResidentStepError(form: CreateRequestForm, step: number) {
+function getResidentStepError(form: CreateRequestForm, step: number, userRole: AppUser['role']) {
   if (step !== 1) return '';
+  if (userRole === 'concierge' && !form.apartment.trim()) return 'Укажите апартамент, для которого оформляется пропуск.';
   const carPlate = form.carPlate.trim();
   const visitorName = form.vName.trim();
   const visitorNames = form.vNames.map((item) => item.value.trim()).filter(Boolean);
@@ -478,6 +542,7 @@ function ResidentPassWizard({
   cats,
   step,
   fastMode,
+  userRole,
   residentError,
   showAdvanced,
   setShowAdvanced,
@@ -486,25 +551,39 @@ function ResidentPassWizard({
   cats: string[];
   step: number;
   fastMode: boolean;
+  userRole: AppUser['role'];
   residentError: string;
   showAdvanced: boolean;
   setShowAdvanced: Dispatch<SetStateAction<boolean>>;
 }) {
   const summary = getResidentPassSummary(form);
+  const eveningDate = getResidentQuickDate('evening');
+  const tomorrowDate = getResidentQuickDate('tomorrow');
+  const eveningValue = toLocalDateTimeInputValue(eveningDate);
+  const tomorrowValue = toLocalDateTimeInputValue(tomorrowDate);
+  const activeQuickTime = !form.showSchedule
+    ? 'now'
+    : form.scheduledFor === eveningValue
+      ? 'evening'
+      : form.scheduledFor === tomorrowValue
+        ? 'tomorrow'
+        : 'custom';
+  const selectedQuickTimeLabel = activeQuickTime === 'now'
+    ? 'Сейчас'
+    : activeQuickTime === 'evening'
+      ? `Вечером, ${formatResidentQuickMeta(eveningDate)}`
+      : activeQuickTime === 'tomorrow'
+        ? `Завтра утром, ${formatResidentQuickMeta(tomorrowDate)}`
+        : form.showSchedule && form.scheduledFor
+          ? fmtScheduled(form.scheduledFor)
+          : '';
   const setQuickTime = (mode: 'now' | 'evening' | 'tomorrow') => {
     if (mode === 'now') {
       form.setShowSchedule(false);
       form.setScheduledFor('');
       return;
     }
-    const next = new Date();
-    if (mode === 'evening') {
-      next.setHours(19, 0, 0, 0);
-      if (next <= new Date()) next.setDate(next.getDate() + 1);
-    } else {
-      next.setDate(next.getDate() + 1);
-      next.setHours(8, 0, 0, 0);
-    }
+    const next = mode === 'evening' ? eveningDate : tomorrowDate;
     form.setScheduledFor(toLocalDateTimeInputValue(next));
     form.setShowSchedule(true);
   };
@@ -551,6 +630,9 @@ function ResidentPassWizard({
             <p>{fastMode ? 'Минимум данных — и охрана сразу увидит пропуск.' : 'Можно выбрать из постоянного списка или ввести данные вручную.'}</p>
           </div>
           <VisitorFields
+            showApartmentField={userRole === 'concierge'}
+            apartment={form.apartment}
+            setApartment={form.setApartment}
             cat={form.cat}
             vName={form.vName}
             setVName={form.setVName}
@@ -580,16 +662,23 @@ function ResidentPassWizard({
             <p>Для срочного визита оставьте “Сейчас”. Детали можно добавить ниже.</p>
           </div>
           <div className="resident-time-grid">
-            <button type="button" className={!form.showSchedule ? 'active' : ''} onClick={() => setQuickTime('now')}>
-              Сейчас
+            <button type="button" className={activeQuickTime === 'now' ? 'active' : ''} onClick={() => setQuickTime('now')} aria-pressed={activeQuickTime === 'now'}>
+              <span className="resident-time-label">Сейчас</span>
             </button>
-            <button type="button" onClick={() => setQuickTime('evening')}>
-              Сегодня вечером
+            <button type="button" className={activeQuickTime === 'evening' ? 'active' : ''} onClick={() => setQuickTime('evening')} aria-pressed={activeQuickTime === 'evening'}>
+              <span className="resident-time-label">Вечером</span>
+              <span className="resident-time-meta">{formatResidentQuickMeta(eveningDate)}</span>
             </button>
-            <button type="button" onClick={() => setQuickTime('tomorrow')}>
-              Завтра утром
+            <button type="button" className={activeQuickTime === 'tomorrow' ? 'active' : ''} onClick={() => setQuickTime('tomorrow')} aria-pressed={activeQuickTime === 'tomorrow'}>
+              <span className="resident-time-label">Завтра утром</span>
+              <span className="resident-time-meta">{formatResidentQuickMeta(tomorrowDate)}</span>
             </button>
           </div>
+          {selectedQuickTimeLabel && (
+            <div className="resident-time-selected" aria-live="polite">
+              Выбрано: {selectedQuickTimeLabel}
+            </div>
+          )}
           <AccordionSection
             title="Точное время и детали"
             icon="clock"
@@ -639,6 +728,12 @@ function ResidentPassWizard({
               <span>Кому</span>
               <strong>{summary.who}</strong>
             </div>
+            {summary.apartment && (
+              <div>
+                <span>Апартамент</span>
+                <strong>{summary.apartment}</strong>
+              </div>
+            )}
             <div>
               <span>Когда</span>
               <strong>{summary.when}</strong>
@@ -677,7 +772,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
     if (!residentError) return;
     setResidentError('');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- vNames is the resident visitor field state; clearing the step error is UI-only
-  }, [form.cat, form.vName, form.vNames, form.carPlate]);
+  }, [form.cat, form.vName, form.vNames, form.carPlate, form.apartment]);
 
   const submitLabel = form.loading
     ? 'Сохранение...'
@@ -695,7 +790,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
 
   const advancedSubtitle = '';
   const goResidentNext = () => {
-    const error = getResidentStepError(form, residentStep);
+    const error = getResidentStepError(form, residentStep, user.role);
     if (error) {
       setResidentError(error);
       return;
@@ -704,7 +799,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
     setResidentStep((step) => Math.min(3, step + 1));
   };
   const submitResidentNow = () => {
-    const error = getResidentStepError(form, 1);
+    const error = getResidentStepError(form, 1, user.role);
     if (error) {
       setResidentStep(1);
       setResidentError(error);
@@ -736,6 +831,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
               cats={cats}
               step={residentStep}
               fastMode={fastMode}
+              userRole={user.role}
               residentError={residentError}
               showAdvanced={showAdvanced}
               setShowAdvanced={setShowAdvanced}
@@ -763,6 +859,9 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
 
               {type === 'pass' && (
                 <VisitorFields
+                  showApartmentField={user.role === 'concierge'}
+                  apartment={form.apartment}
+                  setApartment={form.setApartment}
                   cat={form.cat}
                   vName={form.vName}
                   setVName={form.setVName}
@@ -780,7 +879,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
               )}
 
               <AccordionSection
-                title={type === 'pass' ? 'Шаг 2. Время, авто и детали' : 'Шаг 2. Дополнительные настройки'}
+                title={type === 'pass' ? 'Шаг 2. Время, фото и детали' : 'Шаг 2. Дополнительные настройки'}
                 subtitle={advancedSubtitle}
                 icon="file"
                 open={showAdvanced}

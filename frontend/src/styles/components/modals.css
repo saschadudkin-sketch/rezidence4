@@ -171,6 +171,199 @@
 .owner-create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .owner-create-card{width:100%;min-height:92px}
 .owner-create-card--template{width:100%}
+.modal.modal--request{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at top right, rgba(201, 169, 110, .12), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
+  border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+  box-shadow:
+    0 28px 68px rgba(0,0,0,.34),
+    0 1px 0 rgba(255,255,255,.04) inset;
+}
+.modal.modal--request::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), transparent 24%),
+    radial-gradient(circle at top, rgba(255,255,255,.03), transparent 42%);
+}
+.modal--request .modal-handle{
+  width:42px;
+  height:4px;
+  margin:10px auto 6px;
+  background:linear-gradient(90deg, rgba(201,169,110,.14), rgba(201,169,110,.46), rgba(201,169,110,.14));
+}
+.modal--request .modal-head{
+  position:relative;
+  padding:18px 20px 16px;
+  border-bottom:1px solid color-mix(in srgb, var(--b2) 72%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 92%, transparent), color-mix(in srgb, var(--s1) 82%, transparent));
+}
+.modal--request .modal-head-main{
+  gap:8px;
+}
+.modal--request .modal-title{
+  font-family:var(--font-display);
+  font-size:28px;
+  line-height:.98;
+  letter-spacing:.01em;
+}
+.modal--request .modal-cat-hint{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  align-self:flex-start;
+  min-height:28px;
+  padding:0 10px;
+  margin-top:0;
+  border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 34%, transparent), color-mix(in srgb, var(--g-bg) 18%, transparent));
+  color:color-mix(in srgb, var(--g1) 62%, var(--t2));
+  font-size:11px;
+  letter-spacing:.04em;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+.modal--request .modal-close{
+  border-radius:999px;
+  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 82%, transparent));
+  color:var(--t2);
+  box-shadow:var(--sh-s);
+}
+.modal--request .modal-close:hover{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 42%, transparent), color-mix(in srgb, var(--g-bg) 22%, transparent));
+  border-color:color-mix(in srgb, var(--g1) 44%, var(--b2));
+  color:var(--t1);
+}
+.modal--request .modal-body{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  padding:18px 20px 22px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s1) 96%, transparent), color-mix(in srgb, var(--s0) 94%, transparent));
+}
+.modal--request .modal-body > .u-fs11-op6.u-mb8{
+  margin-bottom:2px;
+  font-size:10px;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:color-mix(in srgb, var(--t4) 86%, var(--g1));
+}
+.modal--request .field{
+  margin-bottom:16px;
+}
+.modal--request .field-lbl{
+  margin-bottom:9px;
+  color:color-mix(in srgb, var(--t3) 88%, var(--g1));
+  font-size:11px;
+  font-weight:600;
+}
+.modal--request .field-inp,
+.modal--request .field-select,
+.modal--request .field-textarea{
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+  border-radius:16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.03),
+    0 10px 24px rgba(0,0,0,.08);
+}
+.modal--request .field-inp:focus,
+.modal--request .field-select:focus,
+.modal--request .field-textarea:focus{
+  border-color:color-mix(in srgb, var(--g1) 72%, var(--b2));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--g2) 10%, transparent),
+    0 14px 30px rgba(0,0,0,.12);
+}
+.modal--request .vf-add-btn,
+.modal--request .perms-picker-trigger,
+.modal--request .photo-btn{
+  min-height:48px;
+  border-radius:16px;
+}
+.modal--request .photo-btn{
+  justify-content:center;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  border-color:color-mix(in srgb, var(--b2) 78%, transparent);
+  color:var(--t2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+.modal--request .photo-btn:hover{
+  border-color:color-mix(in srgb, var(--g1) 44%, var(--b2));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 38%, transparent), color-mix(in srgb, var(--g-bg) 18%, transparent));
+}
+.modal--request .schedule-toggle{
+  min-height:52px;
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 97%, transparent), color-mix(in srgb, var(--s1) 93%, transparent));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+.modal--request .schedule-toggle.active{
+  border-color:color-mix(in srgb, var(--g1) 82%, var(--b2));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 42%, transparent), color-mix(in srgb, var(--g-bg) 24%, transparent));
+}
+.modal--request .schedule-preset,
+.modal--request .temp-pass-preset{
+  border-radius:999px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--s1) 90%, transparent));
+  border:1px solid color-mix(in srgb, var(--b2) 76%, transparent);
+  color:var(--t2);
+}
+.modal--request .schedule-preset:hover,
+.modal--request .temp-pass-preset:hover{
+  border-color:color-mix(in srgb, var(--g1) 44%, var(--b2));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 30%, transparent), color-mix(in srgb, var(--g-bg) 16%, transparent));
+}
+.modal--request .photo-grid{
+  gap:10px;
+  margin-top:10px;
+}
+.modal--request .photo-grid-item{
+  width:80px;
+  height:80px;
+  border-radius:12px;
+  border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
+  box-shadow:0 8px 20px rgba(0,0,0,.16);
+}
+.modal--request .photo-grid-del{
+  top:6px;
+  right:6px;
+  width:30px;
+  height:30px;
+  padding:0;
+  align-items:center;
+  justify-content:center;
+}
+.modal--request .modal-foot{
+  padding:14px 20px 18px;
+  gap:12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--s1) 84%, transparent), color-mix(in srgb, var(--s1) 96%, transparent));
+  border-top:1px solid color-mix(in srgb, var(--b2) 76%, transparent);
+  box-shadow:0 -12px 30px rgba(0,0,0,.16);
+}
+.modal--request .modal-foot .btn-gold,
+.modal--request .modal-foot .btn-outline{
+  min-height:56px;
+  border-radius:16px;
+}
 @media (--bp-md-up) and (--bp-lg-down){
   .modal.modal--request{
     width:min(720px, calc(100vw - 72px));

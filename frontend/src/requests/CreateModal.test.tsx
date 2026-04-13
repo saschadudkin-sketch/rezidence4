@@ -24,6 +24,7 @@ const createRequestState = (overrides = {}) => ({
   vNames: [{ __id: 'n1', value: 'Иван Иванов' }], setVNames: vi.fn(),
   vPhone: '', setVPhone: vi.fn(),
   carPlate: '', setCarPlate: vi.fn(),
+  apartment: '', setApartment: vi.fn(),
   comment: '', setComment: vi.fn(),
   photos: [], handlePhoto: vi.fn(), removePhoto: vi.fn(),
   validUntil: '', setValidUntil: vi.fn(),
@@ -65,6 +66,7 @@ vi.mock('../ui/AppIcon', () => ({
 }));
 
 const OWNER = { uid: 'u1', role: 'owner', name: 'Тест', apartment: '12' };
+const CONCIERGE = { uid: 'c1', role: 'concierge', name: 'Консьерж', apartment: '—' };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -151,6 +153,20 @@ describe('CreateModal — smoke', () => {
     expect(btn).toBeDisabled();
   });
 
+  test('у консьержа есть поле апартамента при создании пропуска', () => {
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      apartment: '',
+    }));
+
+    render(
+      <CreateModal user={CONCIERGE} type="pass" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+
+    expect(screen.getByLabelText('Для какого апартамента пропуск *')).toBeTruthy();
+  });
+
   test('клик по overlay вызывает onClose', () => {
     const { container } = render(
       <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
@@ -219,7 +235,7 @@ describe('CreateModal — smoke', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Завтра утром' }));
+    fireEvent.click(screen.getByRole('button', { name: /Завтра утром/i }));
 
     expect(setScheduledFor).toHaveBeenCalledWith('2026-04-13T08:00');
     expect(setShowSchedule).toHaveBeenCalledWith(true);

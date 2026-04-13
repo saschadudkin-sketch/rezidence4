@@ -30,6 +30,8 @@ type QuickActionsSheetProps = {
   onClose: () => void;
 };
 
+const shouldShowNavBadge = (key: string) => key !== 'blacklist';
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== 'undefined' && window.matchMedia(MEDIA_QUERIES.lgDown).matches,
@@ -92,7 +94,7 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: Q
             >
               <span className="mn-icon"><AppIcon name={icon} size={20} /></span>
               <span className="mn-more-label">{label}</span>
-              {badge > 0 && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
+              {badge > 0 && shouldShowNavBadge(key) && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
             </button>
           ))}
         </div>
@@ -171,7 +173,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
           >
             <span className="tn-icon"><AppIcon name={icon} size={15} /></span>
             <span>{isMobile ? getMobileLabel(userRole, key, label) : label}</span>
-            {badge > 0 && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
+            {badge > 0 && shouldShowNavBadge(key) && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
       </nav>
@@ -187,7 +189,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
           >
             <span className="mn-icon"><AppIcon name={icon} size={16} /></span>
             <span className="mn-label">{getMobileLabel(userRole, key, label)}</span>
-            {badge > 0 && key !== 'blacklist' && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
+            {badge > 0 && shouldShowNavBadge(key) && <span className="mn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
 

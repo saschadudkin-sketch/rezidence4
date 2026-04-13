@@ -71,6 +71,25 @@ describe('requestsReducer', () => {
     expect(result.requests[0].scheduledFor).toBeNull();
   });
 
+  test('REQUEST_ACTIVATE_SCHEDULED auto-approves any scheduled pass', () => {
+    const scheduled = {
+      id: 'r-contractor-scheduled',
+      type: 'pass',
+      status: 'scheduled',
+      passDuration: 'temporary',
+      createdByRole: 'contractor',
+      scheduledFor: new Date(Date.now() - 1000),
+      createdAt: new Date(),
+      arrivedAt: null,
+    };
+    const state = { requests: [scheduled], history: {} };
+    const action = { type: 'REQUEST_ACTIVATE_SCHEDULED' };
+    const result = requestsReducer(state, action);
+
+    expect(result.requests[0].status).toBe('approved');
+    expect(result.requests[0].scheduledFor).toBeNull();
+  });
+
   test('unknown action returns state', () => {
     const result = requestsReducer(baseState, { type: 'UNKNOWN' });
     expect(result).toBe(baseState);

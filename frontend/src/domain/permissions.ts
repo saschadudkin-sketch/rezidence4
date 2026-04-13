@@ -95,7 +95,8 @@ export const canApproveRequest = (user, req) =>
  * Может ли пользователь отклонить заявку
  */
 export const canRejectRequest = (user, req) =>
-  canApproveRequests(user.role) && req.status === 'pending';
+  canApproveRequests(user.role)
+  && (req.status === 'pending' || (req.type === 'pass' && req.status === 'approved'));
 
 /**
  * Может ли пользователь принять заявку в работу

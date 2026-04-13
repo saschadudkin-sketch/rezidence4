@@ -43,10 +43,7 @@ function startRuntimeJobs({ db }) {
       const { rows: activatedRows } = await db.query(`
         UPDATE requests
         SET status = CASE
-              WHEN type = 'pass'
-               AND pass_duration = 'once'
-               AND created_by_role IN ('owner', 'tenant')
-              THEN 'approved'
+              WHEN type = 'pass' THEN 'approved'
               ELSE 'pending'
             END,
             scheduled_for = NULL,

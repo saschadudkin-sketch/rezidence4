@@ -1,6 +1,6 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-import { isResidentOneTimePass } from '../../domain/passLifecycle';
+import { isAutoApprovedPass } from '../../domain/passLifecycle';
 
 export type RequestStatus = 'pending' | 'approved' | 'accepted' | 'rejected' | 'arrived' | 'expired' | 'cancelled' | 'scheduled';
 export type RequestType = 'pass' | 'tech';
@@ -132,7 +132,7 @@ export function requestsReducer(state: RequestsState, action: RequestsAction): R
               && new Date(r.scheduledFor).getTime() <= nowTs) {
             return {
               ...r,
-              status: isResidentOneTimePass(r) ? 'approved' : 'pending',
+              status: isAutoApprovedPass(r.type, false) ? 'approved' : 'pending',
               scheduledFor: null,
             };
           }

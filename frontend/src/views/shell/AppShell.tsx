@@ -91,6 +91,7 @@ const AppShell = memo(function AppShell({
         <div className="header-inner">
           <div className="header-brand">
             <img src={LOGO} alt="Резиденции Замоскворечья" className="header-logo" />
+            <span className="header-wordmark-mobile">Резиденции</span>
             <div className="header-brand-copy">
               <span className="header-wordmark">Резиденции Замоскворечья</span>
               <div className="header-brand-status">
@@ -126,13 +127,15 @@ const AppShell = memo(function AppShell({
       <div className="layout">
         <NavigationShell nav={nav} navClassMap={navClassMap} goTab={goTab} userRole={user.role} />
         <main className="content" id="main-content">
-          <div className={`page-top${isChatTab ? ' page-top--chat' : ''}${hideChatTitleOnCompact ? ' page-top--chat-compact' : ''}`}>
-            <div className="page-top-copy">
-              <h1 className={`page-title${hideChatTitleOnCompact ? ' page-title--chat-compact' : ''}`}>{pageTitle}</h1>
-              {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
-              {actionRail}
+          {!hideChatTitleOnCompact && (
+            <div className={`page-top${isChatTab ? ' page-top--chat' : ''}`}>
+              <div className="page-top-copy">
+                <h1 className="page-title">{pageTitle}</h1>
+                {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
+                {actionRail}
+              </div>
             </div>
-          </div>
+          )}
           <ErrorBoundary name="Экран">
             <RoleContentRouter user={user} isLoading={isLoading} />
           </ErrorBoundary>

@@ -69,7 +69,7 @@ describe('GuardPostMode', () => {
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
 
     expect(screen.getByText('ЧЁРНЫЙ СПИСОК')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /разрешить вручную/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отметить вход вручную/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /пропустить и отметить вход/i })).not.toBeInTheDocument();
   });
 
@@ -78,9 +78,17 @@ describe('GuardPostMode', () => {
 
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
 
-    expect(screen.getByRole('button', { name: /отметить проход/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отметить вход/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /отказать/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /пропустить и отметить вход/i })).not.toBeInTheDocument();
+  });
+
+  test('legacy pending-пропуск отображается как готовый к проходу без секции решения', () => {
+    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
+
+    expect(screen.queryByText('Ожидают решения')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отметить вход/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отказать/i })).toBeInTheDocument();
   });
 });
 

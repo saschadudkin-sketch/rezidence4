@@ -99,9 +99,9 @@ const PassesTab = memo(function PassesTab({
       ];
 
   const quickResidentActions = [
-    ['guest', 'users', 'Гость', 'Родные и друзья'],
-    ['courier', 'courier', 'Курьер', 'Доставка до КПП'],
-    ['taxi', 'taxi', 'Такси', 'Номер авто обязателен'],
+    ['guest', 'users', 'Гость', 'Близкие и приглашённые'],
+    ['courier', 'courier', 'Курьер', 'Доставка к резиденции'],
+    ['taxi', 'taxi', 'Такси', 'Въезд по номеру авто'],
   ];
 
   return (

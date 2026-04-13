@@ -6,6 +6,7 @@ import {
   useCreateRequest,
 } from './useCreateRequest';
 import { services } from '../services/providers/serviceContainer';
+import { toast } from '../ui/Toasts';
 
 // ─── Mocks required by useCreateRequest ──────────────────────────────────────
 
@@ -31,6 +32,8 @@ vi.mock('../ui/scrollLock', () => ({ lockScroll: vi.fn(), unlockScroll: vi.fn() 
 vi.mock('../config/runtimeMode', () => ({ isLiveMode: () => false, isDemoMode: () => true }));
 
 const TEST_USER = { uid: 'u1', role: 'owner', name: 'Test', apartment: '1' };
+const CONCIERGE_USER = { uid: 'c1', role: 'concierge', name: 'Desk', apartment: '—' };
+const CONTRACTOR_USER = { uid: 'u3', role: 'contractor', name: 'Team', apartment: '45' };
 
 // ─── P-04: vNames must always be [{__id, value}] objects, never plain strings ──
 
@@ -116,5 +119,86 @@ describe('useCreateRequest resident pass lifecycle', () => {
     expect(submitSpy.mock.calls[0][0].request.status).toBe('approved');
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('contractor pass is submitted as approved immediately', async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    const submitSpy = vi.mocked(services.requests.submit);
+    submitSpy.mockClear();
+
+    const { result } = renderHook(() =>
+      useCreateRequest({
+        user: CONTRACTOR_USER,
+        type: 'pass',
+        initialCat: 'worker',
+        initialData: { visitorName: 'Worker' },
+        onDone,
+        onClose,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    expect(submitSpy.mock.calls[0][0].request.status).toBe('approved');
+  });
+
+  test('concierge pass uses selected apartment as createdByApt', async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    const submitSpy = vi.mocked(services.requests.submit);
+    submitSpy.mockClear();
+
+    const { result } = renderHook(() =>
+      useCreateRequest({
+        user: CONCIERGE_USER,
+        type: 'pass',
+        initialCat: 'courier',
+        initialData: { visitorName: 'СДЭК' },
+        onDone,
+        onClose,
+      }),
+    );
+
+    act(() => {
+      result.current.setApartment('1203');
+    });
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    expect(submitSpy.mock.calls[0][0].request.createdByApt).toBe('1203');
+  });
+
+  test('concierge pass requires apartment before submit', async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    const submitSpy = vi.mocked(services.requests.submit);
+    const toastSpy = vi.mocked(toast);
+    submitSpy.mockClear();
+    toastSpy.mockClear();
+
+    const { result } = renderHook(() =>
+      useCreateRequest({
+        user: CONCIERGE_USER,
+        type: 'pass',
+        initialCat: 'courier',
+        initialData: { visitorName: 'СДЭК' },
+        onDone,
+        onClose,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(submitSpy).not.toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalledWith('Укажите апартамент, для которого оформляется пропуск', 'error');
   });
 });

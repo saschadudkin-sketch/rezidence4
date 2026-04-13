@@ -25,7 +25,7 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const user = (role, uid = 'u1') => ({ uid, role });
-const req  = (status, createdByUid = 'u1') => ({ status, createdByUid });
+const req  = (status, createdByUid = 'u1', overrides = {}) => ({ status, createdByUid, ...overrides });
 const msg  = (uid) => ({ uid });
 
 // ─── Role predicates ──────────────────────────────────────────────────────────
@@ -111,6 +111,12 @@ describe('canApproveRequest', () => {
 describe('canRejectRequest', () => {
   test('security отклоняет pending', () => {
     expect(canRejectRequest(user('security'), req('pending'))).toBe(true);
+  });
+  test('security отклоняет уже открытый пропуск', () => {
+    expect(canRejectRequest(user('security'), req('approved', 'u1', { type: 'pass' }))).toBe(true);
+  });
+  test('approved техзаявку нельзя отклонить как пропуск', () => {
+    expect(canRejectRequest(user('security'), req('approved', 'u1', { type: 'tech' }))).toBe(false);
   });
   test('owner не может отклонить', () => {
     expect(canRejectRequest(user('owner'), req('pending'))).toBe(false);

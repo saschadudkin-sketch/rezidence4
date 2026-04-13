@@ -7,7 +7,6 @@ import { CAT_LABEL, STS_LABEL } from '../constants/index';
 import { getValidationReasonLabel, getStatusToneClass } from '../constants/statusPresentation';
 import { normalizeValidationResult } from '../domain/validationResult';
 import { getScanDecision } from '../domain/scanDecision';
-import { isResidentOneTimePass } from '../domain/passLifecycle';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
@@ -21,7 +20,7 @@ import { useModalAccessibility } from '../ui/useModalAccessibility';
 export function ScanQRModal({ user, onClose }) {
   const requests = useRequests();
   const blacklist = useBlacklist();
-  const { approveRequest, rejectRequest, arriveRequest, approveAndArrive } = useActions();
+  const { rejectRequest, arriveRequest, approveAndArrive } = useActions();
   const [scannedReq, setScannedReq] = useState(null);
   const [validation, setValidation] = useState(null);
   const [checking, setChecking] = useState(false);
@@ -213,16 +212,9 @@ export function ScanQRModal({ user, onClose }) {
     }
 
     if (scannedReq.status === 'pending') {
-      const dur = scannedReq.passDuration || 'once';
-      if (dur === 'once') {
-        approveAndArrive(scannedReq.id, user.name, user.role);
-        toast('Гость допущен', 'success');
-      } else {
-        approveRequest(scannedReq.id, user.name, user.role);
-        toast('Допуск разрешён', 'success');
-      }
-    }
-    if (scannedReq.status === 'approved') {
+      approveAndArrive(scannedReq.id, user.name, user.role);
+      toast('Вход отмечен', 'success');
+    } else if (scannedReq.status === 'approved') {
       arriveRequest(scannedReq.id, user.name, user.role);
       toast('Вход отмечен', 'success');
     }
@@ -250,7 +242,7 @@ export function ScanQRModal({ user, onClose }) {
   };
 
   const handleReject = async () => {
-    if (scannedReq && (scannedReq.status === 'pending' || (scannedReq.status === 'approved' && isResidentOneTimePass(scannedReq)))) {
+    if (scannedReq && (scannedReq.status === 'pending' || scannedReq.status === 'approved')) {
       rejectRequest(scannedReq.id, user.name, user.role);
     }
     if (scannedReq) {
@@ -282,7 +274,7 @@ export function ScanQRModal({ user, onClose }) {
     requestStatus: scannedReq?.status,
     validationStatus: validation?.status,
   });
-  const actionLabel = scannedReq?.status === 'approved' ? 'Отметить вход' : 'Пропустить';
+  const actionLabel = 'Отметить вход';
   const validationReason = getValidationReasonLabel(validation?.reason);
   const statusIconName = checking
     ? 'history'
@@ -352,7 +344,7 @@ export function ScanQRModal({ user, onClose }) {
                     : deniedByValidation
                       ? 'Доступ запрещён'
                       : canApprove
-                    ? (scannedReq.status === 'approved' ? 'Допуск открыт — ожидает входа' : 'Ожидает решения')
+                    ? 'Допуск открыт — ожидает входа'
                     : STS_LABEL[scannedReq.status] || scannedReq.status}
                 </span>
               </div>

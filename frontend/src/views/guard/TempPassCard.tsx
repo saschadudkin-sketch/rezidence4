@@ -23,9 +23,10 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
   residentPhone?: string | null;
   blacklist: BlacklistEntry[];
 }) {
-  const { arriveRequest } = useActions();
+  const { arriveRequest, approveAndArrive, rejectRequest } = useActions();
   const avData = useAvatar(req.createdByUid);
   const [loading, setLoading] = useState(false);
+  const [confirmReject, setConfirmReject] = useState(false);
   const blMatch = checkBlacklist(req, blacklist);
 
   // FIX [PERF]: useMemo — exp/diff пересчитываются только при смене req.validUntil
@@ -50,12 +51,32 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
     if (loading) return;
     setLoading(true);
     try {
-      arriveRequest(req.id, userName, 'security');
+      if (req.status === 'pending') {
+        approveAndArrive(req.id, userName, 'security');
+      } else {
+        arriveRequest(req.id, userName, 'security');
+      }
       if (isMountedRef.current) toast('Вход отмечен', 'success');
     } catch {
       if (isMountedRef.current) toast(presentError(new Error('arrive_failed'), 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(false);
+    }
+  };
+
+  const doReject = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      rejectRequest(req.id, userName, 'security');
+      if (isMountedRef.current) toast('В пропуске отказано', 'error');
+    } catch {
+      if (isMountedRef.current) toast(presentError(new Error('reject_failed'), 'default').message, 'error');
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+        setConfirmReject(false);
+      }
     }
   };
 
@@ -86,12 +107,22 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
         </div>
       </div>
 
-      {req.status === 'approved' && !expired && (
+      {(req.status === 'approved' || req.status === 'pending') && !expired && (
         <div className="guard-actions">
           <button className="guard-btn arrive" onClick={doArrive} disabled={loading}>
             {loading ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
             <span>Отметить вход</span>
           </button>
+          {confirmReject ? (
+            <button className="guard-btn reject confirm" onClick={doReject} disabled={loading}>
+              {loading ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+              <span>Точно отказать?</span>
+            </button>
+          ) : (
+            <button className="guard-btn reject" onClick={() => setConfirmReject(true)} disabled={loading}>
+              <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+            </button>
+          )}
           {residentPhone && (
             <a href={'tel:' + residentPhone.replace(/\s/g, '')} className="guard-btn call">
               <AppIcon name="phone" size={14} /> <span>Позвонить</span>

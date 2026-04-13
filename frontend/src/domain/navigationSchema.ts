@@ -45,8 +45,9 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
   },
   concierge: {
     mobileMaxTabs: 3,
-    mobileOrder: ['passes', 'residents', 'visitlog', 'blacklist', 'chat', 'templates', 'history', 'tech'],
-    mobileBottomTabs: ['passes', 'visitlog', 'chat', 'blacklist', 'residents'],
+    mobileOrder: ['passes', 'visitlog', 'chat', 'residents', 'blacklist'],
+    mobileTopTabs: ['residents', 'blacklist'],
+    mobileBottomTabs: ['passes', 'visitlog', 'chat'],
     mobileLabels: {
       passes: 'Пропуска',
       visitlog: 'Журнал',
@@ -56,19 +57,22 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
     },
   },
   owner: {
-    mobileMaxTabs: 4,
+    mobileMaxTabs: 3,
     mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['passes', 'tech', 'perms'],
+    mobileTopTabs: ['templates', 'history', 'perms'],
+    mobileBottomTabs: ['passes', 'tech', 'chat'],
   },
   tenant: {
-    mobileMaxTabs: 4,
+    mobileMaxTabs: 3,
     mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['passes', 'tech', 'perms'],
+    mobileTopTabs: ['templates', 'history', 'perms'],
+    mobileBottomTabs: ['passes', 'tech', 'chat'],
   },
   contractor: {
-    mobileMaxTabs: 4,
+    mobileMaxTabs: 3,
     mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['passes', 'tech', 'perms'],
+    mobileTopTabs: ['templates', 'history', 'perms'],
+    mobileBottomTabs: ['passes', 'tech', 'chat'],
   },
 };
 

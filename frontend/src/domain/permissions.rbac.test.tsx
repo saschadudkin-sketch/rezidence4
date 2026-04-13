@@ -67,6 +67,10 @@ describe('canRejectRequest', () => {
   it('security can reject pending request', () => {
     expect(canRejectRequest(makeUser(ROLES.SECURITY), makeReq())).toBe(true);
   });
+
+  it('security can reject an already-approved pass', () => {
+    expect(canRejectRequest(makeUser(ROLES.SECURITY), makeReq({ status: 'approved', type: 'pass' }))).toBe(true);
+  });
 });
 
 // ─── Edit / Delete ────────────────────────────────────────────────────────────

@@ -11,7 +11,8 @@
 
 import { lazy, Suspense, memo } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { ROLES, canAccessTab, getTabsForRole } from '../../domain/permissions';
+import { ROLES, canAccessTab } from '../../domain/permissions';
+import { getRoleManifest } from '../../domain/roleManifest';
 import { ReqSkeleton } from '../../requests/ReqCard';
 import ErrorBoundary from '../../ui/ErrorBoundary';
 import ViewStateAdapter from '../../ui/ViewStateAdapter';
@@ -34,7 +35,7 @@ const fallback = <ReqSkeleton count={3} />;
 function TabRoute({ user }: { user: AppUser }) {
   const { tab } = useParams();
   const { highlightReqId, setHighlightReqId, setActiveTab } = useNavigationContext();
-  const defaultTab = getTabsForRole(user.role)[0] || 'passes';
+  const defaultTab = getRoleManifest(user.role).defaultTab;
 
   // Guard: unknown or role-forbidden tab → redirect to default
   if (!tab || !canAccessTab(user.role, tab)) {
@@ -109,7 +110,7 @@ function TabRoute({ user }: { user: AppUser }) {
  * URL params (useParams) and NavigationContext respectively.
  */
 const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = false }: { user: AppUser; isLoading?: boolean }) {
-  const defaultTab = getTabsForRole(user.role)[0] || 'passes';
+  const defaultTab = getRoleManifest(user.role).defaultTab;
 
   // P-02: while SSE data is loading, show skeleton cards inside the shell
   // (header + nav remain interactive). This replaces the full-screen spinner.
