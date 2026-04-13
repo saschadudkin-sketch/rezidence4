@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { canManageRequests } from '../domain/permissions';
+import { isSecurityActionablePass } from '../domain/passLifecycle';
 
 // O(1) lookup вместо O(n) Array.includes() в горячем useMemo
 const RESIDENT_STATUS_SET = new Set(['approved', 'rejected', 'arrived', 'cancelled']);
@@ -40,7 +41,7 @@ export function useNavBadges(user, requests, chat, chatLastSeen, blacklist) {
 
   const [pendingT, pendingP] = useMemo(() => [
     requests.filter(r => r.type === 'tech' && r.status === 'pending').length,
-    requests.filter(r => r.type === 'pass' && r.status === 'pending').length,
+    requests.filter(isSecurityActionablePass).length,
   ], [requests]);
 
   const lastSeen   = chatLastSeen[user.uid] || 0;

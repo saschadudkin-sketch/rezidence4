@@ -6,24 +6,16 @@ import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
+import { dataUrlToBlob } from '../utils/dataUrl';
 
 /**
  * PassQRModal — показывает QR-код пропуска для предъявления охране.
  * Жилец открывает → показывает на телефоне охраннику → охранник сканирует.
  */
-// FIX [DRY]: вынесен общий хелпер — ранее дублировался в copy + save обработчиках
-function dataUrlToBlob(dataUrl) {
-  const arr  = dataUrl.split(',');
-  const mime = (arr[0].match(/:(.*?);/) || [])[1] || 'image/png';
-  const bstr = atob(arr[1]);
-  const u8   = new Uint8Array(bstr.length);
-  for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
-  return new Blob([u8], { type: mime });
-}
-
 export function PassQRModal({ req, onClose }) {
   const [qrUrl, setQrUrl] = useState(null);
   const [error, setError]  = useState(false);
+  const isQrAvailable = req.status === 'approved';
 
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
@@ -33,13 +25,19 @@ export function PassQRModal({ req, onClose }) {
   }, []);
 
   useEffect(() => {
+    if (!isQrAvailable) {
+      setQrUrl(null);
+      setError(false);
+      return;
+    }
+
     Promise.resolve(generatePassQR(req))
       .then(setQrUrl)
       .catch(() => setError(true));
   // FIX [PERF]: зависим только от req.id — QR меняется только при смене заявки,
   // не при каждом обновлении объекта req от родителя.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [req.id]);
+  }, [isQrAvailable, req.id]);
 
   return createPortal(
     <div className="overlay" {...overlayProps}>
@@ -55,12 +53,17 @@ export function PassQRModal({ req, onClose }) {
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body u-center">
+          {!isQrAvailable && (
+            <div className="u-fs13 u-center qr-error-box">
+              QR-код станет активным после одобрения заявки охраной
+            </div>
+          )}
           {error && (
             <div className="u-err u-fs13 u-center qr-error-box">
               Не удалось сгенерировать QR-код
             </div>
           )}
-          {!error && !qrUrl && (
+          {!error && !qrUrl && isQrAvailable && (
             <div className="qr-loading">
               <span className="u-t4 u-fs13">Генерация...</span>
             </div>

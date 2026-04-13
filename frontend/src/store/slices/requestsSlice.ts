@@ -1,5 +1,7 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+import { isResidentOneTimePass } from '../../domain/passLifecycle';
+
 export type RequestStatus = 'pending' | 'approved' | 'accepted' | 'rejected' | 'arrived' | 'expired' | 'cancelled' | 'scheduled';
 export type RequestType = 'pass' | 'tech';
 export type PassDuration = 'once' | 'temporary' | 'permanent';
@@ -128,7 +130,11 @@ export function requestsReducer(state: RequestsState, action: RequestsAction): R
           // Активация запланированных
           if (r.status === 'scheduled' && r.scheduledFor
               && new Date(r.scheduledFor).getTime() <= nowTs) {
-            return { ...r, status: 'pending', scheduledFor: null };
+            return {
+              ...r,
+              status: isResidentOneTimePass(r) ? 'approved' : 'pending',
+              scheduledFor: null,
+            };
           }
           // Истечение временных пропусков (validUntil истёк)
           if (r.validUntil && !TERMINAL.has(r.status)

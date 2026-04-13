@@ -9,7 +9,7 @@ import { AppProvider, useActions, useRequests } from '../store/AppStore';
 
 const wrapper = ({ children }) => <AppProvider>{children}</AppProvider>;
 
-describe('Integration: флоу создания и одобрения заявки', () => {
+describe('Integration: флоу создания и обработки заявки', () => {
   function useFlow() {
     return {
       actions: useActions(),
@@ -17,7 +17,7 @@ describe('Integration: флоу создания и одобрения заяв�
     };
   }
 
-  it('заявка создаётся, одобряется и отмечается как arrived', () => {
+  it('разовый пропуск жильца сразу активен и после прохода становится arrived', () => {
     const { result } = renderHook(() => useFlow(), { wrapper });
 
     const find = (id) => result.current.requests.find(r => r.id === id);
@@ -26,7 +26,7 @@ describe('Integration: флоу создания и одобрения заяв�
       result.current.actions.addRequest({
         id: 'test-flow-1',
         type: 'pass',
-        status: 'pending',
+        status: 'approved',
         category: 'guest',
         createdByUid: 'u1',
         createdByName: 'Тест Юзер',
@@ -43,9 +43,6 @@ describe('Integration: флоу создания и одобрения заяв�
       });
     });
 
-    expect(find('test-flow-1').status).toBe('pending');
-
-    act(() => { result.current.actions.approveRequest('test-flow-1', 'Охранник', 'security'); });
     expect(find('test-flow-1').status).toBe('approved');
 
     act(() => { result.current.actions.arriveRequest('test-flow-1', 'Охранник', 'security'); });
@@ -54,14 +51,14 @@ describe('Integration: флоу создания и одобрения заяв�
     expect(arrived.arrivedAt).toBeInstanceOf(Date);
   });
 
-  it('заявка отклоняется охранником', () => {
+  it('охрана может отказать в разовом пропуске после автопринятия', () => {
     const { result } = renderHook(() => useFlow(), { wrapper });
 
     act(() => {
       result.current.actions.addRequest({
         id: 'test-flow-2',
         type: 'pass',
-        status: 'pending',
+        status: 'approved',
         category: 'guest',
         createdByUid: 'u1',
         createdByName: 'Тест Юзер',
@@ -110,7 +107,7 @@ describe('Integration: флоу создания и одобрения заяв�
     expect(result.current.requests.find(r => r.id === 'test-flow-3').status).toBe('accepted');
   });
 
-  it('запланированная заявка активируется', () => {
+  it('запланированный разовый пропуск жильца активируется сразу как approved', () => {
     const { result } = renderHook(() => useFlow(), { wrapper });
 
     const pastDate = new Date(Date.now() - 60_000); // минута назад
@@ -137,6 +134,6 @@ describe('Integration: флоу создания и одобрения заяв�
     });
 
     act(() => { result.current.actions.activateScheduled(); });
-    expect(result.current.requests.find(r => r.id === 'test-flow-4').status).toBe('pending');
+    expect(result.current.requests.find(r => r.id === 'test-flow-4').status).toBe('approved');
   });
 });

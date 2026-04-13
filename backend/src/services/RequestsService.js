@@ -71,6 +71,12 @@ const VALID_CATS  = new Set([
 ]);
 const ALLOWED_INITIAL_STATUSES = new Set(['pending', 'scheduled']);
 
+function isResidentOneTimePass({ type, passDuration, role }) {
+  return type === 'pass'
+    && (passDuration || 'once') === 'once'
+    && (role === 'owner' || role === 'tenant');
+}
+
 // FIX [DRY]: единая карта ограничений длины — была продублирована в create() и update().
 // historyLabel добавлен: без проверки авторизованный пользователь записывал 1MB в историю,
 // что рассылалось через SSE broadcast всем клиентам.
@@ -220,10 +226,15 @@ class RequestsService {
     }
 
     const id = uuid();
-    const initialStatus = body.status || 'pending';
+    const requestedStatus = body.status || 'pending';
+    const passDuration = body.passDuration || 'once';
+    const autoApproveResidentOncePass = !body.scheduledFor
+      && requestedStatus !== 'scheduled'
+      && isResidentOneTimePass({ type: body.type, passDuration, role });
+    const initialStatus = autoApproveResidentOncePass ? 'approved' : requestedStatus;
 
-    if (!isStaff(role) && !ALLOWED_INITIAL_STATUSES.has(initialStatus)) {
-      throw new ServiceError('Residents can only create pending or scheduled requests', 403);
+    if (!isStaff(role) && !ALLOWED_INITIAL_STATUSES.has(initialStatus) && !autoApproveResidentOncePass) {
+      throw new ServiceError('Residents can only create pending, approved (one-time pass), or scheduled requests', 403);
     }
 
     const { rows } = await db.query(
@@ -241,7 +252,7 @@ class RequestsService {
         body.visitorPhone || null,
         body.carPlate     || null,
         body.comment      || '',
-        body.passDuration || 'once',
+        passDuration,
         body.validUntil   || null,
         body.scheduledFor || null,
         body.photos       || [],

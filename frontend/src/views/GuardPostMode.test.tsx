@@ -72,6 +72,16 @@ describe('GuardPostMode', () => {
     expect(screen.getByRole('button', { name: /разрешить вручную/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /пропустить и отметить вход/i })).not.toBeInTheDocument();
   });
+
+  test('автопринятый разовый пропуск даёт охране только проход или отказ', () => {
+    vi.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq({ status: 'approved', createdByRole: 'owner' })]);
+
+    render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /отметить проход/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /отказать/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /пропустить и отметить вход/i })).not.toBeInTheDocument();
+  });
 });
 
 // FIX [BUG-2, 5, 17, 19]: Structural checks on guard sub-components

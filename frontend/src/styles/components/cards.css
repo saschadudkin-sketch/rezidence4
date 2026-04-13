@@ -290,7 +290,8 @@ html.theme-light .skeleton-line::after { background: linear-gradient(90deg, tran
 .qr-result-details { background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r); padding: 4px 16px; }
 .qr-pass-btn { display: flex; align-items: center; gap: 12px; width: 100%; background: var(--g-bg); border: 1px solid var(--b2); border-radius: var(--r); padding: 12px 14px; cursor: pointer; margin: 10px 0; transition: border-color .13s, background .13s; text-align: left; font-family: var(--font-body); }
 .qr-pass-btn .u-inline-icon { width: 32px; height: 32px; border-radius: 10px; background: rgba(201, 169, 110, .12); color: var(--g2); }
-.qr-pass-btn:hover, .qr-pass-btn:active { background: var(--g-bg2); border-color: var(--b3); }
+.qr-pass-btn:hover:not(:disabled), .qr-pass-btn:active:not(:disabled) { background: var(--g-bg2); border-color: var(--b3); }
+.qr-pass-btn:disabled { cursor: default; opacity: 1; }
 .scan-qr-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 86%, transparent), color-mix(in srgb, var(--g-bg) 46%, transparent)); border: 1px solid color-mix(in srgb, var(--g1) 84%, transparent); border-radius: 14px; padding: 16px; cursor: pointer; margin-bottom: 14px; font-family: var(--font-body); font-size: var(--fs-body); font-weight: 700; letter-spacing: .15px; color: var(--g2); transition: background .13s, transform .13s, box-shadow .13s, border-color .13s; box-shadow: 0 10px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.05); }
 .scan-qr-btn:hover { background: linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 96%, transparent), color-mix(in srgb, var(--g-bg) 58%, transparent)); border-color: var(--g1); box-shadow: 0 8px 20px rgba(196, 150, 60, .16); }
 .scan-qr-btn:active { transform: scale(.98); }

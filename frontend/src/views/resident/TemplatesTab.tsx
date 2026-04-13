@@ -13,6 +13,7 @@ type TemplatesTabProps = {
       carPlate: unknown;
       comment: unknown;
     };
+    initialStep?: number;
   }) => void;
 };
 
@@ -30,6 +31,7 @@ const TemplatesTab = memo(function TemplatesTab({ user, setModal }: TemplatesTab
             carPlate: template.carPlate,
             comment: template.comment,
           },
+          initialStep: template.type === 'pass' ? 1 : undefined,
         });
       }}
     />

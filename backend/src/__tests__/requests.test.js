@@ -243,21 +243,34 @@ describe('POST /api/requests', () => {
     expect(res.body.error).toMatch(/Invalid category/);
   });
 
-  it('403 owner не может создать заявку со статусом approved', async () => {
+  it('201 owner может создать разовый пропуск сразу со статусом approved', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
+    db.query.mockResolvedValueOnce({
+      rows: [makeReqRow({ id: 'server-approved', status: 'approved', created_by_uid: 'u1' })],
+    });
+    const res = await supertest(app)
+      .post('/api/requests')
+      .set('Cookie', `token=${token}`)
+      .send({ type: 'pass', category: 'guest', status: 'approved' });
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('approved');
+  });
+
+  it('403 contractor не может создать разовый пропуск со статусом approved', async () => {
+    const token = makeToken({ uid: 'u3', role: 'contractor', name: 'Test' });
     const res = await supertest(app)
       .post('/api/requests')
       .set('Cookie', `token=${token}`)
       .send({ type: 'pass', category: 'guest', status: 'approved' });
     expect(res.status).toBe(403);
-    expect(res.body.error).toMatch(/pending or scheduled/i);
+    expect(res.body.error).toMatch(/approved \(one-time pass\), or scheduled/i);
   });
 
   it('201 при валидных данных — id генерируется сервером (BUG-1)', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
     const now = new Date();
     db.query.mockResolvedValueOnce({
-      rows: [makeReqRow({ id: 'server-uuid', status: 'pending', created_by_uid: 'u1' })],
+      rows: [makeReqRow({ id: 'server-uuid', status: 'approved', created_by_uid: 'u1' })],
     });
 
     const res = await supertest(app)
@@ -267,6 +280,7 @@ describe('POST /api/requests', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBe('server-uuid'); // ID из сервера
+    expect(res.body.status).toBe('approved');
 
     // Клиентский id игнорируется — сервер передаёт uuid в INSERT
     const insertParams = db.query.mock.calls[0][1];

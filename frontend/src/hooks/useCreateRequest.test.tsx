@@ -5,6 +5,7 @@ import {
   parseLocalDateInputValue,
   useCreateRequest,
 } from './useCreateRequest';
+import { services } from '../services/providers/serviceContainer';
 
 // ─── Mocks required by useCreateRequest ──────────────────────────────────────
 
@@ -86,5 +87,34 @@ describe('useCreateRequest date input formatting helpers', () => {
     expect(parseLocalDateInputValue('2026-02-31')).toBeNull();
     expect(parseLocalDateInputValue('2026-2-3')).toBeNull();
     expect(parseLocalDateInputValue('not-a-date')).toBeNull();
+  });
+});
+
+describe('useCreateRequest resident pass lifecycle', () => {
+  test('owner one-time pass is submitted as approved immediately', async () => {
+    const onDone = vi.fn();
+    const onClose = vi.fn();
+    const submitSpy = vi.mocked(services.requests.submit);
+    submitSpy.mockClear();
+
+    const { result } = renderHook(() =>
+      useCreateRequest({
+        user: TEST_USER,
+        type: 'pass',
+        initialCat: 'courier',
+        initialData: { visitorName: 'СДЭК' },
+        onDone,
+        onClose,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(submitSpy).toHaveBeenCalledTimes(1);
+    expect(submitSpy.mock.calls[0][0].request.status).toBe('approved');
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

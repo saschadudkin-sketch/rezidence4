@@ -1,21 +1,27 @@
 const { spawn } = require('node:child_process');
 
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmExecPath = process.env.npm_execpath;
+
+function createNpmProcess(args) {
+  const command = npmExecPath?.endsWith('.js')
+    ? process.execPath
+    : npmExecPath || (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+  const commandArgs = npmExecPath?.endsWith('.js') ? [npmExecPath, ...args] : args;
+
+  return spawn(command, commandArgs, {
+    cwd: process.cwd(),
+    stdio: 'inherit',
+  });
+}
 
 const processes = [
   {
     name: 'backend',
-    child: spawn(npmCmd, ['--prefix', 'backend', 'run', 'dev'], {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-    }),
+    child: createNpmProcess(['--prefix', 'backend', 'run', 'dev']),
   },
   {
     name: 'frontend',
-    child: spawn(npmCmd, ['--prefix', 'frontend', 'run', 'dev'], {
-      cwd: process.cwd(),
-      stdio: 'inherit',
-    }),
+    child: createNpmProcess(['--prefix', 'frontend', 'run', 'dev']),
   },
 ];
 

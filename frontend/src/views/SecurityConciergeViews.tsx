@@ -23,6 +23,7 @@ import { getViewStateCopy } from '../ui/viewStateContract';
 import { OperationalRequestList } from '../requests/OperationalRequestList.tsx';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 import { VirtualList } from '../ui/VirtualList.jsx';
+import { isSecurityActionablePass } from '../domain/passLifecycle';
 import type { RequestStatus, RequestType } from '../store/slices/requestsSlice';
 
 export function ConciergeView({ user, activeTab, setActiveTab }) {
@@ -280,7 +281,7 @@ export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, se
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const pendingPassCount = useMemo(() => requests.filter(r => r.type === 'pass' && r.status === 'pending').length, [requests]);
+  const pendingPassCount = useMemo(() => requests.filter(isSecurityActionablePass).length, [requests]);
   const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
   const requestsEmptyCopy = getViewStateCopy('requests', 'empty');
   const activeFilterCount = [

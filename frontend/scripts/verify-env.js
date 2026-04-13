@@ -6,6 +6,7 @@
  */
 
 import { mkdirSync, writeFileSync } from 'fs';
+import { loadEnv } from 'vite';
 
 const REQUIRED_PROD = ['VITE_API_URL', 'VITE_RUNTIME_MODE'];
 const REQUIRED_ALWAYS = [];
@@ -18,20 +19,24 @@ const inferredMode =
   process.env.NODE_ENV ||
   'production';
 const mode = (explicitModeArg || inferredMode).trim().toLowerCase();
+const env = {
+  ...loadEnv(mode, process.cwd(), ''),
+  ...process.env,
+};
 const isProd = mode === 'production';
 
 const missing = [];
 for (const v of REQUIRED_ALWAYS) {
-  if (!process.env[v]) missing.push(v);
+  if (!env[v]) missing.push(v);
 }
 if (isProd) {
   for (const v of REQUIRED_PROD) {
-    if (!process.env[v]) missing.push(v);
+    if (!env[v]) missing.push(v);
   }
 }
 
-const runtimeMode = (process.env.VITE_RUNTIME_MODE || '').trim().toLowerCase();
-const demoFlag = (process.env.VITE_ENABLE_DEMO || '').trim().toLowerCase();
+const runtimeMode = (env.VITE_RUNTIME_MODE || '').trim().toLowerCase();
+const demoFlag = (env.VITE_ENABLE_DEMO || '').trim().toLowerCase();
 const demoRequestedWithoutFlag = isProd && runtimeMode === 'demo' && demoFlag !== 'true';
 
 if (missing.length > 0 || demoRequestedWithoutFlag) {

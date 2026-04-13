@@ -9,7 +9,7 @@
 ## Canonical Commands
 
 ```bash
-npm run install
+npm run bootstrap
 npm run dev
 npm run test
 npm run lint
@@ -24,6 +24,7 @@ npm run backend:test
 npm run frontend:test
 npm run verify
 npm run e2e
+npm run install:all
 ```
 
 ## Environment

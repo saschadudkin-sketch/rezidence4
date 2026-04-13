@@ -59,6 +59,7 @@ services:
       # (ACCESS_TOKEN_EXPIRES = '15m'). JWT_EXPIRES здесь не используется — удалён.
       SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
       BACKEND_URL:   ${BACKEND_URL:-http://localhost:3001}
+      UPLOAD_SIGNING_SECRET: ${UPLOAD_SIGNING_SECRET:?UPLOAD_SIGNING_SECRET must be set}
       # FIX [SEC-4]: FRONTEND_URL обязателен в production.
       # Сервер завершится с ошибкой если не задан при NODE_ENV=production.
       FRONTEND_URL:  ${FRONTEND_URL:?FRONTEND_URL must be set}

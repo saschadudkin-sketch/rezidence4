@@ -102,7 +102,7 @@ describe('AppStore — localStorage round-trip', () => {
 });
 
 describe('AppStore — request workflow', () => {
-  it('заявка создаётся → одобряется → arrivedAt устанавливается', () => {
+  it('автопринятый разовый пропуск после прохода терминится arrived', () => {
     const { result } = renderHook(() => ({ actions: useActions(), requests: useRequests() }), { wrapper });
 
     act(() => {
@@ -110,7 +110,7 @@ describe('AppStore — request workflow', () => {
         id: 'r_flow_1',
         type: 'pass',
         category: 'guest',
-        status: 'pending',
+        status: 'approved',
         createdByUid: 'u1',
         createdByName: 'Test',
         createdByRole: 'owner',
@@ -126,9 +126,6 @@ describe('AppStore — request workflow', () => {
       });
     });
 
-    expect(result.current.requests.find(r => r.id === 'r_flow_1').status).toBe('pending');
-
-    act(() => { result.current.actions.approveRequest('r_flow_1', 'Охранник', 'security'); });
     expect(result.current.requests.find(r => r.id === 'r_flow_1').status).toBe('approved');
 
     act(() => { result.current.actions.arriveRequest('r_flow_1', 'Охранник', 'security'); });

@@ -16,6 +16,7 @@ import { sendNotif } from '../../utils';
 import { logVisit } from '../../shared/api/passesApi';
 import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
+import { isResidentOneTimePass } from '../../domain/passLifecycle';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 
@@ -37,6 +38,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
   const [confirmAction, setConfirmAction] = useState(null); // null | 'approve' | 'reject'
   const blMatch = checkBlacklist(req, blacklist);
   const isBlacklisted = Boolean(blMatch);
+  const isResidentOncePass = isResidentOneTimePass(req);
 
   const handleInfoTap = () => {
     if (!onViewDetails) return;
@@ -223,6 +225,51 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
                 <button className="guard-btn approve" onClick={doPass} disabled={!!loading}>
                   {loading === 'approve' ? <span className="btn-spin" /> : <span className="u-inline-icon"><AppIcon name="check" size={14} /></span>}
                   <span>Пропустить и отметить вход</span>
+                </button>
+                {confirmAction === 'reject' ? (
+                  <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
+                    {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+                    <span>Точно отказать?</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn reject" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+                  </button>
+                )}
+              </>
+            )}
+          </>
+        )}
+        {req.status === 'approved' && isResidentOncePass && (
+          <>
+            {isBlacklisted ? (
+              <>
+                {confirmAction === 'reject' ? (
+                  <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>
+                    {loading === 'reject' ? <span className="btn-spin" /> : <AppIcon name="denied" size={14} />}
+                    <span>Подтвердить отказ</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn reject guard-btn--primary-risk" onClick={() => setConfirmAction('reject')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="close" size={14} /></span><span>Отказать</span>
+                  </button>
+                )}
+                {confirmAction === 'approve' ? (
+                  <button className="guard-btn override confirm" onClick={doArrive} disabled={!!loading}>
+                    {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="alert" size={14} />}
+                    <span>Разрешить вопреки стоп-листу?</span>
+                  </button>
+                ) : (
+                  <button className="guard-btn override" onClick={() => setConfirmAction('approve')} disabled={!!loading}>
+                    <span className="u-inline-icon"><AppIcon name="alert" size={14} /></span><span>Отметить проход вручную</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button className="guard-btn arrive" onClick={doArrive} disabled={!!loading}>
+                  {loading === 'arrive' ? <span className="btn-spin" /> : <AppIcon name="door" size={14} />}
+                  <span>Отметить проход</span>
                 </button>
                 {confirmAction === 'reject' ? (
                   <button className="guard-btn reject confirm" onClick={doReject} disabled={!!loading}>

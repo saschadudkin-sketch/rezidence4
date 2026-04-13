@@ -88,4 +88,10 @@ describe('PassQRModal', () => {
     rerender(<PassQRModal req={req} onClose={vi.fn()} />);
     await waitFor(() => expect(generatePassQR).toHaveBeenCalledTimes(1));
   });
+  test('не генерирует QR для pending-пропуска', async () => {
+    render(<PassQRModal req={{ ...req, status: 'pending' }} onClose={vi.fn()} />);
+
+    expect(screen.getByText('QR-код станет активным после одобрения заявки охраной')).toBeInTheDocument();
+    await waitFor(() => expect(generatePassQR).not.toHaveBeenCalled());
+  });
 });

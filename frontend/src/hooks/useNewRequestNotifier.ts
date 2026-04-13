@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { canManageRequests } from '../domain/permissions';
 import { ROLES } from '../domain/permissions';
+import { isSecurityActionablePass } from '../domain/passLifecycle';
 import { sendNotif, playAlert } from '../utils';
 
 /**
@@ -25,7 +26,7 @@ export function useNewRequestNotifier(user) {
     notifyRef.current = (docs) => {
       const { role } = userRef.current;
 
-      const newP = docs.filter(r => r.type === 'pass' && r.status === 'pending').length;
+      const newP = docs.filter(isSecurityActionablePass).length;
       if (newP > prevPendingP.current && role === ROLES.SECURITY) {
         sendNotif('Новый пропуск', 'Требует рассмотрения', 'pass');
         playAlert('pass');

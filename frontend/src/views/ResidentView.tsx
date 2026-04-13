@@ -14,6 +14,8 @@ import GarageView from './GarageView';
 import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
 import { presentError } from '../ui/errorPresenter';
+import { generatePassQR } from '../services/qrService';
+import { dataUrlToBlob } from '../utils/dataUrl';
 import PassesTab from './resident/PassesTab';
 import TechTab from './resident/TechTab';
 import TemplatesTab from './resident/TemplatesTab';
@@ -44,10 +46,32 @@ function getPassReadyText(request) {
   const schedule = request.scheduledFor
     ? `\nВремя: ${new Date(request.scheduledFor).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}`
     : '';
-  return `Пропуск для: ${guest}\n${apartment}${schedule}${car}\nСтатус: ${STS_LABEL[request.status] || 'создан'}`;
+  return `Пропуск для: ${guest}\n${apartment}${schedule}${car}\nСтатус: ${STS_LABEL[request.status] || 'создан'}\nПокажите QR-код охране на КПП.`;
 }
 
 function PassReadySheet({ request, onClose, onCreateAnother }) {
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setQrUrl(null);
+    setQrError(false);
+    if (!request || request.status !== 'approved') return;
+
+    Promise.resolve(generatePassQR(request))
+      .then((url) => {
+        if (!cancelled) setQrUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [request]);
+
   if (!request) return null;
   const title = request.scheduledFor ? 'Пропуск запланирован' : 'Пропуск готов';
   const guest = request.visitorName || CAT_LABEL[request.category] || 'Гость';
@@ -66,9 +90,17 @@ function PassReadySheet({ request, onClose, onCreateAnother }) {
   };
 
   const sharePass = async () => {
+    const file = qrUrl
+      ? new File([dataUrlToBlob(qrUrl)], `pass-${request.id}.png`, { type: 'image/png' })
+      : null;
+
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: shareText });
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ title, text: shareText, files: [file] });
+        } else {
+          await navigator.share({ title, text: shareText });
+        }
         return;
       } catch {
         return;
@@ -89,8 +121,23 @@ function PassReadySheet({ request, onClose, onCreateAnother }) {
         <div className="resident-ready-kicker">Готово</div>
         <h2 id="resident-ready-title" className="resident-ready-title">{title}</h2>
         <p className="resident-ready-sub">
-          {guest}. {validText}. Статус можно проверить в активных пропусках.
+          {guest}. {validText}. Отправьте гостю QR-код и краткие данные пропуска.
         </p>
+        <div className="resident-ready-qr-panel">
+          {qrUrl ? (
+            <img src={qrUrl} alt="QR-код пропуска для гостя" className="resident-ready-qr" />
+          ) : qrError ? (
+            <div className="resident-ready-qr-state">QR не удалось сгенерировать. Данные можно отправить текстом.</div>
+          ) : request.status === 'approved' ? (
+            <div className="resident-ready-qr-state">Генерируем QR...</div>
+          ) : (
+            <div className="resident-ready-qr-state">QR появится после активации пропуска.</div>
+          )}
+          <div className="resident-ready-qr-copy">
+            <span>Гостю достаточно показать этот QR на КПП</span>
+            <strong>{request.createdByApt ? `Апарт. ${request.createdByApt}` : 'Резиденция'}</strong>
+          </div>
+        </div>
         <div className="resident-ready-summary">
           <div>
             <span>Кому</span>
@@ -109,9 +156,9 @@ function PassReadySheet({ request, onClose, onCreateAnother }) {
         </div>
         <div className="resident-ready-actions">
           <button className="btn-gold" onClick={sharePass}>
-            <span className="u-inline-icon"><AppIcon name="copy" size={14} /> Отправить гостю</span>
+            <span className="u-inline-icon"><AppIcon name="copy" size={14} /> Отправить QR гостю</span>
           </button>
-          <button className="btn-outline" onClick={copyPass}>Скопировать</button>
+          <button className="btn-outline" onClick={copyPass}>Скопировать данные</button>
           <button className="btn-text" onClick={onCreateAnother}>Создать ещё один</button>
         </div>
       </div>

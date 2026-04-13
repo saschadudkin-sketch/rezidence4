@@ -12,6 +12,7 @@ import { usePhotoHandler } from './usePhotoHandler';
 import { useScheduleForm, fmtScheduled } from './useScheduleForm';
 import { useTemplateForm } from './useTemplateForm';
 import { sanitizeRequestFormFields } from '../utils/formPolicy';
+import { getRequestInitialStatus } from '../domain/passLifecycle';
 // КРИТ-A1: form field state extracted to its own hook as part of God Hook decomposition
 import { useRequestFormState } from './useRequestFormState';
 import type { AppRequest, RequestStatus } from '../store/slices/requestsSlice';
@@ -135,7 +136,13 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       return;
     }
 
-    const status: RequestStatus = isScheduled ? 'scheduled' : 'pending';
+    const passDuration = type === 'pass' ? (validUntil ? 'temporary' : 'once') : null;
+    const status: RequestStatus = getRequestInitialStatus({
+      type,
+      userRole: user.role,
+      passDuration,
+      isScheduled,
+    });
     const newReq: AppRequest = {
       id:            genId('r'),
       type,
@@ -152,7 +159,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
       visitorPhone:  type === 'pass'       ? sanitized.visitorPhone || null : null,
       comment:       sanitized.comment,
       priority:      'normal',
-      passDuration:  type === 'pass' ? (validUntil ? 'temporary' : 'once') : null,
+      passDuration,
       validUntil:    parsedValidUntil,
       photo:         null,
       photos:        [],
@@ -194,6 +201,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
 
       const successMsg = isScheduled
         ? 'Запланировано на ' + fmtScheduled(scheduledFor)
+        : status === 'approved' ? 'Пропуск создан и активен'
         : type === 'pass' ? 'Пропуск создан' : 'Заявка отправлена';
       toastBySyncResult(
         typeof mode === 'string' ? mode : 'synced',

@@ -32,6 +32,12 @@ describe('Request predicates', () => {
     expect(isCompletedRequest(pending)).toBe(false);
     expect(isCompletedRequest(approved)).toBe(false);
   });
+  test('pending QR block is disabled until approval', () => {
+    const fs = require('fs');
+    const src = fs.readFileSync(require.resolve('./ReqCard.tsx'), 'utf8');
+    expect(src).toContain("const isQrAvailable = req.type === 'pass' && req.status === 'approved'");
+    expect(src).toContain('disabled={!isQrAvailable}');
+  });
 });
 
 // FIX [BUG-1]: Проверяем что act() использует ref для actLoading, а не stale closure

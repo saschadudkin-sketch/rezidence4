@@ -52,6 +52,25 @@ describe('requestsReducer', () => {
     expect(result.requests[0].status).toBe('expired');
   });
 
+  test('REQUEST_ACTIVATE_SCHEDULED auto-approves resident once pass', () => {
+    const scheduled = {
+      id: 'r-scheduled',
+      type: 'pass',
+      status: 'scheduled',
+      passDuration: 'once',
+      createdByRole: 'owner',
+      scheduledFor: new Date(Date.now() - 1000),
+      createdAt: new Date(),
+      arrivedAt: null,
+    };
+    const state = { requests: [scheduled], history: {} };
+    const action = { type: 'REQUEST_ACTIVATE_SCHEDULED' };
+    const result = requestsReducer(state, action);
+
+    expect(result.requests[0].status).toBe('approved');
+    expect(result.requests[0].scheduledFor).toBeNull();
+  });
+
   test('unknown action returns state', () => {
     const result = requestsReducer(baseState, { type: 'UNKNOWN' });
     expect(result).toBe(baseState);

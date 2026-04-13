@@ -7,6 +7,7 @@ import { CAT_LABEL, STS_LABEL } from '../constants/index';
 import { getValidationReasonLabel, getStatusToneClass } from '../constants/statusPresentation';
 import { normalizeValidationResult } from '../domain/validationResult';
 import { getScanDecision } from '../domain/scanDecision';
+import { isResidentOneTimePass } from '../domain/passLifecycle';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
@@ -249,7 +250,7 @@ export function ScanQRModal({ user, onClose }) {
   };
 
   const handleReject = async () => {
-    if (scannedReq && scannedReq.status === 'pending') {
+    if (scannedReq && (scannedReq.status === 'pending' || (scannedReq.status === 'approved' && isResidentOneTimePass(scannedReq)))) {
       rejectRequest(scannedReq.id, user.name, user.role);
     }
     if (scannedReq) {

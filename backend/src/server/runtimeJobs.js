@@ -42,7 +42,15 @@ function startRuntimeJobs({ db }) {
 
       const { rows: activatedRows } = await db.query(`
         UPDATE requests
-        SET status = 'pending', scheduled_for = NULL, updated_at = NOW()
+        SET status = CASE
+              WHEN type = 'pass'
+               AND pass_duration = 'once'
+               AND created_by_role IN ('owner', 'tenant')
+              THEN 'approved'
+              ELSE 'pending'
+            END,
+            scheduled_for = NULL,
+            updated_at = NOW()
         WHERE status = 'scheduled'
           AND scheduled_for <= NOW()
           AND deleted_at IS NULL

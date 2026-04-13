@@ -237,6 +237,7 @@ const ReqCardResidentActions = memo(function ReqCardResidentActions({
 export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: ReqCardProps) {
   const isStaffRole = canManageRequests(userRole);
   const isActive = isActiveRequest(req);
+  const isQrAvailable = req.type === 'pass' && req.status === 'approved';
   const [actLoading, setActLoading] = useState(null);
   const isHighlighted = highlightId === req.id;
   const isCancellable = onCancel && (req.status === 'pending' || req.status === 'approved');
@@ -363,7 +364,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
         <ReqPhotos req={req} />
 
         {req.type === 'pass' && (req.status === 'approved' || req.status === 'pending') && (
-          <button className="qr-pass-btn" onClick={() => setShowQR(true)}>
+          <button className="qr-pass-btn" type="button" onClick={isQrAvailable ? () => setShowQR(true) : undefined} disabled={!isQrAvailable}>
             <span className="u-inline-icon"><AppIcon name="qr" size={18} /></span>
             <div>
               <div className="qr-pass-label">QR-код пропуска</div>
@@ -401,7 +402,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
           actLoading={actLoading}
         />
       </>)}
-      {showQR && <PassQRModal req={req} onClose={() => setShowQR(false)} />}
+      {showQR && isQrAvailable && <PassQRModal req={req} onClose={() => setShowQR(false)} />}
     </div>
   );
 });
