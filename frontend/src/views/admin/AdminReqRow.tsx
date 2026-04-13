@@ -6,8 +6,14 @@ import { toastBySyncResult } from '../../ui/syncFeedback';
 import { toast } from '../../ui/Toasts';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
+import type { AppRequest, RequestStatus } from '../../store/slices/requestsSlice';
 
-export default function AdminReqRow({ r, adminUid }) {
+type AdminReqRowProps = {
+  r: AppRequest;
+  adminUid: string;
+};
+
+export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
   const [editing, setEditing] = useState(false);
   const [comment, setComment] = useState(r.comment || '');
   const [status,  setStatus]  = useState(r.status);
@@ -28,7 +34,7 @@ export default function AdminReqRow({ r, adminUid }) {
 
   async function del() {
     try {
-      const mode = await services.requests.deleteEverywhere({ requestId: r.id, deleteLocal: deleteRequest });
+      const mode: Awaited<ReturnType<typeof services.requests.deleteEverywhere>> = await services.requests.deleteEverywhere({ requestId: r.id, deleteLocal: deleteRequest });
       if (!isMountedRef.current) return;
       toastBySyncResult(mode, 'Заявка удалена', 'Удаление выполнено локально. Синхронизация будет повторена позже');
     } catch { if (isMountedRef.current) toast('Ошибка удаления', 'error'); }
@@ -36,7 +42,7 @@ export default function AdminReqRow({ r, adminUid }) {
 
   async function save() {
     try {
-      const mode = await services.requests.updateEverywhere({ requestId: r.id, patch: { comment, status }, updateLocal: updateRequest });
+      const mode: Awaited<ReturnType<typeof services.requests.updateEverywhere>> = await services.requests.updateEverywhere({ requestId: r.id, patch: { comment, status }, updateLocal: updateRequest });
       if (!isMountedRef.current) return;
       setEditing(false);
       toastBySyncResult(mode, 'Заявка обновлена', 'Изменения сохранены локально. Синхронизация будет повторена позже');
@@ -58,7 +64,7 @@ export default function AdminReqRow({ r, adminUid }) {
       {editing && (
         <div className="edit-inline u-mt4">
           <div className="edit-inline-row">
-            <select className="edit-inline-sel" value={status} onChange={e => setStatus(e.target.value)}>
+            <select className="edit-inline-sel" value={status} onChange={e => setStatus(e.target.value as RequestStatus)}>
               {Object.entries(STS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>

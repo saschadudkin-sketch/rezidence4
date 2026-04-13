@@ -12,6 +12,7 @@ import { AvatarCircle } from '../../ui/AvatarCircle';
 import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
 import type { AppRequest } from '../../store/slices/requestsSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
 // FIX [PERF-5]: memo — аналогично TempPassCard
 const TechCard = memo(function TechCard({ req, userName, residentPhone }: {
@@ -47,7 +48,7 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }: {
     <div className="guard-card">
       <div className="guard-card-top">
         <div className="guard-avatar">
-          <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={42} fontSize={16} />
+          <AvatarCircle avData={avData} role={req.createdByRole as UserRole | undefined} name={req.createdByName || '?'} size={42} fontSize={16} />
         </div>
         <div className="guard-info">
           <div className="guard-apt">

@@ -1,4 +1,4 @@
-let _swReg = null;
+let _swReg: ServiceWorkerRegistration | null = null;
 
 export const getSwReg = () => _swReg;
 

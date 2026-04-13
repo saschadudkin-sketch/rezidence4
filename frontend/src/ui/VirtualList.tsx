@@ -8,14 +8,22 @@
  * Usage:
  *   <VirtualList items={filteredPending} renderItem={(r, i) => <GuardCard key={r.id} req={r} />} estimateSize={148} />
  */
+import type { ReactNode } from 'react';
 import { useRef, useState, useLayoutEffect } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
 /** Minimum list length to activate virtualization (below this, render normally). */
 const VIRTUAL_THRESHOLD = 20;
 
-export function VirtualList({ items, renderItem, estimateSize = 130, className = '' }) {
-  const listRef = useRef(null);
+type VirtualListProps<T> = {
+  items: T[];
+  renderItem: (item: T, index: number) => ReactNode;
+  estimateSize?: number;
+  className?: string;
+};
+
+export function VirtualList<T>({ items, renderItem, estimateSize = 130, className = '' }: VirtualListProps<T>) {
+  const listRef = useRef<HTMLDivElement | null>(null);
   // scrollMargin must be measured after mount (ref is null on first render).
   // useState ensures a re-render with the correct value before virtualization runs.
   const [scrollMargin, setScrollMargin] = useState(0);

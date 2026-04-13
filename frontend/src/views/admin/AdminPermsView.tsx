@@ -9,10 +9,31 @@ import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
 import StateBlock from '../../ui/StateBlock';
 import { getViewStateCopy } from '../../ui/viewStateContract';
+import type { PermEntry, UserPerms } from '../../store/slices/permsSlice';
+import type { AppUser } from '../../store/slices/usersSlice';
+
+type PermListKey = keyof UserPerms;
+type AdminPermsItemRowProps = {
+  uid: string;
+  listKey: PermListKey;
+  item: PermEntry;
+  onDel: () => void;
+};
+type AdminPermsAptGroupProps = {
+  u: AppUser;
+  tab: PermListKey;
+};
+const EMPTY_PERMS: UserPerms = { visitors: [], workers: [] };
+const ROLE_FILTERS = [
+  ['all', 'Р’СЃРµ'],
+  ['owner', 'РЎРѕР±СЃС‚РІРµРЅРЅРёРєРё'],
+  ['tenant', 'РђСЂРµРЅРґР°С‚РѕСЂС‹'],
+  ['contractor', 'РџРѕРґСЂСЏРґС‡РёРєРё'],
+] as const;
 
 // ─── AdminPermsItemRow ────────────────────────────────────────────────────────
 
-function AdminPermsItemRow({ uid, listKey, item, onDel }) {
+function AdminPermsItemRow({ uid, listKey, item, onDel }: AdminPermsItemRowProps) {
   const isWorker = listKey === 'workers';
   const [editing,  setEditing]  = useState(false);
   const [name,     setName]     = useState(item.name);
@@ -29,11 +50,11 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
     if (!name.trim()) { toast('Введите ФИО', 'error'); return; }
     const updated = {
       ...perms,
-      [listKey]: (perms[listKey] || []).map(x =>
+      [listKey]: (perms[listKey] || []).map((x: PermEntry) =>
         x.id === item.id ? { ...x, name: name.trim(), phone, carPlate } : x
       ),
     };
-    let mode;
+    let mode: Awaited<ReturnType<typeof services.admin.savePermsEverywhere>>;
     try {
       mode = await services.admin.savePermsEverywhere({ uid, perms: updated, saveLocal: setPerms });
     } catch {
@@ -84,13 +105,13 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }) {
 
 // ─── AdminPermsAptGroup ───────────────────────────────────────────────────────
 
-function AdminPermsAptGroup({ u, tab }) {
+function AdminPermsAptGroup({ u, tab }: AdminPermsAptGroupProps) {
   const isWorker = tab === 'workers';
   const [adding, setAdding] = useState(false);
   const [form,   setForm]   = useState({ name: '', phone: '', carPlate: '' });
   const perms = usePerms(u.uid);
   const { setPerms } = useActions();
-  const list = perms[tab] || [];
+  const list = perms[tab] || EMPTY_PERMS[tab];
 
   // FIX [LEAK]: isMountedRef — AdminPermsAptGroup может размонтироваться при смене вкладки
   const grpMountedRef = useRef(true);
@@ -99,7 +120,7 @@ function AdminPermsAptGroup({ u, tab }) {
   async function addItem() {
     if (!form.name.trim()) { toast('Введите ФИО', 'error'); return; }
     const updated = { ...perms, [tab]: [...list, { id: genId('p'), ...form, name: form.name.trim() }] };
-    let mode;
+    let mode: Awaited<ReturnType<typeof services.admin.savePermsEverywhere>>;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
     } catch {
@@ -112,9 +133,9 @@ function AdminPermsAptGroup({ u, tab }) {
     toastBySyncResult(mode, 'Запись добавлена', 'Запись сохранена локально. Синхронизация будет повторена позже');
   }
 
-  async function delItem(id) {
-    const updated = { ...perms, [tab]: list.filter(x => x.id !== id) };
-    let mode;
+  async function delItem(id: string) {
+    const updated = { ...perms, [tab]: list.filter((x: PermEntry) => x.id !== id) };
+    let mode: Awaited<ReturnType<typeof services.admin.savePermsEverywhere>>;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
     } catch {
@@ -127,7 +148,7 @@ function AdminPermsAptGroup({ u, tab }) {
 
   async function clearAll() {
     const updated = { ...perms, [tab]: [] };
-    let mode;
+    let mode: Awaited<ReturnType<typeof services.admin.savePermsEverywhere>>;
     try {
       mode = await services.admin.savePermsEverywhere({ uid: u.uid, perms: updated, saveLocal: setPerms });
     } catch {
@@ -193,21 +214,21 @@ function AdminPermsAptGroup({ u, tab }) {
 // ─── AdminPermsView ───────────────────────────────────────────────────────────
 
 export default function AdminPermsView() {
-  const [tab,   setTab]   = useState('visitors');
+  const [tab,   setTab]   = useState<PermListKey>('visitors');
   const [query, setQuery] = useState('');
   const { users }  = useUsers();
   const perms = useAllPerms();
   const debouncedQuery = useDebounce(query, 250);
   const q = debouncedQuery.trim().toLowerCase();
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number][0]>('all');
   const permsEmptyCopy = getViewStateCopy('admin_perms', 'empty');
 
   const allResidents = useMemo(() =>
     Object.values(users)
       .filter(u => u.role === 'owner' || u.role === 'tenant' || u.role === 'contractor')
       .sort((a, b) => {
-        const aNum = parseInt(a.apartment, 10);
-        const bNum = parseInt(b.apartment, 10);
+        const aNum = parseInt(a.apartment ?? '', 10);
+        const bNum = parseInt(b.apartment ?? '', 10);
         const aHas = !isNaN(aNum);
         const bHas = !isNaN(bNum);
         if (aHas && bHas) return aNum - bNum;
@@ -221,18 +242,18 @@ export default function AdminPermsView() {
     roleFilter === 'all' ? allResidents : allResidents.filter(u => u.role === roleFilter),
     [allResidents, roleFilter]);
 
-  const matchRes  = u    => !q || u.apartment.toLowerCase().includes(q) || u.name.toLowerCase().includes(q);
-  const matchItem = item => !q
+  const matchRes  = (u: AppUser) => !q || (u.apartment ?? '').toLowerCase().includes(q) || u.name.toLowerCase().includes(q);
+  const matchItem = (item: PermEntry) => !q
     || item.name.toLowerCase().includes(q)
     || (item.phone || '').includes(q)
     || (item.carPlate || '').toLowerCase().includes(q);
 
-  const visCount = useMemo(() => residents.reduce((a, u) => (perms[u.uid] || { visitors: [] }).visitors.length + a, 0), [residents, perms]);
-  const wrkCount = useMemo(() => residents.reduce((a, u) => (perms[u.uid] || { workers:  [] }).workers.length  + a, 0), [residents, perms]);
+  const visCount = useMemo(() => residents.reduce((a, u) => (perms[u.uid] || EMPTY_PERMS).visitors.length + a, 0), [residents, perms]);
+  const wrkCount = useMemo(() => residents.reduce((a, u) => (perms[u.uid] || EMPTY_PERMS).workers.length  + a, 0), [residents, perms]);
 
-  const filtered = useMemo(() => residents.filter(u => {
+  const filtered = useMemo(() => residents.filter((u: AppUser) => {
     if (!q) return true;
-    const p = perms[u.uid] || { visitors: [], workers: [] };
+    const p = perms[u.uid] || EMPTY_PERMS;
     return matchRes(u) || (p[tab] || []).some(matchItem);
   }), [residents, q, tab, perms]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,7 +268,7 @@ export default function AdminPermsView() {
         </button>
       </div>
       <div className="date-pills u-mb10">
-        {[['all','Все'],['owner','Собственники'],['tenant','Арендаторы'],['contractor','Подрядчики']].map(([k, l]) => (
+        {ROLE_FILTERS.map(([k, l]) => (
           <button key={k} className={'date-pill ' + (roleFilter === k ? 'active' : '')} onClick={() => setRoleFilter(k)}>{l}</button>
         ))}
       </div>

@@ -1,8 +1,15 @@
-export function createAuthSession({ baseUrl, fetchWithTimeout, getCsrfToken, makeRequestId }) {
-  let refreshPromise = null;
+type AuthSessionDeps = {
+  baseUrl: string;
+  fetchWithTimeout: (url: string, options?: RequestInit, timeoutMs?: number) => Promise<Response>;
+  getCsrfToken: () => string;
+  makeRequestId: () => string;
+};
+
+export function createAuthSession({ baseUrl, fetchWithTimeout, getCsrfToken, makeRequestId }: AuthSessionDeps) {
+  let refreshPromise: Promise<boolean> | null = null;
   let refreshFailed = false;
 
-  async function tryRefreshToken(requestId) {
+  async function tryRefreshToken(requestId?: string) {
     if (refreshFailed) return false;
     if (refreshPromise) return refreshPromise;
 
@@ -17,7 +24,7 @@ export function createAuthSession({ baseUrl, fetchWithTimeout, getCsrfToken, mak
         },
       },
       10_000,
-    ).then((res) => {
+    ).then((res: Response) => {
       refreshPromise = null;
       if (!res.ok) refreshFailed = true;
       return res.ok;

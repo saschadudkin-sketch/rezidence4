@@ -122,8 +122,8 @@ export function useLiveSync(user: Pick<AppUser, 'uid' | 'role'>, {
     // one could overwrite the store after the faster one has already populated it.
     const abortCtrl = new AbortController();
 
-    let cleanupFn = null;
-    let cancelled  = false;
+    let cleanupFn: (() => void) | null = null;
+    let cancelled = false;
 
     (async () => { try { const fn = await services.liveData.startSync({
       userUid:        user.uid,

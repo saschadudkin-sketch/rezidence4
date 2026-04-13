@@ -59,7 +59,7 @@ export default function Toasts() {
   const [list, setList] = useState<ToastItem[]>([]);
   // FIX [AUDIT-8]: timers хранятся в ref, а не в замыкании useEffect —
   // это позволяет dismiss-кнопке (если добавим) обращаться к ним без перерегистрации.
-  const timersRef = useRef(new Map()); // id → timeoutId
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map()); // id → timeoutId
 
   const add = useCallback<ToastCallback>((msg, type, action) => {
     if (type === '__system_clear__' && msg === '__clear_all__') {
@@ -79,7 +79,7 @@ export default function Toasts() {
   }, []);
 
   // P-06: dismiss clears the timer and removes the toast immediately
-  const dismiss = useCallback((id) => {
+  const dismiss = useCallback((id: number) => {
     const tid = timersRef.current.get(id);
     if (tid !== undefined) clearTimeout(tid);
     timersRef.current.delete(id);
@@ -105,31 +105,33 @@ export default function Toasts() {
 
   return (
     <div className="toast-wrap" role="status" aria-live="polite" aria-atomic="false">
-      {list.map(t => (
-        <div key={t.id} className={'toast ' + t.type + (t.action ? ' toast--has-action' : '')} aria-atomic="true">
+      {list.map((t) => {
+        const action = t.action;
+        return (
+        <div key={t.id} className={'toast ' + t.type + (action ? ' toast--has-action' : '')} aria-atomic="true">
           <span className="toast-msg">{t.msg}</span>
           {/* P-05: optional CTA — e.g. "Повторить" for API error recovery */}
-          {t.action && (
+          {action && (
             <>
               <button
                 className="toast-action"
-                onClick={() => { t.action.onClick?.(); dismiss(t.id); }}
+                onClick={() => { action.onClick?.(); dismiss(t.id); }}
               >
-                {t.action.label}
+                {action.label}
               </button>
-              {t.action.secondaryLabel && (
+              {action.secondaryLabel && (
                 <button
                   className="toast-action toast-action-secondary"
-                  onClick={() => { t.action.onSecondaryClick?.(); dismiss(t.id); }}
+                  onClick={() => { action.onSecondaryClick?.(); dismiss(t.id); }}
                 >
-                  {t.action.secondaryLabel}
+                  {action.secondaryLabel}
                 </button>
               )}
             </>
           )}
           <button className="toast-close" onClick={() => dismiss(t.id)} aria-label="Закрыть уведомление">×</button>
         </div>
-      ))}
+      )})}
     </div>
   );
 }

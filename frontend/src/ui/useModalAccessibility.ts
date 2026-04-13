@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { MouseEvent } from 'react';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -73,7 +74,7 @@ export function useModalAccessibility({ onClose, closeOnEsc = true, restoreFocus
   }, [onClose, closeOnEsc, restoreFocus]);
 
   const overlayProps = {
-    onClick: (e) => {
+    onClick: (e: MouseEvent<HTMLDivElement>) => {
       if (e.target === e.currentTarget) onClose();
     },
   };

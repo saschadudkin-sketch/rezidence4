@@ -1,11 +1,19 @@
 import { useEffect } from 'react';
+import type { MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AppIcon } from './AppIcon';
 
-export function PhotoLightbox({ src, onClose }) {
-  // FIX [UX]: Escape закрывает лайтбокс — стандартное поведение модалок
+type PhotoLightboxProps = {
+  src: string;
+  onClose: () => void;
+};
+
+export function PhotoLightbox({ src, onClose }: PhotoLightboxProps) {
   useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') onClose(); };
+    const fn = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
     document.addEventListener('keydown', fn);
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
@@ -23,7 +31,7 @@ export function PhotoLightbox({ src, onClose }) {
         src={src}
         alt="фото"
         style={{ maxWidth: '94vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 6 }}
-        onClick={e => e.stopPropagation()}
+        onClick={(event: MouseEvent<HTMLImageElement>) => event.stopPropagation()}
       />
       <button
         onClick={onClose}

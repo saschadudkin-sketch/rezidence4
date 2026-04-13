@@ -7,7 +7,7 @@ export const ROLE_LABELS = {
   concierge: 'Консьерж',
   security: 'Охрана',
   admin: 'Администратор',
-};
+} as const;
 
 export const ROLE_ICONS = {
   owner: 'users',
@@ -16,7 +16,7 @@ export const ROLE_ICONS = {
   concierge: 'chat',
   security: 'shield',
   admin: 'chart',
-};
+} as const;
 
 export const ROLE_COLOR = {
   owner: 'var(--role-owner)',
@@ -25,7 +25,7 @@ export const ROLE_COLOR = {
   concierge: 'var(--role-concierge)',
   security: 'var(--role-security)',
   admin: 'var(--role-admin)',
-};
+} as const;
 
 // Request categories
 
@@ -40,7 +40,7 @@ export const CAT_ICON = {
   delivery: 'car',
   electrician: 'tools',
   plumber: 'tools',
-};
+} as const;
 
 export const CAT_LABEL = {
   guest: 'Гость',
@@ -53,7 +53,7 @@ export const CAT_LABEL = {
   delivery: 'Доставка',
   electrician: 'Электрик',
   plumber: 'Сантехник',
-};
+} as const;
 
 // Request statuses
 
@@ -66,7 +66,7 @@ export const STS_LABEL = {
   scheduled: 'Запланировано',
   expired: 'Истёк',
   cancelled: 'Отменено',
-};
+} as const;
 
 // Pass duration
 
@@ -74,25 +74,25 @@ export const PASS_DURATION = {
   once: 'once',
   temporary: 'temporary',
   permanent: 'permanent',
-};
+} as const;
 
 export const PASS_DURATION_LABEL = {
   once: 'Разовый',
   temporary: 'Временный',
   permanent: 'Постоянный',
-};
+} as const;
 
 export const PASS_DURATION_ICON = {
   once: 'ticket',
   temporary: 'clock',
   permanent: 'shield',
-};
+} as const;
 
 export const PASS_DURATION_DESC = {
   once: 'Одно посещение',
   temporary: 'Действует до указанной даты',
   permanent: 'Бессрочный, многоразовый',
-};
+} as const;
 
 // Shared style shortcuts
 

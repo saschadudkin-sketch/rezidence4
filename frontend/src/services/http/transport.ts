@@ -1,10 +1,10 @@
 // FIX [DATA-2]: combineSignals — объединяет timeout-сигнал с внешним signal из apiClient.
 // Ранее spread { ...options, signal: controller.signal } перезаписывал options.signal,
 // поэтому отмена запроса снаружи (unmount компонента) не работала.
-function combineSignals(timeoutSignal, externalSignal) {
+function combineSignals(timeoutSignal: AbortSignal, externalSignal?: AbortSignal) {
   if (!externalSignal) return timeoutSignal;
   // If external signal already aborted, abort immediately
-  if (externalSignal.aborted) { timeoutSignal.abort?.(); return externalSignal; }
+  if (externalSignal.aborted) return externalSignal;
   // Use native AbortSignal.any() if available (Chrome 116+, Firefox 119+, Safari 17.4+)
   if (typeof AbortSignal.any === 'function') {
     return AbortSignal.any([timeoutSignal, externalSignal]);

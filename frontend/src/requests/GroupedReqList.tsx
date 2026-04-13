@@ -58,7 +58,7 @@ function flattenGroups(groups: Array<{ label: string; items: AppRequest[] }>, sh
 // ─── VirtualGroupedReqList ───────────────────────────────────────────────────
 
 function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: { items: FlatGroupItem[] } & Omit<GroupedReqListProps, 'reqs'>) {
-  const parentRef = useRef(null);
+  const parentRef = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -69,7 +69,7 @@ function VirtualGroupedReqList({ items, userRole, userName, userId, onRepeat, on
     measureElement: (el) => el?.getBoundingClientRect().height ?? 72,
   });
 
-  const measureRef = useCallback((el) => {
+  const measureRef = useCallback((el: HTMLDivElement | null) => {
     if (el) virtualizer.measureElement(el);
   }, [virtualizer]);
 

@@ -13,13 +13,84 @@ import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
 import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse, type EntityRow } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
-import type { LiveDataCallbacks, ServiceContracts } from './ServiceContracts';
+import type {
+  AuthService,
+  ChatService,
+  LiveDataCallbacks,
+  RequestsService,
+  ServiceContracts,
+} from './ServiceContracts';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { ChatMessage } from '../../store/slices/chatSlice';
 import type { AppUser } from '../../store/slices/usersSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 import type { PermEntry, Template, UserPerms } from '../../store/slices/permsSlice';
 import type { VisitLogPage } from '../http/visitLogs';
+import type { ChatDeletePayload, ChatMessageInput, ServiceAck } from './serviceDtos';
+
+type AbortableRequestOptions = { signal?: AbortSignal };
+type PagedRequestsOptions = AbortableRequestOptions & { onPage?: (requests: AppRequest[]) => void; background?: boolean };
+type PagedChatOptions = AbortableRequestOptions & { onPage?: (messages: ChatMessage[]) => void; background?: boolean };
+type UploadPhotoResult = { url?: string | null };
+type UploadablePhoto = string;
+type PermsPayloadInput = UserPerms | { visitors: readonly PermEntry[]; workers: readonly PermEntry[] } | Template[];
+
+type BlacklistService = {
+  getAll: () => Promise<BlacklistEntry[]>;
+  add: (entry: Partial<BlacklistEntry>) => Promise<unknown>;
+  remove: (id: string) => Promise<unknown>;
+};
+
+type UsersService = {
+  getAll: (_opts?: AbortableRequestOptions) => Promise<AppUser[]>;
+  update: (uid: string, patch: Partial<AppUser>) => Promise<unknown>;
+  delete: (uid: string) => Promise<unknown>;
+};
+
+type VisitLogsService = {
+  getAll: (opts?: { signal?: AbortSignal; page?: number; limit?: number; allPages?: boolean }) => Promise<VisitLogPage>;
+  add: (entry: Record<string, unknown>) => Promise<unknown>;
+  clear: () => Promise<unknown>;
+};
+
+type PermsService = {
+  getPerms: (uid: string) => Promise<UserPerms>;
+  savePerms: (uid: string, permsObj: PermsPayloadInput) => Promise<ServiceAck | unknown>;
+  getTemplates: (uid: string) => Promise<Template[]>;
+  saveTemplates: (uid: string, items: Template[]) => Promise<unknown>;
+};
+
+type DeletedRequestEvent = Pick<AppRequest, 'id'> & { status: 'deleted' };
+type RequestUpdateEvent = AppRequest | DeletedRequestEvent;
+type SseEventMap = {
+  message: ChatMessage;
+  message_update: ChatMessage;
+  message_delete: ChatDeletePayload;
+  request_update: RequestUpdateEvent;
+  blacklist_add: BlacklistEntry;
+  blacklist_remove: { id: string };
+  user_update: AppUser;
+  user_delete: { uid: string };
+};
+
+type SseEventName = keyof SseEventMap;
+
+function isSseEventName(eventType: string): eventType is SseEventName {
+  return eventType in {
+    message: true,
+    message_update: true,
+    message_delete: true,
+    request_update: true,
+    blacklist_add: true,
+    blacklist_remove: true,
+    user_update: true,
+    user_delete: true,
+  };
+}
+
+function isDeletedRequestEvent(request: RequestUpdateEvent): request is DeletedRequestEvent {
+  return request.status === 'deleted';
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -114,22 +185,6 @@ function toAppRequest(row: EntityRow): AppRequest {
   return request;
 }
 
-function toChatMessage(row: EntityRow): ChatMessage {
-  const message: ChatMessage = {
-    id: toStringValue(row.id),
-    uid: toStringValue(row.uid),
-    name: toStringValue(row.name),
-    text: toStringValue(row.text),
-    at: toDateValue(row.at),
-  };
-
-  for (const [key, value] of Object.entries(row)) {
-    message[key] = value;
-  }
-
-  return message;
-}
-
 function toAppUser(row: EntityRow): AppUser {
   return {
     uid: toStringValue(row.uid),
@@ -144,10 +199,6 @@ function toAppUser(row: EntityRow): AppUser {
 
 function toAppRequests(rows: EntityRow[]): AppRequest[] {
   return rows.map(toAppRequest);
-}
-
-function toChatMessages(rows: EntityRow[]): ChatMessage[] {
-  return rows.map(toChatMessage);
 }
 
 function toUsers(rows: EntityRow[]): AppUser[] {
@@ -186,10 +237,10 @@ function normalizeVisitLogPage(payload: unknown): VisitLogPage {
 // ─── SSE — factory (fetch-based, JWT НЕ попадает в URL) ──────────────────────
 function createSSEManager() {
   const realtimeState = createRealtimeStateMachine();
-  let abortController = null;
-  let reconnectTimer  = null;
+  let abortController: AbortController | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let isConnected     = false;  // explicit live-connection flag
-  let currentUid      = null;   // tracks active user UID to detect session change
+  let currentUid: string | null = null;   // tracks active user UID to detect session change
   // Exponential backoff: reconnect delay doubles up to 30s to avoid hammering the server.
   let _reconnectDelay = 3_000;
   const _RECONNECT_MIN  = 3_000;
@@ -198,16 +249,16 @@ function createSSEManager() {
   let _retryCount = 0;
   const MAX_SSE_RETRIES = 10;
   // Last-Event-ID: sent on reconnect so server can replay missed events.
-  let _lastEventId = null;
+  let _lastEventId: string | null = null;
 
-  const sseHandlers = {
+  const sseHandlers: { [K in SseEventName]: Array<(payload: SseEventMap[K]) => void> } = {
     message: [], message_update: [], message_delete: [], request_update: [],
     // Real-time incremental updates for blacklist and user roster
     blacklist_add: [], blacklist_remove: [],
     user_update: [], user_delete: [],
   };
 
-  async function connect(uid = null) {
+  async function connect(uid: string | null = null) {
     // Skip reconnect if already live on the same user session.
     // On user switch (logout + new login), force-disconnect first so the new
     // user doesn't inherit events from the previous session.
@@ -223,7 +274,7 @@ function createSSEManager() {
     abortController = new AbortController();
     const signal    = abortController.signal;
     // Pass Last-Event-ID so the server can replay missed events after reconnect.
-    const headers = {};
+    const headers: Record<string, string> = {};
     if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
     try {
@@ -252,7 +303,7 @@ function createSSEManager() {
         buffer += decoder.decode(value, { stream: true });
 
         const parts = buffer.split('\n\n');
-        buffer = parts.pop();
+        buffer = parts.pop() ?? '';
 
         for (const chunk of parts) {
           let eventType = 'message';
@@ -262,10 +313,11 @@ function createSSEManager() {
             if (line.startsWith('data:'))  data      = line.slice(5).trim();
             if (line.startsWith('id:'))    _lastEventId = line.slice(3).trim();
           }
-          if (data && sseHandlers[eventType]) {
+          if (data && isSseEventName(eventType)) {
             try {
-              const parsed = JSON.parse(data);
-              sseHandlers[eventType].forEach(fn => fn(parsed));
+              const parsed = JSON.parse(data) as SseEventMap[typeof eventType];
+              const handlers = sseHandlers[eventType] as Array<(payload: typeof parsed) => void>;
+              handlers.forEach((fn) => fn(parsed));
               // DO-02: notify heartbeat monitor of activity
               emitSseActivity();
             } catch { /* ignore malformed */ }
@@ -273,14 +325,14 @@ function createSSEManager() {
         }
       }
     } catch (err) {
-      if (err.name === 'AbortError') return; // намеренный disconnect
+      if (err instanceof Error && err.name === 'AbortError') return; // намеренный disconnect
       abortController = null;
       isConnected     = false;
       _retryCount    += 1;
       // FA-07: уведомляем React о разрыве SSE-соединения
       emitSseStatus({ connected: false });
       realtimeState.transition(REALTIME_STATES.DEGRADED);
-      clearTimeout(reconnectTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       // D-04: после MAX_SSE_RETRIES — прекращаем автоматические попытки
       if (_retryCount >= MAX_SSE_RETRIES) {
         logger.warn(`[SSE] gave up after ${MAX_SSE_RETRIES} retries`);
@@ -299,7 +351,7 @@ function createSSEManager() {
 
   // Внутренний: разрывает соединение, не трогает handlers и currentUid
   function _forceDisconnect() {
-    clearTimeout(reconnectTimer);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = null;
     _reconnectDelay = _RECONNECT_MIN; // сбрасываем backoff при явном disconnect
     _retryCount = 0; // D-04: сбрасываем счётчик при явном переподключении
@@ -316,11 +368,11 @@ function createSSEManager() {
   function disconnect() {
     _forceDisconnect();
     currentUid = null;
-    Object.keys(sseHandlers).forEach(k => { sseHandlers[k] = []; });
+    (Object.keys(sseHandlers) as SseEventName[]).forEach((key) => { sseHandlers[key] = []; });
   }
 
-  function on(event, fn) {
-    sseHandlers[event]?.push(fn);
+  function on<K extends SseEventName>(event: K, fn: (payload: SseEventMap[K]) => void) {
+    sseHandlers[event].push(fn);
     return () => {
       // Read sseHandlers[event] fresh — not from closure — so unsubscribe
       // finds fn in the current array even after disconnect() replaced it.
@@ -339,11 +391,11 @@ function createSSEManager() {
 const sseManager = createSSEManager();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-export const authProvider = {
-  async sendOtp(phone) {
+export const authProvider: AuthService = {
+  async sendOtp(phone: string) {
     await apiClient.post('/api/v1/auth/send-otp', { phone }, { retryable: false });
   },
-  async verifyOtp(phone, code) {
+  async verifyOtp(phone: string, code: string) {
     // Сервер устанавливает HttpOnly cookie — токен не в теле ответа
     const { user } = await apiClient.post('/api/v1/auth/verify-otp', { phone, code }, { retryable: false });
     // Reset refresh-failed flag so the new session can obtain tokens normally.
@@ -374,8 +426,13 @@ export const authProvider = {
 
 
 // ─── Requests ─────────────────────────────────────────────────────────────────
-export const requestsProvider = {
-  async getAll(opts?: { signal?: AbortSignal; onPage?: (requests: AppRequest[]) => void; background?: boolean }) {
+export const requestsProvider: Pick<RequestsService, 'resolvePhotos'> & {
+  getAll: (opts?: PagedRequestsOptions) => Promise<AppRequest[]>;
+  create: (request: Partial<AppRequest>) => Promise<AppRequest>;
+  update: (id: string, patch: Partial<AppRequest>, historyLabel?: string) => Promise<ServiceAck | void>;
+  delete: (id: string) => Promise<ServiceAck | void>;
+} = {
+  async getAll(opts?: PagedRequestsOptions) {
     // Incremental hydration:
     // 1) return page=1 immediately for fast first paint
     // 2) fetch remaining pages in background and push cumulative list via onPage callback
@@ -424,7 +481,7 @@ export const requestsProvider = {
 
     return [...merged];
   },
-  async create(request) {
+  async create(request: Partial<AppRequest>) {
     // Idempotency key prevents duplicate submissions on concurrent or retried requests.
     const idempotencyKey = `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const serverReq = await apiClient.post('/api/v1/requests', request, {
@@ -433,23 +490,23 @@ export const requestsProvider = {
     });
     return serverReq;
   },
-  async update(id, patch, historyLabel) {
+  async update(id: string, patch: Partial<AppRequest>, historyLabel?: string) {
     return apiClient.patch(`/api/v1/requests/${id}`, { ...patch, historyLabel });
   },
-  async delete(id) {
+  async delete(id: string) {
     return apiClient.delete(`/api/v1/requests/${id}`);
   },
-  async resolvePhotos(requestId, photos) {
+  async resolvePhotos(requestId: string, photos: UploadablePhoto[]) {
     // All photos upload in parallel via allSettled; 30s timeout per photo.
     const UPLOAD_TIMEOUT = 30_000;
 
-    function withTimeout(promise, ms) {
+    function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       return Promise.race([
         promise,
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Upload timeout')), ms)
         ),
-      ]);
+      ]) as Promise<T>;
     }
 
     const results = await Promise.allSettled(
@@ -458,7 +515,7 @@ export const requestsProvider = {
           (async () => {
             // Convert base64 via atob() directly — avoids fetch(dataURL) which
             // fails under CSP and in test/SSR environments.
-            let blob;
+            let blob: Blob;
             if (photo.startsWith('data:')) {
               const [header, b64] = photo.split(',');
               const mime = (header.match(/:(.*?);/) || [])[1] || 'image/jpeg';
@@ -484,7 +541,7 @@ export const requestsProvider = {
               }
               blob = await fetch(photo).then(r => r.blob());
             }
-            const result = await apiClient.uploadPhoto(blob);
+            const result = await apiClient.uploadPhoto(blob) as UploadPhotoResult;
             if (!result.url) throw new Error('Server returned no URL');
             return result.url;
           })(),
@@ -505,7 +562,7 @@ export const requestsProvider = {
 };
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
-export const chatProvider = {
+export const chatProvider: ChatService & { getAllHistory: (opts?: PagedChatOptions) => Promise<ChatMessage[]> } = {
   // Returns { messages, hasMore }. before= loads history older than that message id.
   // search= performs full-history text search (КРИТ-2).
   async getMessages({ before, limit, search, signal }: { before?: string; limit?: number; search?: string; signal?: AbortSignal } = {}) {
@@ -518,7 +575,8 @@ export const chatProvider = {
     const data = reqOpts
       ? await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`, reqOpts)
       : await apiClient.get(`/api/v1/chat/messages${qs ? '?' + qs : ''}`);
-    return parseChatMessagesResponse(data);
+    const parsed = parseChatMessagesResponse(data);
+    return parsed as { messages: ChatMessage[]; hasMore: boolean };
   },
   async getAllHistory(opts: { signal?: AbortSignal; onPage?: (messages: ChatMessage[]) => void; background?: boolean } = {}) {
     const PAGE_SIZE = 60;
@@ -527,9 +585,7 @@ export const chatProvider = {
     const background = opts?.background !== false;
 
     const first = await chatProvider.getMessages({ limit: PAGE_SIZE, signal });
-    const merged = toChatMessages(
-      [...(first?.messages || [])].filter((message): message is EntityRow => typeof message === 'object' && message !== null),
-    );
+    const merged = [...(first?.messages || [])];
     if (!background || !first?.hasMore || merged.length === 0) return merged;
 
     (async () => {
@@ -539,9 +595,7 @@ export const chatProvider = {
           const oldest = merged[0]?.id;
           if (typeof oldest !== 'string' || !oldest) break;
           const next = await chatProvider.getMessages({ before: oldest, limit: PAGE_SIZE, signal });
-          const nextRows = toChatMessages(
-            (next?.messages || []).filter((message): message is EntityRow => typeof message === 'object' && message !== null),
-          );
+          const nextRows = [...(next?.messages || [])];
           if (!nextRows.length) break;
           merged.unshift(...nextRows);
           onPage?.([...merged]);
@@ -555,16 +609,16 @@ export const chatProvider = {
 
     return merged;
   },
-  async sendMessage(msg) {
+  async sendMessage(msg: ChatMessage | ChatMessageInput) {
     return apiClient.post('/api/v1/chat/messages', msg);
   },
-  async updateMessage(id, patch) {
+  async updateMessage(id: string, patch: Partial<ChatMessage>) {
     return apiClient.patch(`/api/v1/chat/messages/${id}`, patch);
   },
-  async deleteMessage(id) {
+  async deleteMessage(id: string) {
     return apiClient.delete(`/api/v1/chat/messages/${id}`);
   },
-  async markSeen(uid) {
+  async markSeen(uid: string) {
     return apiClient.post('/api/v1/chat/seen', { uid });
   },
   onMessage(fn)       { return sseManager.on('message', fn); },
@@ -573,34 +627,34 @@ export const chatProvider = {
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
-export const usersProvider = {
+export const usersProvider: UsersService = {
   async getAll(_opts?: { signal?: AbortSignal }) {
     const data = await apiClient.get('/api/v1/users');
     return toUsers(parseUsersResponse(data));
   },
-  async update(uid, patch) {
+  async update(uid: string, patch: Partial<AppUser>) {
     return apiClient.patch(`/api/v1/users/${uid}`, patch);
   },
-  async delete(uid) {
+  async delete(uid: string) {
     return apiClient.delete(`/api/v1/users/${uid}`);
   },
 };
 
 // ─── Blacklist ────────────────────────────────────────────────────────────────
-export const blacklistProvider = {
+export const blacklistProvider: BlacklistService = {
   async getAll() {
     return toBlacklist(await apiClient.get('/api/v1/blacklist'));
   },
-  async add(entry) {
+  async add(entry: Partial<BlacklistEntry>) {
     return apiClient.post('/api/v1/blacklist', entry);
   },
-  async remove(id) {
+  async remove(id: string) {
     return apiClient.delete(`/api/v1/blacklist/${id}`);
   },
 };
 
 // ─── Visit Logs ───────────────────────────────────────────────────────────────
-export const visitLogsProvider = {
+export const visitLogsProvider: VisitLogsService = {
   async getAll({ signal, page = 1, limit = 100, allPages = true }: {
     signal?: AbortSignal;
     page?: number;
@@ -635,7 +689,7 @@ export const visitLogsProvider = {
       data: merged,
     };
   },
-  async add(entry) {
+  async add(entry: Record<string, unknown>) {
     return apiClient.post('/api/v1/visit-logs', entry);
   },
   /**
@@ -649,8 +703,8 @@ export const visitLogsProvider = {
 };
 
 // ─── Permissions & Templates ──────────────────────────────────────────────────
-export const permsProvider = {
-  async getPerms(uid) {
+export const permsProvider: PermsService = {
+  async getPerms(uid: string) {
     return toPerms(await apiClient.get(`/api/v1/perms/${uid}`));
   },
   /**
@@ -669,10 +723,10 @@ export const permsProvider = {
       workers: [...permsObj.workers],
     });
   },
-  async getTemplates(uid) {
+  async getTemplates(uid: string) {
     return toTemplates(await apiClient.get(`/api/v1/templates/${uid}`));
   },
-  async saveTemplates(uid, items) {
+  async saveTemplates(uid: string, items: Template[]) {
     return apiClient.post('/api/v1/templates', { uid, items });
   },
 };
@@ -701,9 +755,9 @@ export function createBackendProvider(): ServiceContracts {
       resolvePhotos:    requestsProvider.resolvePhotos.bind(requestsProvider),
     },
     admin: {
-      savePermsEverywhere:  (args) => permsProvider.savePerms(args.uid, args.perms),
-      saveUserEverywhere:   (args) => usersProvider.update(args.uid, args.patch),
-      removeUserEverywhere: (args) => usersProvider.delete(args.uid),
+      savePermsEverywhere:  (args) => permsProvider.savePerms(args.uid, args.perms) as Promise<ServiceAck | void>,
+      saveUserEverywhere:   (args) => usersProvider.update(args.uid, args.patch) as Promise<ServiceAck | void>,
+      removeUserEverywhere: (args) => usersProvider.delete(args.uid) as Promise<ServiceAck | void>,
     },
     liveData: {
       startSync: async ({ onChat, setAllRequests, setAllMessages, setAllUsers,
@@ -726,8 +780,8 @@ export function createBackendProvider(): ServiceContracts {
 
         // Subscribe to request_update BEFORE the parallel fetch so events that arrive
         // during initial load are buffered and applied after — not silently dropped.
-        const reqEventBuffer: AppRequest[] = [];
-        const bufferReqSub = sseManager.on('request_update', req => reqEventBuffer.push(req));
+        const reqEventBuffer: RequestUpdateEvent[] = [];
+        const bufferReqSub = sseManager.on('request_update', (req) => reqEventBuffer.push(req));
 
         // DA-01: pass signal to every provider call so the underlying apiClient fetch
         // is aborted immediately when the caller calls abortCtrl.abort().
@@ -797,6 +851,10 @@ export function createBackendProvider(): ServiceContracts {
         // Применить буферизированные события к начальным данным перед отправкой в стор
         currentRequests = Array.isArray(reqs) ? [...reqs] : [];
         for (const bufferedReq of reqEventBuffer) {
+          if (isDeletedRequestEvent(bufferedReq)) {
+            currentRequests = currentRequests.filter((request) => request.id !== bufferedReq.id);
+            continue;
+          }
           const idx = currentRequests.findIndex(r => r.id === bufferedReq.id);
           if (idx >= 0) currentRequests[idx] = bufferedReq;
           else currentRequests = [bufferedReq, ...currentRequests];
@@ -820,10 +878,10 @@ export function createBackendProvider(): ServiceContracts {
         // используем точечные операции REQUEST_UPDATE / REQUEST_ADD / REQUEST_DELETE.
         // При 500+ заявках staff-роли это убирает O(n) reconciler-прогон при каждом событии.
         // setAllRequests сохраняется только для начальной bulk-загрузки.
-        const unsubReq = sseManager.on('request_update', req => {
+        const unsubReq = sseManager.on('request_update', (req: RequestUpdateEvent) => {
           if (!mounted) return;
           // Удаление (soft-delete broadcast)
-          if (req.status === 'deleted') {
+          if (isDeletedRequestEvent(req)) {
             if (onRequestDelete) {
               onRequestDelete(req.id);
             } else {

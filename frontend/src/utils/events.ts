@@ -38,12 +38,16 @@ export const AppEvents = /** @type {const} */ ({
   REALTIME_STATE: 'rz:realtime-state',
 });
 
+type SseStatusDetail = { connected: boolean };
+type SessionExpiredDetail = { reason: string; returnTo?: string };
+type RealtimeStateDetail = { from: string; to: string; at: number; durationMs: number };
+
 // ─── Typed emit helpers ───────────────────────────────────────────────────────
 
 /**
  * @param {{ connected: boolean }} detail
  */
-export function emitSseStatus(detail) {
+export function emitSseStatus(detail: SseStatusDetail) {
   window.dispatchEvent(new CustomEvent(AppEvents.SSE_STATUS, { detail }));
 }
 
@@ -66,14 +70,14 @@ export function emitUnauthorized() {
 /**
  * @param {{ reason: string, returnTo?: string }} detail
  */
-export function emitSessionExpired(detail) {
+export function emitSessionExpired(detail: SessionExpiredDetail) {
   window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXPIRED, { detail }));
 }
 
 /**
  * @param {{ from: string, to: string, at: number, durationMs: number }} detail
  */
-export function emitRealtimeState(detail) {
+export function emitRealtimeState(detail: RealtimeStateDetail) {
   window.dispatchEvent(new CustomEvent(AppEvents.REALTIME_STATE, { detail }));
 }
 
@@ -83,8 +87,8 @@ export function emitRealtimeState(detail) {
  * @param {(detail: { connected: boolean }) => void} handler
  * @returns {() => void} cleanup
  */
-export function onSseStatus(handler) {
-  const listener = (e) => handler(/** @type {CustomEvent} */ (e).detail);
+export function onSseStatus(handler: (detail: SseStatusDetail) => void) {
+  const listener = (e: Event) => handler((e as CustomEvent<SseStatusDetail>).detail);
   window.addEventListener(AppEvents.SSE_STATUS, listener);
   return () => window.removeEventListener(AppEvents.SSE_STATUS, listener);
 }
@@ -93,7 +97,7 @@ export function onSseStatus(handler) {
  * @param {() => void} handler
  * @returns {() => void} cleanup
  */
-export function onSseForceReconnect(handler) {
+export function onSseForceReconnect(handler: () => void) {
   window.addEventListener(AppEvents.SSE_FORCE_RECONNECT, handler);
   return () => window.removeEventListener(AppEvents.SSE_FORCE_RECONNECT, handler);
 }
@@ -102,7 +106,7 @@ export function onSseForceReconnect(handler) {
  * @param {() => void} handler
  * @returns {() => void} cleanup
  */
-export function onSseActivity(handler) {
+export function onSseActivity(handler: () => void) {
   window.addEventListener(AppEvents.SSE_ACTIVITY, handler);
   return () => window.removeEventListener(AppEvents.SSE_ACTIVITY, handler);
 }
@@ -111,7 +115,7 @@ export function onSseActivity(handler) {
  * @param {() => void} handler
  * @returns {() => void} cleanup
  */
-export function onSsePermanentError(handler) {
+export function onSsePermanentError(handler: () => void) {
   window.addEventListener(AppEvents.SSE_PERMANENT_ERROR, handler);
   return () => window.removeEventListener(AppEvents.SSE_PERMANENT_ERROR, handler);
 }
@@ -120,7 +124,7 @@ export function onSsePermanentError(handler) {
  * @param {() => void} handler
  * @returns {() => void} cleanup
  */
-export function onUnauthorized(handler) {
+export function onUnauthorized(handler: () => void) {
   window.addEventListener(AppEvents.UNAUTHORIZED, handler);
   return () => window.removeEventListener(AppEvents.UNAUTHORIZED, handler);
 }
@@ -129,8 +133,8 @@ export function onUnauthorized(handler) {
  * @param {(detail: { reason: string, returnTo?: string }) => void} handler
  * @returns {() => void} cleanup
  */
-export function onSessionExpired(handler) {
-  const listener = (e) => handler(/** @type {CustomEvent} */ (e).detail);
+export function onSessionExpired(handler: (detail: SessionExpiredDetail) => void) {
+  const listener = (e: Event) => handler((e as CustomEvent<SessionExpiredDetail>).detail);
   window.addEventListener(AppEvents.SESSION_EXPIRED, listener);
   return () => window.removeEventListener(AppEvents.SESSION_EXPIRED, listener);
 }
@@ -139,8 +143,8 @@ export function onSessionExpired(handler) {
  * @param {(detail: { from: string, to: string, at: number, durationMs: number }) => void} handler
  * @returns {() => void} cleanup
  */
-export function onRealtimeState(handler) {
-  const listener = (e) => handler(/** @type {CustomEvent} */ (e).detail);
+export function onRealtimeState(handler: (detail: RealtimeStateDetail) => void) {
+  const listener = (e: Event) => handler((e as CustomEvent<RealtimeStateDetail>).detail);
   window.addEventListener(AppEvents.REALTIME_STATE, listener);
   return () => window.removeEventListener(AppEvents.REALTIME_STATE, listener);
 }

@@ -22,9 +22,18 @@ const IS_DEV = import.meta?.env?.DEV === true || import.meta?.env?.MODE === 'tes
 
 export function createLogger() {
   // Контекст живёт в замыкании — изолирован от других экземпляров
-  let _ctx = {};
+  let _ctx: Record<string, unknown> = {};
 
-  function _fmtArgs(args) {
+  type LoggerArg = unknown;
+  type ErrorPayload = {
+    message: string;
+    error: unknown;
+    context: Record<string, unknown>;
+    extra: Record<string, unknown>;
+    timestamp: string;
+  };
+
+  function _fmtArgs(args: LoggerArg[]) {
     if (Object.keys(_ctx).length === 0) return args;
     return [...args, _ctx];
   }
@@ -33,9 +42,9 @@ export function createLogger() {
   // Буферизует ошибки и отправляет батчем через POST /api/v1/client-logs.
   // При unload страницы — navigator.sendBeacon (гарантированная доставка).
   // Rate limit: максимум 10 ошибок в минуту, дубли по message дедуплицируются.
-  const _errorBuffer = [];
+  const _errorBuffer: ErrorPayload[] = [];
   const _sentMessages = new Set();
-  let _flushTimer = null;
+  let _flushTimer: ReturnType<typeof setTimeout> | null = null;
   const MAX_BUFFER = 10;
   const FLUSH_INTERVAL = 5_000; // 5 секунд
 
@@ -62,7 +71,7 @@ export function createLogger() {
     } catch { /* ignore — logging must never break the app */ }
   }
 
-  function _sendToService(payload) {
+  function _sendToService(payload: ErrorPayload) {
     // Дедупликация по message (не шлём одну и ту же ошибку 100 раз)
     const key = payload.message || 'unknown';
     if (_sentMessages.has(key)) return;
@@ -85,7 +94,7 @@ export function createLogger() {
 
   return {
     /** Установить контекст (uid, role, name) — вызывать при логине */
-    setContext(ctx) {
+    setContext(ctx: Record<string, unknown>) {
       _ctx = { ..._ctx, ...ctx };
     },
 
@@ -99,22 +108,22 @@ export function createLogger() {
       return { ..._ctx };
     },
 
-    debug(...args) {
+    debug(...args: LoggerArg[]) {
       // eslint-disable-next-line no-console
       if (IS_DEV) console.debug('[DEBUG]', ..._fmtArgs(args));
     },
 
-    info(...args) {
+    info(...args: LoggerArg[]) {
       if (IS_DEV) console.info('[INFO]', ..._fmtArgs(args));
     },
 
-    warn(...args) {
+    warn(...args: LoggerArg[]) {
       if (IS_DEV) {
         console.warn('[WARN]', ..._fmtArgs(args));
       }
     },
 
-    error(message, error, extra = {}) {
+    error(message: string, error: unknown, extra: Record<string, unknown> = {}) {
       const payload = {
         message,
         error: error instanceof Error
@@ -132,7 +141,7 @@ export function createLogger() {
     },
 
     /** Логировать действие пользователя */
-    action(name, data = {}) {
+    action(name: string, data: Record<string, unknown> = {}) {
       // eslint-disable-next-line no-console
       if (IS_DEV) console.log('[ACTION]', name, { ..._ctx, ...data });
     },

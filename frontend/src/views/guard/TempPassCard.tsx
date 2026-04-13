@@ -15,6 +15,7 @@ import { MS_PER_DAY } from '../../constants/limits';
 import { presentError } from '../../ui/errorPresenter';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
 // FIX [PERF-5]: memo — TempPassCard рендерится для каждого временного пропуска.
 const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, blacklist }: {
@@ -90,7 +91,7 @@ const TempPassCard = memo(function TempPassCard({ req, userName, residentPhone, 
       )}
       <div className="guard-card-top">
         <div className="guard-avatar">
-          <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={42} fontSize={16} />
+          <AvatarCircle avData={avData} role={req.createdByRole as UserRole | undefined} name={req.createdByName || '?'} size={42} fontSize={16} />
         </div>
         <div className="guard-info">
           <div className="guard-apt">

@@ -22,6 +22,7 @@ import { useTelemetrySla } from '../hooks/useTelemetrySla';
 import SlaDashboard from '../ui/SlaDashboard';
 import type { AppRequest } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
+import type { AppIconName } from '../ui/AppIcon';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
   return (
     <>
       <div className="stats-grid">
-        {stats.map(([icon, val, lbl]) => (
+        {stats.map(([icon, val, lbl]: [AppIconName, number, string]) => (
           <div key={lbl} className="stat-card">
             <span className="stat-ico"><AppIcon name={icon} size={18} /></span>
             <div className={val === 0 ? 'stat-val zero' : 'stat-val'}>{val}</div>

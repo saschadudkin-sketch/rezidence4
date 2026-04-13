@@ -7,15 +7,32 @@ import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { dataUrlToBlob } from '../utils/dataUrl';
+import type { AppRequest, PassDuration } from '../store/slices/requestsSlice';
 
-/**
- * PassQRModal — показывает QR-код пропуска для предъявления охране.
- * Жилец открывает → показывает на телефоне охраннику → охранник сканирует.
- */
-export function PassQRModal({ req, onClose }) {
-  const [qrUrl, setQrUrl] = useState(null);
-  const [error, setError]  = useState(false);
+type PassQRModalProps = {
+  req: AppRequest;
+  onClose: () => void;
+};
+
+const getCategoryLabel = (category?: string) => (
+  category && category in CAT_LABEL
+    ? CAT_LABEL[category as keyof typeof CAT_LABEL]
+    : category ?? ''
+);
+
+const getPassDurationMeta = (passDuration?: PassDuration) => {
+  if (!passDuration) return null;
+  return {
+    icon: PASS_DURATION_ICON[passDuration] ?? 'ticket',
+    label: PASS_DURATION_LABEL[passDuration],
+  };
+};
+
+export function PassQRModal({ req, onClose }: PassQRModalProps) {
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const isQrAvailable = req.status === 'approved';
+  const passDurationMeta = getPassDurationMeta(req.passDuration);
 
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
@@ -34,8 +51,6 @@ export function PassQRModal({ req, onClose }) {
     Promise.resolve(generatePassQR(req))
       .then(setQrUrl)
       .catch(() => setError(true));
-  // FIX [PERF]: зависим только от req.id — QR меняется только при смене заявки,
-  // не при каждом обновлении объекта req от родителя.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isQrAvailable, req.id]);
 
@@ -76,7 +91,7 @@ export function PassQRModal({ req, onClose }) {
           <div className="qr-info">
             <div className="qr-info-row">
               <span className="qr-info-lbl">Тип</span>
-              <span className="qr-info-val">{CAT_LABEL[req.category] || req.category}</span>
+              <span className="qr-info-val">{getCategoryLabel(req.category)}</span>
             </div>
             {req.visitorName && (
               <div className="qr-info-row">
@@ -98,10 +113,10 @@ export function PassQRModal({ req, onClose }) {
               <span className="qr-info-lbl">Заказчик</span>
               <span className="qr-info-val">{req.createdByName}</span>
             </div>
-            {req.passDuration && (
+            {passDurationMeta && (
               <div className="qr-info-row">
                 <span className="qr-info-lbl">Тип пропуска</span>
-                <span className="qr-info-val"><AppIcon name={PASS_DURATION_ICON[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</span>
+                <span className="qr-info-val"><AppIcon name={passDurationMeta.icon} className="u-inline-icon" /> {passDurationMeta.label}</span>
               </div>
             )}
             {req.validUntil && (
@@ -127,10 +142,13 @@ export function PassQRModal({ req, onClose }) {
               <button className="btn-outline u-flex1" onClick={() => {
                 try {
                   const blob = dataUrlToBlob(qrUrl);
-                  const url  = URL.createObjectURL(blob);
-                  const a    = document.createElement('a');
-                  a.href = url; a.download = 'pass-qr.png';
-                  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'pass-qr.png';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
                   setTimeout(() => URL.revokeObjectURL(url), 100);
                   toast('QR сохранён', 'success');
                 } catch {

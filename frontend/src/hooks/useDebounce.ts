@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
  *   const debouncedQuery = useDebounce(query, 300);
  *   // фильтруем по debouncedQuery, не по query
  */
-export function useDebounce(value, delay = 300) {
+export function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
 
   useEffect(() => {

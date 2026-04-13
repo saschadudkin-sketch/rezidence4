@@ -18,6 +18,7 @@ import { AppIcon } from '../../ui/AppIcon';
 import { presentError } from '../../ui/errorPresenter';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
+import type { UserRole } from '../../store/slices/usersSlice';
 
 // FIX [PERF-5]: memo — GuardCard рендерится для каждой заявки в списке.
 // Без memo перерендер при любом изменении requests (например, SSE-обновление одной карточки)
@@ -139,7 +140,7 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
 
       <div className="guard-card-top">
         <div className="guard-avatar">
-          <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={48} fontSize={18} />
+          <AvatarCircle avData={avData} role={req.createdByRole as UserRole | undefined} name={req.createdByName || '?'} size={48} fontSize={18} />
         </div>
         <div
           className={'guard-info ' + (onViewDetails ? 'req-head req-head--clickable' : 'req-head')}

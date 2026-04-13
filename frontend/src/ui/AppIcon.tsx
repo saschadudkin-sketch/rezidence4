@@ -1,4 +1,5 @@
 import React from 'react';
+import type { SVGProps } from 'react';
 
 const SVGS = {
   ticket: {
@@ -212,10 +213,28 @@ export const APP_ICON_NAMES = Object.freeze([
 const warnedUnknownIcons = new Set();
 const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
 
-export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 }) {
+export type AppIconName = typeof APP_ICON_NAMES[number];
+
+type SvgPathConfig = {
+  d: string;
+  fill?: string;
+  fillRule?: SVGProps<SVGPathElement>['fillRule'];
+  stroke?: string;
+  strokeWidth?: number;
+  transform?: string;
+};
+
+type AvatarIconProps = {
+  name: AppIconName | string;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+};
+
+export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 }: AvatarIconProps) {
   const hasExplicitName = typeof name === 'string' && name.trim().length > 0;
-  const path = PATHS[name];
-  const svg = path ? null : SVGS[name];
+  const path = PATHS[name as keyof typeof PATHS];
+  const svg = path ? null : SVGS[name as keyof typeof SVGS];
   const resolvedPath = path || PATHS.list;
   if (hasExplicitName && !svg && !path && !(import.meta?.env?.PROD === true) && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
@@ -233,7 +252,7 @@ export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 })
         aria-hidden="true"
         focusable="false"
       >
-        {svg.paths.map((item, index) => (
+        {(svg.paths as readonly SvgPathConfig[]).map((item, index) => (
           <path
             key={`${name}-${index}`}
             d={item.d}

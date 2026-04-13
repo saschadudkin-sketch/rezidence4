@@ -41,10 +41,33 @@ export type ReqCardProps = {
   onHighlighted?: () => void;
 };
 
-// ─── ReqPhoto ────────────────────────────────────────────────────────────────
+type ReqActionToastType = 'success' | 'error';
+type ReqActionFn = () => Promise<void>;
 
-// FIX [PERF-5]: memo — ReqPhoto рендерится для каждого фото в карточке.
-// Без memo при раскрытии/закрытии любой другой карточки все фото перерисовывались.
+const getRoleLabel = (role?: string) => (
+  role && role in ROLE_LABELS
+    ? ROLE_LABELS[role as keyof typeof ROLE_LABELS]
+    : role ?? ''
+);
+
+const getCategoryLabel = (category?: string) => (
+  category && category in CAT_LABEL
+    ? CAT_LABEL[category as keyof typeof CAT_LABEL]
+    : category ?? ''
+);
+
+const getPassDurationMeta = (passDuration?: AppRequest['passDuration']) => {
+  if (!passDuration) return null;
+  return {
+    icon: PASS_DURATION_ICON[passDuration] ?? 'ticket',
+    label: PASS_DURATION_LABEL[passDuration],
+  };
+};
+
+const asUserRole = (role?: string): UserRole | null => (
+  role && role in ROLE_LABELS ? role as UserRole : null
+);
+
 const ReqPhoto = memo(function ReqPhoto({ src }: ReqPhotoProps) {
   const [open, setOpen] = useState(false);
   return (
@@ -55,8 +78,6 @@ const ReqPhoto = memo(function ReqPhoto({ src }: ReqPhotoProps) {
   );
 });
 
-// Photo order is stable (index key). URL-based key would cause unmount/remount
-// on SSE updates even when photo list hasn't changed.
 const ReqPhotos = memo(function ReqPhotos({ req }: { req: AppRequest }) {
   const photos = req.photos && req.photos.length > 0 ? req.photos : req.photo ? [req.photo] : [];
   if (photos.length === 0) return null;
@@ -67,13 +88,10 @@ const ReqPhotos = memo(function ReqPhotos({ req }: { req: AppRequest }) {
   );
 });
 
-// ─── ReqSkeleton ─────────────────────────────────────────────────────────────
-
 export function ReqSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="req-list" aria-hidden="true">
       {Array.from({ length: count }, (_, i) => (
-        // 5.3: stagger delay expressed via CSS class + data-attr instead of inline style
         <div key={i} className={'skeleton-card skeleton-card--delay-' + i}>
           <div className="skeleton-row">
             <div className="skeleton-avatar" />
@@ -93,30 +111,25 @@ export function ReqSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-// ─── ReqCardDetails ──────────────────────────────────────────────────────────
-// 7.2: extracted from ReqCard to reduce responsibilities per component.
-
 const ReqCardDetails = memo(function ReqCardDetails({ req, history }: { req: AppRequest; history: HistoryEntry[] }) {
+  const passDurationMeta = getPassDurationMeta(req.passDuration);
   if (!(req.arrivedAt || req.visitorName || req.carPlate || req.visitorPhone || req.comment)) return null;
   return (
     <div className="req-details">
-      {req.arrivedAt    && <div><div className="det-lbl">Вход отмечен</div><div className="det-val u-arrived">{new Date(req.arrivedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div></div>}
+      {req.arrivedAt && <div><div className="det-lbl">Вход отмечен</div><div className="det-val u-arrived">{new Date(req.arrivedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div></div>}
       {req.scheduledFor && isScheduledRequest(req) && <div className="u-grid-span"><div className="det-lbl">Отправка запланирована</div><div className="det-val u-scheduled-t">{new Date(req.scheduledFor).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</div></div>}
-      {req.passDuration && <div><div className="det-lbl">Тип пропуска</div><div className="det-val"><AppIcon name={PASS_DURATION_ICON[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</div></div>}
-      {req.validUntil   && <div><div className="det-lbl">Действует до</div><div className="det-val">{new Date(req.validUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>}
-      {req.carPlate     && <div><div className="det-lbl">Авто</div><div className="det-val">{req.carPlate}</div></div>}
-      {req.visitorName  && <div><div className="det-lbl">Посетитель</div><div className="det-val">{req.visitorName}</div></div>}
+      {passDurationMeta && <div><div className="det-lbl">Тип пропуска</div><div className="det-val"><AppIcon name={passDurationMeta.icon} className="u-inline-icon" /> {passDurationMeta.label}</div></div>}
+      {req.validUntil && <div><div className="det-lbl">Действует до</div><div className="det-val">{new Date(req.validUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>}
+      {req.carPlate && <div><div className="det-lbl">Авто</div><div className="det-val">{req.carPlate}</div></div>}
+      {req.visitorName && <div><div className="det-lbl">Посетитель</div><div className="det-val">{req.visitorName}</div></div>}
       {req.visitorPhone && <div><div className="det-lbl">Телефон</div><div className="det-val">{req.visitorPhone}</div></div>}
-      {req.comment      && <div className="u-grid-span"><div className="det-lbl">Комментарий</div><div className="det-val">{req.comment}</div></div>}
+      {req.comment && <div className="u-grid-span"><div className="det-lbl">Комментарий</div><div className="det-val">{req.comment}</div></div>}
       {history.length > 0 && (
         <div className="u-grid-span">
           <div className="det-lbl">История</div>
-          {history.map((h, i) => (
-            // FIX [KEY]: h.at уникален per-event (timestamp); i — дополнительная
-            // защита от совпадения миллисекунд.
-            // FIX [PERF]: inline style заменён на .req-history-row
-            <div key={`${h.at || i}-${i}`} className="req-history-row">
-              <span className="req-history-time">{fmtTime(h.at)}</span> · {h.action} · <span className="u-t4">{ROLE_LABELS[h.byRole] || h.byRole}</span>
+          {history.map((entry, index) => (
+            <div key={`${entry.at || index}-${index}`} className="req-history-row">
+              <span className="req-history-time">{fmtTime(entry.at)}</span> · {entry.action} · <span className="u-t4">{getRoleLabel(entry.byRole)}</span>
             </div>
           ))}
         </div>
@@ -124,9 +137,6 @@ const ReqCardDetails = memo(function ReqCardDetails({ req, history }: { req: App
     </div>
   );
 });
-
-// ─── ReqCardStaffActions ─────────────────────────────────────────────────────
-// 7.2: staff approval/rejection/acceptance actions as a separate component.
 
 const ReqCardStaffActions = memo(function ReqCardStaffActions({
   req, actLoading, mayApprove, mayReject, mayAccept, mayMarkArrival,
@@ -146,32 +156,32 @@ const ReqCardStaffActions = memo(function ReqCardStaffActions({
   const [confirmReject, setConfirmReject] = useState(false);
   return (
     <div className="req-actions" aria-busy={!!actLoading}>
-      {req.type === 'pass' ? <>
-        {mayApprove && <button className="btn-yes" onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
-        {mayReject && !confirmReject && (
-          <button className="btn-no" onClick={() => setConfirmReject(true)} disabled={!!actLoading}>
-            {actLoading === 'reject' && <span className="btn-spin" />}Отказать
-          </button>
-        )}
-        {mayReject && confirmReject && (
-          <span className="req-confirm-reject">
-            <span className="req-confirm-label">Отказать?</span>
-            <button className="btn-no" onClick={() => { setConfirmReject(false); doReject(); }} disabled={!!actLoading}>Да</button>
-            <button className="btn-outline" onClick={() => setConfirmReject(false)}>Нет</button>
-          </span>
-        )}
-        {mayMarkArrival && isApprovedRequest(req) && <button className="btn-arrive" onClick={doArrive} disabled={!!actLoading}>{actLoading === 'arrive' && <span className="btn-spin" />}Отметить вход</button>}
-        {req.status === 'rejected' && <button className="btn-yes" onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
-      </> : <>
-        {mayAccept && req.status !== 'accepted' && <button className="btn-accept" onClick={doAccept} disabled={!!actLoading}>{actLoading === 'accept' && <span className="btn-spin" />}Принять заявку</button>}
-      </>}
+      {req.type === 'pass' ? (
+        <>
+          {mayApprove && <button className="btn-yes" onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
+          {mayReject && !confirmReject && (
+            <button className="btn-no" onClick={() => setConfirmReject(true)} disabled={!!actLoading}>
+              {actLoading === 'reject' && <span className="btn-spin" />}Отказать
+            </button>
+          )}
+          {mayReject && confirmReject && (
+            <span className="req-confirm-reject">
+              <span className="req-confirm-label">Отказать?</span>
+              <button className="btn-no" onClick={() => { setConfirmReject(false); void doReject(); }} disabled={!!actLoading}>Да</button>
+              <button className="btn-outline" onClick={() => setConfirmReject(false)}>Нет</button>
+            </span>
+          )}
+          {mayMarkArrival && isApprovedRequest(req) && <button className="btn-arrive" onClick={doArrive} disabled={!!actLoading}>{actLoading === 'arrive' && <span className="btn-spin" />}Отметить вход</button>}
+          {req.status === 'rejected' && <button className="btn-yes" onClick={doApprove} disabled={!!actLoading}>{actLoading === 'approve' && <span className="btn-spin" />}Разрешить</button>}
+        </>
+      ) : (
+        <>
+          {mayAccept && req.status !== 'accepted' && <button className="btn-accept" onClick={doAccept} disabled={!!actLoading}>{actLoading === 'accept' && <span className="btn-spin" />}Принять заявку</button>}
+        </>
+      )}
     </div>
   );
 });
-
-// ─── ReqCardResidentActions ──────────────────────────────────────────────────
-// 7.2: resident-facing actions (edit, delete, repeat, cancel) as a separate component.
-// 2.3: loading state on cancel/delete/repeat buttons.
 
 const ReqCardResidentActions = memo(function ReqCardResidentActions({
   req, onRepeat, onEdit, onDelete, onCancel, isStaffRole, actLoading,
@@ -186,88 +196,88 @@ const ReqCardResidentActions = memo(function ReqCardResidentActions({
 }) {
   const [confirmDel, setConfirmDel] = useState(false);
 
-  return (<>
-    {onRepeat && req.status !== 'pending' && (
-      <button className="tpl-save-btn" onClick={() => onRepeat(req)} disabled={actLoading === 'repeat'}>
-        {actLoading === 'repeat' && <span className="btn-spin" />}
-        <span className="u-inline-icon u-mr6"><AppIcon name="undo" size={12} /></span>
-        Повторить заявку
-      </button>
-    )}
-    {(onEdit || onDelete) && isPendingRequest(req) && (
-      <div className="u-flex u-flex-end u-gap-6 u-mt-8">
-        {confirmDel ? <>
-          <span className="u-fs-2xs u-t3">Удалить?</span>
-          <button className="btn-del-sm" onClick={() => onDelete(req.id)} disabled={actLoading === 'delete'}>
-            {actLoading === 'delete' && <span className="btn-spin" />}Да
-          </button>
-          <button className="btn-outline btn-outline--sm" onClick={() => setConfirmDel(false)}>Нет</button>
-        </> : <>
-          {onEdit && (
-            <button className="btn-edit" onClick={() => onEdit(req)}>
-              <span className="u-inline-icon u-mr6"><AppIcon name="edit" size={12} /></span>
-              Редактировать
-            </button>
-          )}
-          {onDelete && (
-            <button className="btn-del-sm" onClick={() => setConfirmDel(true)}>
-              <span className="u-inline-icon u-mr6"><AppIcon name="trash" size={12} /></span>
-              Удалить
-            </button>
-          )}
-        </>}
-      </div>
-    )}
-    {onCancel && (req.status === 'pending' || req.status === 'approved') && !isStaffRole && (
-      <div className="u-flex u-flex-end u-mt-8">
-        <button className="btn-outline btn-cancel-req" onClick={() => onCancel(req.id)} disabled={actLoading === 'cancel'}>
-          {actLoading === 'cancel' && <span className="btn-spin" />}
-          <span className="u-inline-icon u-mr6"><AppIcon name="close" size={12} /></span>
-          Отменить заявку
+  return (
+    <>
+      {onRepeat && req.status !== 'pending' && (
+        <button className="tpl-save-btn" onClick={() => onRepeat(req)} disabled={actLoading === 'repeat'}>
+          {actLoading === 'repeat' && <span className="btn-spin" />}
+          <span className="u-inline-icon u-mr6"><AppIcon name="undo" size={12} /></span>
+          Повторить заявку
         </button>
-      </div>
-    )}
-  </>);
+      )}
+      {(onEdit || onDelete) && isPendingRequest(req) && (
+        <div className="u-flex u-flex-end u-gap-6 u-mt-8">
+          {confirmDel ? (
+            <>
+              <span className="u-fs-2xs u-t3">Удалить?</span>
+              <button className="btn-del-sm" onClick={() => onDelete?.(req.id)} disabled={actLoading === 'delete'}>
+                {actLoading === 'delete' && <span className="btn-spin" />}Да
+              </button>
+              <button className="btn-outline btn-outline--sm" onClick={() => setConfirmDel(false)}>Нет</button>
+            </>
+          ) : (
+            <>
+              {onEdit && (
+                <button className="btn-edit" onClick={() => onEdit(req)}>
+                  <span className="u-inline-icon u-mr6"><AppIcon name="edit" size={12} /></span>
+                  Редактировать
+                </button>
+              )}
+              {onDelete && (
+                <button className="btn-del-sm" onClick={() => setConfirmDel(true)}>
+                  <span className="u-inline-icon u-mr6"><AppIcon name="trash" size={12} /></span>
+                  Удалить
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {onCancel && (req.status === 'pending' || req.status === 'approved') && !isStaffRole && (
+        <div className="u-flex u-flex-end u-mt-8">
+          <button className="btn-outline btn-cancel-req" onClick={() => onCancel(req.id)} disabled={actLoading === 'cancel'}>
+            {actLoading === 'cancel' && <span className="btn-spin" />}
+            <span className="u-inline-icon u-mr6"><AppIcon name="close" size={12} /></span>
+            Отменить заявку
+          </button>
+        </div>
+      )}
+    </>
+  );
 });
 
-// ─── ReqCard ─────────────────────────────────────────────────────────────────
-
-// memo: prevents re-render of all cards when parent state changes (modal open, etc.)
-// Named export preserved via assignment.
 export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, staggerIdx = 0, onRepeat, onEdit, onDelete, onCancel, highlightId, onHighlighted }: ReqCardProps) {
   const isStaffRole = canManageRequests(userRole);
   const isActive = isActiveRequest(req);
   const isQrAvailable = req.type === 'pass' && req.status === 'approved';
-  const [actLoading, setActLoading] = useState(null);
+  const [actLoading, setActLoading] = useState<string | null>(null);
   const isHighlighted = highlightId === req.id;
-  const isCancellable = onCancel && (req.status === 'pending' || req.status === 'approved');
+  const isCancellable = Boolean(onCancel && (req.status === 'pending' || req.status === 'approved'));
   const [expanded, setExpanded] = useState((isStaffRole && isActive) || isHighlighted || isCancellable);
-  const [showQR,        setShowQR]        = useState(false);
-  const cardRef = useRef(null);
+  const [showQR, setShowQR] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const history = useReqHistory(req.id);
   const { approveRequest, rejectRequest, acceptRequest, arriveRequest } = useActions();
-  const avData = useAvatar(req.createdByUid);
-  // Permission checks memoized — recomputed only when req.status or role/user changes.
+  const avData = useAvatar(req.createdByUid ?? '');
+  const passDurationMeta = getPassDurationMeta(req.passDuration);
+
   const { mayApprove, mayReject, mayAccept, mayMarkArrival } = useMemo(() => {
     const actor = { role: userRole, uid: userId };
     return {
-      mayApprove:    canApproveByRole(actor, req),
-      mayReject:     canRejectByRole(actor, req),
-      mayAccept:     canAcceptByRole(actor, req),
+      mayApprove: canApproveByRole(actor, req),
+      mayReject: canRejectByRole(actor, req),
+      mayAccept: canAcceptByRole(actor, req),
       mayMarkArrival: canMarkArrivalByRole(actor, req),
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally depends on specific req fields only
-  }, [req.status, userRole, userId]);
+  }, [req, userRole, userId]);
 
-  // Date label memoized — format+condition computed once, not inline per render.
   const dateLabel = useMemo(() => {
-    const d = fmtDate(req.createdAt);
-    return (d === 'сегодня' || d === 'только что')
-      ? `${d} ${fmtTime(req.createdAt)}`
-      : d;
+    const formattedDate = fmtDate(req.createdAt);
+    return (formattedDate === 'сегодня' || formattedDate === 'только что')
+      ? `${formattedDate} ${fmtTime(req.createdAt)}`
+      : formattedDate;
   }, [req.createdAt]);
 
-  // Auto-expand and scroll when highlighted
   useEffect(() => {
     if (!isHighlighted || !cardRef.current) return;
 
@@ -291,16 +301,12 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   }, [isHighlighted, onHighlighted]);
 
   const actorName = userName || userRole;
-
-  // actLoadingRef читается в момент вызова — нет stale closure, нет лишних deps.
-  // Синхронизируется с state при каждом рендере, поэтому всегда актуален.
-  const actLoadingRef = useRef(actLoading);
+  const actLoadingRef = useRef<string | null>(actLoading);
   actLoadingRef.current = actLoading;
-  const isMountedRef = useIsMounted(); // guards setState after unmount
+  const isMountedRef = useIsMounted();
 
-  const act = useCallback(async (key, fn, msg, type) => {
-    if (actLoadingRef.current) return; // double-submit guard
-    if (!isMountedRef.current) return;
+  const act = useCallback(async (key: string, fn: ReqActionFn, msg: string, type: ReqActionToastType) => {
+    if (actLoadingRef.current || !isMountedRef.current) return;
     setActLoading(key);
     try {
       await fn();
@@ -310,103 +316,103 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
-  }, []);
+  }, [isMountedRef]);
 
-  const doApprove = useCallback(() => act('approve', () => approveRequest(req.id, actorName, userRole), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
-  const doReject  = useCallback(() => act('reject',  () => rejectRequest(req.id, actorName, userRole),  'В допуске отказано', 'error'),   [act, rejectRequest,  req.id, actorName, userRole]);
-  const doAccept  = useCallback(() => act('accept',  () => acceptRequest(req.id, actorName, userRole),  'Заявка принята в работу', 'success'), [act, acceptRequest, req.id, actorName, userRole]);
-  const doArrive  = useCallback(() => act('arrive',  () => arriveRequest(req.id, actorName, userRole),  'Отмечен вход на территорию', 'success'), [act, arriveRequest, req.id, actorName, userRole]);
+  const doApprove = useCallback(() => act('approve', () => Promise.resolve(approveRequest(req.id, actorName, userRole)), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
+  const doReject = useCallback(() => act('reject', () => Promise.resolve(rejectRequest(req.id, actorName, userRole)), 'В допуске отказано', 'error'), [act, rejectRequest, req.id, actorName, userRole]);
+  const doAccept = useCallback(() => act('accept', () => Promise.resolve(acceptRequest(req.id, actorName, userRole)), 'Заявка принята в работу', 'success'), [act, acceptRequest, req.id, actorName, userRole]);
+  const doArrive = useCallback(() => act('arrive', () => Promise.resolve(arriveRequest(req.id, actorName, userRole)), 'Отмечен вход на территорию', 'success'), [act, arriveRequest, req.id, actorName, userRole]);
 
-  const hasDetails = !!(req.arrivedAt || req.visitorName || req.carPlate || req.visitorPhone || req.comment || req.photo || (req.photos && req.photos.length) || history.length);
-  const showActions = shouldShowActions(req, { userRole, onRepeat, onEdit, onDelete, onCancel });
+  const hasDetails = Boolean(req.arrivedAt || req.visitorName || req.carPlate || req.visitorPhone || req.comment || req.photo || req.photos?.length || history.length);
+  const showActions = shouldShowActions(req, {
+    userRole,
+    onRepeat: onRepeat ? () => onRepeat(req) : undefined,
+    onEdit: onEdit ? () => onEdit(req) : undefined,
+    onDelete: onDelete ? () => onDelete(req.id) : undefined,
+    onCancel: onCancel ? () => onCancel(req.id) : undefined,
+  });
   const cardStyle = { '--card-delay': (staggerIdx * 45) + 'ms' } as CSSProperties;
+  const categoryLabel = getCategoryLabel(req.category);
+  const createdByName = req.createdByName ?? '';
 
-  // 5.3: stagger delay via CSS custom property — kept as inline style because it is
-  // a runtime value (staggerIdx × 45ms) that cannot be expressed as a static CSS class.
-  // All other inline styles have been moved to CSS classes.
   return (
-    <div ref={cardRef} className={'req-card ' + req.status} style={cardStyle} role="article" aria-label={(req.visitorName || CAT_LABEL[req.category] || '') + ' — ' + (req.createdByName || '')}>
-      {/* 2.2: cursor/margin moved to CSS (.req-head--clickable); no inline style needed */}
+    <div ref={cardRef} className={'req-card ' + req.status} style={cardStyle} role="article" aria-label={(req.visitorName || categoryLabel) + ' — ' + createdByName}>
       <div className={'req-head' + ((hasDetails || showActions) ? ' req-head--clickable' : '')}
-        onClick={() => (hasDetails || showActions) && setExpanded(o => !o)}>
+        onClick={() => (hasDetails || showActions) && setExpanded((open) => !open)}>
         <div className="req-left">
           <div className="req-ico">
-            <AvatarCircle avData={avData} role={req.createdByRole} name={req.createdByName || '?'} size={34} fontSize={13} />
+            <AvatarCircle avData={avData} role={asUserRole(req.createdByRole)} name={createdByName || '?'} size={34} fontSize={13} />
           </div>
           <div className="u-mw0">
             <div className="req-cat">
               {req.createdByApt && req.createdByApt !== '—' ? 'Апарт. ' + req.createdByApt + ' · ' : ''}
-              {req.createdByName}
+              {createdByName}
             </div>
             <div className="req-meta">
-              {/* 2.2: opacity moved to .req-type-icon CSS class */}
               <span className="u-inline-icon u-mr6 req-type-icon">
                 <AppIcon name={req.type === 'tech' ? 'tools' : 'ticket'} size={12} />
               </span>
-              {CAT_LABEL[req.category] || req.category}
-              {req.passDuration && req.passDuration !== 'once' && (
-                <span className={'pass-dur-tag ' + req.passDuration}><AppIcon name={PASS_DURATION_ICON[req.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[req.passDuration]}</span>
+              {categoryLabel}
+              {passDurationMeta && req.passDuration !== 'once' && (
+                <span className={'pass-dur-tag ' + req.passDuration}><AppIcon name={passDurationMeta.icon} className="u-inline-icon" /> {passDurationMeta.label}</span>
               )}
             </div>
           </div>
         </div>
         <div className="u-col-end-g4">
-          <span className="req-date-label">
-            {dateLabel}
-          </span>
+          <span className="req-date-label">{dateLabel}</span>
           <span className={'badge ' + req.status}>{STS_LABEL[req.status]}</span>
         </div>
       </div>
 
-      {expanded && (<>
-        <ReqCardDetails req={req} history={history} />
-        <ReqPhotos req={req} />
+      {expanded && (
+        <>
+          <ReqCardDetails req={req} history={history} />
+          <ReqPhotos req={req} />
 
-        {req.type === 'pass' && (req.status === 'approved' || req.status === 'pending') && (
-          <button className="qr-pass-btn" type="button" onClick={isQrAvailable ? () => setShowQR(true) : undefined} disabled={!isQrAvailable}>
-            <span className="u-inline-icon"><AppIcon name="qr" size={18} /></span>
-            <div>
-              <div className="qr-pass-label">QR-код пропуска</div>
-              <div className="qr-pass-hint">
-                {req.status === 'approved'
-                  ? 'Откройте QR-код и покажите его охраннику на КПП для прохода'
-                  : 'QR-код станет активным после одобрения заявки охраной'}
+          {req.type === 'pass' && (req.status === 'approved' || req.status === 'pending') && (
+            <button className="qr-pass-btn" type="button" onClick={isQrAvailable ? () => setShowQR(true) : undefined} disabled={!isQrAvailable}>
+              <span className="u-inline-icon"><AppIcon name="qr" size={18} /></span>
+              <div>
+                <div className="qr-pass-label">QR-код пропуска</div>
+                <div className="qr-pass-hint">
+                  {req.status === 'approved'
+                    ? 'Откройте QR-код и покажите его охраннику на КПП для прохода'
+                    : 'QR-код станет активным после одобрения заявки охраной'}
+                </div>
               </div>
-            </div>
-          </button>
-        )}
+            </button>
+          )}
 
-        {canApproveRequests(userRole) && (
-          <ReqCardStaffActions
+          {canApproveRequests(userRole) && (
+            <ReqCardStaffActions
+              req={req}
+              actLoading={actLoading}
+              mayApprove={mayApprove}
+              mayReject={mayReject}
+              mayAccept={mayAccept}
+              mayMarkArrival={mayMarkArrival}
+              doApprove={doApprove}
+              doReject={doReject}
+              doAccept={doAccept}
+              doArrive={doArrive}
+            />
+          )}
+
+          <ReqCardResidentActions
             req={req}
+            onRepeat={onRepeat}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onCancel={onCancel}
+            isStaffRole={isStaffRole}
             actLoading={actLoading}
-            mayApprove={mayApprove}
-            mayReject={mayReject}
-            mayAccept={mayAccept}
-            mayMarkArrival={mayMarkArrival}
-            doApprove={doApprove}
-            doReject={doReject}
-            doAccept={doAccept}
-            doArrive={doArrive}
           />
-        )}
-
-        <ReqCardResidentActions
-          req={req}
-          onRepeat={onRepeat}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onCancel={onCancel}
-          isStaffRole={isStaffRole}
-          actLoading={actLoading}
-        />
-      </>)}
+        </>
+      )}
       {showQR && isQrAvailable && <PassQRModal req={req} onClose={() => setShowQR(false)} />}
     </div>
   );
 });
-
-// ─── GroupedReqList ──────────────────────────────────────────────────────────
 
 export { GroupedReqList } from './GroupedReqList';

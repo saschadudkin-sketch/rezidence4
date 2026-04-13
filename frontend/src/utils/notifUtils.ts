@@ -35,7 +35,7 @@ export const sendNotif = (title: string, body: string, tag: string, extra: { url
 
 // FIX [PERF/RESOURCE]: один AudioContext на модуль — не создаём новый при каждом сигнале.
 // Браузеры ограничивают количество одновременных AudioContext (~6 штук).
-let _audioCtx = null;
+let _audioCtx: AudioContext | null = null;
 function getAudioCtx() {
   if (_audioCtx && _audioCtx.state !== 'closed') return _audioCtx;
   const Ctor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -45,7 +45,7 @@ function getAudioCtx() {
 }
 
 /** Воспроизводит звуковой сигнал типа «pass» или «tech» */
-export const playAlert = (type) => {
+export const playAlert = (type: 'pass' | 'tech') => {
   try {
     const ctx = getAudioCtx();
     if (!ctx) return;
