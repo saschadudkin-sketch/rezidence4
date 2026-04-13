@@ -267,7 +267,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 
 // ??? AdminView ????????????????????????????????????????????????????????????????
 
-export default function AdminView({ user, activeTab }: { user: AppUser; activeTab: string }) {
+export default function AdminView({ user, activeTab, isLoading = false }: { user: AppUser; activeTab: string; isLoading?: boolean }) {
   const requests = useRequests();
   const { users } = useUsers();
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
@@ -275,7 +275,7 @@ export default function AdminView({ user, activeTab }: { user: AppUser; activeTa
 
   return (
     <>
-      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} isLoading={allUsers.length === 0} />}
+      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} isLoading={isLoading} />}
       {activeTab === 'users'       && <AdminUsersView    allUsers={allUsers} currentUser={user} />}
       {activeTab === 'contractors' && <AdminUsersView    allUsers={allUsers} currentUser={user} contractorOnly />}
       {activeTab === 'requests'    && <AdminRequestsView requests={requests} adminUid={user.uid} />}

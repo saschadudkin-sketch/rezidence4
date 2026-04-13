@@ -23,16 +23,24 @@ function startRuntimeJobs({ db }) {
       // до следующего переподключения SSE или перезагрузки страницы.
       // RETURNING позволяет broadcast только изменённых строк — не перегружаем SSE.
       const { rows: expiredRows } = await db.query(`
+        WITH expired_candidates AS (
+          SELECT id
+          FROM requests
+          WHERE status IN ('pending', 'approved')
+            AND deleted_at IS NULL
+            AND (
+              (pass_duration = 'once'
+               AND created_at < NOW() - INTERVAL '24 hours')
+              OR
+              (valid_until IS NOT NULL AND valid_until < NOW())
+            )
+          FOR UPDATE SKIP LOCKED
+        )
         UPDATE requests
         SET status = 'expired', updated_at = NOW()
-        WHERE status IN ('pending', 'approved')
-          AND deleted_at IS NULL
-          AND (
-            (pass_duration = 'once'
-             AND created_at < NOW() - INTERVAL '24 hours')
-            OR
-            (valid_until IS NOT NULL AND valid_until < NOW())
-          )
+        FROM expired_candidates
+        WHERE requests.id = expired_candidates.id
+          AND requests.status IN ('pending', 'approved')
         RETURNING id, type, category, status, created_by_uid,
           created_by_name, created_by_role, created_by_apt,
           visitor_name, visitor_phone, car_plate, comment,
@@ -41,6 +49,14 @@ function startRuntimeJobs({ db }) {
       `);
 
       const { rows: activatedRows } = await db.query(`
+        WITH scheduled_candidates AS (
+          SELECT id
+          FROM requests
+          WHERE status = 'scheduled'
+            AND scheduled_for <= NOW()
+            AND deleted_at IS NULL
+          FOR UPDATE SKIP LOCKED
+        )
         UPDATE requests
         SET status = CASE
               WHEN type = 'pass' THEN 'approved'
@@ -48,9 +64,9 @@ function startRuntimeJobs({ db }) {
             END,
             scheduled_for = NULL,
             updated_at = NOW()
-        WHERE status = 'scheduled'
-          AND scheduled_for <= NOW()
-          AND deleted_at IS NULL
+        FROM scheduled_candidates
+        WHERE requests.id = scheduled_candidates.id
+          AND requests.status = 'scheduled'
         RETURNING id, type, category, status, created_by_uid,
           created_by_name, created_by_role, created_by_apt,
           visitor_name, visitor_phone, car_plate, comment,

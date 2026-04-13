@@ -3,9 +3,14 @@ import { canManageRequests } from '../domain/permissions';
 import { ROLES } from '../domain/permissions';
 import { isSecurityActionablePass } from '../domain/passLifecycle';
 import { sendNotif, playAlert } from '../utils';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
+
+type NotifierUser = Pick<AppUser, 'role'>;
+type NotifyNewRequests = (docs: AppRequest[]) => void;
 
 /**
- * useNewRequestNotifier — fires browser notifications + audio alerts when new
+ * useNewRequestNotifier вЂ” fires browser notifications + audio alerts when new
  * pending requests arrive via SSE. Extracted from useLiveSync (ARCH-2) so that
  * notification policy lives separately from sync infrastructure.
  *
@@ -13,29 +18,27 @@ import { sendNotif, playAlert } from '../utils';
  * onRequests handler. The callback reads the latest user values via a ref so
  * useLiveSync can call it without restarting the SSE effect.
  */
-export function useNewRequestNotifier(user) {
+export function useNewRequestNotifier(user: NotifierUser): NotifyNewRequests {
   const prevPendingP = useRef(0);
   const prevPendingT = useRef(0);
-  // Keep user values in a ref so the returned callback stays stable.
   const userRef = useRef(user);
   userRef.current = user;
 
-  // Stable ref to the notify fn — deps change won't recreate it.
-  const notifyRef = useRef(null);
+  const notifyRef = useRef<NotifyNewRequests | null>(null);
   if (!notifyRef.current) {
-    notifyRef.current = (docs) => {
+    notifyRef.current = (docs: AppRequest[]) => {
       const { role } = userRef.current;
 
       const newP = docs.filter(isSecurityActionablePass).length;
       if (newP > prevPendingP.current && role === ROLES.SECURITY) {
-        sendNotif('Новый пропуск', 'Требует рассмотрения', 'pass');
+        sendNotif('РќРѕРІС‹Р№ РїСЂРѕРїСѓСЃРє', 'РўСЂРµР±СѓРµС‚ СЂР°СЃСЃРјРѕС‚СЂРµРЅРёСЏ', 'pass');
         playAlert('pass');
       }
       prevPendingP.current = newP;
 
-      const newT = docs.filter(r => r.type === 'tech' && r.status === 'pending').length;
+      const newT = docs.filter((r) => r.type === 'tech' && r.status === 'pending').length;
       if (newT > prevPendingT.current && canManageRequests(role)) {
-        sendNotif('Техзаявка', 'Новая заявка в техслужбу', 'tech');
+        sendNotif('РўРµС…Р·Р°СЏРІРєР°', 'РќРѕРІР°СЏ Р·Р°СЏРІРєР° РІ С‚РµС…СЃР»СѓР¶Р±Сѓ', 'tech');
         playAlert('tech');
       }
       prevPendingT.current = newT;

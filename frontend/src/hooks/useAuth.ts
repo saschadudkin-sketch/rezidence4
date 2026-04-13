@@ -118,7 +118,11 @@ export function useAuth() {
     // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
-      services.auth.logout().catch(() => {});
+      services.auth.logout().catch((err: unknown) => {
+        logger.error('[useAuth] logout request failed', {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
     }
   }, []);
 

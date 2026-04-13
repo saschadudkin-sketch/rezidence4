@@ -55,6 +55,7 @@ describe('runtimeJobs scheduled activation', () => {
     const jobs = startRuntimeJobs({ db });
     await jest.advanceTimersByTimeAsync(5 * 60 * 1000);
 
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE SKIP LOCKED'));
     expect(db.query).toHaveBeenCalledWith(expect.stringContaining("THEN 'approved'"));
     jobs.stop();
   });

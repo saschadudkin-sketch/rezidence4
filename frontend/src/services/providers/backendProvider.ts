@@ -359,8 +359,16 @@ export const authProvider = {
   },
   async logout() {
     // Сервер сбрасывает HttpOnly cookie через Set-Cookie: token=; Max-Age=0
-    await apiClient.post('/api/v1/auth/logout', undefined, { retryable: false }).catch(() => {});
-    sseManager.disconnect();
+    try {
+      await apiClient.post('/api/v1/auth/logout', undefined, { retryable: false });
+    } catch (err) {
+      logger.error('[authProvider.logout] server logout failed', {
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      sseManager.disconnect();
+    }
   },
 };
 

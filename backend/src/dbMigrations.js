@@ -61,6 +61,7 @@ const MIGRATIONS = [
           at        TIMESTAMPTZ DEFAULT NOW()
         )
       `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_request_history_req_id ON request_history(req_id)`);
       await client.query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
           id         TEXT PRIMARY KEY,
@@ -274,6 +275,12 @@ const MIGRATIONS = [
         CREATE INDEX IF NOT EXISTS idx_chat_messages_text_trgm
         ON chat_messages USING GIN (text gin_trgm_ops)
       `);
+    },
+  },
+  {
+    id: '009_request_history_req_id_index',
+    async up(client) {
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_request_history_req_id ON request_history(req_id)`);
     },
   },
 ];

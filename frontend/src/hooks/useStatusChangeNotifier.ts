@@ -1,18 +1,22 @@
 import { useRef } from 'react';
 import { toast } from '../ui/Toasts';
 import { isResident } from '../domain/permissions';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
 
-// Human-readable labels for each status transition shown to residents.
-const STATUS_TOAST = {
-  approved: { msg: 'Пропуск одобрен — покажите QR-код охране', type: 'success' },
-  rejected: { msg: 'В пропуске отказано', type: 'error' },
-  arrived:  { msg: 'Вход посетителя отмечен охраной', type: 'info' },
-  expired:  { msg: 'Пропуск истёк', type: 'info' },
-  accepted: { msg: 'Заявка принята в работу', type: 'success' },
+type NotifierUser = Pick<AppUser, 'uid' | 'role'>;
+type NotifyStatusChange = (req: AppRequest) => void;
+
+const STATUS_TOAST: Partial<Record<AppRequest['status'], { msg: string; type: 'info' | 'success' | 'error' }>> = {
+  approved: { msg: 'РџСЂРѕРїСѓСЃРє РѕРґРѕР±СЂРµРЅ вЂ” РїРѕРєР°Р¶РёС‚Рµ QR-РєРѕРґ РѕС…СЂР°РЅРµ', type: 'success' },
+  rejected: { msg: 'Р’ РїСЂРѕРїСѓСЃРєРµ РѕС‚РєР°Р·Р°РЅРѕ', type: 'error' },
+  arrived: { msg: 'Р’С…РѕРґ РїРѕСЃРµС‚РёС‚РµР»СЏ РѕС‚РјРµС‡РµРЅ РѕС…СЂР°РЅРѕР№', type: 'info' },
+  expired: { msg: 'РџСЂРѕРїСѓСЃРє РёСЃС‚С‘Рє', type: 'info' },
+  accepted: { msg: 'Р—Р°СЏРІРєР° РїСЂРёРЅСЏС‚Р° РІ СЂР°Р±РѕС‚Сѓ', type: 'success' },
 };
 
 /**
- * useStatusChangeNotifier — shows a toast when one of the current user's requests
+ * useStatusChangeNotifier вЂ” shows a toast when one of the current user's requests
  * changes status via an incremental SSE update (onRequestUpdate).
  *
  * Only fires for residents (owner / tenant / contractor); staff sees all requests
@@ -20,17 +24,15 @@ const STATUS_TOAST = {
  *
  * Returns a stable `notify(req)` callback for use in useLiveSync.
  */
-export function useStatusChangeNotifier(user) {
-  // Map of reqId → last known status; used to detect transitions.
-  const prevStatusesRef = useRef(new Map());
+export function useStatusChangeNotifier(user: NotifierUser): NotifyStatusChange {
+  const prevStatusesRef = useRef(new Map<string, AppRequest['status']>());
   const userRef = useRef(user);
   userRef.current = user;
 
-  const notifyRef = useRef(null);
+  const notifyRef = useRef<NotifyStatusChange | null>(null);
   if (!notifyRef.current) {
-    notifyRef.current = (req) => {
+    notifyRef.current = (req: AppRequest) => {
       const { uid, role } = userRef.current;
-      // Only notify the owner of the request, and only for resident roles.
       if (!isResident(role)) return;
       if (req.createdByUid !== uid) return;
 

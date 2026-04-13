@@ -23,8 +23,8 @@ export function isResidentOneTimePass(req: Pick<AppRequest, 'type' | 'passDurati
 
 export function getRequestInitialStatus({
   type,
-  userRole,
-  passDuration,
+  userRole: _userRole,
+  passDuration: _passDuration,
   isScheduled,
 }: {
   type: RequestType;

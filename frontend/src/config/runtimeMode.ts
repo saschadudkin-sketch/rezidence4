@@ -4,12 +4,12 @@ const ALLOWED_MODES = new Set([LIVE_MODE, DEMO_MODE]);
 const TRUE_FLAG_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const FALSE_FLAG_VALUES = new Set(['0', 'false', 'no', 'off']);
 
-export function normalizeMode(mode) {
+export function normalizeMode(mode: unknown): '' | typeof LIVE_MODE | typeof DEMO_MODE {
   const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-  return ALLOWED_MODES.has(normalized) ? normalized : '';
+  return ALLOWED_MODES.has(normalized) ? (normalized as typeof LIVE_MODE | typeof DEMO_MODE) : '';
 }
 
-export function normalizeBooleanFlag(value) {
+export function normalizeBooleanFlag(value: unknown): boolean | null {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
   if (TRUE_FLAG_VALUES.has(normalized)) return true;
   if (FALSE_FLAG_VALUES.has(normalized)) return false;

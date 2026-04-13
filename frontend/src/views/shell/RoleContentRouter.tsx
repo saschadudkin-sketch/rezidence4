@@ -32,7 +32,7 @@ const fallback = <ReqSkeleton count={3} />;
  * the appropriate role-specific view. Access control is enforced here:
  * forbidden tabs redirect to the role's default first tab.
  */
-function TabRoute({ user }: { user: AppUser }) {
+function TabRoute({ user, isLoading = false }: { user: AppUser; isLoading?: boolean }) {
   const { tab } = useParams();
   const { highlightReqId, setHighlightReqId, setActiveTab } = useNavigationContext();
   const defaultTab = getRoleManifest(user.role).defaultTab;
@@ -80,7 +80,7 @@ function TabRoute({ user }: { user: AppUser }) {
     return (
       <ErrorBoundary name="Панель администратора">
         <Suspense fallback={fallback}>
-          <AdminView user={user} activeTab={tab} />
+          <AdminView user={user} activeTab={tab} isLoading={isLoading} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -119,7 +119,7 @@ const RoleContentRouter = memo(function RoleContentRouter({ user, isLoading = fa
   return (
     <Routes>
       {/* /dashboard/:tab — main route, access-guarded inside TabRoute */}
-      <Route path=":tab" element={<TabRoute user={user} />} />
+      <Route path=":tab" element={<TabRoute user={user} isLoading={isLoading} />} />
       {/* /dashboard/ with no tab → redirect to role default */}
       <Route index element={<Navigate to={defaultTab} replace />} />
       {/* catch-all (e.g. /dashboard/unknown/extra) → redirect to role default */}

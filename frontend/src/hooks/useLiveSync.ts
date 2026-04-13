@@ -40,7 +40,7 @@ type LiveSyncCallbacks = {
  * A-15: SSE state updates wrapped in startTransition so that live data
  * updates yield to urgent user interactions (typing, taps, navigation).
  */
-export function useLiveSync(user: { uid: string; role: string }, {
+export function useLiveSync(user: Pick<AppUser, 'uid' | 'role'>, {
   setAllRequests, setAllMessages, setAllUsers, setPerms, setTemplates, setBlacklist,
   // P-02: retryKey increment triggers soft reconnect without page reload
   retryKey = 0,
@@ -84,6 +84,10 @@ export function useLiveSync(user: { uid: string; role: string }, {
   const notifyNewRequests = useNewRequestNotifier(user);
   // N-02: toast when a resident's own request changes status (approved/rejected/etc.)
   const notifyStatusChange = useStatusChangeNotifier(user);
+  const notifyNewRequestsRef = useRef(notifyNewRequests);
+  const notifyStatusChangeRef = useRef(notifyStatusChange);
+  notifyNewRequestsRef.current = notifyNewRequests;
+  notifyStatusChangeRef.current = notifyStatusChange;
 
   // FIX: флаг-ref, чтобы setIsLoading(false) вызвался ровно один раз.
   // Без него: setAllRequests-обёртка И onRequests оба вызывали setIsLoading(false)
@@ -137,7 +141,7 @@ export function useLiveSync(user: { uid: string; role: string }, {
       setBlacklist:   (e)    => startTransition(() => { try { callbacksRef.current.setBlacklist?.(e); } catch (err) { logger.error('[useLiveSync] handler error in setBlacklist', { message: err?.message }); } }),
       onRequests: (docs) => {
         // Notifications are urgent — run immediately before transition
-        try { notifyNewRequests(docs); } catch (err) { logger.error('[useLiveSync] handler error in notifyNewRequests', { message: err?.message }); }
+        try { notifyNewRequestsRef.current(docs); } catch (err) { logger.error('[useLiveSync] handler error in notifyNewRequests', { message: err?.message }); }
         // State update is non-urgent: yield to typing, taps, navigation
         startTransition(() => {
           try {
@@ -174,7 +178,7 @@ export function useLiveSync(user: { uid: string; role: string }, {
       onUserAdd:         (u)     => startTransition(() => { try { callbacksRef.current.addUser?.(u); } catch (err) { logger.error('[useLiveSync] handler error in onUserAdd', { message: err?.message }); } }),
       // PERF: Incremental SSE: request changes — вместо full REQUESTS_SET_ALL на каждый event
       // N-02: notify resident before state update so toast appears before card re-renders
-      onRequestUpdate:   (request) => { try { notifyStatusChange(request); } catch (err) { logger.error('[useLiveSync] handler error in notifyStatusChange', { message: err?.message }); } startTransition(() => { try { callbacksRef.current.updateRequest?.(request.id, request); } catch (err) { logger.error('[useLiveSync] handler error in onRequestUpdate', { message: err?.message }); } }); },
+      onRequestUpdate:   (request) => { try { notifyStatusChangeRef.current(request); } catch (err) { logger.error('[useLiveSync] handler error in notifyStatusChange', { message: err?.message }); } startTransition(() => { try { callbacksRef.current.updateRequest?.(request.id, request); } catch (err) { logger.error('[useLiveSync] handler error in onRequestUpdate', { message: err?.message }); } }); },
       onRequestAdd:      (req)   => startTransition(() => { try { callbacksRef.current.addRequest?.(req); } catch (err) { logger.error('[useLiveSync] handler error in onRequestAdd', { message: err?.message }); } }),
       onRequestDelete:   (id)    => startTransition(() => { try { callbacksRef.current.deleteRequest?.(id); } catch (err) { logger.error('[useLiveSync] handler error in onRequestDelete', { message: err?.message }); } }),
     }); if (cancelled) { if (typeof fn === 'function') fn(); return; }
@@ -195,22 +199,6 @@ export function useLiveSync(user: { uid: string; role: string }, {
     user.role,
     user.uid,
     retryKey,
-    setAllRequests,
-    setAllMessages,
-    setAllUsers,
-    setPerms,
-    setTemplates,
-    setBlacklist,
-    addToBlacklist,
-    removeFromBlacklist,
-    updateUser,
-    deleteUser,
-    addUser,
-    updateRequest,
-    addRequest,
-    deleteRequest,
-    notifyNewRequests,
-    notifyStatusChange,
   ]);
 
   // DO-02: watchdog — if SSE reports online but no events for 60s, force a real reconnect.
