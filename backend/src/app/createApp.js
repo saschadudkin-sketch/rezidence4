@@ -86,7 +86,17 @@ function createApp({ config, db }) {
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, _next) => {
-    logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+    // SEC: в production не логируем полный stack trace — он раскрывает пути файлов
+    // и версии фреймворков. Для алертов достаточно кода ошибки и requestId.
+    if (config.isProd) {
+      logger.error(
+        { errorCode: err.code, status: err.status, requestId: req?.requestId },
+        '[error] %s',
+        err.message || 'Internal server error',
+      );
+    } else {
+      logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+    }
     const safeErrorMessage = config.isProd ? 'Internal server error' : (err.message || 'Internal server error');
     res.status(err.status || 500).json({ error: safeErrorMessage });
   });

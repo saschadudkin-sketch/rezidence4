@@ -36,8 +36,13 @@ function registerApiRoutes(app, { rateLimiters }) {
     res.flushHeaders();
     res.write(': connected\n\n');
     sse.addClient(uid, res, role);
-    const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25_000);
-    req.on('close', () => { clearInterval(ping); sse.removeClient(uid, res); });
+    const ping = setInterval(() => {
+      try { res.write(': ping\n\n'); }
+      catch { clearInterval(ping); sse.removeClient(uid, res); }
+    }, 25_000);
+    const cleanup = () => { clearInterval(ping); sse.removeClient(uid, res); };
+    req.on('close', cleanup);
+    res.on('error', cleanup);
   });
 
   app.use('/api/v1/perms', permsRouter);

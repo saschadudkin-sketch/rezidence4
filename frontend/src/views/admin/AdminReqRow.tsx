@@ -6,11 +6,13 @@ import { toastBySyncResult } from '../../ui/syncFeedback';
 import { toast } from '../../ui/Toasts';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
+import { ConfirmDialog } from '../../ui/ConfirmDialog';
 
 export default function AdminReqRow({ r, adminUid }) {
   const [editing, setEditing] = useState(false);
   const [comment, setComment] = useState(r.comment || '');
   const [status,  setStatus]  = useState(r.status);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // FIX [BUG]: состояние задублировало prop — при обновлении r через SSE форма показывала
   // устаревший статус/комментарий. Синхронизируем когда пользователь не редактирует.
@@ -53,8 +55,16 @@ export default function AdminReqRow({ r, adminUid }) {
           <AppIcon name={editing ? 'close' : 'edit'} className="u-inline-icon" /> Ред.
         </button>
         {/* Кнопка удаления всегда видна в AdminView — admin может удалять любые заявки */}
-        <button className="btn-del-sm" onClick={del} aria-label="Удалить"><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>
+        <button className="btn-del-sm" onClick={() => setConfirmDelete(true)} aria-label="Удалить"><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>
       </div>
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Удалить заявку от ${r.visitor_name || r.created_by_name || '—'}? Это действие необратимо.`}
+          confirmLabel="Удалить"
+          onConfirm={() => { setConfirmDelete(false); del(); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
       {editing && (
         <div className="edit-inline u-mt4">
           <div className="edit-inline-row">
