@@ -562,3 +562,123 @@
     margin-top: 0;
   }
 }
+
+/* Raw breakpoints keep navigation responsive even if custom-media is not transformed in dev. */
+@media (max-width: 767px) {
+  .top-nav {
+    display: none !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: flex !important;
+    position: sticky;
+    top: calc(var(--header-h) + var(--sat));
+    z-index: var(--z-sticky);
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    justify-content: flex-start;
+    padding-inline: 8px;
+    gap: 0;
+    border-top: none;
+    border-bottom: 1px solid var(--b1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .top-nav.top-nav--mobile-top::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-btn {
+    gap: 6px;
+    padding: 0 10px;
+    height: 40px;
+    font-size: 11.5px;
+    scroll-snap-align: start;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-icon {
+    font-size: 12px;
+  }
+
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: var(--vk-offset, 0px);
+    top: auto;
+    border-bottom: none;
+    border-top: 1px solid var(--b1);
+    padding-inline: 14px;
+    padding-bottom: max(calc(var(--sab) + 10px), 14px);
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .content {
+    max-width: 100%;
+    padding: 16px 14px calc(var(--nav-h) + var(--sab) + 30px) !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .top-nav {
+    display: none !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: flex !important;
+    position: sticky;
+    top: calc(var(--header-h) + var(--sat));
+    z-index: var(--z-sticky);
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    justify-content: center;
+    padding-inline: 18px;
+    gap: 4px;
+    border-top: none;
+    border-bottom: 1px solid var(--b1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .top-nav.top-nav--mobile-top::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-btn {
+    gap: 6px;
+    padding: 0 12px;
+    height: 40px;
+    font-size: 11.5px;
+    scroll-snap-align: start;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-icon {
+    font-size: 13px;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  .top-nav {
+    display: flex !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: none !important;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+}

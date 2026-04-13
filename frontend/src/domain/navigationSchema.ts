@@ -20,8 +20,8 @@ const COMMON_COMPACT_LABELS: Record<string, string> = {
 
 const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = {
   admin: {
-    mobileMaxTabs: 5,
-    mobileOrder: ['stats', 'requests', 'residents', 'users', 'blacklist', 'chat', 'visitlog'],
+    mobileMaxTabs: 3,
+    mobileOrder: ['stats', 'requests', 'users', 'residents', 'visitlog', 'blacklist', 'chat'],
     mobileTopTabs: ['stats', 'requests', 'residents'],
     hiddenMobileTabs: ['chat'],
     mobileLabels: {
@@ -31,8 +31,8 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
     },
   },
   security: {
-    mobileMaxTabs: 7,
-    mobileOrder: ['guardpost', 'passes', 'visitlog', 'chat', 'blacklist', 'residents', 'stats'],
+    mobileMaxTabs: 3,
+    mobileOrder: ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat', 'stats'],
     hiddenMobileTabs: ['chat'],
     mobileLabels: {
       guardpost: 'Пост',
@@ -44,8 +44,8 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
     },
   },
   concierge: {
-    mobileMaxTabs: 5,
-    mobileOrder: ['passes', 'visitlog', 'chat', 'blacklist', 'residents', 'templates', 'history', 'tech'],
+    mobileMaxTabs: 3,
+    mobileOrder: ['passes', 'residents', 'visitlog', 'blacklist', 'chat', 'templates', 'history', 'tech'],
     mobileBottomTabs: ['passes', 'visitlog', 'chat', 'blacklist', 'residents'],
     mobileLabels: {
       passes: 'Пропуска',
