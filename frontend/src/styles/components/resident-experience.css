@@ -112,7 +112,8 @@
 }
 
 .resident-quick-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 72px;
@@ -146,6 +147,7 @@
 .resident-quick-copy strong,
 .resident-quick-copy small {
   display: block;
+  overflow-wrap: anywhere;
 }
 
 .resident-quick-copy strong {
@@ -725,14 +727,14 @@
   }
 
   .resident-quick-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     order: 1;
   }
 
   .resident-quick-card {
     min-height: 76px;
     padding: 12px;
-    align-items: flex-start;
+    align-items: start;
   }
 
   .resident-quick-copy strong {
@@ -745,5 +747,28 @@
 
   .resident-status-strip {
     padding: 12px 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .resident-quick-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .resident-quick-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+    min-height: 76px;
+    padding: 12px;
+    align-items: start;
+  }
+
+  .resident-quick-copy strong {
+    font-size: 13px;
+  }
+
+  .resident-quick-copy small {
+    font-size: 11px;
+    line-height: 1.4;
   }
 }
