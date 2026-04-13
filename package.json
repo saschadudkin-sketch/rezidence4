@@ -22,7 +22,7 @@
     "verify": "npm run backend:test && npm run frontend:lint && npm run frontend:typecheck && npm run frontend:test && npm run frontend:build",
     "e2e": "npm run test:e2e",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run test:e2e:preflight && playwright test",
     "test:e2e:visual": "playwright test e2e/visual-states.spec.js"
   }
 }
