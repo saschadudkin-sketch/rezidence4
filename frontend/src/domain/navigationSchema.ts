@@ -31,7 +31,7 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
     },
   },
   security: {
-    mobileMaxTabs: 3,
+    mobileMaxTabs: 5,
     mobileOrder: ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat', 'stats'],
     hiddenMobileTabs: ['chat'],
     mobileLabels: {
