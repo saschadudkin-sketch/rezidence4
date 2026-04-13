@@ -2,19 +2,16 @@ const { spawnSync } = require('node:child_process');
 
 const npmExecPath = process.env.npm_execpath;
 
-if (!npmExecPath) {
-  console.error('[bootstrap] npm_execpath is not set. Run this script through npm: npm run bootstrap');
-  process.exit(1);
-}
-
 function run(args) {
-  const command = npmExecPath.endsWith('.js') ? process.execPath : npmExecPath;
-  const commandArgs = npmExecPath.endsWith('.js') ? [npmExecPath, ...args] : args;
+  const command = npmExecPath?.endsWith('.js')
+    ? process.execPath
+    : npmExecPath || (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+  const commandArgs = npmExecPath?.endsWith('.js') ? [npmExecPath, ...args] : args;
   const result = spawnSync(command, commandArgs, {
     cwd: process.cwd(),
     env: process.env,
     stdio: 'inherit',
-    shell: false,
+    shell: !npmExecPath && process.platform === 'win32',
   });
 
   if (result.error) {

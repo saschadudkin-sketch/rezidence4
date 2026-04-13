@@ -23,7 +23,7 @@ function getNpmCommand() {
   return {
     command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
     prefixArgs: [],
-    shell: false,
+    shell: process.platform === 'win32',
   };
 }
 

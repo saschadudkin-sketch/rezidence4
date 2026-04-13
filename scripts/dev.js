@@ -11,6 +11,7 @@ function createNpmProcess(args) {
   return spawn(command, commandArgs, {
     cwd: process.cwd(),
     stdio: 'inherit',
+    shell: !npmExecPath && process.platform === 'win32',
   });
 }
 

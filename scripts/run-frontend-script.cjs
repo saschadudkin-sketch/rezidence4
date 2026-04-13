@@ -23,11 +23,13 @@ const forwardedArgs = scriptArgs.length > 0 ? ['--', ...scriptArgs] : [];
 const args = npmCli
   ? [npmCli, 'run', scriptName, ...forwardedArgs]
   : ['run', scriptName, ...forwardedArgs];
+const useShell = !npmCli && process.platform === 'win32';
 
 const result = spawnSync(command, args, {
   cwd: frontendDir,
   env,
   stdio: 'inherit',
+  shell: useShell,
 });
 
 if (result.error) {
