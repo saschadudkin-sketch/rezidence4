@@ -25,5 +25,7 @@ export type AppStoreAction = {
   [key: string]: unknown;
 };
 
+export type AppDispatch = (action: AppStoreAction) => void;
+
 export const StoreContext = createContext<AppStoreApi | null>(null);
-export const DispatchContext = createContext<((action: AppStoreAction) => void) | null>(null);
+export const DispatchContext = createContext<AppDispatch | null>(null);

@@ -16,7 +16,7 @@ export function formatPhone(value: string): string {
 }
 
 /** Normalizes a phone number to 7XXXXXXXXXX format (11 digits) */
-export const normalizePhone = (p: string): string => {
+export const normalizePhone = (p: string | null | undefined): string => {
   if (!p) return '';
   const digits = p.replace(/\D/g, '');
   if (!digits) return '';
@@ -25,5 +25,6 @@ export const normalizePhone = (p: string): string => {
 };
 
 /** Finds a user by phone number in the provided phoneDb map */
-export const findByPhone = (p: string, phoneDb: Record<string, unknown>): unknown =>
-  phoneDb[normalizePhone(p)] ?? null;
+export function findByPhone<T>(p: string, phoneDb: Record<string, T>): T | null {
+  return phoneDb[normalizePhone(p)] ?? null;
+}

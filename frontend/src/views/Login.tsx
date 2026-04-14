@@ -13,9 +13,30 @@ import { emitLoginMetric } from '../utils/loginMetrics';
 import { useAuthFlow } from '../hooks/useAuthFlow';
 import { presentError } from '../ui/errorPresenter';
 import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
+import type { ServiceAck } from '../services/providers/serviceDtos';
 
 // Показываем мягкое предупреждение уже со второй повторной отправки OTP.
 const OTP_WARN_ON_ATTEMPT = 2;
+type LoginStep = 'phone' | 'otp';
+type PendingState = { send: boolean; verify: boolean; demo: boolean };
+type RecoveryState = {
+  message: string;
+  onRetry: () => void;
+  onFallback: () => void;
+  fallbackLabel: string;
+} | null;
+type DemoHint = readonly [phone: string, roleLabel: string];
+type AuthFlowError = {
+  notFound?: boolean;
+  retryAfter?: string | number;
+  status?: number;
+  message?: string;
+  kind?: string;
+};
+
+function isAppUser(value: ServiceAck | AppUser | void | null): value is AppUser {
+  return typeof value === 'object' && value !== null && 'uid' in value;
+}
 
 const HINTS = isDemoMode()
   ? [
@@ -25,28 +46,23 @@ const HINTS = isDemoMode()
       ['+7 925 456-78-90', 'Консьерж'],
       ['+7 917 567-89-01', 'Охрана'],
       ['+7 495 123-00-00', 'Администратор'],
-    ]
+    ] satisfies readonly DemoHint[]
   : [];
 
 export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: AppUser) => void; authNotice?: string }) {
   const demoMode = isDemoMode();
-  const [phone, setPhone] = useState('+7 ');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone');
-  const [pending, setPendingState] = useState({ send: false, verify: false, demo: false });
+  const [phone, setPhone] = useState<string>('+7 ');
+  const [otp, setOtp] = useState<string>('');
+  const [step, setStep] = useState<LoginStep>('phone');
+  const [pending, setPendingState] = useState<PendingState>({ send: false, verify: false, demo: false });
   // FIX [TYPES]: found типизирован как AppUser | null (ранее null без generic)
   const [found, setFound] = useState<AppUser | null>(null);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [phoneError, setPhoneError] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [resendIn, setResendIn] = useState(0);
-  const [recovery, setRecovery] = useState<{
-    message: string;
-    onRetry: () => void;
-    onFallback: () => void;
-    fallbackLabel: string;
-  } | null>(null);
-  const [sendAttempts, setSendAttempts] = useState(0);
+  const [demoOpen, setDemoOpen] = useState<boolean>(false);
+  const [phoneError, setPhoneError] = useState<string>('');
+  const [otpError, setOtpError] = useState<string>('');
+  const [resendIn, setResendIn] = useState<number>(0);
+  const [recovery, setRecovery] = useState<RecoveryState>(null);
+  const [sendAttempts, setSendAttempts] = useState<number>(0);
   const [mobileViewportHeight, setMobileViewportHeight] = useState<number | null>(null);
   const { phoneDb } = useUsers();
   const authFlow = useAuthFlow();
@@ -136,7 +152,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
       const demoUser = await authFlow.sendOtp(phone);
       if (signal.aborted) return;
 
-      if (demoUser) setFound(demoUser as AppUser);
+      if (isAppUser(demoUser)) setFound(demoUser);
       setStep('otp');
       setResendIn(OTP_COOLDOWN_SECONDS);
       setOtpError('');
@@ -146,8 +162,9 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
         mode: isLiveMode() ? 'live' : 'demo',
       });
       toast(isLiveMode() ? 'SMS-код отправлен' : 'Демо: введите любой код', 'success');
-    } catch (e) {
-      if (e.notFound) {
+    } catch (e: unknown) {
+      const error = e as AuthFlowError;
+      if (error.notFound) {
         if (!signal.aborted) toast('Номер не найден в системе', 'error');
         setPhoneError('Номер не найден в демо-данных');
         setRecovery({
@@ -159,7 +176,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
       } else {
         // Не даем серверу заблокировать экран слишком длинным retryAfter.
         const retryAfter = Math.min(
-          parseInt(e.retryAfter ?? OTP_COOLDOWN_SECONDS, 10) || OTP_COOLDOWN_SECONDS,
+          parseInt(String(error.retryAfter ?? OTP_COOLDOWN_SECONDS), 10) || OTP_COOLDOWN_SECONDS,
           OTP_RETRY_AFTER_MAX_SECONDS,
         );
         setResendIn(retryAfter);
@@ -168,7 +185,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
         emitLoginMetric(isResend ? 'resend_failed' : 'send_code_failed', {
           mode: isLiveMode() ? 'live' : 'demo',
         });
-        if (!signal.aborted) toast(presentError(e, 'auth.send_code').message, 'error');
+        if (!signal.aborted) toast(presentError(error, 'auth.send_code').message, 'error');
         setRecovery({
           message: 'Код не отправлен. Мы уже попробовали повторно на сервере, попробуйте снова вручную.',
           onRetry: () => sendCode(),
@@ -203,12 +220,15 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
 
     setPending('verify', true, reqId);
     try {
-      const user = await authFlow.verifyOtp(phone, code, found) as AppUser;
+      const user = await authFlow.verifyOtp(phone, code, found);
       if (signal.aborted) return;
+      if (!user) {
+        throw new Error('Auth flow returned no user');
+      }
       emitLoginMetric('verify_success', { mode: isLiveMode() ? 'live' : 'demo' });
       toast.clearAll?.();
       onLogin(user);
-    } catch (e) {
+    } catch (e: unknown) {
       setOtpError('Неверный код. Проверьте и попробуйте снова');
       emitLoginMetric('verify_failed', { mode: isLiveMode() ? 'live' : 'demo' });
       if (!signal.aborted) toast(presentError(e, 'auth.verify').message, 'error');
@@ -390,7 +410,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
                         const matched = findByPhone(demoPhone, phoneDb);
                         if (matched) {
                           setPendingState(prev => ({ ...prev, demo: true }));
-                          setFound(matched as AppUser);
+                          setFound(matched);
                           setOtp('');
                           setOtpError('');
                           setRecovery(null);

@@ -4,6 +4,20 @@ import { buildNavItems, buildNavClassMap } from '../../domain/navigation';
 import type { MobileNavItem } from '../../domain/navigationSchema';
 import { getRoleNextBestAction, getWorkflowCompletionFeedback } from '../../workflow/roleWorkflow';
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
+import type { AppUser } from '../../store/slices/usersSlice';
+import type { WorkflowAction, WorkflowMetrics } from '../../workflow/roleWorkflow';
+
+type DashboardExperienceUser = Pick<AppUser, 'role' | 'apartment'>;
+type DashboardExperienceAction = WorkflowAction & { onClick?: () => void };
+
+type DashboardExperienceParams = {
+  user: DashboardExperienceUser;
+  activeTab: string;
+  badges: WorkflowMetrics & { blacklistCount: number };
+  isLoading: boolean;
+  isConnErr: boolean;
+  goTab: (tab: string) => void;
+};
 
 const TAB_TITLES: Record<string, string> = {
   passes: 'Пропуска',
@@ -28,14 +42,7 @@ export function useDashboardExperience({
   isLoading,
   isConnErr,
   goTab,
-}: {
-  user: { role: string; apartment?: string };
-  activeTab: string;
-  badges: { pendingP: number; pendingT: number; unreadMsgs: number; residentNewStatuses: number; blacklistCount: number };
-  isLoading: boolean;
-  isConnErr: boolean;
-  goTab: (tab: string) => void;
-}) {
+}: DashboardExperienceParams) {
   const { pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount } = badges;
   const [viewReadyEmitted, setViewReadyEmitted] = useState(false);
 
@@ -67,7 +74,7 @@ export function useDashboardExperience({
       : 'Апартаменты ' + user.apartment
     : (roleManifest.pageSubtitle || '');
 
-  const nextBestAction = useMemo(() => {
+  const nextBestAction = useMemo<DashboardExperienceAction | null>(() => {
     const action = getRoleNextBestAction(user.role, { pendingP, pendingT, unreadMsgs, residentNewStatuses });
     if (!action) return null;
     return {

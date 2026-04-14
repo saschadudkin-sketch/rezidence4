@@ -19,22 +19,32 @@ import type { AppUser } from '../store/slices/usersSlice';
 
 export const APP_CONFIG = {
   splashDelay: 400,
-};
+} as const;
 
 export const PHASE = {
   LOADING:   'loading',
   LOGIN:     'login',
   DASHBOARD: 'dashboard',
+} as const;
+
+export type AuthPhase = typeof PHASE[keyof typeof PHASE];
+
+export type UseAuthResult = {
+  phase: AuthPhase;
+  user: AppUser | null;
+  login: (user: AppUser) => void;
+  logout: () => void;
+  authNotice: string;
 };
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useAuth() {
-  const [phase, setPhase] = useState(PHASE.LOADING);
+export function useAuth(): UseAuthResult {
+  const [phase, setPhase] = useState<AuthPhase>(PHASE.LOADING);
   // FIX [TYPES]: явная типизация — без generic useState(null) имеет тип null,
   // что приводит к any-cast при доступе к user.uid, user.role и т.д.
   const [user,  setUser]  = useState<AppUser | null>(null);
-  const [authNotice, setAuthNotice] = useState('');
+  const [authNotice, setAuthNotice] = useState<string>('');
   const notifTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -52,8 +62,10 @@ export function useAuth() {
             setPhase(PHASE.LOGIN);
           }
         })
-        .catch((err) => {
-          logger.warn('getMe failed', { message: err?.message });
+        .catch((err: unknown) => {
+          logger.warn('getMe failed', {
+            message: err instanceof Error ? err.message : String(err),
+          });
           if (!cancelled) setPhase(PHASE.LOGIN);
         });
       return () => { cancelled = true; };

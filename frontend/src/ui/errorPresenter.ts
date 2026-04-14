@@ -10,10 +10,12 @@ export type ErrorContext =
 export type PresentedError = {
   message: string;
   cta?: string;
-  kind: string;
+  kind: ReturnType<typeof classifyHttpError>;
 };
 
-const COPY_BY_CONTEXT: Record<ErrorContext, Partial<Record<string, PresentedError>>> = {
+type PresentedErrorKind = ReturnType<typeof classifyHttpError>;
+
+const COPY_BY_CONTEXT: Record<ErrorContext, Partial<Record<PresentedErrorKind, PresentedError>>> = {
   'auth.send_code': {
     [ERROR_KIND.NETWORK]: { message: 'Нет соединения. Проверьте интернет и повторите отправку кода.', cta: 'Повторить', kind: ERROR_KIND.NETWORK },
     [ERROR_KIND.VALIDATION]: { message: 'Проверьте номер телефона и попробуйте снова.', cta: 'Исправить', kind: ERROR_KIND.VALIDATION },
@@ -39,7 +41,7 @@ const COPY_BY_CONTEXT: Record<ErrorContext, Partial<Record<string, PresentedErro
 };
 
 export function presentError(error: unknown, context: ErrorContext = 'default'): PresentedError {
-  const e = error as { kind?: string; status?: number; message?: string };
+  const e = error as { kind?: PresentedErrorKind; status?: number; message?: string };
   const kind = e?.kind || classifyHttpError(e?.status, e?.message);
   const fromContext = COPY_BY_CONTEXT[context]?.[kind] || COPY_BY_CONTEXT[context]?.[ERROR_KIND.UNKNOWN];
   const fallback = COPY_BY_CONTEXT.default[ERROR_KIND.UNKNOWN] as PresentedError;

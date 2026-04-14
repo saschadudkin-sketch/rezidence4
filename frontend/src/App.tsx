@@ -40,7 +40,7 @@ import { logger } from './services/logger';
 // а не на уровне модуля. Singleton на уровне модуля разделяется между тест-кейсами —
 // кеш из одного теста протекает в следующий. useState(() => new QueryClient(...))
 // гарантирует изолированный инстанс на каждый рендер приложения.
-function createQueryClient() {
+function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -175,7 +175,7 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const [queryClient] = useState(createQueryClient);
+  const [queryClient] = useState<QueryClient>(createQueryClient);
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>

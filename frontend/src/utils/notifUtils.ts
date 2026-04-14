@@ -1,71 +1,79 @@
 import { getSwReg } from './swUtils';
 
-/** Запрашивает разрешение на push-уведомления */
-export const requestNotifPerm = () => {
-  if ('Notification' in window && Notification.permission === 'default')
-    Notification.requestPermission();
-};
+type NotificationExtra = { url?: string };
+type AlertType = 'pass' | 'tech';
+type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
+
+/** Р—Р°РїСЂР°С€РёРІР°РµС‚ СЂР°Р·СЂРµС€РµРЅРёРµ РЅР° push-СѓРІРµРґРѕРјР»РµРЅРёСЏ */
+export function requestNotifPerm(): void {
+  if ('Notification' in window && Notification.permission === 'default') {
+    void Notification.requestPermission();
+  }
+}
 
 /**
- * Показывает системное уведомление (через SW или напрямую).
- * @param {string} title
- * @param {string} body
- * @param {string} tag
- * @param {object} [extra] — доп. поля: { url } для deep link при нажатии
+ * РџРѕРєР°Р·С‹РІР°РµС‚ СЃРёСЃС‚РµРјРЅРѕРµ СѓРІРµРґРѕРјР»РµРЅРёРµ (С‡РµСЂРµР· SW РёР»Рё РЅР°РїСЂСЏРјСѓСЋ).
  */
-export const sendNotif = (title: string, body: string, tag: string, extra: { url?: string } = {}) => {
+export function sendNotif(title: string, body: string, tag = 'default', extra: NotificationExtra = {}): void {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
   try {
     const swReg = getSwReg();
     if (swReg) {
-      swReg.showNotification(title, {
+      void swReg.showNotification(title, {
         body,
-        tag:      tag || 'default',
+        tag,
         renotify: true,
-        icon:     '/logo192.png',
-        badge:    '/logo192.png',
-        // P-07: data.url передаётся SW-обработчику notificationclick для навигации
-        data:     { url: extra.url || '/' },
+        icon: '/logo192.png',
+        badge: '/logo192.png',
+        data: { url: extra.url || '/' },
       } as NotificationOptions);
-    } else {
-      new Notification(title, { body, icon: '/logo192.png' });
+      return;
     }
-  } catch { /* silent */ }
-};
 
-// FIX [PERF/RESOURCE]: один AudioContext на модуль — не создаём новый при каждом сигнале.
-// Браузеры ограничивают количество одновременных AudioContext (~6 штук).
-let _audioCtx: AudioContext | null = null;
-function getAudioCtx() {
-  if (_audioCtx && _audioCtx.state !== 'closed') return _audioCtx;
-  const Ctor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctor) return null;
-  _audioCtx = new Ctor();
-  return _audioCtx;
+    void new Notification(title, { body, icon: '/logo192.png' });
+  } catch {
+    // Notification failures should never break user flows.
+  }
 }
 
-/** Воспроизводит звуковой сигнал типа «pass» или «tech» */
-export const playAlert = (type: 'pass' | 'tech') => {
+let audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (audioCtx && audioCtx.state !== 'closed') return audioCtx;
+  const Ctor = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+  if (!Ctor) return null;
+  audioCtx = new Ctor();
+  return audioCtx;
+}
+
+/** Р’РѕСЃРїСЂРѕРёР·РІРѕРґРёС‚ Р·РІСѓРєРѕРІРѕР№ СЃРёРіРЅР°Р» С‚РёРїР° В«passВ» РёР»Рё В«techВ» */
+export function playAlert(type: AlertType): void {
   try {
     const ctx = getAudioCtx();
     if (!ctx) return;
-    // Возобновляем контекст если он был приостановлен браузером
-    if (ctx.state === 'suspended') ctx.resume();
-    const notes = type === 'pass'
-      ? [[880, 0, .12], [1046, 0.13, .12], [1318, 0.26, .18]]
-      : [[660, 0, .1],  [660, .12, .1],    [880,  .25, .15]];
-    notes.forEach(([freq, delay, dur]) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = freq;
-      o.type = 'sine';
-      g.gain.setValueAtTime(0, ctx.currentTime + delay);
-      g.gain.linearRampToValueAtTime(0.18, ctx.currentTime + delay + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
-      o.start(ctx.currentTime + delay);
-      o.stop(ctx.currentTime + delay + dur + 0.05);
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+
+    const notes: ReadonlyArray<readonly [number, number, number]> = type === 'pass'
+      ? [[880, 0, 0.12], [1046, 0.13, 0.12], [1318, 0.26, 0.18]]
+      : [[660, 0, 0.1], [660, 0.12, 0.1], [880, 0.25, 0.15]];
+
+    notes.forEach(([freq, delay, duration]) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.frequency.value = freq;
+      oscillator.type = 'sine';
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+      oscillator.start(ctx.currentTime + delay);
+      oscillator.stop(ctx.currentTime + delay + duration + 0.05);
     });
-    // Не закрываем ctx — переиспользуем в следующем вызове
-  } catch { /* silent */ }
-};
+  } catch {
+    // Audio failures should never break user flows.
+  }
+}

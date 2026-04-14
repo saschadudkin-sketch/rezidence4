@@ -16,6 +16,16 @@
  */
 
 import { AppIcon } from './AppIcon';
+import type { AppIconName } from './AppIcon';
+
+type EmptyStateProps = {
+  icon?: AppIconName;
+  title?: string;
+  description?: string;
+  ctaLabel?: string;
+  onCta?: () => void;
+  className?: string;
+};
 
 export function EmptyState({
   icon = 'info',
@@ -24,7 +34,7 @@ export function EmptyState({
   ctaLabel,
   onCta,
   className = '',
-}) {
+}: EmptyStateProps) {
   return (
     <div className={`empty-state${className ? ' ' + className : ''}`} role="status">
       <div className="empty-state-icon" aria-hidden="true">

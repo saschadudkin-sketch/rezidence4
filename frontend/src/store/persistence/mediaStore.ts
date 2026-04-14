@@ -13,7 +13,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function putMedia(key: string, value: string) {
+export async function putMedia(key: string, value: string): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
@@ -38,7 +38,7 @@ export async function getMedia(key: string): Promise<string | null> {
   return result;
 }
 
-export async function clearMediaStore() {
+export async function clearMediaStore(): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {

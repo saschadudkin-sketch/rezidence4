@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from '../ui/Toasts';
 
 const TOAST_THROTTLE_MS = 5_000;
+type OnlineStatusToastLevel = 'success' | 'warning';
 
 /**
  * useOnlineStatus — tracks navigator.onLine with throttled toasts.
@@ -9,16 +10,16 @@ const TOAST_THROTTLE_MS = 5_000;
  * A-07: extracted from App.jsx to its own hook file.
  */
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(
+  const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
-  const lastToastAtRef = useRef(0);
-  const lastStatusRef  = useRef(
+  const lastToastAtRef = useRef<number>(0);
+  const lastStatusRef  = useRef<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
   useEffect(() => {
-    const showToastThrottled = (message, level) => {
+    const showToastThrottled = (message: string, level: OnlineStatusToastLevel): void => {
       const now = Date.now();
       if (now - lastToastAtRef.current < TOAST_THROTTLE_MS) return;
       lastToastAtRef.current = now;

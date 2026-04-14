@@ -1,152 +1,130 @@
 /**
- * services/logger.js — централизованный логгер
- *
- * FIX [AUDIT-9]: _ctx был module-level mutable object.
- * Проблемы:
- *   1. При SSR (если когда-либо добавят) контекст одного пользователя
- *      утекал бы в запросы другого (shared module state между req/res циклами)
- *   2. В тестах с jest.resetModules() контекст неожиданно сохранялся
- *   3. setContext/clearContext — не thread-safe при параллельных тестах
- *
- * Решение: createLogger() возвращает изолированный экземпляр с собственным
- * замыканием. Singleton logger = createLogger() — один экземпляр на SPA.
- * В тестах: const testLogger = createLogger() — изоляция гарантирована.
- *
- * Использование:
- *   import { logger } from '../services/logger';
- *   logger.info('Заявка создана', { reqId, userRole });
- *   logger.error('API error', err);
+ * Centralized client logger.
  */
-
 const IS_DEV = import.meta?.env?.DEV === true || import.meta?.env?.MODE === 'test';
 
+export type LoggerContext = Record<string, unknown>;
+export type LoggerArg = unknown;
+export type ErrorPayload = {
+  message: string;
+  error: unknown;
+  context: LoggerContext;
+  extra: Record<string, unknown>;
+  timestamp: string;
+};
+
 export function createLogger() {
-  // Контекст живёт в замыкании — изолирован от других экземпляров
-  let _ctx: Record<string, unknown> = {};
+  let context: LoggerContext = {};
+  const errorBuffer: ErrorPayload[] = [];
+  const sentMessages = new Set<string>();
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-  type LoggerArg = unknown;
-  type ErrorPayload = {
-    message: string;
-    error: unknown;
-    context: Record<string, unknown>;
-    extra: Record<string, unknown>;
-    timestamp: string;
-  };
+  const MAX_BUFFER = 10;
+  const FLUSH_INTERVAL = 5_000;
 
-  function _fmtArgs(args: LoggerArg[]) {
-    if (Object.keys(_ctx).length === 0) return args;
-    return [...args, _ctx];
+  function formatArgs(args: LoggerArg[]): LoggerArg[] {
+    if (Object.keys(context).length === 0) return args;
+    return [...args, context];
   }
 
-  // ─── FIX [AUDIT-6 #4]: реальный error reporter ──────────────────────────────
-  // Буферизует ошибки и отправляет батчем через POST /api/v1/client-logs.
-  // При unload страницы — navigator.sendBeacon (гарантированная доставка).
-  // Rate limit: максимум 10 ошибок в минуту, дубли по message дедуплицируются.
-  const _errorBuffer: ErrorPayload[] = [];
-  const _sentMessages = new Set();
-  let _flushTimer: ReturnType<typeof setTimeout> | null = null;
-  const MAX_BUFFER = 10;
-  const FLUSH_INTERVAL = 5_000; // 5 секунд
+  function flushErrors(): void {
+    if (errorBuffer.length === 0) return;
 
-  function _flushErrors() {
-    if (_errorBuffer.length === 0) return;
-    const batch = _errorBuffer.splice(0, MAX_BUFFER);
-    const BASE = import.meta?.env?.VITE_API_URL || '';
-    const url = `${BASE}/api/v1/client-logs`;
+    const batch = errorBuffer.splice(0, MAX_BUFFER);
+    const baseUrl = import.meta?.env?.VITE_API_URL || '';
+    const url = `${baseUrl}/api/v1/client-logs`;
     const body = JSON.stringify({ errors: batch });
 
     try {
-      // Prefer sendBeacon (works during page unload)
       if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
         navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
-      } else {
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body,
-          keepalive: true,
-        }).catch(() => {}); // fire-and-forget
+        return;
       }
-    } catch { /* ignore — logging must never break the app */ }
-  }
 
-  function _sendToService(payload: ErrorPayload) {
-    // Дедупликация по message (не шлём одну и ту же ошибку 100 раз)
-    const key = payload.message || 'unknown';
-    if (_sentMessages.has(key)) return;
-    if (_sentMessages.size > 100) _sentMessages.clear(); // reset после 100 уникальных
-    _sentMessages.add(key);
-
-    _errorBuffer.push(payload);
-
-    if (_errorBuffer.length >= MAX_BUFFER) {
-      _flushErrors();
-    } else if (!_flushTimer) {
-      _flushTimer = setTimeout(() => { _flushTimer = null; _flushErrors(); }, FLUSH_INTERVAL);
+      void fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // Logging failures must never break the app.
     }
   }
 
-  // Flush при закрытии страницы
+  function sendToService(payload: ErrorPayload): void {
+    const key = payload.message || 'unknown';
+    if (sentMessages.has(key)) return;
+    if (sentMessages.size > 100) sentMessages.clear();
+    sentMessages.add(key);
+
+    errorBuffer.push(payload);
+
+    if (errorBuffer.length >= MAX_BUFFER) {
+      flushErrors();
+      return;
+    }
+
+    if (!flushTimer) {
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flushErrors();
+      }, FLUSH_INTERVAL);
+    }
+  }
+
   if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', _flushErrors);
+    window.addEventListener('beforeunload', flushErrors);
   }
 
   return {
-    /** Установить контекст (uid, role, name) — вызывать при логине */
-    setContext(ctx: Record<string, unknown>) {
-      _ctx = { ..._ctx, ...ctx };
+    setContext(nextContext: LoggerContext): void {
+      context = { ...context, ...nextContext };
     },
 
-    /** Сбросить контекст — при логауте */
-    clearContext() {
-      _ctx = {};
+    clearContext(): void {
+      context = {};
     },
 
-    /** Получить текущий контекст (для тестов) */
-    getContext() {
-      return { ..._ctx };
+    getContext(): LoggerContext {
+      return { ...context };
     },
 
-    debug(...args: LoggerArg[]) {
-      // eslint-disable-next-line no-console
-      if (IS_DEV) console.debug('[DEBUG]', ..._fmtArgs(args));
+    debug(...args: LoggerArg[]): void {
+      if (IS_DEV) console.info('[DEBUG]', ...formatArgs(args));
     },
 
-    info(...args: LoggerArg[]) {
-      if (IS_DEV) console.info('[INFO]', ..._fmtArgs(args));
+    info(...args: LoggerArg[]): void {
+      if (IS_DEV) console.info('[INFO]', ...formatArgs(args));
     },
 
-    warn(...args: LoggerArg[]) {
-      if (IS_DEV) {
-        console.warn('[WARN]', ..._fmtArgs(args));
-      }
+    warn(...args: LoggerArg[]): void {
+      if (IS_DEV) console.warn('[WARN]', ...formatArgs(args));
     },
 
-    error(message: string, error: unknown, extra: Record<string, unknown> = {}) {
-      const payload = {
+    error(message: string, error: unknown, extra: Record<string, unknown> = {}): void {
+      const payload: ErrorPayload = {
         message,
-        error: error instanceof Error
-          ? { message: error.message, stack: error.stack }
-          : error,
-        context: _ctx,
+        error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+        context,
         extra,
         timestamp: new Date().toISOString(),
       };
+
       if (IS_DEV) {
         console.error('[ERROR]', payload);
-      } else {
-        _sendToService(payload);
+        return;
       }
+
+      sendToService(payload);
     },
 
-    /** Логировать действие пользователя */
-    action(name: string, data: Record<string, unknown> = {}) {
-      // eslint-disable-next-line no-console
-      if (IS_DEV) console.log('[ACTION]', name, { ..._ctx, ...data });
+    action(name: string, data: Record<string, unknown> = {}): void {
+      if (IS_DEV) console.info('[ACTION]', name, { ...context, ...data });
     },
   };
 }
 
-/** Singleton для приложения */
+export type Logger = ReturnType<typeof createLogger>;
 export const logger = createLogger();

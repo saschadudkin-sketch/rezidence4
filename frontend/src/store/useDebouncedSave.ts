@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export function useDebouncedSave<T>(state: T, saveFn: (arg: T) => void, enabled: boolean) {
+export function useDebouncedSave<T>(state: T, saveFn: (arg: T) => void, enabled: boolean): void {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingStateRef = useRef<T | null>(null);
 

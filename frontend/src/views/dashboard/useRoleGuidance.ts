@@ -7,8 +7,11 @@ import {
   STORAGE_KEYS,
   writeStorage,
 } from '../../store/persistence/storageRegistry';
+import type { AppUser } from '../../store/slices/usersSlice';
 
-export function useRoleGuidance(user: { uid: string; role: string }) {
+type RoleGuidanceUser = Pick<AppUser, 'uid' | 'role'>;
+
+export function useRoleGuidance(user: RoleGuidanceUser) {
   const [showDemoBanner, setShowDemoBanner] = useState(() =>
     isDemoMode() && !readStorage(STORAGE_KEYS.DEMO_WELCOME_SEEN)
   );

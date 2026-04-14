@@ -28,7 +28,7 @@ import { useEffect, useRef } from 'react';
  * @param {boolean} enabled - Whether the side effect should run.
  * @param {number} delay - Debounce delay in milliseconds.
  */
-export function useDebouncedSave(value, fn, enabled = true, delay = 300) {
+export function useDebouncedSave<T>(value: T, fn: (nextValue: T) => void, enabled = true, delay = 300): void {
   // Keep fn in a ref so changing the callback never restarts the timer.
   const fnRef = useRef(fn);
   fnRef.current = fn;

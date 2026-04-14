@@ -21,9 +21,16 @@ type BadgeStatusProps = {
   size?: 'sm' | 'md';
 };
 
+function hasOwnLabel<TLabels extends Record<string, string>>(
+  labels: TLabels,
+  value: string,
+): value is Extract<keyof TLabels, string> {
+  return value in labels;
+}
+
 const BadgeStatus = memo(function BadgeStatus({ status, role, label, size = 'md' }: BadgeStatusProps) {
   if (role) {
-    const text = label ?? (ROLE_LABELS[role] || role);
+    const text = label ?? (hasOwnLabel(ROLE_LABELS, role) ? ROLE_LABELS[role] : role);
     return (
       <span className={`admin-badge ${role}${size === 'sm' ? ' badge-sm' : ''}`}>
         {text}
@@ -31,7 +38,7 @@ const BadgeStatus = memo(function BadgeStatus({ status, role, label, size = 'md'
     );
   }
   if (status) {
-    const text = label ?? (STS_LABEL?.[status] || status);
+    const text = label ?? (hasOwnLabel(STS_LABEL, status) ? STS_LABEL[status] : status);
     return (
       <span className={`badge ${status}${size === 'sm' ? ' badge-sm' : ''}`}>
         {text}

@@ -5,11 +5,10 @@ import {
   REQUEST_ARRIVE,
   HISTORY_ADD,
 } from '../store/requestActionTypes';
-
-type Dispatch = (action: { type: string; [key: string]: unknown }) => void;
+import type { AppDispatch } from '../store/boundedContexts/contexts';
 
 function addHistory(
-  dispatch: Dispatch,
+  dispatch: AppDispatch,
   reqId: string,
   byName: string,
   byRole: string,
@@ -20,7 +19,7 @@ function addHistory(
 }
 
 export function setStatusWithHistory(
-  dispatch: Dispatch,
+  dispatch: AppDispatch,
   reqId: string,
   status: string,
   label: string,
@@ -33,7 +32,7 @@ export function setStatusWithHistory(
 }
 
 export function arriveWithHistory(
-  dispatch: Dispatch,
+  dispatch: AppDispatch,
   reqId: string,
   byName: string,
   byRole: string,
@@ -44,7 +43,7 @@ export function arriveWithHistory(
 }
 
 export function approveAndArriveWithHistory(
-  dispatch: Dispatch,
+  dispatch: AppDispatch,
   reqId: string,
   byName: string,
   byRole: string,

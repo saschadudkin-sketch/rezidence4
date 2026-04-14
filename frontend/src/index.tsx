@@ -40,7 +40,12 @@ window.addEventListener('unhandledrejection', (event) => {
 if (shouldRegisterSW()) registerSW();
 reportWebVitals();
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const rootContainer = document.getElementById('root');
+if (!rootContainer) {
+  throw new Error('Root container "#root" was not found');
+}
+
+const root = ReactDOM.createRoot(rootContainer);
 root.render(
   <React.StrictMode>
     <App />

@@ -20,16 +20,23 @@ import { isLiveMode } from '../config/runtimeMode';
 import { services } from '../services/providers/serviceContainer';
 import { findByPhone } from '../utils';
 import { useUsers } from '../store/AppStore';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { ServiceAck } from '../services/providers/serviceDtos';
 
-export function useAuthFlow() {
+type AuthFlowResult = {
+  sendOtp: (phone: string) => Promise<ServiceAck | AppUser | void>;
+  verifyOtp: (phone: string, otp: string, demoUser?: AppUser | null) => Promise<AppUser | null>;
+};
+
+export function useAuthFlow(): AuthFlowResult {
   const { phoneDb } = useUsers();
 
-  const sendOtp = useCallback(async (phone) => {
+  const sendOtp = useCallback(async (phone: string): Promise<ServiceAck | AppUser | void> => {
     if (isLiveMode()) {
       return services.auth.sendOtp(phone);
     }
     // Demo: look up user in local phone directory
-    const found = findByPhone(phone, phoneDb);
+    const found = findByPhone(phone, phoneDb) as AppUser | null;
     if (!found) {
       const err = Object.assign(new Error('Номер не найден в системе'), { notFound: true });
       throw err;
@@ -38,13 +45,17 @@ export function useAuthFlow() {
     return found; // returned so the caller can cache it
   }, [phoneDb]);
 
-  const verifyOtp = useCallback(async (phone, otp, demoUser) => {
+  const verifyOtp = useCallback(async (
+    phone: string,
+    otp: string,
+    demoUser?: AppUser | null,
+  ): Promise<AppUser | null> => {
     if (isLiveMode()) {
       return services.auth.verifyOtp(phone, otp);
     }
     // Demo: any 6-digit code is accepted — demoUser was returned by sendOtp
     await new Promise(r => setTimeout(r, 400));
-    return demoUser;
+    return demoUser ?? null;
   }, []);
 
   return { sendOtp, verifyOtp };

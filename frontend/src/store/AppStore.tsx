@@ -52,10 +52,9 @@ const EMPTY_ALL_PERMS: Record<string, typeof EMPTY_PERMS_ENTRY> = {};
 const EMPTY_ALL_GARAGE: Record<string, Car[]> = {};
 
 type AppDispatch = ReturnType<typeof useBoundedDomainStates>['dispatch'];
+type MutableAppStore = AppStoreApi & { setState: (nextState: AppStoreSnapshot) => void };
 
-function createAppStore(initialState: AppStoreSnapshot): AppStoreApi & {
-  setState: (nextState: AppStoreSnapshot) => void;
-} {
+function createAppStore(initialState: AppStoreSnapshot): MutableAppStore {
   let state = initialState;
   const listeners = new Set<() => void>();
 
@@ -105,7 +104,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     garageState,
   } = bounded;
 
-  const storeRef = useRef<(AppStoreApi & { setState: (nextState: AppStoreSnapshot) => void }) | null>(null);
+  const storeRef = useRef<MutableAppStore | null>(null);
 
   if (!storeRef.current) {
     storeRef.current = createAppStore({
@@ -142,7 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAppDispatch() { return useContext(DispatchContext); }
+export function useAppDispatch(): AppDispatch | null { return useContext(DispatchContext); }
 
 export function useRequests() { return useAppStoreSelector((state) => state.reqState.requests); }
 export function useChat() { return useAppStoreSelector((state) => state.chatState); }

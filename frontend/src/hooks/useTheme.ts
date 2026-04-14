@@ -1,12 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type ThemeMode = 'dark' | 'auto' | 'light';
+
+const isThemeMode = (value: string): value is ThemeMode =>
+  value === 'dark' || value === 'auto' || value === 'light';
+
 /**
  * useTheme — управление темой оформления (тёмная / авто / светлая).
  * Хранит выбор в localStorage['rz-theme'], применяет CSS-класс к <html>.
  */
-export function useTheme(defaultTheme = 'dark') {
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('rz-theme') || defaultTheme; } catch { return defaultTheme; }
+export function useTheme(defaultTheme: ThemeMode = 'dark') {
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    try {
+      const storedTheme = localStorage.getItem('rz-theme');
+      return storedTheme && isThemeMode(storedTheme) ? storedTheme : defaultTheme;
+    } catch {
+      return defaultTheme;
+    }
   });
 
   useEffect(() => {
@@ -18,7 +28,7 @@ export function useTheme(defaultTheme = 'dark') {
   }, [theme]);
 
   const cycleTheme = useCallback(
-    () => setTheme(t => t === 'dark' ? 'auto' : t === 'auto' ? 'light' : 'dark'),
+    () => setTheme((currentTheme) => currentTheme === 'dark' ? 'auto' : currentTheme === 'auto' ? 'light' : 'dark'),
     [],
   );
 

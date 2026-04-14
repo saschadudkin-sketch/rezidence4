@@ -10,8 +10,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 // экземпляр выигрывает (LIFO) — ожидаемое поведение для стека модалов.
 // toast() — стабильная функция: safe to call before mount (silently drops).
 
-type ToastType = 'info' | 'success' | 'error' | 'warn' | string;
-type ToastAction = {
+export type ToastType = 'info' | 'success' | 'error' | 'warn' | 'warning';
+type ToastSystemType = '__system_clear__';
+export type ToastAction = {
   label: string;
   onClick?: () => void;
   secondaryLabel?: string;
@@ -23,7 +24,7 @@ type ToastItem = {
   type: ToastType;
   action: ToastAction;
 };
-type ToastCallback = (msg: string, type: ToastType, action: ToastAction) => void;
+type ToastCallback = (msg: string, type: ToastType | ToastSystemType, action: ToastAction) => void;
 
 let _toastCb: ToastCallback | null = null;
 // Монотонный счётчик — Date.now() мог совпасть для двух toast() в одном тике
@@ -62,15 +63,18 @@ export default function Toasts() {
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map()); // id → timeoutId
 
   const add = useCallback<ToastCallback>((msg, type, action) => {
-    if (type === '__system_clear__' && msg === '__clear_all__') {
-      timersRef.current.forEach(clearTimeout);
-      timersRef.current.clear();
-      setList([]);
+    if (type === '__system_clear__') {
+      if (msg === '__clear_all__') {
+        timersRef.current.forEach(clearTimeout);
+        timersRef.current.clear();
+        setList([]);
+      }
       return;
     }
+    const toastType: ToastType = type;
     const id = ++_toastIdCounter;
     const duration = action ? TOAST_DURATION_ACTION : TOAST_DURATION;
-    setList(p => [...p, { id, msg, type, action }]);
+    setList(p => [...p, { id, msg, type: toastType, action }]);
     const t = setTimeout(() => {
       setList(p => p.filter(x => x.id !== id));
       timersRef.current.delete(id);

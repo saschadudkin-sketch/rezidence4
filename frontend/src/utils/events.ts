@@ -1,150 +1,91 @@
-// @ts-check
 /**
- * utils/events.js — A-01: Centralized custom event registry.
- *
- * WHY: Custom window events (rz:*) were scattered across multiple files as
- * magic strings. Renaming one event required grep-based search across the codebase,
- * and missing a listener caused silent failures with no type checking.
- *
- * HOW: All event names are defined as constants here. Typed emit/on helpers
- * wrap dispatchEvent/addEventListener with automatic cleanup return values.
- *
- * USAGE:
- *   import { AppEvents, onSseStatus, emitSseStatus } from '../utils/events';
- *   const cleanup = onSseStatus(({ connected }) => setSseOnline(connected));
- *   // In cleanup: cleanup();
+ * utils/events.ts - A-01: Centralized custom event registry.
  */
-
-// ─── Event name constants ─────────────────────────────────────────────────────
-
-export const AppEvents = /** @type {const} */ ({
-  /** JWT expired / 401 received — triggers logout */
+export const AppEvents = {
   UNAUTHORIZED: 'rz:unauthorized',
-  /** JWT expired and refresh failed — detail: { reason: string, returnTo?: string } */
   SESSION_EXPIRED: 'rz:session-expired',
-
-  /** SSE connection state changed — detail: { connected: boolean } */
   SSE_STATUS: 'rz:sse-status',
-
-  /** Watchdog detected stale SSE (no events >60s) — triggers retryKey++ */
   SSE_FORCE_RECONNECT: 'rz:sse-force-reconnect',
-
-  /** SSE received any event — resets watchdog timer */
   SSE_ACTIVITY: 'rz:sse-activity',
-
-  /** SSE exhausted max retry attempts — requires manual user action */
   SSE_PERMANENT_ERROR: 'rz:sse-permanent-error',
-  /** Realtime transport state transition — detail: { from: string, to: string, at: number, durationMs: number } */
   REALTIME_STATE: 'rz:realtime-state',
-});
+} as const;
 
-type SseStatusDetail = { connected: boolean };
-type SessionExpiredDetail = { reason: string; returnTo?: string };
-type RealtimeStateDetail = { from: string; to: string; at: number; durationMs: number };
+export type AppEventName = typeof AppEvents[keyof typeof AppEvents];
+export type SseStatusDetail = { connected: boolean };
+export type SessionExpiredDetail = { reason: string; returnTo?: string };
+export type RealtimeStateDetail = { from: string; to: string; at: number; durationMs: number };
 
-// ─── Typed emit helpers ───────────────────────────────────────────────────────
-
-/**
- * @param {{ connected: boolean }} detail
- */
-export function emitSseStatus(detail: SseStatusDetail) {
-  window.dispatchEvent(new CustomEvent(AppEvents.SSE_STATUS, { detail }));
+function emitWindowEvent<TDetail>(name: AppEventName, detail?: TDetail): void {
+  window.dispatchEvent(new CustomEvent<TDetail>(name, detail === undefined ? undefined : { detail }));
 }
 
-export function emitSseForceReconnect() {
-  window.dispatchEvent(new CustomEvent(AppEvents.SSE_FORCE_RECONNECT));
+function onWindowEvent<TDetail>(name: AppEventName, handler: (detail: TDetail) => void): () => void {
+  const listener: EventListener = (event) => handler((event as CustomEvent<TDetail>).detail);
+  window.addEventListener(name, listener);
+  return () => window.removeEventListener(name, listener);
 }
 
-export function emitSseActivity() {
-  window.dispatchEvent(new CustomEvent(AppEvents.SSE_ACTIVITY));
+export function emitSseStatus(detail: SseStatusDetail): void {
+  emitWindowEvent(AppEvents.SSE_STATUS, detail);
 }
 
-export function emitSsePermanentError() {
-  window.dispatchEvent(new CustomEvent(AppEvents.SSE_PERMANENT_ERROR));
+export function emitSseForceReconnect(): void {
+  emitWindowEvent(AppEvents.SSE_FORCE_RECONNECT);
 }
 
-export function emitUnauthorized() {
-  window.dispatchEvent(new CustomEvent(AppEvents.UNAUTHORIZED));
+export function emitSseActivity(): void {
+  emitWindowEvent(AppEvents.SSE_ACTIVITY);
 }
 
-/**
- * @param {{ reason: string, returnTo?: string }} detail
- */
-export function emitSessionExpired(detail: SessionExpiredDetail) {
-  window.dispatchEvent(new CustomEvent(AppEvents.SESSION_EXPIRED, { detail }));
+export function emitSsePermanentError(): void {
+  emitWindowEvent(AppEvents.SSE_PERMANENT_ERROR);
 }
 
-/**
- * @param {{ from: string, to: string, at: number, durationMs: number }} detail
- */
-export function emitRealtimeState(detail: RealtimeStateDetail) {
-  window.dispatchEvent(new CustomEvent(AppEvents.REALTIME_STATE, { detail }));
+export function emitUnauthorized(): void {
+  emitWindowEvent(AppEvents.UNAUTHORIZED);
 }
 
-// ─── Typed on helpers — return cleanup function ───────────────────────────────
-
-/**
- * @param {(detail: { connected: boolean }) => void} handler
- * @returns {() => void} cleanup
- */
-export function onSseStatus(handler: (detail: SseStatusDetail) => void) {
-  const listener = (e: Event) => handler((e as CustomEvent<SseStatusDetail>).detail);
-  window.addEventListener(AppEvents.SSE_STATUS, listener);
-  return () => window.removeEventListener(AppEvents.SSE_STATUS, listener);
+export function emitSessionExpired(detail: SessionExpiredDetail): void {
+  emitWindowEvent(AppEvents.SESSION_EXPIRED, detail);
 }
 
-/**
- * @param {() => void} handler
- * @returns {() => void} cleanup
- */
-export function onSseForceReconnect(handler: () => void) {
-  window.addEventListener(AppEvents.SSE_FORCE_RECONNECT, handler);
-  return () => window.removeEventListener(AppEvents.SSE_FORCE_RECONNECT, handler);
+export function emitRealtimeState(detail: RealtimeStateDetail): void {
+  emitWindowEvent(AppEvents.REALTIME_STATE, detail);
 }
 
-/**
- * @param {() => void} handler
- * @returns {() => void} cleanup
- */
-export function onSseActivity(handler: () => void) {
-  window.addEventListener(AppEvents.SSE_ACTIVITY, handler);
-  return () => window.removeEventListener(AppEvents.SSE_ACTIVITY, handler);
+export function onSseStatus(handler: (detail: SseStatusDetail) => void): () => void {
+  return onWindowEvent(AppEvents.SSE_STATUS, handler);
 }
 
-/**
- * @param {() => void} handler
- * @returns {() => void} cleanup
- */
-export function onSsePermanentError(handler: () => void) {
-  window.addEventListener(AppEvents.SSE_PERMANENT_ERROR, handler);
-  return () => window.removeEventListener(AppEvents.SSE_PERMANENT_ERROR, handler);
+export function onSseForceReconnect(handler: () => void): () => void {
+  const listener: EventListener = () => handler();
+  window.addEventListener(AppEvents.SSE_FORCE_RECONNECT, listener);
+  return () => window.removeEventListener(AppEvents.SSE_FORCE_RECONNECT, listener);
 }
 
-/**
- * @param {() => void} handler
- * @returns {() => void} cleanup
- */
-export function onUnauthorized(handler: () => void) {
-  window.addEventListener(AppEvents.UNAUTHORIZED, handler);
-  return () => window.removeEventListener(AppEvents.UNAUTHORIZED, handler);
+export function onSseActivity(handler: () => void): () => void {
+  const listener: EventListener = () => handler();
+  window.addEventListener(AppEvents.SSE_ACTIVITY, listener);
+  return () => window.removeEventListener(AppEvents.SSE_ACTIVITY, listener);
 }
 
-/**
- * @param {(detail: { reason: string, returnTo?: string }) => void} handler
- * @returns {() => void} cleanup
- */
-export function onSessionExpired(handler: (detail: SessionExpiredDetail) => void) {
-  const listener = (e: Event) => handler((e as CustomEvent<SessionExpiredDetail>).detail);
-  window.addEventListener(AppEvents.SESSION_EXPIRED, listener);
-  return () => window.removeEventListener(AppEvents.SESSION_EXPIRED, listener);
+export function onSsePermanentError(handler: () => void): () => void {
+  const listener: EventListener = () => handler();
+  window.addEventListener(AppEvents.SSE_PERMANENT_ERROR, listener);
+  return () => window.removeEventListener(AppEvents.SSE_PERMANENT_ERROR, listener);
 }
 
-/**
- * @param {(detail: { from: string, to: string, at: number, durationMs: number }) => void} handler
- * @returns {() => void} cleanup
- */
-export function onRealtimeState(handler: (detail: RealtimeStateDetail) => void) {
-  const listener = (e: Event) => handler((e as CustomEvent<RealtimeStateDetail>).detail);
-  window.addEventListener(AppEvents.REALTIME_STATE, listener);
-  return () => window.removeEventListener(AppEvents.REALTIME_STATE, listener);
+export function onUnauthorized(handler: () => void): () => void {
+  const listener: EventListener = () => handler();
+  window.addEventListener(AppEvents.UNAUTHORIZED, listener);
+  return () => window.removeEventListener(AppEvents.UNAUTHORIZED, listener);
+}
+
+export function onSessionExpired(handler: (detail: SessionExpiredDetail) => void): () => void {
+  return onWindowEvent(AppEvents.SESSION_EXPIRED, handler);
+}
+
+export function onRealtimeState(handler: (detail: RealtimeStateDetail) => void): () => void {
+  return onWindowEvent(AppEvents.REALTIME_STATE, handler);
 }

@@ -1,6 +1,13 @@
 import { AppIcon } from '../ui/AppIcon';
+import type { WorkflowAction } from './roleWorkflow';
 
-export function SmartActionRail({ action, feedback, onAction }) {
+type SmartActionRailProps = {
+  action: WorkflowAction | null;
+  feedback?: string;
+  onAction?: () => void;
+};
+
+export function SmartActionRail({ action, feedback, onAction }: SmartActionRailProps) {
   if (!action) return null;
   return (
     <div className="onboarding-hint smart-action-rail" role="status" aria-live="polite">

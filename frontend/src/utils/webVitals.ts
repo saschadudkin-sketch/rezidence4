@@ -6,12 +6,13 @@
  * В dev — выводятся в console для локальной отладки.
  */
 import { onCLS, onINP, onLCP, onFCP, onTTFB } from 'web-vitals';
+import type { Metric } from 'web-vitals';
 import { logger } from '../services/logger';
 
 /**
  * @param {import('web-vitals').Metric} metric
  */
-function sendToAnalytics(metric) {
+function sendToAnalytics(metric: Metric): void {
   if (import.meta.env.DEV) {
     // Удобный вывод для локальной разработки: имя, значение, рейтинг
     logger.debug(`[WebVitals] ${metric.name}: ${Math.round(metric.value)}ms (${metric.rating})`);
@@ -28,7 +29,7 @@ function sendToAnalytics(metric) {
   }));
 }
 
-export function reportWebVitals() {
+export function reportWebVitals(): void {
   onCLS(sendToAnalytics);
   onINP(sendToAnalytics);
   onLCP(sendToAnalytics);
