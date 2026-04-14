@@ -3,7 +3,7 @@
 .resident-pass-home {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .resident-pass-hero {
@@ -236,7 +236,7 @@ html.theme-light .resident-quick-icon {
 }
 
 .resident-repeat-strip {
-  padding: 14px;
+  padding: 12px 14px;
 }
 
 .resident-section-head {
@@ -253,7 +253,7 @@ html.theme-light .resident-quick-icon {
 }
 
 .resident-section-head small {
-  color: var(--t4);
+  color: color-mix(in srgb, var(--t3) 86%, var(--g2) 14%);
   font-size: var(--fs-xs);
 }
 
@@ -288,7 +288,7 @@ html.theme-light .resident-quick-icon {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 15px;
+  padding: 12px 15px;
 }
 
 .resident-status-strip div {
@@ -306,8 +306,30 @@ html.theme-light .resident-quick-icon {
 }
 
 .resident-status-strip span {
-  color: var(--t3);
+  color: color-mix(in srgb, var(--t2) 78%, var(--g2) 22%);
   font-size: var(--fs-sm);
+}
+
+@media (min-width: 768px) {
+  .passes-tab--resident .search-wrap,
+  .passes-tab--resident .pass-filter-pills,
+  .passes-tab--resident .resident-passes-header,
+  .passes-tab--resident .req-list--compact,
+  .passes-tab--resident .state-block {
+    width: min(100%, 880px);
+    max-width: 880px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .passes-tab--resident .resident-passes-header {
+    margin-top: 2px;
+    margin-bottom: 10px;
+  }
+
+  .passes-tab--resident .req-list--compact {
+    gap: 12px;
+  }
 }
 
 .resident-ready-sheet {

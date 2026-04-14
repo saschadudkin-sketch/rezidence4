@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { canManageRequests } from '../domain/permissions';
-import { isSecurityActionablePass } from '../domain/passLifecycle';
 import type { ChatMessage } from '../store/slices/chatSlice';
 import type { AppRequest } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
@@ -51,7 +50,7 @@ export function useNavBadges(
 
   const [pendingT, pendingP] = useMemo(() => [
     requests.filter((request) => request.type === 'tech' && request.status === 'pending').length,
-    requests.filter(isSecurityActionablePass).length,
+    requests.filter((request) => request.type === 'pass' && request.status === 'pending').length,
   ], [requests]);
 
   const lastSeen   = chatLastSeen[user.uid] || 0;

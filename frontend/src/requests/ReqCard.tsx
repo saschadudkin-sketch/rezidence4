@@ -306,7 +306,8 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
   const isMountedRef = useIsMounted();
 
   const act = useCallback(async (key: string, fn: ReqActionFn, msg: string, type: ReqActionToastType) => {
-    if (actLoadingRef.current || !isMountedRef.current) return;
+    if (actLoadingRef.current) return;
+    if (!isMountedRef.current) return;
     setActLoading(key);
     try {
       await fn();
@@ -316,7 +317,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
-  }, [isMountedRef]);
+  }, []);
 
   const doApprove = useCallback(() => act('approve', () => Promise.resolve(approveRequest(req.id, actorName, userRole)), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);
   const doReject = useCallback(() => act('reject', () => Promise.resolve(rejectRequest(req.id, actorName, userRole)), 'В допуске отказано', 'error'), [act, rejectRequest, req.id, actorName, userRole]);

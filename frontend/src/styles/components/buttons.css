@@ -18,7 +18,7 @@
   box-shadow: 0 10px 24px rgba(201, 169, 110, 0.18);
 }
 
-.modal-foot .btn-gold, .modal-foot .btn-outline { flex: 1; }
+.modal-foot .btn-gold, .modal-foot .btn-outline, .modal-foot .btn-danger { flex: 1; }
 .perm-form-btns .btn-gold { padding: 10px 20px; }
 @media (hover: hover) {
   .btn-gold:hover:not(:disabled) {
@@ -60,17 +60,25 @@
   background: var(--danger-bg);
   border: 1.5px solid var(--danger);
   border-radius: var(--r);
-  padding: var(--space-md);
+  padding: 13px 20px;
   font-family: var(--font-body);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-body);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--danger-t);
   cursor: pointer;
-  transition: border-color .13s, color .13s, background .13s;
+  transition: border-color .16s, color .16s, background .16s, box-shadow .16s, transform .16s;
+  box-shadow: 0 10px 24px rgba(122, 32, 32, .16);
 }
-@media (hover: hover) { .btn-danger:hover { background: rgba(122, 32, 32, .22); border-color: var(--danger-t); } }
-.btn-danger:active { background: rgba(122, 32, 32, .30); }
+@media (hover: hover) {
+  .btn-danger:hover {
+    background: rgba(122, 32, 32, .22);
+    border-color: var(--danger-t);
+    box-shadow: 0 14px 30px rgba(122, 32, 32, .2);
+    transform: translateY(-1px);
+  }
+}
+.btn-danger:active { background: rgba(122, 32, 32, .30); transform: translateY(0); }
 
 .btn-text {
   display: flex;
@@ -145,13 +153,13 @@
 }
 .btn-accept:active { background: var(--g-bg2); }
 
-.btn-gold, .btn-outline, .btn-text, .btn-yes, .btn-no, .btn-accept,
+.btn-gold, .btn-outline, .btn-danger, .btn-text, .btn-yes, .btn-no, .btn-accept,
 .date-pill, .tab-btn, .scan-qr-btn, .schedule-toggle, .schedule-preset,
 .temp-pass-toggle, .temp-pass-preset, .pass-dur-btn, .type-card, .tn-btn {
   min-height: 44px;
 }
 .date-pill, .schedule-preset, .temp-pass-preset { padding-top: 8px; padding-bottom: 8px; }
-.btn-gold, .btn-outline, .btn-text, .btn-yes, .btn-no, .btn-accept, .scan-qr-btn, .schedule-toggle, .temp-pass-toggle, .pass-dur-btn {
+.btn-gold, .btn-outline, .btn-danger, .btn-text, .btn-yes, .btn-no, .btn-accept, .scan-qr-btn, .schedule-toggle, .temp-pass-toggle, .pass-dur-btn {
   touch-action: manipulation;
 }
 

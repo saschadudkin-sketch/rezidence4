@@ -84,9 +84,9 @@ export function ConfirmDialog({
         <div className="modal-body">
           <p className="confirm-dialog-message">{message}</p>
         </div>
-        <div className="modal-foot">
+        <div className="modal-foot confirm-dialog-actions">
           <button className="btn-outline u-flex1" onClick={onCancel}>{cancelLabel}</button>
-          <button ref={confirmButtonRef} className="btn-del-sm u-flex1" onClick={onConfirm}>{confirmLabel}</button>
+          <button ref={confirmButtonRef} className="btn-danger u-flex1" onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
     </div>,

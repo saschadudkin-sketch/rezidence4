@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
@@ -770,6 +770,7 @@ function ResidentPassWizard({
 
 export function CreateModal({ user, type, initialCat, initialData, initialStep, initialFast = false, onClose, onDone }: CreateModalProps) {
   const draftKey = getCreateDraftKey(user.uid, user.role, type);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const form = useCreateRequest({
@@ -861,6 +862,22 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- vNames is the resident visitor field state; clearing the step error is UI-only
   }, [form.cat, form.vName, form.vNames, form.carPlate, form.apartment]);
 
+  useLayoutEffect(() => {
+    const resetScroll = () => {
+      if (!bodyRef.current) return;
+      bodyRef.current.scrollTop = 0;
+      bodyRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    };
+
+    const frame = window.requestAnimationFrame(resetScroll);
+    const timeout = window.setTimeout(resetScroll, 60);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [draftReady, draftRestored, showAdvanced, type, initialCat]);
+
   const submitLabel = form.loading
     ? 'Сохранение...'
     : form.showSchedule && form.scheduledFor
@@ -911,7 +928,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" ref={bodyRef}>
           {draftRestored && (
             <div className="field-warn" role="status" aria-live="polite">
               Восстановлен черновик последней незавершённой заявки.

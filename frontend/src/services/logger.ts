@@ -1,7 +1,8 @@
 /**
  * Centralized client logger.
  */
-const IS_DEV = import.meta?.env?.DEV === true || import.meta?.env?.MODE === 'test';
+const MODE = import.meta?.env?.MODE ?? process.env.NODE_ENV;
+const IS_DEV = import.meta?.env?.DEV === true || MODE === 'test' || MODE === 'development';
 
 export type LoggerContext = Record<string, unknown>;
 export type LoggerArg = unknown;
@@ -92,7 +93,7 @@ export function createLogger() {
     },
 
     debug(...args: LoggerArg[]): void {
-      if (IS_DEV) console.info('[DEBUG]', ...formatArgs(args));
+      if (IS_DEV) console.debug('[DEBUG]', ...formatArgs(args));
     },
 
     info(...args: LoggerArg[]): void {
@@ -121,7 +122,7 @@ export function createLogger() {
     },
 
     action(name: string, data: Record<string, unknown> = {}): void {
-      if (IS_DEV) console.info('[ACTION]', name, { ...context, ...data });
+      if (IS_DEV) console.log('[ACTION]', name, { ...context, ...data });
     },
   };
 }

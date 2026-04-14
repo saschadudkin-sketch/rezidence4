@@ -225,7 +225,11 @@ const PassesTab = memo(function PassesTab({
       )}
 
       {isResidentExperience && myPasses.length > 0 && (
-        <SectionHeader title="Ваши пропуска" count={visiblePasses.length + visibleScheduled.length} />
+        <SectionHeader
+          title="Ваши пропуска"
+          count={visiblePasses.length + visibleScheduled.length}
+          className="resident-passes-header"
+        />
       )}
 
       {visiblePasses.length === 0 && myPasses.length === 0 ? (

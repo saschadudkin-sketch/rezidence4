@@ -54,9 +54,9 @@ export function EditRequestModal({ req, onClose, onDone }: EditRequestModalProps
 
     setLoading(true);
     const patch = {
-      visitorName: cleanName || undefined,
-      visitorPhone: cleanPhone || undefined,
-      carPlate: cleanCarPlate || undefined,
+      visitorName: cleanName || null,
+      visitorPhone: cleanPhone || null,
+      carPlate: cleanCarPlate || null,
       comment: cleanComment,
     };
 

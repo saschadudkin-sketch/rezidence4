@@ -1,13 +1,13 @@
 import type { RequestStatus } from '../store/slices/requestsSlice';
 
 export const VALIDATION_REASON_LABEL = {
-  expired: 'РЎСЂРѕРє РїСЂРѕРїСѓСЃРєР° РёСЃС‚С‘Рє',
-  blacklisted: 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІ С‡С‘СЂРЅРѕРј СЃРїРёСЃРєРµ',
-  not_found: 'РџСЂРѕРїСѓСЃРє РЅРµ РЅР°Р№РґРµРЅ',
-  manual_reject: 'Р СѓС‡РЅРѕР№ РѕС‚РєР°Р· РѕС…СЂР°РЅРѕР№',
-  cancelled: 'РџСЂРѕРїСѓСЃРє РѕС‚РјРµРЅС‘РЅ Р¶РёР»СЊС†РѕРј',
-  error: 'РћС€РёР±РєР° РїСЂРѕРІРµСЂРєРё',
-  ok: 'РџСЂРѕРІРµСЂРєР° РїСЂРѕР№РґРµРЅР°',
+  expired: 'Срок пропуска истёк',
+  blacklisted: 'Пользователь в чёрном списке',
+  not_found: 'Пропуск не найден',
+  manual_reject: 'Ручной отказ охраной',
+  cancelled: 'Пропуск отменён жильцом',
+  error: 'Ошибка проверки',
+  ok: 'Проверка пройдена',
 } as const;
 
 export const REQUEST_STATUS_TONE = {

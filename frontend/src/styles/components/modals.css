@@ -9,7 +9,7 @@
 @media(min-width:768px){.overlay{align-items:flex-start;padding:20px 24px 40px}}
 .modal{
   background:linear-gradient(180deg, color-mix(in srgb, var(--s1) 98%, transparent), color-mix(in srgb, var(--s0) 96%, transparent));width:100%;max-width:460px;
-  max-height:min(90dvh, calc(100dvh - 60px));display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;
+  max-height:min(90dvh, calc(100dvh - 60px));display:flex;flex-direction:column;
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   border-radius:10px 10px 0 0;
   border:1px solid var(--b2);border-bottom:none;
@@ -17,6 +17,7 @@
   animation:sheetUp .28s cubic-bezier(.32,0,.67,0);
   padding-bottom:var(--sab);
   margin:0 auto;
+  overflow:hidden;
 }
 @media(min-width:768px){
   .modal{
@@ -24,10 +25,8 @@
     animation:riseUp .2s ease;
     border-bottom:1px solid var(--b2);
     padding-bottom:0;
-    /* FIX [LAYOUT]: было min(760px, ...) — на 900px экране модалка занимала 84% высоты.
-       Теперь min(640px, ...) — оставляет минимум 60px сверху и снизу, фон остаётся виден. */
-    height:min(640px, calc(100dvh - 120px));
-    max-height:min(640px, calc(100dvh - 120px))
+    height:auto;
+    max-height:min(760px, calc(100dvh - 80px));
   }
 }
 @media (--bp-md-up) and (--bp-lg-down){
@@ -54,12 +53,14 @@
 .modal-handle{
   display:block;width:30px;height:3px;
   background:var(--s4);border-radius:2px;margin:10px auto;
+  flex-shrink:0;
 }
 @media(min-width:768px){.modal-handle{display:none}}
 .modal-head{
   padding:16px 18px;border-bottom:1px solid var(--b1);
   display:flex;justify-content:space-between;align-items:center;
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 58%, transparent), transparent);
+  flex-shrink:0;
 }
 /* Modal titles inherit --font-display from foundations.css. */
 .modal-title{font-size:var(--fs-lg);font-weight:500;color:var(--t1)}
@@ -79,6 +80,7 @@
   padding:var(--space-md);
   padding-bottom:calc(var(--space-md) + 8px);
   overflow-y:auto;
+  overflow-anchor:none;
   -webkit-overflow-scrolling:touch;
   flex:1;
   min-height:0
@@ -96,12 +98,52 @@
   z-index:1
 }
 .modal-foot .btn-gold,
-.modal-foot .btn-outline{
+.modal-foot .btn-outline,
+.modal-foot .btn-danger{
   min-height:56px;
   max-height:56px;
   padding-top:0;
   padding-bottom:0;
   align-self:center;
+}
+.modal.modal--confirm{
+  width:min(420px, calc(100vw - 32px));
+  max-width:420px;
+  align-self:center;
+}
+.modal--confirm .modal-head{
+  padding:18px 18px 12px;
+  border-bottom:none;
+}
+.modal--confirm .modal-title{
+  font-family:var(--font-display);
+  font-size:32px;
+  line-height:1;
+}
+.modal--confirm .modal-body{
+  padding:4px 18px 18px;
+  overflow:visible;
+  flex:none;
+}
+.modal--confirm .modal-foot{
+  padding:0 18px 18px;
+  background:transparent;
+  border-top:none;
+  box-shadow:none;
+}
+.confirm-dialog-message{
+  margin:0;
+  color:var(--t2);
+  font-size:15px;
+  line-height:1.6;
+}
+.confirm-dialog-actions{
+  padding-top:0;
+}
+.confirm-dialog-actions .btn-outline,
+.confirm-dialog-actions .btn-danger{
+  min-height:52px;
+  max-height:52px;
 }
 .photo-btn{
   width:100%;background:color-mix(in srgb, var(--s2) 90%, transparent);
@@ -233,7 +275,7 @@
   border-radius:999px;
   border:1px solid color-mix(in srgb, var(--b2) 78%, transparent);
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 82%, transparent));
-  color:var(--t2);
+  color:color-mix(in srgb, var(--t1) 86%, var(--g2));
   box-shadow:var(--sh-s);
 }
 .modal--request .modal-close:hover{
@@ -244,6 +286,7 @@
 .modal--request .modal-body{
   display:flex;
   flex-direction:column;
+  flex:1 1 auto;
   gap:18px;
   padding:18px 20px 22px;
   background:
@@ -558,7 +601,7 @@
   .modal--request .modal-body:has(.modal-cat-picker + .u-p-schedule){
     display:flex;
     flex-direction:column;
-    justify-content:center;
+    justify-content:flex-start;
     min-height:0;
   }
   .modal--request .modal-body:has(.modal-cat-picker + .u-p-schedule) .modal-cat-picker{
@@ -571,6 +614,27 @@
     min-height:44px;
     padding:11px 14px;
     border-radius:14px;
+  }
+  .modal.modal--confirm{
+    width:min(100%, calc(100vw - 24px));
+    max-width:none;
+    align-self:flex-end;
+  }
+  .modal--confirm .modal-title{
+    font-size:26px;
+    line-height:1.04;
+  }
+  .modal--confirm .modal-body{
+    padding:2px 16px 16px;
+  }
+  .modal--confirm .modal-foot{
+    padding:0 16px calc(16px + var(--sab));
+    gap:10px;
+  }
+  .confirm-dialog-actions .btn-outline,
+  .confirm-dialog-actions .btn-danger{
+    min-height:50px;
+    max-height:50px;
   }
 }
 
