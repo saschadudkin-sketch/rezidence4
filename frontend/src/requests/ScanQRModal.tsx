@@ -1,131 +1,188 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRequests, useActions, useBlacklist } from '../store/AppStore';
+import type { AppRequest } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
 import { parsePassQR } from '../services/qrService';
 import { validatePass, logVisit } from '../shared/api/passesApi';
 import { CAT_LABEL, STS_LABEL } from '../constants/index';
 import { getValidationReasonLabel, getStatusToneClass } from '../constants/statusPresentation';
-import { normalizeValidationResult } from '../domain/validationResult';
+import { normalizeValidationResult, type ValidationResult } from '../domain/validationResult';
 import { getScanDecision } from '../domain/scanDecision';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 
-/**
- * ScanQRModal — сканер QR-кода для охраны.
- * Использует камеру устройства и BarcodeDetector API (Chrome/Edge/Safari).
- * Для браузеров без BarcodeDetector показывает ручной ввод ID.
- */
-export function ScanQRModal({ user, onClose }) {
+type ScanQRModalProps = {
+  user: Pick<AppUser, 'uid' | 'name' | 'role'>;
+  onClose: () => void;
+};
+
+type BarcodeDetectorResult = { rawValue: string };
+type BarcodeDetectorLike = {
+  detect: (image: HTMLVideoElement) => Promise<BarcodeDetectorResult[]>;
+};
+type BarcodeDetectorCtor = new (opts: { formats: string[] }) => BarcodeDetectorLike;
+type BarcodeWindow = Window & { BarcodeDetector?: BarcodeDetectorCtor };
+type RequestSnapshot = Record<string, unknown>;
+
+function getCategoryLabel(category?: string): string {
+  return category && category in CAT_LABEL
+    ? CAT_LABEL[category as keyof typeof CAT_LABEL]
+    : category ?? 'Пропуск';
+}
+
+function getStatusLabel(status?: string): string {
+  return status && status in STS_LABEL
+    ? STS_LABEL[status as keyof typeof STS_LABEL]
+    : status ?? 'Неизвестно';
+}
+
+function toValidationTone(status?: ValidationResult['status'] | null): 'denied' | 'ok' | undefined {
+  if (status === 'denied') return 'denied';
+  if (status === 'allowed') return 'ok';
+  return undefined;
+}
+
+function resetForNextScan(
+  setScannedReq: (value: AppRequest | null) => void,
+  setValidation: (value: ValidationResult | null) => void,
+  setChecking: (value: boolean) => void,
+  setScanning: (value: boolean) => void,
+  foundRef: React.MutableRefObject<boolean>,
+) {
+  setScannedReq(null);
+  setValidation(null);
+  setChecking(false);
+  setScanning(true);
+  foundRef.current = false;
+}
+
+export function ScanQRModal({ user, onClose }: ScanQRModalProps) {
   const requests = useRequests();
   const blacklist = useBlacklist();
   const { rejectRequest, arriveRequest, approveAndArrive } = useActions();
-  const [scannedReq, setScannedReq] = useState(null);
-  const [validation, setValidation] = useState(null);
+  const [scannedReq, setScannedReq] = useState<AppRequest | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [checking, setChecking] = useState(false);
-  const [scanning, setScanning]     = useState(true);
-  const [manualId, setManualId]     = useState('');
-  const [camError, setCamError]     = useState(false);
-  const [camReady, setCamReady]     = useState(false);
-  const videoRef    = useRef(null);
+  const [scanning, setScanning] = useState(true);
+  const [manualId, setManualId] = useState('');
+  const [camError, setCamError] = useState(false);
+  const [camReady, setCamReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
-  const streamRef   = useRef(null);
-  const scanRef     = useRef(null);
-  const foundRef    = useRef(false);
-  const foundReqRef = useRef(null); // snapshot найденной заявки — защита от stale closure
-  // FIX [LEAK]: handleManualSearch делает await validateAndSetRequest — модал может закрыться
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const foundRef = useRef(false);
+  const foundReqRef = useRef<AppRequest | null>(null);
   const isMountedRef = useRef(true);
-  useEffect(() => { isMountedRef.current = true; return () => { isMountedRef.current = false; }; }, []);
-  // FIX [PERF]: requestsRef стабилен — не вызывает пересоздание handleScan при обновлении стора
-  const requestsRef = useRef(requests);
-  requestsRef.current = requests;
-  // FIX [PERF]: blacklistRef — blacklist меняет ссылку при каждом обновлении стора,
-  // что вызывало пересоздание validateAndSetRequest → handleScan → перезапуск камеры
+  const requestsRef = useRef<AppRequest[]>(requests);
   const blacklistRef = useRef(blacklist);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  requestsRef.current = requests;
   blacklistRef.current = blacklist;
 
   const stopCamera = useCallback(() => {
     setCamReady(false);
-    if (scanRef.current) { clearInterval(scanRef.current); scanRef.current = null; }
+    if (scanRef.current) {
+      clearInterval(scanRef.current);
+      scanRef.current = null;
+    }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
   }, []);
 
-  const buildRequestSnapshot = useCallback((req) => ({
+  const buildRequestSnapshot = useCallback((req: AppRequest): RequestSnapshot => ({
     id: req.id,
     type: req.type,
-    category: req.category,
+    category: req.category ?? null,
     status: req.status,
-    visitorName: req.visitorName || null,
-    carPlate: req.carPlate || null,
-    createdByUid: req.createdByUid || null,
-    createdByName: req.createdByName || null,
-    createdByApt: req.createdByApt || null,
-    createdAt: req.createdAt instanceof Date ? req.createdAt.toISOString() : req.createdAt || null,
-    passDuration: req.passDuration || null,
-    validUntil: req.validUntil instanceof Date ? req.validUntil.toISOString() : req.validUntil || null,
+    visitorName: req.visitorName ?? null,
+    carPlate: req.carPlate ?? null,
+    createdByUid: req.createdByUid ?? null,
+    createdByName: req.createdByName ?? null,
+    createdByApt: req.createdByApt ?? null,
+    createdAt: req.createdAt instanceof Date ? req.createdAt.toISOString() : req.createdAt ?? null,
+    passDuration: req.passDuration ?? null,
+    validUntil: req.validUntil instanceof Date ? req.validUntil.toISOString() : req.validUntil ?? null,
   }), []);
 
-  const validateAndSetRequest = useCallback(async (found) => {
-    // Отменённый пропуск — отклоняем сразу
+  const validateAndSetRequest = useCallback(async (found: AppRequest) => {
     if (found.status === 'cancelled') {
       setValidation(normalizeValidationResult({ status: 'denied', reason: 'cancelled' }));
       setScannedReq(found);
       return;
     }
+
     const passPayload = {
-      id:           found.id,
-      userId:       found.createdByUid || found.id,
-      validUntil:   found.validUntil   || null,
+      id: found.id,
+      userId: found.createdByUid || found.id,
+      validUntil: found.validUntil || null,
     };
-    let result;
+
+    let result: ValidationResult;
     try {
-      // zone='entrance' по умолчанию для поста охраны
-      result = await validatePass(passPayload, { blacklist: blacklistRef.current });
+      result = normalizeValidationResult(
+        await validatePass(passPayload, { blacklist: blacklistRef.current }),
+      );
     } catch {
-      result = { status: 'denied', reason: 'error' };
+      result = normalizeValidationResult({ status: 'denied', reason: 'error' });
     }
-    const normalized = normalizeValidationResult(result);
-    setValidation(normalized);
-    if (normalized.status === 'denied') {
+
+    setValidation(result);
+    if (result.status === 'denied') {
       await logVisit({
         userId: passPayload.userId,
         requestId: found.id,
         timestamp: new Date().toISOString(),
         result: 'denied',
-        reason: normalized.reason,
+        reason: result.reason,
         actorName: user.name,
         actorRole: user.role,
-        visitorName: found.visitorName || null,
+        visitorName: found.visitorName ?? null,
         category: found.category,
         createdByApt: found.createdByApt,
         createdByName: found.createdByName,
-        createdByUid: found.createdByUid || null,
+        createdByUid: found.createdByUid ?? null,
         requestSnapshot: buildRequestSnapshot(found),
       });
     }
-  }, [buildRequestSnapshot, user.name, user.role]); // blacklistRef читается в момент вызова
+  }, [buildRequestSnapshot, user.name, user.role]);
 
-  const handleScan = useCallback(async (raw) => {
-    if (foundRef.current) return; // guard: не обрабатывать повторно
+  const handleScan = useCallback(async (raw: string) => {
+    if (foundRef.current) return;
     const data = parsePassQR(raw);
-    if (!data) { toast('Неизвестный QR-код', 'error'); return; }
-    // FIX [PERF]: используем ref — handleScan не пересоздаётся при каждом обновлении requests
-    const found = requestsRef.current.find(r => r.id === data.id);
-    if (!found) { toast('Пропуск не найден в системе', 'error'); return; }
+    if (!data) {
+      toast('Неизвестный QR-код', 'error');
+      return;
+    }
+
+    const found = requestsRef.current.find((req) => req.id === data.id);
+    if (!found) {
+      toast('Пропуск не найден в системе', 'error');
+      return;
+    }
+
     foundRef.current = true;
-    foundReqRef.current = found; // сохраняем snapshot до любых async операций
+    foundReqRef.current = found;
     stopCamera();
     setScanning(false);
     setScannedReq(found);
     setChecking(true);
-    await validateAndSetRequest(foundReqRef.current); // используем snapshot
-    setChecking(false);
+    await validateAndSetRequest(found);
+    if (isMountedRef.current) setChecking(false);
     if (navigator.vibrate) navigator.vibrate(100);
-  }, [stopCamera, validateAndSetRequest]); // requestsRef.current читается в момент вызова
+  }, [stopCamera, validateAndSetRequest]);
 
   useEffect(() => {
     lockScroll();
@@ -135,76 +192,86 @@ export function ScanQRModal({ user, onClose }) {
     };
   }, [stopCamera]);
 
-  // Запускаем камеру
   useEffect(() => {
     if (!scanning) return;
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+          video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
         });
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
-          // FIX [BUG-11]: setCamReady было вне блока if(videoRef.current) из-за
-          // неверного отступа — вызывалось даже если videoRef уже null (после unmount)
+          await videoRef.current.play();
           setCamReady(true);
         }
 
-        // BarcodeDetector — работает в Chrome, Edge, Safari 17+
-        if ('BarcodeDetector' in window) {
-          const detector = new (window as Window & { BarcodeDetector: new (opts: { formats: string[] }) => { detect: (img: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector({ formats: ['qr_code'] });
+        const barcodeWindow = window as BarcodeWindow;
+        if (barcodeWindow.BarcodeDetector) {
+          const detector = new barcodeWindow.BarcodeDetector({ formats: ['qr_code'] });
           scanRef.current = setInterval(async () => {
             if (!videoRef.current || videoRef.current.readyState < 2) return;
             try {
               const barcodes = await detector.detect(videoRef.current);
-              if (barcodes.length > 0) {
-                void handleScan(barcodes[0].rawValue);
-              }
-            } catch { /* ignore */ }
+              if (barcodes.length > 0) void handleScan(barcodes[0].rawValue);
+            } catch {
+              // ignore camera scan frames that cannot be decoded
+            }
           }, 300);
-        } else {
-          // Firefox и другие без BarcodeDetector — камера работает, но автосканирование нет
-          if (!cancelled) toast('Автосканирование недоступно — используйте поиск ниже', 'info');
+        } else if (!cancelled) {
+          toast('Автосканирование недоступно, используйте поиск ниже', 'info');
         }
-      } catch (e) {
-        console.warn('[QR Scanner] camera error:', e);
+      } catch (error) {
+        console.warn('[QR Scanner] camera error:', error);
         if (!cancelled) setCamError(true);
       }
     })();
 
-    return () => { cancelled = true; stopCamera(); };
+    return () => {
+      cancelled = true;
+      stopCamera();
+    };
   }, [scanning, stopCamera, handleScan]);
 
   const handleManualSearch = async () => {
-    const q = manualId.trim().toLowerCase();
-    if (!q) return;
-    // FIX: используем requestsRef для консистентности
-    const found = requestsRef.current.find(r =>
-      r.id === q
-      || (r.visitorName && r.visitorName.toLowerCase().includes(q))
-      || (r.carPlate && r.carPlate.toLowerCase().includes(q))
-      || (r.createdByApt && r.createdByApt.toLowerCase().includes(q))
-      || (r.createdByName && r.createdByName.toLowerCase().includes(q))
+    const query = manualId.trim().toLowerCase();
+    if (!query) return;
+
+    const found = requestsRef.current.find((req) =>
+      req.id === query
+      || (typeof req.visitorName === 'string' && req.visitorName.toLowerCase().includes(query))
+      || (typeof req.carPlate === 'string' && req.carPlate.toLowerCase().includes(query))
+      || (typeof req.createdByApt === 'string' && req.createdByApt.toLowerCase().includes(query))
+      || (typeof req.createdByName === 'string' && req.createdByName.toLowerCase().includes(query)),
     );
-    if (!found) { toast('Пропуск не найден', 'error'); return; }
+
+    if (!found) {
+      toast('Пропуск не найден', 'error');
+      return;
+    }
+
     stopCamera();
     setScanning(false);
     setScannedReq(found);
     setChecking(true);
     await validateAndSetRequest(found);
-    // FIX [LEAK]: после await модал мог закрыться (охранник нажал ✕ пока шла проверка)
     if (isMountedRef.current) setChecking(false);
   };
 
   const handleApprove = async () => {
+    if (!scannedReq) return;
+
     const decision = getScanDecision({
-      requestStatus: scannedReq?.status,
-      validationStatus: validation?.status,
+      requestStatus: scannedReq.status,
+      validationStatus: validation?.status ?? '',
     });
     if (!decision.canApprove) {
       toast('Допуск недоступен для этого пропуска', 'error');
@@ -212,12 +279,13 @@ export function ScanQRModal({ user, onClose }) {
     }
 
     if (scannedReq.status === 'pending') {
-      approveAndArrive(scannedReq.id, user.name, user.role);
+      await Promise.resolve(approveAndArrive(scannedReq.id, user.name, user.role));
       toast('Вход отмечен', 'success');
     } else if (scannedReq.status === 'approved') {
-      arriveRequest(scannedReq.id, user.name, user.role);
+      await Promise.resolve(arriveRequest(scannedReq.id, user.name, user.role));
       toast('Вход отмечен', 'success');
     }
+
     try {
       await logVisit({
         userId: scannedReq.createdByUid || scannedReq.id,
@@ -227,52 +295,54 @@ export function ScanQRModal({ user, onClose }) {
         reason: 'ok',
         actorName: user.name,
         actorRole: user.role,
-        visitorName: scannedReq.visitorName || null,
+        visitorName: scannedReq.visitorName ?? null,
         category: scannedReq.category,
         createdByApt: scannedReq.createdByApt,
         createdByName: scannedReq.createdByName,
-        createdByUid: scannedReq.createdByUid || null,
+        createdByUid: scannedReq.createdByUid ?? null,
         requestSnapshot: buildRequestSnapshot(scannedReq),
       });
-    } catch (e) {
-      console.warn('[ScanQR] logVisit failed:', e);
-      // Не блокируем закрытие модала из-за ошибки логирования
+    } catch (error) {
+      console.warn('[ScanQR] logVisit failed:', error);
     }
+
     onClose();
   };
 
   const handleReject = async () => {
-    if (scannedReq && (scannedReq.status === 'pending' || scannedReq.status === 'approved')) {
-      rejectRequest(scannedReq.id, user.name, user.role);
+    if (!scannedReq) return;
+
+    if (scannedReq.status === 'pending' || scannedReq.status === 'approved') {
+      await Promise.resolve(rejectRequest(scannedReq.id, user.name, user.role));
     }
-    if (scannedReq) {
-      try {
-        await logVisit({
-          userId: scannedReq.createdByUid || scannedReq.id,
-          requestId: scannedReq.id,
-          timestamp: new Date().toISOString(),
-          result: 'denied',
-          reason: 'manual_reject',
-          actorName: user.name,
-          actorRole: user.role,
-          visitorName: scannedReq.visitorName || null,
-          category: scannedReq.category,
-          createdByApt: scannedReq.createdByApt,
-          createdByName: scannedReq.createdByName,
-          createdByUid: scannedReq.createdByUid || null,
-          requestSnapshot: buildRequestSnapshot(scannedReq),
-        });
-      } catch (e) {
-        console.warn('[ScanQR] logVisit failed:', e);
-      }
+
+    try {
+      await logVisit({
+        userId: scannedReq.createdByUid || scannedReq.id,
+        requestId: scannedReq.id,
+        timestamp: new Date().toISOString(),
+        result: 'denied',
+        reason: 'manual_reject',
+        actorName: user.name,
+        actorRole: user.role,
+        visitorName: scannedReq.visitorName ?? null,
+        category: scannedReq.category,
+        createdByApt: scannedReq.createdByApt,
+        createdByName: scannedReq.createdByName,
+        createdByUid: scannedReq.createdByUid ?? null,
+        requestSnapshot: buildRequestSnapshot(scannedReq),
+      });
+    } catch (error) {
+      console.warn('[ScanQR] logVisit failed:', error);
     }
+
     toast('В допуске отказано', 'error');
     onClose();
   };
 
   const { deniedByValidation, canApprove } = getScanDecision({
-    requestStatus: scannedReq?.status,
-    validationStatus: validation?.status,
+    requestStatus: scannedReq?.status ?? '',
+    validationStatus: validation?.status ?? '',
   });
   const actionLabel = 'Отметить вход';
   const validationReason = getValidationReasonLabel(validation?.reason);
@@ -303,7 +373,6 @@ export function ScanQRModal({ user, onClose }) {
                     <div className="u-fs11 u-t4">Используйте поиск ниже</div>
                   </div>
                 ) : (
-                  // FIX [JSX CRITICAL]: два sibling-элемента без Fragment — ошибка сборки Vite/esbuild
                   <>
                     <video ref={videoRef} className="qr-scanner-video" playsInline muted />
                     {!camReady && (
@@ -319,12 +388,14 @@ export function ScanQRModal({ user, onClose }) {
               <div className="field u-mt16">
                 <label className="field-lbl">Или введите имя / авто / апартамент / ID</label>
                 <div className="u-flex u-gap8">
-                  <input className="field-inp u-grow u-mb0"
+                  <input
+                    className="field-inp u-grow u-mb0"
                     placeholder="Имя, авто, апарт. или ID"
-                    value={manualId} onChange={e => setManualId(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleManualSearch()} />
-                  <button className="btn-gold u-w-auto scanqr-search-btn"
-                    onClick={handleManualSearch}>
+                    value={manualId}
+                    onChange={(event) => setManualId(event.target.value)}
+                    onKeyDown={(event) => event.key === 'Enter' && void handleManualSearch()}
+                  />
+                  <button className="btn-gold u-w-auto scanqr-search-btn" onClick={() => void handleManualSearch()}>
                     <span>Найти</span>
                   </button>
                 </div>
@@ -334,7 +405,7 @@ export function ScanQRModal({ user, onClose }) {
 
           {scannedReq && (
             <div className="qr-result">
-              <div className={'qr-result-status ' + getStatusToneClass(scannedReq.status, validation?.status)}>
+              <div className={'qr-result-status ' + getStatusToneClass(scannedReq.status, toValidationTone(validation?.status))}>
                 <span className="u-inline-icon">
                   <AppIcon name={statusIconName} size={16} />
                 </span>
@@ -344,8 +415,8 @@ export function ScanQRModal({ user, onClose }) {
                     : deniedByValidation
                       ? 'Доступ запрещён'
                       : canApprove
-                    ? 'Допуск открыт — ожидает входа'
-                    : STS_LABEL[scannedReq.status] || scannedReq.status}
+                        ? 'Допуск открыт - ожидает входа'
+                        : getStatusLabel(scannedReq.status)}
                 </span>
               </div>
               {validationReason && (
@@ -356,7 +427,7 @@ export function ScanQRModal({ user, onClose }) {
               <div className="qr-result-details">
                 <div className="qr-info-row">
                   <span className="qr-info-lbl">Тип</span>
-                  <span className="qr-info-val">{CAT_LABEL[scannedReq.category]}</span>
+                  <span className="qr-info-val">{getCategoryLabel(scannedReq.category)}</span>
                 </div>
                 {scannedReq.visitorName && (
                   <div className="qr-info-row">
@@ -391,12 +462,17 @@ export function ScanQRModal({ user, onClose }) {
             <>
               {canApprove ? (
                 <>
-                  <button className="btn-no u-flex1" onClick={handleReject}>Отказать</button>
-                  <button className="btn-yes scanqr-approve-btn" onClick={handleApprove} disabled={checking}>{actionLabel}</button>
+                  <button className="btn-no u-flex1" onClick={() => void handleReject()}>Отказать</button>
+                  <button className="btn-yes scanqr-approve-btn" onClick={() => void handleApprove()} disabled={checking}>{actionLabel}</button>
                 </>
               ) : (
                 <>
-                  <button className="btn-outline u-flex1" onClick={() => { setScannedReq(null); setValidation(null); setScanning(true); foundRef.current = false; }}>Сканировать ещё</button>
+                  <button
+                    className="btn-outline u-flex1"
+                    onClick={() => resetForNextScan(setScannedReq, setValidation, setChecking, setScanning, foundRef)}
+                  >
+                    Сканировать ещё
+                  </button>
                   <button className="btn-gold u-flex1" onClick={onClose}><span>Закрыть</span></button>
                 </>
               )}
@@ -405,6 +481,6 @@ export function ScanQRModal({ user, onClose }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

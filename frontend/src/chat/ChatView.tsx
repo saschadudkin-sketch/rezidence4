@@ -1,5 +1,3 @@
-// ChatView извлечён из App.jsx (строки 2359–2646)
-// Импорты добавлены вручную
 import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useActions, useChat, useUsers } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants/index';
@@ -42,57 +40,44 @@ interface CheckIconProps {
   status: ReadStatus | null;
 }
 
-// ─── Вспомогательные функции (вне компонента — не пересоздаются) ─────────────
-
-// FIX [REACT-4]: вынесено из тела компонента — не пересоздаётся при каждом рендере
-function fmtDateSep(date) {
-  // FIX [PERF]: вычисляем todayTs/yesterdayTs один раз через числа, не через 4 Date-объекта
-  const d = new Date(date);
+function fmtDateSep(date: string | Date): string {
+  const value = new Date(date);
   const now = new Date();
-  // Сброс времени через арифметику: начало текущего дня
   const nowMidnight = now.getTime() - (now.getHours() * 3_600_000 + now.getMinutes() * 60_000 + now.getSeconds() * 1_000 + now.getMilliseconds());
-  const dMidnight = d.getTime() - (d.getHours() * 3_600_000 + d.getMinutes() * 60_000 + d.getSeconds() * 1_000 + d.getMilliseconds());
-  if (dMidnight === nowMidnight) return 'Сегодня';
-  if (dMidnight === nowMidnight - 86_400_000) return 'Вчера';
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('ru-RU', sameYear
+  const valueMidnight = value.getTime() - (value.getHours() * 3_600_000 + value.getMinutes() * 60_000 + value.getSeconds() * 1_000 + value.getMilliseconds());
+  if (valueMidnight === nowMidnight) return 'Сегодня';
+  if (valueMidnight === nowMidnight - 86_400_000) return 'Вчера';
+  const sameYear = value.getFullYear() === now.getFullYear();
+  return value.toLocaleDateString('ru-RU', sameYear
     ? { day: 'numeric', month: 'long' }
     : { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function getDayKey(date) {
+function getDayKey(date: string | Date): string {
   return new Date(date).toDateString();
 }
 
-// T-07/SEC-04: linkify использует URL-конструктор для валидации вместо наивного regex.
-// Это защищает от: URL со скобками, кавычками, спецсимволами, и нестандартных схем (javascript:).
-// Разрешены только http: и https: — остальные схемы отображаются как текст.
-function linkify(text) {
-  // Более строгий regex — не захватывает закрывающие скобки/кавычки/знаки препинания в конце URL
+function linkify(text: string): React.ReactNode {
   const urlRx = /\bhttps?:\/\/[^\s<>"'()[\]{}|\\^`]+/gi;
   const parts = text.split(urlRx);
   const matches = text.match(urlRx) || [];
   if (!matches.length) return text;
-  return parts.flatMap((part, i) => {
-    const url = matches[i - 1];
-    if (i === 0) return [part];
+  return parts.flatMap((part: string, index: number) => {
+    const url = matches[index - 1];
+    if (index === 0 || !url) return [part];
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return [url, part];
       return [
-        <a key={url.slice(0, 20) + i} href={parsed.href} target="_blank" rel="noopener noreferrer" className="msg-link">{url}</a>,
+        <a key={`${url.slice(0, 20)}_${index}`} href={parsed.href} target="_blank" rel="noopener noreferrer" className="msg-link">{url}</a>,
         part,
       ];
     } catch {
-      // Невалидный URL — показываем как текст
       return [url, part];
     }
   });
 }
 
-// FIX [REACT-4]: CheckIcon вне компонента — не пересоздаётся при каждом рендере ChatView
-// FIX [MEMO]: CheckIcon рендерится для каждого исходящего сообщения.
-// Без memo перерисовывался при любом изменении chatLastSeen или отправке нового сообщения.
 const CheckIcon = memo(function CheckIcon({ status }: CheckIconProps) {
   if (!status) return null;
   const cls = status === 'read' ? 'msg-check-read' : 'msg-check-sent';
@@ -116,14 +101,18 @@ const CheckIcon = memo(function CheckIcon({ status }: CheckIconProps) {
 });
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '👎'];
-
-// Emoji picker — популярные emoji для быстрой вставки
 const EMOJI_GRID = [
-  '😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😏',
+  '😀','😂','🤣','😊','😍','🥰','😘','😋','🤔','😏',
   '😢','😭','😤','🤬','😱','🥺','👋','👍','👎','👏',
   '🙏','💪','❤️','🔥','⭐','✅','❌','⚡','🎉','🏠',
   '🚗','📦','🔧','👷','🚕','📞','📸','🔑','🚪','⏰',
 ];
+
+function getReplyName(message: ChatViewMessage, viewer: AppUser): string {
+  if (message.uid === viewer.uid) return 'Вы';
+  if (message.role === 'security' || message.role === 'concierge') return ROLE_LABELS[message.role];
+  return message.name;
+}
 
 export function ChatView({ user }: { user: AppUser }) {
   const { chat, chatLastSeen } = useChat();
@@ -134,7 +123,6 @@ export function ChatView({ user }: { user: AppUser }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [msgMenu, setMsgMenu] = useState<string | null>(null);
   const [showTools, setShowTools] = useState(false);
-  // P-05: подтверждение перед удалением сообщения — удаление необратимо
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null);
 
   const msgsContainerRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +131,8 @@ export function ChatView({ user }: { user: AppUser }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const swipeRef = useRef<SwipeState>({});
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const menuPopupRef = useRef<HTMLDivElement | null>(null);
+  const msgRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const chatMetaRef = useRef({
     firstId: chat[0]?.id ?? null,
     lastId: chat[chat.length - 1]?.id ?? null,
@@ -157,7 +147,7 @@ export function ChatView({ user }: { user: AppUser }) {
     loadOlderMessages,
     retryInitialSync,
   } = useChatData({ chat, setAllMessages, msgsContainerRef });
-  // КРИТ-2: server-side search results — used when hasMore=true (local msgs are incomplete)
+
   const {
     searchQuery,
     setSearchQuery,
@@ -168,10 +158,7 @@ export function ChatView({ user }: { user: AppUser }) {
     setSearchRetryTick,
     filteredChat,
   } = useChatSearch(chat as ChatViewMessage[], hasMore, services.chat.getMessages);
-  // FIX [BUG-20]: заменяем document.querySelector('[data-msg-id=...]') на ref-Map.
-  const msgRefs = useRef(new Map()); // id → DOM-element
 
-  // Утилита для скролла к сообщению по id — используется при клике на цитату
   const scrollToMsg = useCallback((id: string) => {
     const el = msgRefs.current.get(id);
     if (!el) return;
@@ -180,29 +167,23 @@ export function ChatView({ user }: { user: AppUser }) {
     setTimeout(() => el.classList.remove('msg-highlight'), 1200);
   }, []);
 
-  // FIX [REACT-3]: filteredChat ПЕРЕД return (было после — используется в JSX)
-  // КРИТ-2: prefer server results when hasMore=true (local store is incomplete).
-  // FIX [PERF-4]: кешируем timestamp каждого сообщения — не создаём new Date() внутри map
-  // При N сообщениях и каждом ре-рендере chat-bar это экономит 2N Date-аллокаций.
   const msgTimestamps = useMemo(
-    () => new Map(filteredChat.map(m => [m.id, new Date(m.at).getTime()])),
+    () => new Map(filteredChat.map((message) => [message.id, new Date(message.at).getTime()])),
     [filteredChat],
   );
 
-  // FIX [PERF]: otherUids и getReadStatus мемоизированы — не пересчитываются при каждом рендере
   const otherUids = useMemo(
-    () => Object.keys(users).filter(uid => uid !== user.uid),
+    () => Object.keys(users).filter((uid) => uid !== user.uid),
     [users, user.uid],
   );
-  const getReadStatus = useCallback((msg: ChatViewMessage): ReadStatus | null => {
-    if (msg.uid !== user.uid) return null;
-    const msgTime = new Date(msg.at).getTime();
+
+  const getReadStatus = useCallback((message: ChatViewMessage): ReadStatus | null => {
+    if (message.uid !== user.uid) return null;
+    const msgTime = new Date(message.at).getTime();
     if (otherUids.length === 0) return 'sent';
-    return otherUids.every(uid => (chatLastSeen[uid] || 0) >= msgTime) ? 'read' : 'sent';
+    return otherUids.every((uid) => (chatLastSeen[uid] || 0) >= msgTime) ? 'read' : 'sent';
   }, [user.uid, otherUids, chatLastSeen]);
 
-  // FIX [UX]: скролл только при добавлении новых сообщений, не при редактировании/реакциях.
-  // [chat.length] — меняется только при добавлении/удалении сообщений.
   const focusComposer = useCallback(() => {
     inputRef.current?.focus({ preventScroll: true });
   }, []);
@@ -249,19 +230,14 @@ export function ChatView({ user }: { user: AppUser }) {
     chatMetaRef.current = nextMeta;
   }, [chat]);
 
-  // FIX: Ref для popup — закрытие по клику вне меню
-  const menuPopupRef = useRef<HTMLDivElement | null>(null);
-
-  // FIX: Закрытие меню по клику вне popup (вместо backdrop-кнопки которая перехватывала клики)
   useEffect(() => {
     if (!msgMenu) return;
-    function handleOutsideClick(e: MouseEvent | TouchEvent) {
-      const target = e.target;
+    function handleOutsideClick(event: MouseEvent | TouchEvent) {
+      const target = event.target;
       if (menuPopupRef.current && target instanceof Node && !menuPopupRef.current.contains(target)) {
         setMsgMenu(null);
       }
     }
-    // setTimeout(0) — чтобы не закрыть меню от того же клика на ⋯ который его открыл
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleOutsideClick);
       document.addEventListener('touchstart', handleOutsideClick);
@@ -273,28 +249,33 @@ export function ChatView({ user }: { user: AppUser }) {
     };
   }, [msgMenu]);
 
-  // MEMORY-1: cleanup longPressRef on unmount to prevent memory leak
   useEffect(() => {
-    return () => { if (longPressRef.current) clearTimeout(longPressRef.current); };
+    return () => {
+      if (longPressRef.current) clearTimeout(longPressRef.current);
+    };
   }, []);
 
-  // Реакции
   const toggleReaction = useCallback(async (msgId: string, emoji: string) => {
-    const msg = (chat as ChatViewMessage[]).find(m => m.id === msgId);
-    if (!msg) return;
-    const prev: Record<string, string[]> = msg.reactions || {};
+    const message = (chat as ChatViewMessage[]).find((entry) => entry.id === msgId);
+    if (!message) return;
+    const prev = message.reactions || {};
     const uids = prev[emoji] || [];
     const already = uids.includes(user.uid);
-    const newUids = already ? uids.filter(u => u !== user.uid) : [...uids, user.uid];
-    const nr = { ...prev, [emoji]: newUids };
-    Object.keys(nr).forEach(k => { if (!nr[k].length) delete nr[k]; });
+    const newUids = already ? uids.filter((uid) => uid !== user.uid) : [...uids, user.uid];
+    const nextReactions: Record<string, string[]> = { ...prev, [emoji]: newUids };
+    Object.keys(nextReactions).forEach((key) => {
+      if (!nextReactions[key].length) delete nextReactions[key];
+    });
     if (isLiveMode()) {
-      try { await services.chat.updateMessage(msgId, { reactions: nr }); } catch { /* fallback local */ }
+      try {
+        await services.chat.updateMessage(msgId, { reactions: nextReactions });
+      } catch {
+        // fallback to local update
+      }
     }
-    updateMessage(msgId, { reactions: nr });
+    updateMessage(msgId, { reactions: nextReactions });
   }, [chat, user.uid, updateMessage]);
 
-  // Удаление сообщения — API + local
   const handleDeleteMsg = useCallback(async (id: string) => {
     try {
       if (isLiveMode()) {
@@ -307,7 +288,6 @@ export function ChatView({ user }: { user: AppUser }) {
     deleteMessage(id);
   }, [deleteMessage]);
 
-  // Сохранение редактирования — API + local
   const saveEdit = useCallback(async (id: string, newText: string) => {
     if (!newText.trim()) return;
     const patch = { text: newText.trim(), edited: true };
@@ -324,103 +304,113 @@ export function ChatView({ user }: { user: AppUser }) {
     setEditingMsg(null);
   }, [setEditingMsg, updateMessage]);
 
-  // Ответ на сообщение
-  const startReply = useCallback((m: ChatViewMessage) => {
+  const startReply = useCallback((message: ChatViewMessage) => {
     setReplyTo({
-      id: m.id,
-      name: m.uid === user.uid ? 'Вы' : (m.role === 'security' || m.role === 'concierge' ? ROLE_LABELS[m.role] : m.name),
-      text: m.text || (m.photo ? 'Фото' : ''),
-      photo: m.photo || null,
+      id: message.id,
+      name: getReplyName(message, user),
+      text: message.text || (message.photo ? 'Фото' : ''),
+      photo: message.photo || null,
     });
-    if (inputRef.current) {
-      setTimeout(focusComposer, 50);
-    }
-  }, [focusComposer, setReplyTo, user.uid]);
+    setTimeout(focusComposer, 50);
+  }, [focusComposer, setReplyTo, user]);
 
-  // Свайп для ответа
-  // FIX [PERF]: useCallback — эти обработчики вызываются на каждом сообщении;
-  // без мемоизации создаётся N*4 новых функций при каждом рендере
-  const onTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>, m: ChatViewMessage) => {
-    const t = e.touches[0];
-    swipeRef.current = { startX: t.clientX, startY: t.clientY, msgId: m.id, el: e.currentTarget, triggered: false };
+  const onTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>, message: ChatViewMessage) => {
+    const touch = event.touches[0];
+    swipeRef.current = { startX: touch.clientX, startY: touch.clientY, msgId: message.id, el: event.currentTarget, triggered: false };
   }, []);
-  const onTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>, m: ChatViewMessage) => {
-    const s = swipeRef.current;
-    if (!s.startX || s.msgId !== m.id) return;
-    const dx = e.touches[0].clientX - s.startX;
-    const dy = Math.abs(e.touches[0].clientY - (s.startY || 0));
-    if (dy > 20) { swipeRef.current = {}; return; }
-    if (dx > 0 && dx < 72) {
-      s.el.style.transform = 'translateX(' + Math.min(dx * 0.6, 40) + 'px)';
-      s.el.classList.add('swiping');
+
+  const onTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>, message: ChatViewMessage) => {
+    const swipe = swipeRef.current;
+    if (!swipe.startX || swipe.msgId !== message.id) return;
+    const dx = event.touches[0].clientX - swipe.startX;
+    const dy = Math.abs(event.touches[0].clientY - (swipe.startY || 0));
+    if (dy > 20) {
+      swipeRef.current = {};
+      return;
     }
-    if (dx > 55 && !s.triggered) {
-      s.triggered = true;
-      startReply(m);
+    if (dx > 0 && dx < 72 && swipe.el) {
+      swipe.el.style.transform = 'translateX(' + Math.min(dx * 0.6, 40) + 'px)';
+      swipe.el.classList.add('swiping');
+    }
+    if (dx > 55 && !swipe.triggered) {
+      swipe.triggered = true;
+      startReply(message);
       if (navigator.vibrate) navigator.vibrate(30);
     }
   }, [startReply]);
+
   const onTouchEnd = useCallback(() => {
-    const s = swipeRef.current;
-    if (s.el) { s.el.style.transform = ''; s.el.classList.remove('swiping'); }
+    const swipe = swipeRef.current;
+    if (swipe.el) {
+      swipe.el.style.transform = '';
+      swipe.el.classList.remove('swiping');
+    }
     swipeRef.current = {};
   }, []);
 
-  // Long press (мобиль) — открывает меню действий
-  const onLongPressStart = useCallback((_e: React.TouchEvent<HTMLDivElement>, msgId: string) => {
+  const onLongPressStart = useCallback((_event: React.TouchEvent<HTMLDivElement>, msgId: string) => {
     longPressRef.current = setTimeout(() => {
-      setMsgMenu(p => p === msgId ? null : msgId);
+      setMsgMenu((prev) => (prev === msgId ? null : msgId));
       if (navigator.vibrate) navigator.vibrate(40);
     }, 500);
   }, []);
+
   const onLongPressEnd = useCallback(() => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
   }, []);
 
-  // Отправка
   const send = useCallback(async () => {
     if (!text.trim()) return;
-    const m = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: text.trim(), photo: null, replyTo: replyTo || null, at: new Date() };
+    const message = {
+      id: genId('m'),
+      uid: user.uid,
+      name: user.name,
+      role: user.role,
+      text: text.trim(),
+      photo: null,
+      replyTo: replyTo || null,
+      at: new Date(),
+    };
     try {
       await services.chat.sendMessage({
         remotePayload: { uid: user.uid, name: user.name, role: user.role, text: text.trim(), replyTo: replyTo || null },
-        localMessage: m,
+        localMessage: message,
         sendLocal: sendMessage,
       });
     } finally {
-      setText(''); setReplyTo(null); focusComposer();
+      setText('');
+      setReplyTo(null);
+      focusComposer();
     }
   }, [focusComposer, replyTo, sendMessage, setReplyTo, setText, text, user]);
 
-  // FIX [PERF-15]: onPhotoClick и onFileChange пересоздавались при каждом рендере
-  // (любое изменение text/photoSending). Их передают как onChange/onClick в DOM-элементы,
-  // но пересоздание не вызывает ре-рендер нативного input — проблема в читаемости и
-  // потенциальных будущих оборачиваниях в memo. Фиксируем явно.
   const onPhotoClick = useCallback(() => {
     fileRef.current?.click();
     setShowTools(false);
   }, []);
 
-  // Вставка emoji в текстовое поле
   const insertEmoji = useCallback((emoji: string) => {
-    setText(prev => prev + emoji);
+    setText((prev) => prev + emoji);
     focusComposer();
   }, [focusComposer, setText]);
 
-  const onFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    e.target.value = '';
-    if (f.size > 10 * 1024 * 1024) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
+  const onFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+    if (file.size > 10 * 1024 * 1024) {
+      toast('Фото слишком большое (макс. 10 МБ)', 'error');
+      return;
+    }
     setPhotoSending(true);
     try {
-      const dataUrl = await new Promise<string>((res, rej) => {
-        const r = new FileReader();
-        r.onload = ev => res(String(ev.target?.result || ''));
-        r.onerror = () => rej(new Error('fail'));
-        r.readAsDataURL(f);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (loadEvent) => resolve(String(loadEvent.target?.result || ''));
+        reader.onerror = () => reject(new Error('fail'));
+        reader.readAsDataURL(file);
       });
-      const compressed = await new Promise<string>(resolve => {
+      const compressed = await new Promise<string>((resolve) => {
         const img = new Image();
         img.onload = () => {
           const max = 800;
@@ -434,10 +424,10 @@ export function ChatView({ user }: { user: AppUser }) {
         img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;
       });
-      const m = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed, at: new Date() };
+      const message = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed, at: new Date() };
       await services.chat.sendMessage({
         remotePayload: { uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed },
-        localMessage: m,
+        localMessage: message,
         sendLocal: sendMessage,
       });
     } catch {
@@ -452,9 +442,13 @@ export function ChatView({ user }: { user: AppUser }) {
       {showSearch && (
         <div className="chat-search-row">
           <span className="chat-search-icon"><AppIcon name="search" size={14} /></span>
-          <input className="search-inp chat-search-input"
-            placeholder="Поиск в чате..." autoFocus
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          <input
+            className="search-inp chat-search-input"
+            placeholder="Поиск в чате..."
+            autoFocus
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
           <button className="modal-close u-shrink0" onClick={() => { setShowSearch(false); setSearchQuery(''); }} aria-label="Закрыть поиск"><AppIcon name="close" size={14} /></button>
         </div>
       )}
@@ -466,115 +460,144 @@ export function ChatView({ user }: { user: AppUser }) {
         onLoadOlder={loadOlderMessages}
         serverSearchLoading={serverSearchLoading}
         serverSearchError={serverSearchError}
-        onRetryServerSearch={() => setSearchRetryTick(v => v + 1)}
+        onRetryServerSearch={() => setSearchRetryTick((value) => value + 1)}
         initialHistoryError={initialHistoryError}
         onRetryInitialSync={retryInitialSync}
         filteredChatLength={filteredChat.length}
         searchQuery={searchQuery}
-        renderMessages={() => (filteredChat as ChatViewMessage[]).map((m, i) => {
-          const readStatus = getReadStatus(m);
-          // FIX [BUG-3]: prevMsg должен брать из filteredChat, а не из chat.
-          // При активном поиске filteredChat — подмножество chat, и chat[i-1] указывал
-          // на неверный элемент → неправильные разделители дат и группировка сообщений.
-          const dayKey  = getDayKey(m.at);
-          const prevMsg = filteredChat[i - 1];
+        renderMessages={() => (filteredChat as ChatViewMessage[]).map((message, index) => {
+          const readStatus = getReadStatus(message);
+          const dayKey = getDayKey(message.at);
+          const prevMsg = filteredChat[index - 1];
           const showSep = !prevMsg || dayKey !== getDayKey(prevMsg.at);
-          const quotedMsg = m.replyTo ? chat.find(x => x.id === m.replyTo.id) || m.replyTo : null;
-          const isGrouped = prevMsg && !showSep && prevMsg.uid === m.uid && (msgTimestamps.get(m.id) - msgTimestamps.get(prevMsg.id)) < 300000;
+          const replyTargetId = message.replyTo?.id;
+          const quotedMsg = replyTargetId ? chat.find((entry) => entry.id === replyTargetId) || message.replyTo : null;
+          const currentTs = msgTimestamps.get(message.id);
+          const prevTs = prevMsg ? msgTimestamps.get(prevMsg.id) : undefined;
+          const isGrouped = Boolean(
+            prevMsg
+            && !showSep
+            && prevMsg.uid === message.uid
+            && currentTs !== undefined
+            && prevTs !== undefined
+            && (currentTs - prevTs) < 300000,
+          );
           return (
-            <React.Fragment key={m.id}>
-              {showSep && <div className="msg-date-sep"><span>{fmtDateSep(m.at)}</span></div>}
+            <React.Fragment key={message.id}>
+              {showSep && <div className="msg-date-sep"><span>{fmtDateSep(message.at)}</span></div>}
               <div
-                className={'msg-row ' + (m.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '') + ' msg-row-rel'}
-                onTouchStart={e => { onTouchStart(e, m); onLongPressStart(e, m.id); }}
-                onTouchMove={e => { onTouchMove(e, m); onLongPressEnd(); }}
+                className={'msg-row ' + (message.uid === user.uid ? 'mine' : '') + (isGrouped ? ' grouped' : '') + ' msg-row-rel'}
+                onTouchStart={(event) => { onTouchStart(event, message); onLongPressStart(event, message.id); }}
+                onTouchMove={(event) => { onTouchMove(event, message); onLongPressEnd(); }}
                 onTouchEnd={() => { onTouchEnd(); onLongPressEnd(); }}
-                onDoubleClick={() => startReply(m)}
+                onDoubleClick={() => startReply(message)}
               >
-                {msgMenu === m.id && (<>
-                  <div className="msg-menu-backdrop" onClick={() => setMsgMenu(null)}/>
-                  <div className="msg-menu-popup" ref={menuPopupRef}
-                    onClick={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    onTouchStart={e => e.stopPropagation()}
-                    onTouchEnd={e => e.stopPropagation()}
-                    onTouchMove={e => e.stopPropagation()}
-                    onDoubleClick={e => e.stopPropagation()}>
-                    <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { startReply(m); setMsgMenu(null); }}>↩ Ответить</button>
-                    {can(user).editMessage(m) && !m.photo && <button className="msg-menu-item" onMouseDown={e => e.stopPropagation()} onClick={() => { setEditingMsg({ id: m.id, text: m.text }); setMsgMenu(null); }}><AppIcon name="edit" className="u-inline-icon" /> Редактировать</button>}
-                    {can(user).deleteMessage(m) && <button className="msg-menu-item danger" onMouseDown={e => e.stopPropagation()} onClick={() => { setConfirmDeleteMsgId(m.id); setMsgMenu(null); }}><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>}
-                    <div className="msg-menu-reactions">
-                      {REACTIONS.map(emoji => (
-                        <button key={emoji} className="reaction-picker-btn" onMouseDown={e => e.stopPropagation()} onClick={() => { toggleReaction(m.id, emoji); setMsgMenu(null); }}>{emoji}</button>
-                      ))}
+                {msgMenu === message.id && (
+                  <>
+                    <div className="msg-menu-backdrop" onClick={() => setMsgMenu(null)}/>
+                    <div
+                      className="msg-menu-popup"
+                      ref={menuPopupRef}
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onTouchStart={(event) => event.stopPropagation()}
+                      onTouchEnd={(event) => event.stopPropagation()}
+                      onTouchMove={(event) => event.stopPropagation()}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                    >
+                      <button className="msg-menu-item" onMouseDown={(event) => event.stopPropagation()} onClick={() => { startReply(message); setMsgMenu(null); }}>↩ Ответить</button>
+                      {can(user).editMessage(message) && !message.photo && (
+                        <button className="msg-menu-item" onMouseDown={(event) => event.stopPropagation()} onClick={() => { setEditingMsg({ id: message.id, text: message.text || '' }); setMsgMenu(null); }}>
+                          <AppIcon name="edit" className="u-inline-icon" /> Редактировать
+                        </button>
+                      )}
+                      {can(user).deleteMessage(message) && (
+                        <button className="msg-menu-item danger" onMouseDown={(event) => event.stopPropagation()} onClick={() => { setConfirmDeleteMsgId(message.id); setMsgMenu(null); }}>
+                          <AppIcon name="trash" className="u-inline-icon" /> Удалить
+                        </button>
+                      )}
+                      <div className="msg-menu-reactions">
+                        {REACTIONS.map((emoji) => (
+                          <button key={emoji} className="reaction-picker-btn" onMouseDown={(event) => event.stopPropagation()} onClick={() => { toggleReaction(message.id, emoji); setMsgMenu(null); }}>{emoji}</button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </>)}
-                {m.uid !== user.uid && !isGrouped && (
+                  </>
+                )}
+                {message.uid !== user.uid && !isGrouped && (
                   <div className="msg-av msg-av-reset">
-                    <AvatarCircle avData={(users[m.uid] && users[m.uid].avatar) || null} role={m.role} name={m.name || '?'} size={28} fontSize={11}/>
+                    <AvatarCircle avData={users[message.uid]?.avatar || null} role={message.role} name={message.name || '?'} size={28} fontSize={11}/>
                   </div>
                 )}
-                {m.uid !== user.uid && isGrouped && <div className="msg-av-spacer"/>}
+                {message.uid !== user.uid && isGrouped && <div className="msg-av-spacer"/>}
                 <div>
                   <div
-                    className={'msg-bubble ' + (m.uid === user.uid ? 'mine' : 'theirs')}
-                    ref={el => {
-                      // FIX [BUG-20]: регистрируем элемент в Map при монтировании,
-                      // удаляем при размонтировании (el === null)
-                      if (el) msgRefs.current.set(m.id, el);
-                      else    msgRefs.current.delete(m.id);
+                    className={'msg-bubble ' + (message.uid === user.uid ? 'mine' : 'theirs')}
+                    ref={(el) => {
+                      if (el) msgRefs.current.set(message.id, el);
+                      else msgRefs.current.delete(message.id);
                     }}
                   >
-                    {m.uid !== user.uid && !isGrouped && (
+                    {message.uid !== user.uid && !isGrouped && (
                       <div className="msg-sender">
-                        {(m.role === 'security' || m.role === 'concierge') ? ROLE_LABELS[m.role] : m.name}
+                        {(message.role === 'security' || message.role === 'concierge') ? ROLE_LABELS[message.role] : message.name}
                       </div>
                     )}
                     {quotedMsg && (
-                      <div className="msg-reply-quote" role="button" tabIndex={0}
+                      <div
+                        className="msg-reply-quote"
+                        role="button"
+                        tabIndex={0}
                         aria-label="Перейти к цитируемому сообщению"
                         onClick={() => scrollToMsg(quotedMsg.id)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
                             scrollToMsg(quotedMsg.id);
                           }
-                        }}>
-                        <div className="msg-reply-quote-name">{quotedMsg.name || m.replyTo?.name}</div>
-                        <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || m.replyTo?.text}</div>
+                        }}
+                      >
+                        <div className="msg-reply-quote-name">{quotedMsg.name || message.replyTo?.name || 'Сообщение'}</div>
+                        <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || message.replyTo?.text || ''}</div>
                       </div>
                     )}
-                    {m.photo && <img src={m.photo} className="msg-photo" alt="фото" loading="lazy" decoding="async" onClick={() => setLightbox(m.photo)}/>}
-                    {m.text && <div className="msg-text">{linkify(m.text)}</div>}
+                    {message.photo && <img src={message.photo} className="msg-photo" alt="фото" loading="lazy" decoding="async" onClick={() => setLightbox(message.photo || null)}/>}
+                    {message.text && <div className="msg-text">{linkify(message.text)}</div>}
                     <div className="msg-time">
-                      <span>{fmtTime(m.at)}</span>
-                      {m.edited && <span className="msg-edited-mark">изменено</span>}
+                      <span>{fmtTime(message.at)}</span>
+                      {message.edited && <span className="msg-edited-mark">изменено</span>}
                       <CheckIcon status={readStatus}/>
                     </div>
-                    <button className="msg-ctx-btn" onClick={e => { e.stopPropagation(); setMsgMenu(p => p === m.id ? null : m.id); }} aria-label="Меню">⋯</button>
+                    <button className="msg-ctx-btn" onClick={(event) => { event.stopPropagation(); setMsgMenu((prev) => prev === message.id ? null : message.id); }} aria-label="Меню">⋯</button>
                   </div>
-                  {editingMsg && editingMsg.id === m.id && (
+                  {editingMsg && editingMsg.id === message.id && (
                     <div className="msg-edit-wrap">
-                      <textarea className="msg-edit-inp" rows={2} value={editingMsg.text}
-                        onChange={e => setEditingMsg({ id: editingMsg.id, text: e.target.value })}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(m.id, editingMsg.text); }
-                          if (e.key === 'Escape') { setEditingMsg(null); }
+                      <textarea
+                        className="msg-edit-inp"
+                        rows={2}
+                        value={editingMsg.text || ''}
+                        onChange={(event) => setEditingMsg({ id: editingMsg.id, text: event.target.value })}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            saveEdit(message.id, editingMsg.text || '');
+                          }
+                          if (event.key === 'Escape') setEditingMsg(null);
                         }}
-                        autoFocus/>
+                        autoFocus
+                      />
                       <div className="msg-edit-hint"><span><kbd>Enter</kbd> сохранить</span><span><kbd>Esc</kbd> отменить</span></div>
                     </div>
                   )}
-                  {m.reactions && Object.keys(m.reactions).length > 0 && (
+                  {message.reactions && Object.keys(message.reactions).length > 0 && (
                     <div className="msg-reactions">
-                      {Object.entries(m.reactions).map(([emoji, uids]) => {
+                      {Object.entries(message.reactions).map(([emoji, uids]) => {
                         const safeUids = Array.isArray(uids) ? uids : [];
                         if (!safeUids.length) return null;
                         return (
-                        <button key={emoji} className={'reaction-badge' + (safeUids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(m.id, emoji)} title={safeUids.length + ' чел.'}>
-                          <span>{emoji}</span><span className="reaction-count">{safeUids.length}</span>
-                        </button>
+                          <button key={emoji} className={'reaction-badge' + (safeUids.includes(user.uid) ? ' mine' : '')} onClick={() => toggleReaction(message.id, emoji)} title={safeUids.length + ' чел.'}>
+                            <span>{emoji}</span><span className="reaction-count">{safeUids.length}</span>
+                          </button>
                         );
                       })}
                     </div>
@@ -598,13 +621,13 @@ export function ChatView({ user }: { user: AppUser }) {
       )}
       <div className="chat-bar">
         <div className="chat-tools" aria-label="Действия чата">
-          <button className={'chat-photo-btn chat-tool-btn chat-tool-btn--plus ' + (showTools ? 'chat-btn--active' : 'chat-btn--default')} title="Действия" onClick={() => setShowTools(s => !s)} aria-label="Открыть действия чата">
+          <button className={'chat-photo-btn chat-tool-btn chat-tool-btn--plus ' + (showTools ? 'chat-btn--active' : 'chat-btn--default')} title="Действия" onClick={() => setShowTools((value) => !value)} aria-label="Открыть действия чата">
             <span className="chat-plus-glyph" aria-hidden="true">+</span>
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onFileChange}/>
           {showTools && (
             <div className="chat-tools-menu" role="menu" aria-label="Меню действий чата">
-              <button className={'chat-tools-menu-btn ' + (showSearch ? 'chat-btn--active' : '')} onClick={() => { setShowSearch(s => !s); setShowTools(false); }} role="menuitem">
+              <button className={'chat-tools-menu-btn ' + (showSearch ? 'chat-btn--active' : '')} onClick={() => { setShowSearch((value) => !value); setShowTools(false); }} role="menuitem">
                 <AppIcon name="search" size={15} />
                 <span>Поиск</span>
               </button>
@@ -616,34 +639,42 @@ export function ChatView({ user }: { user: AppUser }) {
           )}
         </div>
         <div className="chat-compose-shell">
-          <textarea ref={inputRef} className="chat-inp" rows={1}
-            placeholder="Напишите сообщение..." value={text}
-            onChange={e => {
-              setText(e.target.value);
+          <textarea
+            ref={inputRef}
+            className="chat-inp"
+            rows={1}
+            placeholder="Напишите сообщение..."
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
               syncComposerHeight();
             }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void send();
+              }
+            }}
           />
-          <button className={'chat-photo-btn chat-inline-emoji ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji(s => !s)} aria-label="Emoji">
+          <button className={'chat-photo-btn chat-inline-emoji ' + (showEmoji ? 'chat-btn--active' : 'chat-btn--default')} onClick={() => setShowEmoji((value) => !value)} aria-label="Emoji">
             <AppIcon name="chat" size={16} />
           </button>
         </div>
-        <button className="chat-send" onClick={send} disabled={!text.trim()} aria-label="Отправить сообщение"><AppIcon name="chevronRight" size={14} /></button>
+        <button className="chat-send" onClick={() => void send()} disabled={!text.trim()} aria-label="Отправить сообщение"><AppIcon name="chevronRight" size={14} /></button>
       </div>
       {showEmoji && (
         <div className="emoji-picker">
-          {EMOJI_GRID.map(em => (
-            <button key={em} className="emoji-pick-btn" onClick={() => insertEmoji(em)}>{em}</button>
+          {EMOJI_GRID.map((emoji) => (
+            <button key={emoji} className="emoji-pick-btn" onClick={() => insertEmoji(emoji)}>{emoji}</button>
           ))}
         </div>
       )}
       {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)}/>}
-      {/* P-05: подтверждение удаления сообщения — удаление необратимо */}
       {confirmDeleteMsgId && (
         <ConfirmDialog
           message="Удалить сообщение? Это действие нельзя отменить."
           confirmLabel="Удалить"
-          onConfirm={() => { handleDeleteMsg(confirmDeleteMsgId); setConfirmDeleteMsgId(null); }}
+          onConfirm={() => { void handleDeleteMsg(confirmDeleteMsgId); setConfirmDeleteMsgId(null); }}
           onCancel={() => setConfirmDeleteMsgId(null)}
         />
       )}

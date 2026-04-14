@@ -8,8 +8,11 @@
  * @param {number}      options.quality   — качество JPEG (0–1), default 0.72
  * @returns {Promise<File|string>}        — сжатый File (из File) или dataURL (из dataURL)
  */
-export function compressImage(input, { maxWidth = 1024, quality = 0.72 } = {}) {
-  return new Promise(resolve => {
+export function compressImage(
+  input: File | string,
+  { maxWidth = 1024, quality = 0.72 }: { maxWidth?: number; quality?: number } = {},
+): Promise<File | string> {
+  return new Promise<File | string>((resolve) => {
     const isFile = input instanceof File;
     const src = isFile ? URL.createObjectURL(input) : input;
 

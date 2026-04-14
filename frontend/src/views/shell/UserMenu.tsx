@@ -12,21 +12,29 @@ import { toast } from '../../ui/Toasts';
 import { useAvatar, useActions } from '../../store/AppStore';
 import { ROLE_LABELS } from '../../constants';
 import { canManageRequests } from '../../domain/permissions';
+import type { AppUser } from '../../store/slices/usersSlice';
 
-const formatBadgeCount = (n) => (n > 9 ? '9+' : String(n));
+type UserMenuProps = {
+  user: AppUser;
+  pendingCount: number;
+  onLogout: () => void;
+};
 
-export default function UserMenu({ user, pendingCount, onLogout }) {
+const formatBadgeCount = (count: number) => (count > 9 ? '9+' : String(count));
+
+export default function UserMenu({ user, pendingCount, onLogout }: UserMenuProps) {
   const avData = useAvatar(user.uid);
   const { setAvatar, deleteAvatar } = useActions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [avOpen, setAvOpen] = useState(false);
-  const headerUserRef = useRef(null);
+  const headerUserRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
 
-    const close = (e) => {
-      if (!headerUserRef.current?.contains(e.target)) setMenuOpen(false);
+    const close = (event: PointerEvent) => {
+      const targetNode = event.target instanceof Node ? event.target : null;
+      if (targetNode && !headerUserRef.current?.contains(targetNode)) setMenuOpen(false);
     };
 
     document.addEventListener('pointerdown', close, true);
@@ -38,10 +46,10 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
     setAvOpen(true);
   }, []);
 
-  const saveAvatar = useCallback((av) => {
-    if (av) setAvatar(user.uid, av);
+  const saveAvatar = useCallback((avatar: string | null) => {
+    if (avatar) setAvatar(user.uid, avatar);
     else deleteAvatar(user.uid);
-    toast(av ? 'Аватарка сохранена' : 'Аватарка удалена', 'success');
+    toast(avatar ? 'Аватарка сохранена' : 'Аватарка удалена', 'success');
   }, [setAvatar, deleteAvatar, user.uid]);
 
   return (
@@ -53,9 +61,9 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
         tabIndex={0}
         aria-label="Меню пользователя"
         aria-expanded={menuOpen}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => setMenuOpen(o => !o)}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setMenuOpen(o => !o))}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setMenuOpen((value) => !value)}
+        onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), setMenuOpen((value) => !value))}
       >
         <div className="header-info">
           <div className="header-name">{user.name}</div>
@@ -71,14 +79,14 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
         </div>
         {menuOpen && (
           <div className="dropdown">
-            <div className="dd-avatar-wrap" onClick={(e) => e.stopPropagation()}>
+            <div className="dd-avatar-wrap" onClick={(event) => event.stopPropagation()}>
               <div
                 className="usermenu-avatar-clickable"
                 role="button"
                 tabIndex={0}
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={openAvatarModal}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), openAvatarModal())}
+                onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), openAvatarModal())}
                 aria-label="Изменить аватарку"
               >
                 <div className="dd-avatar-big usermenu-avatar-reset">
@@ -90,7 +98,7 @@ export default function UserMenu({ user, pendingCount, onLogout }) {
                 <div className="dd-user-name">{user.name}</div>
                 <div className="dd-user-phone">{user.phone}</div>
               </div>
-              <button className="dd-upload-btn" onMouseDown={(e) => e.preventDefault()} onClick={openAvatarModal}>
+              <button className="dd-upload-btn" onMouseDown={(event) => event.preventDefault()} onClick={openAvatarModal}>
                 Настроить аватарку
               </button>
             </div>

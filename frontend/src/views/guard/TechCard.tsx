@@ -1,8 +1,3 @@
-/**
- * views/guard/TechCard.jsx — T-05: extracted from GuardPostMode.jsx
- * Карточка технической заявки на посту охраны.
- */
-
 import { useState, useRef, useCallback, memo } from 'react';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useActions, useAvatar } from '../../store/AppStore';
@@ -14,35 +9,39 @@ import { presentError } from '../../ui/errorPresenter';
 import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { UserRole } from '../../store/slices/usersSlice';
 
-// FIX [PERF-5]: memo — аналогично TempPassCard
-const TechCard = memo(function TechCard({ req, userName, residentPhone }: {
+type TechCardProps = {
   req: AppRequest;
   userName: string;
   residentPhone?: string | null;
-}) {
-  const { acceptRequest } = useActions();
-  const avData = useAvatar(req.createdByUid);
-  const [loading, setLoading] = useState(null);
+};
 
-  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
+const getCategoryLabel = (category?: string) => (
+  category && category in CAT_LABEL
+    ? CAT_LABEL[category as keyof typeof CAT_LABEL]
+    : category ?? ''
+);
+
+const TechCard = memo(function TechCard({ req, userName, residentPhone }: TechCardProps) {
+  const { acceptRequest } = useActions();
+  const avData = useAvatar(req.createdByUid ?? '');
+  const [loading, setLoading] = useState<string | null>(null);
+
   const isMountedRef = useIsMounted();
-  const loadingRef = useRef(loading);
+  const loadingRef = useRef<string | null>(loading);
   loadingRef.current = loading;
 
   const doAccept = useCallback(async () => {
-    if (loadingRef.current) return;
-    if (!isMountedRef.current) return;
+    if (loadingRef.current || !isMountedRef.current) return;
     setLoading('accept');
     try {
-      acceptRequest(req.id, userName, 'security');
+      await Promise.resolve(acceptRequest(req.id, userName, 'security'));
       if (isMountedRef.current) toast('Принято в работу', 'success');
     } catch {
       if (isMountedRef.current) toast(presentError(new Error('tech_accept_failed'), 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
-  }, [acceptRequest, req.id, userName]);
+  }, [acceptRequest, isMountedRef, req.id, userName]);
 
   return (
     <div className="guard-card">
@@ -55,7 +54,7 @@ const TechCard = memo(function TechCard({ req, userName, residentPhone }: {
             {req.createdByApt && req.createdByApt !== '—' ? 'Апарт. ' + req.createdByApt : ''}
           </div>
           <div className="guard-name">{req.createdByName}</div>
-          <div className="guard-cat">{CAT_LABEL[req.category] || req.category}</div>
+          <div className="guard-cat">{getCategoryLabel(req.category)}</div>
         </div>
         <div className={'guard-tech-status ' + req.status}>
           {req.status === 'pending' ? 'Новая' : req.status === 'accepted' ? 'В работе' : 'Готово'}

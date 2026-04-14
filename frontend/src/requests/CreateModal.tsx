@@ -81,8 +81,17 @@ type CreateModalProps = {
   onDone: (request?: AppRequest) => void;
 };
 type CreateRequestForm = ReturnType<typeof useCreateRequest>;
+type CategoryKey = keyof typeof CAT_LABEL;
 
 const COURIER_PRESETS = ['Ozon', 'Wildberries', 'Яндекс Доставка', 'СДЭК', 'Самокат'];
+
+function getCategoryLabel(category: string): string {
+  return category in CAT_LABEL ? CAT_LABEL[category as CategoryKey] : category;
+}
+
+function getCategoryIcon(category: string): string {
+  return category in CAT_ICON ? CAT_ICON[category as CategoryKey] : 'users';
+}
 
 function clampResidentStep(value?: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return 0;
@@ -509,9 +518,9 @@ function PhotoSection({ photos, handlePhoto, removePhoto }: PhotoSectionProps) {
 }
 
 function getResidentPassSummary(form: CreateRequestForm) {
-  const names = form.vNames.map((item) => item.value.trim()).filter(Boolean);
+  const names = form.vNames.map((item: VisitorNameEntry) => item.value.trim()).filter(Boolean);
   const visitor = names.length > 0 ? names.join(', ') : form.vName.trim();
-  const who = visitor || form.carPlate.trim() || CAT_LABEL[form.cat] || 'Гость';
+  const who = visitor || form.carPlate.trim() || getCategoryLabel(form.cat) || 'Гость';
   const when = form.showSchedule && form.scheduledFor
     ? fmtScheduled(form.scheduledFor)
     : 'сразу после создания';
@@ -525,7 +534,7 @@ function getResidentStepError(form: CreateRequestForm, step: number, userRole: A
   if (userRole === 'concierge' && !form.apartment.trim()) return 'Укажите апартамент, для которого оформляется пропуск.';
   const carPlate = form.carPlate.trim();
   const visitorName = form.vName.trim();
-  const visitorNames = form.vNames.map((item) => item.value.trim()).filter(Boolean);
+  const visitorNames = form.vNames.map((item: VisitorNameEntry) => item.value.trim()).filter(Boolean);
 
   if (['taxi', 'car'].includes(form.cat) && !carPlate) return 'Укажите марку и номер авто, чтобы охрана быстро сверила машину.';
   if (['guest', 'team'].includes(form.cat) && visitorNames.length === 0) return 'Укажите имя хотя бы одного посетителя.';
@@ -615,8 +624,8 @@ function ResidentPassWizard({
                 onClick={() => form.setCat(cat)}
                 aria-pressed={form.cat === cat}
               >
-                <span><AppIcon name={CAT_ICON[cat] || 'users'} size={18} /></span>
-                <strong>{CAT_LABEL[cat]}</strong>
+                <span><AppIcon name={getCategoryIcon(cat)} size={18} /></span>
+                <strong>{getCategoryLabel(cat)}</strong>
               </button>
             ))}
           </div>
@@ -722,7 +731,7 @@ function ResidentPassWizard({
           <div className="resident-review-card">
             <div>
               <span>Тип</span>
-              <strong>{CAT_LABEL[form.cat]}</strong>
+              <strong>{getCategoryLabel(form.cat)}</strong>
             </div>
             <div>
               <span>Кому</span>
@@ -817,8 +826,8 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
           <div className="modal-head-main">
             <span className="modal-title">{type === 'pass' ? 'Новый пропуск' : 'Вызов техслужбы'}</span>
             <div className="modal-cat-hint">
-              <span className="u-op7"><AppIcon name={CAT_ICON[form.cat] || 'users'} size={12} /></span>
-              <span className="u-ls3">{CAT_LABEL[form.cat]}</span>
+              <span className="u-op7"><AppIcon name={getCategoryIcon(form.cat)} size={12} /></span>
+              <span className="u-ls3">{getCategoryLabel(form.cat)}</span>
             </div>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
@@ -850,8 +859,8 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
                       onClick={() => form.setCat(cat)}
                       aria-pressed={form.cat === cat}
                     >
-                      <span className="modal-cat-btn-ico"><AppIcon name={CAT_ICON[cat] || 'users'} size={14} /></span>
-                      <span className="modal-cat-btn-label">{CAT_LABEL[cat]}</span>
+                      <span className="modal-cat-btn-ico"><AppIcon name={getCategoryIcon(cat)} size={14} /></span>
+                      <span className="modal-cat-btn-label">{getCategoryLabel(cat)}</span>
                     </button>
                   ))}
                 </div>

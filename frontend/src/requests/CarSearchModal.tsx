@@ -5,12 +5,23 @@ import { isResident } from '../domain/permissions';
 import { lockScroll, unlockScroll } from '../ui/scrollLock';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { Car } from '../store/slices/garageSlice';
 
 /**
  * CarSearchModal — быстрый поиск авто по номеру.
  * Охрана вводит номер → видит апартамент, жильца, место паркинга.
  */
-export function CarSearchModal({ onClose }) {
+type CarSearchModalProps = {
+  onClose: () => void;
+};
+
+type CarSearchResult = {
+  user: AppUser;
+  car: Car;
+};
+
+export function CarSearchModal({ onClose }: CarSearchModalProps) {
   const { users }   = useUsers();
   const garage = useAllGarage();
   const [query, setQuery] = useState('');
@@ -23,12 +34,12 @@ export function CarSearchModal({ onClose }) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const found = [];
-    Object.values(users).forEach(u => {
+    if (q.length < 2) return [] as CarSearchResult[];
+    const found: CarSearchResult[] = [];
+    Object.values(users).forEach((u) => {
       if (!isResident(u.role)) return;
       const cars = (garage && garage[u.uid]) || [];
-      cars.forEach(car => {
+      cars.forEach((car) => {
         if (car.plate.toLowerCase().includes(q)) {
           found.push({ user: u, car });
         }

@@ -1,7 +1,6 @@
-import { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useRequests } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
-import { useRequests, useUsers, useAllPerms } from '../store/AppStore.jsx';
-import { ROLE_LABELS } from '../constants/index.js';
 import { sortReqs, filterByPeriod } from '../utils.js';
 import { isPassRequest, isTechRequest } from '../constants/requestPredicates.js';
 import { ReqCard } from '../requests/ReqCard.jsx';
@@ -9,57 +8,92 @@ import { CreateModal } from '../requests/CreateModal.jsx';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';
 import { ChatView } from '../chat/ChatView.jsx';
 import { MyTemplates } from '../perms/PermsList.jsx';
-import GuardPostMode from './GuardPostMode.jsx';
 import BlacklistView from './BlacklistView.jsx';
 import VisitLogView from './VisitLogView.jsx';
 import ResidentsView from './ResidentsView.jsx';
-import { CarSearchModal } from '../requests/CarSearchModal.jsx';
 import { AppIcon } from '../ui/AppIcon.jsx';
-import { AvatarCircle } from '../ui/AvatarCircle.jsx';
 import StateBlock from '../ui/StateBlock.jsx';
-import SectionHeader from '../ui/SectionHeader.jsx';
 import PageActionBar from '../ui/PageActionBar.tsx';
 import { getViewStateCopy } from '../ui/viewStateContract';
-import { OperationalRequestList } from '../requests/OperationalRequestList.tsx';
-import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
 import { VirtualList } from '../ui/VirtualList.jsx';
-import { isSecurityActionablePass } from '../domain/passLifecycle';
-import type { RequestStatus, RequestType } from '../store/slices/requestsSlice';
+import GuardPostMode from './GuardPostMode.jsx';
+import { SecurityPassesPane } from './security/SecurityPassesPane';
+import { SecurityPermsList } from './security/SecurityPermsList';
+import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { Template } from '../store/slices/permsSlice';
 
-export function ConciergeView({ user, activeTab, setActiveTab }) {
+type ModalState = {
+  type: RequestType;
+  cat?: string;
+  data?: Record<string, unknown>;
+} | null;
+
+type ConciergeViewProps = {
+  user: AppUser;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+};
+
+type SecurityViewProps = {
+  user: AppUser;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  highlightReqId?: string | null;
+  setHighlightReqId?: (reqId: string | null) => void;
+};
+
+function matchesRequestQuery(req: AppRequest, query: string): boolean {
+  if (!query) return true;
+  return [
+    req.createdByName,
+    req.createdByApt,
+    req.visitorName,
+    req.carPlate,
+    req.comment,
+  ].some((value) => typeof value === 'string' && value.toLowerCase().includes(query));
+}
+
+export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewProps) {
   const requests = useRequests();
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState<ModalState>(null);
   const [query, setQuery] = useState('');
   const [showScan, setShowScan] = useState(false);
-  const debouncedQuery = useDebounce(query, 250);
   const [showAll, setShowAll] = useState(false);
+  const debouncedQuery = useDebounce(query, 250);
 
-  useEffect(() => { setQuery(''); }, [activeTab]);
+  useEffect(() => {
+    setQuery('');
+  }, [activeTab]);
 
-  const normalizedQuery = useMemo(() => debouncedQuery.trim().toLowerCase(), [debouncedQuery]);
-  const matchQ = useCallback((r) =>
-    !normalizedQuery || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment]
-      .some(v => v && v.toLowerCase().includes(normalizedQuery)),
-  [normalizedQuery]);
-
-  const allP = useMemo(
-    () => sortReqs(filterByPeriod(requests.filter(isPassRequest), 'all').filter(matchQ)),
-    [requests, matchQ],
+  const normalizedQuery = useMemo(
+    () => debouncedQuery.trim().toLowerCase(),
+    [debouncedQuery],
   );
-  const allT = useMemo(
-    () => sortReqs(filterByPeriod(requests.filter(isTechRequest), 'all').filter(matchQ)),
-    [requests, matchQ],
+
+  const matchQuery = useCallback(
+    (req: AppRequest) => matchesRequestQuery(req, normalizedQuery),
+    [normalizedQuery],
+  );
+
+  const allPasses = useMemo(
+    () => sortReqs(filterByPeriod(requests.filter(isPassRequest), 'all').filter(matchQuery)) as AppRequest[],
+    [requests, matchQuery],
+  );
+  const allTech = useMemo(
+    () => sortReqs(filterByPeriod(requests.filter(isTechRequest), 'all').filter(matchQuery)) as AppRequest[],
+    [requests, matchQuery],
   );
 
   const passesEmptyCopy = getViewStateCopy('security_passes', 'empty');
   const techEmptyCopy = getViewStateCopy('security_tech', 'empty');
 
-  const passIcons = [
-    ['guest', 'users', 'Гость'],
-    ['courier', 'courier', 'Курьер'],
-    ['taxi', 'taxi', 'Такси'],
-    ['car', 'car', 'Авто'],
-    ['master', 'tools', 'Мастер'],
+  const passIcons: Array<{ key: string; iconName: string; label: string }> = [
+    { key: 'guest', iconName: 'users', label: 'Гость' },
+    { key: 'courier', iconName: 'courier', label: 'Курьер' },
+    { key: 'taxi', iconName: 'taxi', label: 'Такси' },
+    { key: 'car', iconName: 'car', label: 'Авто' },
+    { key: 'master', iconName: 'tools', label: 'Мастер' },
   ];
 
   return (
@@ -80,10 +114,10 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
           />
           <div className="search-wrap">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" aria-label="Поиск пропусков" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
+            <input className="search-inp" aria-label="Поиск пропусков" placeholder="Поиск..." value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
           <div className="type-grid">
-            {passIcons.map(([key, iconName, label]) => (
+            {passIcons.map(({ key, iconName, label }) => (
               <button key={key} type="button" className="type-card" onClick={() => setModal({ type: 'pass', cat: key })}>
                 <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
                 <div className="type-label">{label}</div>
@@ -91,21 +125,21 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
             ))}
           </div>
           <div className="u-flex-center u-mb16">
-            <button className={`date-pill${showAll ? ' active' : ''}`} onClick={() => setShowAll(o => !o)}>
+            <button className={`date-pill${showAll ? ' active' : ''}`} onClick={() => setShowAll((open) => !open)}>
               {showAll ? '▴ Скрыть все пропуска' : '▾ Все пропуска'}
             </button>
           </div>
-          {showAll && allP.length > 0 && (
+          {showAll && allPasses.length > 0 && (
             <VirtualList
-              items={allP}
-              renderItem={(r, i) => (
-                <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />
+              items={allPasses}
+              renderItem={(req, index) => (
+                <ReqCard key={req.id} req={req} staggerIdx={index} userRole={user.role} userName={user.name} userId={user.uid} />
               )}
               estimateSize={110}
               className="req-list"
             />
           )}
-          {showAll && allP.length === 0 && (
+          {showAll && allPasses.length === 0 && (
             <StateBlock
               type="empty"
               title={debouncedQuery ? 'Ничего не найдено' : passesEmptyCopy.title}
@@ -118,7 +152,10 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
       {activeTab === 'tech' && (
         <>
           <div className="type-grid">
-            {[['electrician', 'tools', 'Электрик'], ['plumber', 'tools', 'Сантехник']].map(([key, iconName, label]) => (
+            {[
+              { key: 'electrician', iconName: 'tools', label: 'Электрик' },
+              { key: 'plumber', iconName: 'tools', label: 'Сантехник' },
+            ].map(({ key, iconName, label }) => (
               <button key={key} type="button" className="type-card" onClick={() => setModal({ type: 'tech', cat: key })}>
                 <div className="type-icon"><AppIcon name={iconName} size={20} /></div>
                 <div className="type-label">{label}</div>
@@ -131,22 +168,19 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
           </div>
           <div className="search-wrap">
             <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" aria-label="Поиск заявок" placeholder="Поиск..." value={query} onChange={e => setQuery(e.target.value)} />
+            <input className="search-inp" aria-label="Поиск заявок" placeholder="Поиск..." value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
-          {allT.length > 0 && (
-            <>
-              <SectionHeader title="Все заявки" count={allT.length} />
-              <VirtualList
-                items={allT}
-                renderItem={(r, i) => (
-                  <ReqCard key={r.id} req={r} staggerIdx={i} userRole={user.role} userName={user.name} userId={user.uid} />
-                )}
-                estimateSize={110}
-                className="req-list"
-              />
-            </>
+          {allTech.length > 0 && (
+            <VirtualList
+              items={allTech}
+              renderItem={(req, index) => (
+                <ReqCard key={req.id} req={req} staggerIdx={index} userRole={user.role} userName={user.name} userId={user.uid} />
+              )}
+              estimateSize={110}
+              className="req-list"
+            />
           )}
-          {allT.length === 0 && (
+          {allTech.length === 0 && (
             <StateBlock
               type="empty"
               title={debouncedQuery ? 'Ничего не найдено' : techEmptyCopy.title}
@@ -156,262 +190,50 @@ export function ConciergeView({ user, activeTab, setActiveTab }) {
         </>
       )}
 
-      {activeTab === 'templates' && <MyTemplates user={user} onUse={t => setModal({ type: t.type, cat: t.category, data: t })} />}
+      {activeTab === 'templates' && <MyTemplates user={user} onUse={(template: Template) => setModal({ type: template.type as RequestType, cat: template.category, data: template as unknown as Record<string, unknown> })} />}
       {activeTab === 'residents' && <ResidentsView user={user} />}
       {activeTab === 'visitlog' && <VisitLogView user={user} />}
       {activeTab === 'blacklist' && <BlacklistView user={user} />}
       {activeTab === 'chat' && <ChatView user={user} />}
-      {modal && <CreateModal user={user} type={modal.type} initialCat={modal.cat} initialData={modal.data} onClose={() => setModal(null)} onDone={() => {}} />}
+      {modal && (
+        <CreateModal
+          user={user}
+          type={modal.type}
+          initialCat={modal.cat}
+          initialData={modal.data}
+          onClose={() => setModal(null)}
+          onDone={() => {}}
+        />
+      )}
       {showScan && <ScanQRModal user={user} onClose={() => setShowScan(false)} />}
     </>
   );
 }
 
-const SecurityPermsList = memo(function SecurityPermsList() {
-  const [tab, setTab] = useState('visitors');
-  const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounce(query, 250);
-  const [openApts, setOpenApts] = useState({});
-  const { users } = useUsers();
-  const perms = useAllPerms();
-
-  const handleSetTab = (newTab) => {
-    setTab(newTab);
-    setOpenApts({});
-  };
-
-  const residents = useMemo(
-    () => Object.values(users)
-      .filter(u => u.apartment && u.apartment !== '—')
-      .sort((a, b) => Number(a.apartment) - Number(b.apartment)),
-    [users],
-  );
-
-  const q = debouncedQuery.trim().toLowerCase();
-  const permsEmptyCopy = getViewStateCopy('security_perms', 'empty');
-
-  const residentItems = useMemo(() => {
-    const matchRes = u => !q || u.apartment.toLowerCase().includes(q) || u.name.toLowerCase().includes(q);
-    const matchItem = item => !q || item.name.toLowerCase().includes(q) || (item.phone || '').includes(q);
-
-    return residents
-      .map(u => {
-        const p = perms[u.uid] || { visitors: [], workers: [] };
-        const allItems = tab === 'visitors' ? p.visitors : p.workers;
-        const list = q ? allItems.filter(item => matchRes(u) || matchItem(item)) : allItems;
-        return { u, list };
-      })
-      .filter(({ list }) => list.length > 0);
-  }, [residents, perms, tab, q]);
-
-  const toggleApt = (uid) => setOpenApts(o => ({ ...o, [uid]: !o[uid] }));
-
-  return (
-    <div>
-      <div className="tabs u-mb10">
-        <button className={`tab-btn ${tab === 'visitors' ? 'active' : ''}`} onClick={() => handleSetTab('visitors')}>Посетители</button>
-        <button className={`tab-btn ${tab === 'workers' ? 'active' : ''}`} onClick={() => handleSetTab('workers')}>Рабочие</button>
-      </div>
-      <div className="search-wrap u-mb16">
-        <span className="search-ico"><AppIcon name="search" size={14} /></span>
-        <input className="search-inp" aria-label="Поиск жителей" placeholder="Поиск по апартаменту или ФИО..." value={query} onChange={e => setQuery(e.target.value)} />
-      </div>
-      {residentItems.length === 0 && (
-        <StateBlock
-          type="empty"
-          title={q ? 'Ничего не найдено' : permsEmptyCopy.title}
-          subtitle={q ? 'Попробуйте другой запрос' : permsEmptyCopy.subtitle}
-        />
-      )}
-      {residentItems.map(({ u, list }) => {
-        const isOpen = openApts[u.uid] === true;
-        return (
-          <div key={u.uid} className="u-mb8">
-            <button type="button" className={`spl-apt-row${isOpen ? ' open' : ''}`} aria-expanded={isOpen} onClick={() => toggleApt(u.uid)}>
-              <div className="spl-apt-info">
-                <AvatarCircle avData={null} role={u.role} name={u.name} size={32} fontSize={13} />
-                <div>
-                  <div className="spl-apt-title">{`Апарт. ${u.apartment}`}</div>
-                  <div className="spl-apt-sub">{u.name} · <span className="u-t4">{ROLE_LABELS[u.role]}</span></div>
-                </div>
-              </div>
-              <div className="spl-apt-right">
-                <span className="spl-count">{list.length}</span>
-                <span className={`spl-arrow${isOpen ? ' open' : ''}`}>▾</span>
-              </div>
-            </button>
-            {isOpen && (
-              <div className="spl-items">
-                {list.map(item => (
-                  <div key={item.id} className="spl-item">
-                    <div className="perm-info">
-                      <div className="perm-name">{item.name}</div>
-                      <div className="perm-meta">{[item.phone, item.carPlate].filter(Boolean).join(' · ')}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-});
-
-export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }) {
-  const [searchParams, setSearchParams] = useUrlSearchParams();
-  const [showCarSearch, setShowCarSearch] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const requests = useRequests();
-  const filter = searchParams.get('securityRole') || 'all';
-  const typeFilter = (searchParams.get('securityType') || 'all') as 'all' | RequestType;
-  const statusFilter = (searchParams.get('securityStatus') || 'all') as 'all' | RequestStatus;
-  const datePeriod = searchParams.get('securityPeriod') || 'all';
-  const query = searchParams.get('securityQ') || '';
-  const [showScan, setShowScan] = useState(false);
-  const debouncedQuery = useDebounce(query, 250);
-
-  const updateSecurityFilters = useCallback((patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(patch).forEach(([key, value]) => {
-      if (!value || value === 'all') next.delete(key);
-      else next.set(key, value);
-    });
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  const pendingPassCount = useMemo(() => requests.filter(isSecurityActionablePass).length, [requests]);
-  const pendingTechCount = useMemo(() => requests.filter(r => r.type === 'tech' && r.status === 'pending').length, [requests]);
-  const requestsEmptyCopy = getViewStateCopy('requests', 'empty');
-  const activeFilterCount = [
-    Boolean(query),
-    datePeriod !== 'all',
-    typeFilter !== 'all',
-    statusFilter !== 'all',
-    filter !== 'all',
-  ].filter(Boolean).length;
-
-  const shown = useMemo(() => {
-    const q = debouncedQuery.trim().toLowerCase();
-    const matchQ = r => !q || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment]
-      .some(v => v && v.toLowerCase().includes(q));
-    return sortReqs(
-      filterByPeriod(requests, datePeriod)
-        .filter(r => typeFilter === 'all' || r.type === typeFilter)
-        .filter(r => statusFilter === 'all' || r.status === statusFilter)
-        .filter(r => filter === 'all' || r.createdByRole === filter)
-        .filter(matchQ),
-    );
-  }, [requests, datePeriod, debouncedQuery, typeFilter, statusFilter, filter]);
-
-  const datePills = [['today', 'Сегодня'], ['week', 'Неделя'], ['all', 'Все']];
-
+export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }: SecurityViewProps) {
   return (
     <>
       {activeTab === 'passes' && (
-        <>
-          <PageActionBar
-            className="security-action-btns"
-            primaryLabel="Сканировать QR"
-            onPrimary={() => setShowScan(true)}
-            secondary={[
-              { label: 'Авто', onClick: () => setShowCarSearch(true) },
-            ]}
-          />
-          <div className="sec-filters-toggle-row">
-            <button
-              type="button"
-              className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
-              onClick={() => setShowFilters(v => !v)}
-              aria-expanded={showFilters}
-            >
-              <span className="u-inline-icon"><AppIcon name="filter" size={14} /></span>
-              <span>Фильтры</span>
-              {activeFilterCount > 0 && <span className="tab-pending-badge">{activeFilterCount}</span>}
-            </button>
-          </div>
-          <div className="search-wrap u-search-sm sec-filters-search">
-            <span className="search-ico"><AppIcon name="search" size={14} /></span>
-            <input className="search-inp" aria-label="Поиск по имени, квартире, авто или комментарию" placeholder="Имя, квартира, авто, комментарий" value={query} onChange={e => updateSecurityFilters({ securityQ: e.target.value.trim() || null })} />
-          </div>
-          {showFilters && (
-            <div className="sec-filters">
-              <section className="sec-filter-group">
-                <div className="sec-filter-group-title">Период</div>
-                <div className="sec-filters-row sec-filters-row--scroll">
-                  {datePills.map(([k, l]) => (
-                    <button key={k} className={`date-pill ${datePeriod === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityPeriod: k })}>{l}</button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="sec-filter-group">
-                <div className="sec-filter-group-title">Тип</div>
-                <div className="sec-filters-row sec-filters-row--scroll">
-                  {([
-                    ['all', 'Все типы', 0],
-                    ['pass', 'Пропуска', pendingPassCount],
-                    ['tech', 'Техслужба', pendingTechCount],
-                  ] as const).map(([k, l, cnt]) => (
-                    <button key={k} className={`date-pill ${typeFilter === k ? 'active' : ''}${cnt > 0 && k !== 'all' ? ' has-pending' : ''}`} onClick={() => updateSecurityFilters({ securityType: k })}>
-                      {l}{cnt > 0 && k !== 'all' ? <span className="tab-pending-badge">{cnt}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="sec-filter-group">
-                <div className="sec-filter-group-title">Статус</div>
-                <div className="sec-filters-grid sec-filters-grid--status">
-                  {[['all', 'Все статусы'], ['pending', 'В ожидании'], ['approved', 'Одобрены'], ['rejected', 'Отклонены'], ['arrived', 'Вошли'], ['expired', 'Истёкшие']].map(([k, l]) => (
-                    <button key={k} className={`date-pill sm ${statusFilter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityStatus: k })}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              {typeFilter !== 'tech' && (
-                <section className="sec-filter-group">
-                  <div className="sec-filter-group-title">Роль</div>
-                  <div className="sec-filters-grid sec-filters-grid--roles">
-                    {[['all', 'Все роли'], ['owner', 'Собственники'], ['tenant', 'Арендаторы'], ['contractor', 'Подрядчики']].map(([k, l]) => (
-                      <button key={k} className={`date-pill sm ${filter === k ? 'active' : ''}`} onClick={() => updateSecurityFilters({ securityRole: k })}>{l}</button>
-                    ))}
-                  </div>
-                </section>
-              )}
-            </div>
-          )}
-          {shown.length === 0 ? (
-            <StateBlock
-              type="empty"
-              title={query ? 'Ничего не найдено' : requestsEmptyCopy.title}
-              subtitle={query ? 'Попробуйте другой запрос' : requestsEmptyCopy.subtitle}
-            />
-          ) : (
-            <OperationalRequestList
-              items={shown}
-              userRole={user.role}
-              userName={user.name}
-              userId={user.uid}
-              highlightId={highlightReqId}
-              onHighlighted={() => setHighlightReqId?.(null)}
-              className="req-list req-list--compact"
-            />
-          )}
-        </>
+        <SecurityPassesPane
+          user={user}
+          highlightReqId={highlightReqId}
+          setHighlightReqId={setHighlightReqId}
+        />
       )}
-
       {activeTab === 'perms' && <SecurityPermsList />}
       {activeTab === 'visitlog' && <VisitLogView user={user} />}
       {activeTab === 'blacklist' && <BlacklistView user={user} />}
-      {activeTab === 'guardpost' && <GuardPostMode user={user} onViewDetails={(reqId) => { setActiveTab('passes'); setHighlightReqId?.(reqId); }} />}
+      {activeTab === 'guardpost' && (
+        <GuardPostMode
+          user={user}
+          onViewDetails={(reqId) => {
+            setActiveTab('passes');
+            setHighlightReqId?.(reqId);
+          }}
+        />
+      )}
       {activeTab === 'residents' && <ResidentsView user={user} />}
-      {showCarSearch && <CarSearchModal onClose={() => setShowCarSearch(false)} />}
       {activeTab === 'chat' && <ChatView user={user} />}
-      {showScan && <ScanQRModal user={user} onClose={() => setShowScan(false)} />}
     </>
   );
 }

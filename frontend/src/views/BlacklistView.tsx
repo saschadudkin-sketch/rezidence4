@@ -8,32 +8,42 @@ import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { VirtualList } from '../ui/VirtualList';
 import { sanitizeText, sanitizeCarPlate, validateAtLeastOne } from '../utils/inputSanitizer';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { BlacklistEntry } from '../store/slices/blacklistSlice';
 
-export default function BlacklistView({ user }) {
+type BlacklistViewProps = {
+  user: Pick<AppUser, 'uid'>;
+};
+
+export default function BlacklistView({ user }: BlacklistViewProps) {
   const blacklist = useBlacklist();
   const { addToBlacklist, removeFromBlacklist } = useActions();
   const [adding, setAdding] = useState(false);
-  const [name, setName]       = useState('');
+  const [name, setName] = useState('');
   const [carPlate, setCarPlate] = useState('');
-  const [reason, setReason]   = useState('');
-  const [query, setQuery]     = useState('');
+  const [reason, setReason] = useState('');
+  const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 250);
   const q = debouncedQuery.trim().toLowerCase();
   const emptyCopy = getViewStateCopy('blacklist', 'empty');
 
-  // FIX [PERF]: filtered мемоизирован — без useMemo пересчитывается при каждом рендере
-  const filtered = useMemo(() =>
-    q ? blacklist.filter(e =>
-        (e.name || '').toLowerCase().includes(q)
-        || (e.carPlate || '').toLowerCase().includes(q)
-        || (e.reason || '').toLowerCase().includes(q))
-    : blacklist,
-  [blacklist, q]);
+  const filtered = useMemo(
+    () => (q
+      ? blacklist.filter((entry) =>
+        (entry.name || '').toLowerCase().includes(q)
+        || (entry.carPlate || '').toLowerCase().includes(q)
+        || (entry.reason || '').toLowerCase().includes(q))
+      : blacklist),
+    [blacklist, q],
+  );
 
-  // FIX [PERF]: useCallback — не пересоздаётся при каждом рендере
   const handleAdd = useCallback(() => {
     const err = validateAtLeastOne([name, carPlate], 'Укажите ФИО или номер авто');
-    if (err) { toast(err, 'error'); return; }
+    if (err) {
+      toast(err, 'error');
+      return;
+    }
+
     addToBlacklist({
       id: genId('bl'),
       name: sanitizeText(name),
@@ -42,15 +52,38 @@ export default function BlacklistView({ user }) {
       addedBy: user.uid,
       addedAt: new Date(),
     });
-    setName(''); setCarPlate(''); setReason('');
+    setName('');
+    setCarPlate('');
+    setReason('');
     setAdding(false);
     toast('Добавлено в чёрный список', 'success');
   }, [name, carPlate, reason, user.uid, addToBlacklist]);
 
-  const handleRemove = useCallback((id) => {
+  const handleRemove = useCallback((id: string) => {
     removeFromBlacklist(id);
     toast('Удалено из чёрного списка', 'success');
   }, [removeFromBlacklist]);
+
+  const toggleAdding = useCallback(() => {
+    setAdding((value) => !value);
+  }, []);
+
+  const renderEntry = useCallback((entry: BlacklistEntry) => (
+    <div key={entry.id} className="bl-entry">
+      <div className="bl-entry-main">
+        <div className="bl-entry-icon"><AppIcon name="ban" /></div>
+        <div className="bl-entry-info">
+          {entry.name && <div className="bl-entry-name">{entry.name}</div>}
+          {entry.carPlate && <div className="bl-entry-plate">{entry.carPlate}</div>}
+          {entry.reason && <div className="bl-entry-reason">{entry.reason}</div>}
+          <div className="bl-entry-date">
+            {entry.addedAt ? new Date(entry.addedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+          </div>
+        </div>
+        <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
+      </div>
+    </div>
+  ), [handleRemove]);
 
   return (
     <div>
@@ -59,7 +92,7 @@ export default function BlacklistView({ user }) {
           <span className="bl-title"><AppIcon name="ban" className="u-inline-icon" /> Чёрный список</span>
           <span className="bl-count">{blacklist.length}</span>
         </div>
-        <button className="btn-gold u-pad-icon-btn" onClick={() => setAdding(a => !a)}>
+        <button className="btn-gold u-pad-icon-btn" onClick={toggleAdding}>
           <span>{adding ? <><AppIcon name="close" className="u-inline-icon" /> Отмена</> : '+ Добавить'}</span>
         </button>
       </div>
@@ -69,18 +102,36 @@ export default function BlacklistView({ user }) {
           <div className="bl-form-row">
             <div className="bl-field">
               <label className="field-lbl" htmlFor="blacklist-name">ФИО</label>
-              <input id="blacklist-name" className="field-inp" placeholder="ФИО" value={name}
-                onChange={e => setName(e.target.value)} autoCapitalize="words" autoFocus />
+              <input
+                id="blacklist-name"
+                className="field-inp"
+                placeholder="ФИО"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                autoCapitalize="words"
+                autoFocus
+              />
             </div>
             <div className="bl-field">
               <label className="field-lbl" htmlFor="blacklist-car">Номер авто</label>
-              <input id="blacklist-car" className="field-inp" placeholder="Номер авто" value={carPlate}
-                onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+              <input
+                id="blacklist-car"
+                className="field-inp"
+                placeholder="Номер авто"
+                value={carPlate}
+                onChange={(event) => setCarPlate(event.target.value)}
+                autoCapitalize="characters"
+              />
             </div>
           </div>
           <label className="field-lbl" htmlFor="blacklist-reason">Причина <span className="u-t4">(необязательно)</span></label>
-          <input id="blacklist-reason" className="field-inp" placeholder="Краткий комментарий для поста охраны" value={reason}
-            onChange={e => setReason(e.target.value)} />
+          <input
+            id="blacklist-reason"
+            className="field-inp"
+            placeholder="Краткий комментарий для поста охраны"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
           <button className="btn-gold u-mt-8" onClick={handleAdd}>
             <span><AppIcon name="ban" className="u-inline-icon" /> Добавить в чёрный список</span>
           </button>
@@ -89,8 +140,13 @@ export default function BlacklistView({ user }) {
 
       <div className="search-wrap u-mb16">
         <span className="search-ico"><AppIcon name="search" /></span>
-        <input className="search-inp" aria-label="Поиск по чёрному списку" placeholder="Поиск по ФИО, номеру авто..."
-          value={query} onChange={e => setQuery(e.target.value)} />
+        <input
+          className="search-inp"
+          aria-label="Поиск по чёрному списку"
+          placeholder="Поиск по ФИО, номеру авто..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
 
       {filtered.length === 0 && (
@@ -105,22 +161,7 @@ export default function BlacklistView({ user }) {
         items={filtered}
         estimateSize={80}
         className="bl-list"
-        renderItem={(entry) => (
-          <div key={entry.id} className="bl-entry">
-            <div className="bl-entry-main">
-              <div className="bl-entry-icon"><AppIcon name="ban" /></div>
-              <div className="bl-entry-info">
-                {entry.name && <div className="bl-entry-name">{entry.name}</div>}
-                {entry.carPlate && <div className="bl-entry-plate">{entry.carPlate}</div>}
-                {entry.reason && <div className="bl-entry-reason">{entry.reason}</div>}
-                <div className="bl-entry-date">
-                  {entry.addedAt ? new Date(entry.addedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                </div>
-              </div>
-              <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
-            </div>
-          </div>
-        )}
+        renderItem={renderEntry}
       />
     </div>
   );

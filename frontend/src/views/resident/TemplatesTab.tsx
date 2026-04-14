@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { MyTemplates } from '../../perms/PermsList';
+import type { Template } from '../../store/slices/permsSlice';
 import type { RequestType } from '../../store/slices/requestsSlice';
 
 type TemplatesTabProps = {
@@ -21,7 +22,7 @@ const TemplatesTab = memo(function TemplatesTab({ user, setModal }: TemplatesTab
   return (
     <MyTemplates
       user={user}
-      onUse={(template) => {
+      onUse={(template: Template) => {
         setModal({
           type: template.type as RequestType,
           cat: template.category,

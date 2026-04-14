@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import RoleContentRouter from './RoleContentRouter';
 import { NavigationContext } from './NavigationContext';
+import type { NavigationContextValue } from './NavigationContext';
 
 vi.mock('../../domain/permissions', () => ({
   ROLES: {
@@ -27,7 +28,7 @@ vi.mock('../AdminView', () => ({
   default: () => <div>admin-view</div>,
 }));
 
-const navContextValue = {
+const navContextValue: NavigationContextValue = {
   nav: [],
   navClassMap: {},
   goTab: vi.fn(),

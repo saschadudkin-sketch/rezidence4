@@ -1,68 +1,95 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
-/**
- * ConfirmDialog — WCAG-compliant confirm dialog.
- *
- * Implements:
- *   - Focus trap: keeps keyboard focus inside dialog
- *   - Escape key: calls onCancel
- *   - Focus restore: returns focus to trigger element on close
- *   - aria-modal + role="dialog" + aria-labelledby
- */
-export function ConfirmDialog({ message, confirmLabel, cancelLabel = 'Отмена', onConfirm, onCancel }) {
-  const panelRef       = useRef(null);
-  const prevFocusRef   = useRef(null);
-  const confirmBtnRef  = useRef(null);
+type ConfirmDialogProps = {
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
 
-  // Save current focus, move focus into dialog on mount, restore on unmount
+export function ConfirmDialog({
+  message,
+  confirmLabel = 'Подтвердить',
+  cancelLabel = 'Отмена',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<Element | null>(null);
+
   useEffect(() => {
-    prevFocusRef.current = document.activeElement;
-    // Defer to next tick so the DOM is painted
-    const raf = requestAnimationFrame(() => {
-      confirmBtnRef.current?.focus();
-    });
+    previousFocusRef.current = document.activeElement;
+    confirmButtonRef.current?.focus();
+
     return () => {
-      cancelAnimationFrame(raf);
-      prevFocusRef.current?.focus();
+      if (previousFocusRef.current instanceof HTMLElement) {
+        previousFocusRef.current.focus();
+      }
     };
   }, []);
 
-  // Focus trap
   useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
         onCancel();
         return;
       }
-      if (e.key !== 'Tab') return;
-      const focusable = Array.from<HTMLElement>(
-        panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-      ).filter(el => !(el as HTMLButtonElement).disabled);
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+
+      if (event.key !== 'Tab') return;
+
+      const focusables = Array.from(
+        dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      ).filter((node) => !node.hasAttribute('disabled'));
+
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    panel.addEventListener('keydown', handleKeyDown);
-    return () => panel.removeEventListener('keydown', handleKeyDown);
+
+    dialog.addEventListener('keydown', handleKeyDown);
+    return () => dialog.removeEventListener('keydown', handleKeyDown);
   }, [onCancel]);
 
-  return (
-    <div className="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
-      <div className="confirm-panel" ref={panelRef}>
-        <p className="confirm-msg" id="confirm-msg">{message}</p>
-        <div className="confirm-actions">
-          <button className="btn-outline" onClick={onCancel}>{cancelLabel}</button>
-          <button className="btn-danger" onClick={onConfirm} ref={confirmBtnRef}>{confirmLabel}</button>
+  return createPortal(
+    <div className="overlay" onClick={onCancel}>
+      <div
+        className="modal modal--confirm"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-handle" />
+        <div className="modal-head">
+          <span id="confirm-dialog-title" className="modal-title">Подтверждение</span>
+        </div>
+        <div className="modal-body">
+          <p className="confirm-dialog-message">{message}</p>
+        </div>
+        <div className="modal-foot">
+          <button className="btn-outline u-flex1" onClick={onCancel}>{cancelLabel}</button>
+          <button ref={confirmButtonRef} className="btn-del-sm u-flex1" onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

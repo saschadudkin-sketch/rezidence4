@@ -1,99 +1,42 @@
-/**
- * pushNotification.js — Push-уведомления жильцам
- *
- * Архитектура:
- * 1. Каждый жилец при входе подписывается на push (в production через FCM / другой провайдер)
- * 2. При входе гостя охрана вызывает pushNotifyResident(req)
- * 3. В demo-режиме — локальный showNotification через SW (работает без сервера)
- * 4. В live-режиме — отправка через push сервер (настраивается отдельно)
- */
-
 import { sendNotif } from '../utils';
 import { CAT_LABEL } from '../constants/index';
+import type { AppRequest } from '../store/slices/requestsSlice';
 
-/** Возвращает читаемое имя гостя */
-function getGuestLabel(req) {
+function getGuestLabel(req: AppRequest): string {
   if (req.visitorName) return req.visitorName;
-  return CAT_LABEL[req.category] || 'Гость';
+  return req.category && req.category in CAT_LABEL
+    ? CAT_LABEL[req.category as keyof typeof CAT_LABEL]
+    : 'Гость';
 }
 
-/**
- * Отправляет push-уведомление жильцу что его гость вошёл.
- * В demo-режиме — через локальный Service Worker (работает на этом устройстве).
- * В live-режиме — через FCM (требует серверный Cloud Function).
- *
- * @param {object} req — заявка с полями createdByApt, visitorName, category
- */
-export function pushNotifyResident(req) {
+export function pushNotifyResident(req: AppRequest): void {
   const guestLabel = getGuestLabel(req);
   const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  const aptStr = req.createdByApt && req.createdByApt !== '—' ? ', апарт. ' + req.createdByApt : '';
+  const aptStr = req.createdByApt && req.createdByApt !== '—' ? `, апарт. ${req.createdByApt}` : '';
 
   const title = '🚪 Ваш гость вошёл';
-  const body  = guestLabel + aptStr + ' — вход в ' + time;
-  const tag   = 'guest-arrived-' + req.id;
-  // P-07: deep link — при нажатии уведомления откроем заявку через URL-параметр
-  const url   = '/?reqId=' + req.id;
+  const body = `${guestLabel}${aptStr} — вход в ${time}`;
+  const tag = `guest-arrived-${req.id}`;
+  const url = `/?reqId=${req.id}`;
 
-  // ── Demo: показываем уведомление прямо на этом устройстве (охраны) ──────────
-  // В реальном приложении вместо этого отправляем FCM токену жильца
   sendNotif(title, body, tag, { url });
-
-  // ── Live: отправка через FCM Cloud Function ──────────────────────────────────
-  // При наличии сервера — раскомментировать и реализовать:
-  //
-  // // getFcmToken — placeholder for live FCM implementation
-  // import { isLiveMode } from '../config/runtimeMode';
-  // if (isLiveMode()) {
-  //   getFcmToken(req.createdByUid).then(token => {
-  //     if (!token) return;
-  //     // Вызываем Cloud Function которая отправит FCM сообщение
-  //     fetch('/api/notify', {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ token, title, body, tag }),
-  //     }).catch(e => console.warn('[push] notify failed', e));
-  //   });
-  // }
 }
 
-/**
- * Подписывает текущего пользователя на push-уведомления.
- * Вызывается при входе жильца в приложение.
- * Сохраняет FCM-токен в backend для дальнейшей отправки.
- *
- * @param {string} uid — uid текущего пользователя
- */
-export async function subscribePush() {
+export async function subscribePush(): Promise<void> {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'denied') return;
 
   try {
-    // Запрашиваем разрешение
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
 
-    // Регистрируем SW если нужно
-    const reg = await navigator.serviceWorker.ready;
-
-    // ── Demo: разрешение получено — показываем приветственное уведомление ─────
-    reg.showNotification('Уведомления включены', {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification('Уведомления включены', {
       body: 'Вы будете получать уведомления о входе ваших гостей',
       icon: '/logo192.png',
       tag: 'push-subscribed',
     } as NotificationOptions);
-
-    // ── Live: получаем push-токен и сохраняем в backend ──────────────────────
-    // Пример для интеграции push-SDK (при необходимости):
-    //
-    // import { getMessaging, getToken } from 'some-push-sdk';
-    // const messaging = getMessaging();
-    // const token = await getToken(messaging, { vapidKey: process.env.REACT_APP_VAPID_KEY });
-    // if (token && uid) {
-    //   await saveFcmToken(uid, token); // backend API endpoint
-    // }
-
-  } catch (e) {
-    console.warn('[push] subscribe failed:', e);
+  } catch (error) {
+    console.warn('[push] subscribe failed:', error);
   }
 }

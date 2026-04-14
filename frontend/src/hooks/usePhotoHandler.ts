@@ -1,34 +1,32 @@
 import { useState } from 'react';
+import type { MutableRefObject } from 'react';
 import { MAX_PHOTOS_PER_REQUEST, MAX_FILE_SIZE_BYTES, PHOTO_MAX_WIDTH_PX, PHOTO_JPEG_QUALITY } from '../constants/limits';
 import { toast } from '../ui/Toasts';
 import { getCachedCompressed, cacheCompressed } from '../store/persistence/photoCache';
 
-// SEC-02: magic-byte MIME validation — we read the first 12 bytes of the file and
-// compare them to known image signatures instead of trusting file.type, which can
-// be spoofed by renaming a non-image file to .jpg.
 const IMAGE_SIGNATURES = [
   { mime: 'image/jpeg', bytes: [0xFF, 0xD8, 0xFF] },
-  { mime: 'image/png',  bytes: [0x89, 0x50, 0x4E, 0x47] },
-  { mime: 'image/gif',  bytes: [0x47, 0x49, 0x46, 0x38] },
-  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // "RIFF" — WEBP follows at offset 8
-  { mime: 'image/avif', bytes: [0x00, 0x00, 0x00] },       // ftyp box — partial match, see check below
-];
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4E, 0x47] },
+  { mime: 'image/gif', bytes: [0x47, 0x49, 0x46, 0x38] },
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] },
+  { mime: 'image/avif', bytes: [0x00, 0x00, 0x00] },
+] as const;
 
-/**
- * Returns true if the file's magic bytes match a known safe image format.
- * Reads only the first 12 bytes (negligible cost).
- */
-function validateImageMagicBytes(file) {
+function validateImageMagicBytes(file: File): Promise<boolean> {
   return new Promise((resolve) => {
     const slice = file.slice(0, 12);
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const arr = new Uint8Array((e.target as FileReader).result as ArrayBuffer);
-      const matches = IMAGE_SIGNATURES.some(({ bytes }) =>
-        bytes.every((b, i) => arr[i] === b)
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (!(result instanceof ArrayBuffer)) {
+        resolve(false);
+        return;
+      }
+      const bytes = new Uint8Array(result);
+      const matches = IMAGE_SIGNATURES.some(({ bytes: signature }) =>
+        signature.every((byte, index) => bytes[index] === byte),
       );
-      // AVIF: bytes 4-7 are "ftyp" — wider check for container formats
-      const isFtyp = arr[4] === 0x66 && arr[5] === 0x74 && arr[6] === 0x79 && arr[7] === 0x70;
+      const isFtyp = bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
       resolve(matches || isFtyp);
     };
     reader.onerror = () => resolve(false);
@@ -36,22 +34,23 @@ function validateImageMagicBytes(file) {
   });
 }
 
-/**
- * compressImage — сжимает dataURL до maxWidth при качестве quality.
- * Graceful degradation: при сбое canvas context возвращает оригинал.
- * A-03: extracted from useCreateRequest.js.
- */
-export const compressImage = (dataUrl, maxWidth = PHOTO_MAX_WIDTH_PX, quality = PHOTO_JPEG_QUALITY) =>
-  new Promise(resolve => {
+export const compressImage = (
+  dataUrl: string,
+  maxWidth: number = PHOTO_MAX_WIDTH_PX,
+  quality: number = PHOTO_JPEG_QUALITY,
+): Promise<string> =>
+  new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const scale  = Math.min(1, maxWidth / img.width);
-      canvas.width  = Math.round(img.width  * scale);
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
-      // FIX: getContext('2d') может вернуть null в Safari при превышении лимита
       const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(dataUrl); return; }
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/jpeg', quality));
     };
@@ -59,72 +58,80 @@ export const compressImage = (dataUrl, maxWidth = PHOTO_MAX_WIDTH_PX, quality = 
     img.src = dataUrl;
   });
 
-/**
- * PERF-02: Compress image with IndexedDB caching.
- * On repeated selection of the same file (same name+size+lastModified),
- * returns the cached compressed data URL without re-running canvas compression.
- */
-async function compressImageCached(file, dataUrl) {
+async function compressImageCached(file: File, dataUrl: string): Promise<string> {
   const fingerprint = `${file.name}|${file.size}|${file.lastModified}`;
   const cached = await getCachedCompressed(fingerprint);
   if (cached) return cached;
   const compressed = await compressImage(dataUrl);
-  // store in cache (fire-and-forget, don't block on storage)
   cacheCompressed(fingerprint, compressed).catch(() => {});
   return compressed;
 }
 
-/**
- * usePhotoHandler — manages photo list state for the create-request form.
- * Handles file reading, compression, size/count limits.
- * A-03: extracted from useCreateRequest.js.
- *
- * @param {React.RefObject<boolean>} isMountedRef
- */
-export function usePhotoHandler(isMountedRef) {
-  const [photos, setPhotos] = useState([]);
+export function usePhotoHandler(isMountedRef: MutableRefObject<boolean>) {
+  const [photos, setPhotos] = useState<string[]>([]);
 
-  const handlePhoto = async (e) => {
-    const files = Array.from((e.target as HTMLInputElement).files || []) as File[];
+  const handlePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
     if (!files.length) return;
     const remaining = MAX_PHOTOS_PER_REQUEST - photos.length;
-    if (remaining <= 0) { toast(`Максимум ${MAX_PHOTOS_PER_REQUEST} фото`, 'error'); return; }
+    if (remaining <= 0) {
+      toast(`Максимум ${MAX_PHOTOS_PER_REQUEST} фото`, 'error');
+      return;
+    }
     const toProcess = files.slice(0, remaining);
-    if (files.length > remaining) toast(`Добавлено ${remaining} из ${files.length} фото (макс. ${MAX_PHOTOS_PER_REQUEST})`, 'info');
+    if (files.length > remaining) {
+      toast(`Добавлено ${remaining} из ${files.length} фото (макс. ${MAX_PHOTOS_PER_REQUEST})`, 'info');
+    }
 
-    const oversized = toProcess.some(f => f.size > MAX_FILE_SIZE_BYTES);
-    if (oversized) { toast('Фото слишком большое (макс. 10 МБ)', 'error'); return; }
+    if (toProcess.some((file) => file.size > MAX_FILE_SIZE_BYTES)) {
+      toast('Фото слишком большое (макс. 10 МБ)', 'error');
+      return;
+    }
 
-    // SEC-02: validate magic bytes before reading full files — rejects renamed non-images
     const magicChecks = await Promise.all(toProcess.map(validateImageMagicBytes));
-    const invalidIdx = magicChecks.findIndex(ok => !ok);
-    if (invalidIdx !== -1) {
-      toast(`Файл «${toProcess[invalidIdx].name}» не является изображением`, 'error');
-      e.target.value = '';
+    const invalidIndex = magicChecks.findIndex((ok) => !ok);
+    if (invalidIndex !== -1) {
+      toast(`Файл «${toProcess[invalidIndex].name}» не является изображением`, 'error');
+      event.target.value = '';
       return;
     }
 
     try {
       const results = await Promise.all(
-        toProcess.map(f => new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = async (ev) => {
-            try { resolve(await compressImageCached(f as Blob, (ev.target as FileReader).result as string)); }
-            catch (err) { reject(err); }
-          };
-          reader.onerror = () => reject(new Error('Не удалось загрузить фото'));
-          reader.readAsDataURL(f);
-        }))
+        toProcess.map(
+          (file) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = async (loadEvent) => {
+                const result = loadEvent.target?.result;
+                if (typeof result !== 'string') {
+                  reject(new Error('Не удалось загрузить фото'));
+                  return;
+                }
+                try {
+                  resolve(await compressImageCached(file, result));
+                } catch (error) {
+                  reject(error);
+                }
+              };
+              reader.onerror = () => reject(new Error('Не удалось загрузить фото'));
+              reader.readAsDataURL(file);
+            }),
+        ),
       );
-      // FIX [LEAK]: модал может закрыться пока файлы читались (медленный диск)
-      if (isMountedRef.current) setPhotos(prev => [...prev, ...results].slice(0, MAX_PHOTOS_PER_REQUEST));
+
+      if (isMountedRef.current) {
+        setPhotos((prev) => [...prev, ...results].slice(0, MAX_PHOTOS_PER_REQUEST));
+      }
     } catch {
       if (isMountedRef.current) toast('Не удалось загрузить фото', 'error');
     }
-    e.target.value = '';
+    event.target.value = '';
   };
 
-  const removePhoto = (idx) => setPhotos(prev => prev.filter((_, i) => i !== idx));
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+  };
 
   return { photos, setPhotos, handlePhoto, removePhoto };
 }

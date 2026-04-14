@@ -1,57 +1,68 @@
 import { useState, useRef, useEffect } from 'react';
 import { genId } from '../utils';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { RequestType } from '../store/slices/requestsSlice';
 
-/**
- * useRequestFormState — manages the raw form field state for CreateModal.
- * Extracted from useCreateRequest as part of God Hook decomposition (КРИТ-A1).
- * Handles: cat, vName, vNames, vPhone, carPlate, comment, validUntil
- */
-export function useRequestFormState({ type, user, initialCat, initialData }) {
+type FormSeed = Record<string, unknown> | undefined;
+type VisitorNameEntry = { __id: string; value: string };
+
+type UseRequestFormStateArgs = {
+  type: RequestType;
+  user: AppUser;
+  initialCat?: string;
+  initialData?: FormSeed;
+};
+
+function readStringField(seed: FormSeed, key: string): string {
+  const value = seed?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+export function useRequestFormState({ type, user, initialCat, initialData }: UseRequestFormStateArgs) {
   const cats = type === 'pass'
     ? (user.role === 'contractor'
-        ? ['worker', 'team', 'delivery', 'car']
-        : ['guest', 'courier', 'taxi', 'car', 'master'])
+      ? ['worker', 'team', 'delivery', 'car']
+      : ['guest', 'courier', 'taxi', 'car', 'master'])
     : ['electrician', 'plumber'];
 
-  const initialVisitorNames = typeof initialData?.visitorName === 'string'
-    ? initialData.visitorName
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean)
-    : [];
+  const initialVisitorNames = readStringField(initialData, 'visitorName')
+    .split(',')
+    .map((name: string) => name.trim())
+    .filter(Boolean);
 
-  const [cat,        setCat]        = useState(initialData?.category    || initialCat || cats[0]);
-  const [vName,      setVName]      = useState(initialData?.visitorName  || '');
-  const [vNames,     setVNames]     = useState(() =>
+  const initialCategory = readStringField(initialData, 'category') || initialCat || cats[0];
+  const [cat, setCat] = useState(initialCategory);
+  const [vName, setVName] = useState(readStringField(initialData, 'visitorName'));
+  const [vNames, setVNames] = useState<VisitorNameEntry[]>(() =>
     initialVisitorNames.length > 0
-      ? initialVisitorNames.map((name) => ({ __id: genId(), value: name }))
-      : [{ __id: genId(), value: '' }]
+      ? initialVisitorNames.map((name: string) => ({ __id: genId(), value: name }))
+      : [{ __id: genId(), value: '' }],
   );
-  const [vPhone,     setVPhone]     = useState(initialData?.visitorPhone || '');
-  const [carPlate,   setCarPlate]   = useState(initialData?.carPlate    || '');
-  const [apartment,  setApartment]  = useState(initialData?.createdByApt || '');
-  const [comment,    setComment]    = useState(initialData?.comment     || '');
-  const [validUntil, setValidUntil] = useState(initialData?.validUntil  || '');
+  const [vPhone, setVPhone] = useState(readStringField(initialData, 'visitorPhone'));
+  const [carPlate, setCarPlate] = useState(readStringField(initialData, 'carPlate'));
+  const [apartment, setApartment] = useState(readStringField(initialData, 'createdByApt'));
+  const [comment, setComment] = useState(readStringField(initialData, 'comment'));
+  const [validUntil, setValidUntil] = useState(readStringField(initialData, 'validUntil'));
 
-  // Reset visitor fields on category change.
-  // FIX [REACT]: prev-value ref pattern avoids triggering on mount.
   const prevCatRef = useRef(cat);
   useEffect(() => {
     if (prevCatRef.current === cat) return;
     prevCatRef.current = cat;
-    setVName(''); setVPhone(''); setCarPlate('');
+    setVName('');
+    setVPhone('');
+    setCarPlate('');
     setVNames([{ __id: genId(), value: '' }]);
   }, [cat]);
 
   return {
     cats,
-    cat,        setCat,
-    vName,      setVName,
-    vNames,     setVNames,
-    vPhone,     setVPhone,
-    carPlate,   setCarPlate,
-    apartment,  setApartment,
-    comment,    setComment,
+    cat, setCat,
+    vName, setVName,
+    vNames, setVNames,
+    vPhone, setVPhone,
+    carPlate, setCarPlate,
+    apartment, setApartment,
+    comment, setComment,
     validUntil, setValidUntil,
   };
 }

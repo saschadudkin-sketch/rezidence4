@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ChangeEvent } from 'react';
 import { useActions, useUsers } from '../store/AppStore';
 import { ROLE_LABELS } from '../constants/index';
 import { normalizePhone, genId } from '../utils';
@@ -9,11 +9,28 @@ import { useIsMounted } from '../hooks/useIsMounted';
 import { MAX_FILE_SIZE_BYTES } from '../constants/limits';
 import { compressImage } from '../utils/compressImage';
 import { useModalAccessibility } from './useModalAccessibility';
+import type { AppUser, UserRole } from '../store/slices/usersSlice';
 
-export function AddUserModal({ onClose, onDone, initialRole }) {
+type AddUserModalProps = {
+  onClose: () => void;
+  onDone: () => void;
+  initialRole?: UserRole;
+};
+
+type AvatarPayload = string | null;
+
+type AvatarModalProps = {
+  avatar: AvatarPayload;
+  onSave: (avatar: AvatarPayload) => void;
+  onClose: () => void;
+};
+
+const compressImg = (dataUrl: string) => compressImage(dataUrl, { maxWidth: 256, quality: 0.82 });
+
+export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('+7 ');
-  const [role, setRole] = useState(initialRole || 'owner');
+  const [role, setRole] = useState<UserRole>(initialRole || 'owner');
   const [apt, setApt] = useState('');
   const [parking, setParking] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,15 +41,26 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
 
   useEffect(() => {
     lockScroll();
-    return () => { unlockScroll(); };
+    return () => {
+      unlockScroll();
+    };
   }, []);
 
   const submit = async () => {
-    if (!name.trim()) { toast('Введите имя', 'error'); return; }
+    if (!name.trim()) {
+      toast('Введите имя', 'error');
+      return;
+    }
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10 || digits.length > 11) { toast('Введите корректный номер телефона', 'error'); return; }
+    if (digits.length < 10 || digits.length > 11) {
+      toast('Введите корректный номер телефона', 'error');
+      return;
+    }
     const norm = normalizePhone(phone);
-    if (phoneDb[norm]) { toast('Этот номер уже зарегистрирован', 'error'); return; }
+    if (phoneDb[norm]) {
+      toast('Этот номер уже зарегистрирован', 'error');
+      return;
+    }
     if ((role === 'owner' || role === 'tenant') && !apt.trim()) {
       toast('Укажите номер апартамента', 'error');
       return;
@@ -41,7 +69,14 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
     setLoading(true);
     try {
       const uid = genId('u');
-      const newUser = { uid, name: name.trim(), phone, role, apartment: apt.trim() || '—', parkingSpot: parking.trim() || null };
+      const newUser: AppUser = {
+        uid,
+        name: name.trim(),
+        phone,
+        role,
+        apartment: apt.trim() || 'вЂ”',
+        parkingSpot: parking.trim() || null,
+      };
       addUser(newUser);
       if (!isMountedRef.current) return;
       toast(`${name.trim()} добавлен в систему`, 'success');
@@ -63,27 +98,27 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
         <div className="modal-body">
           <div className="field">
             <label className="field-lbl">Имя *</label>
-            <input className="field-inp" placeholder="Иван Иванов" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" />
+            <input className="field-inp" placeholder="Иван Иванов" value={name} onChange={(event) => setName(event.target.value)} autoCapitalize="words" />
           </div>
           <div className="field">
             <label className="field-lbl">Телефон *</label>
-            <input className="field-inp" placeholder="+7 000 000-00-00" type="tel" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" />
+            <input className="field-inp" placeholder="+7 000 000-00-00" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
           </div>
           <div className="field">
             <label className="field-lbl">Роль</label>
-            <select className="field-select" value={role} onChange={e => setRole(e.target.value)}>
-              {['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'].map((r) => (
-                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+            <select className="field-select" value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+              {(['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'] as UserRole[]).map((itemRole) => (
+                <option key={itemRole} value={itemRole}>{ROLE_LABELS[itemRole]}</option>
               ))}
             </select>
           </div>
           <div className="field">
             <label className="field-lbl">Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}</label>
-            <input className="field-inp" placeholder="12" value={apt} onChange={e => setApt(e.target.value)} inputMode="numeric" />
+            <input className="field-inp" placeholder="12" value={apt} onChange={(event) => setApt(event.target.value)} inputMode="numeric" />
           </div>
           <div className="field">
             <label className="field-lbl">Паркинг</label>
-            <input className="field-inp" placeholder="A-12" value={parking} onChange={e => setParking(e.target.value)} />
+            <input className="field-inp" placeholder="A-12" value={parking} onChange={(event) => setParking(event.target.value)} />
           </div>
         </div>
         <div className="modal-foot">
@@ -97,21 +132,19 @@ export function AddUserModal({ onClose, onDone, initialRole }) {
   );
 }
 
-const compressImg = (dataUrl) => compressImage(dataUrl, { maxWidth: 256, quality: 0.82 });
-
-export function AvatarModal({ avatar, onSave, onClose }) {
-  const [src, setSrc] = useState(avatar && avatar.type === 'photo' ? avatar.src : null);
+export function AvatarModal({ avatar, onSave, onClose }: AvatarModalProps) {
+  const [src, setSrc] = useState<string | null>(avatar);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -143,7 +176,7 @@ export function AvatarModal({ avatar, onSave, onClose }) {
           audio: false,
         });
         if (cancelled) {
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach((track) => track.stop());
           return;
         }
         streamRef.current = stream;
@@ -163,8 +196,8 @@ export function AvatarModal({ avatar, onSave, onClose }) {
     };
   }, [cameraOpen, stopCamera]);
 
-  const onFile = (e) => {
-    const file = e.target.files?.[0];
+  const onFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
       toast('Файл слишком большой (макс. 10 МБ)', 'error');
@@ -172,9 +205,11 @@ export function AvatarModal({ avatar, onSave, onClose }) {
     }
     const reader = new FileReader();
     reader.onerror = () => toast('Не удалось загрузить фото', 'error');
-    reader.onload = async (ev) => {
-      const compressed = await compressImg(ev.target.result);
-      setSrc(compressed);
+    reader.onload = async (loadEvent: ProgressEvent<FileReader>) => {
+      const result = loadEvent.target?.result;
+      if (typeof result !== 'string') return;
+      const compressed = await compressImg(result);
+      setSrc(typeof compressed === 'string' ? compressed : null);
       setCameraOpen(false);
       stopCamera();
     };
@@ -204,14 +239,17 @@ export function AvatarModal({ avatar, onSave, onClose }) {
     }
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
     const compressed = await compressImg(canvas.toDataURL('image/jpeg', 0.92));
-    setSrc(compressed);
+    setSrc(typeof compressed === 'string' ? compressed : null);
     setCameraOpen(false);
     stopCamera();
   };
 
   const save = () => {
-    if (!src) { toast('Выберите фото', 'error'); return; }
-    onSave({ type: 'photo', src });
+    if (!src) {
+      toast('Выберите фото', 'error');
+      return;
+    }
+    onSave(src);
     onClose();
   };
 

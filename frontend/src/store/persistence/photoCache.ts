@@ -1,26 +1,34 @@
-/**
- * store/persistence/photoCache.js — FIX [P1]
- *
- * ПРОБЛЕМА: В demo-режиме localStorage хранит все заявки с base64-фото (~200KB каждая).
- * При 100 заявках с фото = 20MB в JS heap. localStorage лимит = 5-10MB → QuotaExceededError.
- *
- * РЕШЕНИЕ: Фото хранятся в IndexedDB (лимит ~50-100MB+).
- * Активные заявки остаются в памяти, завершённые — в IndexedDB on-demand.
- */
-
 const DB_NAME = 'residenze_photos';
 const STORE_NAME = 'photos';
 const COMPRESSED_STORE = 'compressed';
 const DB_VERSION = 2;
 
-let _db = null;
+type PhotoRecord = {
+  id: string;
+  data: string;
+  savedAt: number;
+};
 
-function openDB() {
-  if (_db) return Promise.resolve(_db);
+type CompressedPhotoRecord = {
+  fingerprint: string;
+  dataUrl: string;
+  cachedAt: number;
+};
+
+type ArchivableRequest = {
+  id: string;
+  status: string;
+  photos?: string[];
+};
+
+let dbInstance: IDBDatabase | null = null;
+
+function openDB(): Promise<IDBDatabase> {
+  if (dbInstance) return Promise.resolve(dbInstance);
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
       }
@@ -28,42 +36,35 @@ function openDB() {
         db.createObjectStore(COMPRESSED_STORE, { keyPath: 'fingerprint' });
       }
     };
-    request.onsuccess = (e) => { _db = (e.target as IDBOpenDBRequest).result; resolve(_db); };
+    request.onsuccess = (event) => {
+      dbInstance = (event.target as IDBOpenDBRequest).result;
+      resolve(dbInstance);
+    };
     request.onerror = () => reject(request.error);
   });
 }
 
-/**
- * Сохранить фото в IndexedDB.
- * @param {string} id — ключ (requestId или requestId_photoIndex)
- * @param {string} data — base64 data URL
- */
-export async function savePhoto(id, data) {
+export async function savePhoto(id: string, data: string): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise<void>((resolve, reject) => {
+    return await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).put({ id, data, savedAt: Date.now() });
+      tx.objectStore(STORE_NAME).put({ id, data, savedAt: Date.now() } satisfies PhotoRecord);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch (e) {
-    console.warn('[photoCache] save failed:', e);
+  } catch (error) {
+    console.warn('[photoCache] save failed:', error);
   }
 }
 
-/**
- * Получить фото из IndexedDB.
- * @param {string} id
- * @returns {string|null} base64 data URL
- */
-export async function getPhoto(id) {
+export async function getPhoto(id: string): Promise<string | null> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise<string | null>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const req = tx.objectStore(STORE_NAME).get(id);
-      req.onsuccess = () => resolve(req.result?.data || null);
+      req.onsuccess = () => resolve((req.result as PhotoRecord | undefined)?.data ?? null);
       req.onerror = () => reject(req.error);
     });
   } catch {
@@ -71,49 +72,42 @@ export async function getPhoto(id) {
   }
 }
 
-/**
- * Удалить фото из IndexedDB.
- */
-export async function deletePhoto(id) {
+export async function deletePhoto(id: string): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise<void>((resolve, reject) => {
+    return await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).delete(id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch { /* ignore */ }
+  } catch {
+    // ignore
+  }
 }
 
-/**
- * Архивировать фото завершённых заявок из localStorage в IndexedDB.
- * Вызывается периодически (например, при запуске приложения).
- */
 const ARCHIVE_STATUSES = new Set(['arrived', 'rejected', 'expired', 'cancelled']);
 
-export async function archiveCompletedPhotos(requests) {
+export async function archiveCompletedPhotos(requests: ArchivableRequest[]): Promise<number> {
   const LS_KEY = 'residenze_v5';
   let migrated = 0;
 
-  for (const r of requests) {
-    if (!ARCHIVE_STATUSES.has(r.status)) continue;
+  for (const request of requests) {
+    if (!ARCHIVE_STATUSES.has(request.status)) continue;
 
-    // Основное фото
-    const photoKey = `${LS_KEY}_ph_${r.id}`;
+    const photoKey = `${LS_KEY}_ph_${request.id}`;
     const photo = localStorage.getItem(photoKey);
     if (photo) {
-      await savePhoto(r.id, photo);
+      await savePhoto(request.id, photo);
       localStorage.removeItem(photoKey);
       migrated++;
     }
 
-    // Дополнительные фото
-    for (let i = 0; i < (r.photos?.length || 0); i++) {
-      const key = `${LS_KEY}_ph_${r.id}_${i}`;
+    for (let index = 0; index < (request.photos?.length ?? 0); index++) {
+      const key = `${LS_KEY}_ph_${request.id}_${index}`;
       const data = localStorage.getItem(key);
       if (data) {
-        await savePhoto(`${r.id}_${i}`, data);
+        await savePhoto(`${request.id}_${index}`, data);
         localStorage.removeItem(key);
         migrated++;
       }
@@ -126,53 +120,41 @@ export async function archiveCompletedPhotos(requests) {
   return migrated;
 }
 
-/**
- * Очистить все данные в IndexedDB.
- */
-export async function clearAll() {
+export async function clearAll(): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise<void>((resolve, reject) => {
+    return await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       tx.objectStore(STORE_NAME).clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  } catch { /* ignore */ }
-}
-
-/**
- * PERF-02: Cache a compressed image data URL keyed by file fingerprint.
- * @param {string} fingerprint — "${file.name}|${file.size}|${file.lastModified}"
- * @param {string} dataUrl — compressed JPEG data URL
- */
-export async function cacheCompressed(fingerprint, dataUrl) {
-  try {
-    const db = await openDB();
-    return new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(COMPRESSED_STORE, 'readwrite');
-      tx.objectStore(COMPRESSED_STORE).put({ fingerprint, dataUrl, cachedAt: Date.now() });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (e) {
-    console.warn('[photoCache] cacheCompressed failed:', e);
+  } catch {
+    // ignore
   }
 }
 
-/**
- * PERF-02: Get a cached compressed image by file fingerprint.
- * Returns null if not cached.
- * @param {string} fingerprint
- * @returns {Promise<string|null>}
- */
-export async function getCachedCompressed(fingerprint) {
+export async function cacheCompressed(fingerprint: string, dataUrl: string): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(COMPRESSED_STORE, 'readwrite');
+      tx.objectStore(COMPRESSED_STORE).put({ fingerprint, dataUrl, cachedAt: Date.now() } satisfies CompressedPhotoRecord);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.warn('[photoCache] cacheCompressed failed:', error);
+  }
+}
+
+export async function getCachedCompressed(fingerprint: string): Promise<string | null> {
+  try {
+    const db = await openDB();
+    return await new Promise<string | null>((resolve, reject) => {
       const tx = db.transaction(COMPRESSED_STORE, 'readonly');
       const req = tx.objectStore(COMPRESSED_STORE).get(fingerprint);
-      req.onsuccess = () => resolve(req.result?.dataUrl ?? null);
+      req.onsuccess = () => resolve((req.result as CompressedPhotoRecord | undefined)?.dataUrl ?? null);
       req.onerror = () => reject(req.error);
     });
   } catch {

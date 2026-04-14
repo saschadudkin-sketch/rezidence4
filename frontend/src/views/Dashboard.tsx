@@ -30,8 +30,24 @@ import { useConnectivityUX } from './dashboard/useConnectivityUX';
 import { useDashboardExperience } from './dashboard/useDashboardExperience';
 import { clearAppStorage, isDemoPrivateSessionEnabled, writeStorage, STORAGE_KEYS } from '../store/persistence/storageRegistry';
 import { toast } from '../ui/Toasts';
+import type { AppUser, UserRole } from '../store/slices/usersSlice';
 
-function DemoBanner({ onClose }) {
+type DashboardProps = {
+  user: AppUser;
+  onLogout: () => void;
+  isOnline?: boolean;
+};
+
+type DemoBannerProps = {
+  onClose: () => void;
+};
+
+type OnboardingHintProps = {
+  role: UserRole;
+  onClose: () => void;
+};
+
+function DemoBanner({ onClose }: DemoBannerProps) {
   const [privateSession, setPrivateSession] = useState(() => isDemoPrivateSessionEnabled());
 
   const togglePrivateSession = () => {
@@ -76,7 +92,7 @@ function DemoBanner({ onClose }) {
   );
 }
 
-function OnboardingHint({ role, onClose }) {
+function OnboardingHint({ role, onClose }: OnboardingHintProps) {
   const hint = getRoleResponsibilities(role).onboardingHint;
   if (!hint) return null;
 
@@ -91,7 +107,7 @@ function OnboardingHint({ role, onClose }) {
   );
 }
 
-export default function Dashboard({ user, onLogout, isOnline = true }) {
+export default function Dashboard({ user, onLogout, isOnline = true }: DashboardProps) {
   const requests = useRequests();
   const blacklist = useBlacklist();
   const { chat, chatLastSeen } = useChat();

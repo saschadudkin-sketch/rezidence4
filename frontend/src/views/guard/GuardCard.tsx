@@ -1,8 +1,3 @@
-/**
- * views/guard/GuardCard.jsx — T-05: extracted from GuardPostMode.jsx
- * Карточка одного пропуска на посту охраны.
- */
-
 import { useState, useRef, useCallback, memo } from 'react';
 import { useIsMounted } from '../../hooks/useIsMounted';
 import { useActions, useAvatar } from '../../store/AppStore';
@@ -20,107 +15,108 @@ import type { AppRequest } from '../../store/slices/requestsSlice';
 import type { BlacklistEntry } from '../../store/slices/blacklistSlice';
 import type { UserRole } from '../../store/slices/usersSlice';
 
-// FIX [PERF-5]: memo — GuardCard рендерится для каждой заявки в списке.
-// Без memo перерендер при любом изменении requests (например, SSE-обновление одной карточки)
-// вызывал полный ре-рендер ВСЕХ видимых GuardCard включая useAvatar/useActions хуки.
-const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPhone, onViewDetails }: {
+type GuardActionType = 'approve' | 'reject' | 'arrive';
+type ConfirmAction = 'approve' | 'reject' | null;
+type ToastType = 'success' | 'error';
+type GuardCardProps = {
   req: AppRequest;
   userName: string;
   blacklist: BlacklistEntry[];
   residentPhone?: string | null;
   onViewDetails?: (reqId: string) => void;
-}) {
+};
+
+const getCategoryLabel = (category?: string) => (
+  category && category in CAT_LABEL
+    ? CAT_LABEL[category as keyof typeof CAT_LABEL]
+    : category ?? ''
+);
+
+const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPhone, onViewDetails }: GuardCardProps) {
   const { rejectRequest, arriveRequest, approveAndArrive } = useActions();
-  const avData = useAvatar(req.createdByUid);
-  const [loading, setLoading]   = useState(null);
-  const [showQR, setShowQR]     = useState(false);
-  // CQ-01: два boolean → один enum — исключает невалидное состояние confirmApprove && confirmReject
-  const [confirmAction, setConfirmAction] = useState(null); // null | 'approve' | 'reject'
+  const avData = useAvatar(req.createdByUid ?? '');
+  const [loading, setLoading] = useState<GuardActionType | null>(null);
+  const [showQR, setShowQR] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const blMatch = checkBlacklist(req, blacklist);
   const isBlacklisted = Boolean(blMatch);
 
   const handleInfoTap = () => {
-    if (!onViewDetails) return;
-    onViewDetails(req.id);
+    onViewDetails?.(req.id);
   };
 
-  // FE-02: useIsMounted заменяет inline isMountedRef-паттерн
   const isMountedRef = useIsMounted();
-
-  const loadingRef = useRef(loading);
+  const loadingRef = useRef<GuardActionType | null>(loading);
   loadingRef.current = loading;
 
-  const act = useCallback(async (key, fn, msg, type) => {
-    if (loadingRef.current) return;
-    if (!isMountedRef.current) return;
+  const act = useCallback(async (
+    key: GuardActionType,
+    fn: () => Promise<void>,
+    msg: string,
+    type: ToastType,
+  ) => {
+    if (loadingRef.current || !isMountedRef.current) return;
     setLoading(key);
     try {
       await fn();
       if (isMountedRef.current) toast(msg, type);
-    } catch(e) {
-      console.warn('[GuardCard] action error:', e);
-      if (isMountedRef.current) toast(presentError(e, 'default').message, 'error');
+    } catch (error) {
+      console.warn('[GuardCard] action error:', error);
+      if (isMountedRef.current) toast(presentError(error, 'default').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- isMountedRef is a stable ref object, read at call time not captured in closure
-  }, []);
+  }, [isMountedRef]);
+
+  const notifyEntry = {
+    userId: req.createdByUid || req.id,
+    requestId: req.id,
+    timestamp: new Date().toISOString(),
+    result: 'allowed',
+    reason: 'ok',
+    actorName: userName,
+    actorRole: 'security',
+    visitorName: req.visitorName || null,
+    category: req.category,
+    createdByApt: req.createdByApt,
+    createdByName: req.createdByName,
+    createdByUid: req.createdByUid || null,
+  } as const;
 
   const doPass = () => {
     setConfirmAction(null);
     if (req.passDuration === 'once' || !req.passDuration) {
-      act('approve', async () => {
-        approveAndArrive(req.id, userName, 'security');
+      void act('approve', async () => {
+        await Promise.resolve(approveAndArrive(req.id, userName, 'security'));
         pushNotifyResident(req);
-        await logVisit({
-          userId: req.createdByUid || req.id,
-          requestId: req.id,
-          timestamp: new Date().toISOString(),
-          result: 'allowed',
-          reason: 'ok',
-          actorName: userName,
-          actorRole: 'security',
-          visitorName: req.visitorName || null,
-          category: req.category,
-          createdByApt: req.createdByApt,
-          createdByName: req.createdByName,
-          createdByUid: req.createdByUid || null,
-        }).catch(() => {});
+        await logVisit(notifyEntry).catch(() => {});
       }, 'Вход отмечен', 'success');
-    } else {
-      act('approve', () => {
-        approveAndArrive(req.id, userName, 'security');
-        sendNotif('Вход отмечен', (req.visitorName || 'Гость') + ' — вход отмечен охраной', 'status-' + req.id);
-      }, 'Вход отмечен', 'success');
+      return;
     }
+
+    void act('approve', async () => {
+      await Promise.resolve(approveAndArrive(req.id, userName, 'security'));
+      sendNotif('Вход отмечен', `${req.visitorName || 'Гость'} — вход отмечен охраной`, 'status-' + req.id);
+    }, 'Вход отмечен', 'success');
   };
 
   const doReject = () => {
-    act('reject', () => {
-      rejectRequest(req.id, userName, 'security');
-      sendNotif('В допуске отказано', (req.visitorName || 'Гость') + ' — охрана отклонила заявку', 'status-' + req.id);
-    }, 'В допуске отказано', 'error');
+    void act('reject', async () => {
+      await Promise.resolve(rejectRequest(req.id, userName, 'security'));
+      sendNotif('В допуске отказано', `${req.visitorName || 'Гость'} — охрана отклонила заявку`, 'status-' + req.id);
+    }, 'В пропуске отказано', 'error');
     setConfirmAction(null);
   };
 
-  const doArrive = () => act('arrive', async () => {
-    arriveRequest(req.id, userName, 'security');
+  const doArrive = () => void act('arrive', async () => {
+    await Promise.resolve(arriveRequest(req.id, userName, 'security'));
     pushNotifyResident(req);
-    await logVisit({
-      userId: req.createdByUid || req.id,
-      requestId: req.id,
-      timestamp: new Date().toISOString(),
-      result: 'allowed',
-      reason: 'ok',
-      actorName: userName,
-      actorRole: 'security',
-      visitorName: req.visitorName || null,
-      category: req.category,
-      createdByApt: req.createdByApt,
-      createdByName: req.createdByName,
-      createdByUid: req.createdByUid || null,
-    });
+    await logVisit(notifyEntry);
   }, 'Вход отмечен', 'success');
+
+  const photoList = req.photos && req.photos.length > 0
+    ? req.photos
+    : req.photo ? [req.photo] : [];
 
   return (
     <div className={'guard-card' + (isBlacklisted ? ' bl-flagged' : '')} role="article">
@@ -148,12 +144,13 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
           role={onViewDetails ? 'button' : undefined}
           tabIndex={onViewDetails ? 0 : undefined}
           aria-label={onViewDetails ? 'Подробнее о заявке' : undefined}
-          onKeyDown={onViewDetails ? (e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), handleInfoTap())) : undefined}>
+          onKeyDown={onViewDetails ? (event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), handleInfoTap()) : undefined}
+        >
           <div className="guard-apt">
             {req.createdByApt && req.createdByApt !== '—' ? 'Апарт. ' + req.createdByApt : ''}
           </div>
           <div className="guard-name">{req.createdByName}</div>
-          <div className="guard-cat">{CAT_LABEL[req.category] || req.category}</div>
+          <div className="guard-cat">{getCategoryLabel(req.category)}</div>
         </div>
         {onViewDetails && (
           <button className="guard-detail-btn" onClick={() => onViewDetails(req.id)} title="Подробнее">
@@ -183,10 +180,10 @@ const GuardCard = memo(function GuardCard({ req, userName, blacklist, residentPh
       )}
       {showQR && <PassQRModal req={req} onClose={() => setShowQR(false)} />}
 
-      {(req.photos?.length > 0 || req.photo) && (
+      {photoList.length > 0 && (
         <div className="guard-photos">
-          {(req.photos || (req.photo ? [req.photo] : [])).slice(0, 3).map((src, i) => (
-            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+          {photoList.slice(0, 3).map((src, index) => (
+            <a key={index} href={src} target="_blank" rel="noopener noreferrer">
               <img src={src} alt="фото" className="guard-photo-thumb" />
             </a>
           ))}

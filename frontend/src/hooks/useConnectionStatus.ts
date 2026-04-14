@@ -5,15 +5,25 @@ import { FIRST_CONNECT_TIMEOUT_MS, RECONNECT_TIMEOUT_MS } from '../constants/lim
 import { emitUxMetric, UX_METRICS } from '../utils/telemetryContract';
 import { buildDataPlaneContract } from '../data/dataPlanePolicy';
 
-/**
- * @param {{ isLoading: boolean, sseOnline: boolean|null, ssePermanentError: boolean }} liveSync
- * @param {{ retryKey: number, setRetryKey: (fn: (k: number) => number) => void }} opts
- * @param {{ connectivityEnabled?: boolean }} capabilities
- */
+type LiveSyncStatus = {
+  isLoading: boolean;
+  sseOnline: boolean | null;
+  ssePermanentError: boolean;
+};
+
+type RetryOptions = {
+  retryKey: number;
+  setRetryKey: (fn: (k: number) => number) => void;
+};
+
+type ConnectivityCapabilities = {
+  connectivityEnabled?: boolean;
+};
+
 export function useConnectionStatus(
-  { isLoading: syncLoading, sseOnline, ssePermanentError },
-  { retryKey, setRetryKey },
-  { connectivityEnabled = true } = {},
+  { isLoading: syncLoading, sseOnline, ssePermanentError }: LiveSyncStatus,
+  { retryKey, setRetryKey }: RetryOptions,
+  { connectivityEnabled = true }: ConnectivityCapabilities = {},
 ) {
   const [timedOut, setTimedOut] = useState(false);
   const [retryStartedAt, setRetryStartedAt] = useState(0);
@@ -62,7 +72,7 @@ export function useConnectionStatus(
   const handleRetry = () => {
     setTimedOut(false);
     setRetryStartedAt(Date.now());
-    setRetryKey((k) => k + 1);
+    setRetryKey((k: number) => k + 1);
   };
 
   return { isLoading, isConnErr, sseOnline, handleRetry };

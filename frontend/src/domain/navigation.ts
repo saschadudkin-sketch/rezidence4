@@ -5,6 +5,16 @@
 
 import { ROLES, getTabsForRole } from './permissions';
 import { getRoleResponsibilities, hasRoleCapability } from './roleResponsibilities';
+type NavigationBadges = {
+  pendingP: number;
+  pendingT: number;
+  unreadMsgs: number;
+  residentNewStatuses: number;
+  blacklistCount: number;
+};
+
+type NavigationClassBadges = Pick<NavigationBadges, 'pendingP' | 'pendingT' | 'unreadMsgs'>;
+type NavTuple = readonly [icon: string, label: string, badge: number];
 
 /**
  * @typedef {{ role: string }} NavUser
@@ -17,7 +27,7 @@ import { getRoleResponsibilities, hasRoleCapability } from './roleResponsibiliti
  *            residentNewStatuses: number, blacklistCount: number }} badges
  * @returns {NavItem[]}
  */
-export function buildNavItems(role, badges) {
+export function buildNavItems(role: string, badges: NavigationBadges) {
   const { pendingP, pendingT, unreadMsgs, residentNewStatuses, blacklistCount } = badges;
   const isSec = role === ROLES.SECURITY;
   const isCon = role === ROLES.CONCIERGE;
@@ -26,8 +36,7 @@ export function buildNavItems(role, badges) {
   const guardpostLabel = isSec ? 'Скан' : 'Пост';
   const passesLabel = roleResponsibilities.passesNavLabel || (hasRoleCapability(role, 'approve') ? 'Контроль' : 'Пропуска');
 
-  /** @type {Record<string, [string, string, number]>} */
-  const NAV_META = {
+  const NAV_META: Record<string, NavTuple> = {
     passes: ['ticket', passesLabel, passesBadge],
     tech: ['tools', 'Техслужба', 0],
     perms: ['door', 'Доступ', 0],
@@ -45,7 +54,7 @@ export function buildNavItems(role, badges) {
 
   const tabs = getTabsForRole(role);
   return tabs.map((tab) => {
-    const [icon, label, badge] = NAV_META[tab] || ['list', tab, 0];
+    const [icon, label, badge] = NAV_META[tab] || (['list', tab, 0] as const);
     return { tab, icon, label, badge };
   });
 }
@@ -56,13 +65,12 @@ export function buildNavItems(role, badges) {
  * @param {{ pendingP: number, pendingT: number, unreadMsgs: number }} badges
  * @returns {Record<string, string>}
  */
-export function buildNavClassMap(role, activeTab, badges) {
+export function buildNavClassMap(role: string, activeTab: string, badges: NavigationClassBadges): Record<string, string> {
   const { pendingP, pendingT, unreadMsgs } = badges;
   const isSec = role === ROLES.SECURITY;
   const isCon = role === ROLES.CONCIERGE;
   const tabs = getTabsForRole(role);
-  /** @type {Record<string, string>} */
-  const map = {};
+  const map: Record<string, string> = {};
 
   for (const k of tabs) {
     const mods = [

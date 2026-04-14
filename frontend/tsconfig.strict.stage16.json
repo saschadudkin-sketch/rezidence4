@@ -1,0 +1,63 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "allowJs": false,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "ignoreDeprecations": "5.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "strictNullChecks": true,
+    "noImplicitAny": true
+  },
+  "include": [],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.smoke.test.ts",
+    "src/**/*.smoke.test.tsx",
+    "src/**/*.stories.ts",
+    "src/**/*.stories.tsx"
+  ],
+  "files": [
+    "src/vite-env.d.ts",
+    "src/types/qrcode.d.ts",
+    "src/store/slices/usersSlice.ts",
+    "src/domain/permissions.ts",
+    "src/domain/navigationSchema.ts",
+    "src/config/runtimeMode.ts",
+    "src/constants/index.ts",
+    "src/constants/logo.ts",
+    "src/constants/breakpoints.ts",
+    "src/ui/AppIcon.tsx",
+    "src/ui/AvatarCircle.tsx",
+    "src/ui/Modals.tsx",
+    "src/ui/Toasts.tsx",
+    "src/ui/ErrorBoundary.tsx",
+    "src/ui/ViewStateAdapter.tsx",
+    "src/ui/useModalAccessibility.ts",
+    "src/requests/ReqCard.tsx",
+    "src/views/shell/NavigationContext.ts",
+    "src/views/shell/NavigationShell.tsx",
+    "src/views/shell/UserMenu.tsx",
+    "src/views/shell/RoleContentRouter.tsx",
+    "src/views/shell/AppShell.tsx"
+  ]
+}

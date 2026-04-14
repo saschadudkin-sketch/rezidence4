@@ -1,8 +1,3 @@
-/**
- * VisitLogView.jsx — журнал посещений.
- * Карточки с полной информацией о визите.
- */
-
 import { useState, useMemo, memo, useDeferredValue } from 'react';
 import { useRequests } from '../store/AppStore';
 import { useDebounce } from '../hooks/useDebounce';
@@ -44,56 +39,77 @@ type VisitLogRow = {
   reason?: string;
 };
 
-function fmtDateFull(d) {
-  const dt = d instanceof Date ? d : new Date(d);
+type GroupedVisitLogs = Array<{ label: string; items: VisitLogRow[] }>;
+type DecisionFilter = 'all' | 'allowed' | 'denied';
+type PeriodFilter = 'all' | 'today' | 'week' | 'month';
+type CategoryKey = keyof typeof CAT_LABEL;
+type RoleKey = keyof typeof ROLE_LABELS;
+
+function getCategoryLabel(category?: string): string {
+  return category && category in CAT_LABEL ? CAT_LABEL[category as CategoryKey] : category ?? 'Пропуск';
+}
+
+function getCategoryIcon(category?: string): string {
+  return category && category in CAT_ICON ? CAT_ICON[category as CategoryKey] : 'users';
+}
+
+function getRoleLabel(role?: string | null): string | null {
+  if (!role) return null;
+  return role in ROLE_LABELS ? ROLE_LABELS[role as RoleKey] : role;
+}
+
+function normalizeDate(value: string | number | Date): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function fmtDateFull(value: string | number | Date): string {
+  const date = normalizeDate(value);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - MS_PER_DAY);
-  const day = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   if (day.getTime() === today.getTime()) return 'Сегодня';
   if (day.getTime() === yesterday.getTime()) return 'Вчера';
-  const sameYear = dt.getFullYear() === now.getFullYear();
-  return dt.toLocaleDateString('ru-RU', sameYear
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return date.toLocaleDateString('ru-RU', sameYear
     ? { day: 'numeric', month: 'long', weekday: 'short' }
     : { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function fmtDuration(from, to) {
+function fmtDuration(from?: string | Date | null, to?: string | Date | null): string | null {
   if (!from || !to) return null;
-  const ms = new Date(to).getTime() - new Date(from).getTime();
+  const ms = normalizeDate(to).getTime() - normalizeDate(from).getTime();
   if (ms < 0) return null;
   const mins = Math.round(ms / 60000);
   if (mins < 60) return `${mins} мин`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m ? `${h}ч ${m}мин` : `${h}ч`;
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  return minutes ? `${hours}ч ${minutes}мин` : `${hours}ч`;
 }
 
-function groupByDate(items) {
+function groupByDate(items: VisitLogRow[]): GroupedVisitLogs {
   const map: Record<string, VisitLogRow[]> = {};
   for (const item of items) {
     const key = fmtDateFull(item.arrivedAt || item.createdAt);
     if (!map[key]) map[key] = [];
     map[key].push(item);
   }
-  return Object.entries(map).map(([label, items]) => ({ label, items }));
+  return Object.entries(map).map(([label, groupedItems]) => ({ label, items: groupedItems }));
 }
 
-// FIX [AUDIT-3]: memo — VisitCard рендерится для каждой записи журнала.
-// Без memo при изменении фильтра period/decision/query все карточки перерисовывались
-// даже если конкретная запись не изменилась.
 const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
   const duration = fmtDuration(r.createdAt, r.arrivedAt);
+  const actorRoleLabel = getRoleLabel(r.actorRole);
 
   return (
     <div className="vlog-card">
       <div className="vlog-card-left">
         <div className="vlog-card-time">{fmtTime(r.arrivedAt || r.createdAt)}</div>
-        <div className="vlog-card-icon"><AppIcon name={CAT_ICON[r.category] || 'users'} /></div>
+        <div className="vlog-card-icon"><AppIcon name={getCategoryIcon(r.category)} /></div>
       </div>
       <div className="vlog-card-body">
         <div className="vlog-card-row1">
-          <span className="vlog-card-name">{r.visitorName || CAT_LABEL[r.category]}</span>
+          <span className="vlog-card-name">{r.visitorName || getCategoryLabel(r.category)}</span>
           {r.passDuration && r.passDuration !== 'once' && (
             <span className={'pass-dur-tag ' + r.passDuration}>
               <AppIcon name={PASS_DURATION_ICON[r.passDuration] || 'ticket'} className="u-inline-icon" /> {PASS_DURATION_LABEL[r.passDuration]}
@@ -107,7 +123,7 @@ const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
           <span className="vlog-card-who">{r.createdByName}</span>
         </div>
         <div className="vlog-card-tags">
-          <span className="vlog-tag cat">{CAT_LABEL[r.category]}</span>
+          <span className="vlog-tag cat">{getCategoryLabel(r.category)}</span>
           {r.result === 'allowed' && <span className="vlog-tag ok"><AppIcon name="check" className="u-inline-icon" /> Допуск</span>}
           {r.result === 'denied' && <span className="vlog-tag bad"><AppIcon name="denied" className="u-inline-icon" /> Отказ</span>}
           {r.carPlate && <span className="vlog-tag car"><AppIcon name="car" className="u-inline-icon" /> {r.carPlate}</span>}
@@ -116,7 +132,7 @@ const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
         </div>
         {r.actorName && (
           <div className="vlog-card-comment">
-            Решение: {r.actorName}{r.actorRole ? ` (${ROLE_LABELS[r.actorRole] || r.actorRole})` : ''}
+            Решение: {r.actorName}{actorRoleLabel ? ` (${actorRoleLabel})` : ''}
           </div>
         )}
         {r.comment && <div className="vlog-card-comment">{r.comment}</div>}
@@ -127,7 +143,6 @@ const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
 
 export default function VisitLogView({ user }: { user: AppUser }) {
   const requests = useRequests();
-  // A-10: useQuery replaces manual useState/useEffect/useCallback loading pattern
   const { data: visitLogsPage, isLoading, isError } = useVisitLogs() as {
     data?: VisitLogPage<VisitLogRow>;
     isLoading: boolean;
@@ -136,119 +151,118 @@ export default function VisitLogView({ user }: { user: AppUser }) {
   const visitEvents = useMemo(() => visitLogsPage?.data ?? [], [visitLogsPage]);
   const clearLogs = useClearVisitLogs();
   const [query, setQuery] = useState('');
-  const [period, setPeriod] = useState('all');
-  const [decision, setDecision] = useState('all');
+  const [period, setPeriod] = useState<PeriodFilter>('all');
+  const [decision, setDecision] = useState<DecisionFilter>('all');
   const [showFilters, setShowFilters] = useState(false);
-  // FIX [AUDIT-3]: confirmClear заменяет window.confirm() — нативный confirm блокирует
-  // UI thread и не стилизуется. Вместо него — inline-кнопка подтверждения.
   const [confirmClear, setConfirmClear] = useState(false);
-  // A-15: useDeferredValue defers filter recomputation so that typing stays
-  // responsive even when the visits list is large.
   const debouncedQuery = useDebounce(query, 150);
-  const deferredQuery  = useDeferredValue(debouncedQuery);
+  const deferredQuery = useDeferredValue(debouncedQuery);
   const q = deferredQuery.trim().toLowerCase();
-  const canClearLogs = user.role === 'admin';  // FIX [AUDIT-5 #10]: admin can clear in both modes
-  const canExport = canManageRequests(user.role); // FIX: CSV export was hidden in live mode
+  const canClearLogs = user.role === 'admin';
+  const canExport = canManageRequests(user.role);
 
-  // Memo 1: build requestsById lookup — only invalidates when requests list changes
   const requestsById = useMemo(
-    () => new Map(requests.map((r) => [r.id, r])),
-    [requests]
+    () => new Map<string, AppRequest>(requests.map((req) => [req.id, req])),
+    [requests],
   );
 
-  // Memo 2: transform raw events → normalised visit rows — only invalidates when events or lookup changes
   const allVisits = useMemo(() => {
-    // FIX [PERF]: заменили [user] на [user.role, user.uid] — объект user стабилен как prop,
-    // но явные примитивные deps помогают линтеру и документируют реальные зависимости
-    let arr: VisitLogRow[] = (visitEvents || []).map((event) => {
-      const visitEvent = event as VisitLogRow;
-      const baseReq = visitEvent.requestSnapshot || (visitEvent.requestId ? requestsById.get(visitEvent.requestId) : undefined) || {};
-      const timestamp = visitEvent.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
+    let rows: VisitLogRow[] = visitEvents.map((event) => {
+      const baseReq = event.requestSnapshot || (event.requestId ? requestsById.get(event.requestId) : undefined) || {};
+      const timestamp = event.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
       return {
-        id: visitEvent.id || visitEvent.requestId || `${timestamp}_${visitEvent.result}`,
-        requestId: visitEvent.requestId || baseReq.id || null,
+        id: event.id || event.requestId || `${String(timestamp)}_${event.result}`,
+        requestId: event.requestId || baseReq.id || null,
         type: baseReq.type || 'pass',
-        category: visitEvent.category || baseReq.category || 'guest',
-        visitorName: visitEvent.visitorName || baseReq.visitorName || null,
-        carPlate: visitEvent.carPlate || baseReq.carPlate || null,
-        createdByUid: visitEvent.createdByUid || baseReq.createdByUid || null,
-        createdByName: visitEvent.createdByName || baseReq.createdByName || '—',
-        createdByApt: visitEvent.createdByApt || baseReq.createdByApt || '—',
-        passDuration: visitEvent.passDuration || baseReq.passDuration || null,
+        category: event.category || baseReq.category || 'guest',
+        visitorName: event.visitorName || baseReq.visitorName || null,
+        carPlate: event.carPlate || baseReq.carPlate || null,
+        createdByUid: event.createdByUid || baseReq.createdByUid || null,
+        createdByName: event.createdByName || baseReq.createdByName || '—',
+        createdByApt: event.createdByApt || baseReq.createdByApt || '—',
+        passDuration: event.passDuration || baseReq.passDuration || null,
         createdAt: baseReq.createdAt || timestamp,
         arrivedAt: timestamp,
-        status: visitEvent.result === 'denied' ? 'rejected' : 'arrived',
-        result: visitEvent.result || null,
-        actorName: visitEvent.actorName || null,
-        actorRole: visitEvent.actorRole || null,
-        comment: visitEvent.reason ? `Проверка QR: ${getValidationReasonLabel(visitEvent.reason)}` : '',
+        status: event.result === 'denied' ? 'rejected' : 'arrived',
+        result: event.result || null,
+        actorName: event.actorName || null,
+        actorRole: event.actorRole || null,
+        comment: event.reason ? `Проверка QR: ${getValidationReasonLabel(event.reason)}` : '',
       };
     });
-    if (isResident(user.role)) arr = arr.filter(r => r.createdByUid === user.uid);
-    // FIX [PERF]: pre-compute timestamps — new Date() в компараторе = O(n log n) аллокаций
-    const withTs = arr.map(r => ({ r, ts: new Date(r.arrivedAt || r.createdAt).getTime() }));
-    withTs.sort((a, b) => b.ts - a.ts);
-    return withTs.map(({ r }) => r);
+
+    if (isResident(user.role)) {
+      rows = rows.filter((row) => row.createdByUid === user.uid);
+    }
+
+    const withTs = rows.map((row) => ({
+      row,
+      ts: normalizeDate(row.arrivedAt || row.createdAt).getTime(),
+    }));
+    withTs.sort((left, right) => right.ts - left.ts);
+    return withTs.map(({ row }) => row);
   }, [visitEvents, requestsById, user.role, user.uid]);
 
-  // Memo 3: filter + search — only invalidates when filters or query change
   const visits = useMemo(() => {
-    let arr = allVisits;
+    let rows = allVisits;
     if (period !== 'all') {
       const ms = period === 'today' ? 86_400_000 : period === 'week' ? 7 * 86_400_000 : 30 * 86_400_000;
-      arr = arr.filter(r => Date.now() - new Date(r.arrivedAt).getTime() < ms);
+      rows = rows.filter((row) => Date.now() - normalizeDate(row.arrivedAt || row.createdAt).getTime() < ms);
     }
     if (decision !== 'all') {
-      arr = arr.filter(r => r.result === decision);
+      rows = rows.filter((row) => row.result === decision);
     }
     if (q) {
-      arr = arr.filter(r =>
-        (r.visitorName || '').toLowerCase().includes(q)
-        || (r.carPlate || '').toLowerCase().includes(q)
-        || (r.createdByName || '').toLowerCase().includes(q)
-        || (r.createdByApt || '').includes(q)
-        || (r.comment || '').toLowerCase().includes(q)
+      rows = rows.filter((row) =>
+        (row.visitorName || '').toLowerCase().includes(q)
+        || (row.carPlate || '').toLowerCase().includes(q)
+        || (row.createdByName || '').toLowerCase().includes(q)
+        || (row.createdByApt || '').includes(q)
+        || (row.comment || '').toLowerCase().includes(q),
       );
     }
-    return arr;
+    return rows;
   }, [allVisits, period, decision, q]);
 
   const handleClearLogs = async () => {
-    // FIX [AUDIT-3]: window.confirm заменён на двухшаговое подтверждение
-    if (!confirmClear) { setConfirmClear(true); return; }
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
     setConfirmClear(false);
-    try { await clearLogs(); } catch(e) { toast(presentError(e, 'visitlog.clear').message, 'error'); }
+    try {
+      await clearLogs();
+    } catch (error) {
+      toast(presentError(error, 'visitlog.clear').message, 'error');
+    }
   };
 
   const handleExportCsv = () => {
     const header = ['Дата', 'Тип', 'Посетитель', 'Квартира', 'Резидент', 'Решение', 'Кто принял', 'Причина'];
-    const rows = visits.map((v) => ([
-      new Date(v.arrivedAt || v.createdAt).toLocaleString('ru-RU'),
-      CAT_LABEL[v.category] || v.category,
-      v.visitorName || '',
-      v.createdByApt || '',
-      v.createdByName || '',
-      v.result === 'denied' ? 'Отказ' : 'Допуск',
-      v.actorName ? `${v.actorName}${v.actorRole ? ` (${ROLE_LABELS[v.actorRole] || v.actorRole})` : ''}` : '',
-      v.comment || '',
+    const rows = visits.map((visit) => ([
+      normalizeDate(visit.arrivedAt || visit.createdAt).toLocaleString('ru-RU'),
+      getCategoryLabel(visit.category),
+      visit.visitorName || '',
+      visit.createdByApt || '',
+      visit.createdByName || '',
+      visit.result === 'denied' ? 'Отказ' : 'Допуск',
+      visit.actorName ? `${visit.actorName}${visit.actorRole ? ` (${getRoleLabel(visit.actorRole)})` : ''}` : '',
+      visit.comment || '',
     ]));
     const csv = [header, ...rows]
-      .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
+      .map((cols) => cols.map((col) => `"${String(col).replace(/"/g, '""')}"`).join(';'))
       .join('\n');
     const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `visit-log-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // FIX [MEMORY]: задержка перед revoke — браузер должен успеть начать загрузку
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `visit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
-  // FIX [AUDIT-5]: groupByDate вызывался при каждом рендере (изменение confirmClear,
-  // loadLogs, любого state). visits уже мемоизирован, поэтому groups тоже должен быть.
   const groups = useMemo(() => groupByDate(visits), [visits]);
   const totalCount = visitLogsPage?.total ?? visits.length;
   const activeFilterCount = Number(period !== 'all') + Number(decision !== 'all');
@@ -258,7 +272,6 @@ export default function VisitLogView({ user }: { user: AppUser }) {
 
   return (
     <div className="vlog-wrap">
-      {/* Phase-1: unified loading/empty state block */}
       {isLoading && (
         <StateBlock
           type="loading"
@@ -274,99 +287,110 @@ export default function VisitLogView({ user }: { user: AppUser }) {
         />
       )}
       {!isLoading && !isError && (
-      <>
-      <div className="vlog-header">
-        <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал</span>
-        <div className="vlog-actions">
-          <span className="vlog-total vlog-total-badge">{totalCount} {totalCount === 1 ? 'визит' : totalCount < 5 ? 'визита' : 'визитов'}</span>
-          {canExport && (
-            <button className="btn-outline btn-hdr vlog-export-btn" onClick={handleExportCsv}>
-              <span className="vlog-export-full">Экспорт CSV</span>
-              <span className="vlog-export-short">CSV</span>
-            </button>
-          )}
-          {canClearLogs && !confirmClear && (
-            <button className="btn-outline btn-hdr" onClick={handleClearLogs}>
-              Очистить журнал
-            </button>
-          )}
-          {canClearLogs && confirmClear && (
-            <span className="inline-confirm">
-              <span className="inline-confirm__label">Точно?</span>
-              <button className="btn-del-sm btn-hdr" onClick={handleClearLogs}>Да</button>
-              <button className="btn-outline btn-hdr" onClick={() => setConfirmClear(false)}>Нет</button>
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="sec-filters-toggle-row">
-        <button
-          type="button"
-          className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
-          onClick={() => setShowFilters((value) => !value)}
-          aria-expanded={showFilters}
-        >
-          <AppIcon name="filters" className="u-inline-icon" />
-          Фильтры
-          {activeFilterCount > 0 && <span className="tab-pending-badge">{activeFilterCount}</span>}
-        </button>
-      </div>
-
-      {showFilters && (
-        <div className="sec-filters vlog-filters">
-          <div className="sec-filter-group">
-            <div className="sec-filter-group-title">Период</div>
-            <div className="sec-filters-row sec-filters-row--scroll">
-              {[['today','Сегодня'],['week','Неделя'],['month','Месяц'],['all','Всё время']].map(([k, l]) => (
-                <button key={k} className={'date-pill' + (period === k ? ' active' : '')} onClick={() => setPeriod(k)}>{l}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sec-filter-group">
-            <div className="sec-filter-group-title">Решение</div>
-            <div className="sec-filters-row sec-filters-row--scroll">
-              {[
-                ['all', null, 'Все решения'],
-                ['allowed', 'check', 'Допущены'],
-                ['denied', 'denied', 'Отказы'],
-              ].map(([k, iconName, l]) => (
-                <button key={k} className={'date-pill' + (decision === k ? ' active' : '')} onClick={() => setDecision(k)}>
-                  {iconName ? <AppIcon name={iconName} className="u-inline-icon" /> : null}
-                  {l}
+        <>
+          <div className="vlog-header">
+            <span className="vlog-title"><AppIcon name="history" className="u-inline-icon" /> Журнал</span>
+            <div className="vlog-actions">
+              <span className="vlog-total vlog-total-badge">{totalCount} {totalCount === 1 ? 'визит' : totalCount < 5 ? 'визита' : 'визитов'}</span>
+              {canExport && (
+                <button className="btn-outline btn-hdr vlog-export-btn" onClick={handleExportCsv}>
+                  <span className="vlog-export-full">Экспорт CSV</span>
+                  <span className="vlog-export-short">CSV</span>
                 </button>
-              ))}
+              )}
+              {canClearLogs && !confirmClear && (
+                <button className="btn-outline btn-hdr" onClick={handleClearLogs}>
+                  Очистить журнал
+                </button>
+              )}
+              {canClearLogs && confirmClear && (
+                <span className="inline-confirm">
+                  <span className="inline-confirm__label">Точно?</span>
+                  <button className="btn-del-sm btn-hdr" onClick={handleClearLogs}>Да</button>
+                  <button className="btn-outline btn-hdr" onClick={() => setConfirmClear(false)}>Нет</button>
+                </span>
+              )}
             </div>
           </div>
-        </div>
-      )}
 
-      <div className="search-wrap u-mb16">
-        <span className="search-ico"><AppIcon name="search" /></span>
-        <input className="search-inp" placeholder="Поиск по имени, авто, квартире"
-          value={query} onChange={e => setQuery(e.target.value)} />
-      </div>
-
-      {visits.length === 0 && (
-        <StateBlock
-          type="empty"
-          title={q ? 'Ничего не найдено' : emptyCopy.title}
-          subtitle={q ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
-          actionLabel={q ? 'Сбросить поиск' : undefined}
-          onAction={q ? () => setQuery('') : undefined}
-        />
-      )}
-
-      {groups.map(g => (
-        <div key={g.label} className="vlog-group">
-          <div className="vlog-date-label">{g.label}</div>
-          <div className="vlog-cards">
-            {g.items.map(r => <VisitCard key={r.id} r={r} />)}
+          <div className="sec-filters-toggle-row">
+            <button
+              type="button"
+              className={`btn-outline sec-filters-toggle${showFilters ? ' active' : ''}`}
+              onClick={() => setShowFilters((value) => !value)}
+              aria-expanded={showFilters}
+            >
+              <AppIcon name="filters" className="u-inline-icon" />
+              Фильтры
+              {activeFilterCount > 0 && <span className="tab-pending-badge">{activeFilterCount}</span>}
+            </button>
           </div>
-        </div>
-      ))}
-      </>
+
+          {showFilters && (
+            <div className="sec-filters vlog-filters">
+              <div className="sec-filter-group">
+                <div className="sec-filter-group-title">Период</div>
+                <div className="sec-filters-row sec-filters-row--scroll">
+                  {([
+                    ['today', 'Сегодня'],
+                    ['week', 'Неделя'],
+                    ['month', 'Месяц'],
+                    ['all', 'Всё время'],
+                  ] as const).map(([key, label]) => (
+                    <button key={key} className={'date-pill' + (period === key ? ' active' : '')} onClick={() => setPeriod(key)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="sec-filter-group">
+                <div className="sec-filter-group-title">Решение</div>
+                <div className="sec-filters-row sec-filters-row--scroll">
+                  {([
+                    ['all', null, 'Все решения'],
+                    ['allowed', 'check', 'Допущены'],
+                    ['denied', 'denied', 'Отказы'],
+                  ] as const).map(([key, iconName, label]) => (
+                    <button key={key} className={'date-pill' + (decision === key ? ' active' : '')} onClick={() => setDecision(key)}>
+                      {iconName ? <AppIcon name={iconName} className="u-inline-icon" /> : null}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="search-wrap u-mb16">
+            <span className="search-ico"><AppIcon name="search" /></span>
+            <input
+              className="search-inp"
+              placeholder="Поиск по имени, авто, квартире"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
+
+          {visits.length === 0 && (
+            <StateBlock
+              type="empty"
+              title={q ? 'Ничего не найдено' : emptyCopy.title}
+              subtitle={q ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
+              actionLabel={q ? 'Сбросить поиск' : undefined}
+              onAction={q ? () => setQuery('') : undefined}
+            />
+          )}
+
+          {groups.map((group) => (
+            <div key={group.label} className="vlog-group">
+              <div className="vlog-date-label">{group.label}</div>
+              <div className="vlog-cards">
+                {group.items.map((row) => <VisitCard key={row.id} r={row} />)}
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );

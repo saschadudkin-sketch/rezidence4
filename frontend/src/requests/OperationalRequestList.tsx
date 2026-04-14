@@ -21,11 +21,15 @@ type OperationalRequestListProps = {
   className?: string;
 };
 
-function getRequestSummary(req: AppRequest) {
-  return req.visitorName || req.comment || req.carPlate || CAT_LABEL[req.category] || 'Заявка';
+function getRequestSummary(req: AppRequest): string {
+  if (req.visitorName) return req.visitorName;
+  if (req.comment) return req.comment;
+  if (req.carPlate) return req.carPlate;
+  if (req.category && req.category in CAT_LABEL) return CAT_LABEL[req.category as keyof typeof CAT_LABEL];
+  return 'Заявка';
 }
 
-function getRequestMeta(req: AppRequest) {
+function getRequestMeta(req: AppRequest): string {
   const bits = [
     req.createdByName,
     req.createdByApt && req.createdByApt !== '—' ? `Апарт. ${req.createdByApt}` : null,
@@ -34,6 +38,21 @@ function getRequestMeta(req: AppRequest) {
   ].filter(Boolean);
   return bits.join(' • ');
 }
+
+type OperationalRowProps = {
+  req: AppRequest;
+  expanded: boolean;
+  onToggle: () => void;
+  userRole: UserRole | string;
+  userName: string;
+  userId: string;
+  onRepeat?: (request: AppRequest) => void;
+  onEdit?: (request: AppRequest) => void;
+  onDelete?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  highlightId?: string | null;
+  onHighlighted?: () => void;
+};
 
 const OperationalRow = memo(function OperationalRow({
   req,
@@ -48,20 +67,7 @@ const OperationalRow = memo(function OperationalRow({
   onCancel,
   highlightId,
   onHighlighted,
-}: {
-  req: AppRequest;
-  expanded: boolean;
-  onToggle: () => void;
-  userRole: UserRole | string;
-  userName: string;
-  userId: string;
-  onRepeat?: (request: AppRequest) => void;
-  onEdit?: (request: AppRequest) => void;
-  onDelete?: (id: string) => void;
-  onCancel?: (id: string) => void;
-  highlightId?: string | null;
-  onHighlighted?: () => void;
-}) {
+}: OperationalRowProps) {
   const summary = useMemo(() => getRequestSummary(req), [req]);
   const meta = useMemo(() => getRequestMeta(req), [req]);
 
@@ -118,7 +124,7 @@ export const OperationalRequestList = memo(function OperationalRequestList({
   onHighlighted,
   className = 'req-list req-list--compact',
 }: OperationalRequestListProps) {
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <VirtualList
@@ -130,7 +136,7 @@ export const OperationalRequestList = memo(function OperationalRequestList({
           key={req.id}
           req={req}
           expanded={expandedId === req.id}
-          onToggle={() => setExpandedId((current) => current === req.id ? null : req.id)}
+          onToggle={() => setExpandedId((current) => (current === req.id ? null : req.id))}
           userRole={userRole}
           userName={userName}
           userId={userId}

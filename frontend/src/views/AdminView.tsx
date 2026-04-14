@@ -87,12 +87,13 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
           const pct = Math.round((count as number) / allUsers.length * 100);
+          const roleKey = role as keyof typeof ROLE_LABELS;
           return (
             <div key={role} className="u-pad12-16 role-stat-row">
               <div className="u-flex-between u-mb8">
                 <span className="u-fs13 u-t1 u-flex-center u-gap8">
-                  <span className={`u-role-dot ${ROLE_COLOR[role] ? role : 'default'}`} />
-                  {ROLE_LABELS[role]}
+                  <span className={`u-role-dot ${ROLE_COLOR[roleKey] ? roleKey : 'default'}`} />
+                  {ROLE_LABELS[roleKey]}
                 </span>
                 <span className="admin-role-value">{count}</span>
               </div>

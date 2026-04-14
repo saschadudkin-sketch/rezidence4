@@ -2,14 +2,21 @@ import { useEffect, useRef } from 'react';
 import { isResident } from '../domain/permissions';
 import { canManageRequests } from '../domain/permissions';
 import { subscribePush } from '../services/pushNotification';
+import type { AppUser } from '../store/slices/usersSlice';
+
+type PushBadgeCounts = {
+  pendingT: number;
+  pendingP: number;
+  unreadMsgs: number;
+};
 
 /**
  * usePushNotifications — подписка на Web Push и обновление PWA App Badge.
  * Подписка на push — только для жильцов (owner, tenant, contractor).
  * Badge — для всех: персонал видит кол-во pending, жильцы — unreadMsgs.
  */
-export function usePushNotifications(user, { pendingT, pendingP, unreadMsgs }) {
-  const pushSubscribedUidRef = useRef(null);
+export function usePushNotifications(user: AppUser, { pendingT, pendingP, unreadMsgs }: PushBadgeCounts) {
+  const pushSubscribedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isResident(user.role)) {

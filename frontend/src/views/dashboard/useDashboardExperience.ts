@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { getRoleManifest } from '../../domain/roleManifest';
 import { buildNavItems, buildNavClassMap } from '../../domain/navigation';
+import type { MobileNavItem } from '../../domain/navigationSchema';
 import { getRoleNextBestAction, getWorkflowCompletionFeedback } from '../../workflow/roleWorkflow';
 import { emitUxMetric, UX_METRICS } from '../../utils/telemetryContract';
 
@@ -50,7 +51,10 @@ export function useDashboardExperience({
   );
   const navItems = useMemo(() => buildNavItems(user.role, badgesForNav), [user.role, badgesForNav]);
   const navClassMap = useMemo(() => buildNavClassMap(user.role, activeTab, badgesForNav), [user.role, activeTab, badgesForNav]);
-  const nav = useMemo(() => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge]), [navItems]);
+  const nav = useMemo<MobileNavItem[]>(
+    () => navItems.map(({ tab, icon, label, badge }) => [tab, icon, label, badge] as const),
+    [navItems],
+  );
 
   const roleManifest = getRoleManifest(user.role);
   const isResident = user.role === 'owner' || user.role === 'tenant';

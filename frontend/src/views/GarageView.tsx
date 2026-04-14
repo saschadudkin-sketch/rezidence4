@@ -5,31 +5,43 @@ import { toast } from '../ui/Toasts';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import type { AppUser } from '../store/slices/usersSlice';
+import type { Car } from '../store/slices/garageSlice';
 
-/**
- * GarageView — управление машинами квартиры
- * targetUid — uid жильца чей гараж редактируем (для админа). По умолчанию = user.uid.
- */
-export default function GarageView({ user, targetUid }) {
+type GarageViewProps = {
+  user: AppUser;
+  targetUid?: string;
+};
+
+export default function GarageView({ user, targetUid }: GarageViewProps) {
   const uid = targetUid || user.uid;
-  const cars    = useGarage(uid);
+  const cars = useGarage(uid);
   const { addGarageCar, updateGarageCar, deleteGarageCar } = useActions();
 
-  const [adding,   setAdding]   = useState(false);
-  const [editId,   setEditId]   = useState(null);
-  const [plate,    setPlate]    = useState('');
-  const [brand,    setBrand]    = useState('');
-  const [note,     setNote]     = useState('');
+  const [adding, setAdding] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [plate, setPlate] = useState('');
+  const [brand, setBrand] = useState('');
+  const [note, setNote] = useState('');
   const emptyCopy = getViewStateCopy('garage', 'empty');
 
-  // FIX [PERF]: useCallback — не пересоздаётся при каждом рендере
-  const resetForm = useCallback(() => { setPlate(''); setBrand(''); setNote(''); setAdding(false); setEditId(null); }, []);
+  const resetForm = useCallback(() => {
+    setPlate('');
+    setBrand('');
+    setNote('');
+    setAdding(false);
+    setEditId(null);
+  }, []);
 
   const save = () => {
     const trimPlate = plate.trim().toUpperCase();
-    if (!trimPlate) { toast('Введите номер автомобиля', 'error'); return; }
-    if (cars.some(c => c.plate === trimPlate && c.id !== editId)) {
-      toast('Такой номер уже добавлен', 'error'); return;
+    if (!trimPlate) {
+      toast('Введите номер автомобиля', 'error');
+      return;
+    }
+    if (cars.some((car) => car.plate === trimPlate && car.id !== editId)) {
+      toast('Такой номер уже добавлен', 'error');
+      return;
     }
     if (editId) {
       updateGarageCar(uid, editId, { plate: trimPlate, brand: brand.trim(), note: note.trim() });
@@ -41,11 +53,15 @@ export default function GarageView({ user, targetUid }) {
     resetForm();
   };
 
-  const startEdit = (car) => {
-    setEditId(car.id); setPlate(car.plate); setBrand(car.brand || ''); setNote(car.note || ''); setAdding(true);
+  const startEdit = (car: Car) => {
+    setEditId(car.id);
+    setPlate(car.plate);
+    setBrand(car.brand || '');
+    setNote(car.note || '');
+    setAdding(true);
   };
 
-  const remove = useCallback((carId) => {
+  const remove = useCallback((carId: string) => {
     deleteGarageCar(uid, carId);
     toast('Автомобиль удалён', 'success');
   }, [deleteGarageCar, uid]);
@@ -67,24 +83,19 @@ export default function GarageView({ user, targetUid }) {
         )}
       </div>
 
-      {/* Форма добавления/редактирования */}
       {adding && (
         <div className="garage-form">
           <div className="field">
             <label className="field-lbl">Гос. номер *</label>
-            <input className="field-inp" placeholder="А 000 АА 000" value={plate}
-              onChange={e => setPlate(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && save()} autoFocus />
+            <input className="field-inp" placeholder="А 000 АА 000" value={plate} onChange={(event) => setPlate(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && save()} autoFocus />
           </div>
           <div className="field">
             <label className="field-lbl">Марка / модель</label>
-            <input className="field-inp" placeholder="Toyota Camry" value={brand}
-              onChange={e => setBrand(e.target.value)} />
+            <input className="field-inp" placeholder="Toyota Camry" value={brand} onChange={(event) => setBrand(event.target.value)} />
           </div>
           <div className="field">
             <label className="field-lbl">Заметка</label>
-            <input className="field-inp" placeholder="Белый, паркинг место 101" value={note}
-              onChange={e => setNote(e.target.value)} />
+            <input className="field-inp" placeholder="Белый, парковка место 101" value={note} onChange={(event) => setNote(event.target.value)} />
           </div>
           <div className="garage-form-btns">
             <button className="btn-outline" onClick={resetForm}>Отмена</button>
@@ -93,18 +104,17 @@ export default function GarageView({ user, targetUid }) {
         </div>
       )}
 
-      {/* Список машин */}
       {cars.length === 0 && !adding && (
         <StateBlock type="empty" title={emptyCopy.title} subtitle={emptyCopy.subtitle} />
       )}
 
       <div className="garage-list">
-        {cars.map(car => (
+        {cars.map((car) => (
           <div key={car.id} className="garage-card">
             <div className="garage-plate">{car.plate}</div>
             <div className="garage-info">
               {car.brand && <div className="garage-brand">{car.brand}</div>}
-              {car.note  && <div className="garage-note">{car.note}</div>}
+              {car.note && <div className="garage-note">{car.note}</div>}
             </div>
             <div className="garage-actions">
               <button className="icon-btn" onClick={() => startEdit(car)} title="Редактировать" aria-label="Редактировать"><AppIcon name="edit" /></button>

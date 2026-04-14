@@ -1,12 +1,15 @@
-/**
- * views/guard/GuardSection.jsx — T-05: extracted from GuardPostMode.jsx
- * Секция-обёртка со заголовком и счётчиком.
- */
+import type { ReactNode } from 'react';
 
-// GuardSection не имеет тяжёлых дочерних хуков — children рендерятся снаружи.
-// memo здесь не нужен: мемоизация идёт на уровне дочерних GuardCard/TechCard.
-export default function GuardSection({ title, icon, count, children }) {
+type GuardSectionProps = {
+  title: string;
+  icon: ReactNode;
+  count: number;
+  children: ReactNode;
+};
+
+export default function GuardSection({ title, icon, count, children }: GuardSectionProps) {
   if (count === 0) return null;
+
   return (
     <div className="guard-section">
       <div className="guard-section-head">

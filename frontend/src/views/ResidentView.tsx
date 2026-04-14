@@ -21,10 +21,11 @@ import TechTab from './resident/TechTab';
 import TemplatesTab from './resident/TemplatesTab';
 import HistoryTab from './resident/HistoryTab';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
+import type { AppUser } from '../store/slices/usersSlice';
 import type { AppRequest, RequestStatus, RequestType } from '../store/slices/requestsSlice';
 
-const INACTIVE_STATUSES = new Set(['cancelled', 'rejected', 'expired']);
-const COMPLETED_STATUSES = new Set(['arrived', 'rejected', 'expired', 'cancelled']);
+const INACTIVE_STATUSES = new Set<RequestStatus>(['cancelled', 'rejected', 'expired']);
+const COMPLETED_STATUSES = new Set<RequestStatus>(['arrived', 'rejected', 'expired', 'cancelled']);
 
 type ResidentModalState = {
   type: RequestType;
@@ -39,8 +40,26 @@ type ResidentModalState = {
   fast?: boolean;
 };
 
-function getPassReadyText(request) {
-  const guest = request.visitorName || CAT_LABEL[request.category] || 'Гость';
+type ResidentViewProps = {
+  user: AppUser;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+};
+
+type PassReadySheetProps = {
+  request: AppRequest | null;
+  onClose: () => void;
+  onCreateAnother: () => void;
+};
+
+const _getRequestLabel = (request: AppRequest | undefined): string =>
+  request?.visitorName || request?.category || 'заявку';
+
+const getCategoryLabel = (category?: string): string | undefined =>
+  category ? CAT_LABEL[category as keyof typeof CAT_LABEL] : undefined;
+
+function getPassReadyText(request: AppRequest) {
+  const guest = request.visitorName || getCategoryLabel(request.category) || 'Гость';
   const apartment = request.createdByApt ? `Апартаменты ${request.createdByApt}` : 'Резиденции Замоскворечья';
   const car = request.carPlate ? `\nАвто: ${request.carPlate}` : '';
   const schedule = request.scheduledFor
@@ -49,7 +68,7 @@ function getPassReadyText(request) {
   return `Пропуск для: ${guest}\n${apartment}${schedule}${car}\nСтатус: ${STS_LABEL[request.status] || 'создан'}\nПокажите QR-код охране на КПП.`;
 }
 
-function PassReadySheet({ request, onClose, onCreateAnother }) {
+function PassReadySheet({ request, onClose, onCreateAnother }: PassReadySheetProps) {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState(false);
 
@@ -74,7 +93,7 @@ function PassReadySheet({ request, onClose, onCreateAnother }) {
 
   if (!request) return null;
   const title = request.scheduledFor ? 'Пропуск запланирован' : 'Пропуск готов';
-  const guest = request.visitorName || CAT_LABEL[request.category] || 'Гость';
+  const guest = request.visitorName || getCategoryLabel(request.category) || 'Гость';
   const validText = request.scheduledFor
     ? new Date(request.scheduledFor).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
     : 'Охрана увидит его сразу';
@@ -166,7 +185,7 @@ function PassReadySheet({ request, onClose, onCreateAnother }) {
   );
 }
 
-export default function ResidentView({ user, activeTab, setActiveTab }) {
+export default function ResidentView({ user, activeTab, setActiveTab }: ResidentViewProps) {
   const requests = useRequests();
   const { deleteRequest, updateRequest, addRequest } = useActions();
   const requestsRef = useRef(requests);
@@ -176,8 +195,8 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
   const [searchParams, setSearchParams] = useUrlSearchParams();
   const passFilter = searchParams.get('passFilter') || 'active';
   const techFilter = searchParams.get('techFilter') || 'active';
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [confirmCancel, setConfirmCancel] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
   const [readyPass, setReadyPass] = useState<AppRequest | null>(null);
 
   const setPassFilter = useCallback((value: string) => {
@@ -204,18 +223,20 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     setModal(next);
   }, []);
 
-  const onEdit = useCallback(r => { if (can(user).editRequest(r)) setEditReq(r); }, [user]);
+  const onEdit = useCallback((request: AppRequest) => {
+    if (can(user).editRequest(request)) setEditReq(request);
+  }, [user]);
 
-  const onRepeatPass = useCallback(r => openModal({
-    type: r.type, cat: r.category,
-    data: { visitorName: r.visitorName, visitorPhone: r.visitorPhone, carPlate: r.carPlate, comment: r.comment },
+  const onRepeatPass = useCallback((request: AppRequest) => openModal({
+    type: request.type, cat: request.category || 'guest',
+    data: { visitorName: request.visitorName, visitorPhone: request.visitorPhone, carPlate: request.carPlate, comment: request.comment },
   }), [openModal]);
-  const onRepeatTech = useCallback(r => openModal({
-    type: r.type, cat: r.category, data: { comment: r.comment },
+  const onRepeatTech = useCallback((request: AppRequest) => openModal({
+    type: request.type, cat: request.category || 'service', data: { comment: request.comment },
   }), [openModal]);
 
   // T-6+: optimistic operation-log (not snapshot-only rollback)
-  const onDeleteConfirmed = useCallback(async id => {
+  const onDeleteConfirmed = useCallback(async (id: string) => {
     setConfirmDelete(null);
     const originalReq = requestsRef.current.find(r => r.id === id);
     if (!originalReq) return;
@@ -239,9 +260,9 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     }
   }, [deleteRequest, updateRequest, addRequest]);
 
-  const onDelete = useCallback((id) => setConfirmDelete(id), []);
+  const onDelete = useCallback((id: string) => setConfirmDelete(id), []);
 
-  const onCancelConfirmed = useCallback(async id => {
+  const onCancelConfirmed = useCallback(async (id: string) => {
     setConfirmCancel(null);
     const originalReq = requestsRef.current.find(r => r.id === id);
     if (!originalReq) return;
@@ -265,7 +286,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     }
   }, [updateRequest]);
 
-  const onCancel = useCallback((id) => setConfirmCancel(id), []);
+  const onCancel = useCallback((id: string) => setConfirmCancel(id), []);
 
   // PERF-2: Single useMemo replaces 7 separate memos — one pass over requests array
   const computed = useMemo(() => {
@@ -275,7 +296,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }) {
     const scheduledPasses = myPasses.filter(r => r.status === 'scheduled');
     const basePasses      = myPasses.filter(r => r.status !== 'scheduled');
 
-    let filteredPasses;
+    let filteredPasses: AppRequest[];
     if (passFilter === 'all')       filteredPasses = basePasses;
     else if (passFilter === 'active')    filteredPasses = basePasses.filter(r => !INACTIVE_STATUSES.has(r.status));
     else if (passFilter === 'scheduled') filteredPasses = scheduledPasses;
