@@ -105,6 +105,54 @@
   opacity: .82;
 }
 
+.contractor-pass-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 18px;
+  align-items: stretch;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--b2) 76%, transparent);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--g-bg2) 28%, transparent), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--s1) 92%, transparent));
+  box-shadow: var(--sh-s);
+}
+
+.contractor-pass-hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.contractor-pass-hero h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 38px;
+  line-height: .98;
+  color: var(--t1);
+}
+
+.contractor-pass-hero p {
+  margin: 0;
+  color: var(--t2);
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 42ch;
+}
+
+.contractor-primary-action {
+  justify-self: end;
+  max-width: 320px;
+}
+
+.contractor-type-grid {
+  width: 100%;
+  max-width: 640px;
+}
+
 .resident-quick-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -329,6 +377,35 @@ html.theme-light .resident-quick-icon {
 
   .passes-tab--resident .req-list--compact {
     gap: 12px;
+  }
+}
+
+@media (--bp-lg-down) {
+  .contractor-pass-hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .contractor-primary-action {
+    width: 100%;
+    justify-self: stretch;
+    max-width: none;
+    align-self: start;
+  }
+}
+
+@media (max-width: 1024px) {
+  .contractor-pass-hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .contractor-primary-action {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+    align-self: start;
   }
 }
 
@@ -893,6 +970,51 @@ html.theme-light .resident-quick-icon {
 }
 
 @media (--bp-sm-down) {
+  .contractor-pass-hero {
+    padding: 14px;
+    gap: 12px;
+    border-radius: 16px;
+  }
+
+  .contractor-pass-hero-copy {
+    gap: 6px;
+  }
+
+  .contractor-pass-hero h2 {
+    font-size: 21px;
+    line-height: 1.04;
+    max-width: 10ch;
+  }
+
+  .contractor-pass-hero p {
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: none;
+  }
+
+  .contractor-primary-action {
+    min-height: 0;
+    padding: 14px 16px;
+    gap: 12px;
+    border-radius: 14px;
+    box-sizing: border-box;
+  }
+
+  .contractor-primary-action .resident-primary-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .contractor-primary-action strong {
+    font-size: 15px;
+  }
+
+  .contractor-primary-action small {
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
   .resident-pass-hero {
     padding: 16px;
     gap: 12px;
@@ -946,6 +1068,51 @@ html.theme-light .resident-quick-icon {
 }
 
 @media (max-width: 767px) {
+  .contractor-pass-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .contractor-primary-action {
+    width: 100%;
+    min-height: 0;
+    padding: 14px 16px;
+    justify-self: stretch;
+    align-self: stretch;
+  }
+
+  .contractor-type-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 18px;
+  }
+
+  .contractor-type-grid .type-card {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 88px;
+    flex: none;
+    padding: 14px 10px 12px;
+    border-radius: 18px;
+  }
+
+  .contractor-type-grid .type-icon {
+    width: 34px;
+    height: 34px;
+    margin-bottom: 8px;
+  }
+
+  .contractor-type-grid .type-label {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
   .resident-quick-grid {
     grid-template-columns: 1fr;
     gap: 8px;

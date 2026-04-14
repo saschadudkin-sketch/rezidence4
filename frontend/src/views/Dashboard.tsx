@@ -47,6 +47,13 @@ type OnboardingHintProps = {
   onClose: () => void;
 };
 
+const COMPACT_ONBOARDING_HINTS: Partial<Record<UserRole, string>> = {
+  contractor: 'Здесь оформляются рабочие пропуска для бригады и автомобиля.',
+  concierge: 'Создавайте пропуска и быстро находите резидентов и гостей.',
+  security: 'Проверяйте пропуска, сканируйте QR и отмечайте прибытие.',
+  admin: 'Контролируйте резидентов, пропуска и показатели комплекса.',
+};
+
 function DemoBanner({ onClose }: DemoBannerProps) {
   const [privateSession, setPrivateSession] = useState(() => isDemoPrivateSessionEnabled());
 
@@ -65,13 +72,16 @@ function DemoBanner({ onClose }: DemoBannerProps) {
     <div className="demo-welcome-banner" role="status" aria-live="polite">
       <span className="demo-welcome-icon"><AppIcon name="info" size={14} /></span>
       <span className="demo-welcome-text">
+        <span className="demo-welcome-copy demo-welcome-copy-compact">
+          <strong>Демо.</strong> Пропуска и служебные действия работают локально.
+        </span>
         <span className="demo-welcome-copy demo-welcome-copy-short">
-          <strong>Демо-режим.</strong> Локальные данные без сервера; сохранение включается вручную.
+          <strong>Демо.</strong> Все сценарии работают локально, без сервера.
         </span>
         <span className="demo-welcome-copy demo-welcome-copy-long">
           <strong>Демо-режим.</strong>{' '}
-          Попробуйте создать пропуск или вызов техслужбы - все работает без сервера.
-          По умолчанию сессия приватная и не сохраняет данные между перезапусками. Постоянное демо-хранение включается только вручную.
+          Проверяйте ключевые сценарии локально: пропуска, поиск и служебные действия работают без сервера.
+          По умолчанию сессия приватная; постоянное хранение включается только вручную.
         </span>
       </span>
       <div className="demo-welcome-actions">
@@ -94,12 +104,16 @@ function DemoBanner({ onClose }: DemoBannerProps) {
 
 function OnboardingHint({ role, onClose }: OnboardingHintProps) {
   const hint = getRoleResponsibilities(role).onboardingHint;
+  const compactHint = COMPACT_ONBOARDING_HINTS[role] || hint;
   if (!hint) return null;
 
   return (
     <div className="onboarding-hint" role="status" aria-live="polite">
       <span className="onboarding-hint-icon"><AppIcon name="info" size={14} /></span>
-      <span className="onboarding-hint-text">{hint}</span>
+      <span className="onboarding-hint-text">
+        <span className="onboarding-hint-copy onboarding-hint-copy-full">{hint}</span>
+        <span className="onboarding-hint-copy onboarding-hint-copy-compact">{compactHint}</span>
+      </span>
       <button className="onboarding-hint-close" onClick={onClose} aria-label="Закрыть подсказку">
         <AppIcon name="close" size={12} />
       </button>

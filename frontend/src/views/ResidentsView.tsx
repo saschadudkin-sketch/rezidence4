@@ -18,11 +18,15 @@ import type { Car } from '../store/slices/garageSlice';
  */
 type ResidentPerm = { id?: string; name: string; phone?: string; carPlate?: string };
 type ResidentWithApartment = AppUser & { apartment: string };
+type ResidentsViewProps = {
+  user: AppUser;
+  onCreatePass?: (resident: ResidentWithApartment) => void;
+};
 
 const hasKnownApartment = (user: AppUser): user is ResidentWithApartment =>
   isResident(user.role) && typeof user.apartment === 'string' && user.apartment !== '—';
 
-export default function ResidentsView({ user }: { user: AppUser }) {
+export default function ResidentsView({ user, onCreatePass }: ResidentsViewProps) {
   const { users } = useUsers();
   const garage = useAllGarage();
   const allPerms = useAllPerms();
@@ -165,6 +169,18 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                               ))}
                             </div>
                           )}
+                          <div className="resident-actions">
+                            <a href={'tel:' + resident.phone.replace(/\s/g, '')} className="resident-action resident-action--secondary">
+                              <AppIcon name="phone" size={12} />
+                              <span>Позвонить</span>
+                            </a>
+                            {onCreatePass && (
+                              <button type="button" className="resident-action resident-action--primary" onClick={() => onCreatePass(resident)}>
+                                <AppIcon name="ticket" size={12} />
+                                <span>Оформить пропуск</span>
+                              </button>
+                            )}
+                          </div>
                           {visitors.length > 0 && (
                             <div className="perm-section">
                               <SectionHeader title="Постоянные посетители" className="section-header--compact" />

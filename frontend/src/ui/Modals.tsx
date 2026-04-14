@@ -26,6 +26,25 @@ type AvatarModalProps = {
 };
 
 const compressImg = (dataUrl: string) => compressImage(dataUrl, { maxWidth: 256, quality: 0.82 });
+const NON_RESIDENT_APARTMENT = '—';
+
+const ADD_USER_TITLE: Record<UserRole, string> = {
+  owner: 'Новый собственник',
+  tenant: 'Новый арендатор',
+  contractor: 'Новый подрядчик',
+  concierge: 'Новый консьерж',
+  security: 'Новый сотрудник охраны',
+  admin: 'Новый администратор',
+};
+
+const ADD_USER_HINT: Record<UserRole, string> = {
+  owner: 'Добавьте резидента с апартаментом и парковкой, чтобы он сразу получил свой кабинет.',
+  tenant: 'Добавьте арендатора с апартаментом и парковкой, чтобы он сразу получил доступ к пропускам.',
+  contractor: 'Подрядчик получит рабочие пропуска и техзаявки без resident-разделов.',
+  concierge: 'Консьерж увидит лобби-операции, резидентов и журнал доступа.',
+  security: 'Сотрудник охраны получит пост, контроль пропусков и журнал доступа.',
+  admin: 'Администратор получит операционные разделы и управление пользователями.',
+};
 
 export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps) {
   const [name, setName] = useState('');
@@ -38,6 +57,7 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
   const { addUser } = useActions();
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const isMountedRef = useIsMounted();
+  const isResidentRole = role === 'owner' || role === 'tenant';
 
   useEffect(() => {
     lockScroll();
@@ -61,7 +81,7 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
       toast('Этот номер уже зарегистрирован', 'error');
       return;
     }
-    if ((role === 'owner' || role === 'tenant') && !apt.trim()) {
+    if (isResidentRole && !apt.trim()) {
       toast('Укажите номер апартамента', 'error');
       return;
     }
@@ -74,7 +94,7 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
         name: name.trim(),
         phone,
         role,
-        apartment: apt.trim() || 'вЂ”',
+        apartment: apt.trim() || NON_RESIDENT_APARTMENT,
         parkingSpot: parking.trim() || null,
       };
       addUser(newUser);
@@ -92,7 +112,10 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
       <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="modal-handle" />
         <div className="modal-head">
-          <span className="modal-title">Новый жилец</span>
+          <div className="modal-head-main">
+            <span className="modal-title">{ADD_USER_TITLE[role]}</span>
+            <span className="modal-subtitle">{ADD_USER_HINT[role]}</span>
+          </div>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
         <div className="modal-body">
@@ -114,17 +137,28 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
           </div>
           <div className="field">
             <label className="field-lbl">Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}</label>
-            <input className="field-inp" placeholder="12" value={apt} onChange={(event) => setApt(event.target.value)} inputMode="numeric" />
+            <input
+              className="field-inp"
+              placeholder={isResidentRole ? '12' : 'Не нужен для этой роли'}
+              value={apt}
+              onChange={(event) => setApt(event.target.value)}
+              inputMode={isResidentRole ? 'numeric' : 'text'}
+            />
           </div>
           <div className="field">
             <label className="field-lbl">Паркинг</label>
-            <input className="field-inp" placeholder="A-12" value={parking} onChange={(event) => setParking(event.target.value)} />
+            <input
+              className="field-inp"
+              placeholder={isResidentRole ? 'A-12' : 'Необязательно'}
+              value={parking}
+              onChange={(event) => setParking(event.target.value)}
+            />
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn-outline" onClick={onClose}>Отмена</button>
           <button className="btn-gold u-flex2" onClick={submit} disabled={loading}>
-            <span>{loading ? 'Сохранение...' : 'Добавить'}</span>
+            <span>{loading ? 'Сохранение...' : 'Добавить пользователя'}</span>
           </button>
         </div>
       </div>

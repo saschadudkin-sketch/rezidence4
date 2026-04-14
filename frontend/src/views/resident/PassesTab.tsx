@@ -173,19 +173,40 @@ const PassesTab = memo(function PassesTab({
           </section>
         </>
       ) : (
-        <div className="type-grid">
-          {passIcons.map(([key, iconName, label]) => (
+        <>
+          <section className="contractor-pass-hero" aria-label="Быстрое оформление рабочего пропуска">
+            <div className="contractor-pass-hero-copy">
+              <div className="resident-pass-kicker">Рабочий въезд без задержек</div>
+              <h2>Кого оформить?</h2>
+              <p>Выберите бригаду, доставку или служебный автомобиль и откройте въезд без звонков.</p>
+            </div>
             <button
-              key={key}
               type="button"
-              className="type-card"
-              onClick={() => setModal({ type: 'pass', cat: key as string })}
+              className="resident-primary-action contractor-primary-action"
+              onClick={() => setModal({ type: 'pass', cat: 'team' })}
             >
-              <div className="type-icon"><AppIcon name={iconName as string} /></div>
-              <div className="type-label">{label}</div>
+              <span className="resident-primary-icon"><AppIcon name="users" size={20} /></span>
+              <span>
+                <strong>Оформить въезд</strong>
+                <small>Бригада, доставка, авто</small>
+              </span>
             </button>
-          ))}
-        </div>
+          </section>
+
+          <div className="type-grid contractor-type-grid">
+            {passIcons.map(([key, iconName, label]) => (
+              <button
+                key={key}
+                type="button"
+                className="type-card"
+                onClick={() => setModal({ type: 'pass', cat: key as string })}
+              >
+                <div className="type-icon"><AppIcon name={iconName as string} /></div>
+                <div className="type-label">{label}</div>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {myPasses.length > 0 && (
@@ -235,8 +256,8 @@ const PassesTab = memo(function PassesTab({
       {visiblePasses.length === 0 && myPasses.length === 0 ? (
         <StateBlock
           type="empty"
-          title={isResidentExperience ? 'Пока нет пропусков' : passesEmptyCopy.title}
-          subtitle={isResidentExperience ? 'Нажмите «Новый пропуск», когда к вам собирается гость, курьер или такси.' : passesEmptyCopy.subtitle}
+          title={isResidentExperience ? 'Пока нет пропусков' : 'Рабочих пропусков пока нет'}
+          subtitle={isResidentExperience ? 'Нажмите «Новый пропуск», когда к вам собирается гость, курьер или такси.' : 'Начните с «Оформить въезд» или выберите ниже бригаду, доставку или автомобиль.'}
         />
       ) : visiblePasses.length === 0 && visibleScheduled.length === 0 ? (
         <StateBlock

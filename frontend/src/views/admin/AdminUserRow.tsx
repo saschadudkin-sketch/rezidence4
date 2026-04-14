@@ -111,8 +111,8 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
           <AvatarCircle avData={avData} role={u.role} name={u.name} size={36} fontSize={14} />
         </div>
         <div className="u-flex1 u-mw0">
-          <div className="u-flex u-flex-center u-gap8 u-wrap">
-            <span className="u-fs13 u-fw500 u-t1">{u.name}</span>
+          <div className="u-flex u-flex-center u-gap8 u-wrap admin-user-header">
+            <span className="u-fs13 u-fw500 u-t1 admin-user-name">{u.name}</span>
             <span className={'admin-badge ' + u.role}>{ROLE_LABELS[u.role]}</span>
             {isSelf && <span className="admin-user-self-mark">• это вы</span>}
           </div>
@@ -122,7 +122,7 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
             {u.parkingSpot && <span className="admin-user-meta-item"><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
           </div>
         </div>
-        <div className="u-row-g5-fs0">
+        <div className="u-row-g5-fs0 admin-user-controls">
           <button className="btn-edit" onClick={() => setEditing((current) => !current)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
             <AppIcon name={editing ? 'close' : 'edit'} />
           </button>

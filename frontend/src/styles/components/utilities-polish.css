@@ -515,6 +515,17 @@ html{scroll-behavior:smooth}
 .car-tag.main{border-color:var(--g1);background:var(--b1)}
 .car-plate{font-family:var(--font-mono,'monospace');font-weight:600;color:var(--t1);letter-spacing:.04em}
 .car-brand{color:var(--t3)}
+.resident-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.resident-action{
+  display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;
+  border-radius:999px;border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+  background:color-mix(in srgb, var(--s2) 94%, transparent);color:var(--t2);text-decoration:none;
+  cursor:pointer;font-family:var(--font-body);font-size:12px;font-weight:500;
+  transition:border-color .13s,background .13s,color .13s,transform .13s;
+}
+.resident-action:hover{transform:translateY(-1px);border-color:color-mix(in srgb, var(--g1) 48%, var(--b2));color:var(--t1)}
+.resident-action--primary{background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 64%, transparent), color-mix(in srgb, var(--g-bg) 36%, transparent));color:var(--g2)}
+.resident-action--secondary{color:var(--t3)}
 
 /* ─── Постоянные посетители/рабочие в карточке жильца ──────────────── */
 .perm-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--s3)}

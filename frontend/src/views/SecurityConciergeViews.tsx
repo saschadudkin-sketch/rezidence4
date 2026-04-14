@@ -110,7 +110,12 @@ export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewPr
       )}
 
       {activeTab === 'templates' && <MyTemplates user={user} onUse={(template: Template) => setModal({ type: template.type as RequestType, cat: template.category, data: template as unknown as Record<string, unknown> })} />}
-      {activeTab === 'residents' && <ResidentsView user={user} />}
+      {activeTab === 'residents' && (
+        <ResidentsView
+          user={user}
+          onCreatePass={(resident) => setModal({ type: 'pass', cat: 'guest', data: { apartment: resident.apartment } })}
+        />
+      )}
       {activeTab === 'visitlog' && <VisitLogView user={user} />}
       {activeTab === 'blacklist' && <BlacklistView user={user} />}
       {activeTab === 'chat' && <ChatView user={user} />}

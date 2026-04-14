@@ -1255,3 +1255,167 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
     border-radius: 26px;
   }
 }
+
+/* Premium polish overrides */
+.login-panel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(201, 169, 110, .12), transparent 28%),
+    radial-gradient(circle at 0% 100%, rgba(124, 92, 44, .12), transparent 24%),
+    transparent;
+}
+
+.login-form {
+  border-color: color-mix(in srgb, var(--g1) 26%, var(--b2));
+  background:
+    linear-gradient(180deg, rgba(56, 44, 31, .94), rgba(31, 24, 18, .92) 22%, rgba(19, 15, 11, .94)),
+    radial-gradient(circle at top, rgba(243, 216, 164, .12), transparent 40%);
+  box-shadow:
+    0 36px 90px rgba(0, 0, 0, .32),
+    0 10px 28px rgba(201, 169, 110, .08),
+    inset 0 1px 0 rgba(255, 247, 230, .14);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+}
+
+.login-form::before {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 216, 167, .46), transparent);
+}
+
+.login-form::after {
+  inset: 13px;
+  border-color: rgba(230, 200, 145, .14);
+}
+
+.login-step {
+  color: color-mix(in srgb, var(--g1) 82%, #f2d8a7);
+}
+
+.login-h {
+  color: #fff8ea;
+  text-shadow: 0 8px 26px rgba(0, 0, 0, .16);
+}
+
+.login-form-sub {
+  color: color-mix(in srgb, #f2e4c2 72%, var(--t3));
+  max-width: 34ch;
+}
+
+.login-form .field-lbl {
+  color: color-mix(in srgb, #e7d3a8 74%, var(--t4));
+}
+
+.login-form .field-inp,
+.login-form .field-select,
+.login-form .field-textarea {
+  background:
+    linear-gradient(180deg, rgba(248, 241, 225, .12), rgba(42, 33, 24, .26)),
+    rgba(16, 13, 10, .52);
+  border: 1px solid rgba(221, 188, 129, .28);
+  color: #fff8ea;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 224, .08),
+    0 0 0 1px rgba(0, 0, 0, .04);
+}
+
+.login-form .field-inp::placeholder,
+.login-form .field-textarea::placeholder {
+  color: rgba(255, 243, 214, .42);
+}
+
+.login-form .field-inp:focus,
+.login-form .field-select:focus,
+.login-form .field-textarea:focus {
+  border-color: rgba(232, 198, 135, .7);
+  background:
+    linear-gradient(180deg, rgba(248, 241, 225, .16), rgba(54, 42, 29, .3)),
+    rgba(18, 14, 11, .58);
+  box-shadow:
+    0 0 0 4px rgba(201, 169, 110, .14),
+    inset 0 1px 0 rgba(255, 246, 224, .1);
+}
+
+.login-mobile-top {
+  border-bottom-color: color-mix(in srgb, var(--g1) 18%, var(--b1));
+}
+
+.login-mobile-top div > div:first-child {
+  color: #fff8ea;
+}
+
+.login-mobile-tagline,
+.login-mobile-hero,
+.login-help {
+  color: color-mix(in srgb, #e8d7b4 62%, var(--t4));
+}
+
+.demo-toggle {
+  border-color: color-mix(in srgb, var(--g1) 24%, var(--b2));
+  background: linear-gradient(180deg, rgba(249, 239, 211, .08), rgba(53, 39, 22, .22));
+}
+
+.demo-row {
+  background: linear-gradient(180deg, rgba(248, 240, 219, .08), rgba(43, 33, 20, .22));
+  border-color: color-mix(in srgb, var(--g1) 18%, var(--b1));
+}
+
+@media (--bp-lg-above) {
+  .login-panel {
+    padding-top: calc(48px + var(--sat));
+  }
+
+  .login-form {
+    max-width: 500px;
+  }
+}
+
+@media (--bp-md-up) and (--bp-lg-down) {
+  .login-panel {
+    padding: calc(36px + var(--sat)) 32px calc(34px + var(--sab));
+  }
+
+  .login-form {
+    width: min(100%, 640px);
+    padding: 42px 36px 30px;
+    border-radius: 30px;
+  }
+
+  .login-h {
+    font-size: 2.3rem;
+  }
+}
+
+@media (--bp-md-below) {
+  .login-panel {
+    justify-content: flex-start;
+    padding: calc(10px + var(--sat)) 10px calc(10px + var(--sab));
+  }
+
+  .login-form {
+    padding: 18px 16px 14px;
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(53, 41, 29, .94), rgba(24, 19, 14, .96)),
+      radial-gradient(circle at top, rgba(243, 216, 164, .1), transparent 46%);
+  }
+
+  .login-form::after {
+    inset: 11px;
+    border-radius: 20px;
+  }
+
+  .login-form-intro {
+    margin-bottom: 18px;
+  }
+
+  .login-h {
+    font-size: 2.05rem;
+    line-height: .96;
+    margin-bottom: 12px;
+  }
+
+  .login-form-sub {
+    font-size: 12px;
+    line-height: 1.65;
+  }
+}

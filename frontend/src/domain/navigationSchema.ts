@@ -20,20 +20,19 @@ const COMMON_COMPACT_LABELS: Record<string, string> = {
 
 const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = {
   admin: {
-    mobileMaxTabs: 3,
-    mobileOrder: ['stats', 'requests', 'users', 'residents', 'visitlog', 'blacklist', 'chat'],
-    mobileTopTabs: ['stats', 'requests', 'residents'],
-    hiddenMobileTabs: ['chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['stats', 'requests', 'users', 'residents', 'visitlog', 'blacklist', 'perms', 'chat'],
     mobileLabels: {
       users: 'Пользователи',
       blacklist: 'Стоп',
       visitlog: 'Журнал',
+      requests: 'Операции',
+      perms: 'Доступ',
     },
   },
   security: {
-    mobileMaxTabs: 5,
-    mobileOrder: ['guardpost', 'passes', 'residents', 'visitlog', 'blacklist', 'chat', 'stats'],
-    hiddenMobileTabs: ['chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['guardpost', 'passes', 'residents', 'chat', 'visitlog', 'blacklist'],
     mobileLabels: {
       guardpost: 'Пост',
       passes: 'Контроль',
@@ -44,35 +43,27 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
     },
   },
   concierge: {
-    mobileMaxTabs: 3,
-    mobileOrder: ['passes', 'visitlog', 'chat', 'residents', 'blacklist'],
-    mobileTopTabs: ['residents', 'blacklist'],
-    mobileBottomTabs: ['passes', 'visitlog', 'chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['passes', 'residents', 'visitlog', 'chat', 'blacklist'],
     mobileLabels: {
       passes: 'Пропуска',
+      residents: 'Резиденты',
       visitlog: 'Журнал',
       chat: 'Чат',
       blacklist: 'Стоп',
-      residents: 'Резиденты',
     },
   },
   owner: {
-    mobileMaxTabs: 3,
-    mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['templates', 'history', 'perms'],
-    mobileBottomTabs: ['passes', 'tech', 'chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['passes', 'tech', 'history', 'chat', 'templates', 'perms'],
   },
   tenant: {
-    mobileMaxTabs: 3,
-    mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['templates', 'history', 'perms'],
-    mobileBottomTabs: ['passes', 'tech', 'chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['passes', 'tech', 'history', 'chat', 'templates', 'perms'],
   },
   contractor: {
-    mobileMaxTabs: 3,
-    mobileOrder: ['passes', 'tech', 'templates', 'history', 'chat', 'perms'],
-    mobileTopTabs: ['templates', 'history', 'perms'],
-    mobileBottomTabs: ['passes', 'tech', 'chat'],
+    mobileMaxTabs: 4,
+    mobileOrder: ['passes', 'tech', 'history', 'chat', 'templates', 'perms'],
   },
 };
 

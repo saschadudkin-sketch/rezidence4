@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { AppIcon } from '../../ui/AppIcon';
 import { useModalAccessibility } from '../../ui/useModalAccessibility';
 import { MEDIA_QUERIES } from '../../constants/breakpoints';
+import { createPortal } from 'react-dom';
 import {
   filterMobileNavItems,
   getMobileLabel,
@@ -66,12 +67,13 @@ function useIsTablet() {
 
 function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: QuickActionsSheetProps) {
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
+  const compactSheet = items.length <= 2;
 
-  return (
-    <div className="mn-quick-sheet" {...overlayProps}>
+  const sheet = (
+    <div className={`mn-quick-sheet${compactSheet ? ' mn-quick-sheet--compact' : ''}`} {...overlayProps}>
       <button className="mn-quick-sheet__scrim" onClick={onClose} aria-label="Закрыть быстрые действия" />
       <div
-        className="mn-quick-sheet__panel"
+        className={`mn-quick-sheet__panel${compactSheet ? ' mn-quick-sheet__panel--compact' : ''}`}
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
@@ -79,8 +81,8 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: Q
         tabIndex={-1}
       >
         <div className="mn-quick-sheet__handle" aria-hidden="true" />
-        <div className="mn-quick-sheet__header">Быстрые действия</div>
-        <div className="mn-quick-grid" role="menu" aria-label="Дополнительные вкладки">
+        <div className="mn-quick-sheet__header">Ещё разделы</div>
+        <div className={`mn-quick-grid${compactSheet ? ' mn-quick-grid--compact' : ''}`} role="menu" aria-label="Дополнительные вкладки">
           {items.map(([key, icon, label, badge]) => (
             <button
               key={key}
@@ -101,6 +103,9 @@ function QuickActionsSheet({ items, navBtnClassMn, goTab, isActive, onClose }: Q
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return sheet;
+  return createPortal(sheet, document.body);
 }
 
 const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab, userRole }: NavigationShellProps) {
@@ -115,10 +120,12 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const isActive = (key: string) => (navClassMap[key] || '').includes('active');
 
   const orderedMobileNav = orderMobileTabs(userRole, nav);
-  const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
-  const topNavItems = isTablet ? filterMobileNavItems(userRole, orderedMobileNav) : isMobile ? topNav : nav;
-  const mobileNavItems = isMobile ? filterMobileNavItems(userRole, bottomNav) : orderedMobileNav;
-  const hasMobileTopTabs = isTablet || (isMobile && topNav.length > 0 && topNav.length !== nav.length);
+  const { bottomNav } = splitMobileNav(userRole, orderedMobileNav);
+  const topNavItems = isTablet ? orderedMobileNav : nav;
+  const mobileNavItems = !isTablet && isMobile
+    ? filterMobileNavItems(userRole, bottomNav.length > 0 ? bottomNav : orderedMobileNav)
+    : [];
+  const hasMobileTopTabs = isTablet;
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;
@@ -183,7 +190,10 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
           <button
             key={key}
             className={`${navBtnClassMn(key)}${key === 'blacklist' ? ' mn-btn--stop' : ''}`}
-            onClick={() => goTab(key)}
+            onClick={() => {
+              setShowMore(false);
+              goTab(key);
+            }}
             aria-current={isActive(key) ? 'page' : undefined}
             tabIndex={!isMobile ? -1 : undefined}
           >

@@ -65,6 +65,7 @@
 /* Modal titles inherit --font-display from foundations.css. */
 .modal-title{font-size:var(--fs-lg);font-weight:500;color:var(--t1)}
 .modal-head-main{min-width:0;display:flex;flex-direction:column}
+.modal-subtitle{margin-top:4px;font-size:12px;line-height:1.45;color:var(--t3);max-width:34ch}
 /* FIX [TOUCH]: было 36×36px — ниже минимума 44px (Apple HIG, Material).
    Теперь 44×44px через padding, визуально иконка та же. */
 .modal-close{
@@ -727,10 +728,11 @@
 /* ── Security filters ── */
 .sec-filters{
   display:flex;flex-direction:column;gap:10px;margin-bottom:14px;align-items:stretch;
-  padding:12px;
+  padding:14px;
   border:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
-  border-radius:16px;
+  border-radius:18px;
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 96%, transparent), color-mix(in srgb, var(--g-bg) 18%, transparent));
+  box-shadow:var(--sh-s);
 }
 .sec-filters .date-pill{
   min-height:36px;
@@ -743,16 +745,16 @@
 .sec-filter-group{
   display:flex;
   flex-direction:column;
-  gap:6px;
-  padding:8px;
+  gap:7px;
+  padding:10px;
   border:1px solid color-mix(in srgb, var(--b1) 82%, transparent);
-  border-radius:14px;
+  border-radius:16px;
   background:color-mix(in srgb, var(--s1) 82%, transparent);
 }
 .sec-filter-group-title{
-  font-size:10px;
+  font-size:11px;
   font-weight:700;
-  letter-spacing:1.4px;
+  letter-spacing:1.6px;
   text-transform:uppercase;
   color:var(--t4);
 }
@@ -763,6 +765,7 @@
 }
 .sec-filters-toggle{
   min-width:0;
+  min-height:42px;
   padding:10px 14px;
   border-radius:999px;
   display:inline-flex;
@@ -793,9 +796,9 @@
 .date-pill.has-pending{color:var(--err-t);border-color:var(--err-t)}
 @media(max-width:480px){
   .sec-filters-toggle-row{margin-bottom:8px}
-  .sec-filters-toggle{padding:9px 12px;font-size:11px}
-  .sec-filters{padding:8px;max-height:min(46dvh, 340px);overflow-y:auto}
-  .sec-filter-group{padding:7px;gap:5px}
+  .sec-filters-toggle{min-height:38px;padding:8px 12px;font-size:11px}
+  .sec-filters{padding:10px;max-height:min(46dvh, 340px);overflow-y:auto;border-radius:16px}
+  .sec-filter-group{padding:8px;gap:5px;border-radius:14px}
   .sec-filter-group-title{font-size:9px;letter-spacing:1.2px}
   .sec-filters-row{gap:4px}
   .sec-filters-row--scroll{
@@ -823,19 +826,30 @@
     font-size:8.5px;
   }
 }
-.guard-card{background:var(--s2);border:2px solid var(--b2);border-radius:12px;padding:20px;transition:border-color .15s,box-shadow .15s,transform .15s}
+.guard-card{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 98%, transparent), color-mix(in srgb, var(--s1) 94%, transparent));
+  border:1px solid color-mix(in srgb, var(--b2) 84%, transparent);
+  border-radius:18px;
+  padding:20px;
+  transition:border-color .15s,box-shadow .15s,transform .15s,background .15s
+}
 @media(hover:hover){.guard-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.3);transform:translateY(-1px)}}
 .guard-card.urgent{border-color:var(--err-t);box-shadow:0 0 24px rgba(192,60,60,.2)}
-.guard-urgent-bar{background:rgba(192,96,96,.15);color:var(--err-t);text-align:center;font-size:var(--fs-xs);font-weight:700;letter-spacing:2px;padding:6px;border-radius:6px;margin-bottom:14px}
-.guard-card-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.guard-urgent-bar{background:rgba(192,96,96,.15);color:var(--err-t);text-align:center;font-size:var(--fs-xs);font-weight:700;letter-spacing:2px;padding:6px;border-radius:999px;margin-bottom:14px}
+.guard-card-top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
 .guard-avatar{flex-shrink:0}
 .guard-info{flex:1;min-width:0}
 /* R-02: base = mobile size (lg=18px), desktop overrides at min-width:460px */
 .guard-apt{font-size:var(--fs-lg);font-weight:600;color:var(--g2);font-family:inherit}
 @media(min-width:480px){.guard-apt{font-size:20px}}
-.guard-name{font-size:15px;color:var(--t1);margin-top:2px}
+.guard-name{font-size:16px;line-height:1.22;color:var(--t1);margin-top:2px}
 .guard-cat{font-size:var(--fs-xs);color:var(--t3);margin-top:2px;letter-spacing:.5px}
-.guard-details{display:flex;flex-direction:column;gap:6px;padding:12px;background:var(--s1);border-radius:8px;margin-bottom:14px}
+.guard-details{
+  display:flex;flex-direction:column;gap:7px;padding:13px 14px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s1) 90%, transparent), color-mix(in srgb, var(--g-bg) 12%, transparent));
+  border:1px solid color-mix(in srgb, var(--b1) 82%, transparent);
+  border-radius:12px;margin-bottom:14px
+}
 .guard-plate-block{
   display:flex;
   align-items:center;

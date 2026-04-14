@@ -13,7 +13,6 @@ import RoleContentRouter from './RoleContentRouter';
 import { useNavigationContext } from './NavigationContext';
 import { MEDIA_QUERIES } from '../../constants/breakpoints';
 import type { AppUser } from '../../store/slices/usersSlice';
-import type { MobileNavItem } from '../../domain/navigationSchema';
 
 type AppShellProps = {
   user: AppUser;
@@ -52,8 +51,6 @@ const AppShell = memo(function AppShell({
   );
   const isChatTab = activeTab === 'chat';
   const hideChatTitleOnCompact = isCompactLayout && isChatTab;
-  const securityChatBadge = nav.find((item: MobileNavItem) => item[0] === 'chat')?.[3] || 0;
-  const showHeaderChat = isCompactLayout && (user.role === 'security' || user.role === 'admin');
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -108,14 +105,7 @@ const AppShell = memo(function AppShell({
               </div>
             </div>
           </div>
-          <div className={`header-actions header-actions-shell${showHeaderChat ? ' header-actions-shell--security' : ''}`}>
-            {showHeaderChat && (
-              <button className={`theme-btn header-chat-btn${isChatTab ? ' active' : ''}`} onClick={() => goTab('chat')} title="Открыть чат" aria-label="Открыть чат">
-                <span><AppIcon name="chat" size={14} /></span>
-                <span>Чат</span>
-                {securityChatBadge > 0 && <span className="header-chat-badge">{securityChatBadge > 9 ? '9+' : String(securityChatBadge)}</span>}
-              </button>
-            )}
+          <div className="header-actions header-actions-shell">
             <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={`Тема: ${themeLabel}`}>
               <span><AppIcon name={themeIcon} size={14} /></span>
               <span className={isResidentExperience ? 'theme-btn-label--resident' : undefined}>{themeLabel}</span>

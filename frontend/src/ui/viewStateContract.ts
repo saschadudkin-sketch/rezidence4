@@ -34,7 +34,7 @@ const COPY: Record<ViewEntity, Record<ViewStateKind, { title: string; subtitle: 
   },
   passes: {
     loading: { title: 'Загрузка пропусков', subtitle: 'Пожалуйста, подождите' },
-    empty: { title: 'Пропусков пока нет', subtitle: 'Создайте первый пропуск для гостя или курьера' },
+    empty: { title: 'Пропусков пока нет', subtitle: 'Создайте первый пропуск, чтобы открыть въезд без звонков и ожидания' },
     error: { title: 'Не удалось загрузить пропуска', subtitle: 'Проверьте соединение и попробуйте снова' },
   },
   tech: {

@@ -42,7 +42,7 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 /* P-05: one-time demo welcome banner */
 .demo-welcome-banner{
   display:flex;align-items:center;gap:8px;
-  padding:12px 18px;
+  padding:10px 16px;
   background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 62%, transparent), color-mix(in srgb, var(--g-bg) 36%, transparent));
   border-bottom:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
   font-size:var(--fs-xs);color:var(--t2);
@@ -50,10 +50,11 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .demo-welcome-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}
 .demo-welcome-text{flex:1}
 .demo-welcome-copy{display:block}
+.demo-welcome-copy-compact{display:none}
 .demo-welcome-copy-short{display:none}
 .demo-welcome-copy-long{display:block}
 .demo-welcome-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.demo-welcome-reset{min-height:36px;white-space:nowrap}
+.demo-welcome-reset{min-height:34px;white-space:nowrap}
 .demo-welcome-reset-short,.demo-private-toggle-short{display:none}
 .demo-private-toggle{
   display:inline-flex;align-items:center;gap:6px;
@@ -67,109 +68,123 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
   padding:0;
 }
 .demo-welcome-close:hover{opacity:1}
-@media (--bp-sm-down){
+@media (max-width: 480px){
   .demo-welcome-banner{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    align-items:stretch;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:6px;
+    align-items:start;
     position:relative;
-    padding:10px 12px 12px;
-    padding-right:44px;
+    padding:8px 10px;
+    padding-right:38px;
   }
   .demo-welcome-icon{display:none}
   .demo-welcome-text{
     min-width:0;
-    font-size:12px;
-    line-height:1.45;
+    grid-column:1 / -1;
+    font-size:11px;
+    line-height:1.35;
   }
+  .demo-welcome-copy-compact{display:block}
   .demo-welcome-copy-short{display:block}
   .demo-welcome-copy-long{display:none}
   .demo-welcome-copy{
     overflow:hidden;
     text-overflow:ellipsis;
+    text-wrap:balance;
   }
   .demo-welcome-actions{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    gap:8px;
+    display:flex;
+    flex-wrap:wrap;
+    grid-column:1 / -1;
+    gap:5px;
     width:100%;
   }
   .demo-private-toggle{
-    min-height:34px;
-    padding:7px 10px;
+    min-height:30px;
+    padding:5px 8px;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
     border-radius:10px;
     background:color-mix(in srgb, var(--s2) 92%, transparent);
     white-space:nowrap;
     min-width:0;
+    flex:1 1 160px;
   }
   .demo-welcome-reset{
-    min-height:34px;
-    padding-inline:12px;
+    min-height:30px;
+    padding-inline:10px;
     width:auto;
+    flex:0 0 auto;
   }
+  .demo-welcome-actions .btn-outline,
+  .demo-private-toggle{font-size:10px;line-height:1.2}
   .demo-private-toggle-long,.demo-welcome-reset-long{display:none}
   .demo-private-toggle-short,.demo-welcome-reset-short{display:inline}
   .demo-welcome-close{
     position:absolute;
-    top:10px;
-    right:12px;
-    width:40px;
-    height:40px;
-    height:28px;
+    top:7px;
+    right:8px;
+    width:24px;
+    height:24px;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
     background:color-mix(in srgb, var(--s2) 86%, transparent);
   }
 }
-@media (--bp-form-down){
+@media (max-width: 640px){
   .demo-welcome-banner{
-    display:flex!important;
-    flex-direction:column!important;
-    gap:8px!important;
-    align-items:stretch!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:6px!important;
+    align-items:start!important;
     position:relative;
-    padding:10px 12px 12px!important;
-    padding-right:44px!important;
+    padding:8px 10px!important;
+    padding-right:38px!important;
   }
   .demo-welcome-icon{display:none!important}
   .demo-welcome-text{
     min-width:0;
-    font-size:12px!important;
-    line-height:1.45!important;
+    grid-column:1 / -1!important;
+    font-size:11px!important;
+    line-height:1.35!important;
     flex:none!important;
   }
   .demo-welcome-actions{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) auto!important;
-    gap:8px!important;
+    display:flex!important;
+    flex-wrap:wrap!important;
+    grid-column:1 / -1!important;
+    gap:5px!important;
     width:100%!important;
   }
+  .demo-welcome-copy-compact{display:block!important}
   .demo-welcome-copy-short{display:block!important}
   .demo-welcome-copy-long{display:none!important}
   .demo-private-toggle{
-    min-height:34px!important;
-    padding:7px 10px!important;
+    min-height:30px!important;
+    padding:5px 8px!important;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent)!important;
     border-radius:10px!important;
     background:color-mix(in srgb, var(--s2) 92%, transparent)!important;
     white-space:nowrap!important;
     min-width:0!important;
+    flex:1 1 160px!important;
   }
   .demo-welcome-reset{
-    min-height:34px!important;
-    padding-inline:12px!important;
+    min-height:30px!important;
+    padding-inline:10px!important;
     white-space:nowrap!important;
     width:auto!important;
+    flex:0 0 auto!important;
   }
+  .demo-welcome-actions .btn-outline,
+  .demo-private-toggle{font-size:10px!important;line-height:1.2!important}
   .demo-private-toggle-long,.demo-welcome-reset-long{display:none!important}
   .demo-private-toggle-short,.demo-welcome-reset-short{display:inline!important}
   .demo-welcome-close{
     position:absolute!important;
-    top:10px!important;
-    right:12px!important;
-    width:40px!important;
-    height:40px!important;
+    top:7px!important;
+    right:8px!important;
+    width:24px!important;
+    height:24px!important;
     border:1px solid color-mix(in srgb, var(--b2) 82%, transparent)!important;
     background:color-mix(in srgb, var(--s2) 86%, transparent)!important;
   }
@@ -177,13 +192,15 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 /* P-06: Role-based onboarding hint — dismissible, shown once per role */
 .onboarding-hint{
   display:flex;align-items:center;gap:8px;
-  padding:12px 18px;
+  padding:10px 16px;
   background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--g-bg) 24%, transparent));
   border-bottom:1px solid color-mix(in srgb, var(--b2) 88%, transparent);
   font-size:var(--fs-xs);color:var(--t2);
 }
 .onboarding-hint-icon{flex-shrink:0;display:inline-flex;color:var(--g2)}
 .onboarding-hint-text{flex:1}
+.onboarding-hint-copy{display:block}
+.onboarding-hint-copy-compact{display:none}
 .onboarding-hint-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
@@ -191,6 +208,30 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
   padding:0;
 }
 .onboarding-hint-close:hover{opacity:1}
+@media (max-width: 480px){
+  .onboarding-hint{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:4px;
+    padding:7px 10px;
+    padding-right:36px;
+    position:relative;
+    line-height:1.35;
+  }
+  .onboarding-hint-icon{display:none}
+  .onboarding-hint-text{min-width:0;font-size:11px}
+  .onboarding-hint-copy-full{display:none}
+  .onboarding-hint-copy-compact{display:block}
+  .onboarding-hint-close{
+    position:absolute;
+    top:7px;
+    right:8px;
+    width:24px;
+    height:24px;
+    border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);
+    background:color-mix(in srgb, var(--s2) 86%, transparent);
+  }
+}
 .smart-action-rail{
   margin-top:10px;
   border:1px solid var(--b2);
