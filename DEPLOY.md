@@ -193,6 +193,46 @@ docker compose ps
 
 If the server is updated by file upload instead of Git, upload the new files and still run `docker compose up -d --build`.
 
+## 9.1 Rollback Procedure
+
+If the new release is unhealthy after `docker compose up -d --build`, roll back immediately to the previous known-good revision.
+
+1. Find the last stable commit:
+
+```bash
+cd /var/www/rezidence4
+git log --oneline -n 5
+```
+
+2. Check out that commit or tag:
+
+```bash
+git checkout PREVIOUS_GOOD_SHA
+```
+
+3. Rebuild and restart the stack from the reverted sources:
+
+```bash
+docker compose up -d --build
+docker compose ps
+curl -I http://SERVER_IP
+curl http://SERVER_IP/api/health
+```
+
+4. Verify the critical user paths:
+
+- login works for the admin account
+- `/api/health` returns `200`
+- frontend root returns HTML
+- background jobs and SSE reconnect without errors in backend logs
+
+5. Only after the rollback is stable, investigate the failed release on a separate branch or staging environment.
+
+Notes:
+
+- `db_data` and `uploads` volumes are preserved during rollback, so application data is not deleted.
+- Do not run destructive volume commands such as `docker compose down -v` during rollback unless you explicitly intend to wipe state.
+
 ## 10. Useful Operations
 
 ```bash

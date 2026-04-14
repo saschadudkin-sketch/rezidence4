@@ -142,6 +142,7 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@tanstack/react-virtual')) return 'vendor-query-virtual';
               if (id.includes('@sentry/react')) return 'vendor-sentry';
               if (id.includes('/qrcode/')) return 'vendor-qr';
+              if (id.includes('/workbox-') || id.includes('/vite-plugin-pwa/')) return 'vendor-workbox';
               return 'vendor-misc';
             },
         },

@@ -14,6 +14,7 @@ import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useSchedul
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
+import { clearCreateDraft, getCreateDraftKey, loadCreateDraft, saveCreateDraft } from './createDraftStorage';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
 
@@ -218,7 +219,7 @@ const VisitorFields = memo(function VisitorFields({
                 autoCapitalize="words"
               />
               {vNames.length > 1 && (
-                <button type="button" className="vf-name-del" onClick={() => setVNames(vNames.filter((_, j) => j !== i))}>
+                <button type="button" className="vf-name-del" onClick={() => setVNames(vNames.filter((_, j) => j !== i))} aria-label={`Удалить посетителя ${i + 1}`}>
                   <AppIcon name="close" size={12} />
                 </button>
               )}
@@ -506,7 +507,7 @@ function PhotoSection({ photos, handlePhoto, removePhoto }: PhotoSectionProps) {
           {photos.map((src, i) => (
             <div key={i} className="photo-grid-item">
               <img src={src} alt="" />
-              <button type="button" className="photo-grid-del" onClick={() => removePhoto(i)}>
+              <button type="button" className="photo-grid-del" onClick={() => removePhoto(i)} aria-label={`Удалить фото ${i + 1}`}>
                 <AppIcon name="close" size={12} />
               </button>
             </div>
@@ -768,7 +769,18 @@ function ResidentPassWizard({
 }
 
 export function CreateModal({ user, type, initialCat, initialData, initialStep, initialFast = false, onClose, onDone }: CreateModalProps) {
-  const form = useCreateRequest({ user, type, initialCat, initialData, onClose, onDone });
+  const draftKey = getCreateDraftKey(user.uid, user.role, type);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const form = useCreateRequest({
+    user,
+    type,
+    initialCat,
+    initialData,
+    onClose,
+    onDone,
+    onSubmitted: () => clearCreateDraft(draftKey),
+  });
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -776,6 +788,72 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   const [residentStep, setResidentStep] = useState(() => clampResidentStep(initialStep));
   const [residentError, setResidentError] = useState('');
   const fastMode = Boolean(isResidentPass && initialFast);
+
+  useEffect(() => {
+    if (initialData) {
+      setDraftReady(true);
+      return;
+    }
+
+    const draft = loadCreateDraft(draftKey);
+    if (!draft) {
+      setDraftReady(true);
+      return;
+    }
+
+    form.setCat(draft.cat);
+    form.setVName(draft.vName);
+    form.setVNames(
+      draft.vNames.length > 0
+        ? draft.vNames.map((value) => ({ __id: genId(), value }))
+        : [{ __id: genId(), value: '' }],
+    );
+    form.setVPhone(draft.vPhone);
+    form.setCarPlate(draft.carPlate);
+    form.setApartment(draft.apartment);
+    form.setComment(draft.comment);
+    form.setValidUntil(draft.validUntil);
+    form.setShowSchedule(draft.showSchedule);
+    form.setScheduledFor(draft.scheduledFor);
+    setResidentStep(clampResidentStep(draft.residentStep));
+    setShowAdvanced(Boolean(draft.showAdvanced));
+    setDraftRestored(true);
+    setDraftReady(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once per modal open
+  }, [draftKey, initialData]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    saveCreateDraft(draftKey, {
+      cat: form.cat,
+      vName: form.vName,
+      vNames: form.vNames.map((entry: VisitorNameEntry) => entry.value),
+      vPhone: form.vPhone,
+      carPlate: form.carPlate,
+      apartment: form.apartment,
+      comment: form.comment,
+      validUntil: form.validUntil,
+      showSchedule: form.showSchedule,
+      scheduledFor: form.scheduledFor,
+      residentStep,
+      showAdvanced,
+    });
+  }, [
+    draftKey,
+    draftReady,
+    form.apartment,
+    form.carPlate,
+    form.cat,
+    form.comment,
+    form.scheduledFor,
+    form.showSchedule,
+    form.vName,
+    form.vNames,
+    form.vPhone,
+    form.validUntil,
+    residentStep,
+    showAdvanced,
+  ]);
 
   useEffect(() => {
     if (!residentError) return;
@@ -834,6 +912,11 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
         </div>
 
         <div className="modal-body">
+          {draftRestored && (
+            <div className="field-warn" role="status" aria-live="polite">
+              Восстановлен черновик последней незавершённой заявки.
+            </div>
+          )}
           {isResidentPass ? (
             <ResidentPassWizard
               form={form}

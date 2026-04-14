@@ -30,6 +30,7 @@ type UseCreateRequestArgs = {
   initialData?: CreateRequestSeed;
   onClose: () => void;
   onDone: (request?: AppRequest) => void;
+  onSubmitted?: () => void;
 };
 
 export const needsCarPlate = (cat: string): boolean =>
@@ -44,7 +45,7 @@ export const hasVisitorFields = (cat: string): boolean =>
 export const canUsePermsList = (type: RequestType, cat: string): boolean =>
   type === 'pass' && !['taxi', 'team', 'courier'].includes(cat);
 
-export function useCreateRequest({ user, type, initialCat, initialData, onClose, onDone }: UseCreateRequestArgs) {
+export function useCreateRequest({ user, type, initialCat, initialData, onClose, onDone, onSubmitted }: UseCreateRequestArgs) {
   const {
     cats, cat, setCat,
     vName, setVName,
@@ -234,6 +235,7 @@ export function useCreateRequest({ user, type, initialCat, initialData, onClose,
         successMsg,
         'Заявка сохранена локально. Синхронизация будет повторена позже',
       );
+      onSubmitted?.();
       onDone(savedRequest);
       onClose();
     } catch (error) {

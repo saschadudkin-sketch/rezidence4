@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
-import { registerSW, shouldRegisterSW } from './utils/swUtils';
 import { reportWebVitals } from './utils/webVitals';
 
 // ─── Sentry error tracking ─────────────────────────────────────────────────────
@@ -37,7 +36,19 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
-if (shouldRegisterSW()) registerSW();
+if (import.meta.env.PROD) {
+  const register = () => {
+    void import('./utils/swUtils').then(({ registerSW, shouldRegisterSW }) => {
+      if (shouldRegisterSW()) registerSW();
+    });
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(register, { timeout: 2000 });
+  } else {
+    globalThis.setTimeout(register, 0);
+  }
+}
 reportWebVitals();
 
 const rootContainer = document.getElementById('root');

@@ -12,15 +12,15 @@ import type { AppUser } from '../store/slices/usersSlice';
 import type { Car } from '../store/slices/garageSlice';
 
 /**
- * ResidentsView вЂ” СЃРїСЂР°РІРѕС‡РЅРёРє Р¶РёР»СЊС†РѕРІ РґР»СЏ РѕС…СЂР°РЅС‹ Рё РєРѕРЅСЃСЊРµСЂР¶Р°.
- * РџРѕРєР°Р·С‹РІР°РµС‚: Р°РїР°СЂС‚Р°РјРµРЅС‚, Р¶РёР»СЊС†С‹, РёС… РјР°С€РёРЅС‹, РїР°СЂРєРѕРІРѕС‡РЅС‹Рµ РјРµСЃС‚Р°,
- * РїРѕСЃС‚РѕСЏРЅРЅС‹Рµ РїРѕСЃРµС‚РёС‚РµР»Рё Рё СЂР°Р±РѕС‡РёРµ (РёР· perms).
+ * ResidentsView — справочник жильцов для охраны и консьержа.
+ * Показывает: апартамент, жильцов, их машины, парковочные места,
+ * постоянных посетителей и рабочих (из perms).
  */
 type ResidentPerm = { id?: string; name: string; phone?: string; carPlate?: string };
 type ResidentWithApartment = AppUser & { apartment: string };
 
 const hasKnownApartment = (user: AppUser): user is ResidentWithApartment =>
-  isResident(user.role) && typeof user.apartment === 'string' && user.apartment !== 'вЂ”';
+  isResident(user.role) && typeof user.apartment === 'string' && user.apartment !== '—';
 
 export default function ResidentsView({ user }: { user: AppUser }) {
   const { users } = useUsers();
@@ -31,7 +31,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
   const [expandedApt, setExpandedApt] = useState<string | null>(null);
   const emptyCopy = getViewStateCopy('residents', 'empty');
 
-  // Р“СЂСѓРїРїРёСЂСѓРµРј Р¶РёР»СЊС†РѕРІ РїРѕ Р°РїР°СЂС‚Р°РјРµРЅС‚Р°Рј
+  // Группируем жильцов по апартаментам.
   const aptGroups = useMemo(() => {
     const residents = Object.values(users).filter(hasKnownApartment);
     const byApt: Record<string, ResidentWithApartment[]> = {};
@@ -41,7 +41,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
       byApt[apartment].push(resident);
     });
 
-    // РЎРѕСЂС‚РёСЂСѓРµРј Р°РїР°СЂС‚Р°РјРµРЅС‚С‹ С‡РёСЃР»РѕРІРѕ
+    // Сортируем апартаменты числовым порядком.
     return Object.entries(byApt).sort(([a], [b]) => {
       const na = parseInt(a, 10) || 0;
       const nb = parseInt(b, 10) || 0;
@@ -49,11 +49,11 @@ export default function ResidentsView({ user }: { user: AppUser }) {
     });
   }, [users]);
 
-  // FIX [PERF]: getCars РјРµРјРѕРёР·РёСЂРѕРІР°РЅ С‡РµСЂРµР· useCallback вЂ” РЅРµ РїРµСЂРµСЃРѕР·РґР°С‘С‚СЃСЏ РїСЂРё СЂРµ-СЂРµРЅРґРµСЂРµ
-  // garage СѓР¶Рµ РјРµРјРѕРёР·РёСЂРѕРІР°РЅ РІ AppStore, РїРѕСЌС‚РѕРјСѓ deps СЃС‚Р°Р±РёР»РµРЅ
+  // FIX [PERF]: getCars мемоизирован через useCallback и не пересоздаётся при ре-рендере.
+  // garage уже мемоизирован в AppStore, поэтому deps здесь стабильны.
   const getCars = useCallback((uid: string): Car[] => (garage && garage[uid]) || [], [garage]);
 
-  // РџРѕСЃС‚РѕСЏРЅРЅС‹Рµ РїРѕСЃРµС‚РёС‚РµР»Рё Рё СЂР°Р±РѕС‡РёРµ Р¶РёР»СЊС†Р°
+  // Постоянные посетители и рабочие жильца.
   const getPermsForUser = useCallback((uid: string): { visitors: ResidentPerm[]; workers: ResidentPerm[] } => {
     const value = allPerms[uid];
     if (value && typeof value === 'object' && 'visitors' in value && 'workers' in value) {
@@ -62,7 +62,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
     return { visitors: [], workers: [] };
   }, [allPerms]);
 
-  // Р’СЃРµ РґР°РЅРЅС‹Рµ РїР»РѕСЃРєРёРј СЃРїРёСЃРєРѕРј РґР»СЏ РїРѕРёСЃРєР°
+  // Все данные плоским списком для поиска.
   const filtered = useMemo(() => {
     if (!dq.trim()) return aptGroups;
     const q = dq.toLowerCase();
@@ -86,21 +86,21 @@ export default function ResidentsView({ user }: { user: AppUser }) {
         <span className="search-icon"><AppIcon name="search" size={14} /></span>
         <input
           className="search-inp"
-          placeholder="РђРїР°СЂС‚., РёРјСЏ, Р°РІС‚Рѕ, РїР°СЂРєРѕРІРєР°..."
+          placeholder="Апарт., имя, авто, парковка..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           autoComplete="off"
         />
         {query && (
-          <button className="search-clear" onClick={() => setQuery('')} aria-label="РћС‡РёСЃС‚РёС‚СЊ РїРѕРёСЃРє">
+          <button className="search-clear" onClick={() => setQuery('')} aria-label="Очистить поиск">
             <AppIcon name="close" size={14} />
           </button>
         )}
       </div>
 
       <div className="residents-summary">
-        <span>{filtered.length} Р°РїР°СЂС‚Р°РјРµРЅС‚РѕРІ</span>
-        <span>{totalResidents} Р¶РёР»СЊС†РѕРІ</span>
+        <span>{filtered.length} апартаментов</span>
+        <span>{totalResidents} жильцов</span>
       </div>
 
       {filtered.length === 0 && (
@@ -119,19 +119,19 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                 type="button"
                 className="apt-header"
                 aria-expanded={isOpen}
-                aria-label={'РђРїР°СЂС‚Р°РјРµРЅС‚С‹ ' + apt}
+                aria-label={'Апартаменты ' + apt}
                 onClick={() => setExpandedApt(isOpen ? null : apt)}
               >
                 <div className="apt-num">
                   <span className="apt-num-ico"><AppIcon name="residents" size={14} /></span>
-                  <span className="apt-num-val">РђРїР°СЂС‚. {apt}</span>
+                  <span className="apt-num-val">Апарт. {apt}</span>
                 </div>
                 <div className="apt-meta">
-                  <span className="apt-chip">{residents.length} Р¶РёР».</span>
+                  <span className="apt-chip">{residents.length} жил.</span>
                   {allCars.length > 0 && <span className="apt-chip car"><AppIcon name="car" size={12} /> {allCars.length}</span>}
-                  {parkingSpots.length > 0 && <span className="apt-chip park">рџ…ї {parkingSpots.join(', ')}</span>}
+                  {parkingSpots.length > 0 && <span className="apt-chip park">P {parkingSpots.join(', ')}</span>}
                 </div>
-                <span className="apt-chevron">{isOpen ? 'в–І' : 'в–ј'}</span>
+                <span className="apt-chevron">{isOpen ? '▴' : '▾'}</span>
               </button>
 
               {isOpen && (
@@ -152,7 +152,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                               {resident.phone}
                             </a>
                             {resident.parkingSpot && (
-                              <span className="resident-parking">рџ…ї {resident.parkingSpot}</span>
+                              <span className="resident-parking">P {resident.parkingSpot}</span>
                             )}
                           </div>
                           {cars.length > 0 && (
@@ -167,7 +167,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                           )}
                           {visitors.length > 0 && (
                             <div className="perm-section">
-                              <SectionHeader title="РџРѕСЃС‚РѕСЏРЅРЅС‹Рµ РїРѕСЃРµС‚РёС‚РµР»Рё" className="section-header--compact" />
+                              <SectionHeader title="Постоянные посетители" className="section-header--compact" />
                               {visitors.map((visitor, index) => (
                                 <div key={visitor.id || index} className="perm-entry">
                                   <span className="perm-name">{visitor.name}</span>
@@ -182,7 +182,7 @@ export default function ResidentsView({ user }: { user: AppUser }) {
                           )}
                           {workers.length > 0 && (
                             <div className="perm-section">
-                              <SectionHeader title="РџРѕСЃС‚РѕСЏРЅРЅС‹Рµ СЂР°Р±РѕС‡РёРµ" className="section-header--compact" />
+                              <SectionHeader title="Постоянные рабочие" className="section-header--compact" />
                               {workers.map((worker, index) => (
                                 <div key={worker.id || index} className="perm-entry">
                                   <span className="perm-name">{worker.name}</span>

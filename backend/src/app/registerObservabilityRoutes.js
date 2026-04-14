@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const requireAuth = require('../middleware/auth');
 const logger = require('../logger');
 const appMetrics = require('../metrics');
@@ -7,7 +9,19 @@ const sse = require('../sse');
 const { getRedis } = require('../lib/redisClient');
 
 function registerObservabilityRoutes(app, { db }) {
+  const openApiPath = path.resolve(__dirname, '../../../docs/openapi.json');
+
   app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
+
+  app.get('/api/docs/openapi.json', (_req, res) => {
+    try {
+      const spec = fs.readFileSync(openApiPath, 'utf8');
+      res.type('application/json').send(spec);
+    } catch (err) {
+      logger.error({ err }, '[docs] failed to read OpenAPI spec');
+      res.status(500).json({ error: 'OpenAPI spec unavailable' });
+    }
+  });
 
   app.get('/api/v1/events/health', requireAuth, (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });

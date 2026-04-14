@@ -75,6 +75,7 @@ describe('CreateModal — smoke', () => {
   const onDone  = vi.fn();
 
   beforeEach(() => {
+    window.localStorage.clear();
     onClose.mockReset();
     onDone.mockReset();
     useCreateRequestMock.mockReset();

@@ -10,7 +10,8 @@
     "test": "jest",
     "test:ci": "jest --runInBand",
     "test:detect-open-handles": "jest --runInBand --detectOpenHandles",
-    "test:contract": "jest src/__tests__/api_contract.test.js"
+    "test:contract": "jest src/__tests__/api_contract.test.js",
+    "test:integration:pg": "jest --runInBand src/__tests__/postgres.integration.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

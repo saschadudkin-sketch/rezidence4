@@ -2,11 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { CSSProperties } from 'react';
 import type { AppUser } from '../store/slices/usersSlice';
 import { useUsers } from '../store/AppStore';
-import { findByPhone } from '../utils/phoneUtils';
 import { toast } from '../ui/Toasts';
 import { isLiveMode, isDemoMode } from '../config/runtimeMode';
 import { LOGO } from '../constants/logo';
-import { AppIcon } from '../ui/AppIcon';
 import { OTP_COOLDOWN_SECONDS, OTP_RETRY_AFTER_MAX_SECONDS } from '../constants/limits';
 import { formatPhone } from '../utils/phoneUtils';
 import { emitLoginMetric } from '../utils/loginMetrics';
@@ -14,6 +12,9 @@ import { useAuthFlow } from '../hooks/useAuthFlow';
 import { presentError } from '../ui/errorPresenter';
 import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
 import type { ServiceAck } from '../services/providers/serviceDtos';
+import { LoginArt } from './login/LoginArt';
+import { LoginPhoneStep } from './login/LoginPhoneStep';
+import { LoginOtpStep } from './login/LoginOtpStep';
 
 // Показываем мягкое предупреждение уже со второй повторной отправки OTP.
 const OTP_WARN_ON_ATTEMPT = 2;
@@ -245,87 +246,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
 
   return (
     <div className="login">
-      <div className="login-art" aria-hidden="true">
-        <div className="login-art-brand">
-          <img src={LOGO} alt="Резиденции Замоскворечья" className="login-art-logo" />
-          <div>
-            <div className="login-art-name">Резиденции Замоскворечья</div>
-            <div className="login-art-tagline">Приватная система доступа и сервиса</div>
-          </div>
-        </div>
-        <div className="login-art-body">
-          <div className="login-art-kicker">Закрытое приложение резиденции</div>
-          <div className="login-art-headline">
-            Элегантное управление
-            <br />
-            доступом
-          </div>
-          <div className="login-art-intro">
-            <p className="login-art-lead">
-              Персональное закрытое приложение для жителей и персонала, ваш ключ к безупречному
-              сервису.
-            </p>
-            <ul className="login-art-list">
-              <li>Интеллектуальное оформление гостевых пропусков</li>
-              <li>Удобные сервисные обращения с отслеживанием статуса</li>
-              <li>Мгновенная связь с консьерж-службой и охраной</li>
-              <li>Персонализированные уведомления</li>
-            </ul>
-          </div>
-          <div className="login-art-metrics" aria-hidden="true">
-            <div className="login-art-metric">
-              <span className="login-art-metric-value">24/7</span>
-              <span className="login-art-metric-label">консьерж-контур</span>
-            </div>
-            <div className="login-art-metric">
-              <span className="login-art-metric-value">1 app</span>
-              <span className="login-art-metric-label">пропуска и сервисы</span>
-            </div>
-            <div className="login-art-metric">
-              <span className="login-art-metric-value">Private</span>
-              <span className="login-art-metric-label">защищённый доступ</span>
-            </div>
-          </div>
-          <ul className="login-art-features">
-            <li className="login-art-feature">
-              <div className="login-art-feature-icon">
-                <AppIcon name="ticket" />
-              </div>
-              <div>
-                <div className="login-art-feature-title">Пропуска за секунды</div>
-                <div className="login-art-feature-desc">
-                  Создавайте и отправляйте гостевые пропуска прямо с телефона
-                </div>
-              </div>
-            </li>
-            <li className="login-art-feature">
-              <div className="login-art-feature-icon">
-                <AppIcon name="bell" />
-              </div>
-              <div>
-                <div className="login-art-feature-title">Уведомления в реальном времени</div>
-                <div className="login-art-feature-desc">
-                  Охрана получает пуш-уведомления на заблокированный экран
-                </div>
-              </div>
-            </li>
-            <li className="login-art-feature">
-              <div className="login-art-feature-icon">
-                <AppIcon name="file" />
-              </div>
-              <div>
-                <div className="login-art-feature-title">Постоянные списки</div>
-                <div className="login-art-feature-desc">
-                  Сохраняйте частых гостей и шаблоны заявок
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
-        <div className="login-art-footer">
-          <div className="login-art-quote">Безопасность и комфорт в одном приложении</div>
-        </div>
-      </div>
+      <LoginArt />
 
       <div className="login-panel" style={loginPanelStyle}>
         <div className="login-panel-balance" aria-hidden="true" />
@@ -364,156 +285,46 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
           )}
 
           {step === 'phone' ? (
-            <>
-              <div className="field">
-                <label className="field-lbl" htmlFor="login-phone">Номер телефона</label>
-                <input
-                  id="login-phone"
-                  className="field-inp"
-                  type="tel"
-                  placeholder="+7 000 000-00-00"
-                  value={phone}
-                  onChange={e => {
-                    setPhone(formatPhone(e.target.value));
-                    if (phoneError) setPhoneError('');
-                  }}
-                  onKeyDown={e => e.key === 'Enter' && sendCode()}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  autoFocus
-                />
-                {phoneError && <div className="field-err">{phoneError}</div>}
-              </div>
-              <button className="btn-gold" onClick={sendCode} disabled={loading}>
-                <span>{loading ? 'Проверка...' : 'Получить SMS-код'}</span>
-              </button>
-
-              {demoMode && (
-                <button
-                  className={'demo-toggle' + (demoOpen ? ' open' : '')}
-                  onClick={() => setDemoOpen(open => !open)}
-                >
-                  <span>Демо-доступ</span>
-                  <span className="demo-toggle-arrow">▾</span>
-                </button>
-              )}
-
-              {demoMode && demoOpen && (
-                <div className="demo-list">
-                  {HINTS.map(([demoPhone, roleLabel]) => (
-                    <button
-                      key={demoPhone}
-                      className="demo-row"
-                      disabled={loading}
-                      onClick={async () => {
-                        setPhone(demoPhone);
-                        const matched = findByPhone(demoPhone, phoneDb);
-                        if (matched) {
-                          setPendingState(prev => ({ ...prev, demo: true }));
-                          setFound(matched);
-                          setOtp('');
-                          setOtpError('');
-                          setRecovery(null);
-                          setDemoOpen(false);
-                          await new Promise(resolve => setTimeout(resolve, 300));
-                          setStep('otp');
-                          setResendIn(OTP_COOLDOWN_SECONDS);
-                          setPendingState(prev => ({ ...prev, demo: false }));
-                          emitLoginMetric('send_code_success', {
-                            mode: 'demo',
-                            source: 'demo_shortcut',
-                          });
-                          toast('Демо: введите любой код', 'success');
-                        } else {
-                          toast('Пользователь не найден в демо-данных', 'error');
-                          setPendingState(prev => ({ ...prev, demo: false }));
-                        }
-                      }}
-                    >
-                      <span className="demo-ph">{demoPhone}</span>
-                      <span className="demo-rl">{roleLabel}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {!demoMode && (
-                <div className="login-help">
-                  <span className="login-help-text">Номер изменился? </span>
-                  <a href="mailto:admin@rezidencia.ru" className="login-help-link">
-                    Напишите администратору
-                  </a>
-                </div>
-              )}
-            </>
+            <LoginPhoneStep
+              phone={phone}
+              setPhone={(value) => setPhone(formatPhone(value))}
+              phoneError={phoneError}
+              setPhoneError={setPhoneError}
+              loading={loading}
+              demoMode={demoMode}
+              demoOpen={demoOpen}
+              setDemoOpen={setDemoOpen}
+              hints={HINTS}
+              phoneDb={phoneDb}
+              setFound={setFound}
+              setOtp={setOtp}
+              setOtpError={setOtpError}
+              setRecovery={setRecovery}
+              setStep={setStep}
+              setResendIn={setResendIn}
+              setPendingState={setPendingState}
+              sendCode={sendCode}
+            />
           ) : (
-            <>
-              <div className="login-otp-phone">
-                Код отправлен на <strong>{phone}</strong>
-              </div>
-              <div className="field">
-                <label className="field-lbl" htmlFor="login-code">Код из SMS</label>
-                <input
-                  id="login-code"
-                  className="field-inp field-otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="• • • • • •"
-                  value={otp}
-                  onChange={e => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    setOtp(value);
-                    if (otpError) setOtpError('');
-                    if (value.length === 6) verify(value);
-                  }}
-                  onKeyDown={e => e.key === 'Enter' && verify()}
-                  autoComplete="one-time-code"
-                  autoFocus
-                />
-                {otpError && <div className="field-err">{otpError}</div>}
-              </div>
-              <button className="btn-gold" onClick={() => { void verify(); }} disabled={loading}>
-                <span>{loading ? 'Проверка...' : 'Войти'}</span>
-              </button>
-
-              {sendAttempts >= OTP_WARN_ON_ATTEMPT && resendIn === 0 && (
-                <div className="field-warn" role="alert">
-                  Слишком много попыток: следующая может заблокировать вход на несколько минут
-                </div>
-              )}
-              {/* FIX [CODE]: IIFE в JSX заменён на читаемую переменную */}
-              {resendIn > 0 && (
-                <div className="otp-countdown" aria-hidden="true">
-                  <div
-                    className="otp-countdown-bar"
-                    style={{ '--otp-progress': `${(resendIn / OTP_COOLDOWN_SECONDS) * 100}%` } as CSSProperties}
-                  />
-                </div>
-              )}
-
-              <button className="btn-text" onClick={sendCode} disabled={loading || resendIn > 0}>
-                {resendIn > 0
-                  ? `Отправить повторно через ${resendIn}с`
-                  : 'Отправить код повторно'}
-              </button>
-              <button
-                className="btn-text"
-                onClick={() => {
-                  setStep('phone');
-                  setOtp('');
-                  setFound(null);
-                }}
-              >
-                ← Изменить номер
-              </button>
-              <div className="login-help">
-                <span className="login-help-text">Проблема со входом? </span>
-                <a href="mailto:admin@rezidencia.ru" className="login-help-link">
-                  Связаться с администратором
-                </a>
-              </div>
-            </>
+            <LoginOtpStep
+              phone={phone}
+              otp={otp}
+              setOtp={setOtp}
+              otpError={otpError}
+              setOtpError={setOtpError}
+              loading={loading}
+              sendAttempts={sendAttempts}
+              resendIn={resendIn}
+              otpWarnOnAttempt={OTP_WARN_ON_ATTEMPT}
+              otpCooldownSeconds={OTP_COOLDOWN_SECONDS}
+              sendCode={sendCode}
+              verify={verify}
+              onBack={() => {
+                setStep('phone');
+                setOtp('');
+                setFound(null);
+              }}
+            />
           )}
         </div>
         <div className="login-panel-balance" aria-hidden="true" />

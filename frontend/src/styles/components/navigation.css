@@ -26,7 +26,7 @@
 }
 .top-nav::-webkit-scrollbar { display: none; }
 @media (--bp-sm-down) {
-  .top-nav { width: 100%; max-width: 100%; margin: 0; justify-content: center; padding-inline: 8px; gap: 0; scroll-snap-type: x proximity; }
+  .top-nav { width: 100%; max-width: 100%; margin: 0; justify-content: center; padding-left: max(8px, var(--sal)); padding-right: max(8px, var(--sar)); gap: 0; scroll-snap-type: x proximity; }
   .tn-btn { gap: 6px; padding: 0 12px; height: 40px; font-size: 12px; scroll-snap-align: start; }
   .tn-icon { font-size: 13px; }
 }
@@ -102,7 +102,8 @@
   backdrop-filter: blur(28px) saturate(140%);
   -webkit-backdrop-filter: blur(28px) saturate(140%);
   border-top: 1px solid var(--b1);
-  padding-inline: 10px;
+  padding-left: max(10px, var(--sal));
+  padding-right: max(10px, var(--sar));
   padding-bottom: var(--sab);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -162,7 +163,8 @@
     max-width: 100%;
     margin: 0;
     justify-content: center;
-    padding-inline: 8px;
+    padding-left: max(8px, var(--sal));
+    padding-right: max(8px, var(--sar));
     gap: 0;
     border-top: none;
     border-bottom: 1px solid var(--b1);
@@ -289,7 +291,8 @@
 @media (--bp-md-up) and (--bp-lg-down) {
   .top-nav--mobile-top {
     justify-content: center;
-    padding-inline: 14px;
+    padding-left: max(14px, var(--sal));
+    padding-right: max(14px, var(--sar));
     gap: 2px;
   }
   .top-nav--mobile-top .tn-btn {
@@ -494,7 +497,8 @@
     max-width: 100%;
     margin: 0;
     justify-content: center;
-    padding-inline: 8px;
+    padding-left: max(8px, var(--sal));
+    padding-right: max(8px, var(--sar));
     gap: 0;
     border-top: none;
     border-bottom: 1px solid var(--b1);
@@ -578,7 +582,8 @@
     max-width: 100%;
     margin: 0;
     justify-content: center;
-    padding-inline: 8px;
+    padding-left: max(8px, var(--sal));
+    padding-right: max(8px, var(--sar));
     gap: 0;
     border-top: none;
     border-bottom: 1px solid var(--b1);
@@ -611,7 +616,8 @@
     top: auto;
     border-bottom: none;
     border-top: 1px solid var(--b1);
-    padding-inline: 14px;
+    padding-left: max(14px, var(--sal));
+    padding-right: max(14px, var(--sar));
     padding-bottom: max(calc(var(--sab) + 10px), 14px);
     justify-content: space-between;
     gap: 0;
@@ -638,7 +644,8 @@
     max-width: 100%;
     margin: 0 auto;
     justify-content: center;
-    padding-inline: 18px;
+    padding-left: max(18px, var(--sal));
+    padding-right: max(18px, var(--sar));
     gap: 4px;
     border-top: none;
     border-bottom: 1px solid var(--b1);
