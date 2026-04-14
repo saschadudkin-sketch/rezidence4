@@ -13,6 +13,8 @@ interface ConnectivityParams {
   syncCallbacks: LiveSyncOptions;
 }
 
+const MAX_SSE_RECONNECT_ATTEMPTS = 5;
+
 export function useConnectivityUX({ user, syncCallbacks }: ConnectivityParams) {
   const demoMode = isDemoMode();
   const [retryKey, setRetryKey] = useState(0);
@@ -40,6 +42,8 @@ export function useConnectivityUX({ user, syncCallbacks }: ConnectivityParams) {
     isLoading,
     isConnErr,
     sseOnline,
+    reconnectAttempt: sseOnline === false ? Math.min(retryKey + 1, MAX_SSE_RECONNECT_ATTEMPTS) : 0,
+    maxReconnectAttempts: MAX_SSE_RECONNECT_ATTEMPTS,
     handleRetry,
     requestsErrorCopy,
   };

@@ -8,6 +8,7 @@ import { canChangeRole, canDeleteUser } from '../../domain/permissions';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
 import { sanitizeUserFormFields, validateUserFormFields } from '../../utils/formPolicy';
+import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import type { AppUser, UserRole } from '../../store/slices/usersSlice';
 
 type AdminUserRowProps = {
@@ -28,6 +29,7 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
   const [role, setRole] = useState<UserRole>(u.role);
   const [apt, setApt] = useState<string>(u.apartment === '—' ? '' : (u.apartment ?? ''));
   const [parking, setParking] = useState<string>(u.parkingSpot ?? '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { updateUser, deleteUser } = useActions();
   const avData = useAvatar(u.uid);
 
@@ -126,7 +128,7 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
           <button className="btn-edit" onClick={() => setEditing((current) => !current)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>
             <AppIcon name={editing ? 'close' : 'edit'} />
           </button>
-          {canDel && <button className="btn-del-sm" onClick={del} aria-label="Удалить пользователя"><AppIcon name="trash" /></button>}
+          {canDel && <button className="btn-del-sm" onClick={() => setConfirmDelete(true)} aria-label="Удалить пользователя"><AppIcon name="trash" /></button>}
         </div>
       </div>
 
@@ -184,6 +186,17 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
             <button className="btn-gold u-pad-btn" onClick={save}><span>Сохранить</span></button>
           </div>
         </div>
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Удалить пользователя «${u.name}»? Это действие нельзя отменить.`}
+          confirmLabel="Удалить"
+          onConfirm={() => {
+            setConfirmDelete(false);
+            void del();
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );

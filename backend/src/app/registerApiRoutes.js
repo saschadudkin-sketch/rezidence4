@@ -10,6 +10,7 @@ const blacklistRouter = require('../routes/blacklist');
 const visitLogsRouter = require('../routes/visitLogs');
 const uploadRouter = require('../routes/upload');
 const clientLogsRouter = require('../routes/clientLogs');
+const contractsRouter = require('../routes/contracts');
 const requireAuth = require('../middleware/auth');
 const { deprecate } = require('../middleware/deprecate');
 const sse = require('../sse');
@@ -46,6 +47,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/visit-logs', visitLogsRouter);
   app.use('/api/v1/upload', uploadLimiter, uploadRouter);
   app.use('/api/v1/client-logs', clientLogsLimiter, clientLogsRouter);
+  app.use('/api/v1/contracts', contractsRouter);
   app.use('/api/client-logs', clientLogsLimiter, clientLogsRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
@@ -57,6 +59,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/blacklist', deprecate, blacklistRouter);
   app.use('/api/visit-logs', deprecate, visitLogsRouter);
   app.use('/api/upload', deprecate, uploadLimiter, uploadRouter);
+  app.use('/api/contracts', deprecate, contractsRouter);
 }
 
 module.exports = {

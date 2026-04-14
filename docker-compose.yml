@@ -8,6 +8,7 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: 1g
     environment:
       POSTGRES_DB:       residenze
       POSTGRES_USER:     residenze
@@ -19,11 +20,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   # ── Redis (SSE pub/sub + idempotency cache + token revocation) ────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    mem_limit: 256m
     # FIX [AUDIT]: добавлен пароль для Redis.
     # Без пароля любой процесс в docker-сети (или при случайном проросе порта)
     # может читать/очищать кеш отозванных токенов — что обходит logout.
@@ -38,12 +44,17 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   # ── Backend (Node.js API) ─────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
     restart: unless-stopped
+    mem_limit: 512m
     command: sh -c "node src/migrate.js && node src/index.js"
     depends_on:
       db:
@@ -84,6 +95,10 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   # ── Frontend (React + nginx) ──────────────────────────────────────────────────
   frontend:

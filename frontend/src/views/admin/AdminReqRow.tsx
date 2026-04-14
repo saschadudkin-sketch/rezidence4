@@ -6,6 +6,8 @@ import { toastBySyncResult } from '../../ui/syncFeedback';
 import { toast } from '../../ui/Toasts';
 import { services } from '../../services/providers/serviceContainer';
 import { AppIcon } from '../../ui/AppIcon';
+import { ConfirmDialog } from '../../ui/ConfirmDialog';
+import { presentError } from '../../ui/errorPresenter';
 import type { AppRequest, RequestStatus } from '../../store/slices/requestsSlice';
 
 type AdminReqRowProps = {
@@ -17,6 +19,7 @@ export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
   const [editing, setEditing] = useState(false);
   const [comment, setComment] = useState(r.comment || '');
   const [status,  setStatus]  = useState(r.status);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // FIX [BUG]: состояние задублировало prop — при обновлении r через SSE форма показывала
   // устаревший статус/комментарий. Синхронизируем когда пользователь не редактирует.
@@ -42,11 +45,11 @@ export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
 
   async function save() {
     try {
-      const mode: Awaited<ReturnType<typeof services.requests.updateEverywhere>> = await services.requests.updateEverywhere({ requestId: r.id, patch: { comment, status }, updateLocal: updateRequest });
+      const mode: Awaited<ReturnType<typeof services.requests.updateEverywhere>> = await services.requests.updateEverywhere({ requestId: r.id, patch: { comment, status }, updateLocal: updateRequest, expectedCurrentStatus: r.status });
       if (!isMountedRef.current) return;
       setEditing(false);
       toastBySyncResult(mode, 'Заявка обновлена', 'Изменения сохранены локально. Синхронизация будет повторена позже');
-    } catch { if (isMountedRef.current) toast('Ошибка сохранения заявки', 'error'); }
+    } catch (error) { if (isMountedRef.current) toast(presentError(error, 'request.update').message, 'error'); }
   }
 
   function handleCancel() { setEditing(false); }
@@ -59,12 +62,12 @@ export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
           <AppIcon name={editing ? 'close' : 'edit'} className="u-inline-icon" /> Ред.
         </button>
         {/* Кнопка удаления всегда видна в AdminView — admin может удалять любые заявки */}
-        <button className="btn-del-sm" onClick={del} aria-label="Удалить"><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>
+        <button className="btn-del-sm" onClick={() => setConfirmDelete(true)} aria-label="Удалить заявку"><AppIcon name="trash" className="u-inline-icon" /> Удалить</button>
       </div>
       {editing && (
         <div className="edit-inline u-mt4">
           <div className="edit-inline-row">
-            <select className="edit-inline-sel" value={status} onChange={e => setStatus(e.target.value as RequestStatus)}>
+            <select className="edit-inline-sel" value={status} onChange={e => setStatus(e.target.value as RequestStatus)} aria-label="Статус заявки">
               {Object.entries(STS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
@@ -77,6 +80,17 @@ export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
             <button className="btn-gold u-pad-btn" onClick={save}><span>Сохранить</span></button>
           </div>
         </div>
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Удалить заявку для «${r.visitorName || r.category || 'заявки'}»? Это действие нельзя отменить.`}
+          confirmLabel="Удалить"
+          onConfirm={() => {
+            setConfirmDelete(false);
+            void del();
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </div>
   );

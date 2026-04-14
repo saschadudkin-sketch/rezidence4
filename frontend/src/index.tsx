@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
 import { reportWebVitals } from './utils/webVitals';
+import { scrubSentryEvent } from './services/telemetry/sentryPrivacy';
 
 // ─── Sentry error tracking ─────────────────────────────────────────────────────
 // Activated only when VITE_SENTRY_DSN is set — no-op in dev/demo without it.
@@ -13,6 +14,9 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     release: import.meta.env.VITE_APP_VERSION,
     tracesSampleRate: 0.1, // 10% of transactions for performance monitoring
     replaysOnErrorSampleRate: 1.0,
+    beforeSend(event, hint) {
+      return scrubSentryEvent(event, hint);
+    },
   });
 }
 

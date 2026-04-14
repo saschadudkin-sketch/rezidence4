@@ -13,6 +13,7 @@ import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
 import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse, type EntityRow } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
+import { canTransitionOnFrontend } from '../contracts/statusTransitions';
 import type {
   AuthService,
   ChatService,
@@ -94,6 +95,10 @@ function isDeletedRequestEvent(request: RequestUpdateEvent): request is DeletedR
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function toStringValue(value: unknown, fallback = ''): string {
@@ -429,7 +434,7 @@ export const authProvider: AuthService = {
 export const requestsProvider: Pick<RequestsService, 'resolvePhotos'> & {
   getAll: (opts?: PagedRequestsOptions) => Promise<AppRequest[]>;
   create: (request: Partial<AppRequest>) => Promise<AppRequest>;
-  update: (id: string, patch: Partial<AppRequest>, historyLabel?: string) => Promise<ServiceAck | void>;
+  update: (id: string, patch: Partial<AppRequest>, historyLabel?: string, expectedCurrentStatus?: AppRequest['status']) => Promise<ServiceAck | void>;
   delete: (id: string) => Promise<ServiceAck | void>;
 } = {
   async getAll(opts?: PagedRequestsOptions) {
@@ -475,7 +480,7 @@ export const requestsProvider: Pick<RequestsService, 'resolvePhotos'> & {
         }
       } catch (e) {
         if (signal?.aborted) return;
-        logger.warn('[requestsProvider.getAll] background page fetch failed', e?.message);
+        logger.warn('[requestsProvider.getAll] background page fetch failed', getErrorMessage(e));
       }
     })();
 
@@ -490,8 +495,17 @@ export const requestsProvider: Pick<RequestsService, 'resolvePhotos'> & {
     });
     return serverReq;
   },
-  async update(id: string, patch: Partial<AppRequest>, historyLabel?: string) {
-    return apiClient.patch(`/api/v1/requests/${id}`, { ...patch, historyLabel });
+  async update(id: string, patch: Partial<AppRequest>, historyLabel?: string, expectedCurrentStatus?: AppRequest['status']) {
+    if (patch.status && expectedCurrentStatus) {
+      const me = await authProvider.getMe();
+      const allowed = await canTransitionOnFrontend(me.role, expectedCurrentStatus, patch.status);
+      if (!allowed) {
+        const err = new Error(`Role '${me.role}' cannot transition status from '${expectedCurrentStatus}' to '${patch.status}'`) as Error & { status?: number };
+        err.status = 403;
+        throw err;
+      }
+    }
+    return apiClient.patch(`/api/v1/requests/${id}`, { ...patch, historyLabel, expectedCurrentStatus });
   },
   async delete(id: string) {
     return apiClient.delete(`/api/v1/requests/${id}`);
@@ -603,7 +617,7 @@ export const chatProvider: ChatService & { getAllHistory: (opts?: PagedChatOptio
         }
       } catch (e) {
         if (signal?.aborted) return;
-        logger.warn('[chatProvider.getAllHistory] background history fetch failed', e?.message);
+        logger.warn('[chatProvider.getAllHistory] background history fetch failed', getErrorMessage(e));
       }
     })();
 
@@ -750,7 +764,7 @@ export function createBackendProvider(): ServiceContracts {
     },
     requests: {
       submit:           (args) => requestsProvider.create(args.request),
-      updateEverywhere: (args) => requestsProvider.update(args.requestId, args.patch, args.historyLabel),
+      updateEverywhere: (args) => requestsProvider.update(args.requestId, args.patch, args.historyLabel, args.expectedCurrentStatus),
       deleteEverywhere: (args) => requestsProvider.delete(args.requestId),
       resolvePhotos:    requestsProvider.resolvePhotos.bind(requestsProvider),
     },
@@ -828,7 +842,7 @@ export function createBackendProvider(): ServiceContracts {
 
         const settledValues = [reqsResult, chatResult, usersResult, permsResult, templatesResult, blacklistResult].map((r, i) => {
           if (r.status === 'rejected') {
-            logger.warn('[startSync] partial load failure at index ' + i, { message: r.reason?.message });
+            logger.warn('[startSync] partial load failure at index ' + i, { message: getErrorMessage(r.reason) });
             return null;
           }
           return r.value;

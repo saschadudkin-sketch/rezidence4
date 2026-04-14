@@ -9,11 +9,13 @@
     "dev": "nodemon src/index.js",
     "test": "jest",
     "test:ci": "jest --runInBand",
+    "test:coverage:critical": "jest --config jest.coverage.critical.config.js",
     "test:detect-open-handles": "jest --runInBand --detectOpenHandles",
     "test:contract": "jest src/__tests__/api_contract.test.js",
     "test:integration:pg": "jest --runInBand src/__tests__/postgres.integration.test.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.48.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

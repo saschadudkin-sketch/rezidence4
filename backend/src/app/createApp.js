@@ -14,6 +14,7 @@ const { createRateLimiters } = require('./rateLimiters');
 const { registerProtectedUploads } = require('./registerProtectedUploads');
 const { registerApiRoutes } = require('./registerApiRoutes');
 const { registerObservabilityRoutes } = require('./registerObservabilityRoutes');
+const { captureException } = require('../sentry');
 
 function createApp({ config, db }) {
   const app = express();
@@ -87,6 +88,11 @@ function createApp({ config, db }) {
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, _next) => {
     logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+    captureException(err, {
+      requestId: req?.requestId,
+      method: req?.method,
+      path: req?.originalUrl || req?.url,
+    });
     const safeErrorMessage = config.isProd ? 'Internal server error' : (err.message || 'Internal server error');
     res.status(err.status || 500).json({ error: safeErrorMessage });
   });

@@ -11,7 +11,7 @@ const { ipKeyGenerator } = rateLimit;
 const requireAuth = require('../middleware/auth');
 const idempotency = require('../middleware/idempotency');
 const { broadcastRequestUpdate } = require('../sse');
-const { RequestsService, ServiceError } = require('../services/RequestsService');
+const { RequestsService, ServiceError, ConflictError } = require('../services/RequestsService');
 
 // SEC-03: per-user rate limit на создание заявок.
 // Предотвращает спам-создание пропусков — без этого один пользователь может
@@ -42,6 +42,13 @@ function validateId(req, res, next) {
 }
 
 function handleServiceError(err, res, next) {
+  if (err instanceof ConflictError) {
+    return res.status(err.status).json({
+      error: err.message,
+      code: err.code,
+      details: err.details,
+    });
+  }
   if (err instanceof ServiceError) return res.status(err.status).json({ error: err.message });
   next(err);
 }

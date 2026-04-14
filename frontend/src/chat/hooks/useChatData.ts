@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type RefObject } from 'react';
 import { services } from '../../services/providers/serviceContainer';
 import { isLiveMode } from '../../config/runtimeMode';
 import { toast } from '../../ui/Toasts';
+import type { ChatMessage } from '../../store/slices/chatSlice';
 
 interface UseChatDataArgs {
-  chat: Array<{ id: string }>;
-  setAllMessages: (messages: unknown[]) => void;
+  chat: ChatMessage[];
+  setAllMessages: (messages: ChatMessage[]) => void;
   msgsContainerRef: RefObject<HTMLDivElement | null>;
 }
 

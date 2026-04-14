@@ -363,14 +363,14 @@
 .msg-photo{max-width:100%;max-height:220px;border-radius:8px;display:block;cursor:pointer;object-fit:cover;transition:opacity .13s}
 .msg-photo:hover{opacity:.9}
 /* ── Статус прочтения ── */
-.msg-time{font-size:var(--fs-2xs);color:var(--t4);margin-top:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px;white-space:nowrap;flex-shrink:0}
+.msg-time{font-size:var(--fs-2xs);color:var(--t3);margin-top:4px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px;white-space:nowrap;flex-shrink:0}
 .msg-checks{display:inline-flex;align-items:center;line-height:1}
-.msg-check-sent{color:var(--t4)}
+.msg-check-sent{color:var(--t3)}
 .msg-check-read{color:var(--g2)}
 /* ── Разделители дат ── */
 .msg-date-sep{display:flex;align-items:center;gap:10px;margin:12px 0 8px}
 .msg-date-sep::before,.msg-date-sep::after{content:'';flex:1;height:1px;background:var(--b1)}
-.msg-date-sep span{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--t4);white-space:nowrap;background:color-mix(in srgb, var(--s1) 94%, transparent);padding:5px 12px;border-radius:999px;border:1px solid color-mix(in srgb, var(--b2) 78%, transparent)}
+.msg-date-sep span{font-size:11px;letter-spacing:1.3px;text-transform:uppercase;color:var(--t3);white-space:nowrap;background:color-mix(in srgb, var(--s1) 94%, transparent);padding:5px 12px;border-radius:999px;border:1px solid color-mix(in srgb, var(--b2) 78%, transparent)}
 /* ── Ответ на сообщение ── */
 .msg-reply-quote{border:1px solid color-mix(in srgb, var(--g1) 58%, var(--b2));background:var(--s3);border-radius:6px;padding:5px 8px;margin-bottom:6px;cursor:pointer}
 .msg-bubble.mine .msg-reply-quote{background:rgba(0,0,0,.12)}
@@ -381,7 +381,7 @@
 .chat-reply-bar-body{flex:1;min-width:0}
 .chat-reply-bar-name{font-size:var(--fs-2xs);font-weight:600;color:var(--g2)}
 .chat-reply-bar-text{font-size:var(--fs-2xs);color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-reply-close{background:none;border:none;color:var(--t4);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:var(--fs-sm);flex-shrink:0;transition:background .13s,color .13s}
+.chat-reply-close{background:none;border:none;color:var(--t3);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:var(--fs-sm);flex-shrink:0;transition:background .13s,color .13s}
 .chat-reply-close:hover{background:var(--s3);color:var(--t1)}
 .msg-row.swiping{transition:none}
 @keyframes msgHighlight{0%,100%{background:transparent}40%{background:var(--g-bg)}}
@@ -408,9 +408,9 @@
 .msg-edit-wrap{margin-top:4px;animation:riseUp .15s ease}
 .msg-edit-inp{width:100%;background:var(--s1);border:1.5px solid var(--g1);border-radius:var(--r);padding:8px 10px;font-family:var(--font-body);font-size:var(--fs-sm);color:var(--t1);resize:none;line-height:1.45;transition:border-color .13s;box-sizing:border-box}
 .msg-edit-inp:focus{outline:none;border-color:var(--g2)}
-.msg-edit-hint{font-size:var(--fs-2xs);color:var(--t4);margin-top:4px;display:flex;gap:10px}
+.msg-edit-hint{font-size:var(--fs-2xs);color:var(--t3);margin-top:4px;display:flex;gap:10px}
 .msg-edit-hint kbd{display:inline-block;padding:1px 5px;border-radius:3px;background:var(--s3);border:1px solid var(--b2);font-family:var(--font-body);font-size:var(--fs-3xs);color:var(--t3)}
-.msg-edited-mark{font-size:var(--fs-3xs);color:var(--t4);margin-left:4px;font-style:italic}
+.msg-edited-mark{font-size:var(--fs-3xs);color:var(--t3);margin-left:4px;font-style:italic}
 
 /* Mode normalization: desktop / tablet / phone */
 @media (--bp-lg-above) {

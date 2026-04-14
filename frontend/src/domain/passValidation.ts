@@ -1,5 +1,9 @@
 /** CQ-02: migrated from passValidation.js */
 
+export type BlacklistId =
+  | { kind: 'userId'; userId: string }
+  | { kind: 'uid'; uid: string };
+
 interface BlacklistItem {
   userId?: string;
   uid?: string;
@@ -18,6 +22,12 @@ interface PassData {
 interface ValidationResult {
   status: 'allowed' | 'denied';
   reason: string;
+}
+
+function toBlacklistId(entity: { userId?: string; uid?: string }): BlacklistId | null {
+  if (entity.userId) return { kind: 'userId', userId: entity.userId };
+  if (entity.uid) return { kind: 'uid', uid: entity.uid };
+  return null;
 }
 
 // FIX [BUG-2]: normalize phone to digits only for comparison
@@ -50,8 +60,11 @@ export function validatePassByRules(
   const passPlate  = normalizeCarPlate(pass.carPlate);
 
   const isBlacklisted = blacklist.some(item => {
-    const itemUserId = item.userId ?? item.uid;
-    if (itemUserId && passUserId && itemUserId === passUserId) return true;
+    const itemId = toBlacklistId(item);
+    if (itemId && passUserId) {
+      if (itemId.kind === 'userId' && itemId.userId === passUserId) return true;
+      if (itemId.kind === 'uid' && itemId.uid === passUserId) return true;
+    }
 
     const itemPhone = normalizePhone(item.phone);
     if (itemPhone && passPhone && itemPhone === passPhone) return true;

@@ -87,6 +87,15 @@ describe('db.migrate', () => {
     expect(calls.some(sql => sql.includes('CREATE INDEX IF NOT EXISTS'))).toBe(true);
   });
 
+  test('добавляет DB constraint для структуры chat_messages.reactions', async () => {
+    await db.migrate();
+    const calls = mockClientQuery.mock.calls.map(([sql]) => sql);
+
+    expect(calls.some((sql) => sql.includes('CREATE OR REPLACE FUNCTION is_valid_chat_reactions'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('UPDATE chat_messages') && sql.includes('NOT is_valid_chat_reactions(reactions)'))).toBe(true);
+    expect(calls.some((sql) => sql.includes('ADD CONSTRAINT chk_chat_messages_reactions_valid'))).toBe(true);
+  });
+
   test('логирует начало и завершение миграции', async () => {
     const logger = require('../logger');
     await db.migrate();

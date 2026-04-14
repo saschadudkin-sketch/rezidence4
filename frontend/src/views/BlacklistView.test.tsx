@@ -109,11 +109,17 @@ describe('BlacklistView', () => {
     expect(deleteButtons.length).toBeGreaterThanOrEqual(2);
   });
 
+  test('icon-only кнопка удаления имеет доступное имя', () => {
+    render(<BlacklistView user={user} />);
+    expect(screen.getAllByRole('button', { name: 'Удалить запись из чёрного списка' })).toHaveLength(2);
+  });
+
   test('клик удаления вызывает removeFromBlacklist', () => {
     const { removeFromBlacklist } = mockActions;
     render(<BlacklistView user={user} />);
     const deleteButtons = screen.getAllByTitle("Удалить");
     fireEvent.click(deleteButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
     expect(removeFromBlacklist).toHaveBeenCalledWith('bl1');
   });
 

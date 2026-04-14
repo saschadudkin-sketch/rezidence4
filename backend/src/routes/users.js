@@ -5,6 +5,7 @@ const db      = require('../db');
 const requireAuth = require('../middleware/auth');
 const { invalidateUserActiveCache } = requireAuth;
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
+const { USER_FIELD_MAX } = require('../constants/validationLimits');
 const { broadcastUserUpdate, broadcastUserDelete } = require('../sse');
 
 const router = express.Router();
@@ -65,9 +66,9 @@ router.post('/', async (req, res, next) => {
     // и записывалось в БД как пустое имя, отображаясь как пустота в заголовке и карточках.
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
     if (!phone || !name) return res.status(400).json({ error: 'phone and name required' });
-    if (name.length > 100) return res.status(400).json({ error: 'name too long (max 100 chars)' });
-    if (apartment && typeof apartment === 'string' && apartment.length > 20) {
-      return res.status(400).json({ error: 'apartment too long (max 20 chars)' });
+    if (name.length > USER_FIELD_MAX.name) return res.status(400).json({ error: `name too long (max ${USER_FIELD_MAX.name} chars)` });
+    if (apartment && typeof apartment === 'string' && apartment.length > USER_FIELD_MAX.apartment) {
+      return res.status(400).json({ error: `apartment too long (max ${USER_FIELD_MAX.apartment} chars)` });
     }
     if (!role) return res.status(400).json({ error: 'role required' });
     if (!ALLOWED_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -109,12 +110,12 @@ router.patch('/:uid', validateUid, async (req, res, next) => {
       if (typeof name !== 'string') return res.status(400).json({ error: 'name must be a string' });
       name = name.trim();
       if (!name)           return res.status(400).json({ error: 'name cannot be empty' });
-      if (name.length > 100) return res.status(400).json({ error: 'name too long (max 100 chars)' });
+      if (name.length > USER_FIELD_MAX.name) return res.status(400).json({ error: `name too long (max ${USER_FIELD_MAX.name} chars)` });
     }
     if (apartment !== undefined && apartment !== null) {
       if (typeof apartment !== 'string') return res.status(400).json({ error: 'apartment must be a string' });
       apartment = apartment.trim();
-      if (apartment.length > 20) return res.status(400).json({ error: 'apartment too long (max 20 chars)' });
+      if (apartment.length > USER_FIELD_MAX.apartment) return res.status(400).json({ error: `apartment too long (max ${USER_FIELD_MAX.apartment} chars)` });
     }
 
     const fields = [];

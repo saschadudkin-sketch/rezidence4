@@ -21,7 +21,7 @@ Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 // Но можно вынести их через именованный экспорт. Здесь тестируем интеграционно через store.
 
 import React from 'react';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { AppProvider, useActions, useRequests } from './AppStore';
 
 const wrapper = ({ children }) => <AppProvider>{children}</AppProvider>;
@@ -57,14 +57,12 @@ describe('AppStore — localStorage round-trip', () => {
       });
     });
 
-    // Ждём debounce сохранения (500мс)
-    await act(async () => { await new Promise(r => setTimeout(r, 600)); });
-
-    // Проверяем что заявка в сторе
-    const req = result.current.requests.find(r => r.id === 'r_ls_test');
-    expect(req).toBeTruthy();
-    expect(req.createdAt).toBeInstanceOf(Date);
-    expect(req.createdAt.toISOString()).toBe('2026-01-01T10:00:00.000Z');
+    await waitFor(() => {
+      const req = result.current.requests.find(r => r.id === 'r_ls_test');
+      expect(req).toBeTruthy();
+      expect(req?.createdAt).toBeInstanceOf(Date);
+      expect(req?.createdAt.toISOString()).toBe('2026-01-01T10:00:00.000Z');
+    });
   });
 
   it('photo сохраняется в отдельном ключе и восстанавливается', async () => {
@@ -93,11 +91,11 @@ describe('AppStore — localStorage round-trip', () => {
       });
     });
 
-    await act(async () => { await new Promise(r => setTimeout(r, 600)); });
-
-    const req = result.current.requests.find(r => r.id === 'r_photo_test');
-    expect(req?.photo).toBe(photoData);
-    expect(req?.photos[0]).toBe(photoData);
+    await waitFor(() => {
+      const req = result.current.requests.find(r => r.id === 'r_photo_test');
+      expect(req?.photo).toBe(photoData);
+      expect(req?.photos[0]).toBe(photoData);
+    });
   });
 });
 

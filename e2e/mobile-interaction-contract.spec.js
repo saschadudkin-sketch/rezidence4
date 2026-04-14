@@ -1,4 +1,4 @@
-const { test, expect, devices } = require('@playwright/test');
+const { test, expect, devices } = require('./test');
 
 test.use({ ...devices['iPhone 13'] });
 

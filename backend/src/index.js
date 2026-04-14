@@ -6,9 +6,11 @@ const { validateConfig, getAppConfig } = require('./config/appConfig');
 const { createApp } = require('./app/createApp');
 const { startServer } = require('./server/startServer');
 const logger = require('./logger');
+const { initBackendSentry } = require('./sentry');
 
 const config = getAppConfig(process.env);
 validateConfig(process.env, config.isProd);
+initBackendSentry();
 
 const app = createApp({ config, db });
 

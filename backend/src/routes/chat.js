@@ -5,6 +5,7 @@ const { ipKeyGenerator } = rateLimit;
 const db        = require('../db');
 const requireAuth = require('../middleware/auth');
 const sse       = require('../sse');
+const { CHAT_LIMITS } = require('../constants/validationLimits');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -136,9 +137,6 @@ router.get('/messages', async (req, res, next) => {
 
 // ─── POST /api/chat/messages ──────────────────────────────────────────────────
 
-const MAX_CHAT_TEXT   = 4000; // символов
-const MAX_PHOTO_URL   = 2048; // байт — только URL от нашего /uploads/
-
 function isLocalUploadPhotoUrl(photo) {
   if (typeof photo !== 'string') return false;
   if (photo.startsWith('/uploads/')) return true;
@@ -186,12 +184,12 @@ router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
       if (typeof text !== 'string') {
         return res.status(400).json({ error: 'text must be a string' });
       }
-      if (text.length > MAX_CHAT_TEXT) {
-        return res.status(400).json({ error: `text too long (max ${MAX_CHAT_TEXT} chars)` });
+      if (text.length > CHAT_LIMITS.text) {
+        return res.status(400).json({ error: `text too long (max ${CHAT_LIMITS.text} chars)` });
       }
     }
     if (photo !== undefined && photo !== null) {
-      if (typeof photo !== 'string' || photo.length > MAX_PHOTO_URL) {
+      if (typeof photo !== 'string' || photo.length > CHAT_LIMITS.photoUrl) {
         return res.status(400).json({ error: 'invalid photo URL' });
       }
       if (!isLocalUploadPhotoUrl(photo)) {
@@ -229,8 +227,8 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
         return res.status(400).json({ error: 'Too many reaction types (max 20)' });
       }
       for (const [key, val] of Object.entries(reactions)) {
-        if (typeof key !== 'string' || key.length > 10) {
-          return res.status(400).json({ error: 'Reaction key too long (max 10 chars)' });
+        if (typeof key !== 'string' || key.length > CHAT_LIMITS.reactionKey) {
+          return res.status(400).json({ error: `Reaction key too long (max ${CHAT_LIMITS.reactionKey} chars)` });
         }
         // FIX [SEC]: reactions.value принимает ТОЛЬКО массив [uid_caller] или [].
         // Раньше JSONB || перезаписывал весь массив emoji — пользователь B мог
@@ -276,9 +274,9 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
           await client.query('ROLLBACK');
           return res.status(400).json({ error: 'text must be a string' });
         }
-        if (text.length > MAX_CHAT_TEXT) {
+        if (text.length > CHAT_LIMITS.text) {
           await client.query('ROLLBACK');
-          return res.status(400).json({ error: `text too long (max ${MAX_CHAT_TEXT} chars)` });
+          return res.status(400).json({ error: `text too long (max ${CHAT_LIMITS.text} chars)` });
         }
         // Admin может редактировать любое сообщение
         if (existing[0].uid !== uid && role !== 'admin') {

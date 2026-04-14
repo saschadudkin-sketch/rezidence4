@@ -495,7 +495,7 @@ html{scroll-behavior:smooth}
 .apt-chip.car{background:color-mix(in srgb, var(--g-bg) 88%, transparent);color:var(--g2);border-color:color-mix(in srgb, var(--g1) 28%, transparent)}
 .apt-chip.park{background:#fef3c7;color:#92400e;border-color:rgba(146,64,14,.14)}
 .dark .apt-chip.park{background:#2d2000;color:#f59e0b}
-.apt-chevron{font-size:var(--fs-2xs);color:var(--t4);flex-shrink:0;opacity:.8}
+.apt-chevron{font-size:var(--fs-2xs);color:var(--t3);flex-shrink:0}
 
 .apt-body{border-top:1px solid color-mix(in srgb, var(--b2) 72%, transparent);padding:12px 14px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,transparent 0%,color-mix(in srgb, var(--g-bg) 10%, transparent) 100%)}
 .resident-row{display:flex;align-items:flex-start;gap:10px;padding:2px 0}

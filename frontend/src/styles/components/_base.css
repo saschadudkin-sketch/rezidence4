@@ -64,10 +64,10 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .demo-welcome-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
-  width:40px;height:40px;border-radius:50%;color:var(--warn);opacity:.7;
+  width:40px;height:40px;border-radius:50%;color:var(--warn);
   padding:0;
 }
-.demo-welcome-close:hover{opacity:1}
+.demo-welcome-close:hover{color:color-mix(in srgb, var(--warn) 82%, var(--t1))}
 @media (max-width: 480px){
   .demo-welcome-banner{
     display:grid;
@@ -204,10 +204,10 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .onboarding-hint-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
-  width:40px;height:40px;border-radius:50%;color:var(--t4);opacity:.7;
+  width:40px;height:40px;border-radius:50%;color:var(--t3);
   padding:0;
 }
-.onboarding-hint-close:hover{opacity:1}
+.onboarding-hint-close:hover{color:var(--t1)}
 @media (max-width: 480px){
   .onboarding-hint{
     display:grid;

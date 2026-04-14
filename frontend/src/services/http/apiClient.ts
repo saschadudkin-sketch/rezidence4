@@ -26,7 +26,7 @@ interface ApiOptions {
   maxRetries?: number;
   retryable?: boolean;
   headers?: Record<string, string>;
-  signal?: AbortSignal;
+  signal?: AbortSignal | null;
 }
 interface ApiError extends Error { code?: string; kind?: string; status?: number; forbidden?: boolean; }
 
@@ -67,7 +67,7 @@ async function api(
           },
           credentials: 'include',
           body: body ? JSON.stringify(body) : undefined,
-          signal,
+          signal: signal ?? undefined,
         },
         method === 'GET' ? 10_000 : 20_000,
       );

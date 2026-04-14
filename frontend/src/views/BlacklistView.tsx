@@ -8,6 +8,7 @@ import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
 import { VirtualList } from '../ui/VirtualList';
 import { sanitizeText, sanitizeCarPlate, validateAtLeastOne } from '../utils/inputSanitizer';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { BlacklistEntry } from '../store/slices/blacklistSlice';
 
@@ -23,6 +24,7 @@ export default function BlacklistView({ user }: BlacklistViewProps) {
   const [carPlate, setCarPlate] = useState('');
   const [reason, setReason] = useState('');
   const [query, setQuery] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const debouncedQuery = useDebounce(query, 250);
   const q = debouncedQuery.trim().toLowerCase();
   const emptyCopy = getViewStateCopy('blacklist', 'empty');
@@ -80,10 +82,10 @@ export default function BlacklistView({ user }: BlacklistViewProps) {
             {entry.addedAt ? new Date(entry.addedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
           </div>
         </div>
-        <button className="perm-del" onClick={() => handleRemove(entry.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
+        <button className="perm-del" onClick={() => setConfirmDelete(entry.id)} title="Удалить" aria-label="Удалить запись из чёрного списка"><AppIcon name="close" /></button>
       </div>
     </div>
-  ), [handleRemove]);
+  ), []);
 
   return (
     <div>
@@ -163,6 +165,17 @@ export default function BlacklistView({ user }: BlacklistViewProps) {
         className="bl-list"
         renderItem={renderEntry}
       />
+      {confirmDelete && (
+        <ConfirmDialog
+          message="Удалить запись из чёрного списка? Это действие нельзя отменить."
+          confirmLabel="Удалить"
+          onConfirm={() => {
+            handleRemove(confirmDelete);
+            setConfirmDelete(null);
+          }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }

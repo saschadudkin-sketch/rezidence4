@@ -329,7 +329,7 @@
   transition: background .13s, color .13s;
 }
 .mn-btn:active { background: var(--g-bg); }
-.mn-icon { font-size: var(--fs-md); line-height: 1; color: var(--t4); transition: color .13s, transform .13s; }
+.mn-icon { font-size: var(--fs-md); line-height: 1; color: var(--t3); transition: color .13s, transform .13s; }
 .mn-label { font-size: var(--fs-2xs); letter-spacing: 0; text-transform: none; color: var(--t3); font-family: var(--font-body); }
 .mn-btn.active .mn-icon, .mn-btn.active .mn-label { color: var(--g2); }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
@@ -391,7 +391,7 @@
 .mn-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .mn-quick-item { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--s2); border: 1px solid var(--b1); border-radius: var(--r); color: var(--t2); text-align: left; }
 .mn-quick-item.active, .mn-quick-item[aria-current='page'] { border-color: var(--g1); color: var(--g2); background: var(--g-bg); }
-.mn-quick-item .mn-icon { flex-shrink: 0; color: var(--t4); }
+.mn-quick-item .mn-icon { flex-shrink: 0; color: var(--t3); }
 .mn-quick-item.active .mn-icon, .mn-quick-item[aria-current='page'] .mn-icon { color: var(--g2); }
 .mn-more-label { flex: 1; }
 .mn-quick-item .mn-badge { position: static; margin-left: auto; }
@@ -428,7 +428,7 @@
     font-size: 10px;
     letter-spacing: .16em;
     text-transform: uppercase;
-    color: color-mix(in srgb, var(--t4) 88%, var(--g2) 12%);
+    color: color-mix(in srgb, var(--t3) 82%, var(--g2) 18%);
   }
 
   .mn-quick-grid--compact {

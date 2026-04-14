@@ -1,6 +1,6 @@
 type AuthSessionDeps = {
   baseUrl: string;
-  fetchWithTimeout: (url: string, options?: RequestInit, timeoutMs?: number) => Promise<Response>;
+  fetchWithTimeout: (url: string, options?: RequestInit & { signal?: AbortSignal | null }, timeoutMs?: number) => Promise<Response>;
   getCsrfToken: () => string;
   makeRequestId: () => string;
 };

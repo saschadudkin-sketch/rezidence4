@@ -177,7 +177,7 @@ let visitLogsProviderPromise: Promise<VisitLogsProvider> | null = null;
 async function getVisitLogsProvider(): Promise<VisitLogsProvider> {
   if (!visitLogsProviderPromise) {
     visitLogsProviderPromise = import('../../services/providers/backendProvider')
-      .then((module) => module.visitLogsProvider as VisitLogsProvider);
+      .then((module) => module.visitLogsProvider as unknown as VisitLogsProvider);
   }
   return visitLogsProviderPromise;
 }

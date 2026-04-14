@@ -18,7 +18,10 @@ RUN npm run build
 FROM nginx:alpine
 
 # gettext предоставляет envsubst — нужен для подстановки переменных в nginx конфиг
-RUN apk add --no-cache gettext
+# nginx-mod-http-brotli добавляет динамические Brotli-модули для production nginx.
+# Alpine кладёт их в /etc/nginx/modules/*.conf и /usr/lib/nginx/modules/*.so,
+# а базовый /etc/nginx/nginx.conf из official image подхватывает их автоматически.
+RUN apk add --no-cache gettext nginx-mod-http-brotli
 
 COPY --from=build /app/dist /usr/share/nginx/html
 

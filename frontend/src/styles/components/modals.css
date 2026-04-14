@@ -298,7 +298,7 @@
   font-size:10px;
   letter-spacing:1.4px;
   text-transform:uppercase;
-  color:color-mix(in srgb, var(--t4) 86%, var(--g1));
+  color:color-mix(in srgb, var(--t3) 82%, var(--g1));
 }
 .modal--request .field{
   margin-bottom:16px;
@@ -696,12 +696,15 @@
 .guard-tech-status{font-size:var(--fs-2xs);font-weight:600;letter-spacing:.5px;padding:4px 10px;border-radius:20px;white-space:nowrap}
 .guard-tech-status.pending{background:rgba(192,150,60,.15);color:var(--wrn-t)}
 .guard-tech-status.accepted{background:rgba(60,150,192,.15);color:var(--g2)}
-.guard-card.expired{opacity:.5}
+.guard-card.expired{
+  border-color:color-mix(in srgb, var(--b2) 88%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--s2) 94%, transparent), color-mix(in srgb, var(--s1) 90%, transparent));
+}
 .guard-header-title{font-family:var(--font-display);font-size:28px;color:var(--t1);margin-bottom:16px}
 .guard-header-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .guard-stat{text-align:center;padding:6px 4px 2px}
 .guard-stat-val{display:block;font-family:inherit;font-variant-numeric:tabular-nums;font-size:22px;font-weight:600;color:var(--g2);line-height:1}
-.guard-stat-lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t4)}
+.guard-stat-lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3)}
 .guard-stat.urgent .guard-stat-val{color:var(--err-t)}
 .guard-stat.urgent .guard-stat-lbl{color:var(--err-t)}
 .guard-list{display:flex;flex-direction:column;gap:14px}
@@ -712,13 +715,16 @@
 
 /* ── Temp pass rows ── */
 .guard-temp-row{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--s2);border:1px solid var(--b2);border-radius:10px}
-.guard-temp-row.expired{opacity:.5}
+.guard-temp-row.expired{
+  border-color:color-mix(in srgb, var(--b2) 88%, transparent);
+  background:color-mix(in srgb, var(--s2) 94%, transparent);
+}
 .guard-temp-info{flex:1;min-width:0}
 .guard-temp-name{font-size:var(--fs-body);font-weight:500;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .guard-temp-meta{font-size:var(--fs-2xs);color:var(--t3);margin-top:2px}
 .guard-temp-expiry{font-size:var(--fs-xs);font-weight:600;letter-spacing:.5px;color:var(--t2);white-space:nowrap;padding:4px 10px;background:var(--s3);border-radius:20px;border:1px solid var(--b1)}
 .guard-temp-expiry.soon{color:var(--err-t);background:rgba(192,60,60,.1);border-color:rgba(192,60,60,.3)}
-.guard-temp-expiry.expired{color:var(--t4)}
+.guard-temp-expiry.expired{color:var(--t3)}
 .guard-temp-call{font-size:var(--fs-lg);text-decoration:none;padding:6px;border-radius:50%;transition:background .13s}
 .guard-temp-call:hover{background:var(--s3)}
 
@@ -875,7 +881,7 @@
   text-transform:uppercase;
 }
 .guard-detail{display:flex;gap:8px;align-items:baseline}
-.guard-detail-lbl{font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;color:var(--t4);min-width:60px;flex-shrink:0}
+.guard-detail-lbl{font-size:var(--fs-2xs);letter-spacing:1px;text-transform:uppercase;color:var(--t3);min-width:60px;flex-shrink:0}
 .guard-detail-val{font-size:var(--fs-body);color:var(--t1)}
 .guard-qr{display:flex;justify-content:center;margin-bottom:14px}
 .guard-photos{display:flex;gap:6px;padding:8px 12px;flex-wrap:wrap}

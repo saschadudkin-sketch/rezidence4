@@ -10,9 +10,10 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { CreateModal } from './CreateModal';
+import { getCreateDraftKey } from './createDraftStorage';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ describe('CreateModal — smoke', () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     onClose.mockReset();
     onDone.mockReset();
     useCreateRequestMock.mockReset();
@@ -240,5 +242,125 @@ describe('CreateModal — smoke', () => {
 
     expect(setScheduledFor).toHaveBeenCalledWith('2026-04-13T08:00');
     expect(setShowSchedule).toHaveBeenCalledWith(true);
+  });
+
+  test('показывает ошибку телефона при blur с невалидным номером', () => {
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      vPhone: '123',
+    }));
+
+    render(
+      <CreateModal user={CONCIERGE} type="pass" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    const phoneInput = screen.getByPlaceholderText('+7 000 000-00-00');
+    fireEvent.blur(phoneInput, { target: { value: '123' } });
+
+    expect(screen.getByText('Проверьте формат номера телефона')).toBeTruthy();
+  });
+
+  test('кнопка удаления временного пропуска имеет aria-label', () => {
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      validUntil: '2026-04-20',
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+    fireEvent.click(screen.getByRole('button', { name: /Точное время и детали/i }));
+
+    expect(screen.getByRole('button', { name: 'Убрать временный пропуск' })).toBeTruthy();
+  });
+
+  test('восстанавливает draft из sessionStorage при повторном открытии', async () => {
+    const setCat = vi.fn();
+    const setVName = vi.fn();
+    const setVNames = vi.fn();
+    const setVPhone = vi.fn();
+    const setCarPlate = vi.fn();
+    const setApartment = vi.fn();
+    const setComment = vi.fn();
+    const setValidUntil = vi.fn();
+    const setShowSchedule = vi.fn();
+    const setScheduledFor = vi.fn();
+
+    useCreateRequestMock.mockReturnValue(createRequestState({
+      setCat,
+      setVName,
+      setVNames,
+      setVPhone,
+      setCarPlate,
+      setApartment,
+      setComment,
+      setValidUntil,
+      setShowSchedule,
+      setScheduledFor,
+    }));
+
+    const key = getCreateDraftKey(OWNER.uid, OWNER.role, 'pass');
+    window.sessionStorage.setItem(key, JSON.stringify({
+      cat: 'courier',
+      vName: 'СДЭК',
+      vNames: ['СДЭК'],
+      vPhone: '+79990000001',
+      carPlate: 'А123АА77',
+      apartment: '12',
+      comment: 'Позвонить за 10 минут',
+      validUntil: '2026-04-20',
+      showSchedule: true,
+      scheduledFor: '2026-04-20T10:00',
+      residentStep: 2,
+      showAdvanced: true,
+      updatedAt: Date.now(),
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="pass" onClose={onClose} onDone={onDone} />,
+    );
+
+    await waitFor(() => {
+      expect(setCat).toHaveBeenCalledWith('courier');
+      expect(setVName).toHaveBeenCalledWith('СДЭК');
+      expect(setApartment).toHaveBeenCalledWith('12');
+      expect(setShowSchedule).toHaveBeenCalledWith(true);
+      expect(setScheduledFor).toHaveBeenCalledWith('2026-04-20T10:00');
+    });
+
+    expect(screen.getByText('Восстановлен черновик последней незавершённой заявки.')).toBeTruthy();
+  });
+
+  test('очищает draft после успешного submit', async () => {
+    const key = getCreateDraftKey(OWNER.uid, OWNER.role, 'tech');
+    window.sessionStorage.setItem(key, JSON.stringify({
+      cat: 'electrician',
+      vName: '',
+      vNames: [],
+      vPhone: '',
+      carPlate: '',
+      apartment: '',
+      comment: 'Старый черновик',
+      validUntil: '',
+      showSchedule: false,
+      scheduledFor: '',
+      updatedAt: Date.now(),
+    }));
+
+    useCreateRequestMock.mockImplementation((args) => createRequestState({
+      handleSubmit: vi.fn(() => args.onSubmitted?.()),
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="tech" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать заявку' }));
+
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem(key)).toBeNull();
+    });
   });
 });

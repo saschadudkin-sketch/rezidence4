@@ -38,7 +38,7 @@ export interface ChatService {
 export interface RequestsService {
   resolvePhotos: (requestId: string, photos: string[]) => Promise<string[]>;
   submit: (args: { request: Partial<AppRequest>; addLocal: (request: AppRequest) => void }) => Promise<AppRequest | ServiceMutationResult> | AppRequest | ServiceMutationResult;
-  updateEverywhere: (args: { requestId: string; patch: Partial<AppRequest>; updateLocal?: (id: string, patch: Partial<AppRequest>) => void; historyLabel?: string }) => Promise<ServiceMutationResult> | ServiceMutationResult;
+  updateEverywhere: (args: { requestId: string; patch: Partial<AppRequest>; updateLocal?: (id: string, patch: Partial<AppRequest>) => void; historyLabel?: string; expectedCurrentStatus?: AppRequest['status'] }) => Promise<ServiceMutationResult> | ServiceMutationResult;
   deleteEverywhere: (args: { requestId: string; deleteLocal?: (id: string) => void }) => Promise<ServiceMutationResult> | ServiceMutationResult;
 }
 

@@ -309,7 +309,7 @@ html.theme-light .login-art-logo, .login-art-logo[data-theme-light] { filter: va
   font-size: 10px;
   letter-spacing: 2.1px;
   font-weight: 600;
-  color: color-mix(in srgb, var(--t4) 82%, var(--g3));
+  color: color-mix(in srgb, var(--t3) 74%, var(--g3));
   margin-bottom: 10px;
 }
 .login-form .field-inp {
@@ -339,7 +339,7 @@ html.theme-light .login-art-logo, .login-art-logo[data-theme-light] { filter: va
 html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 @media (prefers-color-scheme: light) { html:not(.theme-dark) .login-mobile-top img { filter: var(--logo-filter-light); } }
 .login-mobile-top div > div:first-child { font-size: 24px; color: var(--t1); font-weight: 600; }
-.login-mobile-tagline { font-size: var(--fs-2xs); color: var(--t4); margin-top: 2px; letter-spacing: .3px; }
+.login-mobile-tagline { font-size: var(--fs-2xs); color: var(--t3); margin-top: 2px; letter-spacing: .3px; }
 .login-mobile-hero { font-size: var(--fs-xs); color: var(--t3); margin-bottom: 20px; line-height: var(--lh-body); }
 @media (--bp-lg-above) { .login-mobile-hero { display: none; } }
 
@@ -523,7 +523,7 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 }
 .demo-row:hover, .demo-row:active { background: var(--g-bg); border-color: var(--b2); transform: translateY(-1px); }
 .demo-ph { font-size: var(--fs-2xs); color: var(--t2); }
-.demo-rl { font-size: var(--fs-2xs); color: var(--t4); }
+.demo-rl { font-size: var(--fs-2xs); color: var(--t3); }
 
 @media (--bp-xl-down) {
   .login-art-logo { width: 70px; height: 70px; }
@@ -587,7 +587,7 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
   }
 }
 
-.login-help { margin-top: 12px; text-align: center; font-size: 11px; letter-spacing: .01em; color: var(--t4); }
+.login-help { margin-top: 12px; text-align: center; font-size: 11px; letter-spacing: .01em; color: var(--t3); }
 .login-help-link { color: color-mix(in srgb, var(--g2) 88%, var(--g3)); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color .15s; }
 .login-help-link:hover { border-bottom-color: color-mix(in srgb, var(--g2) 88%, var(--g3)); }
 
@@ -1346,7 +1346,7 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 .login-mobile-tagline,
 .login-mobile-hero,
 .login-help {
-  color: color-mix(in srgb, #e8d7b4 62%, var(--t4));
+  color: color-mix(in srgb, #efe0bd 76%, var(--t3));
 }
 
 .demo-toggle {

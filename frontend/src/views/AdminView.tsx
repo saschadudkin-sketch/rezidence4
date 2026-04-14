@@ -1,6 +1,6 @@
-import { useState, useMemo, memo, useDeferredValue } from 'react';
+import { useState, useMemo, memo, useDeferredValue, useRef } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { useRequests, useUsers } from '../store/AppStore';
+import { useAppStoreSelector, useUsers } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
 import { ROLE_LABELS, ROLE_COLOR } from '../constants';
 import { filterByPeriod } from '../utils';
@@ -23,6 +23,7 @@ import SlaDashboard from '../ui/SlaDashboard';
 import type { AppRequest } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { AppIconName } from '../ui/AppIcon';
+import { makeSelectAdminCollections } from '../store/selectors/requestsSelectors';
 
 // ─── AdminStatsView ───────────────────────────────────────────────────────────
 
@@ -54,12 +55,12 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
         ['tools', todayR.filter(r => r.type === 'tech').length,             'Техзаявок сегодня'],
         ['history', requests.filter(r => r.status === 'pending').length,    'Ожидают решения'],
         ['check', requests.filter(r => r.status === 'arrived').length,       'Входов отмечено'],
-      ],
+      ] satisfies ReadonlyArray<readonly [AppIconName, number, string]>,
       roleCount: allUsers.reduce<Record<string, number>>((acc, u) => {
         acc[u.role] = (acc[u.role] || 0) + 1;
         return acc;
       }, {}),
-    };
+    } satisfies { stats: ReadonlyArray<readonly [AppIconName, number, string]>; roleCount: Record<string, number> };
   }, [allUsers, requests]);
 
   if (isLoading) {
@@ -73,7 +74,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
   return (
     <>
       <div className="stats-grid">
-        {stats.map(([icon, val, lbl]: [AppIconName, number, string]) => (
+        {stats.map(([icon, val, lbl]) => (
           <div key={lbl} className="stat-card">
             <span className="stat-ico"><AppIcon name={icon} size={18} /></span>
             <div className={val === 0 ? 'stat-val zero' : 'stat-val'}>{val}</div>
@@ -270,7 +271,8 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 // ??? AdminView ????????????????????????????????????????????????????????????????
 
 export default function AdminView({ user, activeTab, isLoading = false }: { user: AppUser; activeTab: string; isLoading?: boolean }) {
-  const requests = useRequests();
+  const requestsSelectorRef = useRef(makeSelectAdminCollections());
+  const { requests } = useAppStoreSelector((state) => requestsSelectorRef.current(state));
   const { users } = useUsers();
   // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
   const allUsers = useMemo(() => Object.values(users), [users]);

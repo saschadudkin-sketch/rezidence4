@@ -64,7 +64,13 @@ describe('AdminReqRow', () => {
   test('показывает кнопки "Ред." и "Удалить"', () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
     expect(screen.getByRole('button', { name: /редактировать/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^удалить$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /удалить заявку/i })).toBeInTheDocument();
+  });
+
+  test('кнопка выбора статуса имеет явный aria-label', () => {
+    render(<AdminReqRow r={makeReq()} adminUid="a1" />);
+    fireEvent.click(screen.getByRole('button', { name: /редактировать/i }));
+    expect(screen.getByRole('combobox', { name: 'Статус заявки' })).toBeInTheDocument();
   });
 
   test('клик на "Ред." открывает форму редактирования', () => {
@@ -84,7 +90,8 @@ describe('AdminReqRow', () => {
 
   test('клик "Удалить" вызывает deleteEverywhere', async () => {
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByRole('button', { name: /^удалить$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /удалить заявку/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
     await waitFor(() => {
       expect(services.requests.deleteEverywhere).toHaveBeenCalledWith(
         expect.objectContaining({ requestId: 'r1' })
@@ -95,7 +102,8 @@ describe('AdminReqRow', () => {
   test('ошибка при удалении показывает toast error', async () => {
     services.requests.deleteEverywhere.mockRejectedValueOnce(new Error('Сбой'));
     render(<AdminReqRow r={makeReq()} adminUid="a1" />);
-    fireEvent.click(screen.getByRole('button', { name: /^удалить$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /удалить заявку/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Ошибка удаления', 'error');
     });
@@ -133,6 +141,7 @@ describe('AdminReqRow', () => {
         expect.objectContaining({
           requestId: 'r1',
           patch: expect.objectContaining({ comment: 'Новый комментарий' }),
+          expectedCurrentStatus: 'pending',
         })
       );
     });

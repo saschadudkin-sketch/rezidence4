@@ -164,6 +164,38 @@ describe('PATCH /api/requests/:id — доступ и переходы', () => {
     expect(res.body.comment).toBe('новый комментарий');
   });
 
+  it('400 when request id format is invalid', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+
+    const res = await supertest(app)
+      .patch('/api/requests/bad$id')
+      .set('Cookie', `token=${token}`)
+      .send({ status: 'approved' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Invalid id format');
+  });
+
+  it('409 when expectedCurrentStatus is stale during status update', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+
+    setupUpdateTransaction({
+      existingRow: { id: 'req-123', status: 'approved', created_by_uid: 'user-A' },
+    });
+
+    const res = await supertest(app)
+      .patch('/api/requests/req-123')
+      .set('Cookie', `token=${token}`)
+      .send({ status: 'arrived', expectedCurrentStatus: 'pending' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('REQUEST_CONFLICT');
+    expect(res.body.details).toEqual({
+      currentStatus: 'approved',
+      expectedCurrentStatus: 'pending',
+    });
+  });
+
   it('200 admin может делать любой переход статуса', async () => {
     const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Адм' });
 

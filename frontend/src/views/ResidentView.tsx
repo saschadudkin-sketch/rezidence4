@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { createRequestsOptimisticController } from '../services/consistency/requestsOptimistic';
-import { useActions, useRequests } from '../store/AppStore';
+import { useActions, useAppStoreSelector, useRequests } from '../store/AppStore';
 import { CreateModal } from '../requests/CreateModal';
 import { EditRequestModal } from '../requests/EditRequestModal';
 import { PermsList } from '../perms/PermsList';
@@ -18,11 +18,9 @@ import TemplatesTab from './resident/TemplatesTab';
 import HistoryTab from './resident/HistoryTab';
 import { PassReadySheet } from './resident/PassReadySheet';
 import { useUrlSearchParams } from '../hooks/useUrlSearchParams';
+import { makeSelectResidentComputed } from '../store/selectors/requestsSelectors';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { AppRequest, RequestStatus, RequestType } from '../store/slices/requestsSlice';
-
-const INACTIVE_STATUSES = new Set<RequestStatus>(['cancelled', 'rejected', 'expired']);
-const COMPLETED_STATUSES = new Set<RequestStatus>(['arrived', 'rejected', 'expired', 'cancelled']);
 
 type ResidentModalState = {
   type: RequestType;
@@ -59,6 +57,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }: Resident
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
   const [readyPass, setReadyPass] = useState<AppRequest | null>(null);
+  const computedSelectorRef = useRef(makeSelectResidentComputed());
 
   const setPassFilter = useCallback((value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -132,7 +131,7 @@ export default function ResidentView({ user, activeTab, setActiveTab }: Resident
     updateRequest(id, { ...patch, _optimisticOpId: opId });
     try {
       if (isLiveMode()) {
-        await services.requests.updateEverywhere({ requestId: id, patch, historyLabel: 'Отменено жильцом' });
+        await services.requests.updateEverywhere({ requestId: id, patch, historyLabel: 'Отменено жильцом', expectedCurrentStatus: originalReq.status });
       }
       updateRequest(id, { _optimisticOpId: undefined });
       optimisticRef.current.end(opId);
@@ -143,39 +142,13 @@ export default function ResidentView({ user, activeTab, setActiveTab }: Resident
         updateRequest(id, { status: originalReq.status, _optimisticOpId: undefined });
       }
       optimisticRef.current.end(opId);
-      toast(presentError(e, 'default').message, 'error');
+      toast(presentError(e, 'request.update').message, 'error');
     }
   }, [updateRequest]);
 
   const onCancel = useCallback((id: string) => setConfirmCancel(id), []);
 
-  // PERF-2: Single useMemo replaces 7 separate memos — one pass over requests array
-  const computed = useMemo(() => {
-    const myPasses = requests.filter(r => r.createdByUid === user.uid && r.type === 'pass');
-    const myTech   = requests.filter(r => r.createdByUid === user.uid && r.type === 'tech');
-
-    const scheduledPasses = myPasses.filter(r => r.status === 'scheduled');
-    const basePasses      = myPasses.filter(r => r.status !== 'scheduled');
-
-    let filteredPasses: AppRequest[];
-    if (passFilter === 'all')       filteredPasses = basePasses;
-    else if (passFilter === 'active')    filteredPasses = basePasses.filter(r => !INACTIVE_STATUSES.has(r.status));
-    else if (passFilter === 'scheduled') filteredPasses = scheduledPasses;
-    else                                 filteredPasses = basePasses.filter(r => (r.passDuration || 'once') === passFilter);
-
-    const filteredTech = techFilter === 'all'
-      ? myTech
-      : myTech.filter(r => !INACTIVE_STATUSES.has(r.status));
-
-    const tempCount = myPasses.filter(r => r.passDuration === 'temporary').length;
-    const permCount = myPasses.filter(r => r.passDuration === 'permanent').length;
-
-    const completedRequests = requests
-      .filter(r => r.createdByUid === user.uid && COMPLETED_STATUSES.has(r.status))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return { myPasses, myTech, scheduledPasses, filteredPasses, filteredTech, tempCount, permCount, completedRequests };
-  }, [requests, user.uid, passFilter, techFilter]);
+  const computed = useAppStoreSelector((state) => computedSelectorRef.current(state, user.uid, passFilter, techFilter));
 
   return (
     <>

@@ -74,6 +74,11 @@ describe('AdminUserRow', () => {
     expect(screen.getByLabelText('Удалить пользователя')).toBeInTheDocument();
   });
 
+  test('icon-only кнопка редактирования имеет доступное имя', () => {
+    render(<AdminUserRow u={targetUser} currentUser={adminUser} />);
+    expect(screen.getByRole('button', { name: 'Редактировать' })).toBeInTheDocument();
+  });
+
   test('кнопка удаления НЕ видна для себя (admin не может удалить сам себя)', () => {
     render(<AdminUserRow u={adminUser} currentUser={adminUser} />);
     expect(screen.queryByLabelText('Удалить пользователя')).not.toBeInTheDocument();
@@ -130,6 +135,7 @@ describe('AdminUserRow', () => {
   test('удаление вызывает removeUserEverywhere', async () => {
     render(<AdminUserRow u={targetUser} currentUser={adminUser} />);
     fireEvent.click(screen.getByLabelText('Удалить пользователя'));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
     await waitFor(() => {
       expect(services.admin.removeUserEverywhere).toHaveBeenCalledWith(
         expect.objectContaining({ uid: 'u1' })

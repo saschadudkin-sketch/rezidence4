@@ -1,7 +1,7 @@
 // FIX [DATA-2]: combineSignals — объединяет timeout-сигнал с внешним signal из apiClient.
 // Ранее spread { ...options, signal: controller.signal } перезаписывал options.signal,
 // поэтому отмена запроса снаружи (unmount компонента) не работала.
-function combineSignals(timeoutSignal: AbortSignal, externalSignal?: AbortSignal) {
+function combineSignals(timeoutSignal: AbortSignal, externalSignal?: AbortSignal | null) {
   if (!externalSignal) return timeoutSignal;
   // If external signal already aborted, abort immediately
   if (externalSignal.aborted) return externalSignal;
@@ -17,7 +17,7 @@ function combineSignals(timeoutSignal: AbortSignal, externalSignal?: AbortSignal
   return controller.signal;
 }
 
-export async function fetchWithTimeout(url: string, options: RequestInit & { signal?: AbortSignal } = {}, timeoutMs = 15_000) {
+export async function fetchWithTimeout(url: string, options: RequestInit & { signal?: AbortSignal | null } = {}, timeoutMs = 15_000) {
   const controller = new AbortController();
   const signal = combineSignals(controller.signal, options.signal);
   const timer = setTimeout(() => controller.abort(), timeoutMs);

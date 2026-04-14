@@ -25,6 +25,10 @@ vi.mock('./apiClient', () => ({
   },
 }));
 
+vi.mock('../contracts/statusTransitions', () => ({
+  canTransitionOnFrontend: vi.fn().mockResolvedValue(true),
+}));
+
 import apiClient from './apiClient';
 import {
   authProvider,
@@ -36,6 +40,7 @@ import {
   visitLogsProvider,
   createBackendProvider,
 } from './backendProvider';
+import { canTransitionOnFrontend } from '../contracts/statusTransitions';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -205,11 +210,13 @@ describe('requestsProvider', () => {
   });
 
   test('update → PATCH /api/requests/:id', async () => {
+    apiClient.get.mockResolvedValueOnce({ user: { uid: 'guard-1', role: 'security' } });
     apiClient.patch.mockResolvedValueOnce({ id: 'r1', status: 'approved' });
-    await requestsProvider.update('r1', { status: 'approved' }, 'Одобрено');
+    await requestsProvider.update('r1', { status: 'approved' }, 'Одобрено', 'pending');
     expect(apiClient.patch).toHaveBeenCalledWith('/api/v1/requests/r1', {
-      status: 'approved', historyLabel: 'Одобрено',
+      status: 'approved', historyLabel: 'Одобрено', expectedCurrentStatus: 'pending',
     });
+    expect(canTransitionOnFrontend).toHaveBeenCalledWith('security', 'pending', 'approved');
   });
 
   test('delete → DELETE /api/requests/:id', async () => {

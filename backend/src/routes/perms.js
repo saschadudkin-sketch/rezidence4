@@ -3,39 +3,35 @@ const express = require('express');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
 const { isStaff } = require('../constants');
+const { PERMS_LIMITS } = require('../constants/validationLimits');
 
 const router = express.Router();
 router.use(requireAuth);
 
 // FIX [AUDIT]: лимиты на items — без них авторизованный пользователь сохраняет
 // 9MB JSON-массив разрешений. При следующей синхронизации он рассылается через SSE.
-const MAX_PERM_ITEMS   = 500;    // максимум записей в одном списке (visitors или workers)
-const MAX_PERM_PAYLOAD = 50_000; // байт — ~50KB для JSONB
-const MAX_PERM_NAME    = 200;    // символов на имя в списке
-const MAX_PERM_PHONE   = 30;     // символов на телефон
-
 function validatePermsItems(items, res) {
   if (!Array.isArray(items)) {
     res.status(400).json({ error: 'items must be an array' });
     return false;
   }
-  if (items.length > MAX_PERM_ITEMS) {
-    res.status(400).json({ error: `Too many permission entries (max ${MAX_PERM_ITEMS})` });
+  if (items.length > PERMS_LIMITS.maxItems) {
+    res.status(400).json({ error: `Too many permission entries (max ${PERMS_LIMITS.maxItems})` });
     return false;
   }
   const serialized = JSON.stringify(items);
-  if (serialized.length > MAX_PERM_PAYLOAD) {
-    res.status(400).json({ error: `Permissions payload too large (max ${MAX_PERM_PAYLOAD / 1000}KB)` });
+  if (serialized.length > PERMS_LIMITS.maxPayloadBytes) {
+    res.status(400).json({ error: `Permissions payload too large (max ${PERMS_LIMITS.maxPayloadBytes / 1000}KB)` });
     return false;
   }
   // Проверяем каждую запись
   for (const item of items) {
-    if (item.name && typeof item.name === 'string' && item.name.length > MAX_PERM_NAME) {
-      res.status(400).json({ error: `Permission name too long (max ${MAX_PERM_NAME} chars)` });
+    if (item.name && typeof item.name === 'string' && item.name.length > PERMS_LIMITS.name) {
+      res.status(400).json({ error: `Permission name too long (max ${PERMS_LIMITS.name} chars)` });
       return false;
     }
-    if (item.phone && typeof item.phone === 'string' && item.phone.length > MAX_PERM_PHONE) {
-      res.status(400).json({ error: `Permission phone too long (max ${MAX_PERM_PHONE} chars)` });
+    if (item.phone && typeof item.phone === 'string' && item.phone.length > PERMS_LIMITS.phone) {
+      res.status(400).json({ error: `Permission phone too long (max ${PERMS_LIMITS.phone} chars)` });
       return false;
     }
   }

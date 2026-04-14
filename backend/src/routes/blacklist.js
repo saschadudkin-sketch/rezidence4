@@ -3,6 +3,7 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
+const { BLACKLIST_FIELD_MAX } = require('../constants/validationLimits');
 const { broadcastBlacklistAdd, broadcastBlacklistRemove } = require('../sse');
 
 const router = express.Router();
@@ -23,13 +24,6 @@ function validateId(req, res, next) {
 }
 
 // FIX [AUDIT]: ограничения длины полей — без них злоумышленник записывает 1MB в name/reason
-const BL_FIELD_MAX = Object.freeze({
-  name:     200,
-  phone:     30,
-  carPlate:  20,
-  reason:   500,
-});
-
 function fmt(r) {
   return {
     id:       r.id,
@@ -68,7 +62,7 @@ router.post('/', async (req, res, next) => {
 
     // FIX [AUDIT]: валидация длины — без неё авторизованный сотрудник записывал
     // 9MB в поле reason, это попадало в БД и рассылалось через SSE broadcast
-    for (const [field, max] of Object.entries(BL_FIELD_MAX)) {
+    for (const [field, max] of Object.entries(BLACKLIST_FIELD_MAX)) {
       const val = req.body[field];
       if (val != null && typeof val === 'string' && val.length > max) {
         return res.status(400).json({ error: `${field} too long (max ${max} chars)` });

@@ -283,6 +283,52 @@ const MIGRATIONS = [
       await client.query(`CREATE INDEX IF NOT EXISTS idx_request_history_req_id ON request_history(req_id)`);
     },
   },
+  {
+    id: '010_chat_reactions_constraint',
+    async up(client) {
+      await client.query(`
+        CREATE OR REPLACE FUNCTION is_valid_chat_reactions(payload JSONB)
+        RETURNS BOOLEAN
+        LANGUAGE SQL
+        IMMUTABLE
+        AS $$
+          SELECT
+            payload IS NOT NULL
+            AND jsonb_typeof(payload) = 'object'
+            AND jsonb_object_length(payload) <= 20
+            AND NOT EXISTS (
+              SELECT 1
+              FROM jsonb_each(payload) AS entry(key, value)
+              WHERE length(entry.key) > 8
+                OR jsonb_typeof(entry.value) <> 'array'
+                OR EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements(entry.value) AS elem(item)
+                  WHERE jsonb_typeof(elem.item) <> 'string'
+                    OR length(elem.item #>> '{}') > 64
+                )
+            )
+        $$;
+      `);
+
+      await client.query(`
+        UPDATE chat_messages
+        SET reactions = '{}'::jsonb
+        WHERE reactions IS NULL OR NOT is_valid_chat_reactions(reactions)
+      `);
+
+      await client.query(`
+        ALTER TABLE chat_messages
+        DROP CONSTRAINT IF EXISTS chk_chat_messages_reactions_valid
+      `);
+
+      await client.query(`
+        ALTER TABLE chat_messages
+        ADD CONSTRAINT chk_chat_messages_reactions_valid
+        CHECK (is_valid_chat_reactions(reactions))
+      `);
+    },
+  },
 ];
 const LATEST_MIGRATION_ID = MIGRATIONS[MIGRATIONS.length - 1]?.id || null;
 

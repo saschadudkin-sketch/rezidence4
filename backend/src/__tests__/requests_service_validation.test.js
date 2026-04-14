@@ -39,6 +39,12 @@ function mockTxClient(queryImpl) {
   };
 }
 
+function getSqlText(sql) {
+  if (typeof sql === 'string') return sql;
+  if (sql && typeof sql.text === 'string') return sql.text;
+  return String(sql);
+}
+
 // ─── create() — валидация длины ───────────────────────────────────────────────
 
 describe('RequestsService.create() — validateFieldLengths', () => {
@@ -105,7 +111,7 @@ describe('RequestsService.create() — validateFieldLengths', () => {
 // ─── update() — historyLabel ──────────────────────────────────────────────────
 
 describe('RequestsService.update() — historyLabel validation', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => jest.resetAllMocks());
 
   test('400 когда historyLabel > 200 символов', async () => {
     const mockClient = mockTxClient(async (sql) => {
@@ -127,11 +133,13 @@ describe('RequestsService.update() — historyLabel validation', () => {
   });
 
   test('не бросает при historyLabel ровно 200 символов (граница)', async () => {
-    const mockClient = {
-      query: jest.fn()
-        .mockResolvedValueOnce({}) // BEGIN
-        .mockResolvedValueOnce({ rows: [mockExistingRequest()] }) // SELECT ... FOR UPDATE
-        .mockResolvedValueOnce({   // UPDATE
+    const mockClient = mockTxClient(async (sql) => {
+      const text = getSqlText(sql);
+      if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return {};
+      if (/FOR UPDATE/i.test(text)) return { rows: [mockExistingRequest()] };
+      if (/INSERT\s+INTO\s+request_history/i.test(text)) return {};
+      if (/requests/i.test(text)) {
+        return {
           rows: [{
             id: 'req-1', type: 'pass', category: 'guest', status: 'approved',
             created_by_uid: 'owner-1', created_by_name: 'Иванов', created_by_role: 'owner',
@@ -140,11 +148,10 @@ describe('RequestsService.update() — historyLabel validation', () => {
             valid_until: null, scheduled_for: null, arrived_at: null, photos: [],
             created_at: new Date(), updated_at: new Date(),
           }],
-        })
-        .mockResolvedValueOnce({}) // INSERT history
-        .mockResolvedValueOnce({}), // COMMIT
-      release: jest.fn(),
-    };
+        };
+      }
+      return {};
+    });
     db.pool.connect.mockResolvedValueOnce(mockClient);
 
     await expect(
@@ -177,23 +184,25 @@ describe('RequestsService.update() — historyLabel validation', () => {
     const makeClient = () => {
       const client = {
         query: jest.fn(async (sql, params) => {
-          if (sql === 'BEGIN') return {};
-          if (sql === 'COMMIT') {
+          const text = getSqlText(sql);
+          if (text === 'BEGIN') return {};
+          if (text === 'COMMIT') {
             locked = false;
             return {};
           }
-          if (sql === 'ROLLBACK') {
+          if (text === 'ROLLBACK') {
             locked = false;
             return {};
           }
-          if (sql.includes('FOR UPDATE')) {
+          if (/FOR UPDATE/i.test(text)) {
             while (locked) {
               await new Promise(resolve => setTimeout(resolve, 0));
             }
             locked = true;
             return { rows: [{ id: 'req-1', status, created_by_uid: 'owner-1' }] };
           }
-          if (sql.startsWith('UPDATE requests SET')) {
+          if (/INSERT\s+INTO\s+request_history/i.test(text)) return {};
+          if (/requests/i.test(text)) {
             status = params[0];
             return {
               rows: [{
@@ -206,8 +215,7 @@ describe('RequestsService.update() — historyLabel validation', () => {
               }],
             };
           }
-          if (sql.startsWith('INSERT INTO request_history')) return {};
-          throw new Error(`Unexpected SQL in test: ${sql}`);
+          return {};
         }),
         release: jest.fn(),
       };

@@ -98,4 +98,13 @@ describe('db.migrate - versioned migrations', () => {
     expect(insertCall).toBeDefined();
     expect(insertCall[1]).toContain('001_initial_schema');
   });
+
+  test('runs chat reactions constraint migration with function and check', async () => {
+    await db.migrate();
+
+    const clientCalls = mockClient.query.mock.calls.map(([sql]) => sql);
+    expect(clientCalls.some((sql) => sql.includes('CREATE OR REPLACE FUNCTION is_valid_chat_reactions'))).toBe(true);
+    expect(clientCalls.some((sql) => sql.includes('DROP CONSTRAINT IF EXISTS chk_chat_messages_reactions_valid'))).toBe(true);
+    expect(clientCalls.some((sql) => sql.includes('ADD CONSTRAINT chk_chat_messages_reactions_valid'))).toBe(true);
+  });
 });

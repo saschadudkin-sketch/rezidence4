@@ -4,7 +4,7 @@ import { isLiveMode } from '../../config/runtimeMode';
 import { toast } from '../../ui/Toasts';
 import type { ChatMessage } from '../../store/slices/chatSlice';
 
-type GetMessagesFn = (params?: { search?: string; limit?: number }) => Promise<{ messages: unknown[]; hasMore?: boolean }>;
+type GetMessagesFn = (params?: { search?: string; limit?: number }) => Promise<{ messages: ChatMessage[]; hasMore?: boolean }>;
 
 export function useChatSearch(chat: ChatMessage[], hasMore: boolean, getMessages: GetMessagesFn) {
   const withAutoRetry = async <T,>(fn: () => Promise<T>) => {

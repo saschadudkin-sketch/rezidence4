@@ -79,7 +79,7 @@ function createAppStore(initialState: AppStoreSnapshot): MutableAppStore {
   };
 }
 
-function useAppStoreSelector<T>(selector: (state: AppStoreSnapshot) => T): T {
+export function useAppStoreSelector<T>(selector: (state: AppStoreSnapshot) => T): T {
   const store = useContext(StoreContext) ?? EMPTY_STORE;
 
   return useSyncExternalStore(

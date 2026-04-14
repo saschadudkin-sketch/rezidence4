@@ -51,3 +51,21 @@ describe('GET /api/docs/openapi.json', () => {
     expect(res.body.paths['/api/v1/requests']).toBeDefined();
   });
 });
+
+describe('GET /api/health', () => {
+  test('returns stable health payload', async () => {
+    const app = express();
+    registerObservabilityRoutes(app, {
+      db: {
+        query: jest.fn().mockResolvedValue({ rows: [{ ts: new Date().toISOString() }] }),
+        pool: { totalCount: 0, idleCount: 0, waitingCount: 0 },
+      },
+    });
+
+    const res = await request(app).get('/api/health');
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(typeof res.body.ts).toBe('string');
+  });
+});

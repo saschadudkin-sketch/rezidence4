@@ -120,12 +120,16 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   const isActive = (key: string) => (navClassMap[key] || '').includes('active');
 
   const orderedMobileNav = orderMobileTabs(userRole, nav);
-  const { bottomNav } = splitMobileNav(userRole, orderedMobileNav);
-  const topNavItems = isTablet ? orderedMobileNav : nav;
+  const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
+  const topNavItems = isMobile && !isTablet
+    ? topNav
+    : isTablet
+      ? orderedMobileNav
+      : nav;
   const mobileNavItems = !isTablet && isMobile
     ? filterMobileNavItems(userRole, bottomNav.length > 0 ? bottomNav : orderedMobileNav)
     : [];
-  const hasMobileTopTabs = isTablet;
+  const hasMobileTopTabs = isTablet || (isMobile && !isTablet && topNavItems.length > 0);
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;

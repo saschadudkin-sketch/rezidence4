@@ -5,6 +5,7 @@ export type ErrorContext =
   | 'auth.verify'
   | 'visitlog.clear'
   | 'request.submit'
+  | 'request.update'
   | 'default';
 
 export type PresentedError = {
@@ -34,6 +35,11 @@ const COPY_BY_CONTEXT: Record<ErrorContext, Partial<Record<PresentedErrorKind, P
   'request.submit': {
     [ERROR_KIND.NETWORK]: { message: 'Заявка сохранена локально. Синхронизируем при восстановлении сети.', cta: 'Ок', kind: ERROR_KIND.NETWORK },
     [ERROR_KIND.UNKNOWN]: { message: 'Ошибка при отправке заявки. Попробуйте снова.', cta: 'Повторить', kind: ERROR_KIND.UNKNOWN },
+  },
+  'request.update': {
+    [ERROR_KIND.CONFLICT]: { message: 'Заявка уже была изменена в другом окне или другим сотрудником. Обновите список и повторите действие.', cta: 'Обновить', kind: ERROR_KIND.CONFLICT },
+    [ERROR_KIND.NETWORK]: { message: 'Изменение сохранено локально. Синхронизируем при восстановлении сети.', cta: 'Ок', kind: ERROR_KIND.NETWORK },
+    [ERROR_KIND.UNKNOWN]: { message: 'Не удалось обновить заявку. Попробуйте снова.', cta: 'Повторить', kind: ERROR_KIND.UNKNOWN },
   },
   default: {
     [ERROR_KIND.UNKNOWN]: { message: 'Произошла ошибка. Попробуйте снова.', cta: 'Повторить', kind: ERROR_KIND.UNKNOWN },

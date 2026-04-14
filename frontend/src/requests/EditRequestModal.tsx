@@ -8,6 +8,7 @@ import { services } from '../services/providers/serviceContainer';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
 import { sanitizeCarPlate, sanitizePhone, sanitizeText, validatePhone } from '../utils/inputSanitizer';
+import { presentError } from '../ui/errorPresenter';
 import type { AppRequest } from '../store/slices/requestsSlice';
 
 type EditRequestModalProps = {
@@ -54,9 +55,9 @@ export function EditRequestModal({ req, onClose, onDone }: EditRequestModalProps
 
     setLoading(true);
     const patch = {
-      visitorName: cleanName || null,
+      visitorName: cleanName || undefined,
       visitorPhone: cleanPhone || null,
-      carPlate: cleanCarPlate || null,
+      carPlate: cleanCarPlate || undefined,
       comment: cleanComment,
     };
 
@@ -68,7 +69,7 @@ export function EditRequestModal({ req, onClose, onDone }: EditRequestModalProps
       onClose();
     } catch (error) {
       console.warn('[EditRequestModal] save failed:', error);
-      if (isMountedRef.current) toast('Не удалось сохранить изменения', 'error');
+      if (isMountedRef.current) toast(presentError(error, 'request.update').message, 'error');
     } finally {
       if (isMountedRef.current) setLoading(false);
     }

@@ -209,7 +209,9 @@ router.post('/verify-otp', async (req, res, next) => {
       // оба не совпасть с кодом, и оба инкрементировать — итого attempts=6 вместо 5.
       // С условием в UPDATE: при attempts=5 строка уже не обновляется — безвредно.
       await db.query(
-        `UPDATE otp_codes SET attempts = attempts + 1
+        `UPDATE otp_codes
+         SET attempts = attempts + 1,
+             used = CASE WHEN attempts + 1 >= 5 THEN TRUE ELSE used END
          WHERE phone=$1 AND expires_at > NOW() AND used=FALSE AND attempts < 5`,
         [phone],
       );

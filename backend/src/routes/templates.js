@@ -3,34 +3,31 @@ const express = require('express');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
 const { isStaff } = require('../constants');
+const { TEMPLATE_LIMITS } = require('../constants/validationLimits');
 
 const router = express.Router();
 router.use(requireAuth);
 
 // FIX [AUDIT]: лимиты на items — без них авторизованный пользователь сохраняет
 // 9MB JSON-шаблон. При следующей синхронизации он рассылается через SSE всем клиентам.
-const MAX_TEMPLATE_ITEMS   = 200;   // максимум шаблонов на пользователя
-const MAX_TEMPLATE_PAYLOAD = 50_000; // байт — ~50KB для JSONB
-const MAX_TEMPLATE_NAME    = 100;   // символов на название шаблона
-
 function validateItems(items, res) {
   if (!Array.isArray(items)) {
     res.status(400).json({ error: 'items must be an array' });
     return false;
   }
-  if (items.length > MAX_TEMPLATE_ITEMS) {
-    res.status(400).json({ error: `Too many templates (max ${MAX_TEMPLATE_ITEMS})` });
+  if (items.length > TEMPLATE_LIMITS.maxItems) {
+    res.status(400).json({ error: `Too many templates (max ${TEMPLATE_LIMITS.maxItems})` });
     return false;
   }
   const serialized = JSON.stringify(items);
-  if (serialized.length > MAX_TEMPLATE_PAYLOAD) {
-    res.status(400).json({ error: `Templates payload too large (max ${MAX_TEMPLATE_PAYLOAD / 1000}KB)` });
+  if (serialized.length > TEMPLATE_LIMITS.maxPayloadBytes) {
+    res.status(400).json({ error: `Templates payload too large (max ${TEMPLATE_LIMITS.maxPayloadBytes / 1000}KB)` });
     return false;
   }
   // Проверяем каждое поле шаблона
   for (const item of items) {
-    if (item.name && typeof item.name === 'string' && item.name.length > MAX_TEMPLATE_NAME) {
-      res.status(400).json({ error: `Template name too long (max ${MAX_TEMPLATE_NAME} chars)` });
+    if (item.name && typeof item.name === 'string' && item.name.length > TEMPLATE_LIMITS.name) {
+      res.status(400).json({ error: `Template name too long (max ${TEMPLATE_LIMITS.name} chars)` });
       return false;
     }
   }

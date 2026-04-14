@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test');
 
 const ROLE_MATRIX = [
   { phone: '+7 916 123-45-67', role: 'owner', defaultTab: 'passes' },

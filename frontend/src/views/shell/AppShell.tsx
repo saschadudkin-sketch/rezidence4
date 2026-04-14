@@ -24,6 +24,8 @@ type AppShellProps = {
   themeIcon: string;
   themeLabel: string;
   sseOnline: boolean | null;
+  reconnectAttempt?: number;
+  maxReconnectAttempts?: number;
   isLoading?: boolean;
   isOnline?: boolean;
   actionRail?: ReactNode;
@@ -39,6 +41,8 @@ const AppShell = memo(function AppShell({
   themeIcon,
   themeLabel,
   sseOnline,
+  reconnectAttempt = 0,
+  maxReconnectAttempts = 5,
   isLoading = false,
   isOnline = true,
   actionRail = null,
@@ -64,10 +68,13 @@ const AppShell = memo(function AppShell({
   const noNetwork = !demoMode && isOnline === false;
   const noSse = !demoMode && !noNetwork && sseOnline === false;
   const showBanner = noNetwork || noSse;
+  const reconnectLabel = reconnectAttempt > 0
+    ? `Переподключение (попытка ${reconnectAttempt}/${maxReconnectAttempts})`
+    : 'Переподключение...';
 
   const bannerText = noNetwork
     ? 'Нет подключения к интернету'
-    : 'Нет соединения с сервером, идет переподключение...';
+    : `Нет соединения с сервером, идет ${reconnectLabel.toLowerCase()}`;
   const bannerIcon = noNetwork ? 'ban' : 'refresh';
 
   return (
@@ -99,7 +106,7 @@ const AppShell = memo(function AppShell({
                 {noSse && (
                   <span className="sse-reconnecting" title="Нет соединения с сервером, идет переподключение..." aria-hidden="true">
                     <AppIcon name="refresh" size={12} />
-                    <span>Переподключение...</span>
+                    <span>{reconnectLabel}</span>
                   </span>
                 )}
               </div>

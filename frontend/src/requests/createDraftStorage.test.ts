@@ -7,6 +7,7 @@ describe('createDraftStorage', () => {
   afterEach(() => {
     vi.useRealTimers();
     window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   test('saves and loads a draft snapshot', () => {
@@ -31,6 +32,8 @@ describe('createDraftStorage', () => {
       apartment: '12',
       residentStep: 1,
     });
+    expect(window.sessionStorage.getItem(key)).toContain('"cat":"guest"');
+    expect(window.localStorage.getItem(key)).toBeNull();
   });
 
   test('expires stale drafts automatically', () => {
@@ -70,5 +73,26 @@ describe('createDraftStorage', () => {
 
     clearCreateDraft(key);
     expect(loadCreateDraft(key)).toBeNull();
+    expect(window.sessionStorage.getItem(key)).toBeNull();
+  });
+
+  test('migrates legacy draft from localStorage into sessionStorage on load', () => {
+    window.localStorage.setItem(key, JSON.stringify({
+      cat: 'guest',
+      vName: 'Legacy',
+      vNames: ['Legacy'],
+      vPhone: '',
+      carPlate: '',
+      apartment: '7',
+      comment: '',
+      validUntil: '',
+      showSchedule: false,
+      scheduledFor: '',
+      updatedAt: Date.now(),
+    }));
+
+    expect(loadCreateDraft(key)).toMatchObject({ vName: 'Legacy', apartment: '7' });
+    expect(window.sessionStorage.getItem(key)).toContain('"vName":"Legacy"');
+    expect(window.localStorage.getItem(key)).toBeNull();
   });
 });

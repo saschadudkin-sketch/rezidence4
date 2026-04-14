@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./test');
 
 async function loginDemo(page, phone = '+7 916 123-45-67') {
   await page.goto('/');

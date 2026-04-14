@@ -9,6 +9,15 @@ import { useUrlSearchParams } from '../../hooks/useUrlSearchParams';
 import type { AppRequest, RequestType } from '../../store/slices/requestsSlice';
 import type { UserRole } from '../../store/slices/usersSlice';
 
+const PASS_FILTER_PILLS: ReadonlyArray<readonly [string, string]> = [
+  ['active', 'Активные'],
+  ['scheduled', 'Запланированные'],
+  ['all', 'Все'],
+  ['temporary', 'Временные'],
+  ['permanent', 'Постоянные'],
+  ['once', 'Разовые'],
+];
+
 type PassesTabProps = {
   user: { role: UserRole | string; name: string; uid: string };
   passFilter: string;
@@ -223,25 +232,29 @@ const PassesTab = memo(function PassesTab({
 
       {myPasses.length > 0 && (
         <div className="pass-filter-pills">
-          {[
-            ['active', 'Активные', 0],
-            ['scheduled', 'Запланированные', scheduledCount],
-            ['all', 'Все', myPasses.length],
-            ['temporary', 'Временные', tempCount],
-            ['permanent', 'Постоянные', permCount],
-            ['once', 'Разовые', myPasses.length - tempCount - permCount],
-          ].map(([key, label, count]: [string, string, number]) =>
-            count > 0 || key === 'all' || key === 'active' ? (
+          {PASS_FILTER_PILLS.map(([key, label]) => {
+            const count = key === 'scheduled'
+              ? scheduledCount
+              : key === 'all'
+                ? myPasses.length
+                : key === 'temporary'
+                  ? tempCount
+                  : key === 'permanent'
+                    ? permCount
+                    : key === 'once'
+                      ? myPasses.length - tempCount - permCount
+                      : 0;
+            return count > 0 || key === 'all' || key === 'active' ? (
               <button
                 key={key}
                 className={`date-pill${passFilter === key ? ' active' : ''}`}
-                onClick={() => setPassFilter(key as string)}
+                onClick={() => setPassFilter(key)}
               >
                 {label}
                 {count > 0 && key !== 'all' && key !== 'active' ? ` (${count})` : ''}
               </button>
-            ) : null,
-          )}
+            ) : null;
+          })}
         </div>
       )}
 

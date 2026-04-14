@@ -13,13 +13,14 @@ import { toLocalDateInputValue, parseLocalDateInputValue, toLocalDateTimeInputVa
 import { fmtScheduled, minDateTime, SCHEDULE_PRESETS } from '../hooks/useScheduleForm';
 import { AppIcon } from '../ui/AppIcon';
 import { useModalAccessibility } from '../ui/useModalAccessibility';
-import { sanitizeCarPlate, sanitizePhone, sanitizeText } from '../utils/inputSanitizer';
+import { sanitizeCarPlate, sanitizePhone, sanitizeText, validatePhone } from '../utils/inputSanitizer';
 import { clearCreateDraft, getCreateDraftKey, loadCreateDraft, saveCreateDraft } from './createDraftStorage';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
+import type { PermEntry as StoredPermEntry } from '../store/slices/permsSlice';
 
 type VisitorNameEntry = { __id: string; value: string };
-type PermEntry = { id: string; name: string; phone?: string };
+type PermEntry = StoredPermEntry;
 type TemplateSectionProps = {
   showSaveTpl: boolean;
   setShowSaveTpl: Dispatch<SetStateAction<boolean>>;
@@ -55,6 +56,8 @@ type VisitorFieldsProps = {
   setVNames: Dispatch<SetStateAction<VisitorNameEntry[]>>;
   vPhone: string;
   setVPhone: Dispatch<SetStateAction<string>>;
+  vPhoneError: string;
+  onPhoneBlur: (value: string) => void;
   carPlate: string;
   setCarPlate: Dispatch<SetStateAction<string>>;
   permsList: PermEntry[];
@@ -85,6 +88,12 @@ type CreateRequestForm = ReturnType<typeof useCreateRequest>;
 type CategoryKey = keyof typeof CAT_LABEL;
 
 const COURIER_PRESETS = ['Ozon', 'Wildberries', 'Яндекс Доставка', 'СДЭК', 'Самокат'];
+const TEMP_PASS_PRESETS: ReadonlyArray<readonly [string, number]> = [
+  ['3 дня', 3],
+  ['Неделя', 7],
+  ['2 недели', 14],
+  ['Месяц', 30],
+];
 
 function getCategoryLabel(category: string): string {
   return category in CAT_LABEL ? CAT_LABEL[category as CategoryKey] : category;
@@ -150,6 +159,8 @@ const VisitorFields = memo(function VisitorFields({
   setVNames,
   vPhone,
   setVPhone,
+  vPhoneError,
+  onPhoneBlur,
   carPlate,
   setCarPlate,
   permsList,
@@ -312,10 +323,15 @@ const VisitorFields = memo(function VisitorFields({
             type="tel"
             value={vPhone}
             onChange={(e) => setVPhone(e.target.value)}
-            onBlur={(e) => setVPhone(sanitizePhone(e.target.value))}
+            onBlur={(e) => onPhoneBlur(e.target.value)}
             inputMode="tel"
             autoComplete="tel"
           />
+          {vPhoneError && (
+            <div className="field-err" role="alert" aria-live="polite">
+              {vPhoneError}
+            </div>
+          )}
         </div>
       )}
     </>
@@ -442,7 +458,7 @@ function TemporaryPassSection({ validUntil, setValidUntil }: TemporaryPassSectio
             до {parseLocalDateInputValue(validUntil)?.toLocaleDateString('ru-RU')}
           </span>
         </button>
-        <button type="button" className="temp-pass-summary-remove" onClick={() => setValidUntil('')}>
+        <button type="button" className="temp-pass-summary-remove" onClick={() => setValidUntil('')} aria-label="Убрать временный пропуск">
           <AppIcon name="close" size={12} />
         </button>
       </div>
@@ -470,12 +486,7 @@ function TemporaryPassSection({ validUntil, setValidUntil }: TemporaryPassSectio
         onChange={(e) => setValidUntil(e.target.value)}
       />
       <div className="temp-pass-presets">
-        {[
-          ['3 дня', 3],
-          ['Неделя', 7],
-          ['2 недели', 14],
-          ['Месяц', 30],
-        ].map(([label, days]: [string, number]) => (
+        {TEMP_PASS_PRESETS.map(([label, days]) => (
           <button key={days} type="button" className="temp-pass-preset" onClick={() => setValidUntil(toLocalDateInputValue(daysFromNow(days)))}>
             {label}
           </button>
@@ -554,6 +565,8 @@ function ResidentPassWizard({
   fastMode,
   userRole,
   residentError,
+  vPhoneError,
+  onPhoneBlur,
   showAdvanced,
   setShowAdvanced,
 }: {
@@ -563,6 +576,8 @@ function ResidentPassWizard({
   fastMode: boolean;
   userRole: AppUser['role'];
   residentError: string;
+  vPhoneError: string;
+  onPhoneBlur: (value: string) => void;
   showAdvanced: boolean;
   setShowAdvanced: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -650,6 +665,8 @@ function ResidentPassWizard({
             setVNames={form.setVNames}
             vPhone={form.vPhone}
             setVPhone={form.setVPhone}
+            vPhoneError={vPhoneError}
+            onPhoneBlur={onPhoneBlur}
             carPlate={form.carPlate}
             setCarPlate={form.setCarPlate}
             permsList={[...form.permsList]}
@@ -785,6 +802,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   const cats = form.cats || [];
   const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [vPhoneError, setVPhoneError] = useState('');
   const isResidentPass = type === 'pass' && user.role !== 'contractor';
   const [residentStep, setResidentStep] = useState(() => clampResidentStep(initialStep));
   const [residentError, setResidentError] = useState('');
@@ -862,11 +880,18 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- vNames is the resident visitor field state; clearing the step error is UI-only
   }, [form.cat, form.vName, form.vNames, form.carPlate, form.apartment]);
 
+  useEffect(() => {
+    if (!vPhoneError) return;
+    setVPhoneError('');
+  }, [form.cat]);
+
   useLayoutEffect(() => {
     const resetScroll = () => {
       if (!bodyRef.current) return;
       bodyRef.current.scrollTop = 0;
-      bodyRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      if (typeof bodyRef.current.scrollTo === 'function') {
+        bodyRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
     };
 
     const frame = window.requestAnimationFrame(resetScroll);
@@ -913,6 +938,12 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
     form.handleSubmit();
   };
 
+  const handleVisitorPhoneBlur = (value: string) => {
+    const sanitizedPhone = sanitizePhone(value);
+    form.setVPhone(sanitizedPhone);
+    setVPhoneError(validatePhone(sanitizedPhone) ?? '');
+  };
+
   return (
     <div className="overlay" {...overlayProps}>
       <div className={`modal modal--request${fastMode ? ' modal--resident-fast' : ''}`} ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
@@ -942,6 +973,8 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
               fastMode={fastMode}
               userRole={user.role}
               residentError={residentError}
+              vPhoneError={vPhoneError}
+              onPhoneBlur={handleVisitorPhoneBlur}
               showAdvanced={showAdvanced}
               setShowAdvanced={setShowAdvanced}
             />
@@ -978,6 +1011,8 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
                   setVNames={form.setVNames}
                   vPhone={form.vPhone}
                   setVPhone={form.setVPhone}
+                  vPhoneError={vPhoneError}
+                  onPhoneBlur={handleVisitorPhoneBlur}
                   carPlate={form.carPlate}
                   setCarPlate={form.setCarPlate}
                   permsList={[...form.permsList]}

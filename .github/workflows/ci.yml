@@ -37,6 +37,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run test:ci
+      - run: npm run test:coverage:critical
       - run: npm run test:contract
       - run: npm run test:detect-open-handles
 
@@ -206,7 +207,6 @@ jobs:
       - run: npm run test:e2e:preflight
       - run: docker compose up -d
       - id: full_e2e
-        continue-on-error: true
         run: npm run test:e2e -- e2e/
       - name: Summarize full e2e run
         if: always()
@@ -220,9 +220,6 @@ jobs:
         run: |
           SUMMARY_TIMESTAMP_UTC="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
           scripts/ci/write_status_summary.sh
-      - name: Fail job if full e2e failed
-        if: steps.full_e2e.outcome != 'success'
-        run: exit 1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -144,8 +144,61 @@ describe('POST /api/auth/verify-otp', () => {
     // Убеждаемся что UPDATE attempts был вызван
     const updateCall = db.query.mock.calls.find(c => c[0].includes('attempts + 1'));
     expect(updateCall).toBeDefined();
+    expect(updateCall[0]).toContain('used = CASE WHEN attempts + 1 >= 5 THEN TRUE ELSE used END');
+  });
+
+  it('marks OTP as used after fifth failed attempt', async () => {
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash = await passwordHasher.hash('999999');
+
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/verify-otp')
+      .send({ phone: VALID_PHONE, code: VALID_CODE });
+
+    expect(res.status).toBe(401);
+    const updateCall = db.query.mock.calls.find(c => c[0].includes('attempts + 1'));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[0]).toContain('used = CASE WHEN attempts + 1 >= 5 THEN TRUE ELSE used END');
+  });
+
+  it('401 when OTP was matched but another request consumed it first', async () => {
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash = await passwordHasher.hash(VALID_CODE);
+
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/verify-otp')
+      .send({ phone: VALID_PHONE, code: VALID_CODE });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/неверный|истёкший/i);
+  });
+
+  it('404 when OTP is valid but user record is missing', async () => {
+    const passwordHasher = require('../utils/passwordHasher');
+    const hash = await passwordHasher.hash(VALID_CODE);
+
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, code: hash }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/verify-otp')
+      .send({ phone: VALID_PHONE, code: VALID_CODE });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/пользователь/i);
   });
 });
+
 
 describe('POST /api/auth/logout', () => {
   it('сбрасывает cookie token', async () => {
@@ -191,6 +244,13 @@ describe('POST /api/auth/logout', () => {
 describe('POST /api/auth/refresh', () => {
   beforeEach(() => { jest.resetAllMocks(); });
 
+  it('401 when refresh token cookie is missing', async () => {
+    const res = await request(app).post('/api/auth/refresh');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('No refresh token');
+  });
+
   it('ротирует refresh token и запрещает reuse старого токена', async () => {
     const passwordHasher = require('../utils/passwordHasher');
     const hash = await passwordHasher.hash(VALID_CODE);
@@ -231,6 +291,19 @@ describe('POST /api/auth/refresh', () => {
     const deleteCalls = db.query.mock.calls.filter(([sql]) => sql.includes('DELETE FROM refresh_tokens'));
     expect(deleteCalls.length).toBeGreaterThanOrEqual(2);
     expect(deleteCalls[0][0]).toContain('id_hash');
+  });
+
+  it('404 when refresh token is valid but user is deleted', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ uid: 'u1' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Cookie', ['refreshToken=raw-refresh-token']);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('User not found');
   });
 });
 
