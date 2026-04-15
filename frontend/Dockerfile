@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:20-alpine AS build
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
 # Accept build-time Vite env vars from docker-compose
@@ -10,18 +10,22 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV CI=true
 
 COPY package*.json ./
-RUN npm ci --silent
+RUN npm install --include=dev
 COPY . .
 RUN npm run build
 
 # Stage 2: Serve with nginx
-FROM nginx:alpine
+# Use a plain Alpine base so nginx and the Brotli module can be installed
+# from the same apk revision instead of inheriting a mismatched prebuilt nginx package.
+FROM alpine:3.21
 
-# gettext предоставляет envsubst — нужен для подстановки переменных в nginx конфиг
-# nginx-mod-http-brotli добавляет динамические Brotli-модули для production nginx.
-# Alpine кладёт их в /etc/nginx/modules/*.conf и /usr/lib/nginx/modules/*.so,
-# а базовый /etc/nginx/nginx.conf из official image подхватывает их автоматически.
-RUN apk add --no-cache gettext nginx-mod-http-brotli
+# gettext предоставляет envsubst — нужен для подстановки переменных в nginx конфиг.
+# nginx и nginx-mod-http-brotli должны устанавливаться одной apk-ревизией, иначе
+# Alpine отклоняет пакетный план как несовместимый.
+RUN apk add --no-cache \
+    gettext \
+    nginx=1.26.3-r0 \
+    nginx-mod-http-brotli=1.26.3-r0
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
