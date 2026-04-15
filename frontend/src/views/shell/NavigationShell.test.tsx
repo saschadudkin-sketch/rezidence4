@@ -24,7 +24,7 @@ function setViewportWidth(width: number) {
 describe('NavigationShell mobile prioritization', () => {
   beforeEach(() => setViewportWidth(390));
 
-  test('shows all security tabs in the mobile bottom navigation', () => {
+  test('shows security core tabs in a single mobile bottom navigation row', () => {
     const nav = [
       ['residents', 'residents', 'Жильцы', 0],
       ['chat', 'chat', 'Чат', 0],
@@ -46,6 +46,7 @@ describe('NavigationShell mobile prioritization', () => {
       />,
     );
 
+    const topNav = container.querySelector('.top-nav');
     const mobileNav = container.querySelector('.mobile-nav');
     expect(mobileNav).toBeInTheDocument();
     const mobile = within(mobileNav as HTMLElement);
@@ -191,5 +192,52 @@ describe('NavigationShell mobile prioritization', () => {
     expect(bottom.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
     expect(bottom.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
     expect(bottom.queryByRole('button', { name: /доступ/i })).not.toBeInTheDocument();
+  });
+
+  test('for admin moves secondary sections to top row and keeps core work tabs on bottom', () => {
+    const nav = [
+      ['stats', 'chart', 'Аналитика', 0],
+      ['requests', 'ticket', 'Операции', 0],
+      ['users', 'users', 'Пользователи', 0],
+      ['residents', 'residents', 'Резиденты', 0],
+      ['visitlog', 'list', 'Журнал', 0],
+      ['blacklist', 'ban', 'ЧС', 2],
+      ['perms', 'file', 'Доступ', 0],
+      ['chat', 'chat', 'Чат', 0],
+    ] as Array<[string, string, string, number]>;
+    const navClassMap = Object.fromEntries(
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
+    );
+
+    const { container } = render(
+      <NavigationShell
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={vi.fn()}
+        userRole="admin"
+      />,
+    );
+
+    const topNav = container.querySelector('.top-nav');
+    const mobileNav = container.querySelector('.mobile-nav');
+    expect(topNav).toBeInTheDocument();
+    expect(mobileNav).toBeInTheDocument();
+
+    const top = within(topNav as HTMLElement);
+    const bottom = within(mobileNav as HTMLElement);
+
+    expect(top.getByRole('button', { name: /резиденты/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /журнал/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /^стоп$/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /чат/i })).toBeInTheDocument();
+
+    expect(bottom.getByRole('button', { name: /аналитика/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /операции/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /пользователи/i })).toBeInTheDocument();
+    expect(bottom.getByRole('button', { name: /доступ/i })).toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /резиденты/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /журнал/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /чат/i })).not.toBeInTheDocument();
+    expect(bottom.queryByRole('button', { name: /ещё/i })).not.toBeInTheDocument();
   });
 });

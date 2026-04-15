@@ -76,6 +76,9 @@ const AppShell = memo(function AppShell({
     ? 'Нет подключения к интернету'
     : `Нет соединения с сервером, идет ${reconnectLabel.toLowerCase()}`;
   const bannerIcon = noNetwork ? 'ban' : 'refresh';
+  const chatNavItem = nav.find(([key]) => key === 'chat');
+  const chatUnread = chatNavItem?.[3] ?? 0;
+  const showHeaderChatShortcut = user.role === 'security';
 
   return (
     <>
@@ -112,12 +115,27 @@ const AppShell = memo(function AppShell({
               </div>
             </div>
           </div>
-          <div className="header-actions header-actions-shell">
-            <button className="theme-btn" onClick={cycleTheme} title="Переключить тему" aria-label={`Тема: ${themeLabel}`}>
-              <span><AppIcon name={themeIcon} size={14} /></span>
-              <span className={isResidentExperience ? 'theme-btn-label--resident' : undefined}>{themeLabel}</span>
-            </button>
-            <UserMenu user={user} pendingCount={pendingCount} onLogout={onLogout} />
+          <div className={`header-actions header-actions-shell${showHeaderChatShortcut ? ' header-actions-shell--security' : ''}`}>
+            {showHeaderChatShortcut && (
+              <button
+                className={`theme-btn header-chat-btn${isChatTab ? ' active' : ''}`}
+                onClick={() => goTab('chat')}
+                title="Открыть чат"
+                aria-label="Открыть чат"
+                aria-current={isChatTab ? 'page' : undefined}
+              >
+                <span><AppIcon name="chat" size={14} /></span>
+                {chatUnread > 0 && <span className="header-chat-badge">{chatUnread > 9 ? '9+' : String(chatUnread)}</span>}
+              </button>
+            )}
+            <UserMenu
+              user={user}
+              pendingCount={pendingCount}
+              onLogout={onLogout}
+              cycleTheme={cycleTheme}
+              themeIcon={themeIcon}
+              themeLabel={themeLabel}
+            />
           </div>
         </div>
       </header>

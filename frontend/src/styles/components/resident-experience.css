@@ -7,9 +7,9 @@
 }
 
 .resident-pass-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   align-items: stretch;
   overflow: hidden;
   padding: 22px;
@@ -858,6 +858,7 @@ html.theme-light .resident-quick-icon {
 @media (--bp-resident-down) {
   .resident-pass-home {
     gap: 14px;
+    padding-bottom: 10px;
   }
 
   .resident-pass-hero {
@@ -1064,6 +1065,10 @@ html.theme-light .resident-quick-icon {
 
   .resident-status-strip {
     padding: 12px 14px;
+  }
+
+  .resident-pass-home {
+    padding-bottom: 14px;
   }
 }
 

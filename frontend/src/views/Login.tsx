@@ -166,13 +166,20 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
     } catch (e: unknown) {
       const error = e as AuthFlowError;
       if (error.notFound) {
+        const resetPhone = () => {
+          setPhone('+7 ');
+          setPhoneError('');
+          setRecovery(null);
+        };
         if (!signal.aborted) toast('Номер не найден в системе', 'error');
-        setPhoneError('Номер не найден в демо-данных');
+        setPhoneError(demoMode ? 'Номер не найден в демо-данных' : 'Номер не найден в системе');
         setRecovery({
-          message: 'Номер не найден. Проверьте номер или используйте демо-доступ.',
+          message: demoMode
+            ? 'Номер не найден. Проверьте номер или используйте демо-доступ.'
+            : 'Номер не найден. Проверьте цифры или очистите поле и введите номер заново.',
           onRetry: () => sendCode(),
-          onFallback: () => setDemoOpen(true),
-          fallbackLabel: 'Открыть демо-доступ',
+          onFallback: demoMode ? () => setDemoOpen(true) : resetPhone,
+          fallbackLabel: demoMode ? 'Открыть демо-доступ' : 'Очистить номер',
         });
       } else {
         // Не даем серверу заблокировать экран слишком длинным retryAfter.

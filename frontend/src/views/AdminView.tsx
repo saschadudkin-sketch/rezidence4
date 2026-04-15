@@ -186,7 +186,12 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
           subtitle={query ? 'Попробуйте изменить запрос' : (contractorOnly ? 'Нажмите «+ Добавить подрядчика»' : usersEmptyCopy.subtitle)}
         />
       )}
-      <VirtualList items={filtered} estimateSize={72} renderItem={(u) => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />} />
+      <VirtualList
+        items={filtered}
+        className="admin-users-list"
+        estimateSize={72}
+        renderItem={(u) => <AdminUserRow key={u.uid} u={u} currentUser={currentUser} />}
+      />
       {addModal && <AddUserModal initialRole={contractorOnly ? 'contractor' : undefined} onClose={handleCloseAdd} onDone={() => {}} />}
     </>
   );
@@ -205,6 +210,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
   const deferredReqQuery = useDeferredValue(debouncedQuery);
   const rq = deferredReqQuery.trim().toLowerCase();
   const activeFiltersCount = [reqPeriod !== 'all', reqType !== 'all', reqStatus !== 'all'].filter(Boolean).length;
+  const hasSearchOrFilters = Boolean(rq || reqQuery.trim() || activeFiltersCount > 0);
 
   const filtered = useMemo(() => filterByPeriod(requests, reqPeriod).filter(r => {
     const mq = !rq || [r.createdByName, r.createdByApt, r.visitorName, r.carPlate, r.comment].some(v => v && v.toLowerCase().includes(rq));
@@ -213,6 +219,17 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
     return mq && mt && ms;
   }), [requests, reqPeriod, rq, reqType, reqStatus]);
   const requestsEmptyCopy = getViewStateCopy('admin_requests', 'empty');
+  const emptyTitle = hasSearchOrFilters ? 'Ничего не найдено' : requestsEmptyCopy.title;
+  const emptySubtitle = hasSearchOrFilters
+    ? 'Сбросьте фильтры или измените запрос, чтобы снова увидеть заявки.'
+    : 'Новые пропуска и техзаявки появятся здесь сразу после создания.';
+  const resetRequestFilters = () => {
+    setReqQuery('');
+    setReqType('all');
+    setReqStatus('all');
+    setReqPeriod('all');
+    setShowFilters(false);
+  };
 
   return (
     <>
@@ -262,8 +279,21 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
           </div>
         )}
       </div>
-      {filtered.length === 0 && <StateBlock type="empty" title={requestsEmptyCopy.title} subtitle={requestsEmptyCopy.subtitle} />}
-      <VirtualList items={filtered} estimateSize={100} renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />} />
+      {filtered.length === 0 && (
+        <StateBlock
+          type="empty"
+          title={emptyTitle}
+          subtitle={emptySubtitle}
+          actionLabel={hasSearchOrFilters ? 'Сбросить фильтры' : undefined}
+          onAction={hasSearchOrFilters ? resetRequestFilters : undefined}
+        />
+      )}
+      <VirtualList
+        items={filtered}
+        className="admin-requests-list"
+        estimateSize={100}
+        renderItem={(r) => <AdminReqRow key={r.id} r={r} adminUid={adminUid} />}
+      />
     </>
   );
 });

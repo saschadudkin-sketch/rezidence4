@@ -82,7 +82,15 @@ export default function BlacklistView({ user }: BlacklistViewProps) {
             {entry.addedAt ? new Date(entry.addedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
           </div>
         </div>
-        <button className="perm-del" onClick={() => setConfirmDelete(entry.id)} title="Удалить" aria-label="Удалить запись из чёрного списка"><AppIcon name="close" /></button>
+        <button
+          className="perm-del bl-entry-remove"
+          onClick={() => setConfirmDelete(entry.id)}
+          title="Удалить"
+          aria-label="Удалить запись из чёрного списка"
+        >
+          <AppIcon name="close" />
+          <span className="bl-entry-remove-label">Удалить</span>
+        </button>
       </div>
     </div>
   ), []);

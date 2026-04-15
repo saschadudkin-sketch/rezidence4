@@ -461,6 +461,37 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
 }
 .dd-upload-btn:hover, .dd-upload-btn:active { border-color: var(--b3); color: var(--t1); }
 
+.dd-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  background: none;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--b1) 82%, transparent);
+  padding: 12px 15px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--fs-2xs);
+  color: var(--t2);
+  transition: background .13s, color .13s;
+}
+
+.dd-action:hover,
+.dd-action:active {
+  background: var(--g-bg);
+  color: var(--t1);
+}
+
+.dd-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--t3);
+}
+
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -482,6 +513,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   min-height: 44px;
   background: none;
   border: none;
+  border-top: 1px solid color-mix(in srgb, var(--b1) 82%, transparent);
   padding: 12px 15px;
   text-align: left;
   cursor: pointer;

@@ -18,11 +18,14 @@ type UserMenuProps = {
   user: AppUser;
   pendingCount: number;
   onLogout: () => void;
+  cycleTheme: () => void;
+  themeIcon: string;
+  themeLabel: string;
 };
 
 const formatBadgeCount = (count: number) => (count > 9 ? '9+' : String(count));
 
-export default function UserMenu({ user, pendingCount, onLogout }: UserMenuProps) {
+export default function UserMenu({ user, pendingCount, onLogout, cycleTheme, themeIcon, themeLabel }: UserMenuProps) {
   const avData = useAvatar(user.uid);
   const { setAvatar, deleteAvatar } = useActions();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -94,17 +97,29 @@ export default function UserMenu({ user, pendingCount, onLogout }: UserMenuProps
                   <div className="dd-avatar-overlay"><AppIcon name="camera" size={14} /></div>
                 </div>
               </div>
-              <div className="dd-user-info">
-                <div className="dd-user-name">{user.name}</div>
-                <div className="dd-user-phone">{user.phone}</div>
-              </div>
-              <button className="dd-upload-btn" onMouseDown={(event) => event.preventDefault()} onClick={openAvatarModal}>
-                Настроить аватарку
-              </button>
+            <div className="dd-user-info">
+              <div className="dd-user-name">{user.name}</div>
+              <div className="dd-user-phone">{user.phone}</div>
             </div>
-            <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
+            <button className="dd-upload-btn" onMouseDown={(event) => event.preventDefault()} onClick={openAvatarModal}>
+              Настроить аватарку
+            </button>
           </div>
-        )}
+          <button
+            className="dd-action"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              cycleTheme();
+              setMenuOpen(false);
+            }}
+            aria-label={`Сменить тему. Сейчас: ${themeLabel}`}
+          >
+            <span className="dd-action-icon"><AppIcon name={themeIcon} size={14} /></span>
+            <span>Тема: {themeLabel}</span>
+          </button>
+          <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
+        </div>
+      )}
       </div>
       {avOpen && typeof document !== 'undefined' && createPortal(
         <AvatarModal avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />,

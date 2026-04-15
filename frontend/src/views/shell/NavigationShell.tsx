@@ -5,6 +5,7 @@ import { MEDIA_QUERIES } from '../../constants/breakpoints';
 import { createPortal } from 'react-dom';
 import {
   filterMobileNavItems,
+  hasExplicitMobileTopTabs,
   getMobileLabel,
   getMobileMaxTabs,
   orderMobileTabs,
@@ -121,15 +122,17 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
 
   const orderedMobileNav = orderMobileTabs(userRole, nav);
   const { topNav, bottomNav } = splitMobileNav(userRole, orderedMobileNav);
-  const topNavItems = isMobile && !isTablet
-    ? topNav
-    : isTablet
-      ? orderedMobileNav
+  const roleHasMobileTopTabs = hasExplicitMobileTopTabs(userRole);
+  const topNavItems = isTablet
+    ? orderedMobileNav
+    : isMobile && roleHasMobileTopTabs
+      ? topNav
       : nav;
+  const mobileNavSource = roleHasMobileTopTabs && bottomNav.length > 0 ? bottomNav : orderedMobileNav;
   const mobileNavItems = !isTablet && isMobile
-    ? filterMobileNavItems(userRole, bottomNav.length > 0 ? bottomNav : orderedMobileNav)
+    ? filterMobileNavItems(userRole, mobileNavSource)
     : [];
-  const hasMobileTopTabs = isTablet || (isMobile && !isTablet && topNavItems.length > 0);
+  const hasMobileTopTabs = isTablet || (isMobile && roleHasMobileTopTabs && topNavItems.length > 0);
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;

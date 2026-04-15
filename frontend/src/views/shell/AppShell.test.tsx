@@ -75,4 +75,41 @@ describe('AppShell reconnect banner', () => {
     expect(screen.getByText('Нет соединения с сервером, идет переподключение (попытка 2/5)')).toBeInTheDocument();
     expect(screen.getByText('Переподключение (попытка 2/5)')).toBeInTheDocument();
   });
+
+  test('shows security chat shortcut in header instead of theme toggle', () => {
+    const securityUser: AppUser = {
+      ...user,
+      role: 'security',
+    };
+
+    render(
+      <NavigationContext.Provider
+        value={{
+          nav: [['chat', 'chat', 'Чат', 3]],
+          navClassMap: {},
+          goTab: vi.fn(),
+          activeTab: 'guardpost',
+          setActiveTab: vi.fn(),
+          highlightReqId: null,
+          setHighlightReqId: vi.fn(),
+        }}
+      >
+        <AppShell
+          user={securityUser}
+          onLogout={vi.fn()}
+          pageTitle="Пост"
+          pageSubtitle="Текущий экран"
+          pendingCount={0}
+          cycleTheme={vi.fn()}
+          themeIcon="sun"
+          themeLabel="Светлая"
+          sseOnline
+          isOnline
+        />
+      </NavigationContext.Provider>,
+    );
+
+    expect(screen.getByRole('button', { name: /открыть чат/i })).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
 });

@@ -276,42 +276,58 @@
 .admin-user-apt-inp{max-width:96px}
 .admin-user-park-inp{width:96px}
 .admin-user-actions-end{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+.admin-users-list,
+.admin-requests-list{
+  padding-bottom: 8px;
+}
 .qr-error-box{padding:20px}
 .pass-qr-foot{
   flex-direction:column;
   gap:10px;
 }
 @media (max-width: 480px){
+  .admin-users-list,
+  .admin-requests-list{
+    padding-bottom: calc(var(--nav-h) + var(--sab) + 28px);
+  }
   .admin-user-row-card{
-    border-radius:16px;
-    margin-bottom:8px;
+    border-radius:15px;
+    margin-bottom:7px;
   }
   .admin-user-row-card > .u-flex.u-flex-center.u-gap10.u-pad10-12{
-    padding:12px 12px 10px;
+    padding:10px 11px 9px;
   }
   .admin-user-name{
-    font-size:14px;
+    font-size:13px;
+    line-height:1.14;
   }
   .admin-user-controls{
-    gap:4px;
+    gap:3px;
   }
   .admin-user-self-mark{
     min-height:20px;
-    padding:0 8px;
+    padding:0 7px;
     font-size:9px;
   }
   .admin-user-meta{
-    gap:6px;
-    margin-top:6px;
+    gap:5px;
+    margin-top:5px;
   }
   .admin-user-meta-item{
-    min-height:22px;
-    padding:0 7px;
-    font-size:10px;
+    min-height:20px;
+    padding:0 6px;
+    font-size:9px;
   }
   .admin-user-edit-wrap{
     margin:0 10px 10px;
     border-radius:14px;
+  }
+  .admin-user-controls .btn-edit,
+  .admin-user-controls .btn-del-sm{
+    min-height:32px;
+    min-width:32px;
+    padding:0 8px;
+    border-radius:10px;
   }
   .admin-user-actions-end{
     display:grid;

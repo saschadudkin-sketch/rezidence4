@@ -363,4 +363,32 @@ describe('CreateModal — smoke', () => {
       expect(window.sessionStorage.getItem(key)).toBeNull();
     });
   });
+
+  test('очищает draft при отмене модалки', async () => {
+    const key = getCreateDraftKey(OWNER.uid, OWNER.role, 'tech');
+    window.sessionStorage.setItem(key, JSON.stringify({
+      cat: 'electrician',
+      vName: '',
+      vNames: [],
+      vPhone: '',
+      carPlate: '',
+      apartment: '',
+      comment: 'Незавершённый черновик',
+      validUntil: '',
+      showSchedule: false,
+      scheduledFor: '',
+      updatedAt: Date.now(),
+    }));
+
+    render(
+      <CreateModal user={OWNER} type="tech" onClose={onClose} onDone={onDone} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem(key)).toBeNull();
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
 });

@@ -295,7 +295,10 @@ const MIGRATIONS = [
           SELECT
             payload IS NOT NULL
             AND jsonb_typeof(payload) = 'object'
-            AND jsonb_object_length(payload) <= 20
+            AND (
+              SELECT count(*)
+              FROM jsonb_object_keys(payload)
+            ) <= 20
             AND NOT EXISTS (
               SELECT 1
               FROM jsonb_each(payload) AS entry(key, value)

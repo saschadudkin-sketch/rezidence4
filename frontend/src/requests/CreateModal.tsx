@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { genId } from '../utils';
 import { CAT_ICON, CAT_LABEL } from '../constants/index';
@@ -790,17 +790,21 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+  const handleDismiss = useCallback(() => {
+    clearCreateDraft(draftKey);
+    onClose();
+  }, [draftKey, onClose]);
   const form = useCreateRequest({
     user,
     type,
     initialCat,
     initialData,
-    onClose,
+    onClose: handleDismiss,
     onDone,
     onSubmitted: () => clearCreateDraft(draftKey),
   });
   const cats = form.cats || [];
-  const { dialogRef, overlayProps } = useModalAccessibility({ onClose });
+  const { dialogRef, overlayProps } = useModalAccessibility({ onClose: handleDismiss });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [vPhoneError, setVPhoneError] = useState('');
   const isResidentPass = type === 'pass' && user.role !== 'contractor';
@@ -956,7 +960,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
               <span className="u-ls3">{getCategoryLabel(form.cat)}</span>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
+          <button className="modal-close" onClick={handleDismiss} aria-label="Закрыть"><AppIcon name="close" size={14} /></button>
         </div>
 
         <div className="modal-body" ref={bodyRef}>
@@ -1082,7 +1086,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
                 </>
               ) : (
                 <>
-                  <button className="btn-outline" onClick={residentStep === 0 ? onClose : () => setResidentStep((step) => Math.max(0, step - 1))}>
+                  <button className="btn-outline" onClick={residentStep === 0 ? handleDismiss : () => setResidentStep((step) => Math.max(0, step - 1))}>
                     {residentStep === 0 ? 'Отмена' : 'Назад'}
                   </button>
                   {residentStep < 3 ? (
@@ -1099,7 +1103,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
             </>
           ) : (
             <>
-              <button className="btn-outline" onClick={onClose}>Отмена</button>
+              <button className="btn-outline" onClick={handleDismiss}>Отмена</button>
               <button className="btn-gold u-flex2" onClick={form.handleSubmit} disabled={form.loading}>
                 <span>{submitLabel}</span>
               </button>

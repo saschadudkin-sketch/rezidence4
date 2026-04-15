@@ -1362,10 +1362,33 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 @media (--bp-lg-above) {
   .login-panel {
     padding-top: calc(48px + var(--sat));
+    padding-right: 64px;
+    padding-left: 32px;
   }
 
   .login-form {
-    max-width: 500px;
+    max-width: 540px;
+    padding: 48px 44px 36px;
+  }
+
+  .login-form-intro {
+    margin-bottom: 28px;
+  }
+
+  .login-form-sub {
+    max-width: 38ch;
+  }
+
+  .login-mobile-top,
+  .login-mobile-hero,
+  .login-form .field,
+  .login-form .field-warn,
+  .login-form .error-recovery-panel,
+  .login-form .btn-gold,
+  .login-form .btn-text,
+  .login-form .demo-toggle,
+  .login-form .login-help {
+    max-width: 420px;
   }
 }
 

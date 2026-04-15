@@ -1,7 +1,7 @@
 'use strict';
 
 const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
+const { RedisStore } = require('rate-limit-redis');
 const { getRedis } = require('../lib/redisClient');
 
 function makeRedisStore(prefix) {

@@ -12,12 +12,21 @@
 .admin-toolbar--requests .sec-filters{width:100%}
 
 @media (--bp-md-below){
+  .admin-toolbar{
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .admin-toolbar .search-wrap{
+    min-width: 0;
+  }
   .admin-toolbar--requests{
     display:flex;
     flex-direction:column;
     align-items:stretch;
     flex-wrap:nowrap;
-    gap:8px;
+    gap:6px;
   }
   .admin-toolbar--requests .search-wrap,
   .admin-toolbar--requests .sec-filters-toggle-row,
@@ -31,6 +40,7 @@
   .admin-toolbar--requests .sec-filters-toggle{
     width:100%;
     justify-content:center;
+    min-height: 40px;
   }
   .admin-toolbar--requests .sec-filters{
     max-height:none;
@@ -45,6 +55,7 @@
     width:100%;
     flex:1 1 100%;
     justify-content:center;
+    min-height: 42px;
   }
 }
 .t-row-actions{display:flex;gap:var(--space-xs);justify-content:flex-end}

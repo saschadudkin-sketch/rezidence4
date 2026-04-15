@@ -50,6 +50,8 @@ export default function Dashboard({ user, onLogout, isOnline = true }: Dashboard
   }
 
   const actionRail = null;
+  const suppressSecondaryGuidance = !isResidentExperience && guidance.showDemoBanner
+    && (user.role === 'admin' || user.role === 'security');
 
   return (
     <NavigationContext.Provider
@@ -64,7 +66,7 @@ export default function Dashboard({ user, onLogout, isOnline = true }: Dashboard
       }}
     >
       {guidance.showDemoBanner && !isResidentExperience && <DemoBanner onClose={guidance.dismissDemoBanner} />}
-      {guidance.showOnboarding && !isResidentExperience && (
+      {guidance.showOnboarding && !isResidentExperience && !suppressSecondaryGuidance && (
         <OnboardingHint role={user.role} onClose={guidance.dismissOnboarding} />
       )}
       <AppShell

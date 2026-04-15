@@ -79,6 +79,21 @@ describe('Login — шаг phone', () => {
     fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
     expect(await screen.findByPlaceholderText('• • • • • •')).toBeInTheDocument();
   });
+
+  test('live: not found показывает системный текст и не предлагает демо', async () => {
+    services.auth.sendOtp.mockRejectedValueOnce({ notFound: true });
+    render(<Login onLogin={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), {
+      target: { value: '+7 999 000-00-00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /получить sms-код/i }));
+
+    expect(await screen.findByText('Номер не найден в системе')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Очистить номер' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть демо-доступ' })).not.toBeInTheDocument();
+    expect(toast).toHaveBeenCalledWith('Номер не найден в системе', 'error');
+  });
 });
 
 describe('Login — шаг OTP', () => {

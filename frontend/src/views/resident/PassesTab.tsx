@@ -121,19 +121,8 @@ const PassesTab = memo(function PassesTab({
             <div className="resident-pass-hero-copy">
               <div className="resident-pass-kicker">Пропуск за минуту</div>
               <h2>Кто к вам приедет?</h2>
-              <p>Создайте пропуск, и охрана сразу увидит гостя, курьера или автомобиль.</p>
+              <p>Выберите ниже гостя, курьера или такси, и охрана сразу увидит пропуск.</p>
             </div>
-            <button
-              type="button"
-              className="resident-primary-action"
-              onClick={() => setModal({ type: 'pass', cat: 'guest' })}
-            >
-              <span className="resident-primary-icon"><AppIcon name="ticket" size={20} /></span>
-              <span>
-                <strong>Новый пропуск</strong>
-                <small>Для гостя или семьи</small>
-              </span>
-            </button>
           </section>
 
           <div className="resident-quick-grid type-grid" aria-label="Быстрые варианты пропуска">
@@ -270,7 +259,7 @@ const PassesTab = memo(function PassesTab({
         <StateBlock
           type="empty"
           title={isResidentExperience ? 'Пока нет пропусков' : 'Рабочих пропусков пока нет'}
-          subtitle={isResidentExperience ? 'Нажмите «Новый пропуск», когда к вам собирается гость, курьер или такси.' : 'Начните с «Оформить въезд» или выберите ниже бригаду, доставку или автомобиль.'}
+          subtitle={isResidentExperience ? 'Выберите ниже гостя, курьера или такси, когда к вам кто-то собирается.' : 'Начните с «Оформить въезд» или выберите ниже бригаду, доставку или автомобиль.'}
         />
       ) : visiblePasses.length === 0 && visibleScheduled.length === 0 ? (
         <StateBlock

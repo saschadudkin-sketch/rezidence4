@@ -22,12 +22,15 @@ const NAVIGATION_ROLE_CONFIG: Partial<Record<UserRole, NavigationRoleConfig>> = 
   admin: {
     mobileMaxTabs: 4,
     mobileOrder: ['stats', 'requests', 'users', 'residents', 'visitlog', 'blacklist', 'perms', 'chat'],
+    mobileTopTabs: ['residents', 'visitlog', 'blacklist', 'chat'],
     mobileLabels: {
       users: 'Пользователи',
       blacklist: 'Стоп',
       visitlog: 'Журнал',
       requests: 'Операции',
       perms: 'Доступ',
+      residents: 'Резиденты',
+      chat: 'Чат',
     },
   },
   security: {
@@ -82,6 +85,10 @@ function getRoleConfig(role: string): NavigationRoleConfig {
 
 export function getMobileMaxTabs(role: string): number {
   return getRoleConfig(role).mobileMaxTabs ?? DEFAULT_MOBILE_MAX_TABS;
+}
+
+export function hasExplicitMobileTopTabs(role: string): boolean {
+  return Boolean(getRoleConfig(role).mobileTopTabs?.length);
 }
 
 export function orderMobileTabs(role: string, nav: MobileNavItem[]): MobileNavItem[] {
