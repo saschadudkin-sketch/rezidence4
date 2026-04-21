@@ -72,6 +72,51 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-master-backlog-sprint-team-plan.md`
   - Sprint-by-sprint and team-by-team execution allocation for the full DomHub backlog.
 
+- `domhub-design-tokens-css-spec.md`
+  - CSS variable token contract for the DomHub visual system, including color, typography, spacing, motion, and density tokens.
+
+- `domhub-figma-component-library-structure.md`
+  - Recommended Figma file, page, naming, and component structure for the DomHub design system and role-specific patterns.
+
+- `domhub-react-figma-component-map.md`
+  - Mapping between the first critical DomHub screens, existing React design-system components, planned React components, and their Figma counterparts.
+
+- `domhub-7-day-figma-transition-checklist.md`
+  - Practical 7-day checklist for moving DomHub from Claude-led design exploration into a usable Figma Starter workflow and first-wave implementation handoff.
+
+- `domhub-figma-file-template.md`
+  - Recommended DomHub Figma file/page/frame template for organizing foundations, components, role screens, and prototype flows in one scalable product file.
+
+- `domhub-claude-design-7-day-prompt-pack.md`
+  - Day-by-day Claude Design prompt pack for shaping the first DomHub visual direction, screens, critiques, and handoff readiness.
+
+- `domhub-figma-project-copy-paste-outline.md`
+  - Ready-to-paste outline for the initial DomHub Figma file, including pages, first frames, first components, screen order, and contribution rules.
+
+- `domhub-figma-ai-make-prompt-pack.md`
+  - Prompt pack for Figma AI and Figma Make to generate DomHub foundations, critical screens, flows, and review passes in a controlled first-wave scope.
+
+- `domhub-ultra-short-figma-starter-sheet.md`
+  - Minimal starter sheet for spinning up the first DomHub Figma file with only the essential pages, components, screens, labels, and week-one goal.
+
+- `domhub-unified-design-workflow-pack.md`
+  - End-to-end workflow guide for using Claude Design, Figma AI, Figma Make, and Claude Code together without design or implementation drift.
+
+- `domhub-first-working-mvp-checklist.md`
+  - Practical master checklist of what still must be completed before DomHub reaches a first working MVP and pilot-capable core slice.
+
+- `domhub-first-working-mvp-jira-backlog.md`
+  - Jira-ready bounded execution backlog for the first working DomHub MVP, including scope freeze, design freeze, core slice, infra baseline, and pilot readiness tickets.
+
+- `domhub-first-working-mvp-jira-import.csv`
+  - CSV import file for the first working DomHub MVP backlog, with week, team, dependency, and component metadata.
+
+- `domhub-first-working-mvp-jira-import-v2.csv`
+  - Extended CSV import file for the first working DomHub MVP backlog, with additional `Definition Of Done` and `Out Of Scope` columns.
+
+- `domhub-first-working-mvp-week-team-plan.md`
+  - Practical 3-week execution allocation for the first working DomHub MVP, mapped by team, dependencies, and critical path.
+
 - `domhub-technical-streams-plan.md`
   - Stream-based technical plan for backend, frontend, data, integrations, legal/compliance, and operations.
 
@@ -113,5 +158,20 @@ This directory contains the working product source of truth for DomHub platform 
 - When preparing Jira import, use `domhub-jira-import.csv`.
 - When preparing Jira import with execution metadata, prefer `domhub-jira-import-v2.csv`.
 - When planning delivery by sprint and team, use `domhub-master-backlog-sprint-team-plan.md`.
+- When building the visual system in code, use `domhub-design-tokens-css-spec.md`.
+- When organizing the Figma library and component taxonomy, use `domhub-figma-component-library-structure.md`.
+- When translating first critical screens from Figma into React, use `domhub-react-figma-component-map.md`.
+- When setting up the first week of Figma work from the existing DomHub docs and token specs, use `domhub-7-day-figma-transition-checklist.md`.
+- When creating the actual Figma file structure and first page/frame template, use `domhub-figma-file-template.md`.
+- When running the first week of Claude Design exploration and critique, use `domhub-claude-design-7-day-prompt-pack.md`.
+- When you want a direct copy-paste setup outline for the Figma file, use `domhub-figma-project-copy-paste-outline.md`.
+- When generating the first DomHub screens and flows with Figma AI or Figma Make, use `domhub-figma-ai-make-prompt-pack.md`.
+- When you need the shortest possible Figma startup sheet, use `domhub-ultra-short-figma-starter-sheet.md`.
+- When coordinating work across Claude Design, Figma AI, Figma Make, and Claude Code, use `domhub-unified-design-workflow-pack.md`.
+- When deciding what is still missing before the first real working MVP, use `domhub-first-working-mvp-checklist.md`.
+- When planning or importing only the first real MVP delivery wave into Jira, use `domhub-first-working-mvp-jira-backlog.md`.
+- When importing the first working MVP delivery wave into Jira, use `domhub-first-working-mvp-jira-import.csv`.
+- When you need MVP Jira import with richer execution metadata, use `domhub-first-working-mvp-jira-import-v2.csv`.
+- When coordinating the first working MVP by week and team, use `domhub-first-working-mvp-week-team-plan.md`.
 - When decomposing engineering work, use `domhub-technical-streams-plan.md` and `domhub-work-breakdown.md`.
 - If the user gives instructions that conflict with these files, follow the user and then update the docs accordingly.
