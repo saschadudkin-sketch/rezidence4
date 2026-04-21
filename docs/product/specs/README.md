@@ -12,6 +12,9 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-access-platform-final-plan.md`
   - Master specification and staged development plan for DomHub as an access-control platform for residential complexes and cottage communities.
 
+- `domhub-parking-module-spec.md`
+  - Module specification for DomHub parking as a controlled vehicle-access and parking-operations layer rather than a standalone smart-parking product.
+
 - `domhub-missing-docs-priority.md`
   - Prioritized list of missing documents required to move DomHub from planning-ready to production-grade engineering readiness.
 
@@ -56,6 +59,18 @@ This directory contains the working product source of truth for DomHub platform 
 
 - `domhub-access-jira-ready-backlog.md`
   - Jira-ready first-wave execution backlog for the DomHub access platform, with ticket summaries, DoD, dependencies, and scope boundaries.
+
+- `domhub-parking-mvp-jira-backlog.md`
+  - Jira-ready bounded execution backlog for the first DomHub parking MVP, including vehicle registry, parking spots, parking assignments, guard validation, and parking incidents.
+
+- `domhub-parking-mvp-jira-import.csv`
+  - CSV import file for the first DomHub parking MVP backlog, with week, team, dependency, and component metadata.
+
+- `domhub-parking-mvp-jira-import-v2.csv`
+  - Extended CSV import file for the first DomHub parking MVP backlog, with additional `Definition Of Done` and `Out Of Scope` columns.
+
+- `domhub-parking-mvp-week-team-plan.md`
+  - Practical 2-week execution allocation for the first DomHub parking MVP, mapped by team, dependencies, and critical path.
 
 - `domhub-platform-jira-ready-backlog.md`
   - Jira-ready backlog for the remaining DomHub platform beyond access-core: operations, communications, portfolio, integrations, onboarding, hardening, and expansion modules.
@@ -135,6 +150,7 @@ This directory contains the working product source of truth for DomHub platform 
 
 - When implementing new DomHub platform features, start with `domhub-final-product-plan.md`.
 - When implementing or refining access-control features, also use `domhub-access-platform-final-plan.md`.
+- When implementing vehicle access, parking spots, or parking operations, also use `domhub-parking-module-spec.md`.
 - When implementing access-domain backend or database work, also use `domhub-access-data-model-spec.md`.
 - When implementing access rules, state transitions, or APIs, also use:
   - `domhub-access-policy-spec.md`
@@ -153,6 +169,7 @@ This directory contains the working product source of truth for DomHub platform 
   - `domhub-erp-1c-integration-spec.md`
 - When deciding priority or order, use `domhub-backlog-epics.md` and `domhub-12-week-sprint-plan.md`.
 - When creating implementation tickets, use `domhub-access-jira-ready-backlog.md`.
+- When creating parking-only MVP implementation tickets, use `domhub-parking-mvp-jira-backlog.md`.
 - When creating non-access implementation tickets, use `domhub-platform-jira-ready-backlog.md`.
 - When you need one unified execution view, use `domhub-master-jira-backlog.md`.
 - When preparing Jira import, use `domhub-jira-import.csv`.
@@ -173,5 +190,8 @@ This directory contains the working product source of truth for DomHub platform 
 - When importing the first working MVP delivery wave into Jira, use `domhub-first-working-mvp-jira-import.csv`.
 - When you need MVP Jira import with richer execution metadata, use `domhub-first-working-mvp-jira-import-v2.csv`.
 - When coordinating the first working MVP by week and team, use `domhub-first-working-mvp-week-team-plan.md`.
+- When importing the first parking MVP delivery wave into Jira, use `domhub-parking-mvp-jira-import.csv`.
+- When you need parking MVP Jira import with richer execution metadata, use `domhub-parking-mvp-jira-import-v2.csv`.
+- When coordinating the first parking MVP by week and team, use `domhub-parking-mvp-week-team-plan.md`.
 - When decomposing engineering work, use `domhub-technical-streams-plan.md` and `domhub-work-breakdown.md`.
 - If the user gives instructions that conflict with these files, follow the user and then update the docs accordingly.
