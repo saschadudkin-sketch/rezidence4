@@ -16,6 +16,9 @@
   - `docs/product/specs/domhub-12-week-sprint-plan.md`
   - `docs/product/specs/domhub-work-breakdown.md`
 - Prefer keeping new platform features, roles, workflows, and rollout decisions aligned with those files unless the user explicitly overrides them.
+- For short execution guidance, also use:
+  - `IMPLEMENTATION_ORDER.md`
+  - `ACCESS_SOURCE_OF_TRUTH.md`
 
 ## Troubleshooting
 
