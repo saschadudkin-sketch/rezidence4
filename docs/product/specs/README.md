@@ -54,6 +54,24 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-backlog-epics.md`
   - Product backlog organized by epics, priorities, dependencies, and definition of done.
 
+- `domhub-access-jira-ready-backlog.md`
+  - Jira-ready first-wave execution backlog for the DomHub access platform, with ticket summaries, DoD, dependencies, and scope boundaries.
+
+- `domhub-platform-jira-ready-backlog.md`
+  - Jira-ready backlog for the remaining DomHub platform beyond access-core: operations, communications, portfolio, integrations, onboarding, hardening, and expansion modules.
+
+- `domhub-master-jira-backlog.md`
+  - Unified master backlog registry for the full DomHub platform from `DH-01` through `DH-54`.
+
+- `domhub-jira-import.csv`
+  - CSV backlog structure for Jira import, covering `DH-01` through `DH-54`.
+
+- `domhub-jira-import-v2.csv`
+  - Jira-friendly CSV with `Epic Name`, `Sprint`, `Team`, and `Depends On` columns for `DH-01` through `DH-54`.
+
+- `domhub-master-backlog-sprint-team-plan.md`
+  - Sprint-by-sprint and team-by-team execution allocation for the full DomHub backlog.
+
 - `domhub-technical-streams-plan.md`
   - Stream-based technical plan for backend, frontend, data, integrations, legal/compliance, and operations.
 
@@ -89,5 +107,11 @@ This directory contains the working product source of truth for DomHub platform 
   - `domhub-video-integration-spec.md`
   - `domhub-erp-1c-integration-spec.md`
 - When deciding priority or order, use `domhub-backlog-epics.md` and `domhub-12-week-sprint-plan.md`.
+- When creating implementation tickets, use `domhub-access-jira-ready-backlog.md`.
+- When creating non-access implementation tickets, use `domhub-platform-jira-ready-backlog.md`.
+- When you need one unified execution view, use `domhub-master-jira-backlog.md`.
+- When preparing Jira import, use `domhub-jira-import.csv`.
+- When preparing Jira import with execution metadata, prefer `domhub-jira-import-v2.csv`.
+- When planning delivery by sprint and team, use `domhub-master-backlog-sprint-team-plan.md`.
 - When decomposing engineering work, use `domhub-technical-streams-plan.md` and `domhub-work-breakdown.md`.
 - If the user gives instructions that conflict with these files, follow the user and then update the docs accordingly.
