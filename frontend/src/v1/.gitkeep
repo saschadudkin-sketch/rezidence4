@@ -1,0 +1,5 @@
+# platform-v1 isolated frontend
+#
+# Mirrors backend/src/v1/. See ROADMAP.md for the D-lite migration plan.
+# Do not import from ../ (legacy frontend/src/). Pages here consume /api/v1/
+# endpoints built on the platform-v1 schema (passes, vehicles, units, ...).

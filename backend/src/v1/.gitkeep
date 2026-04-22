@@ -1,0 +1,13 @@
+# platform-v1 isolated code
+#
+# This directory hosts the D-lite refactor per ROADMAP.md.
+# Rules:
+#   1. Every module here must have a corresponding spec in docs/product/specs/platform-v1/.
+#   2. Do not import from ../ (legacy backend/src/). Cross-cutting helpers are copied, not shared.
+#   3. Tests are mandatory for any v1 module; legacy coverage gates do not apply here.
+#
+# Subdirectories:
+#   migrations/ — v1 property-DB schema (buildings, units, residents, staff, passes, vehicles, ...)
+#   routes/     — new API handlers mounted under /api/v1/ (note: /api/v1 already exists; v1 here
+#                 means "platform-v1 architecture", coexisting with legacy routes during migration)
+#   services/   — domain logic for access lifecycle, policy engine, integrations
