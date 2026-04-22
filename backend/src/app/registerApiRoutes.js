@@ -44,6 +44,7 @@ const platformPropertiesRouter = require('../routes/platform/properties');
 const platformAdminsRouter = require('../routes/platform/admins');
 const platformStatsRouter = require('../routes/platform/stats');
 const platformAnalyticsRouter = require('../routes/platform/analytics');
+const platformAuditLogRouter = require('../routes/platform/auditLog');
 
 function registerApiRoutes(app, { rateLimiters }) {
   const {
@@ -128,6 +129,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/platform/api/v1/admins', platformAdminsRouter);
   app.use('/platform/api/v1/stats', platformStatsRouter);
   app.use('/platform/api/v1/analytics', platformAnalyticsRouter);
+  app.use('/platform/api/v1/audit-log', platformAuditLogRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);

@@ -9,6 +9,11 @@ const router = express.Router();
 router.use(platformAuth);
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,48}[a-z0-9]$/;
+// Conservative DNS hostname regex: lowercased, dot-separated labels, each 1-63
+// chars, no leading/trailing hyphens.  Total length capped at 253 so we stay
+// within the DNS spec.  We accept either a bare domain (app.domhub.su) or an
+// empty string / null to clear the hostname.
+const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 // Helper: log an audit entry (fire-and-forget)
 function auditLog({ adminId, action, propertyId = null, ipAddress, details = null }) {
@@ -169,8 +174,10 @@ router.patch('/:slug', async (req, res, next) => {
   try {
     const { slug } = req.params;
 
-    // Explicitly forbid changing slug or db_connection_url
-    const allowed = ['name', 'address', 'plan', 'timezone', 'contact_email', 'contact_phone'];
+    // Explicitly forbid changing slug or db_connection_url.  `hostname` is
+    // updatable (that's how a new property gets its subdomain wired up) but
+    // validated + uniqueness-checked below.
+    const allowed = ['name', 'address', 'plan', 'timezone', 'contact_email', 'contact_phone', 'hostname'];
     const changes = {};
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
@@ -184,7 +191,50 @@ router.patch('/:slug', async (req, res, next) => {
       });
     }
 
+    // Normalise + validate hostname if present.  Accept null / '' to clear;
+    // otherwise lowercase + regex-check.  Uniqueness is enforced by the
+    // partial unique index (see platformMigrations 003), but we do a pre-flight
+    // check here so we can return a 409 rather than a generic 500.
+    if (Object.prototype.hasOwnProperty.call(changes, 'hostname')) {
+      const raw = changes.hostname;
+      if (raw === null || raw === '') {
+        changes.hostname = null;
+      } else if (typeof raw !== 'string') {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'hostname must be a string, null, or empty' },
+        });
+      } else {
+        const normalised = raw.trim().toLowerCase();
+        if (!HOSTNAME_RE.test(normalised)) {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'hostname must be a lowercase DNS name (e.g. app.domhub.su)',
+            },
+          });
+        }
+        changes.hostname = normalised;
+      }
+    }
+
     const platformDb = getPlatformDb();
+
+    // Uniqueness pre-flight (only when setting a non-null hostname).  Allow
+    // the current row to keep its own hostname — filter by slug mismatch.
+    if (changes.hostname) {
+      const { rows: clash } = await platformDb.query(
+        'SELECT slug FROM properties WHERE hostname = $1 AND slug <> $2',
+        [changes.hostname, slug],
+      );
+      if (clash.length) {
+        return res.status(409).json({
+          error: {
+            code: 'HOSTNAME_EXISTS',
+            message: `hostname '${changes.hostname}' is already assigned to property '${clash[0].slug}'`,
+          },
+        });
+      }
+    }
 
     // Build dynamic SET clause
     const setClauses = Object.keys(changes).map((key, i) => `${key} = $${i + 2}`);

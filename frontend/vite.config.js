@@ -122,6 +122,14 @@ export default defineConfig(({ mode }) => {
       // Run `VITE_API_URL=x npm run build` to check budgets locally.
       chunkSizeWarningLimit: 300,
       rollupOptions: {
+        // Two entry points: the tenant SPA (index.html → *.domhub.su) and the
+        // superadmin SPA (admin.html → admin.domhub.su).  Nginx picks the right
+        // HTML file based on the incoming hostname; shared vendor chunks (React,
+        // router) are content-hashed and deduplicated by Rollup automatically.
+        input: {
+          main: 'index.html',
+          admin: 'admin.html',
+        },
         output: {
           // Explicit code-split boundaries to keep chunks under budget.
           // PF2: explicit chunk boundaries — keeps initial JS payload small.
