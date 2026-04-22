@@ -97,6 +97,47 @@ const PLATFORM_MIGRATIONS = [
       `);
     },
   },
+  {
+    id: '003_properties_hostname',
+    async up(client) {
+      // Hybrid tenant resolver (hostname > X-Property-Slug header > JWT claim)
+      // needs a reliable hostname → property mapping.  The column is nullable
+      // so legacy deployments (single-tenant, dev, test) keep working — if a
+      // property has no hostname, the resolver falls back to the header/JWT
+      // sources.
+      //
+      // Stored lowercase to simplify case-insensitive lookups; the resolver
+      // normalises incoming Host headers the same way before querying.
+      await client.query(`
+        ALTER TABLE properties
+          ADD COLUMN IF NOT EXISTS hostname VARCHAR(255)
+      `);
+
+      // Partial unique index: two properties can both have hostname=NULL, but
+      // any non-null hostname must be globally unique — otherwise the resolver
+      // couldn't pick a deterministic tenant.
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_hostname
+          ON properties(hostname)
+          WHERE hostname IS NOT NULL
+      `);
+
+      // Seed: stamp the default hostname for the first property from env so
+      // the existing zamoskv row starts answering to its subdomain without
+      // manual ops intervention.  If the env var isn't set (dev/test), we
+      // leave it null — the header/JWT sources will carry the resolver.
+      const zamoskvHostname = (process.env.ZAMOSKV_HOSTNAME || '').trim().toLowerCase();
+      if (zamoskvHostname) {
+        await client.query(`
+          UPDATE properties
+             SET hostname = $1,
+                 updated_at = NOW()
+           WHERE slug = 'zamoskv'
+             AND hostname IS NULL
+        `, [zamoskvHostname]);
+      }
+    },
+  },
 ];
 
 const LATEST_PLATFORM_MIGRATION_ID = PLATFORM_MIGRATIONS[PLATFORM_MIGRATIONS.length - 1]?.id || null;

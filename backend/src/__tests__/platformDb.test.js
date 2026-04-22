@@ -2,7 +2,20 @@
 
 const { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } = require('@jest/globals');
 const { Pool } = require('pg');
-const { propertyDbMiddleware, extractPropertySlug, getProperty, closeAllPools, _pools, _cache } = require('../middleware/propertyDb');
+const {
+  propertyDbMiddleware,
+  extractPropertySlug,
+  extractHostname,
+  extractHeaderSlug,
+  extractJwtSlug,
+  getProperty,
+  getPropertyByHostname,
+  resolveProperty,
+  closeAllPools,
+  _pools,
+  _cache,
+  _hostnameCache,
+} = require('../middleware/propertyDb');
 const { getPlatformDb } = require('../db');
 
 // Mock dependencies
@@ -40,6 +53,7 @@ describe('Property Database Middleware', () => {
     // Clear caches
     _pools.clear();
     _cache.clear();
+    _hostnameCache.clear();
 
     // Mock platform DB
     mockPlatformDb = {
@@ -251,6 +265,258 @@ describe('Property Database Middleware', () => {
 
       expect(firstPool).toBe(secondPool);
       expect(mockNext).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('extractHostname', () => {
+    test('strips port and lowercases', () => {
+      expect(extractHostname({ headers: { host: 'ZAMOSKV.DomHub.SU:8443' } })).toBe('zamoskv.domhub.su');
+    });
+
+    test('returns null for missing host', () => {
+      expect(extractHostname({ headers: {} })).toBeNull();
+    });
+
+    test('returns null for empty host', () => {
+      expect(extractHostname({ headers: { host: '' } })).toBeNull();
+    });
+  });
+
+  describe('extractHeaderSlug', () => {
+    test('reads and lowercases X-Property-Slug', () => {
+      expect(extractHeaderSlug({ headers: { 'x-property-slug': 'Zamoskv' } })).toBe('zamoskv');
+    });
+
+    test('returns null when header missing', () => {
+      expect(extractHeaderSlug({ headers: {} })).toBeNull();
+    });
+  });
+
+  describe('extractJwtSlug', () => {
+    const jwt = require('jsonwebtoken');
+
+    test('reads property_slug from Bearer authorization header', () => {
+      const token = jwt.sign({ property_slug: 'zamoskv', uid: 'u1' }, 'test-secret');
+      expect(extractJwtSlug({ headers: { authorization: `Bearer ${token}` } })).toBe('zamoskv');
+    });
+
+    test('reads property_slug from token cookie', () => {
+      const token = jwt.sign({ property_slug: 'zamoskv', uid: 'u1' }, 'test-secret');
+      expect(extractJwtSlug({ headers: {}, cookies: { token } })).toBe('zamoskv');
+    });
+
+    test('returns null for JWT without claim', () => {
+      const token = jwt.sign({ uid: 'u1' }, 'test-secret');
+      expect(extractJwtSlug({ headers: { authorization: `Bearer ${token}` } })).toBeNull();
+    });
+
+    test('returns null for malformed token', () => {
+      expect(extractJwtSlug({ headers: { authorization: 'Bearer not-a-jwt' } })).toBeNull();
+    });
+  });
+
+  describe('getPropertyByHostname', () => {
+    const mockProperty = {
+      id: 'abc',
+      slug: 'zamoskv',
+      hostname: 'zamoskv.domhub.su',
+      db_connection_url: 'postgresql://test',
+      is_active: true,
+    };
+
+    test('queries the hostname column', async () => {
+      mockPlatformDb.query.mockResolvedValue({ rows: [mockProperty] });
+      const result = await getPropertyByHostname('zamoskv.domhub.su');
+      expect(result).toEqual(mockProperty);
+      expect(mockPlatformDb.query).toHaveBeenCalledWith(
+        'SELECT * FROM properties WHERE hostname = $1',
+        ['zamoskv.domhub.su'],
+      );
+    });
+
+    test('caches successful lookups', async () => {
+      mockPlatformDb.query.mockResolvedValue({ rows: [mockProperty] });
+      await getPropertyByHostname('zamoskv.domhub.su');
+      await getPropertyByHostname('zamoskv.domhub.su');
+      expect(mockPlatformDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('mirrors into slug cache so subsequent getProperty is free', async () => {
+      mockPlatformDb.query.mockResolvedValue({ rows: [mockProperty] });
+      await getPropertyByHostname('zamoskv.domhub.su');
+      // Next call through getProperty('zamoskv') should not hit the DB.
+      const slugResult = await getProperty('zamoskv');
+      expect(slugResult).toEqual(mockProperty);
+      expect(mockPlatformDb.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns null for unknown hostname', async () => {
+      mockPlatformDb.query.mockResolvedValue({ rows: [] });
+      expect(await getPropertyByHostname('unknown.example.com')).toBeNull();
+    });
+  });
+
+  describe('resolveProperty (hybrid resolver)', () => {
+    const zamoskv = {
+      id: 'zam', slug: 'zamoskv', hostname: 'zamoskv.domhub.su',
+      db_connection_url: 'postgresql://zam', is_active: true,
+    };
+    const arbat = {
+      id: 'arb', slug: 'arbat', hostname: 'arbat.domhub.su',
+      db_connection_url: 'postgresql://arb', is_active: true,
+    };
+
+    test('resolves via hostname when Host header matches a property', async () => {
+      mockPlatformDb.query.mockImplementation((_sql, params) => {
+        if (params[0] === 'zamoskv.domhub.su') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = { headers: { host: 'zamoskv.domhub.su' } };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.error).toBeNull();
+      expect(ctx.resolvedBy).toBe('hostname');
+      expect(ctx.property).toEqual(zamoskv);
+    });
+
+    test('falls back to header when hostname is unknown', async () => {
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname')) return Promise.resolve({ rows: [] });
+        if (params[0] === 'zamoskv') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = { headers: { host: 'localhost', 'x-property-slug': 'zamoskv' } };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.resolvedBy).toBe('header');
+      expect(ctx.property).toEqual(zamoskv);
+    });
+
+    test('falls back to JWT claim when hostname and header are absent', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname')) return Promise.resolve({ rows: [] });
+        if (params[0] === 'zamoskv') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.resolvedBy).toBe('jwt');
+      expect(ctx.property).toEqual(zamoskv);
+    });
+
+    test('prefers hostname over header and JWT when all three are present', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname') && params[0] === 'zamoskv.domhub.su') {
+          return Promise.resolve({ rows: [zamoskv] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = {
+        headers: {
+          host: 'zamoskv.domhub.su',
+          'x-property-slug': 'zamoskv', // consistent — would also match
+          authorization: `Bearer ${token}`,
+        },
+      };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.resolvedBy).toBe('hostname');
+      expect(ctx.property).toEqual(zamoskv);
+    });
+
+    test('blocks cross-tenant JWT replay (hostname=arbat but JWT slug=zamoskv)', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname') && params[0] === 'arbat.domhub.su') {
+          return Promise.resolve({ rows: [arbat] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = {
+        headers: {
+          host: 'arbat.domhub.su',
+          authorization: `Bearer ${token}`,
+        },
+      };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.error).toBe('cross_tenant');
+      expect(ctx.property).toBeNull();
+      expect(ctx.resolvedBy).toBeNull();
+    });
+
+    test('returns no-property when none of the sources match', async () => {
+      mockPlatformDb.query.mockResolvedValue({ rows: [] });
+      const req = { headers: { host: 'localhost' } };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.property).toBeNull();
+      expect(ctx.error).toBeNull();
+      expect(ctx.resolvedBy).toBeNull();
+    });
+  });
+
+  describe('propertyDbMiddleware (hybrid)', () => {
+    const zamoskv = {
+      id: 'zam', slug: 'zamoskv', hostname: 'zamoskv.domhub.su', feature_flags: {},
+      db_connection_url: 'postgresql://zam', is_active: true,
+    };
+    const arbat = {
+      id: 'arb', slug: 'arbat', hostname: 'arbat.domhub.su', feature_flags: {},
+      db_connection_url: 'postgresql://arb', is_active: true,
+    };
+
+    test('attaches property via hostname and exposes resolvedBy', async () => {
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname') && params[0] === 'zamoskv.domhub.su') {
+          return Promise.resolve({ rows: [zamoskv] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      mockReq.headers.host = 'zamoskv.domhub.su';
+      await propertyDbMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockReq.propertySlug).toBe('zamoskv');
+      expect(mockReq.propertyResolvedBy).toBe('hostname');
+      expect(mockReq.property).toMatchObject({ slug: 'zamoskv' });
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    test('returns 403 on cross-tenant JWT replay', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname') && params[0] === 'arbat.domhub.su') {
+          return Promise.resolve({ rows: [arbat] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      mockReq.headers.host = 'arbat.domhub.su';
+      mockReq.headers.authorization = `Bearer ${token}`;
+      await propertyDbMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        error: 'Cross-tenant access denied',
+      }));
+      expect(mockNext).not.toHaveBeenCalled();
     });
   });
 

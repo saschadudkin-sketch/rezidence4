@@ -47,8 +47,15 @@ function hashRefreshToken(rawToken) {
 
 function setTokenCookie(res, user) {
   const jti = uuid(); // уникальный ID токена для отзыва
+  // property_slug baked into the JWT so the hybrid tenant resolver
+  // (middleware/propertyDb.js) has a trusted fallback when the request
+  // arrives without a subdomain or X-Property-Slug header.  Only emitted
+  // when the user row actually has it — legacy single-tenant deployments
+  // keep issuing slug-less tokens that continue to work.
+  const payload = { uid: user.uid, role: user.role, name: user.name, jti };
+  if (user.property_slug) payload.property_slug = user.property_slug;
   const token = jwt.sign(
-    { uid: user.uid, role: user.role, name: user.name, jti },
+    payload,
     process.env.JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRES },
   );
@@ -238,7 +245,7 @@ router.post('/verify-otp', async (req, res, next) => {
     }
 
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar
+      `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE phone=$1 AND deleted_at IS NULL`,
       [phone],
@@ -339,7 +346,7 @@ router.post('/refresh', async (req, res, next) => {
 
     const uid = rows[0].uid;
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar
+      `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE uid=$1 AND deleted_at IS NULL`, [uid],
     );
@@ -358,7 +365,7 @@ router.post('/refresh', async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar
+      `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.user.uid],
