@@ -4,145 +4,214 @@ import { apiClient } from '../services/providers/apiClient';
 import { logger } from '../services/logger';
 import { isLiveMode } from '../config/runtimeMode';
 
-export interface FeatureFlags {
-  chat: boolean;
-  announcements: boolean;
-  documents: boolean;
-  kiosk_mode: boolean;
-  qr_pass: boolean;
-  meter_readings: boolean;
-  billing: boolean;
-  space_booking: boolean;
-  packages: boolean;
-  telegram_bot: boolean;
-  webhooks: boolean;
-  skud_integration: boolean;
-  analytics: boolean;
+/**
+ * FeatureFlagsContext — loads flag metadata + current values from the backend
+ * and exposes them to the app.
+ *
+ * Backend endpoints (see backend/src/routes/adminSettings.js):
+ *   GET /api/v1/admin/feature-flags/schema  — labels/descriptions/categories
+ *   GET /api/v1/admin/feature-flags         — resolved boolean map
+ *   PATCH /api/v1/admin/feature-flags       — partial update
+ *
+ * FEATURE_KEYS below is the only hardcoded reference to the flag names on the
+ * frontend — it exists so `FeatureFlags` stays a narrow TypeScript type at
+ * call sites like `useFeatureFlag('qr_pass')`.  The backend test suite
+ * (__tests__/featureFlagsRegistry.test.js) asserts this tuple matches the
+ * registry keys, so drift is caught in CI, not at runtime on the admin
+ * screen.
+ *
+ * If the app runs before the admin has loaded the flags (or a non-admin user
+ * is signed in), we return the schema defaults so gated features stay off
+ * rather than briefly flipping on and back.
+ */
+
+export const FEATURE_KEYS = [
+  'chat',
+  'announcements',
+  'documents',
+  'kiosk_mode',
+  'qr_pass',
+  'meter_readings',
+  'billing',
+  'space_booking',
+  'packages',
+  'telegram_bot',
+  'webhooks',
+  'skud_integration',
+  'analytics',
+] as const;
+
+export type FeatureFlagKey = typeof FEATURE_KEYS[number];
+export type FeatureFlags = Record<FeatureFlagKey, boolean>;
+
+/** Metadata for a single flag as served by /feature-flags/schema. */
+export interface FlagSchemaEntry {
+  key: FeatureFlagKey;
+  label: string;
+  description: string;
+  category: string;
+  default: boolean;
+  locked: boolean;
 }
 
-export interface FlagMeta {
-  value: boolean;
+export interface CategorySchemaEntry {
+  key: string;
   label: string;
-  category: string;
+  order: number;
+}
+
+export interface FeatureFlagsSchema {
+  flags: FlagSchemaEntry[];
+  categories: CategorySchemaEntry[];
+}
+
+/** Merged shape: schema entry + current resolved value. */
+export interface FlagMeta extends FlagSchemaEntry {
+  value: boolean;
 }
 
 interface FeatureFlagsContextValue {
+  /** Resolved boolean map.  Falls back to schema defaults before load. */
   flags: FeatureFlags;
-  flagsMeta: Record<keyof FeatureFlags, FlagMeta>;
+  /** Schema + live value for each flag, keyed by flag key. */
+  flagsMeta: Record<FeatureFlagKey, FlagMeta>;
+  /** Ordered list of categories as served by the backend. */
+  categories: CategorySchemaEntry[];
+  /** True once BOTH schema and values have been fetched (or skipped). */
   isLoaded: boolean;
-  isFeatureEnabled: (flag: keyof FeatureFlags) => boolean;
-  updateFlag: (flag: keyof FeatureFlags, value: boolean) => Promise<void>;
+  isFeatureEnabled: (flag: FeatureFlagKey) => boolean;
+  updateFlag: (flag: FeatureFlagKey, value: boolean) => Promise<void>;
 }
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextValue | null>(null);
 
-// Default flags (before fetch completes)
-const DEFAULT_FLAGS: FeatureFlags = {
-  chat: true, // Always enabled
-  announcements: false,
-  documents: false,
-  kiosk_mode: false,
-  qr_pass: false,
-  meter_readings: false,
-  billing: false,
-  space_booking: false,
-  packages: false,
-  telegram_bot: false,
-  webhooks: false,
-  skud_integration: false,
-  analytics: false,
-};
-
-// Metadata for UI presentation
-const FLAGS_META: Record<keyof FeatureFlags, Omit<FlagMeta, 'value'>> = {
-  chat: { label: 'Чат жильцов', category: 'core' },
-  announcements: { label: 'Объявления', category: 'communication' },
-  documents: { label: 'Документы', category: 'communication' },
-  kiosk_mode: { label: 'Киоск-режим', category: 'communication' },
-  qr_pass: { label: 'QR-пропуска', category: 'access' },
-  meter_readings: { label: 'Показания счётчиков', category: 'resident' },
-  billing: { label: 'Биллинг', category: 'resident' },
-  space_booking: { label: 'Бронирование помещений', category: 'resident' },
-  packages: { label: 'Посылки', category: 'concierge' },
-  telegram_bot: { label: 'Telegram бот', category: 'notifications' },
-  webhooks: { label: 'Вебхуки', category: 'integrations' },
-  skud_integration: { label: 'Интеграция СКУД', category: 'integrations' },
-  analytics: { label: 'Аналитика', category: 'admin' },
-};
+// Build a safe "all off" map before the schema arrives.  `chat` is the one
+// core flag we hardcode as on so the chat tab doesn't blink off during boot.
+const EMPTY_FLAGS: FeatureFlags = FEATURE_KEYS.reduce((acc, k) => {
+  acc[k] = k === 'chat';
+  return acc;
+}, {} as FeatureFlags);
 
 interface FeatureFlagsProviderProps {
   children: ReactNode;
 }
 
+function buildFlagsFromSchemaDefaults(schema: FeatureFlagsSchema | null): FeatureFlags {
+  if (!schema) return EMPTY_FLAGS;
+  const out = { ...EMPTY_FLAGS };
+  for (const entry of schema.flags) {
+    out[entry.key] = entry.default;
+  }
+  return out;
+}
+
 export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
   const { user } = useAuth();
-  const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
+  const [schema, setSchema] = useState<FeatureFlagsSchema | null>(null);
+  const [flags, setFlags] = useState<FeatureFlags>(EMPTY_FLAGS);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Fetch feature flags on mount if user is admin
+  // Fetch schema + values in parallel once the user is an admin.  Non-admin
+  // users never learn the property's flag state from this context — they
+  // only see feature flags indirectly via server-side gating on their own
+  // endpoints.  Both requests share the same `cancelled` guard so a quick
+  // user switch (admin → resident) cannot leak admin data into resident
+  // state.
   useEffect(() => {
-    async function fetchFlags() {
+    let cancelled = false;
+
+    async function hydrate() {
       if (!user || user.role !== 'admin' || !isLiveMode()) {
         setIsLoaded(true);
         return;
       }
 
       try {
-        const response = await apiClient.get('/api/v1/admin/feature-flags');
-        setFlags({ ...DEFAULT_FLAGS, ...response });
+        const [schemaResp, valuesResp] = await Promise.all([
+          apiClient.get('/api/v1/admin/feature-flags/schema') as Promise<FeatureFlagsSchema>,
+          apiClient.get('/api/v1/admin/feature-flags') as Promise<Partial<FeatureFlags>>,
+        ]);
+        if (cancelled) return;
+
+        setSchema(schemaResp);
+
+        // Start from schema defaults so any flag the server didn't explicitly
+        // return still resolves to its baseline value (new flag rolled out
+        // server-side, tenant hasn't stored it yet).
+        const merged = { ...buildFlagsFromSchemaDefaults(schemaResp), ...valuesResp } as FeatureFlags;
+        setFlags(merged);
         setIsLoaded(true);
-        logger.debug('[FeatureFlags] Loaded flags', response);
+        logger.debug('[FeatureFlags] Loaded schema + values', { schemaEntries: schemaResp.flags.length, values: valuesResp });
       } catch (error) {
+        if (cancelled) return;
         logger.error('[FeatureFlags] Failed to fetch flags', error);
-        // Use defaults on error
-        setFlags(DEFAULT_FLAGS);
+        // On error: fall back to whatever schema we have (maybe none) so the
+        // admin screen can still render "all off" rather than crash.
+        setFlags(buildFlagsFromSchemaDefaults(schema));
         setIsLoaded(true);
       }
     }
 
-    fetchFlags();
+    hydrate();
+    return () => { cancelled = true; };
+    // `schema` is intentionally excluded from the dep array — we read the
+    // latest value only when the catch branch fires, which happens once at
+    // most.  Including it would cause an infinite refetch loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const updateFlag = useCallback(async (flag: keyof FeatureFlags, value: boolean) => {
+  const updateFlag = useCallback(async (flag: FeatureFlagKey, value: boolean) => {
     if (!user || user.role !== 'admin') return;
 
-    // Prevent updating the chat flag (always enabled)
-    if (flag === 'chat') return;
+    // Locked flags are controlled server-side — the UI should be preventing
+    // the toggle in the first place, but mirror the rule here as defence in
+    // depth against programmatic callers.
+    const entry = schema?.flags.find(f => f.key === flag);
+    if (entry?.locked) return;
 
-    // Optimistic update
     const previousFlags = flags;
     setFlags(prev => ({ ...prev, [flag]: value }));
 
     if (!isLiveMode()) return;
 
     try {
-      await apiClient.patch('/api/v1/admin/feature-flags', { [flag]: value });
+      const updated = await apiClient.patch('/api/v1/admin/feature-flags', { [flag]: value }) as FeatureFlags;
+      setFlags(updated);
       logger.action('feature-flag-update', { flag, value });
     } catch (error) {
       logger.error('[FeatureFlags] Failed to update flag', { flag, value, error });
-      // Revert on error
       setFlags(previousFlags);
-      throw error; // Re-throw for UI error handling
+      throw error;
     }
-  }, [user, flags]);
+  }, [user, flags, schema]);
 
-  const isFeatureEnabled = useCallback((flag: keyof FeatureFlags) => {
+  const isFeatureEnabled = useCallback((flag: FeatureFlagKey) => {
     return flags[flag];
   }, [flags]);
 
-  // Create flags meta with current values
-  const flagsMeta = Object.keys(FLAGS_META).reduce((acc, key) => {
-    const flagKey = key as keyof FeatureFlags;
-    acc[flagKey] = {
-      ...FLAGS_META[flagKey],
-      value: flags[flagKey],
-    };
+  // Zip schema + values into a single Record<key, FlagMeta> for consumers
+  // (admin UI).  When the schema hasn't arrived yet we synthesise a minimal
+  // entry so the UI can render skeletons keyed by flag without blowing up.
+  const flagsMeta = FEATURE_KEYS.reduce((acc, key) => {
+    const schemaEntry = schema?.flags.find(f => f.key === key);
+    acc[key] = schemaEntry
+      ? { ...schemaEntry, value: flags[key] }
+      : {
+          key,
+          label: key,
+          description: '',
+          category: 'core',
+          default: flags[key],
+          locked: key === 'chat',
+          value: flags[key],
+        };
     return acc;
-  }, {} as Record<keyof FeatureFlags, FlagMeta>);
+  }, {} as Record<FeatureFlagKey, FlagMeta>);
 
   const value: FeatureFlagsContextValue = {
     flags,
     flagsMeta,
+    categories: schema?.categories ?? [],
     isLoaded,
     isFeatureEnabled,
     updateFlag,

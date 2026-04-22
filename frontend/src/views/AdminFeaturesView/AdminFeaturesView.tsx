@@ -3,62 +3,20 @@ import { Card } from '../../ui';
 import { Toggle } from '../../ui';
 import { Spinner } from '../../ui';
 import { EmptyState } from '../../ui';
-import { useFeatureFlags, type FeatureFlags } from '../../hooks/useFeatureFlag';
+import { useFeatureFlags } from '../../hooks/useFeatureFlag';
+import type { FeatureFlagKey, FlagMeta } from '../../contexts/FeatureFlagsContext';
 import { toast } from '../../ui/Toasts';
 import styles from './AdminFeaturesView.module.css';
 
-// Category configuration
-const FEATURE_CATEGORIES = {
-  core: {
-    label: 'Основные',
-    order: 1,
-  },
-  communication: {
-    label: 'Коммуникация',
-    order: 2,
-  },
-  access: {
-    label: 'Доступ',
-    order: 3,
-  },
-  resident: {
-    label: 'Для жильцов',
-    order: 4,
-  },
-  concierge: {
-    label: 'Консьерж',
-    order: 5,
-  },
-  notifications: {
-    label: 'Уведомления',
-    order: 6,
-  },
-  integrations: {
-    label: 'Интеграции',
-    order: 7,
-  },
-  admin: {
-    label: 'Администрирование',
-    order: 8,
-  },
-} as const;
-
-// Feature descriptions
-const FEATURE_DESCRIPTIONS: Record<keyof FeatureFlags, string> = {
-  chat: 'Чат жильцов с управляющей компанией и охраной',
-  announcements: 'Новости и объявления от управляющей компании',
-  documents: 'Правила, инструкции, документы в открытом доступе',
-  kiosk_mode: 'Публичный экран в холле для гостей (/info)',
-  qr_pass: 'Автоматические QR-коды для гостевых пропусков',
-  meter_readings: 'Подача показаний счётчиков воды и электричества',
-  billing: 'Начисления и оплата коммунальных услуг',
-  space_booking: 'Бронирование переговорных, барбекю, спортзала',
-  packages: 'Учёт посылок и уведомление о доставке',
-  telegram_bot: 'Уведомления жильцам и охране в Telegram',
-  webhooks: 'Интеграция с внешними системами через webhook',
-  skud_integration: 'Автоматическое управление СКУД при пропусках',
-  analytics: 'Статистика посещений, заявок и работы объекта',
-};
+/**
+ * AdminFeaturesView — property admin screen for toggling feature flags.
+ *
+ * Category labels, flag labels, and flag descriptions all come from the
+ * backend schema via FeatureFlagsContext (see contexts/FeatureFlagsContext).
+ * Do NOT hardcode presentation strings here — add them to the backend
+ * registry at backend/src/config/featureFlags.js so the admin surface stays
+ * in lock-step with the gating rules that consume the same registry.
+ */
 
 // Loading skeleton card
 function SkeletonCard() {
@@ -76,13 +34,13 @@ function SkeletonCard() {
 }
 
 interface FeatureRowProps {
-  flagKey: keyof FeatureFlags;
+  flagKey: FeatureFlagKey;
   label: string;
   description: string;
   value: boolean;
   isDisabled: boolean;
   isUpdating: boolean;
-  onToggle: (flagKey: keyof FeatureFlags, value: boolean) => void;
+  onToggle: (flagKey: FeatureFlagKey, value: boolean) => void;
 }
 
 function FeatureRow({
@@ -117,18 +75,20 @@ function FeatureRow({
 }
 
 export function AdminFeaturesView() {
-  const { flags, flagsMeta, isLoaded, updateFlag } = useFeatureFlags();
-  const [updatingFlags, setUpdatingFlags] = useState<Set<keyof FeatureFlags>>(new Set());
+  const { flags, flagsMeta, categories, isLoaded, updateFlag } = useFeatureFlags();
+  const [updatingFlags, setUpdatingFlags] = useState<Set<FeatureFlagKey>>(new Set());
 
-  const handleToggleFlag = async (flagKey: keyof FeatureFlags, value: boolean) => {
-    if (flagKey === 'chat') return; // Chat is always enabled
+  const handleToggleFlag = async (flagKey: FeatureFlagKey, value: boolean) => {
+    // Locked flags (core features) are server-enforced; the context already
+    // refuses, but we also short-circuit here so a toast never appears.
+    if (flagsMeta[flagKey]?.locked) return;
 
     setUpdatingFlags(prev => new Set(prev).add(flagKey));
 
     try {
       await updateFlag(flagKey, value);
       toast('Настройки сохранены', 'success');
-    } catch (error) {
+    } catch {
       toast('Не удалось сохранить настройки', 'error');
     } finally {
       setUpdatingFlags(prev => {
@@ -139,23 +99,21 @@ export function AdminFeaturesView() {
     }
   };
 
-  // Group flags by category
-  const flagsByCategory = Object.entries(flagsMeta).reduce((acc, [flagKey, meta]) => {
-    const key = flagKey as keyof FeatureFlags;
-    if (!acc[meta.category]) {
-      acc[meta.category] = [];
-    }
-    acc[meta.category].push({
-      key,
-      meta,
-    });
+  // Group flags by the category string from the backend schema.  The order
+  // inside each group mirrors the registry's insertion order — which is
+  // what FEATURE_KEYS preserves — so admins see a stable layout that only
+  // changes when the backend adds a flag.
+  const flagsByCategory = (Object.values(flagsMeta) as FlagMeta[]).reduce((acc, meta) => {
+    (acc[meta.category] ||= []).push(meta);
     return acc;
-  }, {} as Record<string, Array<{ key: keyof FeatureFlags; meta: any }>>);
+  }, {} as Record<string, FlagMeta[]>);
 
-  // Sort categories by order
-  const sortedCategories = Object.keys(flagsByCategory).sort((a, b) => {
-    const orderA = FEATURE_CATEGORIES[a as keyof typeof FEATURE_CATEGORIES]?.order || 999;
-    const orderB = FEATURE_CATEGORIES[b as keyof typeof FEATURE_CATEGORIES]?.order || 999;
+  // Order categories using the schema's `order` field; unknown categories
+  // (shouldn't normally happen — the backend test catches drift) sink to
+  // the bottom so the UI still renders them rather than swallowing flags.
+  const orderedCategoryKeys = Object.keys(flagsByCategory).sort((a, b) => {
+    const orderA = categories.find(c => c.key === a)?.order ?? 999;
+    const orderB = categories.find(c => c.key === b)?.order ?? 999;
     return orderA - orderB;
   });
 
@@ -186,8 +144,7 @@ export function AdminFeaturesView() {
         <EmptyState
           title="Не удалось загрузить настройки"
           subtitle="Проверьте соединение с сервером"
-          actionLabel="Обновить"
-          onAction={() => window.location.reload()}
+          action={{ label: 'Обновить', onClick: () => window.location.reload() }}
         />
       </div>
     );
@@ -203,27 +160,28 @@ export function AdminFeaturesView() {
       </div>
 
       <div className={styles.categoriesGrid}>
-        {sortedCategories.map(categoryKey => {
-          const categoryInfo = FEATURE_CATEGORIES[categoryKey as keyof typeof FEATURE_CATEGORIES];
+        {orderedCategoryKeys.map(categoryKey => {
+          // Backend-supplied label; fallback to the raw key if the category
+          // is missing from the schema so the flag never gets orphaned.
+          const categoryLabel = categories.find(c => c.key === categoryKey)?.label ?? categoryKey;
           const categoryFlags = flagsByCategory[categoryKey];
-
-          if (!categoryInfo || !categoryFlags) return null;
+          if (!categoryFlags?.length) return null;
 
           return (
             <Card key={categoryKey} padding="lg" className={styles.categoryCard}>
               <div className={styles.categoryHeader}>
-                <h2 className={styles.categoryTitle}>{categoryInfo.label}</h2>
+                <h2 className={styles.categoryTitle}>{categoryLabel}</h2>
               </div>
               <div className={styles.categoryFeatures}>
-                {categoryFlags.map(({ key, meta }) => (
+                {categoryFlags.map(meta => (
                   <FeatureRow
-                    key={key}
-                    flagKey={key}
+                    key={meta.key}
+                    flagKey={meta.key}
                     label={meta.label}
-                    description={FEATURE_DESCRIPTIONS[key]}
-                    value={flags[key]}
-                    isDisabled={key === 'chat'} // Chat is always on and disabled
-                    isUpdating={updatingFlags.has(key)}
+                    description={meta.description}
+                    value={meta.value}
+                    isDisabled={meta.locked}
+                    isUpdating={updatingFlags.has(meta.key)}
                     onToggle={handleToggleFlag}
                   />
                 ))}

@@ -6,20 +6,32 @@
  * Endpoints (admin role only, property context required):
  *
  *   GET  /api/v1/admin/feature-flags
- *     Returns resolved flag values with labels and categories.
+ *     Returns the resolved boolean map for the current property:
+ *       { chat: true, qr_pass: false, ... }
+ *     Flat shape on purpose — the frontend merges it straight into its
+ *     FeatureFlags state object.
+ *
+ *   GET  /api/v1/admin/feature-flags/schema
+ *     Returns the registry metadata (labels, descriptions, categories,
+ *     defaults, locked flags).  Stable JSON, no tenant data, safe to cache
+ *     client-side.  The frontend calls this once on load and combines it
+ *     with the values endpoint to render the admin toggles.
  *
  *   PATCH /api/v1/admin/feature-flags
  *     Merges provided boolean overrides into the property's feature_flags
- *     JSONB column, invalidates the property cache, and logs the change to
- *     platform_audit_log.
+ *     JSONB column, invalidates the property cache, logs the change to
+ *     platform_audit_log, and returns the resolved boolean map (same shape
+ *     as GET /feature-flags).
+ *
+ * Locked flags (FEATURE_FLAGS[key].locked === true) cannot be toggled — the
+ * UI disables the row, the PATCH validator rejects the write with 422.
  *
  * Auth: requireAuth (JWT) + requireAdmin (role === 'admin'), both enforced here.
- * The 'chat' flag cannot be set to false — it is a core feature.
  */
 
 const express = require('express');
 const requireAuth = require('../middleware/auth');
-const { FEATURE_FLAGS, resolveFlags } = require('../config/featureFlags');
+const { FEATURE_FLAGS, resolveFlags, getPublicSchema } = require('../config/featureFlags');
 const { invalidatePropertyCache } = require('../middleware/propertyDb');
 const { getPlatformDb } = require('../db');
 const logger = require('../logger');
@@ -41,6 +53,16 @@ function requireAdmin(req, res, next) {
 
 router.use(requireAdmin);
 
+// ─── GET /feature-flags/schema ────────────────────────────────────────────────
+//
+// Registered BEFORE GET /feature-flags so Express doesn't treat 'schema' as a
+// spurious path parameter.  The schema is tenant-agnostic — every caller
+// receives the same payload regardless of req.propertySlug.
+
+router.get('/feature-flags/schema', (_req, res) => {
+  res.json(getPublicSchema());
+});
+
 // ─── GET /feature-flags ───────────────────────────────────────────────────────
 
 router.get('/feature-flags', async (req, res, next) => {
@@ -59,21 +81,7 @@ router.get('/feature-flags', async (req, res, next) => {
       });
     }
 
-    const resolved = resolveFlags(rows[0].feature_flags);
-
-    const flags = {};
-    for (const [key, meta] of Object.entries(FEATURE_FLAGS)) {
-      flags[key] = {
-        value:    resolved[key],
-        label:    meta.label,
-        category: meta.category,
-      };
-    }
-
-    // Unique ordered list of categories as they appear in the registry
-    const categories = [...new Set(Object.values(FEATURE_FLAGS).map(m => m.category))];
-
-    return res.json({ flags, categories });
+    return res.json(resolveFlags(rows[0].feature_flags));
   } catch (err) {
     next(err);
   }
@@ -114,9 +122,16 @@ router.patch('/feature-flags', async (req, res, next) => {
       });
     }
 
-    if (updates.chat === false) {
+    // Locked flags (core features) cannot be toggled — refuse any attempt
+    // rather than silently dropping the write.  Clients should filter these
+    // out before the request, so a 422 here means UI drift.
+    const lockedAttempts = Object.keys(updates).filter(k => FEATURE_FLAGS[k].locked);
+    if (lockedAttempts.length) {
       return res.status(422).json({
-        error: { code: 'CANNOT_DISABLE_CORE_FLAG', message: "Флаг 'chat' является базовым и не может быть отключён" },
+        error: {
+          code: 'LOCKED_FLAG',
+          message: `Базовые функции нельзя отключить: ${lockedAttempts.join(', ')}`,
+        },
       });
     }
 
@@ -167,24 +182,9 @@ router.patch('/feature-flags', async (req, res, next) => {
       logger.error({ err: auditErr, slug }, '[adminSettings] failed to write audit log entry');
     }
 
-    // ── Return updated resolved flags (same shape as GET) ─────────────────────
-
-    const resolved = resolveFlags(newFlags);
-
-    const flags = {};
-    for (const [key, meta] of Object.entries(FEATURE_FLAGS)) {
-      flags[key] = {
-        value:    resolved[key],
-        label:    meta.label,
-        category: meta.category,
-      };
-    }
-
-    const categories = [...new Set(Object.values(FEATURE_FLAGS).map(m => m.category))];
-
     logger.info({ slug, changes: updates }, '[adminSettings] feature flags updated');
 
-    return res.json({ flags, categories });
+    return res.json(resolveFlags(newFlags));
   } catch (err) {
     next(err);
   }
