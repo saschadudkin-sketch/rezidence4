@@ -12,6 +12,27 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-access-platform-final-plan.md`
   - Master specification and staged development plan for DomHub as an access-control platform for residential complexes and cottage communities.
 
+- `domhub-role-maturity-matrix.md`
+  - Role-by-role matrix showing which DomHub actors belong in MVP, strong v2, and mature v3, and which ones should remain support or integration layers instead of full daily workspaces.
+
+- `domhub-commercial-tenant-module-spec.md`
+  - Optional mixed-use module specification for commercial tenants or business partners operating inside residential properties.
+
+- `domhub-commercial-tenant-jira-backlog.md`
+  - Jira-ready bounded execution backlog for the optional commercial tenant module used in mixed-use residential properties.
+
+- `domhub-commercial-tenant-jira-import.csv`
+  - CSV import file for the optional commercial tenant module backlog, with week, team, dependency, and component metadata.
+
+- `domhub-commercial-tenant-jira-import-v2.csv`
+  - Extended CSV import file for the optional commercial tenant module backlog, with additional `Definition Of Done` and `Out Of Scope` columns.
+
+- `domhub-commercial-tenant-week-team-plan.md`
+  - Practical 3-week mixed-use pilot delivery plan for the optional commercial tenant module, mapped by team, dependencies, and critical path.
+
+- `domhub-mixed-use-objects-strategy.md`
+  - Short strategy document explaining when DomHub should enable mixed-use capabilities and when it should keep them disabled.
+
 - `domhub-parking-module-spec.md`
   - Module specification for DomHub parking as a controlled vehicle-access and parking-operations layer rather than a standalone smart-parking product.
 
@@ -150,6 +171,13 @@ This directory contains the working product source of truth for DomHub platform 
 
 - When implementing new DomHub platform features, start with `domhub-final-product-plan.md`.
 - When implementing or refining access-control features, also use `domhub-access-platform-final-plan.md`.
+- When deciding which roles deserve full product workspaces versus support-only or integration-first treatment, also use `domhub-role-maturity-matrix.md`.
+- When planning mixed-use properties with salons, clinics, cafes, shops, or other on-site businesses, also use `domhub-commercial-tenant-module-spec.md`.
+- When planning execution for the optional commercial tenant module, also use `domhub-commercial-tenant-jira-backlog.md`.
+- When importing the optional commercial tenant module into Jira, also use `domhub-commercial-tenant-jira-import.csv`.
+- When you need commercial tenant Jira import with richer execution metadata, also use `domhub-commercial-tenant-jira-import-v2.csv`.
+- When coordinating a mixed-use pilot wave by week and team, also use `domhub-commercial-tenant-week-team-plan.md`.
+- When deciding whether mixed-use should be enabled on a property at all, also use `domhub-mixed-use-objects-strategy.md`.
 - When implementing vehicle access, parking spots, or parking operations, also use `domhub-parking-module-spec.md`.
 - When implementing access-domain backend or database work, also use `domhub-access-data-model-spec.md`.
 - When implementing access rules, state transitions, or APIs, also use:
