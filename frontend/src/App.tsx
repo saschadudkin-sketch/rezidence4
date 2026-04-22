@@ -11,6 +11,7 @@ const DesignSystemDemo = lazy(() => import('./views/DesignSystemDemo'));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
+import ConsentModal from './components/ConsentModal';
 import { useAuth, PHASE } from './hooks/useAuth';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
@@ -151,6 +152,7 @@ const AppInner = memo(function AppInner() {
             <Suspense fallback={<LoadingScreen />}>
               <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
             </Suspense>
+            <ConsentModal enabled={!!user} />
           </FeatureFlagsProvider>
         </ErrorBoundary>
       )}

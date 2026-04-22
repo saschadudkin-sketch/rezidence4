@@ -1,9 +1,63 @@
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
 const logger = require('../logger');
 const { broadcastRequestUpdate } = require('../sse');
 const { dispatch: notifyDispatch } = require('../services/notificationService');
 const webhookService = require('../services/webhookService');
+
+// ─── photoRetentionSweep (ФЗ-152) ─────────────────────────────────────────────
+// Deletes upload_objects older than PHOTO_RETENTION_DAYS (default 365) along
+// with their backing files on disk.  The sweep runs in batches of 100 per tick
+// to keep DB pressure low.  Errors are swallowed — the job must never stop the
+// interval timer.
+const PHOTO_RETENTION_DAYS = Number(process.env.PHOTO_RETENTION_DAYS || 365);
+const PHOTO_RETENTION_BATCH = 100;
+
+async function photoRetentionSweep(db, property) {
+  if (!Number.isFinite(PHOTO_RETENTION_DAYS) || PHOTO_RETENTION_DAYS <= 0) return;
+  const uploadDir = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
+  try {
+    const { rows } = await db.query(
+      `SELECT filename
+         FROM upload_objects
+         WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
+         LIMIT $2`,
+      [String(PHOTO_RETENTION_DAYS), PHOTO_RETENTION_BATCH],
+    );
+    if (rows.length === 0) return;
+
+    let removed = 0;
+    for (const { filename } of rows) {
+      // Defence in depth — never let a rogue filename escape uploadDir.
+      const safeName = path.basename(String(filename || ''));
+      if (!safeName) continue;
+      const abs = path.join(uploadDir, safeName);
+      try {
+        await fs.promises.unlink(abs);
+      } catch (err) {
+        if (err && err.code !== 'ENOENT') {
+          logger.warn({ err, filename: safeName }, '[photo-retention] unlink failed');
+        }
+      }
+      await db.query(
+        `DELETE FROM upload_objects WHERE filename = $1`,
+        [safeName],
+      ).catch(() => { /* keep sweeping */ });
+      removed += 1;
+    }
+
+    if (removed > 0) {
+      logger.info(
+        { removed, retentionDays: PHOTO_RETENTION_DAYS, property: property?.slug },
+        '[photo-retention] expired uploads removed',
+      );
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[photo-retention] sweep failed');
+  }
+}
 
 // ─── checkBillingOverdue ──────────────────────────────────────────────────────
 // Marks pending billing_records as 'overdue' when their due_date has passed,
@@ -292,6 +346,13 @@ function startRuntimeJobs({ db, property }) {
   const webhookDeliveryTimer = setInterval(runProcessWebhooks, 30 * 1000);
   webhookDeliveryTimer.unref();
 
+  // Photo retention (ФЗ-152): sweeps expired upload_objects hourly.  The sweep
+  // processes PHOTO_RETENTION_BATCH rows per tick so a large backlog drains
+  // over several ticks without monopolising the event loop.
+  const runPhotoRetention = () => photoRetentionSweep(db, property);
+  const photoRetentionTimer = setInterval(runPhotoRetention, 60 * 60 * 1000);
+  photoRetentionTimer.unref();
+
   return {
     stop() {
       clearInterval(cleanupJob);
@@ -302,6 +363,7 @@ function startRuntimeJobs({ db, property }) {
       clearInterval(slaOverdueTimer);
       clearInterval(packageReminderTimer);
       clearInterval(webhookDeliveryTimer);
+      clearInterval(photoRetentionTimer);
     },
   };
 }
@@ -313,4 +375,5 @@ module.exports = {
   checkSlaOverdue,
   sendPackageReminders,
   processWebhooks,
+  photoRetentionSweep,
 };

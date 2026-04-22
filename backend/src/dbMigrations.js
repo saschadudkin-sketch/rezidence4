@@ -729,6 +729,49 @@ const MIGRATIONS = [
       await client.query(`ALTER TABLE visit_logs ADD COLUMN IF NOT EXISTS clip_url TEXT`);
     },
   },
+  {
+    // ФЗ-152 runtime: consent tracking, GDPR/right-to-be-forgotten requests,
+    // photo retention support.  See docs/product/specs/domhub-final-product-plan.md.
+    id: '018_fz152_privacy',
+    async up(client) {
+      // Consent tracking on users table
+      await client.query(`
+        ALTER TABLE users
+          ADD COLUMN IF NOT EXISTS consent_accepted_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS consent_version    TEXT,
+          ADD COLUMN IF NOT EXISTS anonymized_at      TIMESTAMPTZ
+      `);
+
+      // Audit log of data-deletion/erasure requests.  We keep the audit row even
+      // after the user record is anonymized, so regulators can inspect that the
+      // operation was carried out.
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS privacy_deletion_requests (
+          id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          uid           TEXT NOT NULL,
+          phone_hash    TEXT,
+          requested_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          processed_at  TIMESTAMPTZ,
+          status        TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending','completed','failed')),
+          reason        TEXT,
+          note          TEXT
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_privacy_deletion_requests_uid
+          ON privacy_deletion_requests(uid, requested_at DESC)
+      `);
+
+      // Expose created_at as an index on upload_objects for the retention sweep.
+      // We match the existing idx_upload_objects_owner signature but drop the
+      // owner prefix — the retention job scans by created_at alone.
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_upload_objects_created_at
+          ON upload_objects(created_at)
+      `);
+    },
+  },
 ];
 const LATEST_MIGRATION_ID = MIGRATIONS[MIGRATIONS.length - 1]?.id || null;
 

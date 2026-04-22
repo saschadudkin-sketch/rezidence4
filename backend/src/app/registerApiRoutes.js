@@ -26,6 +26,7 @@ const announcementsRouter = require('../routes/announcements');
 const documentsRouter = require('../routes/documents');
 const publicPassRouter = require('../routes/publicPass');
 const guardScanRouter = require('../routes/guardScan');
+const privacyRouter = require('../routes/privacy');
 const requireAuth = require('../middleware/auth');
 const requireFeature = require('../middleware/requireFeature');
 const { deprecate } = require('../middleware/deprecate');
@@ -117,6 +118,9 @@ function registerApiRoutes(app, { rateLimiters }) {
 
   // Admin settings — feature flag management (admin role, property context required)
   app.use('/api/v1/admin', adminSettingsRouter);
+
+  // ФЗ-152 — consent tracking and right-to-be-forgotten.  Auth enforced inside.
+  app.use('/api/v1/privacy', privacyRouter);
 
   // Platform superadmin API — no CSRF, no property context required
   app.use('/platform/api/v1/auth', platformAuthLimiter, platformAuthRouter);
