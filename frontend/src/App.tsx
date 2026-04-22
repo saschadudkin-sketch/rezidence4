@@ -8,6 +8,9 @@ import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 // separate async chunk that only loads after successful authentication.
 const Dashboard = lazy(() => import('./views/Dashboard'));
 const DesignSystemDemo = lazy(() => import('./views/DesignSystemDemo'));
+// Public, unauthenticated guest-pass share page (domhub.su/p/<token>).
+// Code-split so residents/admins don't pay for the share-card CSS module.
+const GuestPassPage = lazy(() => import('./views/public/GuestPassPage'));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -177,6 +180,13 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Public guest-pass share page — no auth, rate-limited backend. Must
+          sit above the catch-all redirect so /p/<token> is not rewritten. */}
+      <Route path="/p/:token" element={
+        <Suspense fallback={<LoadingScreen />}>
+          <GuestPassPage />
+        </Suspense>
+      } />
       <Route path="/dashboard/*" element={<AppInner />} />
       {/* Design System Demo - Development only */}
       {import.meta.env.DEV && (

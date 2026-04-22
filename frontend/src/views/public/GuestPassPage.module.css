@@ -1,0 +1,381 @@
+/**
+ * GuestPassPage.module.css
+ *
+ * Public, standalone guest-pass page — shown to visitors via a share link
+ * (https://domhub.su/p/<token>).  Ported from docs/design-reference/guest-pass-card.html.
+ *
+ * The root `.root` class re-declares dark tokens locally so the guest sees
+ * the premium dark-first presentation regardless of the host app's theme.
+ * That intentionally sidesteps auto/light modes — the share card must look
+ * the same on every device.
+ */
+
+.root {
+  /* Force the dark reference palette on this page only. */
+  --s0: #11100e;
+  --s1: #181613;
+  --s2: #201d19;
+  --g1: #b8935a;
+  --g2: #c9a96e;
+  --g3: #e4d4b4;
+  --g-bg: rgba(201, 169, 110, 0.08);
+  --t1: #eee7dc;
+  --t2: #c7bdae;
+  --t3: #b2a593;
+  --t4: #a09080;
+  --b1: rgba(201, 169, 110, 0.12);
+  --b2: rgba(201, 169, 110, 0.22);
+  --b3: rgba(201, 169, 110, 0.38);
+  --ok-t: #6fa07e;
+  --ok-bg: rgba(74, 124, 89, 0.14);
+  --err-t: #d47070;
+  --err-bg: rgba(184, 92, 92, 0.14);
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 9999px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 20px;
+  --sp-7: 24px;
+  --sp-12: 64px;
+  --sh-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --sh-glow: 0 0 24px rgba(201, 169, 110, 0.08);
+  --font-stack: -apple-system, "SF Pro Display", "Segoe UI Variable Text", "Aptos", system-ui, sans-serif;
+
+  background: var(--s0);
+  color: var(--t1);
+  font-family: var(--font-stack);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-7) var(--sp-5) calc(var(--sp-12) + env(safe-area-inset-bottom, 0px));
+}
+
+.page {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: var(--sp-5);
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.wordmarkIcon {
+  width: 22px;
+  height: 22px;
+  color: var(--g2);
+}
+
+.wordmarkText {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--g2);
+  text-transform: uppercase;
+}
+
+.propertyName {
+  font-size: 12px;
+  color: var(--t3);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.statusRow {
+  display: flex;
+  justify-content: center;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statusPillValid {
+  background: var(--ok-bg);
+  color: var(--ok-t);
+  border: 1px solid rgba(111, 160, 126, 0.22);
+}
+
+.statusPillInvalid {
+  background: var(--err-bg);
+  color: var(--err-t);
+  border: 1px solid rgba(212, 112, 112, 0.25);
+}
+
+.statusDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.passCard {
+  background: var(--s2);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-xl);
+  padding: var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+  box-shadow: var(--sh-2), var(--sh-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.passCard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--g2), transparent);
+  opacity: 0.55;
+}
+
+.cardHeader {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.cardLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.visitorName {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--t1);
+  text-align: center;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.visitorDest {
+  font-size: 13px;
+  color: var(--t2);
+  text-align: center;
+}
+
+.qrFrame {
+  background: var(--s1);
+  border: 1.5px solid var(--b3);
+  border-radius: var(--r-lg);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  width: 100%;
+}
+
+.qrCode {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--r-sm);
+  background-color: #fff;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qrCode img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.qrCodePlaceholder {
+  color: #0f172a;
+  font-size: 12px;
+  text-align: center;
+  padding: 12px;
+}
+
+.qrHint {
+  font-size: 11px;
+  color: var(--t3);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.validityRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+}
+
+.validityDivider {
+  background: var(--b1);
+  align-self: stretch;
+}
+
+.validityCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.validityLabel {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t4);
+}
+
+.validityValue {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t1);
+  text-align: center;
+  line-height: 1.35;
+}
+
+.metaChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  justify-content: center;
+}
+
+.metaChip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--b1);
+  font-size: 11px;
+  color: var(--t3);
+}
+
+.metaChip svg {
+  color: var(--t4);
+  flex-shrink: 0;
+}
+
+.actionsRow {
+  display: flex;
+  justify-content: center;
+}
+
+.btnGhost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b2);
+  background: transparent;
+  color: var(--t2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              background 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  max-width: 280px;
+  text-decoration: none;
+}
+
+.btnGhost:hover {
+  border-color: var(--b3);
+  color: var(--t1);
+  background: var(--g-bg);
+}
+
+.footerAttr {
+  font-size: 11px;
+  color: var(--t4);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.footerAttr strong {
+  color: var(--t3);
+  font-weight: 500;
+}
+
+.loading,
+.errorBox {
+  color: var(--t2);
+  font-size: 14px;
+  text-align: center;
+  padding: var(--sp-7);
+}
+
+.errorBox {
+  color: var(--err-t);
+}
+
+/* When the user triggers the browser print dialog we strip chrome so only
+   the card prints; the guest can then Save-As-PDF. */
+@media print {
+  .root {
+    background: #fff;
+    color: #0f172a;
+    padding: 16px;
+  }
+  .passCard {
+    background: #fff;
+    color: #0f172a;
+    box-shadow: none;
+    border: 1px solid #cbd5e1;
+  }
+  .qrFrame {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+  }
+  .visitorName,
+  .validityValue { color: #0f172a; }
+  .cardLabel,
+  .validityLabel,
+  .qrHint,
+  .visitorDest,
+  .propertyName,
+  .metaChip,
+  .footerAttr { color: #475569; }
+  .actionsRow,
+  .statusRow { display: none; }
+}
