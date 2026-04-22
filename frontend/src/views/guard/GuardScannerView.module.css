@@ -1,0 +1,537 @@
+/**
+ * GuardScannerView.module.css
+ *
+ * Ported from docs/design-reference/guard-scanner.html.  The guard station
+ * is a dedicated, standalone surface (typically pinned to a tablet at the
+ * gate) — so the root element forces the premium dark palette regardless
+ * of the host app theme, and there's no app-shell chrome.
+ *
+ * Layout:
+ *   topbar (60px)       — "Охрана · Сканер" + online/connection badge
+ *   content (max 520)   — status banner, guest card, admit/deny, history
+ */
+
+.root {
+  /* Pinned dark tokens — guards must see the same surface on every device. */
+  --s0: #11100e;
+  --s1: #181613;
+  --s2: #201d19;
+  --s3: #2a2621;
+  --s4: #35302a;
+  --g1: #b8935a;
+  --g2: #c9a96e;
+  --g3: #e4d4b4;
+  --g-bg: rgba(201, 169, 110, 0.08);
+  --t1: #eee7dc;
+  --t2: #c7bdae;
+  --t3: #b2a593;
+  --t4: #a09080;
+  --b1: rgba(201, 169, 110, 0.12);
+  --b2: rgba(201, 169, 110, 0.22);
+  --b3: rgba(201, 169, 110, 0.38);
+  --ok-t: #6fa07e;
+  --ok-bg: rgba(74, 124, 89, 0.14);
+  --err-t: #d47070;
+  --err-bg: rgba(184, 92, 92, 0.14);
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 9999px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 16px;
+  --sp-6: 20px;
+  --sp-7: 24px;
+  --sp-8: 32px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+  --font-stack: -apple-system, "SF Pro Display", "Segoe UI Variable Text", "Aptos", system-ui, sans-serif;
+
+  min-height: 100dvh;
+  background: var(--s0);
+  color: var(--t1);
+  font-family: var(--font-stack);
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 60px;
+  padding: 0 var(--sp-6);
+  background: var(--s1);
+  border-bottom: 1px solid var(--b1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.backBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--b1);
+  background: transparent;
+  color: var(--t3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+}
+
+.backBtn:hover {
+  border-color: var(--b2);
+  color: var(--t1);
+  background: var(--s2);
+}
+
+.topbarTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t2);
+  letter-spacing: 0.02em;
+}
+
+.topbarTitle span {
+  color: var(--t4);
+  font-weight: 400;
+  padding: 0 6px;
+}
+
+.onlineBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ok-t);
+  letter-spacing: 0.05em;
+}
+
+.onlineBadgeOffline {
+  color: var(--err-t);
+}
+
+.onlineDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onlineDot { animation: none; }
+}
+
+.content {
+  flex: 1;
+  padding: var(--sp-8) var(--sp-6);
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+/* ─── Camera viewport ────────────────────────────────────────
+   Sits above the status banner when no scan is active.
+────────────────────────────────────────────────────────────── */
+
+.viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 70vh;
+  background: #000;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  border: 1px solid var(--b1);
+}
+
+.viewport video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.viewportFrame {
+  position: absolute;
+  inset: 12%;
+  border: 2px solid var(--g2);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.viewportHint {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: var(--t2);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.cameraFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--t3);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px;
+}
+
+.manualRow {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.manualInput {
+  flex: 1;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b1);
+  background: var(--s1);
+  color: var(--t1);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.manualInput::placeholder { color: var(--t4); }
+.manualInput:focus { outline: 2px solid var(--b3); outline-offset: 1px; }
+
+.manualSubmit {
+  height: 46px;
+  padding: 0 18px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b2);
+  background: var(--g-bg);
+  color: var(--g3);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manualSubmit:hover { background: var(--s3); border-color: var(--b3); }
+
+/* ─── Status banner ────────────────────────────────────────── */
+
+.statusBanner {
+  border-radius: var(--r-xl);
+  padding: var(--sp-7) var(--sp-8);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  border: 1px solid transparent;
+}
+
+.statusBannerOk {
+  background: var(--ok-bg);
+  border-color: rgba(111, 160, 126, 0.28);
+}
+
+.statusBannerErr {
+  background: var(--err-bg);
+  border-color: rgba(212, 112, 112, 0.32);
+}
+
+.statusIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statusIconOk {
+  background: rgba(111, 160, 126, 0.18);
+  border: 1.5px solid rgba(111, 160, 126, 0.35);
+  color: var(--ok-t);
+}
+
+.statusIconErr {
+  background: rgba(212, 112, 112, 0.18);
+  border: 1.5px solid rgba(212, 112, 112, 0.35);
+  color: var(--err-t);
+}
+
+.statusText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statusHeadline {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.statusHeadlineOk { color: var(--ok-t); }
+.statusHeadlineErr { color: var(--err-t); }
+
+.statusSub {
+  font-size: 13px;
+  color: var(--t3);
+}
+
+/* ─── Guest card ─────────────────────────────────────────── */
+
+.guestCard {
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: var(--r-xl);
+  padding: var(--sp-8) var(--sp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-7);
+}
+
+.guestIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+}
+
+.guestAvatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--s3);
+  border: 2px solid var(--g2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--g2);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 4px rgba(201, 169, 110, 0.1);
+}
+
+.guestAvatarInvalid {
+  border-color: var(--err-t);
+  color: var(--err-t);
+  box-shadow: 0 0 0 4px rgba(212, 112, 112, 0.1);
+}
+
+.guestNameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guestName {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--t1);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.guestPassType {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guestDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--b1);
+  gap: var(--sp-4);
+}
+
+.detailRow:last-child { border-bottom: none; }
+
+.detailLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--t4);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.detailLabel svg { flex-shrink: 0; }
+
+.detailValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--t1);
+  text-align: right;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.detailValueOk { color: var(--ok-t); }
+
+/* ─── Action buttons ─────────────────────────────────────── */
+
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.btnAdmit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 58px;
+  border-radius: var(--r-lg);
+  border: none;
+  background: var(--g2);
+  color: var(--s0);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background var(--dur-base) var(--ease),
+              box-shadow var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease);
+}
+
+.btnAdmit:hover:not(:disabled) {
+  background: var(--g3);
+  box-shadow: 0 6px 24px rgba(201, 169, 110, 0.35);
+  transform: translateY(-1px);
+}
+
+.btnAdmit:active:not(:disabled) {
+  background: var(--g1);
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btnAdmit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btnDeny {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 58px;
+  border-radius: var(--r-lg);
+  border: 1.5px solid rgba(212, 112, 112, 0.4);
+  background: transparent;
+  color: var(--err-t);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: border-color var(--dur-base) var(--ease),
+              background var(--dur-base) var(--ease),
+              transform var(--dur-base) var(--ease);
+}
+
+.btnDeny:hover:not(:disabled) {
+  border-color: var(--err-t);
+  background: rgba(212, 112, 112, 0.08);
+  transform: translateY(-1px);
+}
+
+.btnDeny:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btnRescan {
+  height: 48px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b1);
+  background: transparent;
+  color: var(--t2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnRescan:hover {
+  border-color: var(--b2);
+  background: var(--s2);
+  color: var(--t1);
+}
+
+/* ─── Loading / error panels ─────────────────────────────── */
+
+.loadingPanel,
+.errorPanel {
+  background: var(--s2);
+  border: 1px solid var(--b1);
+  border-radius: var(--r-xl);
+  padding: var(--sp-8);
+  text-align: center;
+  color: var(--t2);
+  font-size: 14px;
+}
+
+.errorPanel {
+  border-color: rgba(212, 112, 112, 0.32);
+  color: var(--err-t);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--b1);
+  border-top-color: var(--g2);
+  margin: 0 auto 12px;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

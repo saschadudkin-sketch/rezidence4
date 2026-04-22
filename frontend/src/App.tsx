@@ -11,6 +11,11 @@ const DesignSystemDemo = lazy(() => import('./views/DesignSystemDemo'));
 // Public, unauthenticated guest-pass share page (domhub.su/p/<token>).
 // Code-split so residents/admins don't pay for the share-card CSS module.
 const GuestPassPage = lazy(() => import('./views/public/GuestPassPage'));
+// Authenticated, staff-only guard scanner station (domhub.su/guard/scan).
+// Standalone surface — no app shell chrome; the view handles camera +
+// server scan + admit/deny.  Code-split because the camera + CSS module
+// only loads when a guard navigates to it.
+const GuardScannerView = lazy(() => import('./views/guard/GuardScannerView'));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -19,7 +24,7 @@ import { useAuth, PHASE } from './hooks/useAuth';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { LOGO } from './constants/logo';
 import { API_CONFIG_ERROR } from './config/apiBaseUrl';
-import { readStorage, removeStorage, STORAGE_KEYS } from './store/persistence/storageRegistry';
+import { readStorage, removeStorage, writeStorage, STORAGE_KEYS } from './store/persistence/storageRegistry';
 import { DATA_PLANE_POLICY } from './data/dataPlanePolicy';
 import { assertEntityPlane } from './data/entityOwnership';
 import { logger } from './services/logger';
@@ -164,6 +169,31 @@ const AppInner = memo(function AppInner() {
   );
 });
 
+// ─── Guard scanner route guard ────────────────────────────────────────────────
+//
+// The scanner is authenticated but standalone — it deliberately does NOT
+// render the Dashboard shell.  This tiny wrapper reuses `useAuth` so that:
+//   — LOADING → splash
+//   — LOGIN   → store returnTo and send the user through the normal login
+//               flow; on success AppInner picks up returnTo and navigates
+//               back here.
+//   — DASHBOARD → render the scanner (residents are bounced by the view).
+function GuardScannerRoute() {
+  const { phase } = useAuth();
+  if (phase === PHASE.LOADING) return <LoadingScreen />;
+  if (phase !== PHASE.DASHBOARD) {
+    // Persist the intended destination so AppInner's existing returnTo
+    // mechanism brings the guard back to the scanner after login.
+    try { writeStorage(STORAGE_KEYS.RETURN_TO, '/guard/scan'); } catch { /* non-fatal */ }
+    return <Navigate to="/dashboard" replace />;
+  }
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <GuardScannerView />
+    </Suspense>
+  );
+}
+
 // ─── Route tree ───────────────────────────────────────────────────────────────
 //
 // P-01/A-01: Declarative URL routing with React Router <Routes>/<Route>.
@@ -188,6 +218,15 @@ function AppRoutes() {
         </Suspense>
       } />
       <Route path="/dashboard/*" element={<AppInner />} />
+      {/* Staff-only guard scanner station.  We reuse the full AppInner auth
+          gate by wrapping the scanner in a tiny route guard: if the user is
+          authenticated, render the standalone scanner; otherwise fall back
+          to the dashboard which owns login + returnTo handling. */}
+      <Route path="/guard/scan" element={
+        <ErrorBoundary name="Охрана · Сканер">
+          <GuardScannerRoute />
+        </ErrorBoundary>
+      } />
       {/* Design System Demo - Development only */}
       {import.meta.env.DEV && (
         <Route path="/design-system" element={
