@@ -18,6 +18,7 @@
 - Продуктовый план: `docs/product/specs/domhub-final-product-plan.md`
 - Reconciliation-отчёт: `RECONCILIATION.md`
 - Module-specs для v1: `docs/product/specs/platform-v1/`
+- **Полный бэклог P0–P4:** `BACKLOG.md` (ROADMAP.md покрывает только P0-блок D-lite; всё остальное — в бэклоге)
 
 ---
 
@@ -53,7 +54,8 @@
 - [x] Написать остальные 4 спеки-минимум: `units-spec.md`, `residents-spec.md`, `vehicles-spec.md`, `access-requests-spec.md`
 - [x] Написать index `docs/product/specs/platform-v1/README.md`
 - [x] Настроить CI: `.github/workflows/ci.yml` — `platform-v1` в push-триггерах; `test:coverage:critical` и `phase1-gate-summary` — advisory (continue-on-error) для этой ветки; на main всё остаётся строгим
-- [ ] Первый коммит Фазы 0 → PR → merge в `platform-v1` (разблокирует Фазу 1)
+- [x] Первый коммит Фазы 0 (`79241c3` на `platform-v1`) — scaffold готов
+- [ ] Запушить `platform-v1` на remote + открыть PR `platform-v1 ← phase-0-scaffold` (опционально — или merge сразу, т.к. ветка de facto feature-branch для всего рефактора)
 
 **Результат:** каркас для параллельной разработки готов. Команда понимает план. Спеки на первые 5 сущностей лежат в репо.
 
@@ -161,10 +163,15 @@ Superadmin SPA (`frontend/src/admin/`):
 
 ## Пост-релиз (не в scope 10 недель)
 
-- Разморозка legacy-модулей по мере появления спек (`meters`, `billing`, `bookings`, `chat`)
-- Access topology: `access_zones`, `access_points`, `access_policies` — заводится при подключении первого реального СКУД-интегратора
-- Inbound integrations registry (`integrations`, `integration_events`) — для 1С, видео, внешних СКУД
-- Подключение второго объекта (первый non-Замоскворечье клиент)
+Детальный список приоритетов — см. `BACKLOG.md`. Ключевое:
+
+- **P0 дополнения** (параллельно с Фазами 1–7): outbox для notifications, observability per-tenant, onboarding wizard, runbook + incident process
+- **P1** (недели 11–16): event sourcing для access, policy engine lite, households, self-serve trial, full E2E coverage
+- **P2** (недели 17–26): native mobile app, BLE soft access, video-ID гостей, data warehouse, white-label
+- **P3** (недели 27–52): partner marketplace, застройщики, smart home, AI-консьерж, репутация подрядчиков, Academy
+- **P4 (parking lot):** ЕБС, парковки, ГИС ЖКХ, страховка, CRE, голосование, ресурсоснабжение
+
+Legacy-модули ЖКХ (meters/billing/bookings/chat) — разморозка по `BACKLOG.md`, раздел «Архитектурные улучшения» и `RECONCILIATION.md §12` (Вариант B).
 
 ---
 
