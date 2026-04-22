@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" fill="none" role="img" aria-labelledby="marka-title">
+  <title id="marka-title">DomHub Mark A — single d with open bowl</title>
+
+  <!-- Square container -->
+  <rect x="0" y="0" width="56" height="56" rx="10" fill="#eee7dc"/>
+
+  <!-- d stem -->
+  <line x1="15.2" y1="7" x2="15.2" y2="43" stroke="#11100e" stroke-width="2.4" stroke-linecap="butt"/>
+
+  <!--
+    Bowl: starts and ends at stem.
+    Top entry y=14 (x-height top in a 56px box: ~14)
+    Bottom exit y=39 — intentionally not closing all the way to y=43 (stem base).
+    The 4px gap (y=39 to y=43) is the open notch.
+    Outer right apex: x=33.5, y=28 (center of bowl height 14–43 = 28.5 → 28)
+  -->
+  <path d="M15.2,14 C15.2,12.5 20,10 26,13.5 C32,17 33.5,28 33.5,28 C33.5,28 32,39 26,42.5 C20,46 15.2,44.5 15.2,39"
+        stroke="#11100e" stroke-width="2.2" stroke-linecap="butt" fill="none"/>
+
+  <!-- Gold keystone dot at bowl right apex -->
+  <circle cx="33.5" cy="28" r="1.8" fill="#c9a96e"/>
+
+</svg>

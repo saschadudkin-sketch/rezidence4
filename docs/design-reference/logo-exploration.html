@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logo Exploration — DomHub</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: #11100e;
+      color: #eee7dc;
+      font-family: -apple-system, "SF Pro Display", "Segoe UI Variable Text", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    body {
+      padding: 48px 40px 80px;
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    /* ─── Page Header ─────────────────────────────────────────── */
+    .page-header {
+      margin-bottom: 56px;
+      border-bottom: 1px solid rgba(201,169,110,0.12);
+      padding-bottom: 32px;
+    }
+
+    .page-header__eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #c9a96e;
+      margin-bottom: 10px;
+    }
+
+    .page-header__title {
+      font-size: 28px;
+      font-weight: 600;
+      color: #eee7dc;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .page-header__meta {
+      font-size: 13px;
+      color: #b2a593;
+    }
+
+    /* ─── Grid ─────────────────────────────────────────────────── */
+    .logo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 860px) {
+      .logo-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Card ─────────────────────────────────────────────────── */
+    .logo-card {
+      background: #181613;
+      border: 1px solid rgba(201,169,110,0.12);
+      border-radius: 12px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .logo-card__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .logo-card__num {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #c9a96e;
+      opacity: 0.7;
+      white-space: nowrap;
+      margin-top: 3px;
+    }
+
+    .logo-card__name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #eee7dc;
+      letter-spacing: -0.015em;
+      line-height: 1.3;
+    }
+
+    .logo-card__rationale {
+      font-size: 13px;
+      color: #c7bdae;
+      line-height: 1.6;
+      margin-top: -6px;
+    }
+
+    /* ─── Size showcase ─────────────────────────────────────────── */
+    .logo-sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .size-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .size-unit__label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a09080;
+    }
+
+    .size-unit__bg {
+      background: #11100e;
+      border: 1px solid rgba(201,169,110,0.08);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ─── Light bg variant strip ────────────────────────────────── */
+    .logo-card__light-strip {
+      background: #eee7dc;
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .light-strip__label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b655c;
+    }
+
+    .logo-card__light-strip svg {
+      /* On light bg: swap fill/stroke colors via CSS filter override
+         For the SVG inline instances only — not the file SVGs */
+    }
+
+    /* Light bg SVG color override — recolor warm-white to warm-black */
+    .light-version svg [fill="#eee7dc"],
+    .light-version svg rect[fill="#eee7dc"],
+    .light-version svg path[fill="#eee7dc"] {
+      fill: #11100e;
+    }
+
+    /* ─── Divider / Section ──────────────────────────────────────── */
+    .section-divider {
+      height: 1px;
+      background: rgba(201,169,110,0.08);
+      margin: 48px 0 40px;
+    }
+
+    /* ─── Recommendation ────────────────────────────────────────── */
+    .recommendation {
+      background: #181613;
+      border: 1px solid rgba(201,169,110,0.22);
+      border-radius: 12px;
+      padding: 40px;
+      margin-top: 56px;
+    }
+
+    .recommendation__eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #c9a96e;
+      margin-bottom: 16px;
+    }
+
+    .recommendation__title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #eee7dc;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+    }
+
+    .recommendation__block {
+      margin-bottom: 28px;
+    }
+
+    .recommendation__variant-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #eee7dc;
+      margin-bottom: 8px;
+    }
+
+    .recommendation__text {
+      font-size: 13.5px;
+      color: #c7bdae;
+      line-height: 1.7;
+    }
+
+    .recommendation__weak {
+      background: rgba(212, 112, 112, 0.06);
+      border: 1px solid rgba(212, 112, 112, 0.15);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 24px;
+    }
+
+    .recommendation__weak-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d47070;
+      margin-bottom: 8px;
+    }
+
+    .recommendation__weak-text {
+      font-size: 13px;
+      color: #b2a593;
+      line-height: 1.65;
+    }
+
+    .recommendation__next {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(201,169,110,0.1);
+    }
+
+    .recommendation__next-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a09080;
+      margin-bottom: 12px;
+    }
+
+    .recommendation__next ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .recommendation__next li {
+      font-size: 13.5px;
+      color: #c7bdae;
+      line-height: 1.6;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .recommendation__next li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 9px;
+      width: 5px;
+      height: 1px;
+      background: #c9a96e;
+      opacity: 0.5;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+
+    .badge--gold {
+      background: rgba(201,169,110,0.15);
+      color: #c9a96e;
+      border: 1px solid rgba(201,169,110,0.25);
+    }
+
+    .badge--weak {
+      background: rgba(212,112,112,0.1);
+      color: #d47070;
+      border: 1px solid rgba(212,112,112,0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <p class="page-header__eyebrow">Brand Identity Exploration</p>
+    <h1 class="page-header__title">DomHub — Logo Variants</h1>
+    <p class="page-header__meta">6 concepts &nbsp;·&nbsp; domhub.su &nbsp;·&nbsp; Premium residential management platform &nbsp;·&nbsp; April 2026</p>
+  </header>
+
+  <div class="logo-grid">
+
+    <!-- ══ VARIANT 01 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">01</p>
+          <h2 class="logo-card__name">Custom Wordmark</h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        Pure typography, no symbol. The hairline gap between "m" and "h" acts as a soft word-break that keeps the compound "domhub" legible without a hyphen. Draws from the Stripe / Intercom school: the brand IS the letterform. Requires the most trust in typographic craft to carry alone.
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none" width="32" height="32" aria-hidden="true">
+              <rect x="18" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M20.1 21 C20.1 21 36 20 36 36 C36 52 20.1 51 20.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="52" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+              <rect x="68" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M70.1 20.5 C70.1 20.5 78 14 84 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="83.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M86.1 20.5 C86.1 20.5 94 14 100 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="99.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="108" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+              <rect x="120" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M122.1 30 C122.1 30 130 22 138 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="137.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+              <rect x="148" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+              <path d="M150.1 42.5 C150.1 42.5 150 52 160 52 C170 52 170 42.5 170 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="169.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="180" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M182.1 21 C182.1 21 198 20 198 36 C198 52 182.1 51 182.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:14px 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none" width="120" height="27" aria-hidden="true">
+              <rect x="18" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M20.1 21 C20.1 21 36 20 36 36 C36 52 20.1 51 20.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="52" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+              <rect x="68" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M70.1 20.5 C70.1 20.5 78 14 84 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="83.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M86.1 20.5 C86.1 20.5 94 14 100 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="99.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="108" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+              <rect x="120" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M122.1 30 C122.1 30 130 22 138 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="137.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+              <rect x="148" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+              <path d="M150.1 42.5 C150.1 42.5 150 52 160 52 C170 52 170 42.5 170 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="169.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="180" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M182.1 21 C182.1 21 198 20 198 36 C198 52 182.1 51 182.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex: 1;">
+          <div class="size-unit__bg" style="padding:24px 32px; width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none" width="100%" height="auto" aria-hidden="true">
+              <rect x="18" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M20.1 21 C20.1 21 36 20 36 36 C36 52 20.1 51 20.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="52" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+              <rect x="68" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M70.1 20.5 C70.1 20.5 78 14 84 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="83.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M86.1 20.5 C86.1 20.5 94 14 100 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="99.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="108" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+              <rect x="120" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M122.1 30 C122.1 30 130 22 138 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="137.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+              <rect x="148" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+              <path d="M150.1 42.5 C150.1 42.5 150 52 160 52 C170 52 170 42.5 170 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="169.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="180" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M182.1 21 C182.1 21 198 20 198 36 C198 52 182.1 51 182.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <!-- Light version -->
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none" height="28" aria-hidden="true">
+          <rect x="18" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M20.1 21 C20.1 21 36 20 36 36 C36 52 20.1 51 20.1 51" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <ellipse cx="52" cy="36" rx="10.5" ry="15.5" stroke="#11100e" stroke-width="2.2" fill="none"/>
+          <rect x="68" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <path d="M70.1 20.5 C70.1 20.5 78 14 84 20.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="83.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <path d="M86.1 20.5 C86.1 20.5 94 14 100 20.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="99.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <rect x="108" y="35" width="8" height="1" rx="0.5" fill="#11100e" opacity="0.35"/>
+          <rect x="120" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M122.1 30 C122.1 30 130 22 138 30" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="137.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#11100e"/>
+          <rect x="148" y="20.5" width="2.2" height="22" rx="1.1" fill="#11100e"/>
+          <path d="M150.1 42.5 C150.1 42.5 150 52 160 52 C170 52 170 42.5 170 42.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="169.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <rect x="180" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M182.1 21 C182.1 21 198 20 198 36 C198 52 182.1 51 182.1 51" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ VARIANT 02 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">02</p>
+          <h2 class="logo-card__name">Wordmark + Monogram Mark <span class="badge badge--gold">Recommended</span></h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        The most deployable system: a square mark (favicon, app icon, badge) paired with the wordmark for headers and print. The "dh" ligature in the square is a genuine visual idea — the bowl of "d" and the arch of "h" share a common top curve, making one form that resolves as two letters. This is the lock-up Linear, Vercel, and Stripe all converge on for good reason.
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:8px;">
+            <!-- Mark only at favicon -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" fill="none" width="32" height="32" aria-hidden="true">
+              <rect x="0" y="0" width="56" height="56" rx="10" fill="#eee7dc"/>
+              <rect x="14" y="10" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M16.2 17 C16.2 17 30 16.5 30 28 C30 39.5 16.2 39 16.2 39" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="32" y="10" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M34.4 21 C34.4 21 41 14.5 42 21" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="41.4" y="21" width="2.4" height="25" rx="1.2" fill="#11100e"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:12px 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" fill="none" height="30" aria-hidden="true">
+              <rect x="0" y="8" width="56" height="56" rx="10" fill="#eee7dc"/>
+              <rect x="14" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M16.2 25 C16.2 25 30 24.5 30 36 C30 47.5 16.2 47 16.2 47" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="32" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M34.4 29 C34.4 29 41 22.5 42 29" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="41.4" y="29" width="2.4" height="25" rx="1.2" fill="#11100e"/>
+              <rect x="74" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M76.1 21 C76.1 21 92 20 92 36 C92 52 76.1 51 76.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="108" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+              <rect x="124" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M126.1 20.5 C126.1 20.5 134 14 140 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="139.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M142.1 20.5 C142.1 20.5 150 14 156 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="155.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="164" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+              <rect x="176" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M178.1 30 C178.1 30 186 22 194 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="193.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+              <rect x="204" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+              <path d="M206.1 42.5 C206.1 42.5 206 52 216 52 C226 52 226 42.5 226 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="225.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="236" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M238.1 21 C238.1 21 254 20 254 36 C254 52 238.1 51 238.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex:1;">
+          <div class="size-unit__bg" style="padding:20px 28px;width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" fill="none" width="100%" height="auto" aria-hidden="true">
+              <rect x="0" y="8" width="56" height="56" rx="10" fill="#eee7dc"/>
+              <rect x="14" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M16.2 25 C16.2 25 30 24.5 30 36 C30 47.5 16.2 47 16.2 47" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="32" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+              <path d="M34.4 29 C34.4 29 41 22.5 42 29" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <rect x="41.4" y="29" width="2.4" height="25" rx="1.2" fill="#11100e"/>
+              <rect x="74" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M76.1 21 C76.1 21 92 20 92 36 C92 52 76.1 51 76.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="108" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+              <rect x="124" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M126.1 20.5 C126.1 20.5 134 14 140 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="139.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <path d="M142.1 20.5 C142.1 20.5 150 14 156 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="155.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="164" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+              <rect x="176" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M178.1 30 C178.1 30 186 22 194 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="193.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+              <rect x="204" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+              <path d="M206.1 42.5 C206.1 42.5 206 52 216 52 C226 52 226 42.5 226 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+              <rect x="225.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+              <rect x="236" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+              <path d="M238.1 21 C238.1 21 254 20 254 36 C254 52 238.1 51 238.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" fill="none" height="28" aria-hidden="true">
+          <rect x="0" y="8" width="56" height="56" rx="10" fill="#11100e"/>
+          <rect x="14" y="18" width="2.4" height="36" rx="1.2" fill="#eee7dc"/>
+          <path d="M16.2 25 C16.2 25 30 24.5 30 36 C30 47.5 16.2 47 16.2 47" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+          <rect x="32" y="18" width="2.4" height="36" rx="1.2" fill="#eee7dc"/>
+          <path d="M34.4 29 C34.4 29 41 22.5 42 29" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+          <rect x="41.4" y="29" width="2.4" height="25" rx="1.2" fill="#eee7dc"/>
+          <rect x="74" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M76.1 21 C76.1 21 92 20 92 36 C92 52 76.1 51 76.1 51" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <ellipse cx="108" cy="36" rx="10.5" ry="15.5" stroke="#11100e" stroke-width="2.2" fill="none"/>
+          <rect x="124" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <path d="M126.1 20.5 C126.1 20.5 134 14 140 20.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="139.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <path d="M142.1 20.5 C142.1 20.5 150 14 156 20.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="155.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <rect x="176" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M178.1 30 C178.1 30 186 22 194 30" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="193.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#11100e"/>
+          <rect x="204" y="20.5" width="2.2" height="22" rx="1.1" fill="#11100e"/>
+          <path d="M206.1 42.5 C206.1 42.5 206 52 216 52 C226 52 226 42.5 226 42.5" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="225.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#11100e"/>
+          <rect x="236" y="10" width="2.2" height="52" rx="1.1" fill="#11100e"/>
+          <path d="M238.1 21 C238.1 21 254 20 254 36 C254 52 238.1 51 238.1 51" stroke="#11100e" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ VARIANT 03 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">03</p>
+          <h2 class="logo-card__name">Arch Symbol <span class="badge badge--gold">Recommended</span></h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        The arch is a pure architectural gesture — not a house, not a doorbell icon. It communicates passage, threshold, and access without literalism. The inner keystone arc in gold is deliberately restrained: one accent beat inside an otherwise monochrome form. At 32px the arch collapses gracefully to two piers + arc. The concept has genuine depth and would age well.
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:6px;">
+            <!-- Arch symbol only at favicon -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66 88" fill="none" width="32" height="32" aria-hidden="true">
+              <rect x="10" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <rect x="53" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <path d="M13 30 A20 20 0 0 1 53 30" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M17.5 30 A15.5 15.5 0 0 1 48.5 30" stroke="#c9a96e" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:14px 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 88" fill="none" height="36" aria-hidden="true">
+              <rect x="10" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <rect x="53" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <path d="M13 30 A20 20 0 0 1 53 30" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M17.5 30 A15.5 15.5 0 0 1 48.5 30" stroke="#c9a96e" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+              <rect x="82" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M83.8 27 C83.8 27 97 26.5 97 42 C97 57.5 83.8 57 83.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="112" cy="42" rx="9" ry="14" stroke="#eee7dc" stroke-width="2" fill="none"/>
+              <rect x="126" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <path d="M127.8 27.5 C127.8 27.5 134.5 21.5 140 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="139.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <path d="M141.8 27.5 C141.8 27.5 148.5 21.5 154 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="153.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <rect x="172" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M174 36 C174 36 181 28.5 188 36" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="187.8" y="36" width="2" height="20.5" rx="1" fill="#eee7dc"/>
+              <rect x="196" y="27.5" width="2" height="21" rx="1" fill="#eee7dc"/>
+              <path d="M198 48.5 C198 48.5 198 57 207 57 C216 57 216 48.5 216 48.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="215.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <rect x="224" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M225.8 27 C225.8 27 239 26.5 239 42 C239 57.5 225.8 57 225.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex:1;">
+          <div class="size-unit__bg" style="padding:20px 28px;width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 88" fill="none" width="100%" height="auto" aria-hidden="true">
+              <rect x="10" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <rect x="53" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+              <path d="M13 30 A20 20 0 0 1 53 30" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <path d="M17.5 30 A15.5 15.5 0 0 1 48.5 30" stroke="#c9a96e" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+              <rect x="82" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M83.8 27 C83.8 27 97 26.5 97 42 C97 57.5 83.8 57 83.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <ellipse cx="112" cy="42" rx="9" ry="14" stroke="#eee7dc" stroke-width="2" fill="none"/>
+              <rect x="126" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <path d="M127.8 27.5 C127.8 27.5 134.5 21.5 140 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="139.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <path d="M141.8 27.5 C141.8 27.5 148.5 21.5 154 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="153.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <rect x="172" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M174 36 C174 36 181 28.5 188 36" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="187.8" y="36" width="2" height="20.5" rx="1" fill="#eee7dc"/>
+              <rect x="196" y="27.5" width="2" height="21" rx="1" fill="#eee7dc"/>
+              <path d="M198 48.5 C198 48.5 198 57 207 57 C216 57 216 48.5 216 48.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+              <rect x="215.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+              <rect x="224" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+              <path d="M225.8 27 C225.8 27 239 26.5 239 42 C239 57.5 225.8 57 225.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 88" fill="none" height="36" aria-hidden="true">
+          <rect x="10" y="30" width="3" height="46" rx="1.5" fill="#11100e"/>
+          <rect x="53" y="30" width="3" height="46" rx="1.5" fill="#11100e"/>
+          <path d="M13 30 A20 20 0 0 1 53 30" stroke="#11100e" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M17.5 30 A15.5 15.5 0 0 1 48.5 30" stroke="#b8935a" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+          <rect x="82" y="18" width="2" height="48" rx="1" fill="#11100e"/>
+          <path d="M83.8 27 C83.8 27 97 26.5 97 42 C97 57.5 83.8 57 83.8 57" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <ellipse cx="112" cy="42" rx="9" ry="14" stroke="#11100e" stroke-width="2" fill="none"/>
+          <rect x="126" y="27.5" width="2" height="29" rx="1" fill="#11100e"/>
+          <path d="M127.8 27.5 C127.8 27.5 134.5 21.5 140 27.5" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <rect x="139.8" y="27.5" width="2" height="29" rx="1" fill="#11100e"/>
+          <path d="M141.8 27.5 C141.8 27.5 148.5 21.5 154 27.5" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <rect x="153.8" y="27.5" width="2" height="29" rx="1" fill="#11100e"/>
+          <rect x="172" y="18" width="2" height="48" rx="1" fill="#11100e"/>
+          <path d="M174 36 C174 36 181 28.5 188 36" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <rect x="187.8" y="36" width="2" height="20.5" rx="1" fill="#11100e"/>
+          <rect x="196" y="27.5" width="2" height="21" rx="1" fill="#11100e"/>
+          <path d="M198 48.5 C198 48.5 198 57 207 57 C216 57 216 48.5 216 48.5" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <rect x="215.8" y="27.5" width="2" height="29" rx="1" fill="#11100e"/>
+          <rect x="224" y="18" width="2" height="48" rx="1" fill="#11100e"/>
+          <path d="M225.8 27 C225.8 27 239 26.5 239 42 C239 57.5 225.8 57 225.8 57" stroke="#11100e" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ VARIANT 04 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">04</p>
+          <h2 class="logo-card__name">DH Monogram (Latin)</h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        The D and H share a center vertical stroke drawn in gold — a structural ligature rather than a decorative flourish. The gold crossbar connects them as one form. Works well for international contexts where "D" and "H" are immediately readable. The weakness: at 32px the shared stroke is ambiguous and could read as "IH" or "DI".
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="40" height="40" aria-hidden="true">
+              <rect x="15" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+              <path d="M17.5 15 C17.5 15 50 15 50 40 C50 65 17.5 65 17.5 65" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <rect x="46" y="15" width="3" height="50" rx="1.5" fill="#c9a96e"/>
+              <rect x="17.5" y="38.5" width="31" height="2" rx="1" fill="#c9a96e" opacity="0.5"/>
+              <rect x="62" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:18px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="80" height="80" aria-hidden="true">
+              <rect x="15" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+              <path d="M17.5 15 C17.5 15 50 15 50 40 C50 65 17.5 65 17.5 65" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <rect x="46" y="15" width="3" height="50" rx="1.5" fill="#c9a96e"/>
+              <rect x="17.5" y="38.5" width="31" height="2" rx="1" fill="#c9a96e" opacity="0.5"/>
+              <rect x="62" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex:1;">
+          <div class="size-unit__bg" style="padding:24px 40px;width:100%;display:flex;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="200" height="200" aria-hidden="true">
+              <rect x="15" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+              <path d="M17.5 15 C17.5 15 50 15 50 40 C50 65 17.5 65 17.5 65" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+              <rect x="46" y="15" width="3" height="50" rx="1.5" fill="#c9a96e"/>
+              <rect x="17.5" y="38.5" width="31" height="2" rx="1" fill="#c9a96e" opacity="0.5"/>
+              <rect x="62" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" height="48" aria-hidden="true">
+          <rect x="15" y="15" width="3" height="50" rx="1.5" fill="#11100e"/>
+          <path d="M17.5 15 C17.5 15 50 15 50 40 C50 65 17.5 65 17.5 65" stroke="#11100e" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <rect x="46" y="15" width="3" height="50" rx="1.5" fill="#b8935a"/>
+          <rect x="17.5" y="38.5" width="31" height="2" rx="1" fill="#b8935a" opacity="0.5"/>
+          <rect x="62" y="15" width="3" height="50" rx="1.5" fill="#11100e"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ VARIANT 05 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">05</p>
+          <h2 class="logo-card__name">Cyrillic Д Monogram</h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        The Cyrillic Д re-read as classical column-and-lintel architecture: the base "legs" become piers with capitals, and the top strokes form a pediment. The gold apex accent marks the keystone. Strong on Russian-market materials and signals local authenticity without being provincial. Limitation: meaningless to a non-Cyrillic audience, which could constrain future growth.
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="40" height="40" aria-hidden="true">
+              <rect x="10" y="64" width="60" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="10" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="7" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="64" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="61" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <path d="M18 44 L38 16 L62 44" stroke="#eee7dc" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+              <rect x="13" y="44" width="54" height="2.5" rx="1" fill="#eee7dc"/>
+              <path d="M34 22 L38 16 L42 22" stroke="#c9a96e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:18px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="80" height="80" aria-hidden="true">
+              <rect x="10" y="64" width="60" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="10" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="7" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="64" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="61" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <path d="M18 44 L38 16 L62 44" stroke="#eee7dc" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+              <rect x="13" y="44" width="54" height="2.5" rx="1" fill="#eee7dc"/>
+              <path d="M34 22 L38 16 L42 22" stroke="#c9a96e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex:1;">
+          <div class="size-unit__bg" style="padding:24px 40px;width:100%;display:flex;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="200" height="200" aria-hidden="true">
+              <rect x="10" y="64" width="60" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="10" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="7" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <rect x="64" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+              <rect x="61" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+              <path d="M18 44 L38 16 L62 44" stroke="#eee7dc" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+              <rect x="13" y="44" width="54" height="2.5" rx="1" fill="#eee7dc"/>
+              <path d="M34 22 L38 16 L42 22" stroke="#c9a96e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" height="48" aria-hidden="true">
+          <rect x="10" y="64" width="60" height="2" rx="1" fill="#11100e"/>
+          <rect x="10" y="46" width="6" height="20" rx="1.5" fill="#11100e"/>
+          <rect x="7" y="44" width="12" height="2" rx="1" fill="#11100e"/>
+          <rect x="64" y="46" width="6" height="20" rx="1.5" fill="#11100e"/>
+          <rect x="61" y="44" width="12" height="2" rx="1" fill="#11100e"/>
+          <path d="M18 44 L38 16 L62 44" stroke="#11100e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+          <rect x="13" y="44" width="54" height="2.5" rx="1" fill="#11100e"/>
+          <path d="M34 22 L38 16 L42 22" stroke="#b8935a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ══ VARIANT 06 ══════════════════════════════════════════════ -->
+    <div class="logo-card">
+      <div class="logo-card__header">
+        <div>
+          <p class="logo-card__num">06</p>
+          <h2 class="logo-card__name">Geometric Key Symbol</h2>
+        </div>
+      </div>
+      <p class="logo-card__rationale">
+        Circle (identity/ownership) + shaft (connection) + three-tier notch (access hierarchy). Reads as a key without borrowing any literal key silhouette. The three notches deliberately echo DomHub's three-tier access model (resident / staff / admin). The gold inner circle is the one decorative point — the origin of permission. Honest about what the product does.
+      </p>
+
+      <div class="logo-sizes">
+        <div class="size-unit">
+          <div class="size-unit__bg" style="width:48px;height:48px;padding:4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="40" height="40" aria-hidden="true">
+              <circle cx="25" cy="40" r="14" stroke="#eee7dc" stroke-width="3" fill="none"/>
+              <circle cx="25" cy="40" r="3.5" fill="#c9a96e"/>
+              <rect x="39" y="38.5" width="24" height="3" rx="1.5" fill="#eee7dc"/>
+              <rect x="60" y="38.5" width="3" height="12" rx="1.5" fill="#eee7dc"/>
+              <rect x="52" y="38.5" width="3" height="9" rx="1.5" fill="#eee7dc"/>
+              <rect x="44" y="38.5" width="3" height="6" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Favicon 32px</span>
+        </div>
+
+        <div class="size-unit">
+          <div class="size-unit__bg" style="padding:18px;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="80" height="80" aria-hidden="true">
+              <circle cx="25" cy="40" r="14" stroke="#eee7dc" stroke-width="3" fill="none"/>
+              <circle cx="25" cy="40" r="3.5" fill="#c9a96e"/>
+              <rect x="39" y="38.5" width="24" height="3" rx="1.5" fill="#eee7dc"/>
+              <rect x="60" y="38.5" width="3" height="12" rx="1.5" fill="#eee7dc"/>
+              <rect x="52" y="38.5" width="3" height="9" rx="1.5" fill="#eee7dc"/>
+              <rect x="44" y="38.5" width="3" height="6" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Header 120px</span>
+        </div>
+
+        <div class="size-unit" style="flex:1;">
+          <div class="size-unit__bg" style="padding:24px 40px;width:100%;display:flex;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" width="200" height="200" aria-hidden="true">
+              <circle cx="25" cy="40" r="14" stroke="#eee7dc" stroke-width="3" fill="none"/>
+              <circle cx="25" cy="40" r="3.5" fill="#c9a96e"/>
+              <rect x="39" y="38.5" width="24" height="3" rx="1.5" fill="#eee7dc"/>
+              <rect x="60" y="38.5" width="3" height="12" rx="1.5" fill="#eee7dc"/>
+              <rect x="52" y="38.5" width="3" height="9" rx="1.5" fill="#eee7dc"/>
+              <rect x="44" y="38.5" width="3" height="6" rx="1.5" fill="#eee7dc"/>
+            </svg>
+          </div>
+          <span class="size-unit__label">Hero 400px</span>
+        </div>
+      </div>
+
+      <div class="logo-card__light-strip">
+        <span class="light-strip__label">Light bg</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" height="48" aria-hidden="true">
+          <circle cx="25" cy="40" r="14" stroke="#11100e" stroke-width="3" fill="none"/>
+          <circle cx="25" cy="40" r="3.5" fill="#b8935a"/>
+          <rect x="39" y="38.5" width="24" height="3" rx="1.5" fill="#11100e"/>
+          <rect x="60" y="38.5" width="3" height="12" rx="1.5" fill="#11100e"/>
+          <rect x="52" y="38.5" width="3" height="9" rx="1.5" fill="#11100e"/>
+          <rect x="44" y="38.5" width="3" height="6" rx="1.5" fill="#11100e"/>
+        </svg>
+      </div>
+    </div>
+
+  </div><!-- /logo-grid -->
+
+  <!-- ─── RECOMMENDATION ──────────────────────────────────────────── -->
+  <div class="recommendation">
+    <p class="recommendation__eyebrow">Design Assessment</p>
+    <h2 class="recommendation__title">Honest Recommendation</h2>
+
+    <div class="recommendation__block">
+      <p class="recommendation__variant-name">02 — Wordmark + Monogram Mark &nbsp;<span class="badge badge--gold">Primary pick</span></p>
+      <p class="recommendation__text">
+        This is the production-ready choice. The square dh-ligature mark solves the hardest real-world problem immediately: you need a favicon, an app-icon, a badge in the nav sidebar, and a push notification icon — a wordmark alone cannot do that at 32px. The dh ligature has a genuine typographic idea behind it (shared top curve), not just two letters jammed together. The system (mark + wordmark) gives you the most deployment flexibility: use the mark alone in constrained spaces, the wordmark alone in narrow banners, and the full lock-up in headers and marketing. This is the path Vercel, Linear, and Stripe all took for identical reasons.
+      </p>
+    </div>
+
+    <div class="recommendation__block">
+      <p class="recommendation__variant-name">03 — Arch Symbol &nbsp;<span class="badge badge--gold">Secondary pick / long-term direction</span></p>
+      <p class="recommendation__text">
+        The strongest concept on pure brand coherence grounds. The arch is an original geometric idea that connects directly to the product's context (Замоскворечье residential architecture, gateway access, passage) without being a literal illustration. It would be the right choice if DomHub invests in building brand recognition over 3–5 years — the mark is distinctive and defensible. The risk: as a standalone symbol it requires time and marketing spend to become legible. At seed stage, the wordmark+mark of variant 02 is the safer operational bet. Revisit the arch as a brand evolution once the product is established.
+      </p>
+    </div>
+
+    <div class="recommendation__weak">
+      <p class="recommendation__weak-title">Variants that should not advance</p>
+      <p class="recommendation__weak-text">
+        <strong style="color:#eee7dc;">01 (Wordmark only)</strong> — The typographic concept is correct but a standalone wordmark without any mark leaves the product without a favicon-size identity. This isn't a weak concept, it's an incomplete system. Use the letterform as the basis for variant 02 instead.
+        <br><br>
+        <strong style="color:#eee7dc;">04 (DH Monogram)</strong> — The shared gold stroke is a nice idea but the form reads ambiguously at small sizes — IH, DI, or an equals sign. The concept needs a stronger letter-fit or size range to work. Do not use as-is.
+        <br><br>
+        <strong style="color:#eee7dc;">05 (Cyrillic Д)</strong> — The architectural reading of Д is genuinely interesting and would be a strong supplementary asset (letterhead, Russian-market materials, social media). But it should not be the primary mark because it creates a bifurcated identity problem the moment the product onboards any non-Russian operator or investor.
+        <br><br>
+        <strong style="color:#eee7dc;">06 (Key)</strong> — The abstracted key concept is solid in theory (circle + shaft + three notches = ownership + connection + access hierarchy). In execution the horizontal layout creates awkward white space and the form is too similar to dozens of security/SaaS key icons. The concept is defensible but the execution needs one more round of formal development to become distinctive.
+      </p>
+    </div>
+
+    <div class="recommendation__next">
+      <p class="recommendation__next-title">What to do next</p>
+      <ul>
+        <li>Approve the direction (02 or 03) before any typography work — font choice changes everything about how the wordmark feels.</li>
+        <li>Commission a custom variable typeface or license one at weight 420–460 (Geist, Roobert, or ABC Whyte are strong candidates for the "Linear/Stripe" register). The SVG wordmark here uses pure-geometry strokes as a structural placeholder, not a finished typeface.</li>
+        <li>If going with 03 (Arch), develop the standalone arch mark in Figma at 5 sizes (16px favicon, 32px, 64px, 128px, 512px) with explicit stroke-width rules for each — the 2px stroke at 32px becomes 1px at 16px. This is non-trivial and needs a designer's eye, not just SVG math.</li>
+        <li>These SVGs are exploration-grade prototypes — sufficient for stakeholder alignment and Figma import, but the wordmark letterforms need a real type designer pass before production use.</li>
+        <li>The color system (warm dark, single gold accent) is already excellent and should not change. Do not let a printer or vendor talk you into CMYK gold conversions — specify Pantone 871 C (metallic) for print use.</li>
+      </ul>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -36,7 +36,7 @@ export const ROLE_MANIFEST: Record<string, RoleManifest> = {
   },
   admin: {
     defaultTab: 'stats',
-    tabs: ['stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat'],
+    tabs: ['stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat', 'features'],
     pageTitle: 'Операционный центр',
     pageSubtitle: 'Резиденции Замоскворечья',
   },

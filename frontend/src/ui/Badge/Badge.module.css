@@ -1,0 +1,71 @@
+/* Badge Component Styles */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  border-radius: var(--ds-radius-full);
+  white-space: nowrap;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+/* Size variants */
+.badge--sm {
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.badge--md {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+/* Color variants */
+.badge--pending {
+  background: var(--ds-warning-muted);
+  color: var(--ds-warning);
+}
+
+.badge--approved {
+  background: var(--ds-success-muted);
+  color: var(--ds-success);
+}
+
+.badge--rejected {
+  background: var(--ds-error-muted);
+  color: var(--ds-error);
+}
+
+.badge--completed {
+  background: var(--ds-info-muted);
+  color: var(--ds-info);
+}
+
+.badge--cancelled {
+  background: color-mix(in srgb, var(--ds-text-muted) 15%, transparent);
+  color: var(--ds-text-muted);
+}
+
+.badge--overdue {
+  background: var(--ds-error);
+  color: var(--ds-bg-base);
+}
+
+.badge--paid {
+  background: var(--ds-success);
+  color: var(--ds-bg-base);
+}
+
+.badge--info {
+  background: var(--ds-info-muted);
+  color: var(--ds-info);
+}
+
+.badge--warning {
+  background: var(--ds-warning-muted);
+  color: var(--ds-warning);
+}

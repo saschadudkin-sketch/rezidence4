@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Сканер пропуска — Охрана DomHub</title>
+  <style>
+    @import url('./tokens.css');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100dvh;
+      background: var(--s0);
+      color: var(--t1);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    body {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Topbar ──────────────────────────────────────────────────
+       Security interface: dark background, "Охрана · Сканер" label.
+       No navigation chrome — guards need clarity, not options.
+    ────────────────────────────────────────────────────────────── */
+    .topbar {
+      height: 60px;
+      padding: 0 var(--sp-6);
+      background: var(--s1);
+      border-bottom: 1px solid var(--b1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+
+    .back-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--b1);
+      background: transparent;
+      color: var(--t3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+    }
+
+    .back-btn:hover {
+      border-color: var(--b2);
+      color: var(--t1);
+      background: var(--s2);
+    }
+
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--t2);
+      letter-spacing: 0.02em;
+    }
+
+    .topbar-title span {
+      color: var(--t4);
+      font-weight: 400;
+      padding: 0 6px;
+    }
+
+    /* Online indicator — system live status.
+       Green dot: system is connected, not a decoration. */
+    .online-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ok-t);
+      letter-spacing: 0.05em;
+    }
+
+    .online-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ok-t);
+      /* Subtle pulse — system liveness signal, not decoration */
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .online-dot { animation: none; }
+    }
+
+    /* ─── Content ──────────────────────────────────────────────── */
+    .content {
+      flex: 1;
+      padding: var(--sp-8) var(--sp-6);
+      max-width: 520px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
+
+    /* ─── Status banner ───────────────────────────────────────────
+       The first thing a guard sees. Large, decisive.
+       Gold/green — NOT pure red/green (stays in the warm palette).
+       "Valid" uses ok-t (green-warm) with ok-bg.
+    ────────────────────────────────────────────────────────────── */
+    .status-banner {
+      background: var(--ok-bg);
+      border: 1px solid rgba(111, 160, 126, 0.28);
+      border-radius: var(--r-xl);
+      padding: var(--sp-7) var(--sp-8);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-5);
+    }
+
+    .status-check-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(111, 160, 126, 0.18);
+      border: 1.5px solid rgba(111, 160, 126, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ok-t);
+      flex-shrink: 0;
+    }
+
+    .status-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .status-headline {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ok-t);
+      letter-spacing: -0.01em;
+    }
+
+    .status-sub {
+      font-size: 13px;
+      color: var(--t3);
+    }
+
+    /* ─── Guest card ──────────────────────────────────────────────
+       Central block — all guest identity info at a glance.
+       Avatar with gold ring = premium pass treatment.
+    ────────────────────────────────────────────────────────────── */
+    .guest-card {
+      background: var(--s2);
+      border: 1px solid var(--b1);
+      border-radius: var(--r-xl);
+      padding: var(--sp-8) var(--sp-7);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-7);
+    }
+
+    .guest-identity {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-6);
+    }
+
+    .guest-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--s3);
+      /* Gold ring on avatar — signifies the pass is valid/premium */
+      border: 2px solid var(--g2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--g2);
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 4px rgba(201, 169, 110, 0.1);
+    }
+
+    .guest-name-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .guest-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--t1);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .guest-pass-type {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--t4);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* Detail rows inside guest card */
+    .guest-details {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) 0;
+      border-bottom: 1px solid var(--b1);
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--t4);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .detail-label svg { flex-shrink: 0; }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--t1);
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    /* ─── Action buttons ──────────────────────────────────────────
+       Two big stacked buttons. Design principle: the guard acts under
+       pressure — buttons must be large, distinct, no ambiguity.
+       - Admit: gold background (positive action = value signal)
+       - Deny: ghost with danger border (destructive, but not alarming)
+       Vertical stacking ensures no mis-taps on mobile/tablet.
+    ────────────────────────────────────────────────────────────── */
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .btn-admit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 58px;
+      border-radius: var(--r-lg);
+      border: none;
+      background: var(--g2);
+      color: var(--s0);
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background var(--dur-base) var(--ease),
+                  box-shadow var(--dur-base) var(--ease),
+                  transform var(--dur-base) var(--ease);
+    }
+
+    .btn-admit:hover {
+      background: var(--g3);
+      box-shadow: 0 6px 24px rgba(201, 169, 110, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-admit:active {
+      background: var(--g1);
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .btn-deny {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 58px;
+      border-radius: var(--r-lg);
+      border: 1.5px solid rgba(212, 112, 112, 0.4);
+      background: transparent;
+      color: var(--err-t);
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: border-color var(--dur-base) var(--ease),
+                  background var(--dur-base) var(--ease),
+                  transform var(--dur-base) var(--ease);
+    }
+
+    .btn-deny:hover {
+      border-color: var(--err-t);
+      background: rgba(212, 112, 112, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-deny:active {
+      transform: translateY(0);
+    }
+
+    /* ─── History accordion ───────────────────────────────────────
+       Secondary info, collapsed. Guards need the primary decision
+       fast — history is for verification, not workflow.
+    ────────────────────────────────────────────────────────────── */
+    .history-accordion {
+      border: 1px solid var(--b1);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+
+    .history-toggle { display: none; }
+
+    .history-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-5);
+      background: var(--s2);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--t3);
+      user-select: none;
+      transition: background var(--dur-fast) var(--ease);
+    }
+
+    .history-label:hover { background: var(--s3); }
+
+    .history-chevron {
+      color: var(--t4);
+      transition: transform var(--dur-base) var(--ease);
+      flex-shrink: 0;
+    }
+
+    .history-toggle:checked ~ .history-label .history-chevron {
+      transform: rotate(180deg);
+    }
+
+    .history-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height var(--dur-slow) var(--ease);
+    }
+
+    .history-toggle:checked ~ .history-body {
+      max-height: 300px;
+    }
+
+    .history-list {
+      list-style: none;
+      padding: var(--sp-3) var(--sp-5) var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      background: var(--s1);
+      border-top: 1px solid var(--b1);
+    }
+
+    .history-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-4);
+    }
+
+    .history-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--s4);
+      border: 1.5px solid var(--b2);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .history-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .history-event {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--t2);
+    }
+
+    .history-time {
+      font-size: 11px;
+      color: var(--t4);
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Topbar: role context + back + live status -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" aria-label="Назад">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 2L5 7l4 5"/>
+        </svg>
+      </button>
+      <div class="topbar-title">
+        Охрана<span>·</span>Сканер
+      </div>
+    </div>
+    <!-- Online indicator — critical: guard needs to know system is live -->
+    <div class="online-badge" aria-label="Система в сети">
+      <span class="online-dot" aria-hidden="true"></span>
+      Онлайн
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- Status banner — dominant visual at top -->
+    <!-- Design: ok-t green, not pure #00ff00. Warm palette preserved. -->
+    <div class="status-banner" role="alert" aria-live="polite">
+      <div class="status-check-icon" aria-hidden="true">
+        <!-- Checkmark icon: bold, unambiguous -->
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 13l5.5 6L21 7"/>
+        </svg>
+      </div>
+      <div class="status-text">
+        <div class="status-headline">Пропуск действителен</div>
+        <div class="status-sub">Гость прошёл проверку · 15 апреля 2026</div>
+      </div>
+    </div>
+
+    <!-- Guest identity card -->
+    <div class="guest-card" aria-label="Данные гостя">
+
+      <div class="guest-identity">
+        <!-- Avatar with gold ring — pass is valid, gold ring = approval -->
+        <div class="guest-avatar" aria-hidden="true">АП</div>
+        <div class="guest-name-block">
+          <div class="guest-name">Алексей Михайлович Петров</div>
+          <div class="guest-pass-type">Разовый гостевой пропуск</div>
+        </div>
+      </div>
+
+      <div class="guest-details">
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2C5.2 2 3 4.2 3 7c0 4 5 9 5 9s5-5 5-9c0-2.8-2.2-5-5-5z"/>
+              <circle cx="8" cy="7" r="2"/>
+            </svg>
+            Направляется к
+          </div>
+          <div class="detail-value">Квартира 42 · Подъезд 2</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="6" r="3"/>
+              <path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/>
+            </svg>
+            Приглашён резидентом
+          </div>
+          <div class="detail-value">Мария Иванова</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="8" r="6.5"/>
+              <path d="M8 5v3.5l2.5 1.5"/>
+            </svg>
+            Действует
+          </div>
+          <div class="detail-value">15 апреля 2026, до 23:59</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="12" height="10" rx="2"/>
+              <path d="M5 2v4M11 2v4M2 8h12"/>
+            </svg>
+            Использований
+          </div>
+          <!-- "Одноразовый — ещё не использовался" — key safety info -->
+          <div class="detail-value" style="color: var(--ok-t);">0 из 1 (не использован)</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Action buttons — admit (gold) / deny (danger ghost) -->
+    <!-- Large touch targets (58px height) for tablet/mobile use under pressure -->
+    <div class="action-buttons">
+      <button class="btn-admit" type="button" aria-label="Пропустить гостя">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 10l4.5 5L16 5"/>
+        </svg>
+        Пропустить
+      </button>
+
+      <button class="btn-deny" type="button" aria-label="Отклонить пропуск">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 5l10 10M15 5L5 15"/>
+        </svg>
+        Отклонить
+      </button>
+    </div>
+
+    <!-- History accordion — secondary, collapsed -->
+    <div class="history-accordion">
+      <input type="checkbox" class="history-toggle" id="history-toggle" aria-controls="history-body">
+      <label class="history-label" for="history-toggle" aria-expanded="false">
+        История пропуска
+        <svg class="history-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 5l4 4 4-4"/>
+        </svg>
+      </label>
+      <div class="history-body" id="history-body" role="region" aria-labelledby="history-toggle">
+        <ul class="history-list">
+          <li class="history-item">
+            <span class="history-dot"></span>
+            <div class="history-item-info">
+              <span class="history-event">Пропуск создан резидентом</span>
+              <span class="history-time">15 апреля 2026 · 14:12</span>
+            </div>
+          </li>
+          <li class="history-item">
+            <span class="history-dot"></span>
+            <div class="history-item-info">
+              <span class="history-event">Автоматически одобрен системой</span>
+              <span class="history-time">15 апреля 2026 · 14:12</span>
+            </div>
+          </li>
+          <li class="history-item">
+            <span class="history-dot"></span>
+            <div class="history-item-info">
+              <span class="history-event">QR-код открыт гостем</span>
+              <span class="history-time">15 апреля 2026 · 19:58</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+</body>
+</html>

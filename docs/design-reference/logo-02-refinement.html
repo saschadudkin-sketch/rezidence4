@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DomHub Logo 02 — Refinement Comparison</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--s0);
+      color: var(--t1);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 48px 40px 80px;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--t2);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--t4);
+      margin-bottom: 48px;
+    }
+
+    /* ─── Section headers ─────────────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--t4);
+      border-bottom: 1px solid var(--b1);
+      padding-bottom: 8px;
+      margin-bottom: 24px;
+    }
+    section { margin-bottom: 64px; }
+
+    /* ─── Logo cells ──────────────────────────────────────────── */
+    .logo-row {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+    .logo-cell {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 24px;
+      min-height: 96px;
+    }
+    .logo-cell.dark  { background: var(--s0); border: 1px solid var(--b1); }
+    .logo-cell.light { background: #eee7dc; border: 1px solid rgba(17,16,14,0.10); }
+    .logo-cell svg { display: block; }
+
+    /* ─── Mark grid (3 sizes × 2 backgrounds) ──────────────────── */
+    .mark-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 2px;
+      margin-bottom: 24px;
+    }
+    .mark-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 24px;
+    }
+    .mark-cell.dark  { background: var(--s0); border: 1px solid var(--b1); }
+    .mark-cell.light { background: #eee7dc; border: 1px solid rgba(17,16,14,0.10); }
+    .mark-cell .size-label {
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+    .mark-cell.dark  .size-label { color: var(--t4); }
+    .mark-cell.light .size-label { color: rgba(17,16,14,0.4); }
+
+    /* SVG inversion for light backgrounds */
+    .light-invert svg [fill="#eee7dc"] { fill: #11100e; }
+    .light-invert svg [stroke="#eee7dc"] { stroke: #11100e; }
+
+    /* ─── Variant header ─────────────────────────────────────── */
+    .variant-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+      margin-top: 32px;
+    }
+    .variant-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--t1);
+      letter-spacing: 0.04em;
+    }
+    .variant-desc {
+      font-size: 12px;
+      color: var(--t3);
+    }
+
+    /* ─── Old vs new row ────────────────────────────────────── */
+    .compare-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      margin-bottom: 32px;
+    }
+    .compare-cell {
+      padding: 32px 28px;
+      display: flex;
+      align-items: center;
+    }
+    .compare-cell.old { background: var(--s1); border: 1px solid var(--b1); }
+    .compare-cell.new { background: var(--s0); border: 1px solid var(--b2); }
+    .compare-tag {
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--t4);
+      margin-bottom: 16px;
+    }
+
+    /* ─── Changes list ─────────────────────────────────────── */
+    .changes-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .changes-list li {
+      display: grid;
+      grid-template-columns: 20px 1fr;
+      gap: 8px;
+      color: var(--t2);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .changes-list li .num {
+      color: var(--g2);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ─── Recommendation box ───────────────────────────────── */
+    .recommendation {
+      background: var(--g-bg);
+      border: 1px solid var(--b2);
+      border-radius: var(--r-md);
+      padding: 20px 24px;
+      margin-top: 40px;
+    }
+    .recommendation-label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--g2);
+      margin-bottom: 10px;
+    }
+    .recommendation p {
+      font-size: 12.5px;
+      color: var(--t2);
+      line-height: 1.6;
+    }
+    .recommendation p + p { margin-top: 8px; }
+    strong { color: var(--t1); font-weight: 600; }
+
+    /* ─── Warning note ─────────────────────────────────────── */
+    .note {
+      font-size: 11.5px;
+      color: var(--t3);
+      border-left: 2px solid var(--b2);
+      padding-left: 12px;
+      margin-top: 16px;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>DomHub — Logo 02 Refinement</h1>
+  <p class="subtitle">Wordmark + Monogram — three mark variants (A, B, C) vs original 02</p>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: Reference — old variant 02                     -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">Reference — Original 02 (unchanged)</p>
+    <div class="compare-cell old" style="flex-direction:column; align-items:flex-start; gap:0; padding:24px 28px;">
+      <p class="compare-tag">Original 02 — as shipped</p>
+      <img src="logos/02-wordmark-mono-mark.svg" alt="Original 02" style="height:72px; display:block;">
+    </div>
+    <p class="note">Ellipse «o», uniform 2.2px round-cap strokes, hairline separator between dom/hub, mark contains two separate letterforms with no typographic relationship to each other.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: Variant A — single «d» mark                    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">Variant A — Mark: Single «d» with open bowl + gold keystone dot</p>
+
+    <div class="variant-header">
+      <span class="variant-label">02A Full Lockup</span>
+      <span class="variant-desc">Dark background (production default)</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell dark">
+        <img src="logos/02a-wordmark-refined.svg" alt="02A dark" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">02A Full Lockup</span>
+      <span class="variant-desc">Light background (inverted)</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.9);">
+        <img src="logos/02a-wordmark-refined.svg" alt="02A light" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">Mark A — Icon only</span>
+      <span class="variant-desc">3 sizes · dark + light</span>
+    </div>
+
+    <div class="mark-grid">
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 64" width="64" height="64">
+        <span class="size-label">64px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 32" width="32" height="32">
+        <span class="size-label">32px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 16" width="16" height="16">
+        <span class="size-label">16px</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 64 light" width="64" height="64">
+        <span class="size-label">64px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 32 light" width="32" height="32">
+        <span class="size-label">32px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-a.svg" alt="Mark A 16 light" width="16" height="16">
+        <span class="size-label">16px light</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 3: Variant B — dh ligature                        -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">Variant B — Mark: «dh» Ligature sharing one stem</p>
+
+    <div class="variant-header">
+      <span class="variant-label">02B Full Lockup</span>
+      <span class="variant-desc">Dark background</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell dark">
+        <img src="logos/02b-wordmark-refined.svg" alt="02B dark" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">02B Full Lockup</span>
+      <span class="variant-desc">Light background (inverted)</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.9);">
+        <img src="logos/02b-wordmark-refined.svg" alt="02B light" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">Mark B — Icon only</span>
+      <span class="variant-desc">3 sizes · dark + light</span>
+    </div>
+
+    <div class="mark-grid">
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 64" width="64" height="64">
+        <span class="size-label">64px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 32" width="32" height="32">
+        <span class="size-label">32px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 16" width="16" height="16">
+        <span class="size-label">16px</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 64 light" width="64" height="64">
+        <span class="size-label">64px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 32 light" width="32" height="32">
+        <span class="size-label">32px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-b.svg" alt="Mark B 16 light" width="16" height="16">
+        <span class="size-label">16px light</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 4: Variant C — geometric arch symbol              -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">Variant C — Mark: Geometric arch knockout symbol</p>
+
+    <div class="variant-header">
+      <span class="variant-label">02C Full Lockup</span>
+      <span class="variant-desc">Dark background</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell dark">
+        <img src="logos/02c-wordmark-refined.svg" alt="02C dark" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">02C Full Lockup</span>
+      <span class="variant-desc">Light background (inverted)</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.9);">
+        <img src="logos/02c-wordmark-refined.svg" alt="02C light" style="height:72px;">
+      </div>
+    </div>
+
+    <div class="variant-header">
+      <span class="variant-label">Mark C — Icon only</span>
+      <span class="variant-desc">3 sizes · dark + light</span>
+    </div>
+
+    <div class="mark-grid">
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 64" width="64" height="64">
+        <span class="size-label">64px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 32" width="32" height="32">
+        <span class="size-label">32px</span>
+      </div>
+      <div class="mark-cell dark">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 16" width="16" height="16">
+        <span class="size-label">16px</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 64 light" width="64" height="64">
+        <span class="size-label">64px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 32 light" width="32" height="32">
+        <span class="size-label">32px light</span>
+      </div>
+      <div class="mark-cell light" style="filter: invert(1) hue-rotate(180deg) saturate(0.85);">
+        <img src="logos/02-mark-only-c.svg" alt="Mark C 16 light" width="16" height="16">
+        <span class="size-label">16px light</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 5: What changed                                    -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">What changed vs original 02</p>
+    <ul class="changes-list">
+      <li>
+        <span class="num">1</span>
+        <span><strong>«o» rebuilt from scratch.</strong> No longer an <code>&lt;ellipse&gt;</code> with equal rx/ry. Now a 4-segment cubic bezier path with aspect ratio 0.864 (width 19px, height 22px). Vertical sides carry the optical weight; the path geometry implies stroke modulation without requiring a variable-width stroke engine.</span>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <span><strong>«m» and «h» are distinct forms.</strong> «m» is 23px wide (two arches, three stems). «h» is 16px wide (one arch, two legs). In the original both were built from identical 16px arch primitives — now they have proper proportional contrast.</span>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <span><strong>Optical kerning applied to every pair.</strong> «om» tightened by 1px. «mh» carries +6px optical pause (replaces the hairline separator). «hu» tightened 1px. All other pairs left at 4–5px. The word now reads as two units — «dom» and «hub» — through rhythm, not a visual divider.</span>
+      </li>
+      <li>
+        <span class="num">4</span>
+        <span><strong>Hairline separator removed.</strong> The SVG rect at line 43 of the original is gone. The «mh» optical pause does the work instead — reads as a negative kerning cue, not a typographic crutch.</span>
+      </li>
+      <li>
+        <span class="num">5</span>
+        <span><strong>Monogram rebuilt in three distinct directions.</strong> A = single «d» with open bowl and gold keystone dot. B = true «dh» ligature, shared stem. C = geometric arch knockout with gold hairline. All three avoid the original's «two primitives jammed into a box» construction.</span>
+      </li>
+      <li>
+        <span class="num">6</span>
+        <span><strong>Stroke modulation introduced.</strong> Vertical stems use <code>stroke-width="2.4"</code>. Curves, bowls, and arches use <code>stroke-width="2.0"</code>. This is the minimum meaningful modulation achievable without a variable-width stroke engine — gives the wordmark a «designed» rather than «drawn» feel.</span>
+      </li>
+      <li>
+        <span class="num">7</span>
+        <span><strong>Ascender ratio corrected.</strong> Ascenders («d», «h», «b») top at y=11. X-height top at y=23. Ratio 1.39:1 vs original 1.68:1. Letters no longer appear «long-legged» relative to the lowercase counters.</span>
+      </li>
+      <li>
+        <span class="num">8</span>
+        <span><strong>Terminals changed to butt cap.</strong> <code>stroke-linecap="butt"</code> throughout. Round caps (the original's default) read as informal — Nunito/Quicksand territory. Butt caps align with Inter, Geist, ABC Whyte — the reference point for professional tool interfaces.</span>
+      </li>
+      <li>
+        <span class="num">9</span>
+        <span><strong>Gold used once, not never.</strong> Mark A has a single 1.8px gold dot at the bowl's right apex — the weight of the form at the most optically loaded point. Mark C has a 0.75px gold hairline at the inner arch crown. Neither fills letterforms — both use gold as a structural accent only.</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- SECTION 6: Recommendation                                  -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section>
+    <p class="section-label">Recommendation</p>
+
+    <div class="recommendation">
+      <p class="recommendation-label">Verdict: Mark C wins, with conditions</p>
+
+      <p><strong>Mark C (geometric arch)</strong> is the strongest mark of the three for one reason: it works as a <em>symbol</em>, not as a legibility exercise. At 16px, marks A and B both collapse — the «d» bowl becomes indistinguishable from a circle with a line, and the «dh» ligature becomes three vertical strokes. Mark C at 16px is a recognisable arch shape with a void. It telegraphs «access», «opening», «residential gate» without needing to be parsed as letterforms.</p>
+
+      <p><strong>Mark B (ligature)</strong> is structurally the most elegant and is the right call if the mark will never be used below 24px. The shared-stem concept is genuinely compelling — it earns its construction. But at favicon sizes it fails legibility completely.</p>
+
+      <p><strong>Mark A (single d)</strong> is the safest bet: legible at all sizes, the open-bowl notch reads at 16px as an intentional form rather than a rendering artifact. The gold dot is the most natural use of the accent color in the system. However, a lone «d» in a square reads as a generic app icon and doesn't carry the architectural resonance of the platform.</p>
+
+      <p><strong>The honest split:</strong> Use <strong>Mark C</strong> for all icon/favicon contexts (16–64px). Use <strong>Mark B</strong> as the full lockup companion mark when size allows (32px+). This is not unusual — many systems have a primary icon mark and a companion lockup mark that differ structurally.</p>
+
+      <p><strong>What this wordmark still needs before production:</strong> The cubic bezier curves on the «o» and the bowl forms of «d» and «b» are hand-calculated and will have subtle asymmetries when rendered at display sizes above 48px on high-DPI screens. A type designer pass — or even a single session in Figma with the pen tool using proper on-curve/off-curve control — would tighten these. The letter spacing logic is correct. The proportions are correct. The curves themselves need one more iteration.</p>
+    </div>
+  </section>
+
+</body>
+</html>

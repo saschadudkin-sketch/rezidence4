@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none" role="img" aria-labelledby="logo01-title">
+  <title id="logo01-title">DomHub — Custom Wordmark</title>
+
+  <!--
+    Custom wordmark "domhub"
+    Weight ~450, lowercase, warm-white on dark.
+    Signature detail: the crossbar of "h" extends left and connects
+    to the stem of the preceding "m" via a hairline — creating
+    a subtle ligature that ties the word together without being
+    decorative for decoration's sake.
+    The two "o" forms are slightly condensed (width ~0.88x) to
+    create optical consistency with the vertical stems of d, h, b.
+  -->
+
+  <!-- d -->
+  <!-- stem -->
+  <rect x="18" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <!-- bowl — open circle, right side only, forms the "d" -->
+  <path d="M20.1 21 C20.1 21 36 20 36 36 C36 52 20.1 51 20.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+  <!-- o (condensed) -->
+  <ellipse cx="52" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+
+  <!-- m -->
+  <!-- left stem -->
+  <rect x="68" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+  <!-- left arch peak -->
+  <path d="M70.1 20.5 C70.1 20.5 78 14 84 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- middle stem -->
+  <rect x="83.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+  <!-- right arch peak -->
+  <path d="M86.1 20.5 C86.1 20.5 94 14 100 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- right stem -->
+  <rect x="99.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+
+  <!-- hairline separator — the characteristic detail -->
+  <rect x="108" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+
+  <!-- h -->
+  <!-- stem -->
+  <rect x="120" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <!-- arch — the crossbar extends left to create the ligature hint -->
+  <path d="M122.1 30 C122.1 30 130 22 138 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- right leg -->
+  <rect x="137.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+
+  <!-- u -->
+  <!-- left stem -->
+  <rect x="148" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+  <!-- bowl -->
+  <path d="M150.1 42.5 C150.1 42.5 150 52 160 52 C170 52 170 42.5 170 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- right stem -->
+  <rect x="169.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+
+  <!-- b -->
+  <!-- stem -->
+  <rect x="180" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <!-- upper bowl — open circle right side -->
+  <path d="M182.1 21 C182.1 21 198 20 198 36 C198 52 182.1 51 182.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+</svg>

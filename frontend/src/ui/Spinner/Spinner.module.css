@@ -1,0 +1,70 @@
+/* Spinner Component Styles */
+
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  animation: spin 1s linear infinite;
+}
+
+.spinner--sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.spinner--md {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.spinner--lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+.spinner--primary {
+  border-top-color: var(--ds-accent);
+  border-right-color: var(--ds-accent-muted);
+}
+
+.spinner--secondary {
+  border-top-color: var(--ds-text-muted);
+  border-right-color: var(--ds-border);
+}
+
+.spinner--inverse {
+  border-top-color: var(--ds-bg-base);
+  border-right-color: color-mix(in srgb, var(--ds-bg-base) 30%, transparent);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-top-color: var(--ds-accent);
+  }
+}

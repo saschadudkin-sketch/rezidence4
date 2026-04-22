@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <title>DomHub — O lockmark, 32px favicon</title>
+
+  <!--
+    DomHub favicon 32px — lockmark: letter O with oculus detail.
+    Rationale: at 32px the full DOMHUB wordmark collapses to illegible stems.
+    The O with its gold ring+impost is architecturally unique and reads clearly
+    at this size. The circle-with-horizontal-division is the brand gesture.
+
+    Coordinate space: 32×32. O centered at (16,16).
+    Outer oval: 2px thick at sides, 0.8px at top/bottom (Didone contrast preserved).
+    Oculus ring: r=4.2, impost at y=16.
+    Dark background for favicon context.
+  -->
+
+  <!-- Background — dark square, matches app context -->
+  <rect width="32" height="32" rx="4" fill="#11100e"/>
+
+  <!-- O outer oval — warm white -->
+  <path d="M 16 3
+           C 22.6 3, 28 9, 28 16
+           C 28 23, 22.6 29, 16 29
+           C 9.4 29, 4 23, 4 16
+           C 4 9, 9.4 3, 16 3 Z"
+        fill="#eee7dc"/>
+
+  <!-- O counter — dark punch-out -->
+  <path d="M 16 6.5
+           C 20.7 6.5, 24.5 10.8, 24.5 16
+           C 24.5 21.2, 20.7 25.5, 16 25.5
+           C 11.3 25.5, 7.5 21.2, 7.5 16
+           C 7.5 10.8, 11.3 6.5, 16 6.5 Z"
+        fill="#11100e"/>
+
+  <!-- Oculus ring — gold, r=4.2 (35% of counter half-width ~8.5) -->
+  <path d="M 16 11.8
+           C 18.3 11.8, 20.2 13.7, 20.2 16
+           C 20.2 18.3, 18.3 20.2, 16 20.2
+           C 13.7 20.2, 11.8 18.3, 11.8 16
+           C 11.8 13.7, 13.7 11.8, 16 11.8 Z
+           M 16 12.6
+           C 14.1 12.6, 12.6 14.1, 12.6 16
+           C 12.6 17.9, 14.1 19.4, 16 19.4
+           C 17.9 19.4, 19.4 17.9, 19.4 16
+           C 19.4 14.1, 17.9 12.6, 16 12.6 Z"
+        fill="#c9a96e"/>
+
+  <!-- Oculus impost — gold horizontal, length = ring diameter = 8.4px -->
+  <path d="M 11.8 15.6 L 20.2 15.6 L 20.2 16.4 L 11.8 16.4 Z"
+        fill="#c9a96e"/>
+
+</svg>

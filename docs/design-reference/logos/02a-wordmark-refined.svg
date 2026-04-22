@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 282 72" fill="none" role="img" aria-labelledby="logo02a-title">
+  <title id="logo02a-title">DomHub — Wordmark with Mark A (single d)</title>
+
+  <!--
+    Mark A: Single "d" letterform in 56×56 rounded square.
+    The bowl of the "d" is left slightly open at the baseline —
+    a hairline notch that reads as a keyhole/arch, referencing
+    the residential access theme without being literal.
+    Right post of the bowl carries a tiny gold keystone dot.
+  -->
+
+  <!-- ── MARK A: square container ── -->
+  <rect x="0" y="8" width="56" height="56" rx="10" fill="#eee7dc"/>
+
+  <!--
+    "d" in mark: stem left, open bowl right.
+    Stem: x=14–16.4, top y=15, base y=51
+    Bowl: a near-circle with flat notch at baseline (y=50–51 gap)
+    The bowl's right side curves from y=18 back around, intentionally
+    not closing at the base — leaving a 2px gap that reads as an opening.
+  -->
+  <!-- d stem in mark -->
+  <line x1="15.2" y1="15" x2="15.2" y2="50" stroke="#11100e" stroke-width="2.4" stroke-linecap="butt"/>
+
+  <!--
+    Bowl: M 16.4,22 C 16.4,22 30,20.5 30,33.5 C 30,46 17.5,47.5 16.4,47
+    Open notch: path ends at y=47, leaving gap from y=47 to y=50 (the "door")
+  -->
+  <path d="M16.4,22 C16.4,20.5 22,18 28.5,22 C34,25.5 34,42.5 28.5,46 C23,49.5 16.4,48 16.4,47"
+        stroke="#11100e" stroke-width="2.2" stroke-linecap="butt" fill="none"/>
+
+  <!-- Gold keystone dot — single pixel of warmth at the bowl's right apex -->
+  <circle cx="33.5" cy="33.5" r="1.8" fill="#c9a96e"/>
+
+  <!-- ── WORDMARK ── -->
+  <!--
+    Coordinate system:
+    Baseline:     y = 54
+    X-height top: y = 23  (x-height = 31px)
+    Ascender top: y = 11  (ascender above x-height = 12px; ratio 1.39:1)
+
+    Stroke weights:
+    Vertical stems: 2.4px, stroke-linecap="butt"
+    Curves / bowls: 2.0px path stroke
+
+    Kerning (optical, not metric):
+    d  → gap 5 →  o  → gap 4 →  m  → gap 6 →  h  → gap 4 →  u  → gap 4 →  b
+    [  d at 72  ][  o at 96  ][ m at 120 ][ h at 150][  u at 167][  b at 187 ]
+  -->
+
+  <!-- ── d ── stem + open bowl -->
+  <!-- Stem: thin vertical, x=73.2, from ascender top to baseline -->
+  <line x1="73.2" y1="11" x2="73.2" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <!--
+    Bowl: starts at x=73.2 at y=23 (x-height top), curves right to ~x=90,
+    rounds at x=91.5 y=38.5 (center), returns to x=73.2 at y=53.
+    Right apex gets a slightly thinner path (inherent in the cubic geometry).
+  -->
+  <path d="M73.2,23 C73.2,21.5 79,20 85.5,23.5 C92,27 92,50 85.5,53.5 C79,57 73.2,55.5 73.2,54"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+
+  <!-- ── o ── true 4-bezier path, NOT an ellipse -->
+  <!--
+    Center: 105, 38.5  Width: 19px (x: 95.5–114.5)  Height: 22px (y: 22.5–54.5 — cropped to 23–54)
+    Aspect: 19/22 = 0.864. Vertical sides are the "heavy" axis (curve geometry is wider there).
+    The path is drawn with 4 bezier segments. Thick sides implied by longer tangent arms on verticals.
+  -->
+  <path d="M105,23 C110.8,23 114.5,28.5 114.5,38.5 C114.5,48.5 110.8,54 105,54
+           C99.2,54 95.5,48.5 95.5,38.5 C95.5,28.5 99.2,23 105,23 Z"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+
+  <!-- ── m ── two arches, three stems. Width ~24px total -->
+  <!--
+    Stem 1: x=121.2  Stem 2: x=131.4  Stem 3: x=142.2
+    Each arch top is at y=23 (x-height top).
+    Arch 1 crown: x=126.3, y=19  Arch 2 crown: x=136.8, y=19
+    (arches slightly above x-height = round entry, not square)
+  -->
+  <line x1="121.2" y1="23" x2="121.2" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <path d="M121.2,25 C121.2,23 123.5,19.5 126.3,19.5 C129.1,19.5 131.4,23 131.4,25"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+  <line x1="131.4" y1="25" x2="131.4" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <path d="M131.4,25 C131.4,23 133.7,19.5 136.8,19.5 C139.9,19.5 142.2,23 142.2,25"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+  <line x1="142.2" y1="25" x2="142.2" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+
+  <!-- ── h ── ascender stem + one arch. Width ~16px -->
+  <!--
+    Optical pause from m: 6px gap (m right edge 144.6 + 6 = 150.6 start)
+    Stem: x=150.6, top y=11 (ascender), base y=54
+    Arch crown: x=157.6, y=22 (at x-height)
+    Right leg: x=164.6, y=26 down to y=54
+  -->
+  <line x1="150.6" y1="11" x2="150.6" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <path d="M150.6,26 C150.6,24 153,21 157.6,21 C162.2,21 164.6,24 164.6,26"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+  <line x1="164.6" y1="26" x2="164.6" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+
+  <!-- ── u ── two stems + bottom bowl. Width ~18px -->
+  <!--
+    Gap from h: 4px. u starts at x=170.6
+    Left stem: x=170.6, y=23–42  Right stem: x=186.6, y=23–54
+    Bowl connects left stem base y=42 to right stem at y=42.
+  -->
+  <line x1="170.6" y1="23" x2="170.6" y2="44" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <path d="M170.6,44 C170.6,55 173.5,56.5 178.6,56.5 C183.7,56.5 186.6,55 186.6,44"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+  <line x1="186.6" y1="23" x2="186.6" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+
+  <!-- ── b ── ascender stem + bowl. Width ~18px -->
+  <!--
+    Gap from u: 4px. b starts at x=192.6
+    Stem: x=192.6, y=11–54
+    Bowl: y=23 to y=54, right edge ~x=210.6
+  -->
+  <line x1="192.6" y1="11" x2="192.6" y2="54" stroke="#eee7dc" stroke-width="2.4" stroke-linecap="butt"/>
+  <path d="M192.6,23 C192.6,21.5 198.4,20 204.9,23.5 C211.4,27 211.4,50 204.9,53.5 C198.4,57 192.6,55.5 192.6,54"
+        stroke="#eee7dc" stroke-width="2.0" stroke-linecap="butt" fill="none"/>
+
+</svg>

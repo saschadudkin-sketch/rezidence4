@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 90" fill="none">
+  <title>DomHub — Variant A, Didone Serif Wordmark</title>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       VARIANT A — Didone serif wordmark
+       Stroke-contrast ratio ~3.5:1 (thin strokes ~1.4px, thick ~5px)
+       Reference register: Didot, Vogue masthead, The New Yorker title
+       Palette: deep ink #1a1714 on transparent (works on cream #f5ede0)
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <g fill="#1a1714">
+
+    <!-- ── D ──────────────────────────────────────────────────────
+         Thick left stem + bracketed serifs top/bottom.
+         Bowl = right-side curve with genuine shoulder modulation:
+         thickest at mid-right, hairline at top/bottom joins.       -->
+    <!-- Left stem (thick vertical) -->
+    <path d="M 14 14 L 14 72 L 19.5 72 L 19.5 14 Z"/>
+    <!-- Top serif bracket left -->
+    <path d="M 9 14 C 9 14 11.5 14.8 14 14 L 19.5 14 C 21.5 14.8 23 14 23 14 L 23 12.4 C 23 12.4 20 12.8 16.7 12.8 C 13.4 12.8 10 12.4 10 12.4 Z"/>
+    <!-- Bottom serif bracket left -->
+    <path d="M 9 72 C 9 72 11.5 71.2 14 72 L 19.5 72 C 21.5 71.2 23 72 23 72 L 23 73.6 C 23 73.6 20 73.2 16.7 73.2 C 13.4 73.2 10 73.6 10 73.6 Z"/>
+    <!-- Bowl: Didone — thin at top/bottom, thick at equator -->
+    <!-- Outer bowl curve -->
+    <path d="M 19.5 14 C 34 14 50 17 58 25 C 66.5 33.5 66.5 52.5 58 61 C 50 69 34 72 19.5 72 Z"
+          fill="#1a1714"/>
+    <!-- Inner bowl cutout (counter) — offset inward -->
+    <path d="M 19.5 20.5 C 30.5 20.5 44 23 50.5 29.5 C 57.5 36.5 57.5 49.5 50.5 56.5 C 44 63 30.5 65.5 19.5 65.5 Z"
+          fill="#f5ede0"/>
+
+    <!-- ── o ──────────────────────────────────────────────────────
+         Didone 'o': axis tilted ~15°, thin at top-left/bottom-right
+         shoulder, thick at left/right optical equator.              -->
+    <path d="M 99 43 C 99 29 108 20 120.5 20 C 133 20 142 29 142 43 C 142 57 133 66 120.5 66 C 108 66 99 57 99 43 Z"
+          fill="#1a1714"/>
+    <!-- Inner counter with stress axis -->
+    <path d="M 103 43 C 103 32 110.5 24 120.5 24 C 130.5 24 138 32 138 43 C 138 54 130.5 62 120.5 62 C 110.5 62 103 54 103 43 Z"
+          fill="#f5ede0"/>
+    <!-- Didone thick stroke — left side organic bulge -->
+    <path d="M 103 43 C 103 38 106 34 110 32 C 106 35.5 104.5 39 104.5 43 C 104.5 47 106 50.5 110 54 C 106 52 103 48 103 43 Z"
+          fill="#1a1714"/>
+
+    <!-- ── m ──────────────────────────────────────────────────────
+         Three-arch structure. Left stem thick, arch hairlines,
+         inner stems slightly thinner than outer.                    -->
+    <!-- Left outer stem -->
+    <path d="M 152 21 L 152 65 L 157.2 65 L 157.2 21 Z"/>
+    <!-- Left stem serifs -->
+    <path d="M 148 21 C 148 21 150 21.6 152 21 L 157.2 21 C 159 21.6 160.5 21 160.5 21 L 160.5 19.4 C 160.5 19.4 158.5 19.8 154.6 19.8 C 150.7 19.8 148 19.4 148 19.4 Z"/>
+    <path d="M 148 65 C 148 65 150 64.4 152 65 L 157.2 65 C 159 64.4 160.5 65 160.5 65 L 160.5 66.6 C 160.5 66.6 158.5 66.2 154.6 66.2 C 150.7 66.2 148 66.6 148 66.6 Z"/>
+    <!-- First arch (hairline at apex) -->
+    <path d="M 157.2 21 C 157.2 21 162 15.5 170 15.5 C 178 15.5 182.8 21 182.8 21 L 182.8 65 L 177.6 65 L 177.6 25 C 177.6 25 175 21.5 170 21.5 C 165 21.5 162.4 25 162.4 25 L 162.4 65 L 157.2 65 Z"/>
+    <!-- Middle stem serifs -->
+    <path d="M 177.6 65 C 177.6 65 179.5 64.4 182.8 65 L 182.8 66.6 C 182.8 66.6 181 66.2 177.6 66.2 Z"/>
+    <!-- Second arch -->
+    <path d="M 182.8 21 C 182.8 21 187.6 15.5 195.6 15.5 C 203.6 15.5 208.4 21 208.4 21 L 208.4 65 L 203.2 65 L 203.2 25 C 203.2 25 200.6 21.5 195.6 21.5 C 190.6 21.5 188 25 188 25 L 188 65 L 182.8 65 Z"/>
+    <!-- Right outer stem serifs -->
+    <path d="M 203.2 21 L 208.4 21 L 208.4 65 L 203.2 65 Z"/>
+    <path d="M 199.5 65 C 199.5 65 201.5 64.4 203.2 65 L 208.4 65 C 210.5 64.4 212.5 65 212.5 65 L 212.5 66.6 C 212.5 66.6 210 66.2 205.8 66.2 C 201.6 66.2 199.5 66.6 199.5 66.6 Z"/>
+
+    <!-- ── thin hairline word-separator rule ─────────────────────── -->
+    <rect x="228" y="19" width="0.9" height="48" rx="0.45" fill="#c9a96e" opacity="0.7"/>
+
+    <!-- ── H ──────────────────────────────────────────────────────
+         Cap H: two thick stems, hairline crossbar at optical centre. -->
+    <!-- Left stem -->
+    <path d="M 242 14 L 242 72 L 247.5 72 L 247.5 14 Z"/>
+    <!-- Left stem serifs -->
+    <path d="M 237.5 14 C 237.5 14 239.5 14.8 242 14 L 247.5 14 C 249.5 14.8 251.5 14 251.5 14 L 251.5 12.4 C 251.5 12.4 249 12.8 244.7 12.8 C 240.4 12.8 237.5 12.4 237.5 12.4 Z"/>
+    <path d="M 237.5 72 C 237.5 72 239.5 71.2 242 72 L 247.5 72 C 249.5 71.2 251.5 72 251.5 72 L 251.5 73.6 C 251.5 73.6 249 73.2 244.7 73.2 C 240.4 73.2 237.5 73.6 237.5 73.6 Z"/>
+    <!-- Right stem -->
+    <path d="M 272 14 L 272 72 L 277.5 72 L 277.5 14 Z"/>
+    <!-- Right stem serifs -->
+    <path d="M 267.5 14 C 267.5 14 269.5 14.8 272 14 L 277.5 14 C 279.5 14.8 281.5 14 281.5 14 L 281.5 12.4 C 281.5 12.4 279 12.8 274.7 12.8 C 270.4 12.8 267.5 12.4 267.5 12.4 Z"/>
+    <path d="M 267.5 72 C 267.5 72 269.5 71.2 272 72 L 277.5 72 C 279.5 71.2 281.5 72 281.5 72 L 281.5 73.6 C 281.5 73.6 279 73.2 274.7 73.2 C 270.4 73.2 267.5 73.6 267.5 73.6 Z"/>
+    <!-- Hairline crossbar (thin horizontal — Didone contrast) -->
+    <rect x="247.5" y="41.2" width="24.5" height="1.4" rx="0.7"/>
+
+    <!-- ── u ──────────────────────────────────────────────────────
+         Two stems, round bottom bowl. Left stem thick, right thick,
+         connecting bowl hairline at base.                           -->
+    <!-- Left stem -->
+    <path d="M 293 21 L 293 52 C 293 60 298.5 65.5 307 65.5 C 315.5 65.5 321 60 321 52 L 321 21 L 316 21 L 316 52 C 316 57 312.5 61 307 61 C 301.5 61 298 57 298 52 L 298 21 Z"/>
+    <!-- Left stem serifs top -->
+    <path d="M 289 21 C 289 21 291 21.6 293 21 L 298 21 C 300 21.6 301.5 21 301.5 21 L 301.5 19.4 C 301.5 19.4 299 19.8 295.5 19.8 C 292 19.8 289 19.4 289 19.4 Z"/>
+    <!-- Right stem serifs top -->
+    <path d="M 316.5 21 C 316.5 21 318 21.6 321 21 L 325 21 C 326 21.6 327 21 327 21 L 327 19.4 C 327 19.4 325 19.8 321 19.8 C 317 19.8 316.5 19.4 316.5 19.4 Z"/>
+
+    <!-- ── b ──────────────────────────────────────────────────────
+         Ascender (tall stem) with bracketed serif top, bowl at base.
+         Thick left stem, hairline at bowl-join top and bottom.      -->
+    <!-- Ascender stem -->
+    <path d="M 340 10 L 340 65 L 345.5 65 L 345.5 10 Z"/>
+    <!-- Top serif (tall ascender — character detail) -->
+    <path d="M 335 10 C 335 10 337.5 10.8 340 10 L 345.5 10 C 348 10.8 350 10 350 10 L 350 8.2 C 350 8.2 347 8.7 342.8 8.7 C 338.6 8.7 335 8.2 335 8.2 Z"/>
+    <!-- Bottom serif -->
+    <path d="M 336 65 C 336 65 338 64.4 340 65 L 345.5 65 C 347.5 64.4 349.5 65 349.5 65 L 349.5 66.6 C 349.5 66.6 347 66.2 342.7 66.2 C 338.4 66.2 336 66.6 336 66.6 Z"/>
+    <!-- Bowl outer -->
+    <path d="M 345.5 34 C 352 34 362 37 366.5 43.5 C 371 50 370 59 364 63 C 358 67 350 66 345.5 65 Z"
+          fill="#1a1714"/>
+    <!-- Bowl inner counter -->
+    <path d="M 345.5 39 C 350 39 358 41.5 361 46 C 364.5 51 363 58 358.5 61 C 354 64 348.5 63 345.5 62 Z"
+          fill="#f5ede0"/>
+
+  </g>
+
+  <!-- ── Hairline underrule (gold accent) ──────────────────────── -->
+  <rect x="9" y="78" width="362" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.55"/>
+
+</svg>

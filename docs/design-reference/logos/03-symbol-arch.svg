@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 88" fill="none" role="img" aria-labelledby="logo03-title">
+  <title id="logo03-title">DomHub — Arch Symbol</title>
+
+  <!--
+    Abstract arch symbol: a precise semi-circular opening (paraboloid arch)
+    sitting on two vertical piers — language of classical architecture
+    abstracted to pure geometry. Not a house gable. Not a UI icon.
+    The arch is OPEN (not filled), communicating passage, access, entry.
+    Line weight 2px. The archway negative space IS the symbol.
+
+    Composition: arch symbol left, "domhub" wordmark right at smaller
+    cap-height so they optically align by x-height.
+  -->
+
+  <!-- ── ARCH SYMBOL ── 52×72 optical box ── -->
+  <!-- Left pier -->
+  <rect x="10" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+  <!-- Right pier -->
+  <rect x="53" y="30" width="3" height="46" rx="1.5" fill="#eee7dc"/>
+  <!-- Arch — semicircle connecting pier tops -->
+  <!-- Center of arch: x=33, top of pier: y=30, radius=23 -->
+  <path d="M13 30 A20 20 0 0 1 53 30" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Thin inner arch line — the keystoned detail, 6px inset -->
+  <path d="M17.5 30 A15.5 15.5 0 0 1 48.5 30" stroke="#c9a96e" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+
+  <!-- ── "domhub" wordmark snug right ── -->
+  <!-- Using condensed spacing to sit beside the mark -->
+
+  <!-- d -->
+  <rect x="82" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+  <path d="M83.8 27 C83.8 27 97 26.5 97 42 C97 57.5 83.8 57 83.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- o -->
+  <ellipse cx="112" cy="42" rx="9" ry="14" stroke="#eee7dc" stroke-width="2" fill="none"/>
+
+  <!-- m -->
+  <rect x="126" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+  <path d="M127.8 27.5 C127.8 27.5 134.5 21.5 140 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="139.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+  <path d="M141.8 27.5 C141.8 27.5 148.5 21.5 154 27.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="153.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+
+  <!-- divider -->
+  <rect x="161" y="41" width="7" height="1" rx="0.5" fill="#eee7dc" opacity="0.3"/>
+
+  <!-- h -->
+  <rect x="172" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+  <path d="M174 36 C174 36 181 28.5 188 36" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="187.8" y="36" width="2" height="20.5" rx="1" fill="#eee7dc"/>
+
+  <!-- u -->
+  <rect x="196" y="27.5" width="2" height="21" rx="1" fill="#eee7dc"/>
+  <path d="M198 48.5 C198 48.5 198 57 207 57 C216 57 216 48.5 216 48.5" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <rect x="215.8" y="27.5" width="2" height="29" rx="1" fill="#eee7dc"/>
+
+  <!-- b -->
+  <rect x="224" y="18" width="2" height="48" rx="1" fill="#eee7dc"/>
+  <path d="M225.8 27 C225.8 27 239 26.5 239 42 C239 57.5 225.8 57 225.8 57" stroke="#eee7dc" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>

@@ -50,6 +50,7 @@ export function buildNavItems(role: string, badges: NavigationBadges) {
     stats: ['chart', 'Аналитика', 0],
     requests: ['file', 'Операции', pendingP + pendingT],
     users: ['users', 'Пользователи', 0],
+    features: ['settings', 'Настройки', 0],
   };
 
   const tabs = getTabsForRole(role);

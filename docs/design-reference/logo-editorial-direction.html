@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DomHub — Editorial Direction / Logo Exploration 03</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:    #1a1714;
+      --ink-2:  #1e1b16;
+      --dark:   #11100e;
+      --dark-2: #181613;
+      --cream:  #f5ede0;
+      --cream-2:#ede3d3;
+      --gold:   #c9a96e;
+      --muted:  #b2a593;
+      --text:   #eee7dc;
+      --border: rgba(201,169,110,0.12);
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--dark);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    body {
+      padding: 56px 44px 96px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ─── Page header ──────────────────────────────────────────── */
+    .page-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 36px;
+      margin-bottom: 64px;
+    }
+
+    .eyebrow {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: normal;
+      color: var(--cream);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .page-meta {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 680px;
+    }
+
+    .page-meta strong {
+      color: #d4c5af;
+      font-weight: 500;
+    }
+
+    /* ─── Section labels ───────────────────────────────────────── */
+    .section-label {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      opacity: 0.65;
+      margin-bottom: 10px;
+    }
+
+    /* ─── Logo cards ───────────────────────────────────────────── */
+    .variant {
+      margin-bottom: 80px;
+    }
+
+    /* Dark version (default — most variants start on dark) */
+    .variant__stage--dark {
+      background: var(--dark-2);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 56px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0;
+    }
+
+    /* Cream/paper version */
+    .variant__stage--cream {
+      background: var(--cream);
+      border: 1px solid var(--cream-2);
+      border-radius: 2px;
+      padding: 56px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .variant__stages {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    .variant__stages--single {
+      grid-template-columns: 1fr;
+    }
+
+    .variant__hero svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Hero stage (large) */
+    .variant__stage svg {
+      max-width: 460px;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ─── Header preview bar ───────────────────────────────────── */
+    .variant__preview {
+      background: #0e0d0b;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-top: none;
+      border-radius: 0 0 2px 2px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .variant__preview-label {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b6159;
+      white-space: nowrap;
+    }
+
+    .variant__preview svg {
+      height: 28px;
+      width: auto;
+    }
+
+    /* Cream preview invert — show on light bg */
+    .variant__preview-cream {
+      background: #ede3d3;
+    }
+
+    .variant__preview-cream .variant__preview-label {
+      color: #a89880;
+    }
+
+    /* ─── Meta info ────────────────────────────────────────────── */
+    .variant__meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px 40px;
+    }
+
+    .variant__header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+
+    .variant__letter {
+      font-size: 48px;
+      line-height: 1;
+      color: rgba(201,169,110,0.18);
+      font-weight: normal;
+      flex-shrink: 0;
+    }
+
+    .variant__name {
+      font-size: 22px;
+      font-weight: normal;
+      color: var(--cream);
+      letter-spacing: -0.005em;
+    }
+
+    .variant__ref {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      white-space: nowrap;
+    }
+
+    .variant__rationale {
+      grid-column: 1 / -1;
+      font-size: 14.5px;
+      color: #d0c4b4;
+      line-height: 1.75;
+      border-left: 2px solid rgba(201,169,110,0.2);
+      padding-left: 18px;
+    }
+
+    .variant__details {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .variant__details strong {
+      color: #c7bdae;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 10px;
+    }
+
+    /* ─── Divider between variants ─────────────────────────────── */
+    .variant-divider {
+      border: none;
+      border-top: 1px solid rgba(201,169,110,0.07);
+      margin-bottom: 80px;
+    }
+
+    /* ─── Recommendation section ────────────────────────────────── */
+    .recommendation {
+      background: #181613;
+      border: 1px solid rgba(201,169,110,0.15);
+      border-radius: 2px;
+      padding: 40px 44px;
+      margin-top: 40px;
+    }
+
+    .rec-header {
+      font-size: 20px;
+      font-weight: normal;
+      color: var(--cream);
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .rec-block {
+      margin-bottom: 32px;
+    }
+
+    .rec-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .rec-variant {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .rec-text {
+      font-size: 14px;
+      color: #c7bdae;
+      line-height: 1.8;
+    }
+
+    .rec-strong {
+      background: rgba(201,169,110,0.05);
+      border: 1px solid rgba(201,169,110,0.18);
+      border-radius: 2px;
+      padding: 20px 24px;
+      margin-top: 28px;
+    }
+
+    .rec-strong__label {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .rec-strong__text {
+      font-size: 13.5px;
+      color: #c7bdae;
+      line-height: 1.75;
+    }
+
+    .rec-next {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .rec-next__label {
+      font-family: -apple-system, "Helvetica Neue", sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #7a7060;
+      margin-bottom: 14px;
+    }
+
+    .rec-next ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rec-next li {
+      font-size: 13.5px;
+      color: #c7bdae;
+      line-height: 1.65;
+      padding-left: 18px;
+      position: relative;
+    }
+
+    .rec-next li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.4;
+    }
+
+    /* ─── Stage background overrides for each variant ──────────── */
+    /* Variant C uses cream as primary (cartouche reads on paper) */
+    .stage-cream-primary { background: var(--cream); }
+    .stage-cream-primary svg path, .stage-cream-primary svg rect,
+    .stage-cream-primary svg circle, .stage-cream-primary svg line { /* natural */ }
+
+    /* Variant E needs cream too — heavy black on cream is its register */
+    .stage-ink { background: #f5ede0; }
+
+    @media (max-width: 860px) {
+      body { padding: 32px 20px 60px; }
+      .variant__stages { grid-template-columns: 1fr; }
+      .variant__meta { grid-template-columns: 1fr; }
+      .variant__header { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ PAGE HEADER ══════════════════════════════════════════════ -->
+  <header class="page-header">
+    <p class="eyebrow">Brand Identity — Third Direction</p>
+    <h1 class="page-title">DomHub — Editorial & Hospitality Register</h1>
+    <p class="page-meta">
+      Смена регистра: от tech-SaaS к <strong>hospitality / архитектурное ателье</strong>.<br>
+      Референсы: Aman Hotels, Hermès, Rosewood, SPEECH bureau, Assouline, Penguin Classics.<br>
+      5 вариантов в разных точках одного направления — от тонкого Didone до тяжёлого Assouline.
+    </p>
+  </header>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VARIANT A — Didone Serif Wordmark
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="variant" id="variant-a">
+    <p class="section-label">Вариант A</p>
+
+    <div class="variant__stages">
+      <div class="variant__stage variant__stage--dark">
+        <!-- Dark ground: fill letters cream for legibility -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 90" role="img" aria-label="DomHub variant A — Didone serif wordmark on dark">
+          <title>DomHub — Variant A on dark</title>
+          <g fill="#f5ede0">
+            <path d="M 14 14 L 14 72 L 19.5 72 L 19.5 14 Z"/>
+            <path d="M 9 14 C 9 14 11.5 14.8 14 14 L 19.5 14 C 21.5 14.8 23 14 23 14 L 23 12.4 C 23 12.4 20 12.8 16.7 12.8 C 13.4 12.8 10 12.4 10 12.4 Z"/>
+            <path d="M 9 72 C 9 72 11.5 71.2 14 72 L 19.5 72 C 21.5 71.2 23 72 23 72 L 23 73.6 C 23 73.6 20 73.2 16.7 73.2 C 13.4 73.2 10 73.6 10 73.6 Z"/>
+            <path d="M 19.5 14 C 34 14 50 17 58 25 C 66.5 33.5 66.5 52.5 58 61 C 50 69 34 72 19.5 72 Z"/>
+            <path d="M 19.5 20.5 C 30.5 20.5 44 23 50.5 29.5 C 57.5 36.5 57.5 49.5 50.5 56.5 C 44 63 30.5 65.5 19.5 65.5 Z" fill="#181613"/>
+            <path d="M 99 43 C 99 29 108 20 120.5 20 C 133 20 142 29 142 43 C 142 57 133 66 120.5 66 C 108 66 99 57 99 43 Z"/>
+            <path d="M 103 43 C 103 32 110.5 24 120.5 24 C 130.5 24 138 32 138 43 C 138 54 130.5 62 120.5 62 C 110.5 62 103 54 103 43 Z" fill="#181613"/>
+            <path d="M 103 43 C 103 38 106 34 110 32 C 106 35.5 104.5 39 104.5 43 C 104.5 47 106 50.5 110 54 C 106 52 103 48 103 43 Z"/>
+            <path d="M 152 21 L 152 65 L 157.2 65 L 157.2 21 Z"/>
+            <path d="M 148 21 C 148 21 150 21.6 152 21 L 157.2 21 C 159 21.6 160.5 21 160.5 21 L 160.5 19.4 C 160.5 19.4 158.5 19.8 154.6 19.8 C 150.7 19.8 148 19.4 148 19.4 Z"/>
+            <path d="M 148 65 C 148 65 150 64.4 152 65 L 157.2 65 C 159 64.4 160.5 65 160.5 65 L 160.5 66.6 C 160.5 66.6 158.5 66.2 154.6 66.2 C 150.7 66.2 148 66.6 148 66.6 Z"/>
+            <path d="M 157.2 21 C 157.2 21 162 15.5 170 15.5 C 178 15.5 182.8 21 182.8 21 L 182.8 65 L 177.6 65 L 177.6 25 C 177.6 25 175 21.5 170 21.5 C 165 21.5 162.4 25 162.4 25 L 162.4 65 L 157.2 65 Z"/>
+            <path d="M 177.6 65 C 177.6 65 179.5 64.4 182.8 65 L 182.8 66.6 C 182.8 66.6 181 66.2 177.6 66.2 Z"/>
+            <path d="M 182.8 21 C 182.8 21 187.6 15.5 195.6 15.5 C 203.6 15.5 208.4 21 208.4 21 L 208.4 65 L 203.2 65 L 203.2 25 C 203.2 25 200.6 21.5 195.6 21.5 C 190.6 21.5 188 25 188 25 L 188 65 L 182.8 65 Z"/>
+            <path d="M 203.2 21 L 208.4 21 L 208.4 65 L 203.2 65 Z"/>
+            <path d="M 199.5 65 C 199.5 65 201.5 64.4 203.2 65 L 208.4 65 C 210.5 64.4 212.5 65 212.5 65 L 212.5 66.6 C 212.5 66.6 210 66.2 205.8 66.2 C 201.6 66.2 199.5 66.6 199.5 66.6 Z"/>
+            <rect x="228" y="19" width="0.9" height="48" rx="0.45" fill="#c9a96e" opacity="0.7"/>
+            <path d="M 242 14 L 242 72 L 247.5 72 L 247.5 14 Z"/>
+            <path d="M 237.5 14 C 237.5 14 239.5 14.8 242 14 L 247.5 14 C 249.5 14.8 251.5 14 251.5 14 L 251.5 12.4 C 251.5 12.4 249 12.8 244.7 12.8 C 240.4 12.8 237.5 12.4 237.5 12.4 Z"/>
+            <path d="M 237.5 72 C 237.5 72 239.5 71.2 242 72 L 247.5 72 C 249.5 71.2 251.5 72 251.5 72 L 251.5 73.6 C 251.5 73.6 249 73.2 244.7 73.2 C 240.4 73.2 237.5 73.6 237.5 73.6 Z"/>
+            <path d="M 272 14 L 272 72 L 277.5 72 L 277.5 14 Z"/>
+            <path d="M 267.5 14 C 267.5 14 269.5 14.8 272 14 L 277.5 14 C 279.5 14.8 281.5 14 281.5 14 L 281.5 12.4 C 281.5 12.4 279 12.8 274.7 12.8 C 270.4 12.8 267.5 12.4 267.5 12.4 Z"/>
+            <path d="M 267.5 72 C 267.5 72 269.5 71.2 272 72 L 277.5 72 C 279.5 71.2 281.5 72 281.5 72 L 281.5 73.6 C 281.5 73.6 279 73.2 274.7 73.2 C 270.4 73.2 267.5 73.6 267.5 73.6 Z"/>
+            <rect x="247.5" y="41.2" width="24.5" height="1.4" rx="0.7"/>
+            <path d="M 293 21 L 293 52 C 293 60 298.5 65.5 307 65.5 C 315.5 65.5 321 60 321 52 L 321 21 L 316 21 L 316 52 C 316 57 312.5 61 307 61 C 301.5 61 298 57 298 52 L 298 21 Z"/>
+            <path d="M 289 21 C 289 21 291 21.6 293 21 L 298 21 C 300 21.6 301.5 21 301.5 21 L 301.5 19.4 C 301.5 19.4 299 19.8 295.5 19.8 C 292 19.8 289 19.4 289 19.4 Z"/>
+            <path d="M 316.5 21 C 316.5 21 318 21.6 321 21 L 325 21 C 326 21.6 327 21 327 21 L 327 19.4 C 327 19.4 325 19.8 321 19.8 C 317 19.8 316.5 19.4 316.5 19.4 Z"/>
+            <path d="M 340 10 L 340 65 L 345.5 65 L 345.5 10 Z"/>
+            <path d="M 335 10 C 335 10 337.5 10.8 340 10 L 345.5 10 C 348 10.8 350 10 350 10 L 350 8.2 C 350 8.2 347 8.7 342.8 8.7 C 338.6 8.7 335 8.2 335 8.2 Z"/>
+            <path d="M 336 65 C 336 65 338 64.4 340 65 L 345.5 65 C 347.5 64.4 349.5 65 349.5 65 L 349.5 66.6 C 349.5 66.6 347 66.2 342.7 66.2 C 338.4 66.2 336 66.6 336 66.6 Z"/>
+            <path d="M 345.5 34 C 352 34 362 37 366.5 43.5 C 371 50 370 59 364 63 C 358 67 350 66 345.5 65 Z"/>
+            <path d="M 345.5 39 C 350 39 358 41.5 361 46 C 364.5 51 363 58 358.5 61 C 354 64 348.5 63 345.5 62 Z" fill="#181613"/>
+          </g>
+          <rect x="9" y="78" width="362" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.55"/>
+        </svg>
+      </div>
+      <div class="variant__stage stage-ink">
+        <!-- Cream ground: letters in dark ink -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 90" role="img" aria-label="DomHub variant A — Didone serif wordmark on cream">
+          <title>DomHub — Variant A on cream</title>
+          <use href="logos/A-serif-editorial.svg#root"/>
+          <!-- Inline same paths with dark fill for cream bg -->
+          <g fill="#1a1714">
+            <path d="M 14 14 L 14 72 L 19.5 72 L 19.5 14 Z"/>
+            <path d="M 9 14 C 9 14 11.5 14.8 14 14 L 19.5 14 C 21.5 14.8 23 14 23 14 L 23 12.4 C 23 12.4 20 12.8 16.7 12.8 C 13.4 12.8 10 12.4 10 12.4 Z"/>
+            <path d="M 9 72 C 9 72 11.5 71.2 14 72 L 19.5 72 C 21.5 71.2 23 72 23 72 L 23 73.6 C 23 73.6 20 73.2 16.7 73.2 C 13.4 73.2 10 73.6 10 73.6 Z"/>
+            <path d="M 19.5 14 C 34 14 50 17 58 25 C 66.5 33.5 66.5 52.5 58 61 C 50 69 34 72 19.5 72 Z"/>
+            <path d="M 19.5 20.5 C 30.5 20.5 44 23 50.5 29.5 C 57.5 36.5 57.5 49.5 50.5 56.5 C 44 63 30.5 65.5 19.5 65.5 Z" fill="#f5ede0"/>
+            <path d="M 99 43 C 99 29 108 20 120.5 20 C 133 20 142 29 142 43 C 142 57 133 66 120.5 66 C 108 66 99 57 99 43 Z"/>
+            <path d="M 103 43 C 103 32 110.5 24 120.5 24 C 130.5 24 138 32 138 43 C 138 54 130.5 62 120.5 62 C 110.5 62 103 54 103 43 Z" fill="#f5ede0"/>
+            <path d="M 103 43 C 103 38 106 34 110 32 C 106 35.5 104.5 39 104.5 43 C 104.5 47 106 50.5 110 54 C 106 52 103 48 103 43 Z"/>
+            <path d="M 152 21 L 152 65 L 157.2 65 L 157.2 21 Z"/>
+            <path d="M 148 21 C 148 21 150 21.6 152 21 L 157.2 21 C 159 21.6 160.5 21 160.5 21 L 160.5 19.4 C 160.5 19.4 158.5 19.8 154.6 19.8 C 150.7 19.8 148 19.4 148 19.4 Z"/>
+            <path d="M 148 65 C 148 65 150 64.4 152 65 L 157.2 65 C 159 64.4 160.5 65 160.5 65 L 160.5 66.6 C 160.5 66.6 158.5 66.2 154.6 66.2 C 150.7 66.2 148 66.6 148 66.6 Z"/>
+            <path d="M 157.2 21 C 157.2 21 162 15.5 170 15.5 C 178 15.5 182.8 21 182.8 21 L 182.8 65 L 177.6 65 L 177.6 25 C 177.6 25 175 21.5 170 21.5 C 165 21.5 162.4 25 162.4 25 L 162.4 65 L 157.2 65 Z"/>
+            <path d="M 182.8 21 C 182.8 21 187.6 15.5 195.6 15.5 C 203.6 15.5 208.4 21 208.4 21 L 208.4 65 L 203.2 65 L 203.2 25 C 203.2 25 200.6 21.5 195.6 21.5 C 190.6 21.5 188 25 188 25 L 188 65 L 182.8 65 Z"/>
+            <path d="M 199.5 65 C 199.5 65 201.5 64.4 203.2 65 L 208.4 65 C 210.5 64.4 212.5 65 212.5 65 L 212.5 66.6 C 212.5 66.6 210 66.2 205.8 66.2 C 201.6 66.2 199.5 66.6 199.5 66.6 Z"/>
+            <rect x="228" y="19" width="0.9" height="48" rx="0.45" fill="#c9a96e" opacity="0.7"/>
+            <path d="M 242 14 L 242 72 L 247.5 72 L 247.5 14 Z"/>
+            <path d="M 237.5 14 C 237.5 14 239.5 14.8 242 14 L 247.5 14 C 249.5 14.8 251.5 14 251.5 14 L 251.5 12.4 C 251.5 12.4 249 12.8 244.7 12.8 C 240.4 12.8 237.5 12.4 237.5 12.4 Z"/>
+            <path d="M 237.5 72 C 237.5 72 239.5 71.2 242 72 L 247.5 72 C 249.5 71.2 251.5 72 251.5 72 L 251.5 73.6 C 251.5 73.6 249 73.2 244.7 73.2 C 240.4 73.2 237.5 73.6 237.5 73.6 Z"/>
+            <path d="M 272 14 L 272 72 L 277.5 72 L 277.5 14 Z"/>
+            <path d="M 267.5 14 C 267.5 14 269.5 14.8 272 14 L 277.5 14 C 279.5 14.8 281.5 14 281.5 14 L 281.5 12.4 C 281.5 12.4 279 12.8 274.7 12.8 C 270.4 12.8 267.5 12.4 267.5 12.4 Z"/>
+            <path d="M 267.5 72 C 267.5 72 269.5 71.2 272 72 L 277.5 72 C 279.5 71.2 281.5 72 281.5 72 L 281.5 73.6 C 281.5 73.6 279 73.2 274.7 73.2 C 270.4 73.2 267.5 73.6 267.5 73.6 Z"/>
+            <rect x="247.5" y="41.2" width="24.5" height="1.4" rx="0.7"/>
+            <path d="M 293 21 L 293 52 C 293 60 298.5 65.5 307 65.5 C 315.5 65.5 321 60 321 52 L 321 21 L 316 21 L 316 52 C 316 57 312.5 61 307 61 C 301.5 61 298 57 298 52 L 298 21 Z"/>
+            <path d="M 289 21 C 289 21 291 21.6 293 21 L 298 21 C 300 21.6 301.5 21 301.5 21 L 301.5 19.4 C 301.5 19.4 299 19.8 295.5 19.8 C 292 19.8 289 19.4 289 19.4 Z"/>
+            <path d="M 316.5 21 C 316.5 21 318 21.6 321 21 L 325 21 C 326 21.6 327 21 327 21 L 327 19.4 C 327 19.4 325 19.8 321 19.8 C 317 19.8 316.5 19.4 316.5 19.4 Z"/>
+            <path d="M 340 10 L 340 65 L 345.5 65 L 345.5 10 Z"/>
+            <path d="M 335 10 C 335 10 337.5 10.8 340 10 L 345.5 10 C 348 10.8 350 10 350 10 L 350 8.2 C 350 8.2 347 8.7 342.8 8.7 C 338.6 8.7 335 8.2 335 8.2 Z"/>
+            <path d="M 336 65 C 336 65 338 64.4 340 65 L 345.5 65 C 347.5 64.4 349.5 65 349.5 65 L 349.5 66.6 C 349.5 66.6 347 66.2 342.7 66.2 C 338.4 66.2 336 66.6 336 66.6 Z"/>
+            <path d="M 345.5 34 C 352 34 362 37 366.5 43.5 C 371 50 370 59 364 63 C 358 67 350 66 345.5 65 Z"/>
+            <path d="M 345.5 39 C 350 39 358 41.5 361 46 C 364.5 51 363 58 358.5 61 C 354 64 348.5 63 345.5 62 Z" fill="#f5ede0"/>
+          </g>
+          <rect x="9" y="78" width="362" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.45"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Header size preview -->
+    <div class="variant__preview">
+      <span class="variant__preview-label">Header preview · 28px</span>
+      <img src="logos/A-serif-editorial.svg" alt="DomHub wordmark A small" height="28" style="filter: invert(1) sepia(0.3) saturate(0.5);">
+    </div>
+
+    <div class="variant__meta" style="margin-top: 28px;">
+      <div class="variant__header">
+        <span class="variant__letter">A</span>
+        <div>
+          <h2 class="variant__name">Serif Wordmark, Didone</h2>
+          <span class="variant__ref">В духе Didot / Vogue masthead / Harper's Bazaar</span>
+        </div>
+      </div>
+      <p class="variant__rationale">
+        Максимальный контраст штрихов (отношение ~3:1 между вертикалью и горизонталью). Буква D читается почти как гравюра — массивная левая стойка и тончайший соединительный штрих. Разделительная вертикаль между "dom" и "Hub" в цвете золота — единственный цветовой акцент, добавляет элемент кода без нарушения серьёзности. Hairline underrule завершает слово как подпись. Лучше всего работает на бумажных носителях: фирменный бланк, конверт, тиснение.
+      </p>
+      <div class="variant__details">
+        <strong>Регистр</strong>
+        Mixed case wordmark — читаемость выше, чем у caps
+      </div>
+      <div class="variant__details">
+        <strong>Контраст штрихов</strong>
+        ~3:1 (Didone) — вертикали vs горизонтали
+      </div>
+      <div class="variant__details">
+        <strong>Цветовой акцент</strong>
+        Hairline разделитель #c9a96e + underrule
+      </div>
+      <div class="variant__details">
+        <strong>Для чего</strong>
+        Letterhead, embossing, premium print collateral
+      </div>
+    </div>
+  </section>
+
+  <hr class="variant-divider">
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VARIANT B — Transitional Serif + architectural detail
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="variant" id="variant-b">
+    <p class="section-label">Вариант B</p>
+
+    <div class="variant__stages">
+      <div class="variant__stage variant__stage--dark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 90" role="img" aria-label="DomHub variant B — Transitional serif with arched window detail">
+          <title>DomHub Variant B on dark</title>
+          <g fill="#f0e6d3">
+            <path d="M 16 16 L 16 73 L 21 73 L 21 16 Z"/>
+            <path d="M 10.5 16 C 12 15.5 14 15.8 16 16 L 21 16 C 23 15.8 25 15.5 26 16 L 26 14.3 C 24.5 14.6 21 15 18.5 15 C 16 15 12 14.6 10.5 14.3 Z"/>
+            <path d="M 10.5 73 C 12 73.5 14 73.2 16 73 L 21 73 C 23 73.2 25 73.5 26 73 L 26 74.7 C 24.5 74.4 21 74 18.5 74 C 16 74 12 74.4 10.5 74.7 Z"/>
+            <path d="M 21 16 C 33 16 47 19.5 54 28 C 61.5 37 61 52 53.5 60 C 46.5 67.5 33 73 21 73 Z"/>
+            <path d="M 21 22 C 30.5 22 42.5 25 48 32 C 54 39.5 53.5 51.5 47.5 58 C 42 63.5 30.5 67 21 67 Z" fill="#181613"/>
+            <path d="M 79 44 C 79 30.5 88 21 100 21 C 112 21 121 30.5 121 44 C 121 57.5 112 67 100 67 C 88 67 79 57.5 79 44 Z"/>
+            <path d="M 83 44 C 83 33.5 90.5 25.5 100 25.5 C 109.5 25.5 117 33.5 117 44 C 117 54.5 109.5 62.5 100 62.5 C 90.5 62.5 83 54.5 83 44 Z" fill="#181613"/>
+            <path d="M 131 22 L 131 66 L 136 66 L 136 22 Z"/>
+            <path d="M 126 22 C 127.5 21.5 129.5 21.8 131 22 L 136 22 C 137.5 21.8 139.5 21.5 140.5 22 L 140.5 20.3 C 139 20.6 137 21 134 21 C 131 21 127.5 20.6 126 20.3 Z"/>
+            <path d="M 126 66 C 127.5 66.5 129.5 66.2 131 66 L 136 66 C 137.5 66.2 139.5 66.5 140.5 66 L 140.5 67.7 C 139 67.4 137 67 134 67 C 131 67 127.5 67.4 126 67.7 Z"/>
+            <path d="M 136 22 C 136 22 140 16.5 148 16.5 C 156 16.5 160 22 160 22 L 160 66 L 155 66 L 155 26 C 155 26 152.5 22.5 148 22.5 C 143.5 22.5 141 26 141 26 L 141 66 L 136 66 Z"/>
+            <path d="M 160 22 C 160 22 164 16.5 172 16.5 C 180 16.5 184 22 184 22 L 184 66 L 179 66 L 179 26 C 179 26 176.5 22.5 172 22.5 C 167.5 22.5 165 26 165 26 L 165 66 L 160 66 Z"/>
+            <path d="M 175 22 C 176.5 21.5 178.5 21.8 180 22 L 184 22 C 186 21.8 187.5 21.5 188.5 22 L 188.5 20.3 C 187 20.6 185 21 182 21 C 179 21 176.5 20.6 175 20.3 Z"/>
+            <path d="M 175 66 C 176.5 66.5 178.5 66.2 180 66 L 184 66 C 186 66.2 187.5 66.5 188.5 66 L 188.5 67.7 C 187 67.4 185 67 182 67 C 179 67 176.5 67.4 175 67.7 Z"/>
+            <rect x="204" y="20" width="0.85" height="49" rx="0.4" fill="#c9a96e" opacity="0.65"/>
+            <path d="M 218 16 L 218 73 L 223 73 L 223 16 Z"/>
+            <path d="M 213 16 C 214.5 15.5 216.5 15.8 218 16 L 223 16 C 224.5 15.8 226.5 15.5 227.5 16 L 227.5 14.3 C 226 14.6 223.5 15 220.5 15 C 217.5 15 214.5 14.6 213 14.3 Z"/>
+            <path d="M 213 73 C 214.5 73.5 216.5 73.2 218 73 L 223 73 C 224.5 73.2 226.5 73.5 227.5 73 L 227.5 74.7 C 226 74.4 223.5 74 220.5 74 C 217.5 74 214.5 74.4 213 74.7 Z"/>
+            <path d="M 247 16 L 247 73 L 252 73 L 252 16 Z"/>
+            <path d="M 242.5 16 C 244 15.5 246 15.8 247 16 L 252 16 C 253.5 15.8 255.5 15.5 257 16 L 257 14.3 C 255.5 14.6 252.5 15 249.5 15 C 246.5 15 244 14.6 242.5 14.3 Z"/>
+            <path d="M 242.5 73 C 244 73.5 246 73.2 247 73 L 252 73 C 253.5 73.2 255.5 73.5 257 73 L 257 74.7 C 255.5 74.4 252.5 74 249.5 74 C 246.5 74 244 74.4 242.5 74.7 Z"/>
+            <rect x="223" y="42" width="24" height="1.8" rx="0.9"/>
+            <path d="M 268 22 L 268 52 C 268 59.5 273.5 65 282 65 C 290.5 65 296 59.5 296 52 L 296 22 L 291 22 L 291 52 C 291 57 287.5 60.5 282 60.5 C 276.5 60.5 273 57 273 52 L 273 22 Z"/>
+            <path d="M 264 22 C 265.5 21.5 267.5 21.8 268 22 L 273 22 C 274.5 21.8 276.5 21.5 278 22 L 278 20.3 C 276.5 20.6 274 21 271 21 C 268 21 265.5 20.6 264 20.3 Z"/>
+            <path d="M 291.5 22 C 292.5 21.5 294.5 21.8 296 22 L 300.5 22 C 302 21.8 303.5 21.5 304.5 22 L 304.5 20.3 C 303 20.6 301 21 298.2 21 C 295.4 21 292.5 20.6 291.5 20.3 Z"/>
+            <path d="M 315 9 L 315 66 L 320 66 L 320 9 Z"/>
+            <path d="M 309 9 C 311 8.3 313.5 8.7 315 9 L 320 9 C 321.5 8.7 324 8.3 326 9 L 326 7.2 C 324 7.6 320.5 8 317.5 8 C 314.5 8 311 7.6 309 7.2 Z"/>
+            <path d="M 311 66 C 312.5 66.5 314 66.2 315 66 L 320 66 C 321 66.2 322.5 66.5 324 66 L 324 67.7 C 322.5 67.4 320 67 317.5 67 C 315 67 312.5 67.4 311 67.7 Z"/>
+            <path d="M 320 34 C 326.5 33.5 337 36.5 341.5 43 C 346.5 50.5 345 60 339 63.5 C 333 67 324.5 66 320 65 Z"/>
+            <path d="M 320 39.5 C 325 39 333 41.5 336 47 C 339.5 53 337.5 60 333 62.5 C 329 64.5 323.5 63.5 320 62 Z" fill="#181613"/>
+          </g>
+          <!-- Window detail in gold on dark -->
+          <path d="M 325.5 57 L 325.5 50.5 C 325.5 47.5 328.5 45 331.5 45 C 334.5 45 337.5 47.5 337.5 50.5 L 337.5 57 Z"
+                fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <path d="M 329.5 45.5 C 330.5 44 332.5 44 333.5 45.5"
+                fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <rect x="10" y="80" width="328" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.45"/>
+        </svg>
+      </div>
+      <div class="variant__stage stage-ink">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 90" role="img" aria-label="DomHub variant B on cream">
+          <title>DomHub Variant B on cream</title>
+          <g fill="#1e1b16">
+            <path d="M 16 16 L 16 73 L 21 73 L 21 16 Z"/>
+            <path d="M 10.5 16 C 12 15.5 14 15.8 16 16 L 21 16 C 23 15.8 25 15.5 26 16 L 26 14.3 C 24.5 14.6 21 15 18.5 15 C 16 15 12 14.6 10.5 14.3 Z"/>
+            <path d="M 10.5 73 C 12 73.5 14 73.2 16 73 L 21 73 C 23 73.2 25 73.5 26 73 L 26 74.7 C 24.5 74.4 21 74 18.5 74 C 16 74 12 74.4 10.5 74.7 Z"/>
+            <path d="M 21 16 C 33 16 47 19.5 54 28 C 61.5 37 61 52 53.5 60 C 46.5 67.5 33 73 21 73 Z"/>
+            <path d="M 21 22 C 30.5 22 42.5 25 48 32 C 54 39.5 53.5 51.5 47.5 58 C 42 63.5 30.5 67 21 67 Z" fill="#f5ede0"/>
+            <path d="M 79 44 C 79 30.5 88 21 100 21 C 112 21 121 30.5 121 44 C 121 57.5 112 67 100 67 C 88 67 79 57.5 79 44 Z"/>
+            <path d="M 83 44 C 83 33.5 90.5 25.5 100 25.5 C 109.5 25.5 117 33.5 117 44 C 117 54.5 109.5 62.5 100 62.5 C 90.5 62.5 83 54.5 83 44 Z" fill="#f5ede0"/>
+            <path d="M 131 22 L 131 66 L 136 66 L 136 22 Z"/>
+            <path d="M 126 22 C 127.5 21.5 129.5 21.8 131 22 L 136 22 C 137.5 21.8 139.5 21.5 140.5 22 L 140.5 20.3 C 139 20.6 137 21 134 21 C 131 21 127.5 20.6 126 20.3 Z"/>
+            <path d="M 126 66 C 127.5 66.5 129.5 66.2 131 66 L 136 66 C 137.5 66.2 139.5 66.5 140.5 66 L 140.5 67.7 C 139 67.4 137 67 134 67 C 131 67 127.5 67.4 126 67.7 Z"/>
+            <path d="M 136 22 C 136 22 140 16.5 148 16.5 C 156 16.5 160 22 160 22 L 160 66 L 155 66 L 155 26 C 155 26 152.5 22.5 148 22.5 C 143.5 22.5 141 26 141 26 L 141 66 L 136 66 Z"/>
+            <path d="M 160 22 C 160 22 164 16.5 172 16.5 C 180 16.5 184 22 184 22 L 184 66 L 179 66 L 179 26 C 179 26 176.5 22.5 172 22.5 C 167.5 22.5 165 26 165 26 L 165 66 L 160 66 Z"/>
+            <path d="M 175 22 C 176.5 21.5 178.5 21.8 180 22 L 184 22 C 186 21.8 187.5 21.5 188.5 22 L 188.5 20.3 C 187 20.6 185 21 182 21 C 179 21 176.5 20.6 175 20.3 Z"/>
+            <path d="M 175 66 C 176.5 66.5 178.5 66.2 180 66 L 184 66 C 186 66.2 187.5 66.5 188.5 66 L 188.5 67.7 C 187 67.4 185 67 182 67 C 179 67 176.5 67.4 175 67.7 Z"/>
+            <rect x="204" y="20" width="0.85" height="49" rx="0.4" fill="#c9a96e" opacity="0.65"/>
+            <path d="M 218 16 L 218 73 L 223 73 L 223 16 Z"/>
+            <path d="M 213 16 C 214.5 15.5 216.5 15.8 218 16 L 223 16 C 224.5 15.8 226.5 15.5 227.5 16 L 227.5 14.3 C 226 14.6 223.5 15 220.5 15 C 217.5 15 214.5 14.6 213 14.3 Z"/>
+            <path d="M 213 73 C 214.5 73.5 216.5 73.2 218 73 L 223 73 C 224.5 73.2 226.5 73.5 227.5 73 L 227.5 74.7 C 226 74.4 223.5 74 220.5 74 C 217.5 74 214.5 74.4 213 74.7 Z"/>
+            <path d="M 247 16 L 247 73 L 252 73 L 252 16 Z"/>
+            <path d="M 242.5 16 C 244 15.5 246 15.8 247 16 L 252 16 C 253.5 15.8 255.5 15.5 257 16 L 257 14.3 C 255.5 14.6 252.5 15 249.5 15 C 246.5 15 244 14.6 242.5 14.3 Z"/>
+            <path d="M 242.5 73 C 244 73.5 246 73.2 247 73 L 252 73 C 253.5 73.2 255.5 73.5 257 73 L 257 74.7 C 255.5 74.4 252.5 74 249.5 74 C 246.5 74 244 74.4 242.5 74.7 Z"/>
+            <rect x="223" y="42" width="24" height="1.8" rx="0.9"/>
+            <path d="M 268 22 L 268 52 C 268 59.5 273.5 65 282 65 C 290.5 65 296 59.5 296 52 L 296 22 L 291 22 L 291 52 C 291 57 287.5 60.5 282 60.5 C 276.5 60.5 273 57 273 52 L 273 22 Z"/>
+            <path d="M 264 22 C 265.5 21.5 267.5 21.8 268 22 L 273 22 C 274.5 21.8 276.5 21.5 278 22 L 278 20.3 C 276.5 20.6 274 21 271 21 C 268 21 265.5 20.6 264 20.3 Z"/>
+            <path d="M 291.5 22 C 292.5 21.5 294.5 21.8 296 22 L 300.5 22 C 302 21.8 303.5 21.5 304.5 22 L 304.5 20.3 C 303 20.6 301 21 298.2 21 C 295.4 21 292.5 20.6 291.5 20.3 Z"/>
+            <path d="M 315 9 L 315 66 L 320 66 L 320 9 Z"/>
+            <path d="M 309 9 C 311 8.3 313.5 8.7 315 9 L 320 9 C 321.5 8.7 324 8.3 326 9 L 326 7.2 C 324 7.6 320.5 8 317.5 8 C 314.5 8 311 7.6 309 7.2 Z"/>
+            <path d="M 311 66 C 312.5 66.5 314 66.2 315 66 L 320 66 C 321 66.2 322.5 66.5 324 66 L 324 67.7 C 322.5 67.4 320 67 317.5 67 C 315 67 312.5 67.4 311 67.7 Z"/>
+            <path d="M 320 34 C 326.5 33.5 337 36.5 341.5 43 C 346.5 50.5 345 60 339 63.5 C 333 67 324.5 66 320 65 Z"/>
+            <path d="M 320 39.5 C 325 39 333 41.5 336 47 C 339.5 53 337.5 60 333 62.5 C 329 64.5 323.5 63.5 320 62 Z" fill="#f5ede0"/>
+          </g>
+          <path d="M 325.5 57 L 325.5 50.5 C 325.5 47.5 328.5 45 331.5 45 C 334.5 45 337.5 47.5 337.5 50.5 L 337.5 57 Z"
+                fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <path d="M 329.5 45.5 C 330.5 44 332.5 44 333.5 45.5"
+                fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <rect x="10" y="80" width="328" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.45"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="variant__meta" style="margin-top: 28px;">
+      <div class="variant__header">
+        <span class="variant__letter">B</span>
+        <div>
+          <h2 class="variant__name">Transitional Serif + Detail</h2>
+          <span class="variant__ref">В духе Tiempos / GT Sectra — мягче, с характером</span>
+        </div>
+      </div>
+      <p class="variant__rationale">
+        Transitional — регистр между барокко и модерном. Читаемость выше, чем у Didone, а ощущение ателье сохраняется. Ключевая деталь: внутри bowl буквы «b» — миниатюрное арочное окно, hairline золото. Это прямая цитата наличников купеческих особняков Замоскворечья — одна деталь, которая говорит «мы здесь не случайно». На 400px detail виден; на 120px — теряется (допустимо: это signature-деталь для верстальщиков и знающих). Лучший вариант для цифрового интерфейса — контраст читается на экране, не только в печати.
+      </p>
+      <div class="variant__details">
+        <strong>Регистр</strong>
+        Mixed case — natural reading rhythm
+      </div>
+      <div class="variant__details">
+        <strong>Контраст штрихов</strong>
+        ~2:1 — Transitional, screen-friendly
+      </div>
+      <div class="variant__details">
+        <strong>Signature деталь</strong>
+        Hairline арка в bowl буквы «b» = московский наличник
+      </div>
+      <div class="variant__details">
+        <strong>Для чего</strong>
+        Digital UI header, app icon base, print + screen
+      </div>
+    </div>
+  </section>
+
+  <hr class="variant-divider">
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VARIANT C — Emblem / Cartouche
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="variant" id="variant-c">
+    <p class="section-label">Вариант C</p>
+
+    <div class="variant__stages">
+      <div class="variant__stage stage-ink" style="padding: 40px 32px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-label="DomHub emblem on cream">
+          <title>DomHub Emblem C on cream</title>
+          <g fill="#1e1b16">
+            <path d="M 22 8 L 298 8 C 300 8 302 9.5 302 11.5 L 302 148.5 C 302 150.5 300 152 298 152 L 22 152 C 20 152 18 150.5 18 148.5 L 18 11.5 C 18 9.5 20 8 22 8 Z"/>
+            <path d="M 26 16 L 294 16 C 295.5 16 296.5 17 296.5 18.5 L 296.5 141.5 C 296.5 143 295.5 144 294 144 L 26 144 C 24.5 144 23.5 143 23.5 141.5 L 23.5 18.5 C 23.5 17 24.5 16 26 16 Z" fill="#f5ede0"/>
+            <rect x="23.5" y="24" width="273" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.7"/>
+            <rect x="23.5" y="135" width="273" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.7"/>
+            <path d="M 118 34 L 118 80 L 122 80 L 122 34 Z"/>
+            <path d="M 114.5 34 C 115.5 33.5 117 33.8 118 34 L 122 34 C 123 33.8 124.5 33.5 125.5 34 L 125.5 32.4 C 124 32.7 122 33 120 33 C 118 33 115.5 32.7 114.5 32.4 Z"/>
+            <path d="M 114.5 80 C 115.5 80.5 117 80.2 118 80 L 122 80 C 123 80.2 124.5 80.5 125.5 80 L 125.5 81.6 C 124 81.3 122 81 120 81 C 118 81 115.5 81.3 114.5 81.6 Z"/>
+            <path d="M 122 34 C 131 34 144 37.5 148.5 47 C 152.5 55.5 151 67 145 73 C 139.5 78.5 130 80 122 80 Z"/>
+            <path d="M 122 39 C 129 39 140 42 143 49.5 C 146.5 57.5 145 67 140 71.5 C 135.5 75.5 128.5 75 122 74.5 Z" fill="#f5ede0"/>
+            <path d="M 178 34 L 178 80 L 182 80 L 182 34 Z"/>
+            <path d="M 174.5 34 C 175.5 33.5 177 33.8 178 34 L 182 34 C 183 33.8 184.5 33.5 185.5 34 L 185.5 32.4 C 184 32.7 182 33 180 33 C 178 33 175.5 32.7 174.5 32.4 Z"/>
+            <path d="M 174.5 80 C 175.5 80.5 177 80.2 178 80 L 182 80 C 183 80.2 184.5 80.5 185.5 80 L 185.5 81.6 C 184 81.3 182 81 180 81 C 178 81 175.5 81.3 174.5 81.6 Z"/>
+            <path d="M 155 34 L 155 80 L 159 80 L 159 34 Z"/>
+            <path d="M 151 34 C 152 33.5 153.5 33.8 155 34 L 159 34 C 160.5 33.8 162 33.5 163 34 L 163 32.4 C 161.5 32.7 159.5 33 157 33 C 154.5 33 152 32.7 151 32.4 Z"/>
+            <path d="M 151 80 C 152 80.5 153.5 80.2 155 80 L 159 80 C 160.5 80.2 162 80.5 163 80 L 163 81.6 C 161.5 81.3 159.5 81 157 81 C 154.5 81 152 81.3 151 81.6 Z"/>
+            <rect x="159" y="55.5" width="19" height="1.2" rx="0.6"/>
+            <path d="M 90 108 L 90 122 L 92.5 122 C 97 122 100.5 118.5 100.5 115 C 100.5 111.5 97 108 92.5 108 Z"/>
+            <path d="M 91.2 109.5 L 91.2 120.5 L 92.5 120.5 C 95.8 120.5 98.8 118.5 98.8 115 C 98.8 111.5 95.8 109.5 92.5 109.5 Z" fill="#f5ede0"/>
+            <path d="M 103 115 C 103 111 106 107.5 110 107.5 C 114 107.5 117 111 117 115 C 117 119 114 122.5 110 122.5 C 106 122.5 103 119 103 115 Z"/>
+            <path d="M 104.5 115 C 104.5 111.8 107 109 110 109 C 113 109 115.5 111.8 115.5 115 C 115.5 118.2 113 121 110 121 C 107 121 104.5 118.2 104.5 115 Z" fill="#f5ede0"/>
+            <path d="M 120 108 L 120 122 L 121.5 122 L 121.5 110.5 L 125 118 L 128.5 110.5 L 128.5 122 L 130 122 L 130 108 L 128 108 L 125 115 L 122 108 Z"/>
+            <path d="M 134 108 L 134 122 L 135.5 122 L 135.5 108 Z M 142.5 108 L 142.5 122 L 144 122 L 144 108 Z"/>
+            <rect x="135.5" y="114.3" width="7" height="1.2" rx="0.6"/>
+            <path d="M 148 108 L 148 116.5 C 148 120 150 122.5 153 122.5 C 156 122.5 158 120 158 116.5 L 158 108 L 156.5 108 L 156.5 116.5 C 156.5 119 155 121 153 121 C 151 121 149.5 119 149.5 116.5 L 149.5 108 Z"/>
+            <path d="M 162 108 L 162 122 L 167 122 C 169.5 122 171.5 120.5 171.5 118.5 C 171.5 117 170.5 115.8 169 115.3 C 170.2 114.8 171 113.7 171 112.5 C 171 110.2 169 108 166 108 Z"/>
+            <path d="M 163.5 109.3 L 163.5 114.5 L 166.5 114.5 C 168.5 114.5 169.5 113.5 169.5 112 C 169.5 110.5 168.5 109.3 166.5 109.3 Z M 163.5 115.8 L 163.5 120.7 L 167 120.7 C 169 120.7 170 119.7 170 118.3 C 170 116.9 169 115.8 167 115.8 Z" fill="#f5ede0"/>
+            <rect x="115" y="92" width="90" height="0.6" rx="0.3" fill="#c9a96e" opacity="0.6"/>
+          </g>
+        </svg>
+      </div>
+      <div class="variant__stage variant__stage--dark" style="padding: 40px 32px;">
+        <!-- Emblem on dark: outer frame cream, inner dark, letters cream -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" role="img" aria-label="DomHub emblem on dark">
+          <title>DomHub Emblem C on dark</title>
+          <!-- Frame -->
+          <path d="M 22 8 L 298 8 C 300 8 302 9.5 302 11.5 L 302 148.5 C 302 150.5 300 152 298 152 L 22 152 C 20 152 18 150.5 18 148.5 L 18 11.5 C 18 9.5 20 8 22 8 Z" fill="#f0e6d3"/>
+          <!-- Inner dark field -->
+          <path d="M 26 16 L 294 16 C 295.5 16 296.5 17 296.5 18.5 L 296.5 141.5 C 296.5 143 295.5 144 294 144 L 26 144 C 24.5 144 23.5 143 23.5 141.5 L 23.5 18.5 C 23.5 17 24.5 16 26 16 Z" fill="#181613"/>
+          <rect x="23.5" y="24" width="273" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.7"/>
+          <rect x="23.5" y="135" width="273" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.7"/>
+          <g fill="#f0e6d3">
+            <path d="M 118 34 L 118 80 L 122 80 L 122 34 Z"/>
+            <path d="M 114.5 34 C 115.5 33.5 117 33.8 118 34 L 122 34 C 123 33.8 124.5 33.5 125.5 34 L 125.5 32.4 C 124 32.7 122 33 120 33 C 118 33 115.5 32.7 114.5 32.4 Z"/>
+            <path d="M 114.5 80 C 115.5 80.5 117 80.2 118 80 L 122 80 C 123 80.2 124.5 80.5 125.5 80 L 125.5 81.6 C 124 81.3 122 81 120 81 C 118 81 115.5 81.3 114.5 81.6 Z"/>
+            <path d="M 122 34 C 131 34 144 37.5 148.5 47 C 152.5 55.5 151 67 145 73 C 139.5 78.5 130 80 122 80 Z"/>
+            <path d="M 122 39 C 129 39 140 42 143 49.5 C 146.5 57.5 145 67 140 71.5 C 135.5 75.5 128.5 75 122 74.5 Z" fill="#181613"/>
+            <path d="M 178 34 L 178 80 L 182 80 L 182 34 Z"/>
+            <path d="M 155 34 L 155 80 L 159 80 L 159 34 Z"/>
+            <rect x="159" y="55.5" width="19" height="1.2" rx="0.6"/>
+            <!-- wordmark -->
+            <path d="M 90 108 L 90 122 L 92.5 122 C 97 122 100.5 118.5 100.5 115 C 100.5 111.5 97 108 92.5 108 Z"/>
+            <path d="M 91.2 109.5 L 91.2 120.5 L 92.5 120.5 C 95.8 120.5 98.8 118.5 98.8 115 C 98.8 111.5 95.8 109.5 92.5 109.5 Z" fill="#181613"/>
+            <path d="M 103 115 C 103 111 106 107.5 110 107.5 C 114 107.5 117 111 117 115 C 117 119 114 122.5 110 122.5 C 106 122.5 103 119 103 115 Z"/>
+            <path d="M 104.5 115 C 104.5 111.8 107 109 110 109 C 113 109 115.5 111.8 115.5 115 C 115.5 118.2 113 121 110 121 C 107 121 104.5 118.2 104.5 115 Z" fill="#181613"/>
+            <path d="M 120 108 L 120 122 L 121.5 122 L 121.5 110.5 L 125 118 L 128.5 110.5 L 128.5 122 L 130 122 L 130 108 L 128 108 L 125 115 L 122 108 Z"/>
+            <path d="M 134 108 L 134 122 L 135.5 122 L 135.5 108 Z M 142.5 108 L 142.5 122 L 144 122 L 144 108 Z"/>
+            <rect x="135.5" y="114.3" width="7" height="1.2" rx="0.6"/>
+            <path d="M 148 108 L 148 116.5 C 148 120 150 122.5 153 122.5 C 156 122.5 158 120 158 116.5 L 158 108 L 156.5 108 L 156.5 116.5 C 156.5 119 155 121 153 121 C 151 121 149.5 119 149.5 116.5 L 149.5 108 Z"/>
+            <path d="M 162 108 L 162 122 L 167 122 C 169.5 122 171.5 120.5 171.5 118.5 C 171.5 117 170.5 115.8 169 115.3 C 170.2 114.8 171 113.7 171 112.5 C 171 110.2 169 108 166 108 Z"/>
+            <path d="M 163.5 109.3 L 163.5 114.5 L 166.5 114.5 C 168.5 114.5 169.5 113.5 169.5 112 C 169.5 110.5 168.5 109.3 166.5 109.3 Z M 163.5 115.8 L 163.5 120.7 L 167 120.7 C 169 120.7 170 119.7 170 118.3 C 170 116.9 169 115.8 167 115.8 Z" fill="#181613"/>
+          </g>
+          <rect x="115" y="92" width="90" height="0.6" rx="0.3" fill="#c9a96e" opacity="0.6"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="variant__meta" style="margin-top: 28px;">
+      <div class="variant__header">
+        <span class="variant__letter">C</span>
+        <div>
+          <h2 class="variant__name">Эмблема — Cartouche</h2>
+          <span class="variant__ref">В духе Aman Hotels / Rosewood / Bulgari Hotels</span>
+        </div>
+      </div>
+      <p class="variant__rationale">
+        Полная смена формата: не wordmark, а знак. Архитектурный cartouche с тонкой рамкой, тонкими золотыми горизонталями cornice и монограммой DH внутри. Внизу DOMHUB в тесных малых прописных. Это «печать» — для брендирования физической среды: рецепция ЖК, конверты, карточки доступа. Эмблемный формат принципиально другой коммуникативный код: он говорит «институция», не «сервис». Не конкурирует с другими вариантами — это параллельный инструмент.
+      </p>
+      <div class="variant__details">
+        <strong>Формат</strong>
+        Вертикальная эмблема — квадратный аватар или горизонтальный lockup
+      </div>
+      <div class="variant__details">
+        <strong>Архитектурный элемент</strong>
+        Cornice profile рамки — горизонтальные hairlines как карниз
+      </div>
+      <div class="variant__details">
+        <strong>Применение</strong>
+        Физическое брендирование, letterhead, wax seal
+      </div>
+      <div class="variant__details">
+        <strong>Ограничение</strong>
+        Не работает как favicon без отдельной иконки
+      </div>
+    </div>
+  </section>
+
+  <hr class="variant-divider">
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VARIANT D — Oculus gesture
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="variant" id="variant-d">
+    <p class="section-label">Вариант D</p>
+
+    <div class="variant__stages">
+      <div class="variant__stage variant__stage--dark">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 88" role="img" aria-label="DomHub variant D — oculus gesture on dark">
+          <title>DomHub Variant D on dark</title>
+          <g fill="#f0e6d3">
+            <path d="M 57 12 L 57 66 L 62 66 L 62 12 Z"/>
+            <path d="M 52.5 12 C 54 11.5 56 11.8 57 12 L 62 12 C 63 11.8 65 11.5 66 12 L 66 10.3 C 64.5 10.6 62 11 59.5 11 C 57 11 54 10.6 52.5 10.3 Z"/>
+            <path d="M 53 66 C 54.5 66.5 56 66.2 57 66 L 62 66 C 63 66.2 64.5 66.5 66 66 L 66 67.7 C 64.5 67.4 62 67 59.5 67 C 57 67 54 67.4 52.5 67.7 Z"/>
+            <path d="M 57 26 C 50.5 26 37 29.5 37 44 C 37 58.5 50.5 66 57 66 Z"/>
+            <path d="M 57 31.5 C 52 31.5 42.5 35 42.5 44 C 42.5 53 52 60.5 57 60.5 Z" fill="#181613"/>
+            <!-- o outer -->
+            <path d="M 75 44 C 75 29.5 84.5 20 97 20 C 109.5 20 119 29.5 119 44 C 119 58.5 109.5 68 97 68 C 84.5 68 75 58.5 75 44 Z"/>
+            <!-- o inner counter -->
+            <path d="M 79.5 44 C 79.5 32 87.5 24 97 24 C 106.5 24 114.5 32 114.5 44 C 114.5 56 106.5 64 97 64 C 87.5 64 79.5 56 79.5 44 Z" fill="#181613"/>
+          </g>
+          <!-- Oculus gold ring on dark -->
+          <circle cx="97" cy="44" r="14.5" fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <circle cx="97" cy="44" r="10.5" fill="#f0e6d3" opacity="0.04"/>
+          <g fill="#f0e6d3">
+            <path d="M 129 22 L 129 66 L 134 66 L 134 22 Z"/>
+            <path d="M 125 22 C 126.5 21.5 128.5 21.8 129 22 L 134 22 C 135.5 21.8 137.5 21.5 138.5 22 L 138.5 20.3 C 137 20.6 135 21 131.5 21 C 128 21 125.5 20.6 125 20.3 Z"/>
+            <path d="M 125 66 C 126.5 66.5 128.5 66.2 129 66 L 134 66 C 135.5 66.2 137.5 66.5 138.5 66 L 138.5 67.7 C 137 67.4 135 67 131.5 67 C 128 67 125.5 67.4 125 67.7 Z"/>
+            <path d="M 134 22 C 134 22 138 16.5 146 16.5 C 154 16.5 158 22 158 22 L 158 66 L 153 66 L 153 26.5 C 153 26.5 150.5 22.5 146 22.5 C 141.5 22.5 139 26.5 139 26.5 L 139 66 L 134 66 Z"/>
+            <path d="M 158 22 C 158 22 162 16.5 170 16.5 C 178 16.5 182 22 182 22 L 182 66 L 177 66 L 177 26.5 C 177 26.5 174.5 22.5 170 22.5 C 165.5 22.5 163 26.5 163 26.5 L 163 66 L 158 66 Z"/>
+            <rect x="200" y="20" width="0.85" height="48" rx="0.4" fill="#c9a96e" opacity="0.6"/>
+            <path d="M 214 14 L 214 72 L 219 72 L 219 14 Z"/>
+            <path d="M 209.5 14 C 211 13.5 213 13.8 214 14 L 219 14 C 220 13.8 222 13.5 223 14 L 223 12.3 C 221.5 12.6 219 13 216.5 13 C 214 13 211 12.6 209.5 12.3 Z"/>
+            <path d="M 209.5 72 C 211 72.5 213 72.2 214 72 L 219 72 C 220 72.2 222 72.5 223 72 L 223 73.7 C 221.5 73.4 219 73 216.5 73 C 214 73 211 73.4 209.5 73.7 Z"/>
+            <path d="M 244 14 L 244 72 L 249 72 L 249 14 Z"/>
+            <path d="M 239.5 14 C 241 13.5 243 13.8 244 14 L 249 14 C 250 13.8 252 13.5 253 14 L 253 12.3 C 251.5 12.6 249 13 246.5 13 C 244 13 241 12.6 239.5 12.3 Z"/>
+            <path d="M 239.5 72 C 241 72.5 243 72.2 244 72 L 249 72 C 250 72.2 252 72.5 253 72 L 253 73.7 C 251.5 73.4 249 73 246.5 73 C 244 73 241 73.4 239.5 73.7 Z"/>
+            <rect x="219" y="41.5" width="25" height="1.6" rx="0.8"/>
+            <path d="M 264 22 L 264 52 C 264 60 269.5 66 278 66 C 286.5 66 292 60 292 52 L 292 22 L 287 22 L 287 52 C 287 57 283.5 62 278 62 C 272.5 62 269 57 269 52 L 269 22 Z"/>
+            <path d="M 260 22 C 261.5 21.5 263.5 21.8 264 22 L 269 22 C 270.5 21.8 272.5 21.5 274 22 L 274 20.3 C 272.5 20.6 270 21 267 21 C 264 21 261.5 20.6 260 20.3 Z"/>
+            <path d="M 311 11 L 311 66 L 316 66 L 316 11 Z"/>
+            <path d="M 306.5 11 C 308 10.5 310 10.8 311 11 L 316 11 C 317 10.8 319 10.5 320 11 L 320 9.3 C 318.5 9.6 316 10 313.5 10 C 311 10 308 9.6 306.5 9.3 Z"/>
+            <path d="M 307 66 C 308.5 66.5 310 66.2 311 66 L 316 66 C 317 66.2 318.5 66.5 320 66 L 320 67.7 C 318.5 67.4 316 67 313.5 67 C 311 67 308 67.4 307 67.7 Z"/>
+            <path d="M 316 34 C 323 33.5 335 37 339.5 44 C 344.5 51.5 342.5 61 336.5 64.5 C 330.5 68 321 67 316 66 Z"/>
+            <path d="M 316 39.5 C 321 39 330.5 42 334 48 C 337.5 55 335 62 330 64.5 C 326 66.5 320.5 65.5 316 64 Z" fill="#181613"/>
+          </g>
+          <rect x="37" y="77" width="308" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.45"/>
+        </svg>
+      </div>
+      <div class="variant__stage stage-ink">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 88" role="img" aria-label="DomHub variant D — oculus gesture on cream">
+          <title>DomHub Variant D on cream</title>
+          <g fill="#1e1b16">
+            <path d="M 57 12 L 57 66 L 62 66 L 62 12 Z"/>
+            <path d="M 52.5 12 C 54 11.5 56 11.8 57 12 L 62 12 C 63 11.8 65 11.5 66 12 L 66 10.3 C 64.5 10.6 62 11 59.5 11 C 57 11 54 10.6 52.5 10.3 Z"/>
+            <path d="M 53 66 C 54.5 66.5 56 66.2 57 66 L 62 66 C 63 66.2 64.5 66.5 66 66 L 66 67.7 C 64.5 67.4 62 67 59.5 67 C 57 67 54 67.4 52.5 67.7 Z"/>
+            <path d="M 57 26 C 50.5 26 37 29.5 37 44 C 37 58.5 50.5 66 57 66 Z"/>
+            <path d="M 57 31.5 C 52 31.5 42.5 35 42.5 44 C 42.5 53 52 60.5 57 60.5 Z" fill="#f5ede0"/>
+            <path d="M 75 44 C 75 29.5 84.5 20 97 20 C 109.5 20 119 29.5 119 44 C 119 58.5 109.5 68 97 68 C 84.5 68 75 58.5 75 44 Z"/>
+            <path d="M 79.5 44 C 79.5 32 87.5 24 97 24 C 106.5 24 114.5 32 114.5 44 C 114.5 56 106.5 64 97 64 C 87.5 64 79.5 56 79.5 44 Z" fill="#f5ede0"/>
+          </g>
+          <circle cx="97" cy="44" r="14.5" fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+          <circle cx="97" cy="44" r="10.5" fill="#1e1b16" opacity="0.07"/>
+          <g fill="#1e1b16">
+            <path d="M 129 22 L 129 66 L 134 66 L 134 22 Z"/>
+            <path d="M 125 22 C 126.5 21.5 128.5 21.8 129 22 L 134 22 C 135.5 21.8 137.5 21.5 138.5 22 L 138.5 20.3 C 137 20.6 135 21 131.5 21 C 128 21 125.5 20.6 125 20.3 Z"/>
+            <path d="M 125 66 C 126.5 66.5 128.5 66.2 129 66 L 134 66 C 135.5 66.2 137.5 66.5 138.5 66 L 138.5 67.7 C 137 67.4 135 67 131.5 67 C 128 67 125.5 67.4 125 67.7 Z"/>
+            <path d="M 134 22 C 134 22 138 16.5 146 16.5 C 154 16.5 158 22 158 22 L 158 66 L 153 66 L 153 26.5 C 153 26.5 150.5 22.5 146 22.5 C 141.5 22.5 139 26.5 139 26.5 L 139 66 L 134 66 Z"/>
+            <path d="M 158 22 C 158 22 162 16.5 170 16.5 C 178 16.5 182 22 182 22 L 182 66 L 177 66 L 177 26.5 C 177 26.5 174.5 22.5 170 22.5 C 165.5 22.5 163 26.5 163 26.5 L 163 66 L 158 66 Z"/>
+            <rect x="200" y="20" width="0.85" height="48" rx="0.4" fill="#c9a96e" opacity="0.6"/>
+            <path d="M 214 14 L 214 72 L 219 72 L 219 14 Z"/>
+            <path d="M 244 14 L 244 72 L 249 72 L 249 14 Z"/>
+            <rect x="219" y="41.5" width="25" height="1.6" rx="0.8"/>
+            <path d="M 264 22 L 264 52 C 264 60 269.5 66 278 66 C 286.5 66 292 60 292 52 L 292 22 L 287 22 L 287 52 C 287 57 283.5 62 278 62 C 272.5 62 269 57 269 52 L 269 22 Z"/>
+            <path d="M 311 11 L 311 66 L 316 66 L 316 11 Z"/>
+            <path d="M 316 34 C 323 33.5 335 37 339.5 44 C 344.5 51.5 342.5 61 336.5 64.5 C 330.5 68 321 67 316 66 Z"/>
+            <path d="M 316 39.5 C 321 39 330.5 42 334 48 C 337.5 55 335 62 330 64.5 C 326 66.5 320.5 65.5 316 64 Z" fill="#f5ede0"/>
+          </g>
+          <rect x="37" y="77" width="308" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.45"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="variant__meta" style="margin-top: 28px;">
+      <div class="variant__header">
+        <span class="variant__letter">D</span>
+        <div>
+          <h2 class="variant__name">Один смелый жест — Oculus</h2>
+          <span class="variant__ref">В духе GT Sectra / Canela — один сильный ход</span>
+        </div>
+      </div>
+      <p class="variant__rationale">
+        «Domhub» в сдержанном сериф-регистре — и одна буква делает что-то неожиданное. Буква «o» в «dom» превращается в окулус — круглое окно ротонды или барабана купола, один из самых узнаваемых элементов московского классицизма. Золотой hairline ring внутри oval читается как каменный подоконник окна. Это не декорация — это архитектурный знак, вписанный в типографику. Когда понимаешь «о» как окно, весь wordmark начинает читаться по-другому. Именно этот эффект отложенного узнавания — самое сильное, что может сделать логотип.
+      </p>
+      <div class="variant__details">
+        <strong>Жест</strong>
+        «o» = oculus / круглое окно — один элемент, уверенно
+      </div>
+      <div class="variant__details">
+        <strong>Контраст штрихов</strong>
+        ~2:1 (Transitional) — читается и на экране, и в печати
+      </div>
+      <div class="variant__details">
+        <strong>Цветовой акцент</strong>
+        Только один: hairline ring в «o» — #c9a96e
+      </div>
+      <div class="variant__details">
+        <strong>Универсальность</strong>
+        Работает от favicon до outdoor — жест масштабируется
+      </div>
+    </div>
+  </section>
+
+  <hr class="variant-divider">
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VARIANT E — Heavy all-caps + hairline portico mark
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="variant" id="variant-e">
+    <p class="section-label">Вариант E</p>
+
+    <div class="variant__stages variant__stages--single">
+      <div class="variant__stage stage-ink" style="padding: 48px 40px 56px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" role="img" aria-label="DomHub variant E — heavy all-caps with portico mark on cream">
+          <title>DomHub Variant E on cream</title>
+          <g fill="none" stroke="#1a1714" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="189" y1="8" x2="189" y2="24"/>
+            <line x1="186" y1="8" x2="192" y2="8"/>
+            <line x1="186.5" y1="9.5" x2="191.5" y2="9.5"/>
+            <line x1="186" y1="22.5" x2="192" y2="22.5"/>
+            <line x1="187" y1="24" x2="191" y2="24"/>
+            <line x1="231" y1="8" x2="231" y2="24"/>
+            <line x1="228" y1="8" x2="234" y2="8"/>
+            <line x1="228.5" y1="9.5" x2="233.5" y2="9.5"/>
+            <line x1="228" y1="22.5" x2="234" y2="22.5"/>
+            <line x1="229" y1="24" x2="233" y2="24"/>
+            <path d="M 189 14 C 189 10 193 7 210 7 C 227 7 231 10 231 14"/>
+            <line x1="186" y1="7" x2="234" y2="7"/>
+            <line x1="184" y1="24" x2="236" y2="24"/>
+            <line x1="183" y1="25.5" x2="237" y2="25.5"/>
+          </g>
+          <path d="M 207.5 7.5 L 210 4.5 L 212.5 7.5 Z" fill="#c9a96e" opacity="0.8"/>
+          <g fill="#1a1714">
+            <path d="M 18 38 L 18 88 L 26 88 L 26 38 Z"/>
+            <path d="M 26 38 C 41 38 60 42.5 60 63 C 60 83.5 41 88 26 88 Z"/>
+            <path d="M 26 46 C 36.5 46 51.5 50 51.5 63 C 51.5 76 36.5 80 26 80 Z" fill="#f5ede0"/>
+            <path d="M 68 63 C 68 47.5 79 37 93.5 37 C 108 37 119 47.5 119 63 C 119 78.5 108 89 93.5 89 C 79 89 68 78.5 68 63 Z"/>
+            <path d="M 76 63 C 76 51.5 84 45 93.5 45 C 103 45 111 51.5 111 63 C 111 74.5 103 81 93.5 81 C 84 81 76 74.5 76 63 Z" fill="#f5ede0"/>
+            <path d="M 126 38 L 126 88 L 134 88 L 134 38 Z"/>
+            <path d="M 172 38 L 172 88 L 180 88 L 180 38 Z"/>
+            <path d="M 134 38 L 153 68 L 153 78 L 134 42 Z"/>
+            <path d="M 172 38 L 153 68 L 153 78 L 172 42 Z"/>
+            <path d="M 190 38 L 190 88 L 198 88 L 198 38 Z"/>
+            <path d="M 234 38 L 234 88 L 242 88 L 242 38 Z"/>
+            <rect x="198" y="59" width="36" height="5" rx="0.5"/>
+            <path d="M 252 38 L 252 70 C 252 80 259 88 271 88 C 283 88 290 80 290 70 L 290 38 L 282 38 L 282 70 C 282 76 277.5 80.5 271 80.5 C 264.5 80.5 260 76 260 70 L 260 38 Z"/>
+            <path d="M 300 38 L 300 88 L 308 88 L 308 38 Z"/>
+            <path d="M 308 38 C 325 38 334 43.5 334 53 C 334 62.5 325 67 308 67 Z"/>
+            <path d="M 308 44 C 321 44 326 48 326 53 C 326 58 321 61 308 61 Z" fill="#f5ede0"/>
+            <path d="M 308 67 C 328 67 338 72.5 338 79 C 338 85.5 328 88 308 88 Z"/>
+            <path d="M 308 73 C 322.5 73 330 76 330 79 C 330 82 322.5 85 308 85 Z" fill="#f5ede0"/>
+          </g>
+          <rect x="18" y="91.5" width="320" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- dark preview -->
+    <div class="variant__preview" style="background: #0e0d0b;">
+      <span class="variant__preview-label">На тёмном фоне</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" height="28" style="width: auto;">
+        <g fill="none" stroke="#f0e6d3" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="189" y1="8" x2="189" y2="24"/><line x1="186" y1="8" x2="192" y2="8"/>
+          <line x1="186.5" y1="9.5" x2="191.5" y2="9.5"/><line x1="186" y1="22.5" x2="192" y2="22.5"/>
+          <line x1="187" y1="24" x2="191" y2="24"/><line x1="231" y1="8" x2="231" y2="24"/>
+          <line x1="228" y1="8" x2="234" y2="8"/><line x1="228.5" y1="9.5" x2="233.5" y2="9.5"/>
+          <line x1="228" y1="22.5" x2="234" y2="22.5"/><line x1="229" y1="24" x2="233" y2="24"/>
+          <path d="M 189 14 C 189 10 193 7 210 7 C 227 7 231 10 231 14"/>
+          <line x1="186" y1="7" x2="234" y2="7"/>
+          <line x1="184" y1="24" x2="236" y2="24"/><line x1="183" y1="25.5" x2="237" y2="25.5"/>
+        </g>
+        <path d="M 207.5 7.5 L 210 4.5 L 212.5 7.5 Z" fill="#c9a96e" opacity="0.8"/>
+        <g fill="#f0e6d3">
+          <path d="M 18 38 L 18 88 L 26 88 L 26 38 Z"/>
+          <path d="M 26 38 C 41 38 60 42.5 60 63 C 60 83.5 41 88 26 88 Z"/>
+          <path d="M 26 46 C 36.5 46 51.5 50 51.5 63 C 51.5 76 36.5 80 26 80 Z" fill="#181613"/>
+          <path d="M 68 63 C 68 47.5 79 37 93.5 37 C 108 37 119 47.5 119 63 C 119 78.5 108 89 93.5 89 C 79 89 68 78.5 68 63 Z"/>
+          <path d="M 76 63 C 76 51.5 84 45 93.5 45 C 103 45 111 51.5 111 63 C 111 74.5 103 81 93.5 81 C 84 81 76 74.5 76 63 Z" fill="#181613"/>
+          <path d="M 126 38 L 126 88 L 134 88 L 134 38 Z"/><path d="M 172 38 L 172 88 L 180 88 L 180 38 Z"/>
+          <path d="M 134 38 L 153 68 L 153 78 L 134 42 Z"/><path d="M 172 38 L 153 68 L 153 78 L 172 42 Z"/>
+          <path d="M 190 38 L 190 88 L 198 88 L 198 38 Z"/><path d="M 234 38 L 234 88 L 242 88 L 242 38 Z"/>
+          <rect x="198" y="59" width="36" height="5" rx="0.5"/>
+          <path d="M 252 38 L 252 70 C 252 80 259 88 271 88 C 283 88 290 80 290 70 L 290 38 L 282 38 L 282 70 C 282 76 277.5 80.5 271 80.5 C 264.5 80.5 260 76 260 70 L 260 38 Z"/>
+          <path d="M 300 38 L 300 88 L 308 88 L 308 38 Z"/>
+          <path d="M 308 38 C 325 38 334 43.5 334 53 C 334 62.5 325 67 308 67 Z"/>
+          <path d="M 308 44 C 321 44 326 48 326 53 C 326 58 321 61 308 61 Z" fill="#181613"/>
+          <path d="M 308 67 C 328 67 338 72.5 338 79 C 338 85.5 328 88 308 88 Z"/>
+          <path d="M 308 73 C 322.5 73 330 76 330 79 C 330 82 322.5 85 308 85 Z" fill="#181613"/>
+        </g>
+        <rect x="18" y="91.5" width="320" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.5"/>
+      </svg>
+    </div>
+
+    <div class="variant__meta" style="margin-top: 28px;">
+      <div class="variant__header">
+        <span class="variant__letter">E</span>
+        <div>
+          <h2 class="variant__name">Heavy Caps + Hairline Mark</h2>
+          <span class="variant__ref">В духе Assouline / Tom Ford / Celine (старый)</span>
+        </div>
+      </div>
+      <p class="variant__rationale">
+        «DOMHUB» прописными, жирный вес, тесный трекинг. Это регистр монументальности: не шрифт плакатного дизайна, а шрифт фронтона музея или входа в галерею. Над wordmark — тончайший hairline-знак: портик с двумя колоннами, антаблементом и аркой — 20 линий, никакого fill. Максимальный контраст между heavy нижом и voздушным верхом. Этот вариант лучше всего работает как входной знак — буквально на фасаде, на вывеске, на предметах, где есть физический масштаб.
+      </p>
+      <div class="variant__details">
+        <strong>Регистр</strong>
+        All-caps — максимальная архитектурная серьёзность
+      </div>
+      <div class="variant__details">
+        <strong>Hairline mark</strong>
+        Портик — 2 колонны + арка + антаблемент, вес 0.8px
+      </div>
+      <div class="variant__details">
+        <strong>Контраст</strong>
+        Жирный wordmark vs hairline mark — максимальный диапазон
+      </div>
+      <div class="variant__details">
+        <strong>Для чего</strong>
+        Физическое пространство, вывеска, монументальная коммуникация
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       RECOMMENDATION
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="recommendation" id="recommendation">
+    <h2 class="rec-header">Честная рекомендация арт-директора</h2>
+
+    <div class="rec-block">
+      <p class="rec-variant">Вариант D — Oculus (первый выбор)</p>
+      <p class="rec-text">
+        Сильнейший вариант из пяти. Причина: один уверенный жест, встроенный в типографику, а не приклеенный к ней. Окулус в «o» — это не декорация, это семантический слой: буква означает не только звук, но и место. Московский классицизм (именно Замоскворечье — ротонды, арки, круглые чердачные окна), цитируется ненавязчиво. Логотип читается с первого взгляда как серьёзный serif wordmark — и только потом, при рассмотрении, открывает деталь. Именно этот эффект отличает сильные марки от просто красивых. Goldring внутри «o» — единственный цветовой акцент, и он работает как маячок.
+      </p>
+    </div>
+
+    <div class="rec-block">
+      <p class="rec-variant">Вариант B — Transitional + Detail (второй выбор)</p>
+      <p class="rec-text">
+        Лучший вариант для digital-first применения, потому что Transitional-регистр (мягче Didone) читается на экране лучше. Арочное окно в bowl «b» — конкретная историческая цитата наличников купеческих особняков, прямо по адресу заказчика. Деталь видна при крупном использовании, что даёт повод для storytelling в медиа («в нашем логотипе — старомосковское окно»). На экране в 24px деталь исчезает — это правильно: она существует только там, где у бренда есть место для разговора.
+      </p>
+    </div>
+
+    <div class="rec-strong">
+      <p class="rec-strong__label">Почему именно эти два — и почему не остальные</p>
+      <p class="rec-strong__text">
+        Вариант A (Didone) — самый чистый типографически, но без детали остаётся красивой нейтральностью. Слишком близко к модному «editorial blank». Хорош как резервный если заказчик хочет максимально сдержанное.<br><br>
+        Вариант C (Cartouche) — сильный инструмент, но не логотип в привычном смысле: это скорее seal для физического брендирования. Если у DomHub появится luxury concierge card или клубный конверт — это именно C. Рекомендую разработать параллельно как collateral знак.<br><br>
+        Вариант E (Heavy caps) — монументален и правильно позиционирован, но читается ближе к издательству или галерее, чем к управляющей компании ЖК. Сильный вариант если будет expansion в сторону luxury real estate branding или печатного издания.
+      </p>
+    </div>
+
+    <div class="rec-next">
+      <p class="rec-next__label">Что делать дальше</p>
+      <ul>
+        <li>Взять вариант D или B как базу и заказать финальную отрисовку в лицензированной гарнитуре (Tiempos Text / GT Sectra Bold для B; Canela / Freight Display для D) — нынешние SVG ручные, не font-derived, требуют профессиональной доводки кривых.</li>
+        <li>Собрать референс-фото архитектуры Замоскворечья (наличники, арочные окна, купеческие фасады XIX века) — для уточнения пропорций деталей и возможного расширения визуального языка на UI-иллюстрации.</li>
+        <li>Проверить логотип в паре приложений: header приложения ЖК (ширина ~200px), карточка доступа (формат 85×54mm), фасадная вывеска (имитация scale). Три контекста дадут финальную уверенность в выборе.</li>
+        <li>Параллельно: для варианта C (cartouche) проработать как отдельный seal — для физических носителей, не конкурируя с основным логотипом.</li>
+      </ul>
+    </div>
+  </section>
+
+</body>
+</html>

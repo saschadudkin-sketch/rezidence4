@@ -12,8 +12,20 @@ vi.mock('../constants', () => ({
   },
 }));
 
+vi.mock('./http/apiClient', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
 import { sendNotif } from '../utils';
-import { pushNotifyResident, subscribePush } from './pushNotification';
+import { apiClient } from './http/apiClient';
+import { pushNotifyResident, subscribePush, unsubscribePush } from './pushNotification';
+
+// Minimal valid base64url VAPID public key (65 raw bytes, uncompressed P-256 point)
+const FAKE_VAPID_KEY = 'BHk9sT_' + 'A'.repeat(80);
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -80,59 +92,227 @@ describe('pushNotifyResident', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// subscribePush — Web Push (VAPID) subscription flow
+// ─────────────────────────────────────────────────────────────────────────────
+
 describe('subscribePush', () => {
   let origNotification;
+  let origServiceWorker;
+  let origLocalStorage;
+
+  function makeSubscription(opts = {}) {
+    const p256dh = opts.p256dh ?? new Uint8Array([1, 2, 3]).buffer;
+    const auth = opts.auth ?? new Uint8Array([4, 5, 6]).buffer;
+    return {
+      endpoint: opts.endpoint ?? 'https://push.example/abc',
+      getKey: vi.fn((name: string) => {
+        if (name === 'p256dh') return p256dh;
+        if (name === 'auth') return auth;
+        return null;
+      }),
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+  }
+
+  function installServiceWorker({ existing = null, subscribeResult } = {}) {
+    const pushManager = {
+      getSubscription: vi.fn().mockResolvedValue(existing),
+      subscribe: vi.fn().mockResolvedValue(subscribeResult ?? makeSubscription()),
+    };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { ready: Promise.resolve({ pushManager }) },
+      configurable: true,
+    });
+    return pushManager;
+  }
 
   beforeEach(() => {
     origNotification = global.Notification;
+    origServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+
+    const store: Record<string, string> = {};
+    origLocalStorage = global.localStorage;
+    Object.defineProperty(global, 'localStorage', {
+      value: {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => { store[k] = v; },
+        removeItem: (k: string) => { delete store[k]; },
+        clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+      },
+      configurable: true,
+    });
   });
 
   afterEach(() => {
     global.Notification = origNotification;
+    if (origServiceWorker) {
+      Object.defineProperty(navigator, 'serviceWorker', origServiceWorker);
+    } else {
+      // @ts-expect-error — property is configurable
+      delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+    }
+    if (origLocalStorage) {
+      Object.defineProperty(global, 'localStorage', { value: origLocalStorage, configurable: true });
+    }
   });
 
   test('ничего не делает если Notification недоступен', async () => {
-    delete global.Notification;
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
+    delete (global as unknown as { Notification?: unknown }).Notification;
+    await expect(subscribePush()).resolves.toBeUndefined();
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 
   test('ничего не делает если разрешение denied', async () => {
     global.Notification = { permission: 'denied', requestPermission: vi.fn() };
-    await subscribePush('u1');
+    await subscribePush();
     expect(global.Notification.requestPermission).not.toHaveBeenCalled();
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 
-  test('запрашивает разрешение если default', async () => {
-    const mockShowNotification = vi.fn();
-    const mockReady = Promise.resolve({ showNotification: mockShowNotification });
-    const mockRequestPermission = vi.fn().mockResolvedValue('granted');
-
-    global.Notification = { permission: 'default', requestPermission: mockRequestPermission };
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: { ready: mockReady },
-      configurable: true,
-    });
-
-    await subscribePush('u1');
-    expect(mockRequestPermission).toHaveBeenCalled();
-  });
-
-  test('не падает при отклонении разрешения', async () => {
+  test('не падает если пользователь отклонил разрешение', async () => {
     global.Notification = {
       permission: 'default',
       requestPermission: vi.fn().mockResolvedValue('denied'),
     };
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
+    installServiceWorker();
+    await expect(subscribePush()).resolves.toBeUndefined();
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 
-  test('не падает при ошибке SW', async () => {
+  test('ничего не шлёт если backend не вернул VAPID-ключ', async () => {
+    global.Notification = { permission: 'granted', requestPermission: vi.fn() };
+    installServiceWorker();
+    vi.mocked(apiClient.get).mockResolvedValue({ key: null });
+    await subscribePush();
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  test('создаёт подписку и регистрирует её на backend', async () => {
+    global.Notification = { permission: 'granted', requestPermission: vi.fn() };
+    const pushManager = installServiceWorker();
+    vi.mocked(apiClient.get).mockResolvedValue({ key: FAKE_VAPID_KEY });
+    vi.mocked(apiClient.post).mockResolvedValue({ subscription: { id: 'sub-uuid-1' } });
+
+    await subscribePush();
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/push-subscriptions/vapid-public-key');
+    expect(pushManager.subscribe).toHaveBeenCalledWith(expect.objectContaining({
+      userVisibleOnly: true,
+      applicationServerKey: expect.any(Uint8Array),
+    }));
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/push-subscriptions',
+      expect.objectContaining({
+        endpoint: 'https://push.example/abc',
+        keys: expect.objectContaining({
+          p256dh: expect.any(String),
+          auth: expect.any(String),
+        }),
+        deviceName: expect.any(String),
+      }),
+    );
+    expect(localStorage.getItem('push.subscriptionId')).toBe('sub-uuid-1');
+  });
+
+  test('переиспользует существующую подписку вместо повторной', async () => {
+    global.Notification = { permission: 'granted', requestPermission: vi.fn() };
+    const existing = makeSubscription({ endpoint: 'https://push.example/existing' });
+    const pushManager = installServiceWorker({ existing });
+    vi.mocked(apiClient.get).mockResolvedValue({ key: FAKE_VAPID_KEY });
+    vi.mocked(apiClient.post).mockResolvedValue({ subscription: { id: 'sub-uuid-2' } });
+
+    await subscribePush();
+
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/v1/push-subscriptions',
+      expect.objectContaining({ endpoint: 'https://push.example/existing' }),
+    );
+  });
+
+  test('не падает при ошибке сети', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    global.Notification = {
-      permission: 'default',
-      requestPermission: vi.fn().mockRejectedValue(new Error('SW error')),
-    };
-    await expect(subscribePush('u1')).resolves.toBeUndefined();
-    expect(warnSpy).toHaveBeenCalledWith('[push] subscribe failed:', expect.any(Error));
+    global.Notification = { permission: 'granted', requestPermission: vi.fn() };
+    installServiceWorker();
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('network'));
+
+    await expect(subscribePush()).resolves.toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// unsubscribePush — opt-out
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('unsubscribePush', () => {
+  let origServiceWorker;
+
+  function makeSubscription() {
+    return {
+      endpoint: 'https://push.example/abc',
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+  }
+
+  function installServiceWorker(subscription) {
+    const pushManager = { getSubscription: vi.fn().mockResolvedValue(subscription) };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { ready: Promise.resolve({ pushManager }) },
+      configurable: true,
+    });
+    return pushManager;
+  }
+
+  beforeEach(() => {
+    origServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+    const store: Record<string, string> = { 'push.subscriptionId': 'sub-to-delete' };
+    Object.defineProperty(global, 'localStorage', {
+      value: {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => { store[k] = v; },
+        removeItem: (k: string) => { delete store[k]; },
+        clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+      },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    if (origServiceWorker) {
+      Object.defineProperty(navigator, 'serviceWorker', origServiceWorker);
+    } else {
+      delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+    }
+  });
+
+  test('вызывает backend DELETE и сносит браузерную подписку', async () => {
+    const subscription = makeSubscription();
+    installServiceWorker(subscription);
+    vi.mocked(apiClient.delete).mockResolvedValue(undefined);
+
+    await unsubscribePush();
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/push-subscriptions/sub-to-delete');
+    expect(subscription.unsubscribe).toHaveBeenCalled();
+    expect(localStorage.getItem('push.subscriptionId')).toBeNull();
+  });
+
+  test('не падает если backend DELETE упал', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const subscription = makeSubscription();
+    installServiceWorker(subscription);
+    vi.mocked(apiClient.delete).mockRejectedValue(new Error('500'));
+
+    await expect(unsubscribePush()).resolves.toBeUndefined();
+    expect(subscription.unsubscribe).toHaveBeenCalled(); // still cleans up browser side
+    warnSpy.mockRestore();
+  });
+
+  test('не падает если подписки не было', async () => {
+    installServiceWorker(null);
+    await expect(unsubscribePush()).resolves.toBeUndefined();
   });
 });

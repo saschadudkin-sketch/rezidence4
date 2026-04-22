@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 88" fill="none">
+  <title>DomHub — Variant D, Serif wordmark with single bold gesture</title>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       VARIANT D — Serif wordmark + one bold gesture
+       THE GESTURE: The 'o' in "dom" is an oculus — a round window
+       seen in classical Russian civic architecture (rotundas,
+       kupecheskie domy). The counter is not an ellipse but a
+       perfect architectural circle with a thin hairline surround,
+       as if set into masonry. The bowl/counter stroke reads as
+       the window frame, giving the 'o' presence unlike any other
+       letter in the word.
+       Register: GT Sectra / Canela weight, ~2:1 contrast
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <g fill="#1e1b16">
+
+    <!-- ── d ──────────────────────────────────────────────────────
+         Lowercase 'd' — thick stem right, bowl left.
+         Ascender present but modest (Canela proportions).          -->
+    <!-- Ascender stem right of bowl -->
+    <path d="M 57 12 L 57 66 L 62 66 L 62 12 Z"/>
+    <!-- Ascender top serif -->
+    <path d="M 52.5 12 C 54 11.5 56 11.8 57 12 L 62 12 C 63 11.8 65 11.5 66 12 L 66 10.3 C 64.5 10.6 62 11 59.5 11 C 57 11 54 10.6 52.5 10.3 Z"/>
+    <!-- d bowl outer (left of stem) -->
+    <path d="M 57 26 C 50.5 26 37 29.5 37 44 C 37 58.5 50.5 66 57 66 Z"/>
+    <!-- d bowl inner -->
+    <path d="M 57 31.5 C 52 31.5 42.5 35 42.5 44 C 42.5 53 52 60.5 57 60.5 Z"
+          fill="#f5ede0"/>
+    <!-- base serif on d -->
+    <path d="M 53 66 C 54.5 66.5 56 66.2 57 66 L 62 66 C 63 66.2 64.5 66.5 66 66 L 66 67.7 C 64.5 67.4 62 67 59.5 67 C 57 67 54 67.4 52.5 67.7 Z"/>
+
+    <!-- ── o — THE OCULUS ──────────────────────────────────────────
+         The 'o' is the architectural gesture. The bowl is drawn
+         with a noticeable stroke contrast (thick left, thin top/base)
+         and the counter is a near-perfect circle — an oculus —
+         with a hairline gold ring inside, reading as a window frame
+         set into the thicker letterform masonry.                   -->
+    <!-- o outer bowl (thick, slight Didone stress) -->
+    <path d="M 75 44 C 75 29.5 84.5 20 97 20 C 109.5 20 119 29.5 119 44 C 119 58.5 109.5 68 97 68 C 84.5 68 75 58.5 75 44 Z"/>
+    <!-- o inner counter — precision circle (the oculus) -->
+    <path d="M 79.5 44 C 79.5 32 87.5 24 97 24 C 106.5 24 114.5 32 114.5 44 C 114.5 56 106.5 64 97 64 C 87.5 64 79.5 56 79.5 44 Z"
+          fill="#f5ede0"/>
+    <!-- OCULUS DETAIL: hairline gold ring — the window frame.
+         Sits inside the counter, thin circle.                      -->
+    <circle cx="97" cy="44" r="14.5" fill="none" stroke="#c9a96e" stroke-width="0.9"/>
+    <!-- Oculus inner circle (darker opening) — completes window read -->
+    <circle cx="97" cy="44" r="10.5" fill="#1e1b16" opacity="0.08"/>
+
+    <!-- ── m ──────────────────────────────────────────────────────  -->
+    <path d="M 129 22 L 129 66 L 134 66 L 134 22 Z"/>
+    <path d="M 125 22 C 126.5 21.5 128.5 21.8 129 22 L 134 22 C 135.5 21.8 137.5 21.5 138.5 22 L 138.5 20.3 C 137 20.6 135 21 131.5 21 C 128 21 125.5 20.6 125 20.3 Z"/>
+    <path d="M 125 66 C 126.5 66.5 128.5 66.2 129 66 L 134 66 C 135.5 66.2 137.5 66.5 138.5 66 L 138.5 67.7 C 137 67.4 135 67 131.5 67 C 128 67 125.5 67.4 125 67.7 Z"/>
+    <!-- First arch -->
+    <path d="M 134 22 C 134 22 138 16.5 146 16.5 C 154 16.5 158 22 158 22 L 158 66 L 153 66 L 153 26.5 C 153 26.5 150.5 22.5 146 22.5 C 141.5 22.5 139 26.5 139 26.5 L 139 66 L 134 66 Z"/>
+    <!-- Second arch -->
+    <path d="M 158 22 C 158 22 162 16.5 170 16.5 C 178 16.5 182 22 182 22 L 182 66 L 177 66 L 177 26.5 C 177 26.5 174.5 22.5 170 22.5 C 165.5 22.5 163 26.5 163 26.5 L 163 66 L 158 66 Z"/>
+    <path d="M 177 22 L 182 22 L 182 66 L 177 66 Z"/>
+    <path d="M 173.5 22 C 175 21.5 177 21.8 177 22 L 182 22 C 183.5 21.8 185.5 21.5 187 22 L 187 20.3 C 185.5 20.6 183 21 179.5 21 C 176 21 173.5 20.6 173.5 20.3 Z"/>
+    <path d="M 173.5 66 C 175 66.5 177 66.2 177 66 L 182 66 C 183.5 66.2 185.5 66.5 187 66 L 187 67.7 C 185.5 67.4 183 67 179.5 67 C 176 67 173.5 67.4 173.5 67.7 Z"/>
+
+    <!-- ── thin separator ────────────────────────────────────────  -->
+    <rect x="200" y="20" width="0.85" height="48" rx="0.4" fill="#c9a96e" opacity="0.6"/>
+
+    <!-- ── H ──────────────────────────────────────────────────────  -->
+    <path d="M 214 14 L 214 72 L 219 72 L 219 14 Z"/>
+    <path d="M 209.5 14 C 211 13.5 213 13.8 214 14 L 219 14 C 220 13.8 222 13.5 223 14 L 223 12.3 C 221.5 12.6 219 13 216.5 13 C 214 13 211 12.6 209.5 12.3 Z"/>
+    <path d="M 209.5 72 C 211 72.5 213 72.2 214 72 L 219 72 C 220 72.2 222 72.5 223 72 L 223 73.7 C 221.5 73.4 219 73 216.5 73 C 214 73 211 73.4 209.5 73.7 Z"/>
+    <path d="M 244 14 L 244 72 L 249 72 L 249 14 Z"/>
+    <path d="M 239.5 14 C 241 13.5 243 13.8 244 14 L 249 14 C 250 13.8 252 13.5 253 14 L 253 12.3 C 251.5 12.6 249 13 246.5 13 C 244 13 241 12.6 239.5 12.3 Z"/>
+    <path d="M 239.5 72 C 241 72.5 243 72.2 244 72 L 249 72 C 250 72.2 252 72.5 253 72 L 253 73.7 C 251.5 73.4 249 73 246.5 73 C 244 73 241 73.4 239.5 73.7 Z"/>
+    <rect x="219" y="41.5" width="25" height="1.6" rx="0.8"/>
+
+    <!-- ── u ──────────────────────────────────────────────────────  -->
+    <path d="M 264 22 L 264 52 C 264 60 269.5 66 278 66 C 286.5 66 292 60 292 52 L 292 22 L 287 22 L 287 52 C 287 57 283.5 62 278 62 C 272.5 62 269 57 269 52 L 269 22 Z"/>
+    <path d="M 260 22 C 261.5 21.5 263.5 21.8 264 22 L 269 22 C 270.5 21.8 272.5 21.5 274 22 L 274 20.3 C 272.5 20.6 270 21 267 21 C 264 21 261.5 20.6 260 20.3 Z"/>
+    <path d="M 287.5 22 C 288.5 21.5 290.5 21.8 292 22 L 296 22 C 297.5 21.8 299 21.5 300 22 L 300 20.3 C 298.5 20.6 296 21 293.5 21 C 291 21 288.5 20.6 287.5 20.3 Z"/>
+
+    <!-- ── b ──────────────────────────────────────────────────────  -->
+    <path d="M 311 11 L 311 66 L 316 66 L 316 11 Z"/>
+    <path d="M 306.5 11 C 308 10.5 310 10.8 311 11 L 316 11 C 317 10.8 319 10.5 320 11 L 320 9.3 C 318.5 9.6 316 10 313.5 10 C 311 10 308 9.6 306.5 9.3 Z"/>
+    <path d="M 307 66 C 308.5 66.5 310 66.2 311 66 L 316 66 C 317 66.2 318.5 66.5 320 66 L 320 67.7 C 318.5 67.4 316 67 313.5 67 C 311 67 308 67.4 307 67.7 Z"/>
+    <!-- b bowl outer -->
+    <path d="M 316 34 C 323 33.5 335 37 339.5 44 C 344.5 51.5 342.5 61 336.5 64.5 C 330.5 68 321 67 316 66 Z"/>
+    <!-- b bowl inner -->
+    <path d="M 316 39.5 C 321 39 330.5 42 334 48 C 337.5 55 335 62 330 64.5 C 326 66.5 320.5 65.5 316 64 Z"
+          fill="#f5ede0"/>
+
+  </g>
+
+  <!-- Underrule -->
+  <rect x="37" y="77" width="308" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.45"/>
+
+</svg>

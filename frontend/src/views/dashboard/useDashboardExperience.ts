@@ -33,6 +33,7 @@ const TAB_TITLES: Record<string, string> = {
   stats: 'Аналитика',
   requests: 'Операции',
   users: 'Пользователи',
+  features: 'Настройки функций',
 };
 
 export function useDashboardExperience({

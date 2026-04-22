@@ -21,9 +21,15 @@ const db     = require('./db');
 
 async function run() {
   try {
-    logger.info('[migrate] starting...');
+    logger.info('[migrate] starting migrations...');
+
+    // Run platform migrations first (if PLATFORM_DB_URL is set)
+    await db.migratePlatform();
+
+    // Then run property database migrations
     await db.migrate();
-    logger.info('[migrate] done');
+
+    logger.info('[migrate] all migrations completed successfully');
     process.exit(0);
   } catch (err) {
     logger.fatal({ err }, '[migrate] FAILED');

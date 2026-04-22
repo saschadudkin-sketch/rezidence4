@@ -12,6 +12,7 @@ import VisitLogView  from './VisitLogView';
 import BlacklistView from './BlacklistView';
 import ResidentsView from './ResidentsView';
 import { ChatView }  from '../chat/ChatView';
+import { AdminFeaturesView } from './AdminFeaturesView';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import SectionHeader from '../ui/SectionHeader';
@@ -318,6 +319,7 @@ export default function AdminView({ user, activeTab, isLoading = false }: { user
       {activeTab === 'visitlog'    && <VisitLogView user={user} />}
       {activeTab === 'blacklist'   && <BlacklistView user={user} />}
       {activeTab === 'chat'        && <ChatView user={user} />}
+      {activeTab === 'features'    && <AdminFeaturesView />}
     </>
   );
 }

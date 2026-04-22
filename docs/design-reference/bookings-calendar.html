@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Бронирование · Крыша-терраса — DomHub</title>
+  <style>
+    @import url('./tokens.css');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--s0);
+      color: var(--t1);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    body {
+      padding: var(--sp-8) var(--sp-8);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ─── Breadcrumb ─────────────────────────────────────────────
+       Linear-style: minimal, no chevrons with filled backgrounds.
+    ────────────────────────────────────────────────────────────── */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      margin-bottom: var(--sp-8);
+    }
+
+    .breadcrumb-item {
+      font-size: 13px;
+      color: var(--t4);
+      text-decoration: none;
+      transition: color var(--dur-fast) var(--ease);
+    }
+
+    .breadcrumb-item:hover { color: var(--t2); }
+
+    .breadcrumb-sep {
+      color: var(--t4);
+      font-size: 13px;
+      opacity: 0.5;
+    }
+
+    .breadcrumb-current {
+      font-size: 13px;
+      color: var(--t2);
+      font-weight: 500;
+    }
+
+    /* ─── Two-column layout: main (70%) + booking panel (30%) ─── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: var(--sp-8);
+      align-items: start;
+    }
+
+    /* ─── Space hero ────────────────────────────────────────────  */
+    .space-hero {
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      border: 1px solid var(--b1);
+      /* Dark gradient placeholder for the rooftop photo */
+      background: linear-gradient(165deg, var(--s3) 0%, var(--s2) 50%, var(--s1) 100%);
+      height: 220px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: var(--sp-6);
+    }
+
+    /* Faint gold border glow — space is a premium amenity */
+    .space-hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 1px solid var(--b2);
+      pointer-events: none;
+    }
+
+    /* Architectural line grid overlay for visual interest */
+    .space-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(201,169,110,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201,169,110,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .space-hero-meta {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      background: linear-gradient(0deg, rgba(17,16,14,0.92) 0%, transparent 100%);
+      padding: var(--sp-6) var(--sp-7) var(--sp-6);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .space-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--t1);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .space-capacity {
+      font-size: 12px;
+      color: var(--t3);
+      margin-top: 3px;
+    }
+
+    .space-price {
+      text-align: right;
+    }
+
+    .space-price-amount {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--g2);
+    }
+
+    .space-price-unit {
+      font-size: 11px;
+      color: var(--t4);
+      margin-top: 1px;
+    }
+
+    /* ─── Amenity chips ─────────────────────────────────────────  */
+    .amenity-chips {
+      display: flex;
+      gap: var(--sp-3);
+      flex-wrap: wrap;
+      margin-bottom: var(--sp-8);
+    }
+
+    .amenity-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: var(--r-full);
+      border: 1px solid var(--b1);
+      background: var(--s2);
+      font-size: 12px;
+      color: var(--t2);
+    }
+
+    .amenity-chip svg { color: var(--t4); }
+
+    /* ─── Calendar section ──────────────────────────────────────
+       Linear/Cron-inspired: spare grid, no heavy cell borders.
+       Selected slot highlighted in gold — only place gold appears
+       in the calendar (the signal of "your choice").
+    ────────────────────────────────────────────────────────────── */
+    .calendar-section {
+      margin-bottom: var(--sp-8);
+    }
+
+    .calendar-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp-6);
+    }
+
+    .calendar-period {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--t1);
+    }
+
+    .calendar-nav-btns {
+      display: flex;
+      gap: var(--sp-3);
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--b1);
+      background: transparent;
+      color: var(--t3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+    }
+
+    .icon-btn:hover {
+      border-color: var(--b2);
+      color: var(--t1);
+      background: var(--s2);
+    }
+
+    /* Calendar grid: 8 columns (time label + 7 days) */
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: 48px repeat(7, 1fr);
+      gap: 0;
+      background: var(--s2);
+      border: 1px solid var(--b1);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    /* Day headers */
+    .cal-day-header {
+      padding: 10px 6px 8px;
+      text-align: center;
+      border-bottom: 1px solid var(--b1);
+    }
+
+    .cal-day-header.today .cal-day-name {
+      color: var(--g2);
+    }
+
+    .cal-day-name {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--t4);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .cal-day-num {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--t2);
+      margin-top: 2px;
+    }
+
+    .cal-day-header.today .cal-day-num {
+      color: var(--g2);
+    }
+
+    /* Time label column */
+    .cal-time-label {
+      padding: 6px 8px 6px 4px;
+      font-size: 10px;
+      color: var(--t4);
+      text-align: right;
+      border-bottom: 1px solid var(--b1);
+      border-right: 1px solid var(--b1);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      line-height: 1;
+    }
+
+    /* Calendar cell */
+    .cal-cell {
+      border-bottom: 1px solid var(--b1);
+      border-right: 1px solid var(--b1);
+      height: 38px;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--dur-fast) var(--ease);
+    }
+
+    .cal-cell:last-child, .cal-cell.last-col { border-right: none; }
+
+    .cal-cell:hover:not(.booked):not(.selected) {
+      background: rgba(201, 169, 110, 0.05);
+    }
+
+    /* Booked slot — muted, no interactivity feel */
+    .cal-cell.booked {
+      background: var(--s3);
+      cursor: default;
+    }
+
+    .cal-cell.booked::after {
+      content: 'Забронировано';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 9px;
+      color: var(--t4);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+
+    /* Selected slot — gold highlight, only signal in the calendar */
+    .cal-cell.selected {
+      background: var(--g-bg2);
+      cursor: default;
+    }
+
+    .cal-cell.selected::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1.5px solid rgba(201, 169, 110, 0.45);
+      pointer-events: none;
+    }
+
+    /* ─── Rules accordion ───────────────────────────────────────
+       Collapsed by default. Using CSS :checked trick for no-JS toggle.
+    ────────────────────────────────────────────────────────────── */
+    .rules-accordion {
+      border: 1px solid var(--b1);
+      border-radius: var(--r-md);
+      overflow: hidden;
+    }
+
+    .rules-toggle {
+      display: none;
+    }
+
+    .rules-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-5) var(--sp-6);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--t2);
+      user-select: none;
+      background: var(--s2);
+      transition: background var(--dur-fast) var(--ease);
+    }
+
+    .rules-label:hover { background: var(--s3); }
+
+    .rules-chevron {
+      color: var(--t4);
+      transition: transform var(--dur-base) var(--ease);
+      flex-shrink: 0;
+    }
+
+    .rules-toggle:checked ~ .rules-label .rules-chevron {
+      transform: rotate(180deg);
+    }
+
+    .rules-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height var(--dur-slow) var(--ease);
+    }
+
+    .rules-toggle:checked ~ .rules-body {
+      max-height: 500px;
+    }
+
+    .rules-list {
+      list-style: none;
+      padding: var(--sp-3) var(--sp-6) var(--sp-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+      background: var(--s1);
+      border-top: 1px solid var(--b1);
+    }
+
+    .rules-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-3);
+      font-size: 12px;
+      color: var(--t3);
+      line-height: 1.55;
+    }
+
+    .rule-num {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--t4);
+      min-width: 16px;
+      padding-top: 2px;
+    }
+
+    /* ─── Booking panel ────────────────────────────────────────── */
+    .booking-panel {
+      background: var(--s2);
+      border: 1px solid var(--b1);
+      border-radius: var(--r-xl);
+      padding: var(--sp-7);
+      position: sticky;
+      top: var(--sp-8);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--t1);
+    }
+
+    /* Summary lines */
+    .booking-summary {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    .booking-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .booking-row-label {
+      font-size: 12px;
+      color: var(--t3);
+    }
+
+    .booking-row-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--t1);
+    }
+
+    .booking-divider {
+      height: 1px;
+      background: var(--b1);
+    }
+
+    /* Duration stepper */
+    .duration-stepper {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .stepper-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--b2);
+      background: var(--s3);
+      color: var(--t2);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      line-height: 1;
+      transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+    }
+
+    .stepper-btn:hover {
+      border-color: var(--g2);
+      color: var(--g2);
+      background: var(--g-bg);
+    }
+
+    .stepper-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--t1);
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Price total — the key number, --g2 gold */
+    .booking-total {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: var(--sp-4) 0 0;
+    }
+
+    .total-label {
+      font-size: 12px;
+      color: var(--t3);
+    }
+
+    .total-amount {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--g2);
+      letter-spacing: -0.02em;
+    }
+
+    /* CTA button — primary gold, full width */
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px var(--sp-6);
+      border-radius: var(--r-md);
+      border: none;
+      background: var(--g2);
+      color: var(--s0);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background var(--dur-base) var(--ease),
+                  box-shadow var(--dur-base) var(--ease),
+                  transform var(--dur-base) var(--ease);
+      letter-spacing: 0.01em;
+    }
+
+    .btn-primary:hover {
+      background: var(--g3);
+      box-shadow: 0 4px 20px rgba(201, 169, 110, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      background: var(--g1);
+      transform: translateY(0);
+    }
+
+    .panel-note {
+      font-size: 11px;
+      color: var(--t4);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Breadcrumb navigation -->
+  <nav class="breadcrumb" aria-label="Навигационная цепочка">
+    <a href="#" class="breadcrumb-item">Главная</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="#" class="breadcrumb-item">Бронирование</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Крыша-терраса</span>
+  </nav>
+
+  <div class="layout">
+
+    <!-- ── Left: space detail + calendar ──────────────────────── -->
+    <div>
+
+      <!-- Hero image placeholder -->
+      <!-- Design decision: gradient + grid overlay evokes architecture
+           without a real photo. Gold border signals premium amenity. -->
+      <div class="space-hero" role="img" aria-label="Фото крыши-террасы">
+        <div class="space-hero-meta">
+          <div>
+            <div class="space-title">Крыша-терраса</div>
+            <div class="space-capacity">до 20 человек</div>
+          </div>
+          <div class="space-price">
+            <div class="space-price-amount">3 500 ₽</div>
+            <div class="space-price-unit">в час</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Amenity chips -->
+      <div class="amenity-chips" aria-label="Удобства">
+        <div class="amenity-chip">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M3 13V9a5 5 0 0 1 10 0v4M1 9h14"/>
+            <path d="M6 13h4"/>
+          </svg>
+          Барбекю
+        </div>
+        <div class="amenity-chip">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <rect x="1" y="5" width="14" height="8" rx="2"/>
+            <path d="M5 5V4a3 3 0 0 1 6 0v1"/>
+            <circle cx="8" cy="9" r="1.5"/>
+          </svg>
+          Wi-Fi
+        </div>
+        <div class="amenity-chip">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 5c0 0 3-2 6-2s6 2 6 2v3c0 3-3 5-6 6-3-1-6-3-6-6V5z"/>
+          </svg>
+          Навес от дождя
+        </div>
+      </div>
+
+      <!-- Calendar section -->
+      <div class="calendar-section">
+
+        <div class="calendar-nav">
+          <div class="calendar-period">14–20 апреля 2026</div>
+          <div class="calendar-nav-btns">
+            <button class="icon-btn" aria-label="Предыдущая неделя">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 2L4 6l4 4"/>
+              </svg>
+            </button>
+            <button class="icon-btn" aria-label="Следующая неделя">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 2l4 4-4 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Calendar grid: time axis + 7 days -->
+        <!-- Design: only --g-bg2 on selected, --s3 on booked, empty otherwise.
+             Minimalism lets available slots speak for themselves. -->
+        <div class="calendar-grid" role="grid" aria-label="Расписание бронирований">
+
+          <!-- Header row: empty corner + 7 day headers -->
+          <div class="cal-day-header" style="border-right:1px solid var(--b1); border-bottom:1px solid var(--b1);"></div>
+          <div class="cal-day-header"><div class="cal-day-name">Пн</div><div class="cal-day-num">14</div></div>
+          <div class="cal-day-header today"><div class="cal-day-name">Вт</div><div class="cal-day-num">15</div></div>
+          <div class="cal-day-header"><div class="cal-day-name">Ср</div><div class="cal-day-num">16</div></div>
+          <div class="cal-day-header"><div class="cal-day-name">Чт</div><div class="cal-day-num">17</div></div>
+          <div class="cal-day-header"><div class="cal-day-name">Пт</div><div class="cal-day-num">18</div></div>
+          <div class="cal-day-header"><div class="cal-day-name">Сб</div><div class="cal-day-num">19</div></div>
+          <div class="cal-day-header" style="border-right:none;"><div class="cal-day-name">Вс</div><div class="cal-day-num">20</div></div>
+
+          <!-- Time slots 08:00–22:00 (8 slots shown for space) -->
+
+          <!-- 08:00 -->
+          <div class="cal-time-label">08:00</div>
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell booked"></div><div class="cal-cell last-col"></div>
+
+          <!-- 10:00 -->
+          <div class="cal-time-label">10:00</div>
+          <div class="cal-cell"></div><div class="cal-cell booked"></div><div class="cal-cell booked"></div>
+          <div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell booked"></div><div class="cal-cell last-col booked"></div>
+
+          <!-- 12:00 -->
+          <div class="cal-time-label">12:00</div>
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell booked"></div>
+          <div class="cal-cell booked"></div><div class="cal-cell"></div>
+          <div class="cal-cell"></div><div class="cal-cell last-col"></div>
+
+          <!-- 14:00 -->
+          <div class="cal-time-label">14:00</div>
+          <div class="cal-cell"></div><div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell booked"></div><div class="cal-cell"></div>
+          <div class="cal-cell booked"></div><div class="cal-cell last-col booked"></div>
+
+          <!-- 16:00 -->
+          <div class="cal-time-label">16:00</div>
+          <div class="cal-cell"></div><div class="cal-cell booked"></div><div class="cal-cell"></div>
+          <div class="cal-cell"></div><div class="cal-cell"></div>
+          <div class="cal-cell selected" aria-label="Выбрано: 16:00–18:00 19 апреля" aria-selected="true"></div>
+          <div class="cal-cell last-col booked"></div>
+
+          <!-- 18:00 -->
+          <div class="cal-time-label">18:00</div>
+          <div class="cal-cell booked"></div><div class="cal-cell"></div><div class="cal-cell booked"></div>
+          <div class="cal-cell"></div><div class="cal-cell booked"></div>
+          <div class="cal-cell selected" aria-selected="true"></div><div class="cal-cell last-col"></div>
+
+          <!-- 20:00 -->
+          <div class="cal-time-label">20:00</div>
+          <div class="cal-cell"></div><div class="cal-cell booked"></div><div class="cal-cell"></div>
+          <div class="cal-cell"></div><div class="cal-cell booked"></div>
+          <div class="cal-cell"></div><div class="cal-cell last-col booked"></div>
+
+          <!-- 22:00 — last row, no bottom border on label -->
+          <div class="cal-time-label" style="border-bottom:none;">22:00</div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell" style="border-bottom:none;"></div>
+          <div class="cal-cell last-col" style="border-bottom:none;"></div>
+
+        </div>
+      </div><!-- /calendar-section -->
+
+      <!-- Rules accordion -->
+      <div class="rules-accordion">
+        <input type="checkbox" class="rules-toggle" id="rules-toggle" aria-controls="rules-body">
+        <label class="rules-label" for="rules-toggle" aria-expanded="false">
+          Правила бронирования
+          <svg class="rules-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 5l4 4 4-4"/>
+          </svg>
+        </label>
+        <div class="rules-body" id="rules-body" role="region" aria-labelledby="rules-toggle">
+          <ul class="rules-list">
+            <li><span class="rule-num">1.</span>Минимальный срок бронирования — 2 часа. Бронирование начинается с полного часа.</li>
+            <li><span class="rule-num">2.</span>Отмена не позднее чем за 24 часа до начала — без штрафа. При более поздней отмене удерживается 50% стоимости.</li>
+            <li><span class="rule-num">3.</span>Количество гостей не должно превышать 20 человек.</li>
+            <li><span class="rule-num">4.</span>Запрещено оставлять мусор и личные вещи после окончания бронирования.</li>
+            <li><span class="rule-num">5.</span>Использование открытого огня, кроме барбекю-зоны, не допускается.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div><!-- /left col -->
+
+    <!-- ── Booking panel ────────────────────────────────────────── -->
+    <aside class="booking-panel" aria-label="Ваше бронирование">
+
+      <div class="panel-title">Ваше бронирование</div>
+
+      <div class="booking-summary">
+
+        <div class="booking-row">
+          <span class="booking-row-label">Пространство</span>
+          <span class="booking-row-value">Крыша-терраса</span>
+        </div>
+
+        <div class="booking-row">
+          <span class="booking-row-label">Дата</span>
+          <span class="booking-row-value">19 апреля 2026</span>
+        </div>
+
+        <div class="booking-row">
+          <span class="booking-row-label">Начало</span>
+          <span class="booking-row-value">16:00</span>
+        </div>
+
+        <div class="booking-row">
+          <span class="booking-row-label">Продолжительность</span>
+          <div class="duration-stepper">
+            <button class="stepper-btn" aria-label="Уменьшить">−</button>
+            <span class="stepper-value">2 ч</span>
+            <button class="stepper-btn" aria-label="Увеличить">+</button>
+          </div>
+        </div>
+
+        <div class="booking-divider"></div>
+
+        <div class="booking-row">
+          <span class="booking-row-label">3 500 ₽ × 2 ч</span>
+          <span class="booking-row-value">7 000 ₽</span>
+        </div>
+
+      </div>
+
+      <!-- Total — gold price is the conversion signal -->
+      <div class="booking-total">
+        <span class="total-label">Итого</span>
+        <span class="total-amount">7 000 ₽</span>
+      </div>
+
+      <!-- Single primary CTA. Gold is justified here: this is the transaction. -->
+      <button class="btn-primary" type="button">
+        Подтвердить бронирование
+      </button>
+
+      <div class="panel-note">
+        Оплата при заселении. Отмена до 18 апреля без штрафа.
+      </div>
+
+    </aside>
+
+  </div><!-- /layout -->
+
+</body>
+</html>

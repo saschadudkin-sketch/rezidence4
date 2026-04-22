@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" fill="none" role="img" aria-labelledby="logo02-title">
+  <title id="logo02-title">DomHub — Wordmark with Monogram Mark</title>
+
+  <!--
+    Mark: Square 1:1 with rounded corners (r=10).
+    Contains stacked "dh" ligature — the "d" bowl and "h" arch
+    share a common top curve, making a single compact symbol.
+    The mark is dark-on-warm-white inverted from the wordmark
+    to create contrast as a favicon/app-icon unit.
+  -->
+
+  <!-- ── MARK (square symbol) ── -->
+  <rect x="0" y="8" width="56" height="56" rx="10" fill="#eee7dc"/>
+
+  <!-- "d" in mark: stem left, bowl right -->
+  <rect x="14" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+  <path d="M16.2 25 C16.2 25 30 24.5 30 36 C30 47.5 16.2 47 16.2 47" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+
+  <!-- "h" in mark: shared arch at top, right leg -->
+  <!-- stem (re-uses the d's right side gap, starts at right) -->
+  <rect x="32" y="18" width="2.4" height="36" rx="1.2" fill="#11100e"/>
+  <path d="M34.4 29 C34.4 29 41 22.5 42 29" stroke="#11100e" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <rect x="41.4" y="29" width="2.4" height="25" rx="1.2" fill="#11100e"/>
+
+  <!-- ── WORDMARK (same as variant 01 but slightly tighter) ── -->
+  <!-- gap between mark and wordmark -->
+
+  <!-- d -->
+  <rect x="74" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <path d="M76.1 21 C76.1 21 92 20 92 36 C92 52 76.1 51 76.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+  <!-- o -->
+  <ellipse cx="108" cy="36" rx="10.5" ry="15.5" stroke="#eee7dc" stroke-width="2.2" fill="none"/>
+
+  <!-- m -->
+  <rect x="124" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+  <path d="M126.1 20.5 C126.1 20.5 134 14 140 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <rect x="139.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+  <path d="M142.1 20.5 C142.1 20.5 150 14 156 20.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <rect x="155.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+
+  <!-- hairline separator -->
+  <rect x="164" y="35" width="8" height="1" rx="0.5" fill="#eee7dc" opacity="0.35"/>
+
+  <!-- h -->
+  <rect x="176" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <path d="M178.1 30 C178.1 30 186 22 194 30" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <rect x="193.9" y="30" width="2.2" height="21.5" rx="1.1" fill="#eee7dc"/>
+
+  <!-- u -->
+  <rect x="204" y="20.5" width="2.2" height="22" rx="1.1" fill="#eee7dc"/>
+  <path d="M206.1 42.5 C206.1 42.5 206 52 216 52 C226 52 226 42.5 226 42.5" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <rect x="225.9" y="20.5" width="2.2" height="31" rx="1.1" fill="#eee7dc"/>
+
+  <!-- b -->
+  <rect x="236" y="10" width="2.2" height="52" rx="1.1" fill="#eee7dc"/>
+  <path d="M238.1 21 C238.1 21 254 20 254 36 C254 52 238.1 51 238.1 51" stroke="#eee7dc" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+</svg>

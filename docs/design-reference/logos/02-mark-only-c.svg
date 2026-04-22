@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" fill="none" role="img" aria-labelledby="markc-title">
+  <title id="markc-title">DomHub Mark C — geometric arch knockout symbol</title>
+
+  <!-- Square container -->
+  <rect x="0" y="0" width="56" height="56" rx="10" fill="#eee7dc"/>
+
+  <!--
+    Outer arch: solid dark shape.
+    Legs: x=12–16 left, x=40–44 right, y=15–51
+    Crown: semicircle, peak at (28, 6)
+
+    Inner arch: knockout using background fill.
+    Legs: x=19–21 left, x=35–37 right, y=24–51
+    Crown: peak at (28, 17)
+
+    Gold hairline at top of inner void acts as keystone accent.
+  -->
+
+  <!-- Outer arch shape (filled) -->
+  <path d="M12,51 L12,20 C12,11 19,6 28,6 C37,6 44,11 44,20 L44,51 Z"
+        fill="#11100e"/>
+
+  <!-- Inner arch knockout (filled background color) -->
+  <path d="M19,51 L19,27 C19,21 23,17.5 28,17.5 C33,17.5 37,21 37,27 L37,51 Z"
+        fill="#eee7dc"/>
+
+  <!-- Gold keystone hairline at top of inner void -->
+  <line x1="22" y1="17.5" x2="34" y2="17.5" stroke="#c9a96e" stroke-width="0.75" stroke-linecap="butt"/>
+
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" role="img" aria-labelledby="logo05-title">
+  <title id="logo05-title">DomHub — Cyrillic D Monogram</title>
+
+  <!--
+    Stylized Cyrillic "Д" — architectural interpretation.
+    The canonical Д has a wide base with two descending "legs"
+    and a central vertical stem. Here the legs become piers —
+    heavy columns with refined serifs at base — and the crossbar
+    becomes a lintel (architrave), completing the column-and-lintel
+    language of classical Russian architecture (Zamoskvorechye).
+
+    Key moves:
+    1. The two base piers are thicker than the main strokes (weight contrast)
+    2. The main body is drawn with stroke not fill — structural honesty
+    3. A thin horizontal serif caps each pier — references column capitals
+    4. No literal house shape — this is Д as architectural section
+
+    At 32px favicon size it reads as a clean monogram.
+    At 400px it reveals the architectural layering.
+  -->
+
+  <!-- Base platform — the ground line -->
+  <rect x="10" y="64" width="60" height="2" rx="1" fill="#eee7dc"/>
+
+  <!-- Left pier (leg) — wider than body strokes -->
+  <rect x="10" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+  <!-- Left pier capital (top serif) -->
+  <rect x="7" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+
+  <!-- Right pier -->
+  <rect x="64" y="46" width="6" height="20" rx="1.5" fill="#eee7dc"/>
+  <!-- Right pier capital -->
+  <rect x="61" y="44" width="12" height="2" rx="1" fill="#eee7dc"/>
+
+  <!-- Main body of Д — the triangular/trapezoidal form above piers -->
+  <!-- Left angled stroke, from pier top-right to apex -->
+  <path d="M18 44 L38 16 L62 44" stroke="#eee7dc" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+
+  <!-- Horizontal lintel connecting left to right pier tops -->
+  <rect x="13" y="44" width="54" height="2.5" rx="1" fill="#eee7dc"/>
+
+  <!-- Interior accent — thin gold line at apex suggesting the keystone -->
+  <path d="M34 22 L38 16 L42 22" stroke="#c9a96e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+</svg>

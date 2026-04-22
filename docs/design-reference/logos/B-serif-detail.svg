@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 90" fill="none">
+  <title>DomHub — Variant B, Transitional Serif with architectural detail</title>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       VARIANT B — Transitional serif (Tiempos / GT Sectra register)
+       Characteristic detail: the 'b' bowl contains a miniature
+       arched window — the arch of a kupechesky mansion window,
+       rendered as a hairline cutout inside the bowl counter.
+       Stroke contrast ~2:1. Warm dark #1e1b16 on cream #f5ede0.
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <g fill="#1e1b16">
+
+    <!-- ── D ──────────────────────────────────────────────────────
+         Transitional: bracket serifs with some curve at join,
+         bowl slightly less extreme than Didone.                    -->
+    <path d="M 16 16 L 16 73 L 21 73 L 21 16 Z"/>
+    <!-- Bracketed top serif -->
+    <path d="M 10.5 16 C 12 15.5 14 15.8 16 16 L 21 16 C 23 15.8 25 15.5 26 16 L 26 14.3 C 24.5 14.6 21 15 18.5 15 C 16 15 12 14.6 10.5 14.3 Z"/>
+    <!-- Bracketed bottom serif -->
+    <path d="M 10.5 73 C 12 73.5 14 73.2 16 73 L 21 73 C 23 73.2 25 73.5 26 73 L 26 74.7 C 24.5 74.4 21 74 18.5 74 C 16 74 12 74.4 10.5 74.7 Z"/>
+    <!-- Bowl outer (less extreme axis than Didone) -->
+    <path d="M 21 16 C 33 16 47 19.5 54 28 C 61.5 37 61 52 53.5 60 C 46.5 67.5 33 73 21 73 Z"/>
+    <!-- Bowl inner counter -->
+    <path d="M 21 22 C 30.5 22 42.5 25 48 32 C 54 39.5 53.5 51.5 47.5 58 C 42 63.5 30.5 67 21 67 Z"
+          fill="#f5ede0"/>
+
+    <!-- ── o ──────────────────────────────────────────────────────
+         Transitional 'o': axis closer to vertical than Didone,
+         stroke modulation present but subtler.                     -->
+    <path d="M 79 44 C 79 30.5 88 21 100 21 C 112 21 121 30.5 121 44 C 121 57.5 112 67 100 67 C 88 67 79 57.5 79 44 Z"/>
+    <path d="M 83 44 C 83 33.5 90.5 25.5 100 25.5 C 109.5 25.5 117 33.5 117 44 C 117 54.5 109.5 62.5 100 62.5 C 90.5 62.5 83 54.5 83 44 Z"
+          fill="#f5ede0"/>
+    <!-- Thick stroke approximation on left side -->
+    <path d="M 83 44 C 83 38 85.5 33 90 30 C 86.5 33.5 84.5 38.5 84.5 44 C 84.5 49.5 86.5 54.5 90 58 C 85.5 55 83 50 83 44 Z"/>
+
+    <!-- ── m ──────────────────────────────────────────────────────
+         Transitional m: arches slightly more open than Didone,
+         stems with clean bracket serifs.                          -->
+    <path d="M 131 22 L 131 66 L 136 66 L 136 22 Z"/>
+    <!-- Serifs left stem -->
+    <path d="M 126 22 C 127.5 21.5 129.5 21.8 131 22 L 136 22 C 137.5 21.8 139.5 21.5 140.5 22 L 140.5 20.3 C 139 20.6 137 21 134 21 C 131 21 127.5 20.6 126 20.3 Z"/>
+    <path d="M 126 66 C 127.5 66.5 129.5 66.2 131 66 L 136 66 C 137.5 66.2 139.5 66.5 140.5 66 L 140.5 67.7 C 139 67.4 137 67 134 67 C 131 67 127.5 67.4 126 67.7 Z"/>
+    <!-- First arch -->
+    <path d="M 136 22 C 136 22 140 16.5 148 16.5 C 156 16.5 160 22 160 22 L 160 66 L 155 66 L 155 26 C 155 26 152.5 22.5 148 22.5 C 143.5 22.5 141 26 141 26 L 141 66 L 136 66 Z"/>
+    <!-- Second arch -->
+    <path d="M 160 22 C 160 22 164 16.5 172 16.5 C 180 16.5 184 22 184 22 L 184 66 L 179 66 L 179 26 C 179 26 176.5 22.5 172 22.5 C 167.5 22.5 165 26 165 26 L 165 66 L 160 66 Z"/>
+    <!-- Right stem -->
+    <path d="M 179 66 L 184 66 L 184 22 L 179 22 Z"/>
+    <!-- Right stem serifs -->
+    <path d="M 175 22 C 176.5 21.5 178.5 21.8 180 22 L 184 22 C 186 21.8 187.5 21.5 188.5 22 L 188.5 20.3 C 187 20.6 185 21 182 21 C 179 21 176.5 20.6 175 20.3 Z"/>
+    <path d="M 175 66 C 176.5 66.5 178.5 66.2 180 66 L 184 66 C 186 66.2 187.5 66.5 188.5 66 L 188.5 67.7 C 187 67.4 185 67 182 67 C 179 67 176.5 67.4 175 67.7 Z"/>
+
+    <!-- ── gold hairline separator ────────────────────────────────  -->
+    <rect x="204" y="20" width="0.85" height="49" rx="0.4" fill="#c9a96e" opacity="0.65"/>
+
+    <!-- ── H ──────────────────────────────────────────────────────  -->
+    <path d="M 218 16 L 218 73 L 223 73 L 223 16 Z"/>
+    <!-- Serifs H left stem -->
+    <path d="M 213 16 C 214.5 15.5 216.5 15.8 218 16 L 223 16 C 224.5 15.8 226.5 15.5 227.5 16 L 227.5 14.3 C 226 14.6 223.5 15 220.5 15 C 217.5 15 214.5 14.6 213 14.3 Z"/>
+    <path d="M 213 73 C 214.5 73.5 216.5 73.2 218 73 L 223 73 C 224.5 73.2 226.5 73.5 227.5 73 L 227.5 74.7 C 226 74.4 223.5 74 220.5 74 C 217.5 74 214.5 74.4 213 74.7 Z"/>
+    <path d="M 247 16 L 247 73 L 252 73 L 252 16 Z"/>
+    <!-- Serifs H right stem -->
+    <path d="M 242.5 16 C 244 15.5 246 15.8 247 16 L 252 16 C 253.5 15.8 255.5 15.5 257 16 L 257 14.3 C 255.5 14.6 252.5 15 249.5 15 C 246.5 15 244 14.6 242.5 14.3 Z"/>
+    <path d="M 242.5 73 C 244 73.5 246 73.2 247 73 L 252 73 C 253.5 73.2 255.5 73.5 257 73 L 257 74.7 C 255.5 74.4 252.5 74 249.5 74 C 246.5 74 244 74.4 242.5 74.7 Z"/>
+    <!-- Crossbar (slightly thicker than Didone — transitional) -->
+    <rect x="223" y="42" width="24" height="1.8" rx="0.9"/>
+
+    <!-- ── u ──────────────────────────────────────────────────────  -->
+    <path d="M 268 22 L 268 52 C 268 59.5 273.5 65 282 65 C 290.5 65 296 59.5 296 52 L 296 22 L 291 22 L 291 52 C 291 57 287.5 60.5 282 60.5 C 276.5 60.5 273 57 273 52 L 273 22 Z"/>
+    <!-- u serifs -->
+    <path d="M 264 22 C 265.5 21.5 267.5 21.8 268 22 L 273 22 C 274.5 21.8 276.5 21.5 278 22 L 278 20.3 C 276.5 20.6 274 21 271 21 C 268 21 265.5 20.6 264 20.3 Z"/>
+    <path d="M 291.5 22 C 292.5 21.5 294.5 21.8 296 22 L 300.5 22 C 302 21.8 303.5 21.5 304.5 22 L 304.5 20.3 C 303 20.6 301 21 298.2 21 C 295.4 21 292.5 20.6 291.5 20.3 Z"/>
+
+    <!-- ── b ──────────────────────────────────────────────────────
+         THE DETAIL: Ascender with extra length, bowl contains
+         a miniature arched window (hairline, gold) — the arch
+         form of a kupechesky mansion nalichnik.                   -->
+    <!-- Ascender stem (tall — the 'b' ascender as character signal) -->
+    <path d="M 315 9 L 315 66 L 320 66 L 320 9 Z"/>
+    <!-- Ascender top serif — pronounced, wider than normal -->
+    <path d="M 309 9 C 311 8.3 313.5 8.7 315 9 L 320 9 C 321.5 8.7 324 8.3 326 9 L 326 7.2 C 324 7.6 320.5 8 317.5 8 C 314.5 8 311 7.6 309 7.2 Z"/>
+    <!-- Base serif -->
+    <path d="M 311 66 C 312.5 66.5 314 66.2 315 66 L 320 66 C 321 66.2 322.5 66.5 324 66 L 324 67.7 C 322.5 67.4 320 67 317.5 67 C 315 67 312.5 67.4 311 67.7 Z"/>
+    <!-- Bowl outer -->
+    <path d="M 320 34 C 326.5 33.5 337 36.5 341.5 43 C 346.5 50.5 345 60 339 63.5 C 333 67 324.5 66 320 65 Z"/>
+    <!-- Bowl inner counter -->
+    <path d="M 320 39.5 C 325 39 333 41.5 336 47 C 339.5 53 337.5 60 333 62.5 C 329 64.5 323.5 63.5 320 62 Z"
+          fill="#f5ede0"/>
+    <!-- DETAIL: Arched window inside bowl — hairline gold arch,
+         the nalichnik/arcade motif of old Moscow merchant mansions.
+         This is the one ruchnoy (hand-crafted) detail that makes
+         Variant B unique.                                          -->
+    <!-- Window arch outline (hairline gold) -->
+    <path d="M 325.5 57 L 325.5 50.5 C 325.5 47.5 328.5 45 331.5 45 C 334.5 45 337.5 47.5 337.5 50.5 L 337.5 57 Z"
+          fill="none" stroke="#c9a96e" stroke-width="0.85"/>
+    <!-- Keystone at arch apex -->
+    <path d="M 329.5 45.5 C 330.5 44 332.5 44 333.5 45.5"
+          fill="none" stroke="#c9a96e" stroke-width="0.85"/>
+
+  </g>
+
+  <!-- Hairline underrule -->
+  <rect x="10" y="80" width="328" height="0.65" rx="0.3" fill="#c9a96e" opacity="0.5"/>
+
+</svg>

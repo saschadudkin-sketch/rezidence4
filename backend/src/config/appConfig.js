@@ -16,6 +16,16 @@ function validateConfig(env, prod) {
     errors.push('DATABASE_URL must be set');
   }
 
+  // Platform database is required for multi-tenant operations
+  if (prod && !env.PLATFORM_DB_URL) {
+    errors.push('PLATFORM_DB_URL must be set in production for multi-tenant registry');
+  }
+
+  // Platform JWT secret should be different from main JWT secret for security
+  if (env.PLATFORM_JWT_SECRET && env.PLATFORM_JWT_SECRET.length < 32) {
+    errors.push('PLATFORM_JWT_SECRET must be at least 32 characters. Generate with: openssl rand -hex 32');
+  }
+
   if (prod && !env.FRONTEND_URL) {
     errors.push('FRONTEND_URL must be set in production (cannot use wildcard CORS in prod)');
   }

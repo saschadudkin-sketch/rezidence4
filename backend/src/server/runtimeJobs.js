@@ -2,8 +2,165 @@
 
 const logger = require('../logger');
 const { broadcastRequestUpdate } = require('../sse');
+const { dispatch: notifyDispatch } = require('../services/notificationService');
+const webhookService = require('../services/webhookService');
 
-function startRuntimeJobs({ db }) {
+// ─── checkBillingOverdue ──────────────────────────────────────────────────────
+// Marks pending billing_records as 'overdue' when their due_date has passed,
+// then dispatches a 'billing.overdue' notification for each affected record.
+async function checkBillingOverdue(db, property) {
+  try {
+    const { rows } = await db.query(`
+      UPDATE billing_records
+      SET status = 'overdue', updated_at = NOW()
+      WHERE status = 'pending' AND due_date < CURRENT_DATE
+      RETURNING id, user_id, apartment, amount, period_year, period_month
+    `);
+    if (rows.length === 0) return;
+    logger.info({ count: rows.length, property: property?.slug }, '[billing-overdue] marked overdue');
+    for (const record of rows) {
+      notifyDispatch(
+        'billing.overdue',
+        {
+          userId:       record.user_id,
+          recordId:     record.id,
+          apartment:    record.apartment,
+          amount:       record.amount,
+          period_year:  record.period_year,
+          period_month: record.period_month,
+        },
+        db,
+        property || null,
+      ).catch(() => {});
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[billing-overdue] job failed');
+  }
+}
+
+// ─── sendMeterReminders ───────────────────────────────────────────────────────
+// Runs only on the 25th of each month.
+// Dispatches a 'meter.reminder' notification to every active resident
+// (users with role 'owner' or 'tenant' who have not been deleted).
+async function sendMeterReminders(db, property) {
+  const today = new Date();
+  if (today.getDate() !== 25) return;
+
+  try {
+    const { rows: residents } = await db.query(`
+      SELECT uid
+      FROM users
+      WHERE role IN ('owner', 'tenant')
+        AND deleted_at IS NULL
+    `);
+    if (residents.length === 0) return;
+    logger.info({ count: residents.length, property: property?.slug }, '[meter-reminder] dispatching reminders');
+    for (const resident of residents) {
+      notifyDispatch(
+        'meter.reminder',
+        { userId: resident.uid },
+        db,
+        property || null,
+      ).catch(() => {});
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[meter-reminder] job failed');
+  }
+}
+
+// ─── checkSlaOverdue ─────────────────────────────────────────────────────────
+// Finds requests that have exceeded their SLA and notifies staff/admin once.
+// Inserts a 'sla_overdue_notified' marker into request_history to prevent
+// repeated notifications.
+async function checkSlaOverdue(db, property) {
+  try {
+    const { rows } = await db.query(`
+      SELECT r.id, r.type, r.created_by_uid, r.created_at, s.sla_hours
+      FROM requests r
+      JOIN request_sla_config s ON s.request_type = r.type AND s.is_active = true
+      WHERE r.status IN ('pending', 'approved')
+        AND r.deleted_at IS NULL
+        AND r.created_at + (s.sla_hours || ' hours')::INTERVAL < NOW()
+        AND NOT EXISTS (
+          SELECT 1 FROM request_history h
+          WHERE h.req_id = r.id AND h.label = 'sla_overdue_notified'
+        )
+      LIMIT 50
+    `);
+
+    if (rows.length === 0) return;
+    logger.info({ count: rows.length, property: property?.slug }, '[sla-overdue] processing overdue requests');
+
+    for (const req of rows) {
+      // Insert history marker so we don't re-notify
+      await db.query(
+        `INSERT INTO request_history (req_id, by_name, by_role, label)
+         VALUES ($1, 'system', 'system', 'sla_overdue_notified')`,
+        [req.id],
+      ).catch(() => {});
+
+      notifyDispatch('request.sla_overdue', {
+        requestId:   req.id,
+        requestType: req.type,
+        slaHours:    req.sla_hours,
+      }, db, property).catch(() => {});
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[sla-overdue] job failed');
+  }
+}
+
+// ─── sendPackageReminders ─────────────────────────────────────────────────────
+// Runs every hour but only dispatches during the 18:00 window.
+// Finds packages awaiting pickup for more than 2 days without a recent reminder.
+async function sendPackageReminders(db, property) {
+  const hour = new Date().getHours();
+  if (hour !== 18) return;
+
+  try {
+    const { rows } = await db.query(`
+      SELECT p.*, u.uid AS user_uid
+      FROM packages p
+      LEFT JOIN users u ON u.apartment = p.recipient_apartment AND u.deleted_at IS NULL
+      WHERE p.status = 'awaiting_pickup'
+        AND p.received_at < NOW() - INTERVAL '2 days'
+        AND (p.reminder_sent_at IS NULL OR p.reminder_sent_at < NOW() - INTERVAL '20 hours')
+      LIMIT 20
+    `);
+
+    if (rows.length === 0) return;
+    logger.info({ count: rows.length, property: property?.slug }, '[pkg-reminder] sending reminders');
+
+    for (const pkg of rows) {
+      if (pkg.user_uid) {
+        notifyDispatch('package.reminder', {
+          userId:     pkg.user_uid,
+          packageId:  pkg.id,
+          receivedAt: pkg.received_at,
+        }, db, property).catch(() => {});
+      }
+      await db.query(
+        `UPDATE packages SET reminder_sent_at = NOW() WHERE id = $1`,
+        [pkg.id],
+      ).catch(() => {});
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[pkg-reminder] job failed');
+  }
+}
+
+// ─── processWebhooks ─────────────────────────────────────────────────────────
+// Process pending/retrying webhook deliveries.  Runs every 30 seconds per
+// property.  Failures are swallowed so the interval never stops.
+async function processWebhooks(db, property) {
+  try {
+    await webhookService.processPendingDeliveries(db);
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[webhooks] processWebhooks job failed');
+  }
+}
+
+function startRuntimeJobs({ db, property }) {
   const cleanupJob = setInterval(async () => {
     try {
       const { rowCount } = await db.query(
@@ -107,15 +264,53 @@ function startRuntimeJobs({ db }) {
   const otpCleanupTimer = setInterval(runOtpCleanup, otpCleanupInterval);
   otpCleanupTimer.unref();
 
+  // Billing overdue: runs every hour (also triggered on startup to catch overnight records).
+  const runBillingOverdue = () => checkBillingOverdue(db, property);
+  runBillingOverdue();
+  const billingOverdueTimer = setInterval(runBillingOverdue, 60 * 60 * 1000);
+  billingOverdueTimer.unref();
+
+  // Meter reminders: checked every hour; the function itself gates on day-of-month === 25.
+  const runMeterReminders = () => sendMeterReminders(db, property);
+  runMeterReminders();
+  const meterReminderTimer = setInterval(runMeterReminders, 60 * 60 * 1000);
+  meterReminderTimer.unref();
+
+  // SLA overdue: runs every 15 minutes.
+  const runSlaOverdue = () => checkSlaOverdue(db, property);
+  const slaOverdueTimer = setInterval(runSlaOverdue, 15 * 60 * 1000);
+  slaOverdueTimer.unref();
+
+  // Package reminders: checked every hour; the function itself gates on hour === 18.
+  const runPackageReminders = () => sendPackageReminders(db, property);
+  runPackageReminders();
+  const packageReminderTimer = setInterval(runPackageReminders, 60 * 60 * 1000);
+  packageReminderTimer.unref();
+
+  // Webhook deliveries: process pending/retrying rows every 30 seconds.
+  const runProcessWebhooks = () => processWebhooks(db, property);
+  const webhookDeliveryTimer = setInterval(runProcessWebhooks, 30 * 1000);
+  webhookDeliveryTimer.unref();
+
   return {
     stop() {
       clearInterval(cleanupJob);
       clearInterval(expirationJob);
       clearInterval(otpCleanupTimer);
+      clearInterval(billingOverdueTimer);
+      clearInterval(meterReminderTimer);
+      clearInterval(slaOverdueTimer);
+      clearInterval(packageReminderTimer);
+      clearInterval(webhookDeliveryTimer);
     },
   };
 }
 
 module.exports = {
   startRuntimeJobs,
+  checkBillingOverdue,
+  sendMeterReminders,
+  checkSlaOverdue,
+  sendPackageReminders,
+  processWebhooks,
 };

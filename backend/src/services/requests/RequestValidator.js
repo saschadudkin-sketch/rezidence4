@@ -3,7 +3,7 @@
 const { REQUEST_FIELD_MAX } = require('../../constants/validationLimits');
 const { ServiceError } = require('./RequestErrors');
 
-const VALID_TYPES = new Set(['pass', 'tech']);
+const VALID_TYPES = new Set(['pass', 'tech', 'repair', 'cleaning', 'concierge', 'complaint', 'suggestion', 'car', 'move_in', 'move_out']);
 const VALID_CATEGORIES = new Set([
   'guest', 'courier', 'taxi', 'car', 'master', 'cleaner', 'other',
   'worker', 'team', 'delivery', 'electrician', 'plumber',

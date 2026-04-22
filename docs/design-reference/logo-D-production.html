@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DomHub — Variant D Oculus — Production Review</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --s0: #11100e;
+    --s1: #181613;
+    --s2: #201d19;
+    --s3: #2a2621;
+    --t1: #eee7dc;
+    --t2: #c7bdae;
+    --t3: #b2a593;
+    --g2: #c9a96e;
+    --cream: #f5ede0;
+    --font: -apple-system, "SF Pro Display", "Segoe UI Variable Text", system-ui, sans-serif;
+  }
+
+  body {
+    background: #0d0c0a;
+    color: var(--t1);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--t3);
+    padding: 48px 40px 20px;
+  }
+
+  .section-label span {
+    display: inline-block;
+    border-bottom: 1px solid rgba(201,169,110,0.2);
+    padding-bottom: 8px;
+  }
+
+  /* ── CONTEXT 1: App Header ──────────────────────────────────── */
+  .ctx-header-wrap {
+    padding: 0 40px 40px;
+  }
+
+  .ctx-header-frame {
+    max-width: 1440px;
+    border: 1px solid rgba(201,169,110,0.12);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .app-header {
+    background: var(--s0);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 32px;
+    border-bottom: 1px solid rgba(201,169,110,0.10);
+    gap: 40px;
+  }
+
+  .app-header-logo {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .app-header-logo img,
+  .app-header-logo svg {
+    height: 28px;
+    width: auto;
+  }
+
+  .app-header-nav {
+    display: flex;
+    gap: 28px;
+    flex: 1;
+  }
+
+  .app-header-nav a {
+    font-size: 13px;
+    color: var(--t2);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    font-weight: 400;
+    cursor: default;
+    transition: color 120ms;
+  }
+
+  .app-header-nav a:hover { color: var(--t1); }
+  .app-header-nav a.active { color: var(--t1); }
+
+  .app-header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+  }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--s3);
+    border: 1px solid rgba(201,169,110,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--g2);
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  .app-body-preview {
+    background: var(--s1);
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-body-preview span {
+    font-size: 11px;
+    color: var(--t3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ctx-note {
+    font-size: 11px;
+    color: var(--t3);
+    padding: 10px 40px 0;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── CONTEXT 2: Access Card ────────────────────────────────── */
+  .ctx-card-wrap {
+    padding: 0 40px 40px;
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+
+  .access-card {
+    /* 85mm × 54mm at 96dpi → 322px × 204px */
+    width: 322px;
+    height: 204px;
+    border-radius: 13px; /* 3.5mm */
+    background: linear-gradient(145deg, #1a1713 0%, #0f0e0b 60%, #1c1a15 100%);
+    border: 1px solid rgba(201,169,110,0.18);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(201,169,110,0.08) inset;
+  }
+
+  .access-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(201,169,110,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(201,169,110,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .access-card-logo {
+    width: 60%; /* ~60% of card width */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .access-card-logo img,
+  .access-card-logo object {
+    width: 100%;
+    height: auto;
+  }
+
+  .access-card-tagline {
+    font-size: 8px;
+    font-weight: 400;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--g2);
+    opacity: 0.75;
+    text-align: center;
+  }
+
+  .access-card-chip {
+    position: absolute;
+    top: 28px;
+    left: 22px;
+    width: 34px;
+    height: 26px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #c9a96e 0%, #a07840 100%);
+    opacity: 0.5;
+  }
+
+  /* ── CONTEXT 3: Facade Sign ────────────────────────────────── */
+  .ctx-facade-wrap {
+    padding: 0 40px 40px;
+  }
+
+  .facade-sign {
+    background: var(--cream);
+    border-radius: 4px;
+    padding: 60px 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    position: relative;
+    /* Simulate carved stone: very subtle inset shadow */
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.6),
+      0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .facade-sign-logo {
+    width: 800px;
+    max-width: 100%;
+  }
+
+  .facade-sign-logo img,
+  .facade-sign-logo object {
+    width: 100%;
+    height: auto;
+    /* Engraved-in-stone effect: very subtle drop shadow downward */
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.18));
+  }
+
+  /* ── COMPARISON: Before / After ────────────────────────────── */
+  .comparison-wrap {
+    padding: 0 40px 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 960px;
+  }
+
+  .comparison-item {
+    border: 1px solid rgba(201,169,110,0.10);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .comparison-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--t3);
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid rgba(201,169,110,0.08);
+    background: var(--s1);
+  }
+
+  .comparison-body {
+    padding: 32px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+  }
+
+  .comparison-body.dark { background: var(--s0); }
+  .comparison-body.dark img, .comparison-body.dark object { height: 44px; width: auto; }
+  .comparison-body.light { background: var(--cream); }
+  .comparison-body.light img, .comparison-body.light object { height: 44px; width: auto; }
+
+  /* ── SCALE ROW ──────────────────────────────────────────────── */
+  .scale-wrap {
+    padding: 0 40px 40px;
+  }
+
+  .scale-row {
+    background: var(--s0);
+    border: 1px solid rgba(201,169,110,0.10);
+    border-radius: 8px;
+    padding: 28px 32px;
+    display: flex;
+    align-items: flex-end;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .scale-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .scale-item-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--t3);
+  }
+
+  /* ── CLEARANCE ZONE ─────────────────────────────────────────── */
+  .clearance-wrap {
+    padding: 0 40px 40px;
+  }
+
+  .clearance-demo {
+    background: var(--s0);
+    border: 1px solid rgba(201,169,110,0.10);
+    border-radius: 8px;
+    padding: 40px;
+    display: inline-flex;
+    position: relative;
+  }
+
+  .clearance-inner {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .clearance-inner img,
+  .clearance-inner object {
+    height: 60px;
+    width: auto;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Clearance zone box — visually shows minimum margin = height of O */
+  .clearance-box {
+    position: absolute;
+    /* O height in the wordmark is ~60/88 of total = ~68% of rendered height.
+       At 60px render height, O height ≈ 41px. Use that as clearance unit. */
+    top: -18px;
+    left: -18px;
+    right: -18px;
+    bottom: -18px;
+    border: 1px dashed rgba(201,169,110,0.30);
+    border-radius: 2px;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .clearance-note {
+    font-size: 10px;
+    color: var(--g2);
+    letter-spacing: 0.06em;
+    margin-top: 16px;
+    opacity: 0.7;
+  }
+
+  /* ── MONO BLOCK ──────────────────────────────────────────────── */
+  .mono-wrap {
+    padding: 0 40px 60px;
+  }
+
+  .mono-demo {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 40px 48px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .mono-demo img,
+  .mono-demo object {
+    height: 48px;
+    width: auto;
+  }
+
+  .mono-caption {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  /* Favicon preview */
+  .favicon-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0 40px 40px;
+  }
+
+  .favicon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: var(--s1);
+    border: 1px solid rgba(201,169,110,0.10);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+
+  .favicon-item-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--t3);
+  }
+
+  /* ── INLINE SVG EMBED via <img> pointing at files ───────────── */
+  /* We use <object> tags so SVG renders with correct internal colors */
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONTEXT 1 — APP HEADER
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Контекст 1 — Header приложения · 1440px · логотип 28px</span></div>
+<div class="ctx-header-wrap">
+  <div class="ctx-header-frame">
+    <header class="app-header">
+      <div class="app-header-logo">
+        <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:28px;width:auto;pointer-events:none;" aria-label="DomHub"></object>
+      </div>
+      <nav class="app-header-nav">
+        <a href="#" class="active">Заявки</a>
+        <a href="#">Жильцы</a>
+        <a href="#">Пропуска</a>
+        <a href="#">Бронирования</a>
+      </nav>
+      <div class="app-header-right">
+        <div class="avatar">АД</div>
+      </div>
+    </header>
+    <div class="app-body-preview">
+      <span>Контент приложения</span>
+    </div>
+  </div>
+</div>
+<p class="ctx-note">Проверка: читается ли oculus на высоте 28px. Кольцо и импост должны быть различимы как отдельные элементы.</p>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONTEXT 2 — ACCESS CARD
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Контекст 2 — Физическая карточка доступа · 85×54mm (банковский стандарт)</span></div>
+<div class="ctx-card-wrap">
+  <div class="access-card">
+    <div class="access-card-chip"></div>
+    <div class="access-card-logo">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="width:100%;pointer-events:none;" aria-label="DomHub"></object>
+    </div>
+    <div class="access-card-tagline">Резиденции Замоскворечья</div>
+  </div>
+</div>
+<p class="ctx-note">Проверка: баланс логотипа и подписи. Золото работает как «тиснение» на тёмной карточке.</p>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONTEXT 3 — FACADE SIGN
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Контекст 3 — Имитация фасадной вывески · известняк/мрамор · ~800px</span></div>
+<div class="ctx-facade-wrap">
+  <div class="facade-sign">
+    <div class="facade-sign-logo">
+      <object data="logos/D-final-light.svg" type="image/svg+xml" style="width:100%;pointer-events:none;" aria-label="DomHub"></object>
+    </div>
+  </div>
+</div>
+<p class="ctx-note">Проверка: работает как фасадная идентичность. filter:drop-shadow имитирует гравировку в камне.</p>
+
+<!-- ══════════════════════════════════════════════════════════════
+     COMPARISON — БЫЛО / СТАЛО
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Сравнение — Было / Стало</span></div>
+<div class="comparison-wrap">
+  <div class="comparison-item">
+    <div class="comparison-label">Было — Variant D (строчные, разделитель, подчёркивание)</div>
+    <div class="comparison-body dark">
+      <object data="logos/D-bold-gesture.svg" type="image/svg+xml" style="height:44px;width:auto;pointer-events:none;" aria-label="Старый логотип domHub"></object>
+    </div>
+  </div>
+  <div class="comparison-item">
+    <div class="comparison-label">Стало — D-final (DOMHUB прописные, oculus, без разделителя)</div>
+    <div class="comparison-body dark">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:44px;width:auto;pointer-events:none;" aria-label="Новый логотип DOMHUB"></object>
+    </div>
+  </div>
+  <div class="comparison-item">
+    <div class="comparison-label">Было — на кремовом</div>
+    <div class="comparison-body light">
+      <object data="logos/D-bold-gesture.svg" type="image/svg+xml" style="height:44px;width:auto;pointer-events:none;filter:invert(1)" aria-label="Старый логотип"></object>
+    </div>
+  </div>
+  <div class="comparison-item">
+    <div class="comparison-label">Стало — на кремовом</div>
+    <div class="comparison-body light">
+      <object data="logos/D-final-light.svg" type="image/svg+xml" style="height:44px;width:auto;pointer-events:none;" aria-label="Новый логотип DOMHUB"></object>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCALE TEST — 16px → 480px
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Масштабная проверка — 16px / 32px / 64px / 120px / 240px / 480px</span></div>
+<div class="scale-wrap">
+  <div class="scale-row">
+    <div class="scale-item">
+      <object data="logos/D-favicon-16.svg" type="image/svg+xml" style="height:16px;width:16px;pointer-events:none;" aria-label="16px"></object>
+      <span class="scale-item-label">16px</span>
+    </div>
+    <div class="scale-item">
+      <object data="logos/D-favicon-32.svg" type="image/svg+xml" style="height:32px;width:32px;pointer-events:none;" aria-label="32px"></object>
+      <span class="scale-item-label">32px</span>
+    </div>
+    <div class="scale-item">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:64px;width:auto;pointer-events:none;" aria-label="64px"></object>
+      <span class="scale-item-label">64px</span>
+    </div>
+    <div class="scale-item">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:120px;width:auto;pointer-events:none;" aria-label="120px"></object>
+      <span class="scale-item-label">120px</span>
+    </div>
+    <div class="scale-item">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:240px;width:auto;pointer-events:none;" aria-label="240px"></object>
+      <span class="scale-item-label">240px</span>
+    </div>
+    <div class="scale-item">
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:480px;width:auto;pointer-events:none;" aria-label="480px"></object>
+      <span class="scale-item-label">480px</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CLEARANCE ZONE
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Клиренс-зона — минимальные отступы = высота буквы O со всех сторон</span></div>
+<div class="clearance-wrap">
+  <div class="clearance-demo">
+    <div class="clearance-inner">
+      <div class="clearance-box"></div>
+      <object data="logos/D-final-dark.svg" type="image/svg+xml" style="height:60px;width:auto;position:relative;z-index:2;pointer-events:none;" aria-label="DOMHUB с зоной клиренса"></object>
+    </div>
+  </div>
+  <p class="clearance-note">Пунктирная рамка = зона защиты. Никаких других элементов внутри.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     FAVICON ROW
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Favicon — lockmark «O» с окулусом</span></div>
+<div class="favicon-row">
+  <div class="favicon-item">
+    <object data="logos/D-favicon-32.svg" type="image/svg+xml" style="width:32px;height:32px;pointer-events:none;" aria-label="32px favicon"></object>
+    <span class="favicon-item-label">32px · с oculus</span>
+  </div>
+  <div class="favicon-item">
+    <object data="logos/D-favicon-16.svg" type="image/svg+xml" style="width:16px;height:16px;pointer-events:none;" aria-label="16px favicon"></object>
+    <span class="favicon-item-label">16px · силуэт</span>
+  </div>
+  <div class="favicon-item" style="background:#f5ede0;border-color:rgba(0,0,0,0.08);">
+    <object data="logos/D-favicon-32.svg" type="image/svg+xml" style="width:32px;height:32px;pointer-events:none;" aria-label="32px on light"></object>
+    <span class="favicon-item-label" style="color:#888;">32px · светлый фон</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MONO VERSION
+════════════════════════════════════════════════════════════════ -->
+<div class="section-label"><span>Моно-версия — одноцветная для печати и факса</span></div>
+<div class="mono-wrap">
+  <div class="mono-demo">
+    <p class="mono-caption">Mono — всё #11100e на белом, oculus → чёрный hairline</p>
+    <object data="logos/D-final-mono.svg" type="image/svg+xml" style="height:48px;width:auto;pointer-events:none;" aria-label="DOMHUB mono"></object>
+    <object data="logos/D-final-mono.svg" type="image/svg+xml" style="height:28px;width:auto;pointer-events:none;" aria-label="DOMHUB mono small"></object>
+    <object data="logos/D-final-mono.svg" type="image/svg+xml" style="height:16px;width:auto;pointer-events:none;" aria-label="DOMHUB mono 16px"></object>
+  </div>
+</div>
+
+</body>
+</html>

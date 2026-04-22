@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" role="img" aria-labelledby="logo04-title">
+  <title id="logo04-title">DomHub — DH Monogram (Latin)</title>
+
+  <!--
+    DH Ligature monogram — square format for favicon/avatar.
+    The letter "D" is drawn with its vertical stroke on the left,
+    its bowl sweeping right. The letter "H" shares the center
+    vertical stroke with the D's right terminus — so three strokes
+    total, not four. The shared stroke is drawn in gold to signal
+    the junction. The result reads as both letters simultaneously
+    without being a simple juxtaposition.
+
+    Proportions: cap-height 50px, centered in 80x80 box.
+    Optical margins: 15px each side.
+  -->
+
+  <!-- Background square (use when needed — transparent by default) -->
+  <!-- <rect width="80" height="80" rx="12" fill="#11100e"/> -->
+
+  <!-- D left stem + H left stem (they ARE the same stroke for D) -->
+  <!-- D's main stem -->
+  <rect x="15" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+
+  <!-- D bowl — large arc connecting top and bottom of left stem -->
+  <path d="M17.5 15 C17.5 15 50 15 50 40 C50 65 17.5 65 17.5 65" stroke="#eee7dc" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- H center shared stroke — the junction, in gold -->
+  <!-- Positioned at x=47 which is near the D bowl's widest x -->
+  <rect x="46" y="15" width="3" height="50" rx="1.5" fill="#c9a96e"/>
+
+  <!-- H crossbar — thin, horizontal, at midpoint -->
+  <rect x="17.5" y="38.5" width="31" height="2" rx="1" fill="#c9a96e" opacity="0.5"/>
+
+  <!-- H right stem -->
+  <rect x="62" y="15" width="3" height="50" rx="1.5" fill="#eee7dc"/>
+</svg>

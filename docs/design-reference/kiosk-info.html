@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>Информационный стенд — Резиденции Замоскворечья</title>
+  <style>
+    @import url('./tokens.css');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Fixed 1920×1080 canvas ─────────────────────────────────
+       The kiosk screen is a fixed-size canvas. On a laptop preview
+       it will scale down via transform.
+       Typography is sized for 2-3 metre viewing distance.
+    ────────────────────────────────────────────────────────────── */
+    html, body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: var(--s0);
+      color: var(--t1);
+      font-family: var(--font);
+    }
+
+    /* Scale to fit viewport on laptop preview */
+    body {
+      transform-origin: top left;
+      transform: scale(var(--kiosk-scale, 1));
+    }
+
+    /* ─── Top strip ──────────────────────────────────────────────
+       Property name left, time+weather right.
+       Height: 88px — generous, readable at distance.
+       Border-bottom separates it from main without being loud.
+    ────────────────────────────────────────────────────────────── */
+    .top-strip {
+      height: 88px;
+      padding: 0 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--b1);
+      background: var(--s1);
+    }
+
+    .top-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .top-brand-icon {
+      color: var(--g2);
+      flex-shrink: 0;
+    }
+
+    .top-brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .top-wordmark {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--g2);
+    }
+
+    .top-property {
+      /* Property name is the headline — BIG because viewers are far away */
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--t1);
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+    }
+
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 48px;
+    }
+
+    /* Time — very large, primary status info for lobby display */
+    .top-time {
+      font-size: 52px;
+      font-weight: 300;
+      color: var(--t1);
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .top-weather {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+    }
+
+    .weather-temp {
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--t2);
+      letter-spacing: -0.02em;
+    }
+
+    .weather-desc {
+      font-size: 14px;
+      color: var(--t4);
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── Main area: 70/30 split ─────────────────────────────────  */
+    .main-area {
+      height: calc(1080px - 88px - 56px); /* total - top - bottom */
+      display: grid;
+      grid-template-columns: 1fr 520px;
+      gap: 0;
+    }
+
+    /* ─── Left panel: announcement ──────────────────────────────
+       Gallery-like: one big announcement, generous spacing,
+       nothing competing with the content.
+    ────────────────────────────────────────────────────────────── */
+    .announce-panel {
+      padding: 72px 72px 64px 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 40px;
+      border-right: 1px solid var(--b1);
+    }
+
+    .announce-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--b2);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--t3);
+      align-self: flex-start;
+    }
+
+    .announce-headline {
+      /* Font size for viewing at 2-3 metres */
+      font-size: 52px;
+      font-weight: 600;
+      color: var(--t1);
+      letter-spacing: -0.025em;
+      line-height: 1.15;
+      /* Max two lines to avoid overflow */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .announce-body {
+      font-size: 22px;
+      font-weight: 300;
+      color: var(--t2);
+      line-height: 1.6;
+      max-width: 800px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .announce-timestamp {
+      font-size: 16px;
+      color: var(--t4);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Decorative separator — minimal gold line before timestamp */
+    .announce-sep {
+      width: 40px;
+      height: 1.5px;
+      background: var(--g2);
+      opacity: 0.5;
+      margin-bottom: 0;
+    }
+
+    /* ─── Right panel: two stacked info cards ────────────────────  */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      padding: 48px 56px;
+      gap: 32px;
+      background: var(--s1);
+    }
+
+    .info-card {
+      background: var(--s2);
+      border: 1px solid var(--b1);
+      border-radius: 20px;
+      padding: 36px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .info-card-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--t4);
+    }
+
+    /* Building status list */
+    .building-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .building-list li {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--t2);
+    }
+
+    .building-list li svg {
+      color: var(--t4);
+      flex-shrink: 0;
+    }
+
+    .building-list li strong {
+      color: var(--t1);
+      font-weight: 600;
+    }
+
+    /* QR card */
+    .qr-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .qr-block {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .qr-block svg {
+      display: block;
+      width: 160px;
+      height: 160px;
+    }
+
+    .qr-label {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--t1);
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    .qr-url {
+      font-size: 16px;
+      color: var(--g2);
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Bottom strip: carousel dots + subtle brand ─────────────
+       No interactivity labels — this is a display.
+    ────────────────────────────────────────────────────────────── */
+    .bottom-strip {
+      height: 56px;
+      padding: 0 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--b1);
+      background: var(--s1);
+    }
+
+    .carousel-dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--s4);
+      transition: background var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
+    }
+
+    .dot.active {
+      background: var(--g2);
+      width: 22px;
+      border-radius: 4px;
+    }
+
+    .bottom-right {
+      font-size: 13px;
+      color: var(--t4);
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Auto-scale on laptop preview ──────────────────────────
+       JS calculates the scale factor so the kiosk fits in the browser.
+    ────────────────────────────────────────────────────────────── */
+  </style>
+</head>
+<body>
+
+  <!-- Top strip: brand + time + weather -->
+  <header class="top-strip">
+    <div class="top-brand">
+      <svg class="top-brand-icon" width="36" height="36" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="5" width="8" height="12" rx="2"/>
+        <path d="M10 9h3a4 4 0 0 1 0 8h-3"/>
+      </svg>
+      <div class="top-brand-text">
+        <div class="top-wordmark">DomHub</div>
+        <div class="top-property">Резиденции Замоскворечья</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="top-weather">
+        <div class="weather-temp">+8°C</div>
+        <div class="weather-desc">Облачно</div>
+      </div>
+      <!-- Time — large tabular numerals, no seconds (unnecessary churn) -->
+      <div class="top-time" aria-label="Текущее время">20:47</div>
+    </div>
+  </header>
+
+  <!-- Main area: 70/30 -->
+  <div class="main-area">
+
+    <!-- ── Announcement: full gallery treatment ──────────────── -->
+    <div class="announce-panel" role="main" aria-label="Объявление">
+
+      <div class="announce-tag">
+        <!-- Bell icon -->
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 2a5 5 0 0 0-5 5v3l-1 1v1h12v-1l-1-1V7a5 5 0 0 0-5-5z"/>
+          <path d="M6.5 14.5a1.5 1.5 0 0 0 3 0"/>
+        </svg>
+        Объявления УК
+      </div>
+
+      <!-- Headline: sized for 2-3 metres -->
+      <h1 class="announce-headline">
+        Плановое отключение воды<br>17 апреля
+      </h1>
+
+      <p class="announce-body">
+        С 9:00 до 18:00 в подъездах 1–3 будет отключена холодная вода в связи с плановыми работами по обслуживанию трубопровода. Рекомендуем заблаговременно запастись водой и перенести стирку на другой день.
+      </p>
+
+      <div>
+        <div class="announce-sep"></div>
+        <div class="announce-timestamp" style="margin-top:16px;">
+          <!-- Clock icon, small -->
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="8" cy="8" r="6.5"/>
+            <path d="M8 5v3.5l2.5 1.5"/>
+          </svg>
+          Опубликовано сегодня в 12:30
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Right panel ──────────────────────────────────────── -->
+    <aside class="right-panel" aria-label="Информация о доме">
+
+      <!-- Today in the building -->
+      <div class="info-card" aria-label="Сегодня в доме">
+        <div class="info-card-title">Сегодня в доме</div>
+        <ul class="building-list">
+          <li>
+            <!-- Package icon -->
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 5h16l-1.5 12H4.5L3 5z"/>
+              <path d="M8 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              <circle cx="8.5" cy="15" r="1"/>
+              <circle cx="13.5" cy="15" r="1"/>
+            </svg>
+            <strong>2</strong> доставки ожидают получения
+          </li>
+          <li>
+            <!-- Pass icon -->
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="5" width="18" height="13" rx="2"/>
+              <path d="M2 10h18"/>
+              <path d="M7 5V3M15 5V3"/>
+            </svg>
+            <strong>12</strong> активных пропусков
+          </li>
+        </ul>
+      </div>
+
+      <!-- QR code card -->
+      <div class="info-card qr-card" aria-label="QR-код для входа в DomHub">
+        <div class="info-card-title">Войти в DomHub</div>
+
+        <!-- QR placeholder for domhub.su -->
+        <div class="qr-block">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <rect width="200" height="200" fill="white"/>
+            <!-- Finder TL -->
+            <rect x="8" y="8" width="56" height="56" fill="black" rx="3"/>
+            <rect x="16" y="16" width="40" height="40" fill="white" rx="1"/>
+            <rect x="22" y="22" width="28" height="28" fill="black" rx="1"/>
+            <!-- Finder TR -->
+            <rect x="136" y="8" width="56" height="56" fill="black" rx="3"/>
+            <rect x="144" y="16" width="40" height="40" fill="white" rx="1"/>
+            <rect x="150" y="22" width="28" height="28" fill="black" rx="1"/>
+            <!-- Finder BL -->
+            <rect x="8" y="136" width="56" height="56" fill="black" rx="3"/>
+            <rect x="16" y="144" width="40" height="40" fill="white" rx="1"/>
+            <rect x="22" y="150" width="28" height="28" fill="black" rx="1"/>
+            <!-- Data modules -->
+            <rect x="72" y="8" width="8" height="8" fill="black"/>
+            <rect x="88" y="8" width="8" height="8" fill="black"/>
+            <rect x="104" y="8" width="8" height="8" fill="black"/>
+            <rect x="120" y="8" width="8" height="8" fill="black"/>
+            <rect x="8" y="72" width="8" height="8" fill="black"/>
+            <rect x="8" y="88" width="8" height="8" fill="black"/>
+            <rect x="8" y="104" width="8" height="8" fill="black"/>
+            <rect x="8" y="120" width="8" height="8" fill="black"/>
+            <rect x="72" y="72" width="8" height="8" fill="black"/>
+            <rect x="88" y="80" width="8" height="8" fill="black"/>
+            <rect x="104" y="72" width="8" height="8" fill="black"/>
+            <rect x="72" y="88" width="8" height="8" fill="black"/>
+            <rect x="104" y="96" width="8" height="8" fill="black"/>
+            <rect x="120" y="80" width="8" height="8" fill="black"/>
+            <rect x="72" y="104" width="8" height="8" fill="black"/>
+            <rect x="88" y="104" width="8" height="8" fill="black"/>
+            <rect x="120" y="104" width="8" height="8" fill="black"/>
+            <rect x="80" y="120" width="8" height="8" fill="black"/>
+            <rect x="104" y="120" width="8" height="8" fill="black"/>
+            <rect x="136" y="72" width="8" height="8" fill="black"/>
+            <rect x="152" y="88" width="8" height="8" fill="black"/>
+            <rect x="168" y="72" width="8" height="8" fill="black"/>
+            <rect x="136" y="96" width="8" height="8" fill="black"/>
+            <rect x="168" y="96" width="8" height="8" fill="black"/>
+            <rect x="152" y="112" width="8" height="8" fill="black"/>
+            <rect x="136" y="128" width="8" height="8" fill="black"/>
+            <rect x="160" y="128" width="8" height="8" fill="black"/>
+            <rect x="72" y="136" width="8" height="8" fill="black"/>
+            <rect x="88" y="144" width="8" height="8" fill="black"/>
+            <rect x="104" y="136" width="8" height="8" fill="black"/>
+            <rect x="120" y="152" width="8" height="8" fill="black"/>
+            <rect x="80" y="152" width="8" height="8" fill="black"/>
+            <rect x="104" y="168" width="8" height="8" fill="black"/>
+            <rect x="136" y="152" width="8" height="8" fill="black"/>
+            <rect x="160" y="160" width="8" height="8" fill="black"/>
+            <rect x="144" y="176" width="8" height="8" fill="black"/>
+            <rect x="168" y="176" width="8" height="8" fill="black"/>
+          </svg>
+        </div>
+
+        <div class="qr-label">
+          Сканируй, чтобы войти в DomHub
+        </div>
+        <div class="qr-url">domhub.su</div>
+      </div>
+
+    </aside>
+
+  </div><!-- /main-area -->
+
+  <!-- Bottom strip: dots only — no interaction labels -->
+  <footer class="bottom-strip">
+    <div class="carousel-dots" aria-label="Слайды объявлений" role="tablist">
+      <div class="dot" role="tab" aria-selected="false"></div>
+      <div class="dot active" role="tab" aria-selected="true" aria-current="true"></div>
+      <div class="dot" role="tab" aria-selected="false"></div>
+    </div>
+    <div class="bottom-right">domhub.su</div>
+  </footer>
+
+  <script>
+    // Scale the 1920×1080 canvas to fit any viewport.
+    // This is display-only: no logic beyond proportional scaling.
+    function applyKioskScale() {
+      var scaleX = window.innerWidth / 1920;
+      var scaleY = window.innerHeight / 1080;
+      var scale = Math.min(scaleX, scaleY);
+      document.body.style.setProperty('--kiosk-scale', scale);
+      document.body.style.transform = 'scale(' + scale + ')';
+      document.body.style.transformOrigin = 'top left';
+    }
+    applyKioskScale();
+    window.addEventListener('resize', applyKioskScale);
+  </script>
+
+</body>
+</html>

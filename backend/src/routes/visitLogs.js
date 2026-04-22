@@ -5,6 +5,7 @@ const db      = require('../db');
 const logger  = require('../logger'); // FIX [КРИТ-2]: logger был вызван без импорта
 const requireAuth = require('../middleware/auth');
 const { isStaff } = require('../constants'); // FIX [CODE-1]
+const { dispatch: notifyDispatch } = require('../services/notificationService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -104,7 +105,22 @@ router.post('/', async (req, res, next) => {
         b.timestamp || new Date(),
       ],
     );
-    res.status(201).json(fmt(rows[0]));
+    const log = rows[0];
+    res.status(201).json(fmt(log));
+
+    // Dispatch guest.arrived notification when a guard admits someone (non-blocking).
+    // We notify the pass creator (created_by_uid) so they know their guest has arrived.
+    if (log.result === 'allowed' && log.created_by_uid) {
+      const propertyDb = req.db || null;
+      if (propertyDb) {
+        notifyDispatch(
+          'guest.arrived',
+          { userId: log.created_by_uid, visitorName: log.visitor_name || undefined },
+          propertyDb,
+          req.property || null,
+        ).catch(() => {}); // belt-and-suspenders; dispatch already swallows errors
+      }
+    }
   } catch (err) { next(err); }
 });
 

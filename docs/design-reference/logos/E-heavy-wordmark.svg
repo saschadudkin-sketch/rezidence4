@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" fill="none">
+  <title>DomHub — Variant E, Heavy all-caps wordmark with hairline mark</title>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       VARIANT E — Heavy all-caps wordmark (Assouline / Tom Ford register)
+       "DOMHUB" in compressed bold caps, tracking –0.04em (letters
+       nearly touching). Above: a miniature hairline architectural
+       mark — a classical arch (the arch of a porch / portico) —
+       that functions as a maker's stamp rather than a symbol.
+       The mark is hairline thin, the wordmark is heavy. Maximum
+       contrast between the two elements.
+       Palette: #1a1714 (near-black ink) primary.
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ══ HAIRLINE MARK — portico arch above ════════════════════
+       A miniature classical arch: two columns with entablature,
+       drawn at hairline weight (~0.8px stroke). This is the
+       "stamp of the ateliye" — never competes with the wordmark.
+       Centred at top.                                             -->
+  <g fill="none" stroke="#1a1714" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left column -->
+    <line x1="189" y1="8" x2="189" y2="24"/>
+    <!-- Left capital (top of column) -->
+    <line x1="186" y1="8" x2="192" y2="8"/>
+    <line x1="186.5" y1="9.5" x2="191.5" y2="9.5"/>
+    <!-- Left base (bottom of column) -->
+    <line x1="186" y1="22.5" x2="192" y2="22.5"/>
+    <line x1="187" y1="24" x2="191" y2="24"/>
+    <!-- Right column -->
+    <line x1="231" y1="8" x2="231" y2="24"/>
+    <!-- Right capital -->
+    <line x1="228" y1="8" x2="234" y2="8"/>
+    <line x1="228.5" y1="9.5" x2="233.5" y2="9.5"/>
+    <!-- Right base -->
+    <line x1="228" y1="22.5" x2="234" y2="22.5"/>
+    <line x1="229" y1="24" x2="233" y2="24"/>
+    <!-- Arch (semi-circular, hairline) -->
+    <path d="M 189 14 C 189 10 193 7 210 7 C 227 7 231 10 231 14"/>
+    <!-- Entablature (horizontal beam across top) -->
+    <line x1="186" y1="7" x2="234" y2="7"/>
+    <!-- Stylobate (base platform) -->
+    <line x1="184" y1="24" x2="236" y2="24"/>
+    <line x1="183" y1="25.5" x2="237" y2="25.5"/>
+  </g>
+  <!-- Gold keystone accent at arch apex -->
+  <path d="M 207.5 7.5 L 210 4.5 L 212.5 7.5 Z" fill="#c9a96e" opacity="0.8"/>
+
+  <!-- ══ HEAVY WORDMARK ══════════════════════════════════════════
+       "DOMHUB" — compressed bold caps. Letters are wide-stroke,
+       tight tracking. This is anti-tech: no rounded corners,
+       no UI-style consistency — this is ink on press.
+       Viewbox gives ~55px cap height, centred vertically below mark.
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <g fill="#1a1714">
+
+    <!-- ── D ─────────────────────────────────────────────────────
+         Wide stroke (bold), bowl filling from right.              -->
+    <!-- D stem -->
+    <path d="M 18 38 L 18 88 L 26 88 L 26 38 Z"/>
+    <!-- D bowl outer -->
+    <path d="M 26 38 C 41 38 60 42.5 60 63 C 60 83.5 41 88 26 88 Z"/>
+    <!-- D bowl inner (heavy counter — narrower than Didone) -->
+    <path d="M 26 46 C 36.5 46 51.5 50 51.5 63 C 51.5 76 36.5 80 26 80 Z"
+          fill="#f5ede0"/>
+
+    <!-- ── O ─────────────────────────────────────────────────────  -->
+    <path d="M 68 63 C 68 47.5 79 37 93.5 37 C 108 37 119 47.5 119 63 C 119 78.5 108 89 93.5 89 C 79 89 68 78.5 68 63 Z"/>
+    <path d="M 76 63 C 76 51.5 84 45 93.5 45 C 103 45 111 51.5 111 63 C 111 74.5 103 81 93.5 81 C 84 81 76 74.5 76 63 Z"
+          fill="#f5ede0"/>
+
+    <!-- ── M ─────────────────────────────────────────────────────  -->
+    <!-- Left outer stem -->
+    <path d="M 126 38 L 126 88 L 134 88 L 134 38 Z"/>
+    <!-- Right outer stem -->
+    <path d="M 172 38 L 172 88 L 180 88 L 180 38 Z"/>
+    <!-- Left diagonal arm -->
+    <path d="M 134 38 L 153 68 L 153 78 L 134 42 Z"/>
+    <!-- Right diagonal arm -->
+    <path d="M 172 38 L 153 68 L 153 78 L 172 42 Z"/>
+
+    <!-- ── H ─────────────────────────────────────────────────────  -->
+    <path d="M 190 38 L 190 88 L 198 88 L 198 38 Z"/>
+    <path d="M 234 38 L 234 88 L 242 88 L 242 38 Z"/>
+    <!-- Crossbar — heavy (bold weight crossbar, still thinner than stems) -->
+    <rect x="198" y="59" width="36" height="5" rx="0.5"/>
+
+    <!-- ── U ─────────────────────────────────────────────────────  -->
+    <!-- Left stem -->
+    <path d="M 252 38 L 252 70 C 252 80 259 88 271 88 C 283 88 290 80 290 70 L 290 38 L 282 38 L 282 70 C 282 76 277.5 80.5 271 80.5 C 264.5 80.5 260 76 260 70 L 260 38 Z"/>
+
+    <!-- ── B ─────────────────────────────────────────────────────  -->
+    <!-- Stem -->
+    <path d="M 300 38 L 300 88 L 308 88 L 308 38 Z"/>
+    <!-- Upper bowl -->
+    <path d="M 308 38 C 325 38 334 43.5 334 53 C 334 62.5 325 67 308 67 Z"/>
+    <path d="M 308 44 C 321 44 326 48 326 53 C 326 58 321 61 308 61 Z"
+          fill="#f5ede0"/>
+    <!-- Lower bowl (wider than upper — classical B) -->
+    <path d="M 308 67 C 328 67 338 72.5 338 79 C 338 85.5 328 88 308 88 Z"/>
+    <path d="M 308 73 C 322.5 73 330 76 330 79 C 330 82 322.5 85 308 85 Z"
+          fill="#f5ede0"/>
+
+  </g>
+
+  <!-- ── Hairline underrule beneath wordmark ─────────────────── -->
+  <rect x="18" y="91.5" width="320" height="0.7" rx="0.35" fill="#c9a96e" opacity="0.5"/>
+
+</svg>

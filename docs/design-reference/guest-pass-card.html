@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Гостевой пропуск — DomHub</title>
+  <style>
+    @import url('./tokens.css');
+
+    /* ─── Reset & base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: var(--s0);
+      color: var(--t1);
+      font-family: var(--font);
+      min-height: 100dvh;
+      /* Mobile-first: centered column */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    body {
+      padding: var(--sp-7) var(--sp-5) calc(var(--sp-12) + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* ─── Max-width container ─────────────────────────────────── */
+    .page {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
+
+    /* ─── Header wordmark ────────────────────────────────────────
+       Kept minimal: brand signal, not chrome noise.
+    ────────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding-top: var(--sp-5);
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .wordmark-icon {
+      width: 22px;
+      height: 22px;
+      color: var(--g2);
+    }
+
+    .wordmark-text {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--g2);
+      text-transform: uppercase;
+    }
+
+    .property-name {
+      font-size: 12px;
+      color: var(--t3);
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+
+    /* ─── Status pill ────────────────────────────────────────────
+       "Действителен" — gold-tinted to signal value, not generic green
+       (the pass *is* valid, that's the premium state here).
+    ────────────────────────────────────────────────────────────── */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: var(--r-full);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-pill.valid {
+      background: var(--ok-bg);
+      color: var(--ok-t);
+      border: 1px solid rgba(111, 160, 126, 0.22);
+    }
+
+    .status-pill .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* ─── Pass card outer ────────────────────────────────────────
+       The outer card is the "envelope" — --s2 surface with gold border.
+       The inner QR area is --s1 (darker) to make QR float visually.
+    ────────────────────────────────────────────────────────────── */
+    .pass-card {
+      background: var(--s2);
+      border: 1px solid var(--b2);
+      border-radius: var(--r-xl);
+      padding: var(--sp-7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--sp-6);
+      box-shadow: var(--sh-2), var(--sh-glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle warm texture strip at top of card — not a gradient decoration,
+       it demarcates the header area from the QR area */
+    .pass-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--g2), transparent);
+      opacity: 0.55;
+    }
+
+    .card-header {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .card-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--t4);
+    }
+
+    .visitor-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--t1);
+      text-align: center;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
+
+    .visitor-dest {
+      font-size: 13px;
+      color: var(--t2);
+      text-align: center;
+    }
+
+    /* ─── QR inner frame ─────────────────────────────────────────
+       "Card within a card": inset --s1 surface with gold border.
+       The QR code is a pure CSS SVG placeholder — in production
+       this would be a real <canvas> or <img>.
+    ────────────────────────────────────────────────────────────── */
+    .qr-frame {
+      background: var(--s1);
+      border: 1.5px solid var(--b3);
+      border-radius: var(--r-lg);
+      padding: var(--sp-6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--sp-5);
+      width: 100%;
+    }
+
+    .qr-code {
+      width: 200px;
+      height: 200px;
+      border-radius: var(--r-sm);
+      /* QR placeholder: real black+white module grid via SVG pattern */
+      background-color: #fff;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* CSS-drawn QR-like grid — purely decorative stand-in */
+    .qr-code svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .qr-hint {
+      font-size: 11px;
+      color: var(--t3);
+      letter-spacing: 0.03em;
+      text-align: center;
+    }
+
+    /* ─── Validity row ─────────────────────────────────────────── */
+    .validity-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      gap: 0;
+    }
+
+    .validity-divider {
+      background: var(--b1);
+      align-self: stretch;
+    }
+
+    .validity-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: var(--sp-3) var(--sp-4);
+    }
+
+    .validity-cell-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--t4);
+    }
+
+    .validity-cell-value {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--t1);
+      text-align: center;
+      line-height: 1.35;
+    }
+
+    /* ─── Instruction line ───────────────────────────────────────
+       One key directive — placed just below the card, not inside it,
+       to give the QR breathing room.
+    ────────────────────────────────────────────────────────────── */
+    .instruction {
+      text-align: center;
+      font-size: 13px;
+      color: var(--t2);
+      line-height: 1.5;
+      padding: 0 var(--sp-5);
+    }
+
+    /* ─── Meta info chips ─────────────────────────────────────── */
+    .meta-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-3);
+      justify-content: center;
+    }
+
+    .meta-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: var(--r-full);
+      border: 1px solid var(--b1);
+      font-size: 11px;
+      color: var(--t3);
+    }
+
+    .meta-chip svg {
+      color: var(--t4);
+      flex-shrink: 0;
+    }
+
+    /* ─── Download button ────────────────────────────────────────
+       Ghost style — present but non-intrusive. The QR is the primary
+       action; PDF is secondary convenience.
+    ────────────────────────────────────────────────────────────── */
+    .btn-ghost {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 11px 20px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--b2);
+      background: transparent;
+      color: var(--t2);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color var(--dur-base) var(--ease),
+                  color var(--dur-base) var(--ease),
+                  background var(--dur-base) var(--ease);
+      width: 100%;
+      max-width: 280px;
+      text-decoration: none;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--b3);
+      color: var(--t1);
+      background: var(--g-bg);
+    }
+
+    /* ─── Footer attribution ──────────────────────────────────── */
+    .footer-attr {
+      font-size: 11px;
+      color: var(--t4);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .footer-attr strong {
+      color: var(--t3);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- Header: brand signal kept small — this page belongs to the guest,
+       not to DomHub marketing. The property name contextualises the visit. -->
+  <header class="header">
+    <div class="wordmark">
+      <!-- D + H monogram: two interlocked thin-stroke rectangles -->
+      <svg class="wordmark-icon" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="5" width="8" height="12" rx="2"/>
+        <path d="M10 9h3a4 4 0 0 1 0 8h-3"/>
+      </svg>
+      <span class="wordmark-text">DomHub</span>
+    </div>
+    <div class="property-name">Резиденции Замоскворечья</div>
+  </header>
+
+  <!-- Status — shown before the card to orient the guest immediately -->
+  <div style="display:flex; justify-content:center;">
+    <div class="status-pill valid">
+      <span class="dot"></span>
+      Действителен
+    </div>
+  </div>
+
+  <!-- Hero pass card -->
+  <div class="pass-card" role="main" aria-label="Гостевой пропуск">
+
+    <div class="card-header">
+      <div class="card-label">Гостевой пропуск</div>
+      <div class="visitor-name">Алексей Михайлович Петров</div>
+      <div class="visitor-dest">Квартира 42, подъезд 2</div>
+    </div>
+
+    <!-- QR inner frame — "card within a card" -->
+    <div class="qr-frame">
+      <!-- QR placeholder drawn in SVG: real 25×25 module grid approximation -->
+      <div class="qr-code" aria-label="QR-код для прохода">
+        <svg viewBox="0 0 250 250" xmlns="http://www.w3.org/2000/svg">
+          <rect width="250" height="250" fill="white"/>
+          <!-- Finder pattern top-left -->
+          <rect x="10" y="10" width="70" height="70" fill="black" rx="4"/>
+          <rect x="20" y="20" width="50" height="50" fill="white" rx="2"/>
+          <rect x="28" y="28" width="34" height="34" fill="black" rx="2"/>
+          <!-- Finder pattern top-right -->
+          <rect x="170" y="10" width="70" height="70" fill="black" rx="4"/>
+          <rect x="180" y="20" width="50" height="50" fill="white" rx="2"/>
+          <rect x="188" y="28" width="34" height="34" fill="black" rx="2"/>
+          <!-- Finder pattern bottom-left -->
+          <rect x="10" y="170" width="70" height="70" fill="black" rx="4"/>
+          <rect x="20" y="180" width="50" height="50" fill="white" rx="2"/>
+          <rect x="28" y="188" width="34" height="34" fill="black" rx="2"/>
+          <!-- Timing patterns -->
+          <rect x="90" y="10" width="10" height="10" fill="black"/>
+          <rect x="110" y="10" width="10" height="10" fill="black"/>
+          <rect x="130" y="10" width="10" height="10" fill="black"/>
+          <rect x="150" y="10" width="10" height="10" fill="black"/>
+          <rect x="10" y="90" width="10" height="10" fill="black"/>
+          <rect x="10" y="110" width="10" height="10" fill="black"/>
+          <rect x="10" y="130" width="10" height="10" fill="black"/>
+          <rect x="10" y="150" width="10" height="10" fill="black"/>
+          <!-- Data modules — random-looking but visually QR-like -->
+          <rect x="90"  y="90"  width="10" height="10" fill="black"/>
+          <rect x="110" y="90"  width="10" height="10" fill="black"/>
+          <rect x="130" y="100" width="10" height="10" fill="black"/>
+          <rect x="150" y="90"  width="10" height="10" fill="black"/>
+          <rect x="90"  y="110" width="10" height="10" fill="black"/>
+          <rect x="130" y="110" width="10" height="10" fill="black"/>
+          <rect x="160" y="110" width="10" height="10" fill="black"/>
+          <rect x="90"  y="130" width="10" height="10" fill="black"/>
+          <rect x="100" y="130" width="10" height="10" fill="black"/>
+          <rect x="120" y="130" width="10" height="10" fill="black"/>
+          <rect x="150" y="130" width="10" height="10" fill="black"/>
+          <rect x="90"  y="150" width="10" height="10" fill="black"/>
+          <rect x="110" y="150" width="10" height="10" fill="black"/>
+          <rect x="130" y="150" width="10" height="10" fill="black"/>
+          <rect x="160" y="150" width="10" height="10" fill="black"/>
+          <rect x="100" y="170" width="10" height="10" fill="black"/>
+          <rect x="120" y="170" width="10" height="10" fill="black"/>
+          <rect x="140" y="170" width="10" height="10" fill="black"/>
+          <rect x="160" y="170" width="10" height="10" fill="black"/>
+          <rect x="100" y="190" width="10" height="10" fill="black"/>
+          <rect x="130" y="190" width="10" height="10" fill="black"/>
+          <rect x="150" y="200" width="10" height="10" fill="black"/>
+          <rect x="170" y="100" width="10" height="10" fill="black"/>
+          <rect x="190" y="100" width="10" height="10" fill="black"/>
+          <rect x="170" y="120" width="10" height="10" fill="black"/>
+          <rect x="190" y="130" width="10" height="10" fill="black"/>
+          <rect x="210" y="120" width="10" height="10" fill="black"/>
+          <rect x="210" y="100" width="10" height="10" fill="black"/>
+          <rect x="220" y="150" width="10" height="10" fill="black"/>
+          <rect x="170" y="160" width="10" height="10" fill="black"/>
+          <rect x="190" y="170" width="10" height="10" fill="black"/>
+          <rect x="210" y="160" width="10" height="10" fill="black"/>
+          <rect x="220" y="180" width="10" height="10" fill="black"/>
+          <rect x="170" y="200" width="10" height="10" fill="black"/>
+          <rect x="200" y="200" width="10" height="10" fill="black"/>
+          <rect x="220" y="210" width="10" height="10" fill="black"/>
+        </svg>
+      </div>
+
+      <div class="qr-hint">Покажите этот код охране на входе</div>
+    </div>
+
+    <!-- Two-column validity metadata inside the card -->
+    <div class="validity-row">
+      <div class="validity-cell">
+        <div class="validity-cell-label">Действует до</div>
+        <div class="validity-cell-value">15 апреля 2026<br>до 23:59</div>
+      </div>
+      <div class="validity-divider"></div>
+      <div class="validity-cell">
+        <div class="validity-cell-label">Тип</div>
+        <div class="validity-cell-value">Разовый<br>гостевой</div>
+      </div>
+    </div>
+
+  </div><!-- /pass-card -->
+
+  <!-- Secondary meta chips — below card, low hierarchy -->
+  <div class="meta-chips" aria-label="Детали пропуска">
+    <div class="meta-chip">
+      <!-- Clock icon -->
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="6.5"/>
+        <path d="M8 5v3.5l2.5 1.5"/>
+      </svg>
+      Действителен с 18:00 до 23:59
+    </div>
+    <div class="meta-chip">
+      <!-- Single use icon -->
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 8h10M9 4l4 4-4 4"/>
+      </svg>
+      Пропуск одноразовый
+    </div>
+  </div>
+
+  <!-- PDF download — ghost button, max-width centred -->
+  <div style="display:flex; justify-content:center;">
+    <a href="#" class="btn-ghost" role="button" aria-label="Сохранить пропуск как PDF">
+      <!-- Download icon -->
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 2v8M4 7l4 4 4-4"/>
+        <path d="M2 13h12"/>
+      </svg>
+      Сохранить как PDF
+    </a>
+  </div>
+
+  <!-- Attribution — lowest hierarchy, warm muted -->
+  <div class="footer-attr">
+    Пропуск выписан резидентом <strong>Марией Ивановой</strong>
+  </div>
+
+</div><!-- /page -->
+
+</body>
+</html>

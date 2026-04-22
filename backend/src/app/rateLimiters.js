@@ -58,6 +58,23 @@ function createRateLimiters() {
       legacyHeaders: false,
       ...makeRedisStore('sse'),
     }),
+    platformAuthLimiter: rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many login attempts. Try again later.' } },
+      ...makeRedisStore('platform-auth'),
+    }),
+    // Phase 2: public QR pass lookup — 30 req/min per IP, no auth
+    publicPassLimiter: rateLimit({
+      windowMs: 60_000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again later.' } },
+      ...makeRedisStore('public-pass'),
+    }),
   };
 }
 

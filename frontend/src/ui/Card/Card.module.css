@@ -1,0 +1,88 @@
+/* Card Component Styles */
+
+.card {
+  display: block;
+  width: 100%;
+  background: var(--ds-bg-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  transition:
+    background-color var(--ds-transition-base),
+    border-color var(--ds-transition-base),
+    transform var(--ds-transition-base),
+    box-shadow var(--ds-transition-base);
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Padding variants */
+.card--padding-sm {
+  padding: 12px;
+}
+
+.card--padding-md {
+  padding: 16px;
+}
+
+.card--padding-lg {
+  padding: 24px;
+}
+
+/* Accent variant with gold left border */
+.card--accent {
+  border-left: 3px solid var(--ds-accent);
+  padding-left: calc(var(--card-padding) - 3px);
+}
+
+.card--accent.card--padding-sm {
+  padding-left: 9px; /* 12px - 3px */
+}
+
+.card--accent.card--padding-md {
+  padding-left: 13px; /* 16px - 3px */
+}
+
+.card--accent.card--padding-lg {
+  padding-left: 21px; /* 24px - 3px */
+}
+
+/* Clickable variant */
+.card--clickable {
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.card--clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-border-strong);
+}
+
+.card--clickable:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: 2px;
+  border-radius: var(--ds-radius-lg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-accent) 22%, transparent);
+}
+
+.card--clickable:active {
+  transform: translateY(0);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card--clickable:hover {
+    transform: none;
+  }
+
+  .card--clickable:active {
+    transform: none;
+  }
+}

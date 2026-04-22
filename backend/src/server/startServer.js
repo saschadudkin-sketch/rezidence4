@@ -3,6 +3,7 @@
 const logger = require('../logger');
 const sse = require('../sse');
 const { startRuntimeJobs } = require('./runtimeJobs');
+const { startTelegramBot, stopBot: stopTelegramBot } = require('../services/telegramBot');
 
 async function startServer({ app, db, config }) {
   await db.assertSchemaCurrent();
@@ -19,6 +20,13 @@ async function startServer({ app, db, config }) {
   const server = app.listen(config.port, () => logger.info(`[server] :${config.port} ready (prod=${config.isProd})`));
 
   const jobs = startRuntimeJobs({ db });
+
+  // Start Telegram bot if configured (Phase 1)
+  // The bot uses long-polling and is cancellable via stopTelegramBot()
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    startTelegramBot(null, db.pool);
+  }
+
   const shutdownTimeout = 10_000;
   let shuttingDown = false;
 
@@ -28,6 +36,7 @@ async function startServer({ app, db, config }) {
     logger.info(`[server] ${signal}: graceful shutdown started`);
 
     jobs.stop();
+    stopTelegramBot();
     sseRedis.shutdown();
     const { closeRedis } = require('../lib/redisClient');
     await closeRedis().catch(() => {});

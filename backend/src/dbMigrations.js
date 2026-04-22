@@ -332,6 +332,403 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    id: '011_multi_tenant_support',
+    // Migration 005: Add property_slug to support multi-tenant context
+    // This column stores which property this DB belongs to (for logging/debugging)
+    async up(client) {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS property_slug VARCHAR(50)`);
+
+      // Push notification subscriptions (Phase 1 prep)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          endpoint TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          device_name VARCHAR(100),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(user_id, endpoint)
+        )
+      `);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id)`);
+
+      // Announcements (Phase 2 prep)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS announcements (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title VARCHAR(255) NOT NULL,
+          body TEXT NOT NULL,
+          type VARCHAR(20) DEFAULT 'info' CHECK (type IN ('info', 'urgent', 'maintenance')),
+          pinned BOOLEAN DEFAULT false,
+          published_at TIMESTAMPTZ DEFAULT NOW(),
+          expires_at TIMESTAMPTZ,
+          author_id TEXT REFERENCES users(uid),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_pinned ON announcements(pinned, published_at DESC) WHERE pinned = true`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(published_at DESC) WHERE expires_at IS NULL OR expires_at > NOW()`);
+
+      // Documents / Info board (Phase 2 prep)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS documents (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title VARCHAR(255) NOT NULL,
+          category VARCHAR(50) DEFAULT 'rules' CHECK (category IN ('rules', 'contacts', 'instructions', 'contracts', 'other')),
+          body TEXT,
+          file_url TEXT,
+          is_public BOOLEAN DEFAULT false,
+          sort_order INTEGER DEFAULT 0,
+          version INTEGER DEFAULT 1,
+          author_id TEXT REFERENCES users(uid),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category, sort_order, created_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_documents_public ON documents(is_public, sort_order, created_at DESC) WHERE is_public = true`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_documents_author ON documents(author_id, created_at DESC)`);
+    },
+  },
+  {
+    id: '012_push_notifications',
+    async up(client) {
+      // Fix type mismatch: migration 011 declared push_subscriptions.user_id as UUID
+      // but users.uid is TEXT. Drop the FK, cast the column, re-add the FK.
+      await client.query(`
+        ALTER TABLE push_subscriptions
+          DROP CONSTRAINT IF EXISTS push_subscriptions_user_id_fkey
+      `);
+      await client.query(`
+        ALTER TABLE push_subscriptions
+          ALTER COLUMN user_id TYPE TEXT USING user_id::TEXT
+      `);
+      await client.query(`
+        ALTER TABLE push_subscriptions
+          ADD CONSTRAINT push_subscriptions_user_id_fkey
+          FOREIGN KEY (user_id) REFERENCES users(uid) ON DELETE CASCADE
+      `);
+
+      // Extend push_subscriptions with Phase 1 columns
+      await client.query(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform VARCHAR(20) DEFAULT 'web'`);
+      await client.query(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT`);
+      await client.query(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+      await client.query(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMPTZ`);
+      await client.query(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS failure_count INTEGER DEFAULT 0`);
+
+      // Per-property audit log (all admin mutations write here)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS audit_log (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          actor_uid TEXT REFERENCES users(uid) ON DELETE SET NULL,
+          actor_role TEXT,
+          action VARCHAR(100) NOT NULL,
+          resource_type VARCHAR(50) NOT NULL,
+          resource_id TEXT,
+          changes JSONB,
+          ip_address VARCHAR(45),
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_uid, created_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON audit_log(resource_type, resource_id, created_at DESC)`);
+
+      // Notification delivery log (retain 90 days per FZ-152)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notification_log (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id TEXT REFERENCES users(uid) ON DELETE SET NULL,
+          channel VARCHAR(20) NOT NULL,
+          event_type VARCHAR(60) NOT NULL,
+          payload JSONB,
+          status VARCHAR(20) NOT NULL DEFAULT 'sent',
+          error_message TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_notification_log_user ON notification_log(user_id, created_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_notification_log_event ON notification_log(event_type, created_at DESC)`);
+    },
+  },
+  {
+    id: '013_request_types_extended',
+    async up(client) {
+      // Placeholder migration — keeps numbering consistent across deployments.
+      // No schema changes needed at this revision.
+    },
+  },
+  {
+    id: '014_resident_features',
+    async up(client) {
+      // ФЗ-152 consent columns
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_given_at TIMESTAMPTZ`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_version VARCHAR(10)`);
+
+      // Move-in/out columns on requests
+      await client.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS freight_elevator_needed BOOLEAN DEFAULT false`);
+      await client.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS parking_spot_reserved TEXT`);
+
+      // Meter readings
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS meter_readings (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          apartment TEXT NOT NULL,
+          type VARCHAR(20) NOT NULL CHECK (type IN ('hot_water', 'cold_water', 'electric', 'gas')),
+          value NUMERIC(12, 3) NOT NULL,
+          unit VARCHAR(10) DEFAULT 'm3',
+          photo_url TEXT,
+          ocr_raw TEXT,
+          ocr_confidence REAL,
+          period_year SMALLINT NOT NULL,
+          period_month SMALLINT NOT NULL CHECK (period_month BETWEEN 1 AND 12),
+          submitted_at TIMESTAMPTZ DEFAULT NOW(),
+          reviewed_by TEXT REFERENCES users(uid),
+          reviewed_at TIMESTAMPTZ,
+          notes TEXT,
+          UNIQUE(user_id, type, period_year, period_month)
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_meter_readings_user ON meter_readings(user_id, period_year DESC, period_month DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_meter_readings_apt ON meter_readings(apartment, period_year DESC, period_month DESC)`);
+
+      // Billing records
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS billing_records (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          apartment TEXT NOT NULL,
+          period_year SMALLINT NOT NULL,
+          period_month SMALLINT NOT NULL,
+          description TEXT,
+          amount NUMERIC(12, 2) NOT NULL,
+          currency VARCHAR(3) DEFAULT 'RUB',
+          status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue', 'cancelled')),
+          due_date DATE,
+          paid_at TIMESTAMPTZ,
+          payment_link TEXT,
+          invoice_url TEXT,
+          external_id TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_billing_user ON billing_records(user_id, period_year DESC, period_month DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_billing_apt ON billing_records(apartment, status, due_date)`);
+
+      // btree_gist — needed for space booking overlap exclusion constraints.
+      // May fail if superuser privileges are unavailable; overlap is also enforced
+      // at the application level, so this is best-effort.
+      try {
+        await client.query(`CREATE EXTENSION IF NOT EXISTS btree_gist`);
+      } catch (_err) {
+        // Non-fatal: app-level overlap check handles this case.
+      }
+
+      // Spaces
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS spaces (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(100) NOT NULL,
+          description TEXT,
+          type VARCHAR(30) NOT NULL CHECK (type IN ('party_room','sauna','gym','bbq','roof','conference','other')),
+          capacity INTEGER,
+          price_per_slot NUMERIC(10,2) DEFAULT 0,
+          slot_duration_minutes INTEGER DEFAULT 60,
+          open_time TIME DEFAULT '08:00',
+          close_time TIME DEFAULT '22:00',
+          advance_days INTEGER DEFAULT 14,
+          max_concurrent_bookings INTEGER DEFAULT 1,
+          is_active BOOLEAN DEFAULT true,
+          photo_url TEXT,
+          rules TEXT,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      // Space bookings
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS space_bookings (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          starts_at TIMESTAMPTZ NOT NULL,
+          ends_at TIMESTAMPTZ NOT NULL,
+          status VARCHAR(20) DEFAULT 'confirmed' CHECK (status IN ('confirmed','cancelled','completed','pending_approval')),
+          attendees_count INTEGER DEFAULT 1,
+          notes TEXT,
+          cancelled_reason TEXT,
+          cancelled_at TIMESTAMPTZ,
+          cancelled_by TEXT REFERENCES users(uid),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_bookings_space_time
+        ON space_bookings(space_id, starts_at, ends_at)
+        WHERE status != 'cancelled'
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_bookings_user ON space_bookings(user_id, starts_at DESC)`);
+    },
+  },
+  {
+    id: '015_announcements_qr_pass',
+    async up(client) {
+      // Add notes column to visit_logs for guard deny reasons
+      await client.query(`ALTER TABLE visit_logs ADD COLUMN IF NOT EXISTS notes TEXT`);
+
+      // Extend announcements table (created in 011)
+      await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS image_url TEXT`);
+      await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS cta_label VARCHAR(100)`);
+      await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS cta_url TEXT`);
+      await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
+      await client.query(`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+
+      // Extend documents table (created in 011)
+      await client.query(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_documents_active
+        ON documents(category, sort_order)
+        WHERE deleted_at IS NULL
+      `);
+
+      // QR passes for approved requests
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS qr_passes (
+          id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          request_id         TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+          token              TEXT NOT NULL UNIQUE,
+          created_at         TIMESTAMPTZ DEFAULT NOW(),
+          expires_at         TIMESTAMPTZ NOT NULL,
+          used_at            TIMESTAMPTZ,
+          used_by_uid        TEXT REFERENCES users(uid),
+          invalidated_at     TIMESTAMPTZ,
+          invalidated_reason TEXT
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_qr_passes_token
+        ON qr_passes(token)
+        WHERE invalidated_at IS NULL
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_qr_passes_request
+        ON qr_passes(request_id)
+      `);
+    },
+  },
+  {
+    id: '016_concierge_packages',
+    async up(client) {
+      // SLA config per request type
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS request_sla_config (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          request_type VARCHAR(30) NOT NULL UNIQUE,
+          sla_hours INTEGER NOT NULL DEFAULT 24,
+          escalation_hours INTEGER,
+          is_active BOOLEAN DEFAULT true
+        )
+      `);
+      await client.query(`
+        INSERT INTO request_sla_config (request_type, sla_hours, escalation_hours) VALUES
+          ('repair', 24, 48), ('cleaning', 4, 8), ('concierge', 2, 4),
+          ('complaint', 48, 72), ('suggestion', 72, NULL),
+          ('pass', 1, 2), ('car', 1, 2), ('tech', 8, 24),
+          ('move_in', 4, 8), ('move_out', 4, 8)
+        ON CONFLICT (request_type) DO NOTHING
+      `);
+
+      // Post-completion rating columns on requests
+      await client.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS rating SMALLINT CHECK (rating BETWEEN 1 AND 5)`);
+      await client.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS rating_comment TEXT`);
+      await client.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ`);
+
+      // Packages table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS packages (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          recipient_user_id TEXT REFERENCES users(uid) ON DELETE SET NULL,
+          recipient_apartment TEXT NOT NULL,
+          recipient_name TEXT NOT NULL,
+          sender_name TEXT,
+          tracking_number TEXT,
+          carrier VARCHAR(50),
+          photo_url TEXT,
+          received_at TIMESTAMPTZ DEFAULT NOW(),
+          received_by TEXT NOT NULL REFERENCES users(uid),
+          picked_up_at TIMESTAMPTZ,
+          picked_up_by_name TEXT,
+          notified_at TIMESTAMPTZ,
+          reminder_sent_at TIMESTAMPTZ,
+          status VARCHAR(20) DEFAULT 'awaiting_pickup'
+            CHECK (status IN ('awaiting_pickup','picked_up','returned')),
+          notes TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_packages_recipient ON packages(recipient_user_id, status, received_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_packages_apt ON packages(recipient_apartment, status)`);
+    },
+  },
+  {
+    id: '017_webhooks_integrations',
+    async up(client) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS webhooks (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(100) NOT NULL,
+          url TEXT NOT NULL,
+          secret TEXT NOT NULL,
+          events TEXT[] NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          retry_count INTEGER DEFAULT 0,
+          last_attempt_at TIMESTAMPTZ,
+          last_success_at TIMESTAMPTZ,
+          last_error TEXT,
+          created_by TEXT REFERENCES users(uid),
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          webhook_id UUID NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+          event_type VARCHAR(60) NOT NULL,
+          payload JSONB NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          attempt_count INTEGER DEFAULT 0,
+          next_attempt_at TIMESTAMPTZ DEFAULT NOW(),
+          response_status INTEGER,
+          response_body TEXT,
+          error_message TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          completed_at TIMESTAMPTZ
+        )
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_pending
+          ON webhook_deliveries(next_attempt_at) WHERE status IN ('pending','retrying')
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook
+          ON webhook_deliveries(webhook_id, created_at DESC)
+      `);
+
+      await client.query(`ALTER TABLE visit_logs ADD COLUMN IF NOT EXISTS clip_url TEXT`);
+    },
+  },
 ];
 const LATEST_MIGRATION_ID = MIGRATIONS[MIGRATIONS.length - 1]?.id || null;
 

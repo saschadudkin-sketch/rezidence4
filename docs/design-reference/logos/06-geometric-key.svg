@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" role="img" aria-labelledby="logo06-title">
+  <title id="logo06-title">DomHub — Geometric Key Symbol</title>
+
+  <!--
+    Abstract key — deconstructed to its minimal geometric essence.
+    Not a literal key (no bow-and-blade cliche). Instead:
+
+    The form is a circle (the "bow" — the identity, the origin)
+    connected by a single horizontal shaft to a vertical notch
+    pattern (the "blade" — access points, permissions, passes).
+
+    The circle is open/stroked — not filled — suggesting a portal
+    or an iris. The notches are a single clean L-form.
+
+    Reference: Airbnb Belo is a loop. Nike Swoosh is a gesture.
+    This key is a SYSTEM — circle (ownership) + shaft (connection)
+    + notch (permission). Three elements, one meaning: access.
+
+    The shaft sits on the horizontal axis (y=40, the visual center).
+    Circle radius: 14px. Shaft length: 22px. Notch height: 10px.
+
+    The three-notch detail on the blade is intentional: it echoes
+    the three-tier access model in DomHub (resident / staff / admin).
+  -->
+
+  <!-- Circle bow — open, stroke only -->
+  <circle cx="25" cy="40" r="14" stroke="#eee7dc" stroke-width="3" fill="none"/>
+
+  <!-- Inner circle — small gold dot suggesting the keyhole origin -->
+  <circle cx="25" cy="40" r="3.5" fill="#c9a96e"/>
+
+  <!-- Shaft — horizontal bar connecting bow to blade -->
+  <rect x="39" y="38.5" width="24" height="3" rx="1.5" fill="#eee7dc"/>
+
+  <!-- Blade — three descending notches at shaft end -->
+  <!-- Notch 1 (largest, at shaft terminus) -->
+  <rect x="60" y="38.5" width="3" height="12" rx="1.5" fill="#eee7dc"/>
+  <!-- Notch 2 (medium) -->
+  <rect x="52" y="38.5" width="3" height="9" rx="1.5" fill="#eee7dc"/>
+  <!-- Notch 3 (smallest, near shoulder) -->
+  <rect x="44" y="38.5" width="3" height="6" rx="1.5" fill="#eee7dc"/>
+</svg>

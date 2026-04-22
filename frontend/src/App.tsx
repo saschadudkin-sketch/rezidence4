@@ -2,10 +2,12 @@ import { memo, useEffect, lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './store/AppStore';
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 // PF2: Lazy-load Dashboard so login screen ships without the full admin/chat/security chunk.
 // The heavy views (AdminView, SecurityConciergeViews, ChatView) are code-split into a
 // separate async chunk that only loads after successful authentication.
 const Dashboard = lazy(() => import('./views/Dashboard'));
+const DesignSystemDemo = lazy(() => import('./views/DesignSystemDemo'));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -54,6 +56,9 @@ function createQueryClient(): QueryClient {
 }
 
 /* A-02: CSS layer architecture — tokens → foundations → components/features */
+import './design-system/tokens.css';
+import './design-system/base.css';
+import './styles/ds-tokens.css';
 import './styles/tokens.css';
 import './styles/foundations.css';
 import './styles/theme.css';
@@ -142,9 +147,11 @@ const AppInner = memo(function AppInner() {
           {/* PF2: Suspense fallback shows the existing LoadingScreen while the Dashboard
               chunk downloads. On a warm cache this is instant; on first load it prevents
               a blank flash. */}
-          <Suspense fallback={<LoadingScreen />}>
-            <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
-          </Suspense>
+          <FeatureFlagsProvider>
+            <Suspense fallback={<LoadingScreen />}>
+              <Dashboard user={user} onLogout={logout} isOnline={isOnline} />
+            </Suspense>
+          </FeatureFlagsProvider>
         </ErrorBoundary>
       )}
       <Toasts />
@@ -169,6 +176,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard/*" element={<AppInner />} />
+      {/* Design System Demo - Development only */}
+      {import.meta.env.DEV && (
+        <Route path="/design-system" element={
+          <Suspense fallback={<div>Loading...</div>}>
+            <DesignSystemDemo />
+          </Suspense>
+        } />
+      )}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
