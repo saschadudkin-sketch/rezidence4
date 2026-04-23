@@ -45,6 +45,10 @@ const platformAdminsRouter = require('../routes/platform/admins');
 const platformStatsRouter = require('../routes/platform/stats');
 const platformAnalyticsRouter = require('../routes/platform/analytics');
 const platformAuditLogRouter = require('../routes/platform/auditLog');
+// Phase 1 (D-lite): management-company CRUD for the superadmin SPA.  Tables
+// start empty — first MC gets created when an actual УК onboards (see
+// ROADMAP.md §"Фаза 1").
+const platformManagementCompaniesRouter = require('../routes/platform/managementCompanies');
 
 function registerApiRoutes(app, { rateLimiters }) {
   const {
@@ -130,6 +134,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/platform/api/v1/stats', platformStatsRouter);
   app.use('/platform/api/v1/analytics', platformAnalyticsRouter);
   app.use('/platform/api/v1/audit-log', platformAuditLogRouter);
+  app.use('/platform/api/v1/management-companies', platformManagementCompaniesRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);

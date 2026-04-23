@@ -15,6 +15,31 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,48}[a-z0-9]$/;
 // empty string / null to clear the hostname.
 const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
+// Enum values mirror the CHECK constraints in platformMigrations 004.  Keep
+// them in sync — DB check is the last line of defense, the API should reject
+// bad input with a 400 before it ever reaches a transaction.
+const PROPERTY_TYPES = new Set(['residential_complex', 'club_house', 'cottage_community']);
+const PROPERTY_STATUSES = new Set(['active', 'suspended', 'maintenance', 'terminated']);
+
+// Accepts standard CSS color forms: #rgb, #rrggbb, #rrggbbaa, and a small
+// whitelist of named keywords we actually style against.  Values are stored
+// as-is so the frontend can round-trip them into CSS without normalisation.
+const COLOR_RE = /^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{3,20})$/;
+
+// Validate an https:// URL for branding assets.  Plain http: is rejected
+// because the tenant SPA is served over TLS and would trigger mixed-content
+// warnings.  Short cap prevents accidental paste of entire base64 blobs.
+function isValidHttpsUrl(value) {
+  if (typeof value !== 'string') return false;
+  if (value.length > 2048) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 // Helper: log an audit entry (fire-and-forget)
 function auditLog({ adminId, action, propertyId = null, ipAddress, details = null }) {
   getPlatformDb()
@@ -93,6 +118,11 @@ router.post('/', async (req, res, next) => {
       timezone,
       contact_email,
       contact_phone,
+      property_type,
+      status,
+      logo_url,
+      primary_color,
+      management_company_id,
     } = req.body || {};
 
     // Validate slug
@@ -121,6 +151,39 @@ router.post('/', async (req, res, next) => {
       });
     }
 
+    if (property_type !== undefined && !PROPERTY_TYPES.has(property_type)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `property_type must be one of: ${[...PROPERTY_TYPES].join(', ')}`,
+        },
+      });
+    }
+
+    if (status !== undefined && !PROPERTY_STATUSES.has(status)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `status must be one of: ${[...PROPERTY_STATUSES].join(', ')}`,
+        },
+      });
+    }
+
+    if (logo_url !== undefined && logo_url !== null && !isValidHttpsUrl(logo_url)) {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: 'logo_url must be an https:// URL under 2048 chars' },
+      });
+    }
+
+    if (primary_color !== undefined && primary_color !== null && !COLOR_RE.test(primary_color)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'primary_color must be a CSS color (e.g. #7c3aed or a named color)',
+        },
+      });
+    }
+
     const platformDb = getPlatformDb();
 
     // Check slug uniqueness
@@ -134,20 +197,46 @@ router.post('/', async (req, res, next) => {
       });
     }
 
+    // If a management_company_id is supplied, validate it exists + is active.
+    // Allows null / undefined (property is either self-managed or gets its
+    // MC assigned later via PATCH).
+    if (management_company_id) {
+      const { rows: mcRows } = await platformDb.query(
+        `SELECT id FROM management_companies
+          WHERE id = $1 AND status = 'active'`,
+        [management_company_id],
+      );
+      if (!mcRows.length) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: `management_company_id '${management_company_id}' not found or not active`,
+          },
+        });
+      }
+    }
+
     const { rows } = await platformDb.query(
       `INSERT INTO properties
-         (slug, name, address, db_connection_url, plan, timezone, contact_email, contact_phone)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (slug, name, address, db_connection_url, plan, timezone,
+          contact_email, contact_phone,
+          property_type, status, logo_url, primary_color, management_company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         slug,
         name,
         address || null,
         db_connection_url,
-        plan || 'standard',
+        plan || 'core',
         timezone || 'Europe/Moscow',
         contact_email || null,
         contact_phone || null,
+        property_type || 'residential_complex',
+        status || 'active',
+        logo_url || null,
+        primary_color || null,
+        management_company_id || null,
       ],
     );
 
@@ -176,8 +265,23 @@ router.patch('/:slug', async (req, res, next) => {
 
     // Explicitly forbid changing slug or db_connection_url.  `hostname` is
     // updatable (that's how a new property gets its subdomain wired up) but
-    // validated + uniqueness-checked below.
-    const allowed = ['name', 'address', 'plan', 'timezone', 'contact_email', 'contact_phone', 'hostname'];
+    // validated + uniqueness-checked below.  The Phase-1 fields
+    // (property_type / status / branding / management_company_id) are all
+    // editable post-creation from the superadmin SPA.
+    const allowed = [
+      'name',
+      'address',
+      'plan',
+      'timezone',
+      'contact_email',
+      'contact_phone',
+      'hostname',
+      'property_type',
+      'status',
+      'logo_url',
+      'primary_color',
+      'management_company_id',
+    ];
     const changes = {};
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
@@ -217,7 +321,88 @@ router.patch('/:slug', async (req, res, next) => {
       }
     }
 
+    // Phase-1 field validation.  Mirrors the POST route rules.  Enum fields
+    // are validated only when they are explicitly present in the patch body —
+    // `undefined` means "leave it alone", `null` is rejected for non-null
+    // fields (property_type, status) and accepted for nullable branding
+    // fields (logo_url, primary_color, management_company_id).
+    if (Object.prototype.hasOwnProperty.call(changes, 'property_type')) {
+      if (!PROPERTY_TYPES.has(changes.property_type)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: `property_type must be one of: ${[...PROPERTY_TYPES].join(', ')}`,
+          },
+        });
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(changes, 'status')) {
+      if (!PROPERTY_STATUSES.has(changes.status)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: `status must be one of: ${[...PROPERTY_STATUSES].join(', ')}`,
+          },
+        });
+      }
+      // Mirror to legacy is_active so old read paths still see the correct
+      // enabled/disabled bit.  Only 'active' counts as enabled; maintenance
+      // is considered disabled because the tenant router returns 503 for
+      // anything that isn't actively serving traffic.
+      changes.is_active = changes.status === 'active';
+    }
+
+    if (Object.prototype.hasOwnProperty.call(changes, 'logo_url')) {
+      const raw = changes.logo_url;
+      if (raw === null || raw === '') {
+        changes.logo_url = null;
+      } else if (!isValidHttpsUrl(raw)) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'logo_url must be an https:// URL under 2048 chars' },
+        });
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(changes, 'primary_color')) {
+      const raw = changes.primary_color;
+      if (raw === null || raw === '') {
+        changes.primary_color = null;
+      } else if (typeof raw !== 'string' || !COLOR_RE.test(raw)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'primary_color must be a CSS color (e.g. #7c3aed or a named color)',
+          },
+        });
+      }
+    }
+
     const platformDb = getPlatformDb();
+
+    // management_company_id existence check (skip when clearing to null).
+    // Using an explicit 'active'-filter rejects accidental reassignment to
+    // a suspended/terminated MC — admins have to reactivate the MC first.
+    if (Object.prototype.hasOwnProperty.call(changes, 'management_company_id')) {
+      const raw = changes.management_company_id;
+      if (raw === null || raw === '') {
+        changes.management_company_id = null;
+      } else {
+        const { rows: mcRows } = await platformDb.query(
+          `SELECT id FROM management_companies
+            WHERE id = $1 AND status = 'active'`,
+          [raw],
+        );
+        if (!mcRows.length) {
+          return res.status(400).json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: `management_company_id '${raw}' not found or not active`,
+            },
+          });
+        }
+      }
+    }
 
     // Uniqueness pre-flight (only when setting a non-null hostname).  Allow
     // the current row to keep its own hostname — filter by slug mismatch.
@@ -274,8 +459,16 @@ router.post('/:slug/disable', async (req, res, next) => {
     const { slug } = req.params;
     const platformDb = getPlatformDb();
 
+    // Keep legacy is_active in lockstep with the richer `status` lifecycle.
+    // Disabling → 'suspended' (most common reason for a disable today); admins
+    // can later refine to 'maintenance' / 'terminated' via PATCH /status.
     const { rows } = await platformDb.query(
-      'UPDATE properties SET is_active = false, updated_at = NOW() WHERE slug = $1 RETURNING *',
+      `UPDATE properties
+          SET is_active = false,
+              status = 'suspended',
+              updated_at = NOW()
+        WHERE slug = $1
+        RETURNING *`,
       [slug],
     );
 
@@ -308,8 +501,16 @@ router.post('/:slug/enable', async (req, res, next) => {
     const { slug } = req.params;
     const platformDb = getPlatformDb();
 
+    // Re-enabling resets the lifecycle to 'active'.  If admins want a more
+    // nuanced state (e.g. 'maintenance' while staff verifies), they should
+    // use PATCH /:slug { status: 'maintenance' } directly.
     const { rows } = await platformDb.query(
-      'UPDATE properties SET is_active = true, updated_at = NOW() WHERE slug = $1 RETURNING *',
+      `UPDATE properties
+          SET is_active = true,
+              status = 'active',
+              updated_at = NOW()
+        WHERE slug = $1
+        RETURNING *`,
       [slug],
     );
 

@@ -128,6 +128,7 @@
 Пункты, переведённые в этот раздел при завершении. Пример:
 - ~~Superadmin SPA (admin.domhub.su)~~ — 2026-04 (commit `2248bdd`)
 - ~~Platform-v1 scaffold (Phase 0)~~ — 2026-04-22 (commit `79241c3`)
+- ~~Phase 1 — properties/MC layer + audit-log extension + SPA~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 1"; 55 новых unit-тестов)
 
 ---
 

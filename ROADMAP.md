@@ -61,21 +61,33 @@
 
 ---
 
-### Фаза 1 — Platform DB + superadmin SPA по спеке (неделя 2)
+### Фаза 1 — Platform DB + superadmin SPA по спеке (неделя 2) ✅ `DONE`
 
 **Цель:** platform-слой (общая БД, регистрация объектов, УК, superadmin) соответствует спеке на 95%.
 
-Миграции (`platformMigrations/`):
-- `004_properties_full_spec.js` — добавить `property_type` enum, `status` enum (+ data-migration из `is_active`), `logo_url`, `primary_color`, `management_company_id NULL FK`, дефолт `plan='core'`
-- `005_management_companies.js` — таблицы `management_companies`, `management_company_admins` (пустые на старте)
-- `006_platform_audit_log_full.js` — добавить `actor_type`, сделать `admin_id` nullable (для system-events), добавить `management_company_id`, изменить `ip_address` на `INET`
+Миграции (`backend/src/platformMigrations.js`):
+- [x] `004_properties_full_spec` — добавлены `property_type` enum, `status` enum (+ data-migration из `is_active`), `logo_url`, `primary_color`, `management_company_id NULL` (+ индекс); дефолт API сменён на `plan='core'`
+- [x] `005_management_companies` — таблицы `management_companies`, `management_company_admins` (пустые на старте); FK `fk_properties_management_company` (ON DELETE SET NULL)
+- [x] `006_platform_audit_log_full` — `actor_type` enum (default `platform_admin`), `admin_id` стал nullable (для system-events), `management_company_id` FK, `ip_address` переведён в `INET`
+
+Backend routes:
+- [x] `POST /platform/api/v1/properties` — принимает новые поля (валидация enum + https URL + CSS color + MC существует и активен)
+- [x] `PATCH /platform/api/v1/properties/:slug` — расширен на новые поля; `status` синхронизируется с legacy `is_active`
+- [x] `POST /platform/api/v1/properties/:slug/{enable,disable}` — пишут и `is_active`, и `status` (lockstep)
+- [x] `/platform/api/v1/management-companies` — новый router (list / detail / create / patch / admins read-only)
 
 Superadmin SPA (`frontend/src/admin/`):
-- Поля `property_type` / `status` / `logo_url` / `primary_color` в форме создания и редактирования объекта
-- Новая страница «Управляющие компании» (список, создание, назначение админов)
-- Раздел «Бренд» в `PropertyDetailPage`
+- [x] `PropertiesPage.tsx` — в форме создания: `property_type`, `status`, `logo_url`, `primary_color`, MC-dropdown; в таблице: тип + статус badges
+- [x] `PropertyDetailPage.tsx` — раздел «Бренд» с превью, inline-edit `property_type` / `status`, блок «Управляющая компания» со сменой через dropdown
+- [x] `ManagementCompaniesPage.tsx` + `ManagementCompanyDetailPage.tsx` — список + создание + детальная страница с объектами под управлением
+- [x] `Shell.tsx` / `App.tsx` — ссылка «УК» в навигации + роуты
 
-**Результат:** Фаза 1 закрывает ~30% расхождений из RECONCILIATION.md.
+Тесты (`backend/src/__tests__/`):
+- [x] `platformMigrations.test.js` расширен блоками 004/005/006 (22 теста, все проходят)
+- [x] `platformManagementCompanies.test.js` — 19 тестов на валидацию, CRUD, фильтры, audit
+- [x] `platformPropertiesPhase1.test.js` — 14 тестов на новые поля POST/PATCH, status↔is_active mirror
+
+**Результат:** Фаза 1 закрывает ~30% расхождений из RECONCILIATION.md. 55 новых unit-тестов, платформенный слой готов к регистрации первой реальной УК в Фазе 7.
 
 ---
 
@@ -179,6 +191,7 @@ Legacy-модули ЖКХ (meters/billing/bookings/chat) — разморозк
 
 | Неделя | Фаза | Статус | Блокеры |
 |---|---|---|---|
-| W01 (2026-04-22 …) | Фаза 0 | IN_PROGRESS | — |
+| W01 (2026-04-22 …) | Фаза 0 | DONE | — |
+| W02 (2026-04-23 …) | Фаза 1 | DONE | — |
 
 _Обновляется в конце каждой недели._
