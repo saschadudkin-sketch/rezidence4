@@ -164,6 +164,60 @@
 | ENT-4 | `CONTRIBUTING.md` в корне | P2 | Code style, PR-checklist, branch policy; часть есть в `CLAUDE.md`/`AGENTS.md` — нужен human-facing вариант. |
 | ENT-5 | Формальный `CHANGELOG.md` (semver) | P2 | Заменить/дополнить `CHANGES.md` + `FIXES.md` release-notes'ами, привязанными к версиям. |
 
+### LOAD — нагрузочное тестирование
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| LOAD-1 | План нагрузочных сценариев | P1 | OPS-1 | Папка `loadtest/` есть, но задокументированных сценариев нет. Нужен `docs/loadtest/scenarios.md`: guard-scan peak, concierge queue burst, resident evening peak, notifications fanout. |
+| LOAD-2 | SLO-цели по нагрузке | P1 | OPS-1 | Конкретные числа per-endpoint: RPS на `/passes/verify`, p95 на `/access-requests POST`, throughput на outbox dispatcher. |
+| LOAD-3 | Capacity model per-tenant | P2 | ARCH-4 | Сколько объектов помещается на один VPS: 1 tenant × N residents × M req/day = K DB-ops/s + CPU + RAM. Нужно для sizing перед коммерческими продажами. |
+| LOAD-4 | Регулярный load-run | P2 | LOAD-1 | Сейчас `loadtest/` = однократные скрипты. Нужна периодика (weekly/monthly на staging) и регрессия. |
+
+### A11Y — доступность
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| A11Y-1 | WCAG 2.1 AA baseline audit | P1 | BRAND-1 | Первичный audit v1 UI (resident / guard / concierge) + admin SPA. `.agents/skills/accessibility` загружен, но не применён к коду. Нужен отчёт по компонентам + план исправлений. |
+| A11Y-2 | Keyboard navigation audit | P1 | A11Y-1 | Все флоу проходимы с клавиатуры. Guard console критичен — зимой охрана в перчатках не всегда использует touch/mouse. |
+| A11Y-3 | Контраст под новые токены | P2 | BRAND-3 | При миграции на `--color-brand-forest-*` / `--color-ivory-*` проверить цветовой контраст AA для всех пар text × surface. |
+| A11Y-4 | Screen reader / ARIA coverage | P2 | A11Y-1 | `aria-live` для guard scan result и queue updates; корректные role/label для custom-компонентов. |
+
+### PERF — performance budgets
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| PERF-1 | Bundle size budget + CI gate | P1 | `docs/adr/005-bundle-performance-governance.md` | ADR есть — превратить в CI-gate: `frontend` bundle не должен превышать лимит. Сейчас мониторится вручную. |
+| PERF-2 | Lighthouse CI для ключевых экранов | P2 | A11Y-1 | resident home + guard console + concierge detail — baseline LCP/CLS/INP + alerting на регрессии. |
+| PERF-3 | Core Web Vitals SLO в Grafana | P2 | P0-4 | RUM-метрики от реальных пользователей, дашборд per-tenant. |
+| PERF-4 | DB query budget per endpoint | P2 | ARCH-2 | Каждый `/api/v1/*` должен укладываться в бюджет p95 (напр. 150ms). Запросы выше бюджета — регрессия-инцидент. |
+
+### I18N — локализация
+
+| # | Задача | Приоритет | Описание |
+|---|---|---|---|
+| I18N-1 | Политика локализации | P2 | Сейчас всё hardcoded на русском (UI-строки, ошибки бэка, email/SMS-шаблоны). Нужна позиция: i18n-now (extract под `react-intl`/`i18next`) или i18n-later (pragma в ADR). Без решения каждая новая строка закрепляет RU. |
+| I18N-2 | Форматы даты / времени / валюты | P2 | Сейчас частично `toLocaleDateString('ru-RU')` inline. Нужен центральный util + политика. |
+| I18N-3 | English UI для SPA admin | P3 | Продажа зарубежным УК/девелоперам потребует EN. Отложено. |
+
+### DATA — backup / recovery
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| DATA-1 | Первый restore drill | P0 | OPS-3, P0-5 | `backup.sh` в корне есть, unit-тестов реального restore нет. До go-live — провести хотя бы один end-to-end drill с замером времени (RTO baseline). |
+| DATA-2 | Backup integrity check | P1 | DATA-1 | Автоматизированная проверка: каждый backup читается / восстанавливается в staging раз в период. |
+| DATA-3 | Backup retention policy | P1 | OPS-6 | Сколько дней храним, где (local/offsite), кто owner, как удаляем, шифрование at-rest. |
+| DATA-4 | Point-in-time recovery (PITR) | P2 | ARCH-7 | WAL-archiving на Timeweb Postgres или логическая репликация — сейчас только daily snapshot. |
+
+### SEC-OPS — security operations
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| SEC-1 | CVE response runbook | P1 | ENT-2, DOCS-5 | Что делать при high-severity CVE в зависимостях: SLA на patch, процесс тестирования, rollout-стратегия. |
+| SEC-2 | npm/dependabot triage cadence | P1 | SEC-1 | Dependabot включён (`.github/dependabot.yml`), но нет процесса: кто триажит PR, когда мерджит, что блокируется по CVSS. |
+| SEC-3 | Pentest / security review план | P1 | DOCS-6 | Перед commercial-стартом — внешний pentest или хотя бы internal red-team exercise по access flow + tenant isolation. |
+| SEC-4 | Access log review runbook | P2 | DOCS-5 | Как реагировать на подозрительные patterns в `audit_log` / `property_audit_log` (brute-force OTP, mass-create резидентов, unusual scan bursts). |
+| SEC-5 | Rate-limit coverage audit | P2 | — | Rate-limit есть на auth endpoints, но нет аудита coverage на все `/api/v1/*` (особенно public `/passes/verify`). |
+
 ---
 
 ## Риски (для мониторинга)
@@ -207,3 +261,4 @@
 |---|---|---|---|---|
 | 2026-04-22 | — | — | — | Первая версия бэклога |
 | 2026-04-23 | DOCS-1..14 / BRAND-1..4 / OPS-1..6 / ENT-1..5 | — | new | Gap-аудит всех документов и артефактов: 29 пунктов добавлены единым блоком «📚 Документы и артефакты» после Архитектурных улучшений. Источник: сквозной sweep `docs/`, `BACKLOG.md`, `ROADMAP.md`, `.github/`, `ops/` + сверка с `docs/product/specs/domhub-missing-docs-priority.md` (5 из 14 всё ещё не закрыты). Приоритеты расставлены по влиянию на уже существующие P0–P2 задачи. |
+| 2026-04-23 | LOAD-1..4 / A11Y-1..4 / PERF-1..4 / I18N-1..3 / DATA-1..4 / SEC-1..5 | — | new | Второй проход gap-аудита по нефункциональным требованиям (NFRs): 24 пункта добавлены в тот же блок. Покрывают нагрузку, доступность, performance budgets, локализацию, backup/restore, security ops. DATA-1 (restore drill) стал P0 — до go-live обязателен. |

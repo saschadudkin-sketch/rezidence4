@@ -18,6 +18,7 @@
 | [visit-logs](./visit-logs-spec.md) | 3 | Draft |
 | [access-incidents](./access-incidents-spec.md) | 3 | Draft (покрывает и `access_overrides`) |
 | [qr-verification](./qr-verification-spec.md) | 3 | Draft (flow-spec: scan → verdict → log) |
+| [notifications-outbox](./notifications-outbox-spec.md) | 5 (инфра, читается раньше) | Draft |
 
 ## Спеки для следующих фаз (TODO)
 
@@ -31,8 +32,9 @@
 **Фаза 5:**
 - `announcements-v2-spec.md`
 - `documents-v2-spec.md`
-- `notification-log-v2-spec.md`
+- `notification-log-v2-spec.md` (аудит-лог отправок; потребитель `notifications-outbox` — см. спеку outbox §5)
 - `packages-v2-spec.md`
+- ~~`notifications-outbox-spec.md`~~ — готова, см. таблицу выше
 
 **Пост-релиз (не пишем сейчас):**
 - `access-zones-spec.md`, `access-points-spec.md`, `access-policies-spec.md` — при появлении первого СКУД-контракта
