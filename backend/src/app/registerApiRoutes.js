@@ -84,6 +84,12 @@ const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
 // /notification-log/mine), поэтому mount'ится в корень /api/v1.
 const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
 
+// Phase 5 (platform-v1) — packages_v2 content module.  Spec:
+// docs/product/specs/platform-v1/packages-v2-spec.md §4.
+// Mount'ится на /api/v1/packages (same path as legacy, but taking over — legacy
+// `packagesRouter` outputs old schema; v1 is spec-authoritative).
+const v1PackagesRouter          = require('../v1/routes/packages');
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -138,6 +144,9 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/guard', requireFeature('qr_pass'), guardScanRouter);
 
   // Phase 3 — Resident Dashboard Expansion
+  // packages_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy remains as
+  // fall-through for any endpoint v1 doesn't claim (none today, kept for audit).
+  app.use('/api/v1/packages', requireFeature('packages'), v1PackagesRouter);
   app.use('/api/v1/packages', requireFeature('packages'), packagesRouter);
   app.use('/api/v1/meter-readings', requireFeature('meter_readings'), meterReadingsRouter);
   app.use('/api/v1/billing', requireFeature('billing'), billingRouter);
