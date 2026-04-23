@@ -78,6 +78,12 @@ const v1PassesRouter            = require('../v1/routes/passes');
 const v1VisitsRouter            = require('../v1/routes/visits');
 const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
 
+// Phase 5 (platform-v1) — notification_log_v2 read API.  Spec:
+// docs/product/specs/platform-v1/notification-log-v2-spec.md §3.
+// Роутер держит mixed-prefix endpoints (/admin/notification-log/* и
+// /notification-log/mine), поэтому mount'ится в корень /api/v1.
+const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -184,6 +190,14 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/passes', v1PassesRouter);
   app.use('/api/v1/visits', v1VisitsRouter);
   app.use('/api/v1', v1AccessIncidentsRouter);
+
+  // Phase 5 — notification_log_v2 read API.  Exposes:
+  //   GET  /api/v1/admin/notification-log             (list)
+  //   GET  /api/v1/admin/notification-log/metrics     (agg)
+  //   GET  /api/v1/admin/notification-log/:id         (row)
+  //   GET  /api/v1/notification-log/mine              (resident)
+  //   GET  /api/v1/notification-log/_meta             (limit cap)
+  app.use('/api/v1', v1NotificationLogRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);
