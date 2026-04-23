@@ -37,6 +37,7 @@
 const {
   enqueueNotificationBatch,
 } = require('./notificationOutbox');
+const { sanitizeMarkdown, sanitizeTitle } = require('./markdownSanitizer');
 
 // ─── Константы спецификации ─────────────────────────────────────────────────
 const ALLOWED_CATEGORIES = ['general', 'maintenance', 'event', 'emergency', 'marketing'];
@@ -349,6 +350,13 @@ async function createAnnouncement(db, input) {
     createdByStaffId = null,
   } = input;
 
+  // XSS-guard: strip raw HTML + валидация scheme'ов в markdown-links.
+  // См. markdownSanitizer.js.  Warnings НЕ блокируют create — content-spec
+  // §7 AC 7.1 требует «transparent sanitization», т.е. мы принимаем input
+  // но очищаем до INSERT'а.
+  const cleanTitle = sanitizeTitle(title);
+  const { sanitized: cleanBody } = sanitizeMarkdown(bodyMd);
+
   const { rows } = await db.query(
     `INSERT INTO announcements_v2
        (property_id, title, body_md, is_urgent, category,
@@ -361,7 +369,7 @@ async function createAnnouncement(db, input) {
              $14)
      RETURNING ${ANNOUNCEMENT_COLUMNS}`,
     [
-      propertyId, title.trim(), bodyMd, isUrgent, category,
+      propertyId, cleanTitle, cleanBody, isUrgent, category,
       audienceType, audienceBuildingId, audienceEntranceId, audienceUnitType,
       startsAt || null, expiresAt, isPinned, notifyChannels,
       createdByStaffId,
@@ -406,7 +414,14 @@ async function updateAnnouncement(db, id, patch) {
   for (const [jsKey, sqlKey] of whitelist) {
     if (jsKey in patch) {
       pieces.push(`${sqlKey} = $${n}`);
-      params.push(patch[jsKey]);
+      // XSS-guard на patch пути: sanitize title/bodyMd как в create.
+      if (jsKey === 'title') {
+        params.push(sanitizeTitle(patch.title));
+      } else if (jsKey === 'bodyMd') {
+        params.push(sanitizeMarkdown(patch.bodyMd).sanitized);
+      } else {
+        params.push(patch[jsKey]);
+      }
       n += 1;
     }
   }

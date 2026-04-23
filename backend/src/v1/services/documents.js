@@ -1,5 +1,7 @@
 'use strict';
 
+const { sanitizeMarkdown, sanitizeTitle } = require('./markdownSanitizer');
+
 // platform-v1 documents_v2 service — Spec: documents-v2-spec.md §2-§5.
 //
 // Статический контент резидентского портала: правила, контакты УК,
@@ -268,6 +270,12 @@ async function createDocument(db, input, opts = {}) {
 
   const publishNow = opts.publishNow === true;
 
+  // XSS-guard: strip raw HTML + валидация scheme'ов в markdown-links.
+  // bodyMd может быть NULL (если это file-only документ) — sanitizeMarkdown
+  // на non-string возвращает '', что мы превращаем обратно в NULL.
+  const cleanTitle = sanitizeTitle(title);
+  const cleanBody = bodyMd == null ? null : sanitizeMarkdown(bodyMd).sanitized;
+
   const { rows } = await db.query(
     `INSERT INTO documents_v2
        (property_id, title, category, tag,
@@ -281,8 +289,8 @@ async function createDocument(db, input, opts = {}) {
              $11, $11)
      RETURNING ${DOCUMENT_COLUMNS}`,
     [
-      propertyId, title.trim(), category, tag,
-      bodyMd, fileUrl, fileMime, fileSizeBytes,
+      propertyId, cleanTitle, category, tag,
+      cleanBody, fileUrl, fileMime, fileSizeBytes,
       Boolean(isPublic), sortOrder,
       createdByStaffId,
     ],
@@ -393,7 +401,15 @@ async function updateDocument(pool, id, patch, opts = {}) {
     let n = 1;
     for (const [jsKey, sqlKey] of keysToUpdate) {
       pieces.push(`${sqlKey} = $${n}`);
-      params.push(patch[jsKey]);
+      // XSS-guard на patch пути: sanitize title/bodyMd.  bodyMd=null для
+      // file-only документа — пропускаем как NULL.
+      if (jsKey === 'title') {
+        params.push(sanitizeTitle(patch.title));
+      } else if (jsKey === 'bodyMd') {
+        params.push(patch.bodyMd == null ? null : sanitizeMarkdown(patch.bodyMd).sanitized);
+      } else {
+        params.push(patch[jsKey]);
+      }
       n += 1;
     }
     // updated_by_staff_id audit
