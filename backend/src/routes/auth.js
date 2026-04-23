@@ -346,9 +346,11 @@ router.post('/refresh', async (req, res, next) => {
 
     const uid = rows[0].uid;
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar, property_slug
-       FROM users
-       WHERE uid=$1 AND deleted_at IS NULL`, [uid],
+      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
+              p.id AS property_id
+       FROM users u
+       LEFT JOIN properties p ON p.slug = u.property_slug
+       WHERE u.uid = $1 AND u.deleted_at IS NULL`, [uid],
     );
     if (!users.length) return res.status(404).json({ error: 'User not found' });
 
@@ -361,13 +363,22 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+//
+// LEFT JOIN resolves property_id from property_slug so the v1 frontend can
+// hand it straight to /visits/verify and /vehicles.list without making a
+// second trip.  Returns property_id=null for users with no tenant context
+// (shouldn't happen in practice — users.property_slug is NOT NULL in schema —
+// but LEFT JOIN keeps /me from 404'ing if the property row was deleted
+// out from under a live session).
 
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar, property_slug
-       FROM users
-       WHERE uid=$1 AND deleted_at IS NULL`,
+      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
+              p.id AS property_id
+       FROM users u
+       LEFT JOIN properties p ON p.slug = u.property_slug
+       WHERE u.uid = $1 AND u.deleted_at IS NULL`,
       [req.user.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });

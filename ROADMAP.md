@@ -168,11 +168,61 @@ Helpers:
 
 ---
 
-### Фаза 4 — Фронт access-core (неделя 7)
+### Фаза 4 — Фронт access-core (неделя 7) ✅ `DONE`
 
-- Резидент: заявка → `unit_id` + опциональный `vehicle_id`
-- Охрана: guard-console работает с `passes` (не с `requests`), revoke button, search по vehicle
-- Консьерж: карточка заявки показывает полный lifecycle
+**Цель:** дать работающий UI поверх backend access-core, не ломая legacy-фронт. Всё живёт в `frontend/src/v1/` и не импортирует ничего из legacy (D-lite §2).
+
+Спеки:
+- [x] `docs/product/specs/platform-v1/frontend-phase4-spec.md` — консолидированный план + acceptance
+
+API-клиент (`frontend/src/v1/api/`):
+- [x] `client.ts` — fetch-обёртка с X-Request-Id, CSRF, таймаутами (10с GET / 20с write), retry (2×, 100/400мс backoff) на GET
+- [x] `errors.ts` — классификация (unauthorized/forbidden/not_found/conflict/validation/rate_limited/server/network/timeout/unknown) + `V1ApiError` класс
+- [x] `types.ts` — UserMe, UserRole, AccessRequest, Pass, Vehicle, VisitLog, AccessIncident, Resident, и все связанные enums
+- [x] Ресурсы: `session.ts`, `accessRequests.ts`, `passes.ts`, `vehicles.ts`, `visits.ts`, `accessIncidents.ts`, `residents.ts`, `units.ts`
+- [x] `index.ts` — единый barrel `api.*`
+
+Store (`frontend/src/v1/store/`):
+- [x] `session.tsx` — `V1SessionProvider`, `useV1Session`, `useV1SessionState` (loading/ready/error); role-предикаты `isResidentRole`/`isStaffRole`/`isGuardRole`/`isConciergeRole`
+- [x] `queryKeys.ts` — ключи для react-query (подготовка к P1); Phase 4 пока использует плоский useEffect-data-flow
+
+UI-компоненты (`frontend/src/v1/components/`):
+- [x] `ui/index.tsx` — primitives: Button, Input, Textarea, Label, Field, Card, Stack, Inline, Alert, Spinner, Badge, EmptyState, Toolbar (+ CSS-токены `uiClasses`)
+- [x] `AccessRequestCard.tsx` — карточка заявки со статусом, окном, subject, guest-info
+- [x] `AccessRequestForm.tsx` — форма создания (resident + concierge), валидация subject по `request_type`, ISO window validation
+- [x] `AccessRequestLifecycle.tsx` — таймлайн approvals + pass + visit-logs + incidents
+- [x] `PassCard.tsx` — карточка пропуска с actions (revoke/block/unblock)
+- [x] `ScanPanel.tsx` — сканер QR/plate, вызов `/visits/verify`, отображение verdict
+- [x] `VerifyResultCard.tsx` — карточка результата verify (allowed/denied + reason)
+- [x] `VehicleCard.tsx` — карточка авто с whitelist/blacklist flip
+- [x] `RoleGate.tsx` — role-based route guard с fallback на `/login` (unauthorized) / `/` (forbidden)
+- [x] `formatters.ts` — русские labels для enum'ов + tone-диспатч для Badge
+
+Страницы (`frontend/src/v1/pages/`):
+- [x] `ResidentAccessPage.tsx` — landing резидента: GET `/residents/:uid` → GET `/access-requests?created_by_resident_id=...` → список + inline форма создания (unit-id + types без vehicle_access)
+- [x] `GuardConsolePage.tsx` — duty station: ScanPanel слева + табы (Пропуски/Авто) справа; revoke in-place, vehicle lookup by-plate
+- [x] `ConciergeRequestDetailPage.tsx` — concierge view заявки: AccessRequestCard + Lifecycle + approve/reject/escalate actions
+
+Маршрутизация:
+- [x] `V1Router.tsx` — single-file routing layer под `/v1/*`, role-based index redirect (guard > resident > concierge-landing), `<Route path="requests/:id">` bridge к page props
+- [x] `App.tsx` — `<Route path="/v1/*">` с lazy-split V1Router chunk + ErrorBoundary + Suspense
+
+Backend:
+- [x] `/api/v1/users/me` теперь возвращает `property_id` (разрезолвен через `properties.slug`) — guard console использует его для `/visits/verify`
+
+Тесты (`frontend/src/v1/`):
+- [x] `store/session.role-predicates.test.ts` — truth-table для 4 предикатов × 8 ролей (10 тестов)
+- [x] `components/formatters.test.ts` — enum → русский label, tone-dispatch, forward-compat для неизвестных deny-reasons, formatDateTime/formatWindow (14 тестов)
+- [x] `V1Router.test.tsx` — smoke-тесты role-based редиректов (owner/tenant/security/admin/concierge) + deep-link gating (7 тестов)
+- **Итого:** 3 файла, 31/31 тест зелёный
+
+**Результат:** Phase 4 закрывает все acceptance-критерии из frontend-phase4-spec.md:
+- Resident flow, guard console, concierge detail — все три surface работают на реальных `/api/v1/*` endpoints
+- Role-based guards: `/v1/access` только residents, `/v1/guard` только security/admin, `/v1/requests/:id` только staff
+- `npm run lint` (v1/ — 0 warnings), `npm run typecheck` (strict — 0 errors), `npm run test` в v1/ (31/31 pass), backend `test:ci` (46 suites, 655/655 pass) — все зелёные
+- D-lite §2 соблюдён: `frontend/src/v1/` не импортирует из `src/{services,store,components,requests,views}`
+
+**Осталось на Phase 7 (cut-over):** миграция легаси resident/guard/concierge экранов на v1-API или удаление легаси-surface'ов после стабилизации.
 
 ---
 
@@ -228,5 +278,8 @@ Legacy-модули ЖКХ (meters/billing/bookings/chat) — разморозк
 | W02 (2026-04-23 …) | Фаза 1 | DONE | — |
 | W03 (2026-04-23 …) | Фаза 2 | DONE | — |
 | W04 (2026-04-23 …) | Фаза 2 | DONE | — |
+| W05 (2026-04-23 …) | Фаза 3 | DONE | — |
+| W06 (2026-04-23 …) | Фаза 3 | DONE | — |
+| W07 (2026-04-23 …) | Фаза 4 | DONE | — |
 
 _Обновляется в конце каждой недели._

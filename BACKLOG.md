@@ -30,7 +30,7 @@
 
 | # | Задача | Срок | Статус | Почему P0 |
 |---|---|---|---|---|
-| P0-1 | D-lite рефактор (Фазы 1–7) | 10 нед | IN_PROGRESS (Фаза 0 done) | Pre-deployment окно — разовое |
+| P0-1 | D-lite рефактор (Фазы 1–7) | 10 нед | IN_PROGRESS (Фазы 0–4 done; впереди 5/6/7) | Pre-deployment окно — разовое |
 | P0-2 | Outbox pattern для notifications | 1 нед | TODO (в Фазе 5) | Inline-send ломает заявки при падении канала |
 | P0-3 | Onboarding wizard для property-admin | 1 нед | TODO (в Фазе 7) | Без него подключение объекта = 2 дня ручной работы |
 | P0-4 | Observability per-tenant (Grafana) | 4 дня | TODO (параллельно Фазе 1–2) | С go-live слепые проблемы = видимые резидентам |
@@ -132,6 +132,7 @@
 - ~~Phase 1 — properties/MC layer + audit-log extension + SPA~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 1"; 55 новых unit-тестов)
 - ~~Phase 2 — Structure + People layer (buildings/entrances/units/residents/staff_users/contractor_companies/contractor_users)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 2"; 59 новых unit-тестов, 556 total pass)
 - ~~Phase 3 — Access-core (vehicles/access_requests/access_approvals/passes/qr_passes_v2/visit_logs_v2/access_incidents/access_overrides + verify-pass service)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 3"; 8 миграций, 5 routes, 1 сервис, 3 новые спеки, 62+45+17=124 новых unit-тестов, 655 total pass; cut-over legacy qr_passes → visit_logs_v2 отложен на Фазу 7)
+- ~~Phase 4 — Frontend access-core (resident page + guard console + concierge detail + `/v1/*` router)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 4"; `frontend-phase4-spec.md`; 3 страницы, 9 ui-компонентов, 9 api-клиентов, V1Router + RoleGate, 31 новый unit-тест; backend: `property_id` добавлен в `/users/me`; все проверки зелёные — frontend lint/typecheck/v1-tests, backend 46 suites / 655 tests; D-lite §2 соблюдён — v1/ не импортирует из legacy)
 
 ---
 

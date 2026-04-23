@@ -16,6 +16,10 @@ const GuestPassPage = lazy(() => import('./views/public/GuestPassPage'));
 // server scan + admit/deny.  Code-split because the camera + CSS module
 // only loads when a guard navigates to it.
 const GuardScannerView = lazy(() => import('./views/guard/GuardScannerView'));
+// Phase 4 platform-v1 surface — resident/guard/concierge pages mounted
+// under /v1/*.  Own <V1SessionProvider> inside; no overlap with the legacy
+// AppStore.  Code-split so legacy entry paths don't pay for the v1 bundle.
+const V1Router = lazy(() => import('./v1/V1Router').then((m) => ({ default: m.V1Router })));
 import Login from './views/Login';
 import Toasts from './ui/Toasts';
 import ErrorBoundary from './ui/ErrorBoundary';
@@ -225,6 +229,17 @@ function AppRoutes() {
       <Route path="/guard/scan" element={
         <ErrorBoundary name="Охрана · Сканер">
           <GuardScannerRoute />
+        </ErrorBoundary>
+      } />
+      {/* Platform v1 surface (Phase 4).  V1Router owns its own session
+          provider + role gating; auth cookies are shared with the legacy
+          app, so a logged-in user here already has a usable session.  If
+          unauthenticated, RoleGate redirects to /login. */}
+      <Route path="/v1/*" element={
+        <ErrorBoundary name="Платформа v1">
+          <Suspense fallback={<LoadingScreen />}>
+            <V1Router />
+          </Suspense>
         </ErrorBoundary>
       } />
       {/* Design System Demo - Development only */}
