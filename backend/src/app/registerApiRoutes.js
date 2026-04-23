@@ -84,6 +84,13 @@ const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
 // /notification-log/mine), поэтому mount'ится в корень /api/v1.
 const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
 
+// Phase 5 (platform-v1) — admin/outbox observability.  Spec:
+// docs/product/specs/platform-v1/notifications-outbox-spec.md §4.2.
+// Per-property admin UI (list/detail/requeue/cancel + metrics JSON/Prometheus).
+// Counterpart платформенного /platform/api/v1/notifications/outbox/* — тот
+// agreagate'ит по всем tenants, этот — под конкретный req.db.
+const v1AdminOutboxRouter       = require('../v1/routes/adminOutbox');
+
 // Phase 5 (platform-v1) — packages_v2 content module.  Spec:
 // docs/product/specs/platform-v1/packages-v2-spec.md §4.
 // Mount'ится на /api/v1/packages (same path as legacy, but taking over — legacy
@@ -236,6 +243,17 @@ function registerApiRoutes(app, { rateLimiters }) {
   //   GET  /api/v1/notification-log/mine              (resident)
   //   GET  /api/v1/notification-log/_meta             (limit cap)
   app.use('/api/v1', v1NotificationLogRouter);
+
+  // Phase 5 — admin/outbox observability.  Per-property admin UI, spec §4.2:
+  //   GET  /api/v1/admin/outbox                  list with filters
+  //   GET  /api/v1/admin/outbox/metrics          JSON snapshot (+ ?format=prometheus)
+  //   GET  /api/v1/admin/outbox/:id              row detail
+  //   POST /api/v1/admin/outbox/:id/requeue      force-retry dead/failed
+  //   POST /api/v1/admin/outbox/:id/cancel       manual pending/failed → dead
+  // Mount ПЕРЕД /api/v1/admin/feature-flags (adminSettingsRouter): у того router
+  // middleware-chain (requireAuth + requireAdmin), но fall-through на no-match
+  // корректный — наш более специфичный path /admin/outbox matchнется первым.
+  app.use('/api/v1/admin/outbox', v1AdminOutboxRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);
