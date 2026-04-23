@@ -10,6 +10,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   helper?: string;
   showClear?: boolean;
+  onClear?: () => void;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   variant?: 'default' | 'ghost';

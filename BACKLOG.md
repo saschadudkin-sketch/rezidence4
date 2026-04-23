@@ -105,6 +105,7 @@
 | ARCH-5 | Feature flags — полная замена на GrowthBook/Unleash | P2 | Сейчас через `properties.feature_flags JSONB`. Работает, но нет UI, нет % rollouts, нет A/B. |
 | ARCH-6 | API versioning policy | P1 | Сейчас `/api/v1` — de facto единственная версия. Нужна политика deprecation для будущих breaking changes. |
 | ARCH-7 | Multi-region deploy (Timeweb + зеркало) | P3 | Disaster recovery. Сейчас один VPS = SPOF. |
+| ARCH-8 | Убрать inline `style={{…}}` из legacy product UI в пользу CSS-классов/токенов | P2 | На 2026-04-23 в `frontend/eslint.config.js` отключено правило `no-restricted-syntax` для `admin/pages/{AuditLogPage,DashboardPage,ManagementCompanyDetailPage,PropertyDetailPage}.tsx` и `components/ConsentModal.tsx`. Новые inline-стили туда добавлять нельзя; цель — вынести существующие в utility-классы или css vars. Не блокер, но лишает lint-сигнала по этим файлам. |
 
 ---
 

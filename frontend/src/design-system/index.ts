@@ -4,8 +4,8 @@
  */
 
 // Tokens
-export { tokens, getCSSVar, getColor, getSpacing } from './tokens';
-export type { TokensType, ColorKeys, SpacingKeys, TypographySizeKeys } from './tokens';
+export { dsTokens } from './tokens';
+export type { DsTokens } from './tokens';
 
 // Components
 export { Button } from './components/Button';

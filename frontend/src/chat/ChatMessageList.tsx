@@ -4,7 +4,9 @@ import { AppIcon } from '../ui/AppIcon';
 import ErrorRecoveryPanel from '../ui/ErrorRecoveryPanel';
 
 interface ChatMessageListProps {
-  msgsContainerRef: React.RefObject<HTMLDivElement | null>;
+  // React.Ref<T> = RefCallback<T> | RefObject<T> — совместимо с `useRef<T | null>(null)`
+  // у родителя и с JSX `ref={...}` одновременно. Не менять на RefObject<T | null>.
+  msgsContainerRef: React.Ref<HTMLDivElement>;
   hasMore: boolean;
   loadingOlder: boolean;
   historyError: string;
@@ -17,7 +19,7 @@ interface ChatMessageListProps {
   filteredChatLength: number;
   searchQuery: string;
   renderMessages: () => React.ReactNode;
-  bottomRef: React.RefObject<HTMLDivElement | null>;
+  bottomRef: React.Ref<HTMLDivElement>;
 }
 
 export function ChatMessageList({
