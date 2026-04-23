@@ -105,7 +105,64 @@
 | ARCH-5 | Feature flags — полная замена на GrowthBook/Unleash | P2 | Сейчас через `properties.feature_flags JSONB`. Работает, но нет UI, нет % rollouts, нет A/B. |
 | ARCH-6 | API versioning policy | P1 | Сейчас `/api/v1` — de facto единственная версия. Нужна политика deprecation для будущих breaking changes. |
 | ARCH-7 | Multi-region deploy (Timeweb + зеркало) | P3 | Disaster recovery. Сейчас один VPS = SPOF. |
-| ARCH-8 | Убрать inline `style={{…}}` из legacy product UI в пользу CSS-классов/токенов | P2 | На 2026-04-23 в `frontend/eslint.config.js` отключено правило `no-restricted-syntax` для `admin/pages/{AuditLogPage,DashboardPage,ManagementCompanyDetailPage,PropertyDetailPage}.tsx` и `components/ConsentModal.tsx`. Новые inline-стили туда добавлять нельзя; цель — вынести существующие в utility-классы или css vars. Не блокер, но лишает lint-сигнала по этим файлам. |
+| ARCH-8 | Убрать inline `style={{…}}` из legacy product UI в пользу CSS-классов/токенов | P2 | На 2026-04-23 в `frontend/eslint.config.js` отключено правило `no-restricted-syntax` для `admin/pages/{AuditLogPage,DashboardPage,ManagementCompanyDetailPage,PropertyDetailPage}.tsx` и `components/ConsentModal.tsx`. Новые inline-стили туда добавлять нельзя; цель — вынести существующие в utility-классы или css vars. Не блокер, но лишает lint-сигнала по этим файлам. Пересечение с BRAND-3 (см. ниже). |
+
+---
+
+## 📚 Документы и артефакты (gap-list от 2026-04-23)
+
+Выделено отдельным блоком, потому что это не фичи продукта, а недостающая инженерная / продуктовая документация. Часть пунктов дублирует `docs/product/specs/domhub-missing-docs-priority.md` (от 2026-04-21, 5 из 14 ещё открыты); часть — найдена при сквозном аудите 2026-04-23 по `docs/`, корневым MD, `.github/`, `ops/`.
+
+Префиксы: `DOCS-*` — спеки/документы, `BRAND-*` — дизайн/логотип, `OPS-*` — операционные runbook-и, `ENT-*` — OSS/enterprise гигиена.
+
+### DOCS — продуктовые и инженерные спеки
+
+| # | Документ | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| DOCS-1 | `docs/product/specs/platform-v1/notifications-outbox-spec.md` | P0 | Фаза 5, P0-2 | Спека outbox + retry/DLQ + абстрактного channel-adapter. Без неё Фазу 5 начинать нельзя по правилу «каждая фаза = своя спека». |
+| DOCS-2 | `docs/product/specs/platform-v1/phase6-data-migration-spec.md` | P0 | Фаза 6 | Миграция legacy-данных в v1-схему: маппинг таблиц, порядок, rollback-план, dry-run. |
+| DOCS-3 | `docs/product/specs/platform-v1/phase7-onboarding-wizard-spec.md` | P0 | Фаза 7, P0-3 | Флоу подключения property-admin от пустого tenant до работающего объекта. |
+| DOCS-4 | `docs/product/specs/platform-v1/qr-passes-cutover-spec.md` | P0 | Фаза 7 | Cut-over legacy `qr_passes` → `visit_logs_v2` — отложен из Фазы 3. |
+| DOCS-5 | `docs/product/specs/domhub-operational-runbooks-index.md` | P0 | P0-5 | Единый индекс runbooks + incident-процесс + эскалация. Сейчас 6 файлов в `docs/runbooks/` без зонтичного файла. |
+| DOCS-6 | `docs/product/specs/domhub-security-threat-model.md` | P1 | RISK-4, P2-4 | Threat model для access + ПД + биометрии. Блокирует юр-аудит до коммерческого старта и любые биометрические фичи. |
+| DOCS-7 | `docs/product/specs/domhub-event-taxonomy-spec.md` | P1 | P1-1 (event sourcing) | Формальный словарь событий для analytics/audit/integrations. Обязателен **до** P1-1, иначе придётся переделывать таксономию задним числом. |
+| DOCS-8 | `docs/architecture/migration-runner-spec.md` | P1 | ARCH-4 | Per-property DB migration infra: retry/rollback/reconciliation/observability runner. |
+| DOCS-9 | `docs/api-versioning-policy.md` | P1 | ARCH-6 | Политика deprecation/sunset для `/api/v1` → `/api/v2`. Сейчас в `openapi.json` есть `x-api-versioning`, но правил нет. |
+| DOCS-10 | OpenAPI coverage audit + fix `docs/openapi.json` | P1 | — | Проверить и закрыть покрытие на все Phase 2/3 v1-роуты (`/residents`, `/vehicles`, `/access-requests`, `/passes`, `/visit-logs`, `/access-incidents`, `/access-overrides`, `/qr-passes-v2`). |
+| DOCS-11 | `docs/product/specs/domhub-ui-screen-map.md` | P2 | BRAND-4 | Полная карта экранов × ролей; предусмотрено в `missing-docs-priority.md` П.12. |
+| DOCS-12 | `docs/product/specs/domhub-release-gate-checklists.md` | P2 | — | Формальные release gates (A/B/C/D/E) вне `first-working-mvp-checklist.md` как переиспользуемый артефакт. |
+| DOCS-13 | `docs/feature-flags-catalog.md` | P2 | ARCH-5 | Текущий `properties.feature_flags JSONB` не задокументирован — список ключей, владельцы, default-значения, lifecycle. |
+| DOCS-14 | `docs/adr/README.md` | P2 | — | Индексный файл со сводкой ADR 001–011 (сейчас только отдельные файлы). |
+
+### BRAND — дизайн, токены, логотип
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| BRAND-1 | Design freeze decision (dark vs light) | P1 | — | Формально зафиксировать: действующее направление = `domhub-design-tokens-css-spec.md` (light-first, «quiet luxury operations»). Legacy `frontend/src/design-system/README.md` («Premium dark theme v2.0») пометить `Deprecated`. |
+| BRAND-2 | Финализация логотипа + замена placeholder | P1 | BRAND-1 | `frontend/src/constants/logo.ts` сейчас base64-плейсхолдер (~34 КБ WebP, без metadata). Нужен финальный SVG + lock-up + favicon + правила использования в `docs/brand/logo-usage.md`. |
+| BRAND-3 | Миграция кода под токены из `design-tokens-css-spec` | P1 | BRAND-1, ARCH-8 | `frontend/src/styles/ds-tokens.css` привести к контракту из спеки (`--color-brand-forest-*`, `--color-ivory-*`, `--color-gold-*`, Manrope + Cormorant); v1 UI (`frontend/src/v1/ui/`) перевести на эти токены. |
+| BRAND-4 | Figma foundation + components + screens | P2 | BRAND-1, DOCS-11 | Материализовать `MVP-02..MVP-07` из `domhub-first-working-mvp-jira-backlog.md`: Figma файл, foundations, component library, frozen screens для resident / security / staff / admin. |
+
+### OPS — операционные документы
+
+| # | Задача | Приоритет | Связано с | Описание |
+|---|---|---|---|---|
+| OPS-1 | SLA / SLO / RTO / RPO — engineering-side | P0 | P0-5 | Конкретные числа: uptime target, latency p95/p99, время восстановления. В `docs/legal/b2b/sla.md` есть общий юр-текст — нужен технический SLO-doc с метриками и error-budget. |
+| OPS-2 | On-call rotation + escalation matrix | P0 | P0-5, DOCS-5 | Кто дежурит, окна ответа, как эскалируется, контакты. |
+| OPS-3 | Disaster recovery plan (single-VPS baseline) | P1 | ARCH-7 | Текущий VPS = SPOF. Нужен runbook: как восстановиться из backup, RTO/RPO цифры, контакт Timeweb, процедура re-provision. |
+| OPS-4 | Secrets rotation policy | P1 | — | Как часто и кем ротируются `JWT_SECRET`, OTP-секреты, API-keys, upload-signing secret; где хранятся; процедура компрометации. |
+| OPS-5 | Tenant provisioning audit | P2 | P0-3 | Проверить полноту `operations/onboarding/launch-checklist.md` и `property-launch-guide.md` против P0-3 onboarding wizard; закрыть gaps. |
+| OPS-6 | Data retention mapping per table | P2 | `legal/compliance/retention-and-deletion-standard.md` | Операционный mapping общего стандарта на конкретные таблицы (`visit_logs_v2`, `access_incidents`, `audit_log`, `notifications_outbox` и др.) с TTL и политикой удаления/анонимизации. |
+
+### ENT — enterprise / open-source hygiene
+
+| # | Артефакт | Приоритет | Описание |
+|---|---|---|---|
+| ENT-1 | `LICENSE` в корне репозитория | P1 | Сейчас только `frontend/LICENSE`. В корне — нет. Блокер для любого переговора про IP / sublicensing / передачу УК. |
+| ENT-2 | `SECURITY.md` в корне | P1 | GitHub security policy. Куда писать про CVE, SLA ответа, PGP-ключ для responsible disclosure. |
+| ENT-3 | `.github/CODEOWNERS` | P2 | Кто обязательный ревьюер для каких путей (платформа vs integrations vs docs). |
+| ENT-4 | `CONTRIBUTING.md` в корне | P2 | Code style, PR-checklist, branch policy; часть есть в `CLAUDE.md`/`AGENTS.md` — нужен human-facing вариант. |
+| ENT-5 | Формальный `CHANGELOG.md` (semver) | P2 | Заменить/дополнить `CHANGES.md` + `FIXES.md` release-notes'ами, привязанными к версиям. |
 
 ---
 
@@ -149,3 +206,4 @@
 | Дата | Пункт | Было | Стало | Причина |
 |---|---|---|---|---|
 | 2026-04-22 | — | — | — | Первая версия бэклога |
+| 2026-04-23 | DOCS-1..14 / BRAND-1..4 / OPS-1..6 / ENT-1..5 | — | new | Gap-аудит всех документов и артефактов: 29 пунктов добавлены единым блоком «📚 Документы и артефакты» после Архитектурных улучшений. Источник: сквозной sweep `docs/`, `BACKLOG.md`, `ROADMAP.md`, `.github/`, `ops/` + сверка с `docs/product/specs/domhub-missing-docs-priority.md` (5 из 14 всё ещё не закрыты). Приоритеты расставлены по влиянию на уже существующие P0–P2 задачи. |
