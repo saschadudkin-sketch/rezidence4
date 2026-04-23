@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Frontend (Vite dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 5173
+    },
+    {
+      "name": "Backend (nodemon)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "backend",
+      "port": 3001
+    }
+    ,{
+      "name": "Design Reference (static)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "5199", "docs/design-reference"],
+      "port": 5199
+    }
+  ]
+}
