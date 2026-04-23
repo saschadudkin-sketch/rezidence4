@@ -49,6 +49,9 @@ const platformAuditLogRouter = require('../routes/platform/auditLog');
 // start empty — first MC gets created when an actual УК onboards (see
 // ROADMAP.md §"Фаза 1").
 const platformManagementCompaniesRouter = require('../routes/platform/managementCompanies');
+// Phase 5 (platform-v1) — cross-tenant notifications outbox health dashboard
+// for superadmin on-call.  Iterates active properties from platform registry.
+const platformOutboxHealthRouter = require('../routes/platform/outboxHealth');
 
 // Phase 2 (D-lite): Structure + People layer.  Spec: docs/product/specs/platform-v1/*
 // Legacy requireAuth is retained (auth-v1-spec §7 defers requireAuthV1 to a
@@ -159,6 +162,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/platform/api/v1/analytics', platformAnalyticsRouter);
   app.use('/platform/api/v1/audit-log', platformAuditLogRouter);
   app.use('/platform/api/v1/management-companies', platformManagementCompaniesRouter);
+  app.use('/platform/api/v1/notifications/outbox/health', platformOutboxHealthRouter);
 
   // Phase 2 (D-lite) — Structure + People layer under /api/v1/*.
   // structureRouter and contractorsRouter expose multiple top-level resources

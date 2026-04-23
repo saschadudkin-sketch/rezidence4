@@ -8,6 +8,7 @@ const appMetrics = require('../metrics');
 const sse = require('../sse');
 const { getRedis } = require('../lib/redisClient');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
+const { fetchTenantOutboxHealth } = require('../v1/services/outboxHealth');
 
 function registerObservabilityRoutes(app, { db }) {
   const openApiPath = path.resolve(__dirname, '../../../docs/openapi.json');
@@ -60,43 +61,16 @@ function registerObservabilityRoutes(app, { db }) {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const pool = req.db || db;
     try {
-      // Один SQL, чтобы не делать 5+ round-trip'ов.  FILTER даёт нам
-      // per-status count'ы в одной строке; EXTRACT(EPOCH ...) — возраст
-      // старейшего pending.
-      const { rows } = await pool.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'pending')                         AS pending,
-          COUNT(*) FILTER (WHERE status = 'in_flight')                       AS in_flight,
-          COUNT(*) FILTER (WHERE status = 'failed')                          AS failed,
-          COUNT(*) FILTER (WHERE status = 'dead')                            AS dead,
-          COUNT(*) FILTER (
-            WHERE status = 'sent'
-              AND sent_at > NOW() - INTERVAL '24 hours'
-          )                                                                  AS sent_last_24h,
-          COUNT(*) FILTER (
-            WHERE status = 'in_flight'
-              AND last_attempted_at < NOW() - INTERVAL '30 minutes'
-          )                                                                  AS stuck_in_flight,
-          EXTRACT(EPOCH FROM (NOW() - MIN(next_attempt_at))
-            FILTER (WHERE status IN ('pending','failed')))                   AS oldest_pending_age_seconds
-        FROM notifications_outbox
-      `);
-      const r = rows[0] || {};
+      // fetchTenantOutboxHealth — один aggregate SELECT + нормализация pg-
+      // bigint-строк в number'ы.  SQL + формат выкатывается также из
+      // superadmin platform-wide дашборда → держим в одном месте.
+      const snapshot = await fetchTenantOutboxHealth(pool);
       res.json({
         ok: true,
         feature_enabled: isOutboxEnabled(),
-        counts: {
-          pending:       Number(r.pending)       || 0,
-          in_flight:     Number(r.in_flight)     || 0,
-          failed:        Number(r.failed)        || 0,
-          dead:          Number(r.dead)          || 0,
-          sent_last_24h: Number(r.sent_last_24h) || 0,
-        },
-        stuck_in_flight: Number(r.stuck_in_flight) || 0,
-        oldest_pending_age_seconds:
-          r.oldest_pending_age_seconds == null
-            ? null
-            : Math.round(Number(r.oldest_pending_age_seconds)),
+        counts: snapshot.counts,
+        stuck_in_flight: snapshot.stuck_in_flight,
+        oldest_pending_age_seconds: snapshot.oldest_pending_age_seconds,
         ts: new Date().toISOString(),
       });
     } catch (err) {
