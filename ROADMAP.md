@@ -45,7 +45,7 @@
 
 ## Фазы
 
-### Фаза 0 — Подготовка инфраструктуры (неделя 1) ⚙️ `IN_PROGRESS`
+### Фаза 0 — Подготовка инфраструктуры (неделя 1) ✅ `DONE`
 
 - [x] Создать ветку `platform-v1` от `main` (2248bdd)
 - [x] Создать директории `backend/src/v1/`, `frontend/src/v1/`, `docs/product/specs/platform-v1/`
@@ -55,7 +55,7 @@
 - [x] Написать index `docs/product/specs/platform-v1/README.md`
 - [x] Настроить CI: `.github/workflows/ci.yml` — `platform-v1` в push-триггерах; `test:coverage:critical` и `phase1-gate-summary` — advisory (continue-on-error) для этой ветки; на main всё остаётся строгим
 - [x] Первый коммит Фазы 0 (`79241c3` на `platform-v1`) — scaffold готов
-- [ ] Запушить `platform-v1` на remote + открыть PR `platform-v1 ← phase-0-scaffold` (опционально — или merge сразу, т.к. ветка de facto feature-branch для всего рефактора)
+- [x] ~~Запушить `platform-v1` на remote + открыть PR `platform-v1 ← phase-0-scaffold`~~ — решено работать на feature-branch напрямую, отдельный PR не нужен (ветка de facto feature-branch для всего рефактора)
 
 **Результат:** каркас для параллельной разработки готов. Команда понимает план. Спеки на первые 5 сущностей лежат в репо.
 

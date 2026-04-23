@@ -6,35 +6,51 @@
 **Роадмап:** `/ROADMAP.md` в корне репо
 **Reconciliation:** `/RECONCILIATION.md` в корне репо
 
-## Спеки Фазы 0 (готовы)
+## Готовые спеки (по фазам)
 
-| Модуль | Фаза | Статус |
-|---|---|---|
-| [passes](./passes-spec.md) | 3 | Draft (образец формата) |
-| [units](./units-spec.md) | 2 | Draft |
-| [residents](./residents-spec.md) | 2 | Draft |
-| [vehicles](./vehicles-spec.md) | 3 | Draft |
-| [access-requests](./access-requests-spec.md) | 3 | Draft |
-| [visit-logs](./visit-logs-spec.md) | 3 | Draft |
-| [access-incidents](./access-incidents-spec.md) | 3 | Draft (покрывает и `access_overrides`) |
-| [qr-verification](./qr-verification-spec.md) | 3 | Draft (flow-spec: scan → verdict → log) |
-| [notifications-outbox](./notifications-outbox-spec.md) | 5 (инфра, читается раньше) | Draft |
+### Фаза 2 — Structure + People
+
+| Модуль | Статус |
+|---|---|
+| [units](./units-spec.md) | Draft |
+| [residents](./residents-spec.md) | Draft |
+| [staff-users](./staff-users-spec.md) | Draft |
+| [contractors](./contractors-spec.md) | Draft (covers `contractor_companies` + `contractor_users`) |
+| [auth-v1](./auth-v1-spec.md) | Draft (§7: `requireAuthV1` middleware deferred до Phase 7) |
+
+### Фаза 3 — Access-core
+
+| Модуль | Статус |
+|---|---|
+| [passes](./passes-spec.md) | Draft (образец формата) |
+| [vehicles](./vehicles-spec.md) | Draft |
+| [access-requests](./access-requests-spec.md) | Draft |
+| [visit-logs](./visit-logs-spec.md) | Draft |
+| [access-incidents](./access-incidents-spec.md) | Draft (covers и `access_overrides`) |
+| [qr-verification](./qr-verification-spec.md) | Draft (flow-spec: scan → verdict → log) |
+
+### Фаза 4 — Frontend access-core
+
+| Модуль | Статус |
+|---|---|
+| [frontend-phase4](./frontend-phase4-spec.md) | Draft (консолидированный план + acceptance) |
+
+### Фаза 5 — Content + Notifications
+
+| Модуль | Статус |
+|---|---|
+| [notifications-outbox](./notifications-outbox-spec.md) | Draft (инфра; пишется первой, её используют остальные модули Phase 5) |
+| [notification-log-v2](./notification-log-v2-spec.md) | Draft (аудит-лог отправок; consumer outbox — см. §5 outbox) |
+| [documents-v2](./documents-v2-spec.md) | Draft (body_md + категории + `document_versions`) |
+| [packages-v2](./packages-v2-spec.md) | Draft (state machine + SLA-напоминания + fan-out через outbox) |
+| [announcements-v2](./announcements-v2-spec.md) | Draft (audience-targeting + fan-out через outbox) |
+
+**Фаза 5 не покрытая спеками (rename, делается миграцией без отдельного spec-файла):**
+- `property_audit_log` — rename из legacy `audit_log` + `actor_type`/`entity_type`/`entity_id`. Миграция в `backend/src/v1/migrations/` при старте Phase 5, отдельный spec-файл не нужен.
 
 ## Спеки для следующих фаз (TODO)
 
 Пишутся по мере подхода к соответствующей фазе. Создаются только для сущностей, которые мы реально строим в v1 — не пишем спеки «на будущее».
-
-**Фаза 2 (оставшиеся):**
-- `staff-users-spec.md`
-- `contractors-spec.md`
-- `auth-v1-spec.md` (как меняется JWT при разделении users → residents/staff/contractors)
-
-**Фаза 5:**
-- `announcements-v2-spec.md`
-- `documents-v2-spec.md`
-- `notification-log-v2-spec.md` (аудит-лог отправок; потребитель `notifications-outbox` — см. спеку outbox §5)
-- `packages-v2-spec.md`
-- ~~`notifications-outbox-spec.md`~~ — готова, см. таблицу выше
 
 **Пост-релиз (не пишем сейчас):**
 - `access-zones-spec.md`, `access-points-spec.md`, `access-policies-spec.md` — при появлении первого СКУД-контракта
