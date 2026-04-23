@@ -7,6 +7,7 @@ const logger = require('../logger');
 const appMetrics = require('../metrics');
 const sse = require('../sse');
 const { getRedis } = require('../lib/redisClient');
+const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 
 function registerObservabilityRoutes(app, { db }) {
   const openApiPath = path.resolve(__dirname, '../../../docs/openapi.json');
@@ -36,6 +37,72 @@ function registerObservabilityRoutes(app, { db }) {
       saturated: totalConnections >= 1800,
       ts: new Date().toISOString(),
     });
+  });
+
+  // platform-v1 notifications outbox health.  Admin-only.
+  // Spec: notifications-outbox-spec.md §4.5 — introspection для runner'а.
+  //
+  // Читает текущий tenant (req.db если установлен middleware'ом, иначе
+  // legacy single-tenant db).  Суперадмин per-tenant health через
+  // /platform/... остаётся отдельной задачей (см. BACKLOG).
+  //
+  // Поля:
+  //   counts              per-status фотография текущего состояния outbox'а.
+  //                       Предел 24h по last_attempted_at для sent — чтобы
+  //                       не тащить всю историю.
+  //   oldest_pending_age_seconds   возраст самой старой pending-строки.  Если
+  //                       этот возраст растёт бесконтрольно — worker не
+  //                       справляется / мёртв / флаг отключён на проде.
+  //   stuck_in_flight     строки, зависшие в in_flight > 30 минут (reaper-target).
+  //   feature_enabled     NOTIFICATIONS_OUTBOX_ENABLED — для диагностики,
+  //                       почему outbox пуст (flag off → всё уходит inline).
+  app.get('/api/v1/notifications/outbox/health', requireAuth, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    const pool = req.db || db;
+    try {
+      // Один SQL, чтобы не делать 5+ round-trip'ов.  FILTER даёт нам
+      // per-status count'ы в одной строке; EXTRACT(EPOCH ...) — возраст
+      // старейшего pending.
+      const { rows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'pending')                         AS pending,
+          COUNT(*) FILTER (WHERE status = 'in_flight')                       AS in_flight,
+          COUNT(*) FILTER (WHERE status = 'failed')                          AS failed,
+          COUNT(*) FILTER (WHERE status = 'dead')                            AS dead,
+          COUNT(*) FILTER (
+            WHERE status = 'sent'
+              AND sent_at > NOW() - INTERVAL '24 hours'
+          )                                                                  AS sent_last_24h,
+          COUNT(*) FILTER (
+            WHERE status = 'in_flight'
+              AND last_attempted_at < NOW() - INTERVAL '30 minutes'
+          )                                                                  AS stuck_in_flight,
+          EXTRACT(EPOCH FROM (NOW() - MIN(next_attempt_at))
+            FILTER (WHERE status IN ('pending','failed')))                   AS oldest_pending_age_seconds
+        FROM notifications_outbox
+      `);
+      const r = rows[0] || {};
+      res.json({
+        ok: true,
+        feature_enabled: isOutboxEnabled(),
+        counts: {
+          pending:       Number(r.pending)       || 0,
+          in_flight:     Number(r.in_flight)     || 0,
+          failed:        Number(r.failed)        || 0,
+          dead:          Number(r.dead)          || 0,
+          sent_last_24h: Number(r.sent_last_24h) || 0,
+        },
+        stuck_in_flight: Number(r.stuck_in_flight) || 0,
+        oldest_pending_age_seconds:
+          r.oldest_pending_age_seconds == null
+            ? null
+            : Math.round(Number(r.oldest_pending_age_seconds)),
+        ts: new Date().toISOString(),
+      });
+    } catch (err) {
+      logger.error({ err }, '[outbox-health] query failed');
+      res.status(503).json({ ok: false, error: err.message });
+    }
   });
 
   app.get('/api/health/detailed', requireAuth, async (_req, res) => {
