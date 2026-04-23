@@ -131,6 +131,7 @@
 - ~~Platform-v1 scaffold (Phase 0)~~ — 2026-04-22 (commit `79241c3`)
 - ~~Phase 1 — properties/MC layer + audit-log extension + SPA~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 1"; 55 новых unit-тестов)
 - ~~Phase 2 — Structure + People layer (buildings/entrances/units/residents/staff_users/contractor_companies/contractor_users)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 2"; 59 новых unit-тестов, 556 total pass)
+- ~~Phase 3 — Access-core (vehicles/access_requests/access_approvals/passes/qr_passes_v2/visit_logs_v2/access_incidents/access_overrides + verify-pass service)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 3"; 8 миграций, 5 routes, 1 сервис, 3 новые спеки, 62+45+17=124 новых unit-тестов, 655 total pass; cut-over legacy qr_passes → visit_logs_v2 отложен на Фазу 7)
 
 ---
 

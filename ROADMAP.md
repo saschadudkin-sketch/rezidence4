@@ -127,24 +127,44 @@ Superadmin SPA (`frontend/src/admin/`):
 
 ---
 
-### Фаза 3 — Access-core по спеке (недели 5–6)
+### Фаза 3 — Access-core по спеке (недели 5–6) ✅
 
 **Цель:** 4-сущностная модель access-lifecycle (`access_request → access_approval → pass → qr_pass`).
 
-Миграции:
-- `008_vehicles.sql` — plate UNIQUE per property, owner_type, whitelist/blacklist
-- `009_access_requests.sql` — formal entity с `request_type` и `status` enum
-- `010_access_approvals.sql` — decisions отдельной таблицей
-- `011_passes.sql` — pass_type, status enum, subject-ссылки, revoke audit
-- `012_qr_passes_v2.sql` — FK на `passes`, не на `requests`
-- `013_visit_logs_v2.sql` — event_type / event_source enum, FK на pass + access_point
-- `014_access_incidents.sql` — incident_type enum, severity, workflow
-- `015_access_overrides.sql` — override_type enum, FK на incident
+Миграции (все завершены):
+- `008_vehicles.js` — plate UNIQUE per property, owner_type, whitelist/blacklist ✅
+- `009_access_requests.js` — formal entity с `request_type` и `status` enum ✅
+- `010_access_approvals.js` — decisions отдельной таблицей ✅
+- `011_passes.js` — pass_type, status enum, subject-ссылки, revoke audit ✅
+- `012_qr_passes_v2.js` — FK на `passes`, не на `requests` ✅
+- `013_visit_logs_v2.js` — event_type / event_source enum, FK на pass + access_point ✅
+- `014_access_incidents.js` — incident_type enum, severity, workflow ✅
+- `015_access_overrides.js` — override_type enum, FK на incident ✅
 
-Роуты:
-- `v1/routes/passes.js`, `vehicles.js`, `access-requests.js`, `visits.js`, `incidents.js`
+Роуты (все завершены):
+- `v1/routes/vehicles.js` — 9 endpoints (CRUD + whitelist/blacklist/clear-flags) ✅
+- `v1/routes/accessRequests.js` — 7 endpoints (create + submit/approve/reject/cancel/escalate) ✅
+- `v1/routes/passes.js` — 7 endpoints (CRUD + revoke/block/unblock + qr/regenerate-qr) ✅
+- `v1/routes/visits.js` — 5 endpoints (POST + verify + list + by-pass + by-plate) ✅
+- `v1/routes/accessIncidents.js` — incidents + overrides (10 endpoints combined) ✅
 
-**Это главная фаза** — закрывает ~50% расхождений.
+Сервисы:
+- `v1/services/verifyPass.js` — 8-веточный cascade с транзакцией + auto-incident ✅
+
+Helpers:
+- `v1/lib/normalizePlate.js` — Cyrl↔Latin (12 pairs) + `looksLikeRuPlate` regex ✅
+
+Спеки:
+- `access-requests-spec.md`, `passes-spec.md`, `vehicles-spec.md` — были в Фазе 2.
+- `visit-logs-spec.md`, `access-incidents-spec.md`, `qr-verification-spec.md` — добавлены в Фазе 3 ✅
+
+Тесты:
+- `v1PropertyMigrations.test.js` — 62 shape-теста на 15 v1-миграций ✅
+- `v1NormalizePlate.test.js` — 45 unit-тестов на трансилтерацию ✅
+- `v1VerifyPassCascade.test.js` — 17 тестов на 8-веточный cascade ✅
+- Все 46 test-suites, 655 тестов проходят без регрессий.
+
+**Итог:** Access-core backend готов.  Оставлено на Фазу 7 (cut-over): миграция legacy `qr_passes.used_at/used_by_uid` → `visit_logs_v2`; legacy-роут `/api/v1/visit-logs` и легаси-таблица `visit_logs` продолжают работать параллельно до Фазы 7.
 
 ---
 

@@ -25,7 +25,8 @@ function byId(id) {
 describe('v1 property migrations — registry invariants', () => {
   test('exports a non-empty ordered array', () => {
     expect(Array.isArray(V1_PROPERTY_MIGRATIONS)).toBe(true);
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(7);
+    // 7 Фаза 2 + 8 Фаза 3 (Access-core) = 15
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(15);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -245,5 +246,350 @@ describe('v1_007_contractor_users', () => {
       .find((s) => s.includes('idx_contractor_users_expiry'));
     expect(idx).toBeDefined();
     expect(idx).toContain('WHERE is_active = true AND access_expires_at IS NOT NULL');
+  });
+});
+
+// =====================================================================
+// Фаза 3 — Access-core (миграции 008–015)
+// Spec: docs/product/specs/platform-v1/{vehicles,access-requests,passes,
+//       visit-logs,access-incidents,qr-verification}-spec.md
+// =====================================================================
+
+describe('v1_008_vehicles', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('owner_type CHECK enum matches spec', async () => {
+    await byId('v1_008_vehicles').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS vehicles'));
+    expect(tbl).toContain("CHECK (owner_type IN ('resident','staff','contractor','guest'))");
+  });
+
+  test('owner_*_id exclusive CHECK is present (guest/resident/staff/contractor)', async () => {
+    await byId('v1_008_vehicles').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS vehicles'));
+    expect(tbl).toContain('CONSTRAINT vehicles_owner_exclusive CHECK');
+    // Sanity: each owner_type branch appears in CHECK
+    for (const t of ['guest', 'resident', 'staff', 'contractor']) {
+      expect(tbl).toContain(`owner_type = '${t}'`);
+    }
+  });
+
+  test('whitelist/blacklist mutual exclusion CHECK', async () => {
+    await byId('v1_008_vehicles').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS vehicles'));
+    expect(tbl).toContain('CONSTRAINT vehicles_flags_exclusive');
+    expect(tbl).toMatch(/NOT \(is_whitelisted = true AND is_blacklisted = true\)/);
+  });
+
+  test('UNIQUE (property_id, plate_number) enforced', async () => {
+    await byId('v1_008_vehicles').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_vehicles_property_plate'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, plate_number)');
+  });
+});
+
+describe('v1_009_access_requests', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('request_type CHECK covers all six access-types', async () => {
+    await byId('v1_009_access_requests').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
+    for (const t of [
+      'guest_access', 'vehicle_access', 'contractor_access',
+      'courier_access', 'service_access', 'temporary_resident_access',
+    ]) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('status CHECK enum pinned (no legacy 14-value drift)', async () => {
+    await byId('v1_009_access_requests').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
+    expect(tbl).toContain(
+      "CHECK (status IN (\n                                          'new','pending_approval','approved','rejected','cancelled','expired'\n                                        ))",
+    );
+  });
+
+  test('creator exclusivity CHECK', async () => {
+    await byId('v1_009_access_requests').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
+    expect(tbl).toContain('CONSTRAINT access_requests_creator_exclusive');
+  });
+
+  test('time-window CHECK: ends_at > starts_at', async () => {
+    await byId('v1_009_access_requests').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
+    expect(tbl).toContain('CONSTRAINT access_requests_window CHECK (ends_at > starts_at)');
+  });
+
+  test('vehicle_id FK is ON DELETE RESTRICT', async () => {
+    await byId('v1_009_access_requests').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
+    expect(tbl).toContain('vehicle_id                      UUID REFERENCES vehicles(id) ON DELETE RESTRICT');
+  });
+});
+
+describe('v1_010_access_approvals', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('CASCADE on access_request_id (approvals die with request)', async () => {
+    await byId('v1_010_access_approvals').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_approvals'));
+    expect(tbl).toContain('REFERENCES access_requests(id) ON DELETE CASCADE');
+  });
+
+  test('decision CHECK covers approved/rejected/escalated', async () => {
+    await byId('v1_010_access_approvals').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_approvals'));
+    expect(tbl).toContain("CHECK (decision IN ('approved','rejected','escalated'))");
+  });
+
+  test('approver_type consistency CHECK', async () => {
+    await byId('v1_010_access_approvals').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_approvals'));
+    expect(tbl).toContain('CONSTRAINT access_approvals_approver_consistent');
+  });
+});
+
+describe('v1_011_passes', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('pass_type CHECK covers all 8 values', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    for (const t of ['guest', 'vehicle', 'resident', 'staff', 'contractor', 'courier', 'service', 'emergency']) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('status CHECK is active/used/expired/revoked/blocked', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    expect(tbl).toContain("CHECK (status IN ('active','used','expired','revoked','blocked'))");
+  });
+
+  test('subject exclusive CHECK covers all 5 subject_type branches', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    expect(tbl).toContain('CONSTRAINT passes_subject_exclusive');
+    for (const t of ['resident', 'staff', 'contractor_user', 'vehicle', 'guest']) {
+      expect(tbl).toContain(`subject_type = '${t}'`);
+    }
+  });
+
+  test('revoke audit CHECK: status=revoked requires revoked_at + revoked_reason', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    expect(tbl).toContain('CONSTRAINT passes_revoke_audit');
+    expect(tbl).toMatch(/status <>\s*'revoked' OR/);
+  });
+
+  test('time-window CHECK: valid_until > valid_from', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    expect(tbl).toContain('CONSTRAINT passes_window CHECK (valid_until > valid_from)');
+  });
+
+  test('access_request_id FK is SET NULL (pass survives request deletion)', async () => {
+    await byId('v1_011_passes').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS passes'));
+    expect(tbl).toContain('access_request_id               UUID REFERENCES access_requests(id) ON DELETE SET NULL');
+  });
+});
+
+describe('v1_012_qr_passes_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('pass_id is UNIQUE (one active QR per pass)', async () => {
+    await byId('v1_012_qr_passes_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS qr_passes_v2'));
+    expect(tbl).toContain('pass_id         UUID NOT NULL UNIQUE REFERENCES passes(id) ON DELETE CASCADE');
+  });
+
+  test('token UNIQUE index exists', async () => {
+    await byId('v1_012_qr_passes_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_qr_passes_v2_token'));
+    expect(idx).toBeDefined();
+  });
+
+  test('render_version CHECK >= 1', async () => {
+    await byId('v1_012_qr_passes_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS qr_passes_v2'));
+    expect(tbl).toContain('CONSTRAINT qr_passes_v2_render_positive CHECK (render_version >= 1)');
+  });
+});
+
+describe('v1_013_visit_logs_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('event_type CHECK covers all 7 values', async () => {
+    await byId('v1_013_visit_logs_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS visit_logs_v2'));
+    for (const t of [
+      'entry_allowed', 'entry_denied', 'exit_allowed', 'exit_denied',
+      'manual_admit', 'manual_deny', 'override',
+    ]) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('event_source CHECK: domhub/skud/guard_console/import', async () => {
+    await byId('v1_013_visit_logs_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS visit_logs_v2'));
+    expect(tbl).toContain("CHECK (event_source IN ('domhub','skud','guard_console','import'))");
+  });
+
+  test('pass_id FK is ON DELETE SET NULL (visit_log survives pass deletion)', async () => {
+    await byId('v1_013_visit_logs_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS visit_logs_v2'));
+    expect(tbl).toContain('pass_id                     UUID REFERENCES passes(id) ON DELETE SET NULL');
+  });
+
+  test('partial UNIQUE (event_source, provider_event_id) for webhook idempotency', async () => {
+    await byId('v1_013_visit_logs_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_visit_logs_v2_provider_event'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('WHERE provider_event_id IS NOT NULL');
+  });
+
+  test('occurred_at DESC composite index for property-timeline queries', async () => {
+    await byId('v1_013_visit_logs_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_visit_logs_v2_property_time'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, occurred_at DESC)');
+  });
+});
+
+describe('v1_014_access_incidents', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('incident_type CHECK covers all 8 values', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_incidents'));
+    for (const t of [
+      'expired_pass_attempt', 'invalid_qr', 'blacklist_hit',
+      'outside_time_window', 'unauthorized_vehicle', 'manual_override',
+      'provider_conflict', 'suspicious_repeat_attempt',
+    ]) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('severity CHECK: low/medium/high/critical, default medium', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_incidents'));
+    expect(tbl).toContain("severity                VARCHAR(20) NOT NULL DEFAULT 'medium'");
+    expect(tbl).toContain("CHECK (severity IN ('low','medium','high','critical'))");
+  });
+
+  test('status CHECK: open/investigating/resolved/dismissed', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_incidents'));
+    expect(tbl).toContain("CHECK (status IN ('open','investigating','resolved','dismissed'))");
+  });
+
+  test('resolved audit CHECK: terminal status requires resolved_at', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_incidents'));
+    expect(tbl).toContain('CONSTRAINT access_incidents_resolved_audit');
+  });
+
+  test('idempotency partial UNIQUE on (related_visit_log_id, incident_type) for system-created', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_access_incidents_visit_log_type'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('related_visit_log_id IS NOT NULL AND created_by_staff_id IS NULL');
+  });
+
+  test('open-queue partial index ordered severity DESC, created_at DESC', async () => {
+    await byId('v1_014_access_incidents').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_access_incidents_open_queue'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, severity DESC, created_at DESC)');
+    expect(idx).toContain("WHERE status IN ('open','investigating')");
+  });
+});
+
+describe('v1_015_access_overrides', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('override_type CHECK: manual_admit/deny + temporary_whitelist/block', async () => {
+    await byId('v1_015_access_overrides').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_overrides'));
+    for (const t of ['manual_admit', 'manual_deny', 'temporary_whitelist', 'temporary_block']) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('target required CHECK: incident_id OR pass_id', async () => {
+    await byId('v1_015_access_overrides').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_overrides'));
+    expect(tbl).toContain('CONSTRAINT access_overrides_target_required');
+    expect(tbl).toContain('incident_id IS NOT NULL OR pass_id IS NOT NULL');
+  });
+
+  test('reason is NOT NULL (every override has justification)', async () => {
+    await byId('v1_015_access_overrides').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_overrides'));
+    expect(tbl).toContain('reason                  TEXT NOT NULL');
+  });
+
+  test('performed_by_staff_id is NOT NULL with ON DELETE RESTRICT (staff retention)', async () => {
+    await byId('v1_015_access_overrides').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_overrides'));
+    expect(tbl).toContain('performed_by_staff_id   UUID NOT NULL REFERENCES staff_users(id) ON DELETE RESTRICT');
+  });
+
+  test('per-staff audit index on (performed_by_staff_id, created_at DESC)', async () => {
+    await byId('v1_015_access_overrides').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_access_overrides_staff_time'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(performed_by_staff_id, created_at DESC)');
   });
 });

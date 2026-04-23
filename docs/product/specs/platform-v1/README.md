@@ -15,6 +15,9 @@
 | [residents](./residents-spec.md) | 2 | Draft |
 | [vehicles](./vehicles-spec.md) | 3 | Draft |
 | [access-requests](./access-requests-spec.md) | 3 | Draft |
+| [visit-logs](./visit-logs-spec.md) | 3 | Draft |
+| [access-incidents](./access-incidents-spec.md) | 3 | Draft (покрывает и `access_overrides`) |
+| [qr-verification](./qr-verification-spec.md) | 3 | Draft (flow-spec: scan → verdict → log) |
 
 ## Спеки для следующих фаз (TODO)
 
@@ -24,11 +27,6 @@
 - `staff-users-spec.md`
 - `contractors-spec.md`
 - `auth-v1-spec.md` (как меняется JWT при разделении users → residents/staff/contractors)
-
-**Фаза 3 (оставшиеся):**
-- `visit-logs-spec.md`
-- `access-incidents-spec.md`
-- `qr-verification-spec.md` (guard-scan flow end-to-end)
 
 **Фаза 5:**
 - `announcements-v2-spec.md`

@@ -15,6 +15,14 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./005_staff_users'),
   require('./006_contractor_companies'),
   require('./007_contractor_users'),
+  require('./008_vehicles'),
+  require('./009_access_requests'),
+  require('./010_access_approvals'),
+  require('./011_passes'),
+  require('./012_qr_passes_v2'),
+  require('./013_visit_logs_v2'),
+  require('./014_access_incidents'),
+  require('./015_access_overrides'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

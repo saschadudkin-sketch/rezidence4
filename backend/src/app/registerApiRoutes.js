@@ -60,6 +60,20 @@ const v1ResidentsRouter   = require('../v1/routes/residents');
 const v1StaffRouter       = require('../v1/routes/staff');
 const v1ContractorsRouter = require('../v1/routes/contractors');
 
+// Phase 3 (D-lite) — Access-core layer.  Spec: docs/product/specs/platform-v1/*
+// vehicles            — first-class сущность авто с white/blacklist
+// access-requests     — заявки + approvals
+// passes              — пропуска + QR + revoke/block
+// visits              — visit_logs_v2 + verify endpoint (guard-console scan)
+// access-incidents    — queue инцидентов + overrides (mounted at /api/v1 root
+//                       т.к. owns two top-level resources: /access-incidents,
+//                       /access-overrides)
+const v1VehiclesRouter          = require('../v1/routes/vehicles');
+const v1AccessRequestsRouter    = require('../v1/routes/accessRequests');
+const v1PassesRouter            = require('../v1/routes/passes');
+const v1VisitsRouter            = require('../v1/routes/visits');
+const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -155,6 +169,15 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/residents', v1ResidentsRouter);
   app.use('/api/v1/staff', v1StaffRouter);
   app.use('/api/v1', v1ContractorsRouter);
+
+  // Phase 3 (D-lite) — Access-core layer under /api/v1/*.
+  // vehicles/access-requests/passes/visits — single-resource routers.
+  // accessIncidents owns /access-incidents + /access-overrides (root mount).
+  app.use('/api/v1/vehicles', v1VehiclesRouter);
+  app.use('/api/v1/access-requests', v1AccessRequestsRouter);
+  app.use('/api/v1/passes', v1PassesRouter);
+  app.use('/api/v1/visits', v1VisitsRouter);
+  app.use('/api/v1', v1AccessIncidentsRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);
