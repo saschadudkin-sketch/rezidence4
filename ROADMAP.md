@@ -91,26 +91,39 @@ Superadmin SPA (`frontend/src/admin/`):
 
 ---
 
-### Фаза 2 — Structure + People по спеке (недели 3–4)
+### Фаза 2 — Structure + People по спеке (недели 3–4) ✅ `DONE`
 
 **Цель:** правильная иерархия объектов и разделение пользователей по ролям.
 
-Миграции (`backend/src/v1/migrations/`):
-- `001_buildings.sql` — корпуса/дома
-- `002_entrances.sql` — подъезды/входы
-- `003_units.sql` — квартиры/коттеджи с `unit_type` enum, `floor`, FK на entrance
-- `004_residents.sql` — резиденты с `unit_id` FK, `resident_type` enum, consent-поля
-- `005_staff_users.sql` — персонал с `role` enum + capability-флаги
-- `006_contractor_companies.sql` — компании-подрядчики
-- `007_contractor_users.sql` — сотрудники подрядчиков
+Миграции (`backend/src/v1/migrations/`, JS-формат `{id, up(client)}` — переиспользует `db.migrate()`; ID-префикс `v1_` исключает коллизии в общем `schema_migrations`):
+- [x] `v1_001_buildings` — корпуса/дома с частичным UNIQUE на `(property_id, code)`
+- [x] `v1_002_entrances` — подъезды с FK ON DELETE RESTRICT на buildings
+- [x] `v1_003_units` — квартиры/коттеджи с `unit_type` CHECK enum (`apartment`/`townhouse`/`house`/`commercial`/`utility`), `floor`, денормализация `property_id`/`building_id` рядом с FK на `entrance_id`
+- [x] `v1_004_residents` — резиденты с `unit_id` FK ON DELETE RESTRICT, `resident_type` CHECK enum (`owner`/`tenant`/`family_member`), `external_uid` UNIQUE NULL (для миграции legacy `users.uid` в Фазе 7), consent-поля
+- [x] `v1_005_staff_users` — персонал с `role` CHECK enum (4 значения), `specialization` CHECK enum (4 значения или NULL), capability-флаги `can_view_resident_phone`/`can_assign_requests`, case-insensitive UNIQUE `(property_id, LOWER(email))`
+- [x] `v1_006_contractor_companies` — компании-подрядчики с `status` CHECK enum, case-insensitive UNIQUE имя в рамках property
+- [x] `v1_007_contractor_users` — сотрудники с FK ON DELETE RESTRICT на company, `access_expires_at` + частичный индекс на активные неистёкшие
 
-Роуты (`backend/src/v1/routes/`):
-- `units.js` — CRUD, массовый импорт из CSV
-- `residents.js` — CRUD + поиск
-- `staff.js` — CRUD + capability-управление
-- `contractors.js` — CRUD
+Спеки (`docs/product/specs/platform-v1/`):
+- [x] `staff-users-spec.md` — schema + role-default capability-таблица (security/technician → false, concierge/property_admin → true)
+- [x] `contractors-spec.md` — две таблицы + бизнес-правило «contractor_user в не-active компании → 409»
+- [x] `auth-v1-spec.md` — форма будущего JWT с `subject_type`/`subject_id`/`capabilities`; **§7 решение: `requireAuthV1` в Фазе 2 не вводим, legacy `requireAuth` защищает v1-роуты через mapping `role='admin' → property_admin`**
 
-**Важно:** старая таблица `users` **не трогается**. Новые таблицы живут параллельно до Фазы 7.
+Роуты (`backend/src/v1/routes/`, смонтированы в `registerApiRoutes.js`):
+- [x] `structure.js` — `/buildings`, `/entrances`, `/units` CRUD + cross-check «entrance принадлежит building», deactivate-guard «unit всё ещё имеет active residents → 409»
+- [x] `residents.js` — CRUD + self-update (ограничен `full_name`/`email`) + self-consent + phone-visibility capability-gate (`canViewPhone`: admin/concierge → видят, security → null)
+- [x] `staff.js` — CRUD с audit before/after snapshots для role/capability changes; override semantics: caller boolean > role default
+- [x] `contractors.js` — companies + users в одном router; business rule company-status enforced на POST /contractor-users
+
+Тесты (`backend/src/__tests__/`):
+- [x] `v1PropertyMigrations.test.js` — 25 тестов на SQL-форму миграций (CHECK enum, FK RESTRICT, partial UNIQUE, денормализация)
+- [x] `v1Routes.test.js` — 34 теста: RBAC (403 на не-admin mutations), валидация UUID/phone/email, business rules (entrance↔building, unit-deactivate с residents, company-status gate), capability-flag defaults/override, audit before/after snapshots
+- [x] `migrations.test.js` расширен: «skip already-applied» теперь знает о v1-миграциях
+- **Итого:** 59 новых тестов, 556 total pass
+
+**Важно:** старая таблица `users` **не трогается** (принцип D-lite §3). Новые таблицы живут параллельно до Фазы 7.
+
+**Результат:** Фаза 2 закрывает слой Structure + People по спеке. Backend готов принимать данные резидентов/персонала/подрядчиков через `/api/v1/*` под легаси-аутентификацией; миграция данных из legacy `users` — отдельный шаг в Фазе 7.
 
 ---
 
@@ -193,5 +206,7 @@ Legacy-модули ЖКХ (meters/billing/bookings/chat) — разморозк
 |---|---|---|---|
 | W01 (2026-04-22 …) | Фаза 0 | DONE | — |
 | W02 (2026-04-23 …) | Фаза 1 | DONE | — |
+| W03 (2026-04-23 …) | Фаза 2 | DONE | — |
+| W04 (2026-04-23 …) | Фаза 2 | DONE | — |
 
 _Обновляется в конце каждой недели._

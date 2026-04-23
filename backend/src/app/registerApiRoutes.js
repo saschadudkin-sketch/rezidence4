@@ -50,6 +50,16 @@ const platformAuditLogRouter = require('../routes/platform/auditLog');
 // ROADMAP.md §"Фаза 1").
 const platformManagementCompaniesRouter = require('../routes/platform/managementCompanies');
 
+// Phase 2 (D-lite): Structure + People layer.  Spec: docs/product/specs/platform-v1/*
+// Legacy requireAuth is retained (auth-v1-spec §7 defers requireAuthV1 to a
+// later phase).  Role mapping legacy → v1:
+//   legacy role='admin'   ≙ v1 property_admin   (all mutations)
+//   legacy staff roles    ≙ v1 staff            (reads, capability-gated)
+const v1StructureRouter   = require('../v1/routes/structure');
+const v1ResidentsRouter   = require('../v1/routes/residents');
+const v1StaffRouter       = require('../v1/routes/staff');
+const v1ContractorsRouter = require('../v1/routes/contractors');
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -135,6 +145,16 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/platform/api/v1/analytics', platformAnalyticsRouter);
   app.use('/platform/api/v1/audit-log', platformAuditLogRouter);
   app.use('/platform/api/v1/management-companies', platformManagementCompaniesRouter);
+
+  // Phase 2 (D-lite) — Structure + People layer under /api/v1/*.
+  // structureRouter and contractorsRouter expose multiple top-level resources
+  // (/buildings, /entrances, /units  and  /contractor-companies,
+  // /contractor-users respectively), so both mount at /api/v1 root.
+  // residentsRouter and staffRouter each own a single resource.
+  app.use('/api/v1', v1StructureRouter);
+  app.use('/api/v1/residents', v1ResidentsRouter);
+  app.use('/api/v1/staff', v1StaffRouter);
+  app.use('/api/v1', v1ContractorsRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);

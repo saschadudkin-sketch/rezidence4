@@ -49,7 +49,11 @@ describe('db.migrate - versioned migrations', () => {
 
   test('skips already-applied migrations', async () => {
     const { MIGRATIONS } = require('../dbMigrations');
-    const appliedMigrationIds = MIGRATIONS.map((migration) => migration.id);
+    // db.migrate() runs legacy + v1 migrations in one pass sharing
+    // schema_migrations; both ID sets must look "applied" for the skip path.
+    const { V1_PROPERTY_MIGRATIONS } = require('../v1/migrations');
+    const appliedMigrationIds = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS]
+      .map((migration) => migration.id);
 
     mockQuery.mockImplementation((sql) => {
       if (sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations')) {
