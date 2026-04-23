@@ -98,6 +98,14 @@ const v1AnnouncementsRouter         = require('../v1/routes/announcements');
 const v1AnnouncementsAdminRouter    = v1AnnouncementsRouter.adminRouter;
 const v1AnnouncementsPublicRouter   = v1AnnouncementsRouter.publicRouter;
 
+// Phase 5 (platform-v1) — documents_v2 content module.  Spec:
+// docs/product/specs/platform-v1/documents-v2-spec.md §3.
+// Три router'а: основной (auth), admin sub (/admin/documents для versions
+// history), public sub (/public/:slug/documents без auth, rate-limited).
+const v1DocumentsRouter             = require('../v1/routes/documents');
+const v1DocumentsAdminRouter        = v1DocumentsRouter.adminRouter;
+const v1DocumentsPublicRouter       = v1DocumentsRouter.publicRouter;
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -152,6 +160,12 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/admin/announcements', requireFeature('announcements'), v1AnnouncementsAdminRouter);
   app.use('/api/v1/public/:slug/announcements', v1AnnouncementsPublicRouter);
   app.use('/api/v1/announcements', requireFeature('announcements'), announcementsRouter);
+  // documents_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy
+  // остаётся как fall-through.  Admin sub отдельно для versions history.
+  // Public sub — /api/v1/public/:slug/documents без auth (kiosk).
+  app.use('/api/v1/documents', requireFeature('documents'), v1DocumentsRouter);
+  app.use('/api/v1/admin/documents', requireFeature('documents'), v1DocumentsAdminRouter);
+  app.use('/api/v1/public/:slug/documents', v1DocumentsPublicRouter);
   app.use('/api/v1/documents', requireFeature('documents'), documentsRouter);
   // publicPassRouter: no auth, rate-limited 30/min/IP
   app.use('/api/v1/public/pass', publicPassLimiter, publicPassRouter);
