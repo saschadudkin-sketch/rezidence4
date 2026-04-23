@@ -90,6 +90,14 @@ const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
 // `packagesRouter` outputs old schema; v1 is spec-authoritative).
 const v1PackagesRouter          = require('../v1/routes/packages');
 
+// Phase 5 (platform-v1) — announcements_v2 content module.  Spec:
+// docs/product/specs/platform-v1/announcements-v2-spec.md §4.
+// Три router'а: основной (auth), admin sub (/admin/announcements),
+// public sub (/public/:slug/announcements без auth, rate-limited).
+const v1AnnouncementsRouter         = require('../v1/routes/announcements');
+const v1AnnouncementsAdminRouter    = v1AnnouncementsRouter.adminRouter;
+const v1AnnouncementsPublicRouter   = v1AnnouncementsRouter.publicRouter;
+
 function registerApiRoutes(app, { rateLimiters }) {
   const {
     authLimiter,
@@ -136,6 +144,13 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/client-logs', clientLogsLimiter, clientLogsRouter);
 
   // Phase 2 — Announcements, Documents, QR Pass
+  // announcements_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy
+  // остаётся как fall-through для ручек, которые v1 ещё не перехватил.
+  // Admin sub-router — отдельный путь /api/v1/admin/announcements (listForAdmin
+  // + metrics).  Public sub-router — /api/v1/public/:slug/announcements без auth.
+  app.use('/api/v1/announcements', requireFeature('announcements'), v1AnnouncementsRouter);
+  app.use('/api/v1/admin/announcements', requireFeature('announcements'), v1AnnouncementsAdminRouter);
+  app.use('/api/v1/public/:slug/announcements', v1AnnouncementsPublicRouter);
   app.use('/api/v1/announcements', requireFeature('announcements'), announcementsRouter);
   app.use('/api/v1/documents', requireFeature('documents'), documentsRouter);
   // publicPassRouter: no auth, rate-limited 30/min/IP
