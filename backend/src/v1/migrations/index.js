@@ -23,6 +23,13 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./013_visit_logs_v2'),
   require('./014_access_incidents'),
   require('./015_access_overrides'),
+  // Фаза 5 — Content + Notifications
+  require('./016_notifications_outbox'),
+  require('./017_notification_log_v2'),
+  require('./018_documents_v2'),
+  require('./019_packages_v2'),
+  require('./020_announcements_v2'),
+  require('./021_property_audit_log'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

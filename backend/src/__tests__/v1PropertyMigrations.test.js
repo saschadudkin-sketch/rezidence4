@@ -25,8 +25,8 @@ function byId(id) {
 describe('v1 property migrations — registry invariants', () => {
   test('exports a non-empty ordered array', () => {
     expect(Array.isArray(V1_PROPERTY_MIGRATIONS)).toBe(true);
-    // 7 Фаза 2 + 8 Фаза 3 (Access-core) = 15
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(15);
+    // 7 Фаза 2 + 8 Фаза 3 (Access-core) + 6 Фаза 5 (Content+Notifications) = 21
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(21);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -591,5 +591,437 @@ describe('v1_015_access_overrides', () => {
       .find((s) => s.includes('idx_access_overrides_staff_time'));
     expect(idx).toBeDefined();
     expect(idx).toContain('(performed_by_staff_id, created_at DESC)');
+  });
+});
+
+// =====================================================================
+// Фаза 5 — Content + Notifications (миграции 016–021)
+// Specs: docs/product/specs/platform-v1/{notifications-outbox,
+//        notification-log-v2,documents-v2,packages-v2,announcements-v2}-spec.md
+//        plus README §"Фаза 5 не покрытая спеками" for 021.
+// =====================================================================
+
+describe('v1_016_notifications_outbox', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('channel CHECK covers all 5 supported channels', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notifications_outbox'));
+    for (const ch of ['web_push', 'sms', 'telegram', 'webhook', 'email']) {
+      expect(tbl).toContain(`'${ch}'`);
+    }
+  });
+
+  test('recipient_type CHECK covers all 5 types incl. vehicle + external', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notifications_outbox'));
+    for (const t of ['resident', 'staff', 'contractor', 'vehicle', 'external']) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('status CHECK is pending/in_flight/sent/failed/dead with pending default', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notifications_outbox'));
+    expect(tbl).toContain("status            VARCHAR(20) NOT NULL DEFAULT 'pending'");
+    expect(tbl).toContain("CHECK (status IN (\n                              'pending','in_flight','sent','failed','dead'\n                            ))");
+  });
+
+  test('sent audit CHECK: status=sent requires sent_at', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notifications_outbox'));
+    expect(tbl).toContain('CONSTRAINT notifications_outbox_sent_audit');
+    expect(tbl).toMatch(/status <>\s*'sent' OR sent_at IS NOT NULL/);
+  });
+
+  test('attempt bookkeeping: nonneg attempts + positive max_attempts', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notifications_outbox'));
+    expect(tbl).toContain('CONSTRAINT notifications_outbox_attempts_nonneg CHECK (attempt_count >= 0)');
+    expect(tbl).toContain('CONSTRAINT notifications_outbox_max_positive    CHECK (max_attempts > 0)');
+  });
+
+  test('worker queue partial index: WHERE status IN (pending, failed)', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_notifications_outbox_worker_queue'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(next_attempt_at)');
+    expect(idx).toContain("WHERE status IN ('pending','failed')");
+  });
+
+  test('correlation partial index: WHERE correlation_id IS NOT NULL', async () => {
+    await byId('v1_016_notifications_outbox').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_notifications_outbox_correlation'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('WHERE correlation_id IS NOT NULL');
+  });
+});
+
+describe('v1_017_notification_log_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('recipient_type is a 4-value enum (no vehicle — log_v2 is delivered facts only)', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain("CHECK (recipient_type IN (\n                                'resident','staff','contractor','external'\n                              ))");
+    // vehicle is specifically an outbox-only concept (blacklist), not a
+    // real delivery target — make sure we haven't accidentally copy-pasted.
+    expect(tbl).not.toMatch(/recipient_type IN \([^)]*'vehicle'/);
+  });
+
+  test('status CHECK is terminal-only: sent/failed (no in_flight leak)', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain("CHECK (status IN ('sent','failed'))");
+  });
+
+  test('sent-clean CHECK: status=sent forbids error_code/error_message', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain('CONSTRAINT notification_log_v2_sent_clean');
+    expect(tbl).toMatch(/status <>\s*'sent' OR \(error_code IS NULL AND error_message IS NULL\)/);
+  });
+
+  test('failed-coded CHECK: status=failed requires error_code', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain('CONSTRAINT notification_log_v2_failed_coded');
+  });
+
+  test('external vs internal recipient invariants', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain('CONSTRAINT notification_log_v2_external_no_id');
+    expect(tbl).toContain('CONSTRAINT notification_log_v2_internal_has_id');
+  });
+
+  test('outbox_id FK is ON DELETE SET NULL (log survives outbox cleanup)', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS notification_log_v2'));
+    expect(tbl).toContain('REFERENCES notifications_outbox(id) ON DELETE SET NULL');
+  });
+
+  test('1-to-1 UNIQUE partial index on outbox_id', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_notification_log_v2_outbox'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('WHERE outbox_id IS NOT NULL');
+  });
+
+  test('recipient-history index on (property_id, recipient_type, recipient_id, created_at DESC)', async () => {
+    await byId('v1_017_notification_log_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_notification_log_v2_recipient'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, recipient_type, recipient_id, created_at DESC)');
+  });
+});
+
+describe('v1_018_documents_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('category CHECK enum has 7 values incl. safety + legal (legacy had 5)', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS documents_v2'));
+    for (const c of ['rules', 'contacts', 'instructions', 'contracts', 'safety', 'legal', 'other']) {
+      expect(tbl).toContain(`'${c}'`);
+    }
+  });
+
+  test('has-content CHECK: at least one of body_md / file_url', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS documents_v2'));
+    expect(tbl).toContain('CONSTRAINT documents_v2_has_content');
+    expect(tbl).toContain('body_md IS NOT NULL OR file_url IS NOT NULL');
+  });
+
+  test('file-metadata CHECK: file_url implies mime + size', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS documents_v2'));
+    expect(tbl).toContain('CONSTRAINT documents_v2_file_metadata');
+    expect(tbl).toContain('file_url IS NULL');
+    expect(tbl).toContain('file_mime IS NOT NULL AND file_size_bytes IS NOT NULL');
+  });
+
+  test('public partial index: is_public + published_at + not deleted', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_documents_v2_public'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('WHERE deleted_at IS NULL AND published_at IS NOT NULL');
+  });
+
+  test('document_versions has CASCADE on document_id', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS document_versions'));
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('REFERENCES documents_v2(id) ON DELETE CASCADE');
+  });
+
+  test('document_versions UNIQUE (document_id, version DESC)', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('uq_document_versions_doc_version'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(document_id, version DESC)');
+  });
+
+  test('document_versions version CHECK >= 1', async () => {
+    await byId('v1_018_documents_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS document_versions'));
+    expect(tbl).toContain('CONSTRAINT document_versions_version_positive CHECK (version >= 1)');
+  });
+});
+
+describe('v1_019_packages_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('unit_id NOT NULL with ON DELETE RESTRICT (spec §8 Q1)', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('unit_id                    UUID NOT NULL REFERENCES units(id) ON DELETE RESTRICT');
+  });
+
+  test('received_by_staff_id NOT NULL with ON DELETE RESTRICT (staff retention)', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('received_by_staff_id       UUID NOT NULL REFERENCES staff_users(id) ON DELETE RESTRICT');
+  });
+
+  test('recipient_resident_id FK is ON DELETE SET NULL (spec §8 Q6)', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('recipient_resident_id      UUID REFERENCES residents(id) ON DELETE SET NULL');
+  });
+
+  test('status CHECK enum: awaiting_pickup/picked_up/returned/lost', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    for (const s of ['awaiting_pickup', 'picked_up', 'returned', 'lost']) {
+      expect(tbl).toContain(`'${s}'`);
+    }
+  });
+
+  test('pickup audit CHECK: picked_up requires picked_up_at + staff_id', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('CONSTRAINT packages_v2_pickup_audit');
+  });
+
+  test('pickup identity exclusive + required CHECKs', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('CONSTRAINT packages_v2_pickup_identity_exclusive');
+    expect(tbl).toContain('CONSTRAINT packages_v2_pickup_identity_required');
+  });
+
+  test('awaiting-clean CHECK: awaiting forbids picked_up_at + returned_at', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS packages_v2'));
+    expect(tbl).toContain('CONSTRAINT packages_v2_awaiting_clean');
+  });
+
+  test('SLA partial index on awaiting_pickup by received_at DESC', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_packages_v2_sla'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain("WHERE status = 'awaiting_pickup'");
+  });
+
+  test('tracking partial index for conflict lookup', async () => {
+    await byId('v1_019_packages_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_packages_v2_tracking'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('WHERE tracking_number IS NOT NULL');
+  });
+});
+
+describe('v1_020_announcements_v2', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('category CHECK enum: general/maintenance/event/emergency/marketing', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    for (const c of ['general', 'maintenance', 'event', 'emergency', 'marketing']) {
+      expect(tbl).toContain(`'${c}'`);
+    }
+  });
+
+  test('audience_type CHECK limited to 4 values (custom deferred §7 Q3)', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain("CHECK (audience_type IN (\n                                   'all','building','entrance','unit_type'\n                                 ))");
+    // custom is reserved but not enabled in v1 — the CHECK must NOT list it.
+    expect(tbl).not.toMatch(/audience_type IN \([^)]*'custom'/);
+  });
+
+  test('audience_unit_type CHECK: owner/tenant/family_member or NULL', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    for (const t of ['owner', 'tenant', 'family_member']) {
+      expect(tbl).toContain(`'${t}'`);
+    }
+  });
+
+  test('audience_fields CHECK enforces one-hot selector', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain('CONSTRAINT announcements_v2_audience_fields');
+  });
+
+  test('window CHECK: expires_at > starts_at when set', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain('CONSTRAINT announcements_v2_window');
+    expect(tbl).toContain('expires_at IS NULL OR expires_at > starts_at');
+  });
+
+  test('urgent-requires-push CHECK: is_urgent=true forces web_push', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain('CONSTRAINT announcements_v2_urgent_requires_push');
+    expect(tbl).toContain("NOT is_urgent OR 'web_push' = ANY(notify_channels)");
+  });
+
+  test('notify_channels CHECK: subset of {web_push, sms, telegram, email}', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain('CONSTRAINT announcements_v2_channels_subset');
+    expect(tbl).toContain("notify_channels <@ ARRAY['web_push','sms','telegram','email']::text[]");
+  });
+
+  test('publish audit CHECK: published_at requires published_by_staff_id', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain('CONSTRAINT announcements_v2_publish_audit');
+  });
+
+  test('feed index: pinned DESC, urgent DESC, starts_at DESC, partial on visible', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_announcements_v2_feed'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, is_pinned DESC, is_urgent DESC, starts_at DESC)');
+    expect(idx).toContain('WHERE deleted_at IS NULL AND published_at IS NOT NULL');
+  });
+
+  test('default notify_channels is ARRAY[web_push]', async () => {
+    await byId('v1_020_announcements_v2').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS announcements_v2'));
+    expect(tbl).toContain("DEFAULT ARRAY['web_push']::text[]");
+  });
+});
+
+describe('v1_021_property_audit_log', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('conditional rename wrapped in DO $$ block (legacy audit_log → property_audit_log)', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const doBlock = sqls.find((s) => s.includes('DO $$') && s.includes('ALTER TABLE audit_log RENAME TO property_audit_log'));
+    expect(doBlock).toBeDefined();
+    expect(doBlock).toContain("table_name   = 'audit_log'");
+    expect(doBlock).toContain("table_name   = 'property_audit_log'");
+  });
+
+  test('conditional rename of legacy indexes (idx_audit_log_actor / _resource)', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const doBlock = sqls.find((s) => s.includes('ALTER INDEX idx_audit_log_actor RENAME TO idx_property_audit_log_actor'));
+    expect(doBlock).toBeDefined();
+    expect(doBlock).toContain('ALTER INDEX idx_audit_log_resource RENAME TO idx_property_audit_log_resource');
+  });
+
+  test('fresh-install CREATE TABLE IF NOT EXISTS property_audit_log', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS property_audit_log'));
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('action         VARCHAR(100) NOT NULL');
+    expect(tbl).toContain('resource_type  VARCHAR(50) NOT NULL');
+    // Fresh install MUST NOT add the legacy users(uid) FK — users is split.
+    expect(tbl).not.toMatch(/actor_uid\s+TEXT REFERENCES users/);
+  });
+
+  test('idempotent ADD COLUMN IF NOT EXISTS for all 4 new columns', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    for (const col of ['property_id UUID', 'actor_type  VARCHAR(20)', 'entity_type VARCHAR(50)', 'entity_id   UUID']) {
+      const stmt = sqls.find((s) => s.includes('ADD COLUMN IF NOT EXISTS') && s.includes(col));
+      expect(stmt).toBeDefined();
+    }
+  });
+
+  test('actor_type CHECK enum: drop-then-add (idempotent)', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const drop = sqls.find((s) => s.includes('DROP CONSTRAINT IF EXISTS property_audit_log_actor_type_check'));
+    const add = sqls.find((s) => s.includes('ADD CONSTRAINT property_audit_log_actor_type_check'));
+    expect(drop).toBeDefined();
+    expect(add).toBeDefined();
+    for (const t of ['resident', 'staff', 'contractor', 'system', 'external']) {
+      expect(add).toContain(`'${t}'`);
+    }
+  });
+
+  test('v1 entity-lookup partial index: WHERE entity_id IS NOT NULL', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_property_audit_log_entity'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(entity_type, entity_id, created_at DESC)');
+    expect(idx).toContain('WHERE entity_id IS NOT NULL');
+  });
+
+  test('per-property timeline partial index', async () => {
+    await byId('v1_021_property_audit_log').up(client);
+    const idx = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('idx_property_audit_log_property_time'));
+    expect(idx).toBeDefined();
+    expect(idx).toContain('(property_id, created_at DESC)');
+    expect(idx).toContain('WHERE property_id IS NOT NULL');
   });
 });
