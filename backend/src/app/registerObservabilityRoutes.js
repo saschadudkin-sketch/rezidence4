@@ -9,6 +9,7 @@ const sse = require('../sse');
 const { getRedis } = require('../lib/redisClient');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { fetchTenantOutboxHealth } = require('../v1/services/outboxHealth');
+const { resurrectOutboxRows } = require('../v1/services/outboxRetry');
 
 function registerObservabilityRoutes(app, { db }) {
   const openApiPath = path.resolve(__dirname, '../../../docs/openapi.json');
@@ -76,6 +77,47 @@ function registerObservabilityRoutes(app, { db }) {
     } catch (err) {
       logger.error({ err }, '[outbox-health] query failed');
       res.status(503).json({ ok: false, error: err.message });
+    }
+  });
+
+  // POST /api/v1/notifications/outbox/retry — admin escape-hatch.  Spec:
+  // notifications-outbox-spec.md §4.5.  Позволяет «поднять» строки из
+  // dead/failed обратно в pending — worker подхватит их на ближайшем tick'е.
+  //
+  // Body (взаимоисключающие режимы):
+  //   { ids: ['<uuid>', ...] }                — точечный retry (max 1000 id)
+  //   { status: 'dead'|'failed', limit?: N } — bulk retry (default 100, cap 1000)
+  //
+  // Response:
+  //   200 { ok:true, revived:N, revivedIds:[...] }
+  //   400 { error: 'validation-message' }
+  //   403 { error: 'Admin only' }
+  //   503 { ok:false, error: '...' }
+  //
+  // Защита: resurrectOutboxRows WHERE status IN ('dead','failed') —
+  // in_flight/pending/sent никогда не трогаем.  См. outboxRetry.js.
+  app.post('/api/v1/notifications/outbox/retry', requireAuth, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    const pool = req.db || db;
+    const body = req.body || {};
+    try {
+      const out = await resurrectOutboxRows(pool, {
+        ids:    body.ids,
+        status: body.status,
+        limit:  body.limit,
+      });
+      logger.info(
+        { admin: req.user.uid, revived: out.revived, mode: body.ids ? 'ids' : 'bulk' },
+        '[outbox-retry] rows revived',
+      );
+      return res.json({ ok: true, ...out });
+    } catch (err) {
+      if (err instanceof TypeError) {
+        // Validation errors are explicit — caller can fix request and retry.
+        return res.status(400).json({ error: err.message });
+      }
+      logger.error({ err }, '[outbox-retry] update failed');
+      return res.status(503).json({ ok: false, error: err.message });
     }
   });
 
