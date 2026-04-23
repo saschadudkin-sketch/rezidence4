@@ -30,9 +30,11 @@
 // Deployment (setInterval, iteration по tenant'ам, health endpoint) —
 // out-of-scope этого файла.  См. docs/platform-v1/deployment.md + PR+1.
 
+const { performance } = require('perf_hooks');
 const logger = require('../../logger');
 const channels = require('../services/channels');
 const { computeBackoffMinutes } = require('../services/notificationOutbox');
+const appMetrics = require('../../metrics');
 
 const DEFAULT_BATCH_SIZE = 50;
 
@@ -168,6 +170,10 @@ async function insertLogV2(tx, row, outcome) {
  */
 async function processRow(tx, row, tenant = null) {
   let result;
+  // Wall-clock от старта channels.dispatch до его резолва/throw — именно
+  // это ловит на Grafana-панели p95 «сколько живёт один send».  Не Date.now:
+  // monotonic performance.now() не скачет назад при NTP-sync.
+  const t0 = performance.now();
   try {
     result = await channels.dispatch(row.channel, {
       recipientAddress: row.recipient_address,
@@ -186,6 +192,7 @@ async function processRow(tx, row, tenant = null) {
     );
     result = { ok: false, dead: false, error: err.message || 'adapter_threw' };
   }
+  const durationMs = performance.now() - t0;
 
   const newAttemptCount = (row.attempt_count | 0) + 1;
 
@@ -208,6 +215,7 @@ async function processRow(tx, row, tenant = null) {
       errorMessage: null,
       providerMessageId: result.providerMessageId || null,
     });
+    appMetrics.recordOutboxDelivery(row.channel, 'sent', durationMs);
     return 'sent';
   }
 
@@ -237,6 +245,7 @@ async function processRow(tx, row, tenant = null) {
       errorMessage,
       providerMessageId: null,
     });
+    appMetrics.recordOutboxDelivery(row.channel, 'dead', durationMs);
     return 'dead';
   }
 
@@ -251,6 +260,7 @@ async function processRow(tx, row, tenant = null) {
      WHERE id=$1`,
     [row.id, backoffMin, newAttemptCount, errorMessage],
   );
+  appMetrics.recordOutboxDelivery(row.channel, 'failed', durationMs);
   return 'failed';
 }
 

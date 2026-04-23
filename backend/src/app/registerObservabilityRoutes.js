@@ -181,6 +181,52 @@ function registerObservabilityRoutes(app, { db }) {
       `rez_http_request_duration_milliseconds{quantile="0.99"} ${m.latency.p99 ?? 'NaN'}`,
       `rez_http_request_duration_milliseconds_count ${m.latency.sampleCount}`,
     ];
+
+    // platform-v1 notifications outbox — per-channel counters + duration summary.
+    // Spec: notifications-outbox-spec.md §4.5.  Labels:
+    //   channel ∈ {web_push, sms, telegram, webhook, email}
+    //   outcome ∈ {sent, failed, dead}  (as separate metric-name суффиксов
+    //     потому что sent/failed/dead имеют разный операционный смысл:
+    //     sent — success rate, dead — хард-алерт, failed — retry in progress).
+    const outboxChannels = (m.outbox && m.outbox.channels) || {};
+    const channelNames = Object.keys(outboxChannels);
+    if (channelNames.length > 0) {
+      lines.push(
+        '# HELP rez_outbox_sent_total Total successful outbox deliveries',
+        '# TYPE rez_outbox_sent_total counter',
+      );
+      for (const ch of channelNames) {
+        lines.push(`rez_outbox_sent_total{channel="${ch}"} ${outboxChannels[ch].sent}`);
+      }
+      lines.push(
+        '# HELP rez_outbox_failed_total Total retryable outbox failures (will retry)',
+        '# TYPE rez_outbox_failed_total counter',
+      );
+      for (const ch of channelNames) {
+        lines.push(`rez_outbox_failed_total{channel="${ch}"} ${outboxChannels[ch].failed}`);
+      }
+      lines.push(
+        '# HELP rez_outbox_dead_total Total outbox rows exhausted (terminal)',
+        '# TYPE rez_outbox_dead_total counter',
+      );
+      for (const ch of channelNames) {
+        lines.push(`rez_outbox_dead_total{channel="${ch}"} ${outboxChannels[ch].dead}`);
+      }
+      lines.push(
+        '# HELP rez_outbox_send_duration_milliseconds Outbox adapter dispatch duration',
+        '# TYPE rez_outbox_send_duration_milliseconds summary',
+      );
+      for (const ch of channelNames) {
+        const d = outboxChannels[ch].duration;
+        lines.push(
+          `rez_outbox_send_duration_milliseconds{channel="${ch}",quantile="0.5"} ${d.p50 ?? 'NaN'}`,
+          `rez_outbox_send_duration_milliseconds{channel="${ch}",quantile="0.95"} ${d.p95 ?? 'NaN'}`,
+          `rez_outbox_send_duration_milliseconds{channel="${ch}",quantile="0.99"} ${d.p99 ?? 'NaN'}`,
+          `rez_outbox_send_duration_milliseconds_count{channel="${ch}"} ${d.sampleCount}`,
+        );
+      }
+    }
+
     res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
     res.send(lines.join('\n') + '\n');
   });
