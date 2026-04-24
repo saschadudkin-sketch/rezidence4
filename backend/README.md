@@ -17,6 +17,37 @@ Expected behavior:
 
 - Keep logger-specific cases in `src/__tests__/logger.test.js`.
 - Keep `src/__tests__/infrastructure.test.js` for bootstrap/entry checks (`index`, `migrate`, `seed`) only.
+- platform-v1 integration e2e тесты живут в `src/v1/**/__tests__/*.integration.test.js`
+  и авто-skip'ятся без `TEST_DATABASE_URL` (см. ниже).
+
+## platform-v1 integration tests
+
+Некоторые тесты platform-v1 запускаются против реальной PostgreSQL для покрытия
+end-to-end AC из спек (`docs/product/specs/platform-v1/*-spec.md` §7).
+Паттерн: `describe.skip`, если не задан `TEST_DATABASE_URL` — на CI без БД не падает.
+
+### Что покрыто
+
+| Файл | AC спеки |
+|------|----------|
+| `src/v1/services/__tests__/announcements.e2e.integration.test.js` | `announcements-v2-spec.md §7` — create → publish → outbox → log_v2, counts совпадают |
+
+### Запуск
+
+```bash
+# 1. Локальный Postgres (docker или нативный), пустая БД:
+createdb domhub_v1_test
+
+# 2. Расширение для gen_random_uuid() — тест применит само, но требует прав:
+psql domhub_v1_test -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+# 3. Запуск:
+TEST_DATABASE_URL=postgres://localhost/domhub_v1_test \
+  npx jest src/v1 --runInBand
+```
+
+Тест идемпотентно применяет `V1_PROPERTY_MIGRATIONS` в `beforeAll`.
+Для чистой среды после прогона можно `DROP DATABASE domhub_v1_test` и пересоздать.
 
 ## Merge gate (required)
 
