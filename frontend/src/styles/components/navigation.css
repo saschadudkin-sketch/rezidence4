@@ -396,7 +396,7 @@
 .mn-more-label { flex: 1; }
 .mn-quick-item .mn-badge { position: static; margin-left: auto; }
 
-@media (max-width: 767px) {
+@media (--bp-md-below) {
   .mn-quick-sheet--compact {
     justify-content: center;
     align-items: flex-end;
@@ -603,8 +603,8 @@
   }
 }
 
-/* Raw breakpoints keep navigation responsive even if custom-media is not transformed in dev. */
-@media (max-width: 767px) {
+/* Custom-media tokens; postcss-custom-media transforms these in both dev and prod (postcss.config.js). */
+@media (--bp-md-below) {
   .top-nav {
     display: none !important;
   }
@@ -681,7 +681,7 @@
   }
 }
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (--bp-md-up) and (--bp-lg-down) {
   .top-nav {
     display: none !important;
   }
@@ -728,7 +728,7 @@
   }
 }
 
-@media (min-width: 1025px) {
+@media (--bp-lg-above) {
   .top-nav {
     display: flex !important;
   }
@@ -748,7 +748,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (--bp-md-below) {
   .content {
     padding-bottom: calc(var(--nav-h) + var(--sab) + 52px) !important;
   }

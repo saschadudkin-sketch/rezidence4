@@ -182,6 +182,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # Playwright webServer (см. playwright.config.js + scripts/run-playwright-webserver.cjs)
+      # запускает Vite из frontend/node_modules/vite/bin/vite.js. Корневой `npm ci`
+      # ставит только @playwright/test, поэтому frontend-deps надо доустановить
+      # отдельно — иначе webServer падает с MODULE_NOT_FOUND до старта тестов.
+      - name: Install frontend deps for Playwright webServer (Vite)
+        working-directory: frontend
+        run: npm ci
       - run: npm run test:e2e:preflight
       - id: login_e2e
         run: npm run test:e2e -- e2e/login-flow.spec.js --project=chromium
@@ -297,6 +304,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # См. login-e2e-smoke: webServer Playwright всё равно поднимает Vite из
+      # frontend/, даже если рядом крутится docker compose stack — `baseURL`
+      # в playwright.config.js указывает на 127.0.0.1:3000 (Vite), а не на
+      # nginx-контейнер.
+      - name: Install frontend deps for Playwright webServer (Vite)
+        working-directory: frontend
+        run: npm ci
       - run: npm run test:e2e:preflight
       - run: docker compose up -d
       - run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium

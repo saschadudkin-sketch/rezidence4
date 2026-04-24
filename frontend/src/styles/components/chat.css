@@ -543,7 +543,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (--bp-md-below) {
   .chat-wrap {
     min-height: 0;
     max-width: none;
