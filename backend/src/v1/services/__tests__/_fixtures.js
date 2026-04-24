@@ -133,11 +133,11 @@ async function seedFixture(pool, opts = {}) {
 
 /**
  * cleanupFixture — удаляет всё, что создал seedFixture + side effects
- * (outbox rows, log rows, announcements_v2, packages_v2).  Порядок строго
- * от листьев к ссылочным сущностям из-за FK ON DELETE RESTRICT.
+ * (outbox rows, log rows, announcements_v2, packages_v2, documents_v2).
+ * Порядок строго от листьев к ссылочным сущностям из-за FK ON DELETE RESTRICT.
  *
- * Unified для announcements/packages/… — delete'ы по not-existing таблицам
- * просто no-op (TRUNCATE WHERE never returns rows).
+ * Unified для announcements/packages/documents/… — delete'ы по not-existing
+ * таблицам просто no-op (TRUNCATE WHERE never returns rows).
  */
 async function cleanupFixture(pool, propertyId) {
   // log_v2 → outbox (FK outbox_id)
@@ -149,6 +149,14 @@ async function cleanupFixture(pool, propertyId) {
     [propertyId],
   );
   await pool.query(`DELETE FROM notifications_outbox WHERE property_id = $1`, [propertyId]);
+  // document_versions → documents_v2 (FK document_id ON DELETE CASCADE,
+  // но мы всё равно чистим явно — быстрее чем cascade на больших seed).
+  await pool.query(
+    `DELETE FROM document_versions
+      WHERE document_id IN (SELECT id FROM documents_v2 WHERE property_id = $1)`,
+    [propertyId],
+  );
+  await pool.query(`DELETE FROM documents_v2 WHERE property_id = $1`, [propertyId]);
   // Entity tables that reference residents/staff/units → чистим ДО них.
   await pool.query(`DELETE FROM packages_v2 WHERE property_id = $1`, [propertyId]);
   await pool.query(`DELETE FROM announcements_v2 WHERE property_id = $1`, [propertyId]);
