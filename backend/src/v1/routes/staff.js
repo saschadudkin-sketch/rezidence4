@@ -19,6 +19,9 @@ const { isAdmin } = require('../lib/authz');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STAFF_ROLES = new Set(['security', 'concierge', 'technician', 'property_admin']);
 const SPECIALIZATIONS = new Set(['plumbing', 'electric', 'cleaning', 'general']);
@@ -40,7 +43,7 @@ function isNonEmptyString(v, maxLen) {
 }
 
 function auditLog(req, { action, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log(actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, 'staff_user', $4, $5, $6)`,
     [req.user?.uid || null, req.user?.role || null, action, resourceId, changes ? JSON.stringify(changes) : null, req.ip || null],
@@ -66,7 +69,7 @@ router.get('/', async (req, res, next) => {
       filters.push(`(LOWER(full_name) LIKE $${params.length} OR LOWER(email) LIKE $${params.length})`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT * FROM staff_users ${where} ORDER BY full_name ASC LIMIT 500`,
       params,
     );
@@ -79,7 +82,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
-    const { rows } = await db.query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
     res.json({ staff: rows[0] });
   } catch (err) { next(err); }
@@ -111,7 +114,7 @@ router.post('/', async (req, res, next) => {
     const effectivePhoneView = typeof can_view_resident_phone === 'boolean' ? can_view_resident_phone : defaults.can_view_resident_phone;
     const effectiveAssign = typeof can_assign_requests === 'boolean' ? can_assign_requests : defaults.can_assign_requests;
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO staff_users(
          property_id, full_name, phone, email, role, specialization,
          can_view_resident_phone, can_assign_requests
@@ -146,7 +149,7 @@ router.patch('/:id', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
 
     // Read current row for audit before/after.
-    const { rows: existing } = await db.query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
+    const { rows: existing } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
     if (!existing[0]) return res.status(404).json({ error: 'Staff not found' });
     const before = existing[0];
 
@@ -191,7 +194,7 @@ router.patch('/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE staff_users SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
       params,
     );
@@ -208,7 +211,7 @@ router.post('/:id/deactivate', async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE staff_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
     );

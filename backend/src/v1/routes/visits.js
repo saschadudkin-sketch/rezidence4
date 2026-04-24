@@ -24,6 +24,9 @@ const { verifyPass } = require('../services/verifyPass');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EVENT_TYPES = new Set([
   'entry_allowed', 'entry_denied', 'exit_allowed', 'exit_denied',
@@ -62,6 +65,7 @@ router.post('/verify', async (req, res, next) => {
     }
 
     const result = await verifyPass({
+      db: req.db || null,     // SEC [AUDIT #1]: per-tenant dispatch
       property_id,
       mode,
       token,
@@ -73,7 +77,7 @@ router.post('/verify', async (req, res, next) => {
     // Обогащаем ответ pass-info если pass нашёлся (для UI guard-console).
     let passInfo = null;
     if (result.pass_id) {
-      const { rows } = await db.query(
+      const { rows } = await getDb(req).query(
         `SELECT id, pass_type, status, valid_from, valid_until FROM passes WHERE id = $1`,
         [result.pass_id],
       );
@@ -115,7 +119,7 @@ router.post('/', async (req, res, next) => {
     const normalizedPlate = vehicle_plate ? normalizePlate(vehicle_plate) : null;
     const occurredAtIso = occurred_at || new Date().toISOString();
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO visit_logs_v2
          (property_id, pass_id, event_type, event_source,
           person_label, vehicle_plate, performed_by_staff_id,
@@ -134,7 +138,7 @@ router.post('/', async (req, res, next) => {
     if (err && err.code === '23505') {
       // provider_event_id unique conflict — идемпотентный вебхук, вернуть существующую строку
       if (req.body?.provider_event_id) {
-        const { rows } = await db.query(
+        const { rows } = await getDb(req).query(
           `SELECT ${VL_COLS} FROM visit_logs_v2
             WHERE event_source = $1 AND provider_event_id = $2`,
           [req.body.event_source, req.body.provider_event_id],
@@ -174,7 +178,7 @@ router.get('/', async (req, res, next) => {
       params.push(req.query.to); filters.push(`occurred_at <= $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2 ${where}
         ORDER BY occurred_at DESC LIMIT 500`,
       params,
@@ -188,7 +192,7 @@ router.get('/by-pass/:pass_id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
         WHERE pass_id = $1
         ORDER BY occurred_at DESC LIMIT 500`,
@@ -207,7 +211,7 @@ router.get('/by-plate/:plate', async (req, res, next) => {
     if (!looksLikeRuPlate(normalized) && normalized.length < 3) {
       return res.status(400).json({ error: 'Plate too short' });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
         WHERE vehicle_plate = $1
         ORDER BY occurred_at DESC LIMIT 500`,
@@ -224,13 +228,13 @@ router.get('/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2 WHERE id = $1`,
       [req.params.id],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Visit log not found' });
 
-    const { rows: incRows } = await db.query(
+    const { rows: incRows } = await getDb(req).query(
       `SELECT id, incident_type, severity, status, title, created_at
          FROM access_incidents
         WHERE related_visit_log_id = $1

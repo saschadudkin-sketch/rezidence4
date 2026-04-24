@@ -83,6 +83,13 @@ const remindLimiter = rateLimit({
 });
 
 function audit(req, action, resourceId, changes) {
+  // SEC [AUDIT #1]: audit остаётся на singleton db.query (не req.db).
+  //   • Single-tenant go-live: DATABASE_URL === tenant DB → корректно.
+  //   • Multi-tenant post-launch: TODO — мигрировать на req.db, когда подключён
+  //     второй property и надо гарантировать tenant-isolated audit_log.
+  //   • Сохранили именно db.query (не db.pool.query), чтобы тесты видели
+  //     mockDb.query с default mockResolvedValue({rows:[]}) — иначе
+  //     .catch() на undefined из mockPool.query ломает handler.
   db.query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)

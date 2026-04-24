@@ -19,6 +19,9 @@ const { isStaff, isAdmin } = require('../lib/authz');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COMPANY_STATUSES = new Set(['active', 'suspended', 'terminated']);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,7 +34,7 @@ function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log(actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [req.user?.uid || null, req.user?.role || null, action, resourceType, resourceId, changes ? JSON.stringify(changes) : null, req.ip || null],
@@ -55,7 +58,7 @@ router.get('/contractor-companies', async (req, res, next) => {
       filters.push(`LOWER(name) LIKE $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT c.*,
               (SELECT COUNT(*)::int FROM contractor_users u WHERE u.contractor_company_id = c.id AND u.is_active = true)
                 AS active_users_count
@@ -73,9 +76,9 @@ router.get('/contractor-companies/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid company id' });
-    const { rows } = await db.query(`SELECT * FROM contractor_companies WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(`SELECT * FROM contractor_companies WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
-    const { rows: users } = await db.query(
+    const { rows: users } = await getDb(req).query(
       `SELECT * FROM contractor_users WHERE contractor_company_id = $1 ORDER BY full_name ASC`,
       [req.params.id],
     );
@@ -97,7 +100,7 @@ router.post('/contractor-companies', async (req, res, next) => {
     if (contact_email && !EMAIL_RE.test(String(contact_email))) return res.status(400).json({ error: 'Invalid contact_email' });
     if (contact_phone && !PHONE_RE.test(String(contact_phone))) return res.status(400).json({ error: 'contact_phone must be E.164-like' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO contractor_companies(property_id, name, contact_name, contact_phone, contact_email)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
@@ -148,7 +151,7 @@ router.patch('/contractor-companies/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE contractor_companies SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
       params,
     );
@@ -178,7 +181,7 @@ router.get('/contractor-users', async (req, res, next) => {
       params.push(active); filters.push(`is_active = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT * FROM contractor_users ${where} ORDER BY full_name ASC LIMIT 500`,
       params,
     );
@@ -212,7 +215,7 @@ router.post('/contractor-users', async (req, res, next) => {
 
     // Confirm the company is active.  This is a business-rule check — the DB
     // still permits the insert, but inactive companies can't issue passes.
-    const { rows: companyCheck } = await db.query(
+    const { rows: companyCheck } = await getDb(req).query(
       `SELECT status FROM contractor_companies WHERE id = $1`,
       [contractor_company_id],
     );
@@ -221,7 +224,7 @@ router.post('/contractor-users', async (req, res, next) => {
       return res.status(409).json({ error: `Cannot add user to company with status '${companyCheck[0].status}'` });
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO contractor_users(
          contractor_company_id, property_id, full_name, phone, email,
          specialization, access_expires_at
@@ -282,7 +285,7 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE contractor_users SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
       params,
     );
@@ -297,7 +300,7 @@ router.post('/contractor-users/:id/deactivate', async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid user id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE contractor_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
     );

@@ -26,6 +26,9 @@ const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz'
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PASS_TYPES = new Set([
   'guest', 'vehicle', 'resident', 'staff',
@@ -49,7 +52,7 @@ function newToken() {
 }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -124,7 +127,7 @@ router.get('/', async (req, res, next) => {
       filters.push(`access_request_id = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${PASS_COLS} FROM passes ${where}
         ORDER BY created_at DESC LIMIT 500`,
       params,
@@ -137,7 +140,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await db.query(`SELECT ${PASS_COLS} FROM passes WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(`SELECT ${PASS_COLS} FROM passes WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = rows[0];
 
@@ -146,7 +149,7 @@ router.get('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { rows: qrRows } = await db.query(
+    const { rows: qrRows } = await getDb(req).query(
       `SELECT id, token, render_version, created_at FROM qr_passes_v2 WHERE pass_id = $1`,
       [req.params.id],
     );
@@ -161,7 +164,7 @@ router.get('/:id/qr', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
-    const { rows: passRows } = await db.query(
+    const { rows: passRows } = await getDb(req).query(
       `SELECT id, property_id, subject_resident_id, status FROM passes WHERE id = $1`,
       [req.params.id],
     );
@@ -175,14 +178,14 @@ router.get('/:id/qr', async (req, res, next) => {
       return res.status(409).json({ error: `Cannot fetch QR for pass in status '${pass.status}'` });
     }
 
-    const { rows: existing } = await db.query(
+    const { rows: existing } = await getDb(req).query(
       `SELECT id, token, render_version FROM qr_passes_v2 WHERE pass_id = $1`,
       [pass.id],
     );
     if (existing[0]) return res.json({ qr: existing[0] });
 
     const token = newToken();
-    const { rows: created } = await db.query(
+    const { rows: created } = await getDb(req).query(
       `INSERT INTO qr_passes_v2 (property_id, pass_id, token)
        VALUES ($1, $2, $3)
        RETURNING id, token, render_version`,
@@ -198,7 +201,7 @@ router.get('/:id/qr', async (req, res, next) => {
 router.post('/:id/regenerate-qr', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows: passRows } = await db.query(
+    const { rows: passRows } = await getDb(req).query(
       `SELECT id, property_id, subject_resident_id, status FROM passes WHERE id = $1`,
       [req.params.id],
     );
@@ -212,7 +215,7 @@ router.post('/:id/regenerate-qr', async (req, res, next) => {
     }
 
     const token = newToken();
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO qr_passes_v2 (property_id, pass_id, token)
        VALUES ($1, $2, $3)
        ON CONFLICT (pass_id)
@@ -271,7 +274,7 @@ router.post('/', async (req, res, next) => {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO passes
          (property_id, access_request_id, pass_type, subject_type,
           subject_resident_id, subject_staff_id, subject_contractor_user_id, subject_vehicle_id,
@@ -309,7 +312,7 @@ router.post('/:id/revoke', async (req, res, next) => {
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
 
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM passes WHERE id = $1`,
       [req.params.id],
     );
@@ -318,7 +321,7 @@ router.post('/:id/revoke', async (req, res, next) => {
       return res.status(409).json({ error: 'Pass already revoked' });
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE passes SET
          status = 'revoked',
          revoked_at = NOW(),
@@ -350,7 +353,7 @@ router.post('/:id/block', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
 
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM passes WHERE id = $1`,
       [req.params.id],
     );
@@ -358,7 +361,7 @@ router.post('/:id/block', async (req, res, next) => {
     if (curRows[0].status === 'revoked' || curRows[0].status === 'expired') {
       return res.status(409).json({ error: `Cannot block pass in status '${curRows[0].status}'` });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE passes SET status = 'blocked' WHERE id = $1 RETURNING ${PASS_COLS}`,
       [req.params.id],
     );
@@ -378,7 +381,7 @@ router.post('/:id/unblock', async (req, res, next) => {
     if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM passes WHERE id = $1`,
       [req.params.id],
     );
@@ -386,7 +389,7 @@ router.post('/:id/unblock', async (req, res, next) => {
     if (curRows[0].status !== 'blocked') {
       return res.status(409).json({ error: `Pass is not blocked (status='${curRows[0].status}')` });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE passes SET status = 'active' WHERE id = $1 RETURNING ${PASS_COLS}`,
       [req.params.id],
     );

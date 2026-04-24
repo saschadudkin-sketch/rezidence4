@@ -25,6 +25,13 @@ const { isStaff, isAdmin } = require('../lib/authz');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+// У `req.db` (pg.Pool, приходит из propertyDbMiddleware) метод .connect()
+// есть сразу, у legacy-модуля db — только через db.pool.  getTxPool
+// нормализует это для BEGIN/ROLLBACK транзакций.
+const getDb = (req) => req.db || db;
+const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CREATOR_TYPES = new Set(['resident', 'staff', 'contractor']);
 const REQUEST_TYPES = new Set([
@@ -50,7 +57,7 @@ const isPropertyAdmin = isAdmin;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -105,7 +112,7 @@ router.get('/', async (req, res, next) => {
       filters.push(`request_type = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${AR_COLS} FROM access_requests ${where}
         ORDER BY created_at DESC LIMIT 500`,
       params,
@@ -118,7 +125,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await db.query(`SELECT ${AR_COLS} FROM access_requests WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(`SELECT ${AR_COLS} FROM access_requests WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Access request not found' });
     const ar = rows[0];
 
@@ -127,7 +134,7 @@ router.get('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const approvalsP = db.query(
+    const approvalsP = getDb(req).query(
       `SELECT id, approver_type, approver_staff_id, approver_resident_id,
               decision, comment, created_at
          FROM access_approvals
@@ -135,7 +142,7 @@ router.get('/:id', async (req, res, next) => {
         ORDER BY created_at ASC`,
       [req.params.id],
     );
-    const passP = db.query(
+    const passP = getDb(req).query(
       `SELECT id, pass_type, status, valid_from, valid_until
          FROM passes WHERE access_request_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [req.params.id],
@@ -202,7 +209,7 @@ router.post('/', async (req, res, next) => {
     if (visitor_phone !== null && typeof visitor_phone !== 'string') return res.status(400).json({ error: 'visitor_phone must be string or null' });
     if (reason !== null && typeof reason !== 'string') return res.status(400).json({ error: 'reason must be string or null' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO access_requests
          (property_id, created_by_type,
           created_by_resident_id, created_by_staff_id, created_by_contractor_user_id,
@@ -238,7 +245,7 @@ router.post('/', async (req, res, next) => {
 router.post('/:id/submit', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status, created_by_resident_id FROM access_requests WHERE id = $1`,
       [req.params.id],
     );
@@ -249,7 +256,7 @@ router.post('/:id/submit', async (req, res, next) => {
     if (curRows[0].status !== 'new') {
       return res.status(409).json({ error: `Cannot submit from status '${curRows[0].status}'` });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE access_requests SET status = 'pending_approval', updated_at = NOW()
          WHERE id = $1 RETURNING ${AR_COLS}`,
       [req.params.id],
@@ -271,7 +278,7 @@ router.post('/:id/approve', async (req, res, next) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
-  const client = await db.pool.connect();
+  const client = await getTxPool(req).connect();
   try {
     await client.query('BEGIN');
     const { rows: arRows } = await client.query(
@@ -346,7 +353,7 @@ router.post('/:id/reject', async (req, res, next) => {
   const comment = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!comment) return res.status(400).json({ error: 'reason is required' });
 
-  const client = await db.pool.connect();
+  const client = await getTxPool(req).connect();
   try {
     await client.query('BEGIN');
     const { rows: curRows } = await client.query(
@@ -394,7 +401,7 @@ router.post('/:id/reject', async (req, res, next) => {
 router.post('/:id/cancel', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status, created_by_resident_id FROM access_requests WHERE id = $1`,
       [req.params.id],
     );
@@ -405,7 +412,7 @@ router.post('/:id/cancel', async (req, res, next) => {
     if (TERMINAL_STATUSES.has(curRows[0].status)) {
       return res.status(409).json({ error: `Cannot cancel from status '${curRows[0].status}'` });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE access_requests
           SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
         WHERE id = $1 RETURNING ${AR_COLS}`,
@@ -429,7 +436,7 @@ router.post('/:id/escalate', async (req, res, next) => {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM access_requests WHERE id = $1`,
       [req.params.id],
     );
@@ -437,7 +444,7 @@ router.post('/:id/escalate', async (req, res, next) => {
     if (TERMINAL_STATUSES.has(curRows[0].status) || curRows[0].status === 'approved') {
       return res.status(409).json({ error: `Cannot escalate from status '${curRows[0].status}'` });
     }
-    await db.query(
+    await getDb(req).query(
       `INSERT INTO access_approvals
          (access_request_id, approver_type, approver_staff_id, decision, comment)
        VALUES ($1, 'staff', $2, 'escalated', $3)`,

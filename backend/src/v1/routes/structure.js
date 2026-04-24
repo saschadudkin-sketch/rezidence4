@@ -27,6 +27,14 @@ const { isStaff, isAdmin } = require('../lib/authz');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — multi-tenant гейт смонтирован в registerApiRoutes.js на
+// `/api/v1/*` и прикрепляет per-property pool в req.db.  Роут-функции
+// вызывают `getDb(req).query(...)` чтобы:
+//   • прод: использовать tenant pool из propertyDbMiddleware,
+//   • тесты (где роутер mount'ится напрямую, middleware'а нет): fallback
+//     на глобальный db-mock из '../../db' (см. v1Routes.test.js).
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UNIT_TYPES = new Set(['apartment', 'townhouse', 'house', 'commercial', 'utility']);
 
@@ -45,7 +53,7 @@ const isPropertyAdmin = isAdmin;
 // We never block the mutation on audit-insert failure — alerting on audit
 // gaps is part of observability (ROADMAP P0-4), not the request pipeline.
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -67,7 +75,7 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 router.get('/buildings', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT id, property_id, code, name, sort_order, created_at
          FROM buildings
         ORDER BY sort_order ASC, name ASC`,
@@ -87,7 +95,7 @@ router.post('/buildings', async (req, res, next) => {
     if (code !== null && !isNonEmptyString(code, 50)) return res.status(400).json({ error: 'code must be 1–50 chars or null' });
     if (!Number.isInteger(sort_order)) return res.status(400).json({ error: 'sort_order must be integer' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO buildings(property_id, code, name, sort_order)
        VALUES ($1, $2, $3, $4)
        RETURNING id, property_id, code, name, sort_order, created_at`,
@@ -113,7 +121,7 @@ router.get('/buildings/:id/entrances', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid building id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT id, building_id, code, name, sort_order, created_at
          FROM entrances
         WHERE building_id = $1
@@ -135,7 +143,7 @@ router.post('/entrances', async (req, res, next) => {
     if (code !== null && !isNonEmptyString(code, 50)) return res.status(400).json({ error: 'code must be 1–50 chars or null' });
     if (!Number.isInteger(sort_order)) return res.status(400).json({ error: 'sort_order must be integer' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO entrances(building_id, code, name, sort_order)
        VALUES ($1, $2, $3, $4)
        RETURNING id, building_id, code, name, sort_order, created_at`,
@@ -184,7 +192,7 @@ router.get('/units', async (req, res, next) => {
       filters.push(`LOWER(unit_number) LIKE $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at
          FROM units
          ${where}
@@ -201,14 +209,14 @@ router.get('/units/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid unit id' });
-    const { rows: unitRows } = await db.query(
+    const { rows: unitRows } = await getDb(req).query(
       `SELECT id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at
          FROM units WHERE id = $1`,
       [req.params.id],
     );
     if (!unitRows[0]) return res.status(404).json({ error: 'Unit not found' });
 
-    const { rows: residents } = await db.query(
+    const { rows: residents } = await getDb(req).query(
       `SELECT id, full_name, resident_type, is_active, consent_given_at
          FROM residents WHERE unit_id = $1 AND is_active = true
          ORDER BY full_name ASC`,
@@ -236,13 +244,13 @@ router.post('/units', async (req, res, next) => {
 
     // Defense in depth: verify entrance belongs to building so the
     // denormalised fields can never drift from the authoritative FK.
-    const { rows: check } = await db.query(
+    const { rows: check } = await getDb(req).query(
       `SELECT 1 FROM entrances WHERE id = $1 AND building_id = $2`,
       [entrance_id, building_id],
     );
     if (!check[0]) return res.status(400).json({ error: 'entrance does not belong to the given building' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO units(property_id, building_id, entrance_id, unit_number, unit_type, floor)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at`,
@@ -289,7 +297,7 @@ router.patch('/units/:id', async (req, res, next) => {
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE units SET ${sets.join(', ')}
         WHERE id = $${params.length}
         RETURNING id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at`,
@@ -312,7 +320,7 @@ router.post('/units/:id/deactivate', async (req, res, next) => {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid unit id' });
 
-    const { rows: residents } = await db.query(
+    const { rows: residents } = await getDb(req).query(
       `SELECT COUNT(*)::int AS c FROM residents WHERE unit_id = $1 AND is_active = true`,
       [req.params.id],
     );
@@ -320,7 +328,7 @@ router.post('/units/:id/deactivate', async (req, res, next) => {
       return res.status(409).json({ error: 'Cannot deactivate: unit still has active residents', residents: residents[0].c });
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE units SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
     );

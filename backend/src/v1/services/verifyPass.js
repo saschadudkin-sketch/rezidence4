@@ -16,7 +16,7 @@
 //   - guard 30s idempotency применяется ТОЛЬКО к allowed=true
 //     (deny guard может повторять — это и есть suspicious_repeat сигнал)
 
-const db = require('../../db');
+const defaultDb = require('../../db');
 const logger = require('../../logger');
 const { normalizePlate } = require('../lib/normalizePlate');
 
@@ -82,6 +82,12 @@ function resolvePersonLabel(pass, vehicle) {
 /**
  * Main entry point.  Возвращает { verdict, visit_log_id, pass_id, incident_id }.
  * Throws только на инфраструктурные ошибки; business deny — не throw.
+ *
+ * SEC [AUDIT #1]: опциональный `db` в options bag — per-tenant pg.Pool, который
+ * propertyDbMiddleware прикрепляет в req.db.  Когда передан — все
+ * queries/транзакции идут в per-tenant БД.  Fallback — legacy singleton из
+ * '../../db' (DATABASE_URL), чтобы сохранить backward-compat для интеграций
+ * / providerов, которые ещё не носят tenant context.
  */
 async function verifyPass({
   property_id,
@@ -91,7 +97,15 @@ async function verifyPass({
   performed_by_staff_id = null,
   provider_event_id = null,
   occurred_at = null,
+  db: dbArg = null,
 }) {
+  // SEC [AUDIT #1]: per-tenant dispatch.
+  //   dbArg — pg.Pool, приходит из req.db (propertyDbMiddleware).  У Pool есть
+  //     .query() и .connect() напрямую.
+  //   defaultDb — модуль из '../../db', экспортирует { query, pool }.
+  //     .pool.connect() для транзакций.
+  const db = dbArg || defaultDb;
+  const txPool = typeof dbArg?.connect === 'function' ? dbArg : defaultDb.pool;
   if (!property_id) throw new Error('property_id required');
   if (!['qr', 'plate', 'provider'].includes(mode)) throw new Error(`Invalid mode '${mode}'`);
   const now = occurred_at ? new Date(occurred_at) : new Date();
@@ -216,7 +230,7 @@ async function verifyPass({
   }
 
   // ─── Steps 5–8: write, incident, pass.status, audit — все в транзакции ─
-  const client = await db.pool.connect();
+  const client = await txPool.connect();
   try {
     await client.query('BEGIN');
 

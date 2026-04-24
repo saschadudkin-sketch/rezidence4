@@ -62,6 +62,10 @@ const requireOutboxCancel  = requireCapability('outbox:cancel',  { message: 'Adm
 // Fire-and-forget INSERT — audit не должен ломать HTTP-ответ, если audit_log
 // временно недоступен.  Повторяем паттерн announcements/documents routes.
 function audit(req, action, resourceId, changes) {
+  // SEC [AUDIT #1]: audit остаётся на singleton db.query (не req.db).
+  //   • Single-tenant go-live: DATABASE_URL === tenant DB → корректно.
+  //   • Multi-tenant post-launch: TODO — мигрировать на req.db, когда подключён
+  //     второй property и надо гарантировать tenant-isolated audit_log.
   db.query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)

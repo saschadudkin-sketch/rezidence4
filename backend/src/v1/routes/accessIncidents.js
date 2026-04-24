@@ -24,6 +24,10 @@ const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz'
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INCIDENT_TYPES = new Set([
   'expired_pass_attempt', 'invalid_qr', 'blacklist_hit',
@@ -46,7 +50,7 @@ function isNonEmptyString(v, maxLen) {
 }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -106,7 +110,7 @@ router.get('/access-incidents', async (req, res, next) => {
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     const severityOrder = `CASE severity
       WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END`;
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${INCIDENT_COLS} FROM access_incidents ${where}
         ORDER BY ${severityOrder} DESC, created_at DESC LIMIT 500`,
       params,
@@ -120,13 +124,13 @@ router.get('/access-incidents/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${INCIDENT_COLS} FROM access_incidents WHERE id = $1`,
       [req.params.id],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Incident not found' });
 
-    const { rows: ovRows } = await db.query(
+    const { rows: ovRows } = await getDb(req).query(
       `SELECT ${OVERRIDE_COLS} FROM access_overrides
         WHERE incident_id = $1 ORDER BY created_at ASC`,
       [req.params.id],
@@ -163,7 +167,7 @@ router.post('/access-incidents', async (req, res, next) => {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO access_incidents
          (property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
           incident_type, severity, status, title, description, created_by_staff_id)
@@ -198,7 +202,7 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
     const assignee = req.body?.assigned_to_staff_id;
     if (!isValidUuid(assignee)) return res.status(400).json({ error: 'assigned_to_staff_id must be UUID' });
 
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM access_incidents WHERE id = $1`,
       [req.params.id],
     );
@@ -206,7 +210,7 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
     if (TERMINAL_INCIDENT.has(curRows[0].status)) {
       return res.status(409).json({ error: `Cannot assign in status '${curRows[0].status}'` });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE access_incidents
           SET assigned_to_staff_id = $1,
               status = CASE WHEN status = 'open' THEN 'investigating' ELSE status END
@@ -241,7 +245,7 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
     }
   }
 
-  const client = await db.pool.connect();
+  const client = await getTxPool(req).connect();
   try {
     await client.query('BEGIN');
     const { rows: curRows } = await client.query(
@@ -314,7 +318,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
 
-    const { rows: curRows } = await db.query(
+    const { rows: curRows } = await getDb(req).query(
       `SELECT status, assigned_to_staff_id FROM access_incidents WHERE id = $1`,
       [req.params.id],
     );
@@ -327,7 +331,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
         && curRows[0].assigned_to_staff_id !== req.user.uid) {
       return res.status(403).json({ error: 'Incident is assigned to another staff' });
     }
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE access_incidents
           SET status = 'dismissed', resolved_at = NOW(),
               description = COALESCE(description, '') ||
@@ -374,7 +378,7 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
     if (!sets.length) return res.status(400).json({ error: 'No updatable fields provided' });
     params.push(req.params.id);
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE access_incidents SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING ${INCIDENT_COLS}`,
       params,
     );
@@ -418,7 +422,7 @@ router.get('/access-overrides', async (req, res, next) => {
       params.push(String(req.query.to)); filters.push(`created_at <= $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${OVERRIDE_COLS} FROM access_overrides ${where}
         ORDER BY created_at DESC LIMIT 500`,
       params,
@@ -432,7 +436,7 @@ router.get('/access-overrides/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await db.query(`SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(`SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Override not found' });
     res.json({ override: rows[0] });
   } catch (err) { next(err); }
@@ -458,7 +462,7 @@ router.post('/access-overrides', async (req, res, next) => {
     if (!OVERRIDE_TYPES.has(override_type)) return res.status(400).json({ error: 'Invalid override_type' });
     if (!isNonEmptyString(reason, 500)) return res.status(422).json({ error: 'reason is required' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO access_overrides
          (property_id, incident_id, pass_id, performed_by_staff_id, override_type, reason)
        VALUES ($1, $2, $3, $4, $5, $6)

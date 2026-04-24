@@ -30,6 +30,14 @@ const privacyRouter = require('../routes/privacy');
 const requireAuth = require('../middleware/auth');
 const requireFeature = require('../middleware/requireFeature');
 const { deprecate } = require('../middleware/deprecate');
+// SEC [AUDIT #1] — multi-tenant gate.  Прикрепляет per-property `req.db`
+// на каждый /api/v1/* запрос, резолвя tenant через hostname → X-Property-Slug
+// header → JWT `property_slug` claim (см. middleware/propertyDb.js §"Hybrid
+// tenant resolver"). Без этого wiring'а все v1 роуты уходили бы в global
+// `db.pool` (DATABASE_URL) — на go-live Замоскворечья тот pool
+// фактически указывает на Zamoskv DB, но как только появится вторая площадка,
+// запросы к /api/v1/* начали бы случайно попадать в чужие таблицы.
+const { propertyDbMiddleware } = require('../middleware/propertyDb');
 const sse = require('../sse');
 
 // Admin settings (feature flags)
@@ -130,6 +138,23 @@ function registerApiRoutes(app, { rateLimiters }) {
   // endpoint вернул 404 пока legacy_utilities_enabled=false.
   // См. ROADMAP.md §Фаза 6 + RECONCILIATION.md §12 (Вариант B).
   const legacyUtilitiesGate = requireFeature('legacy_utilities_enabled');
+
+  // SEC [AUDIT #1] — mount multi-tenant gate ПЕРЕД всеми /api/v1/* роутерами,
+  // включая /auth (login-фазе тоже нужен tenant context: какую БД проверять
+  // для OTP/refresh).  Middleware:
+  //   • resolves property через hostname → X-Property-Slug → JWT claim
+  //   • 403 при cross-tenant replay (JWT-slug ≠ resolved slug)
+  //   • 404 при неизвестном slug'е, 400 без tenant context
+  //   • 503 при is_active=false
+  //   • attaches req.db (pg.Pool для property.db_connection_url),
+  //     req.property, req.propertySlug, req.propertyResolvedBy.
+  //
+  // Роуты, которые ранее использовали bare `db.query(...)` из '../../db',
+  // мигрированы на паттерн `(req.db || db.pool).query(...)` — при
+  // смонтированном middleware используется per-tenant pool, иначе fallback на
+  // глобальный (backward-compat для прямых integration tests с mount'ом роутера
+  // в обход registerApiRoutes).
+  app.use('/api/v1', propertyDbMiddleware);
 
   app.use('/api/v1/auth', authLimiter, authRouter);
   app.use('/api/v1/requests', requestsRouter);

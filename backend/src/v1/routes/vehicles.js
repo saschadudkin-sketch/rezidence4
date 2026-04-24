@@ -27,6 +27,9 @@ const { normalizePlate } = require('../lib/normalizePlate');
 const router = express.Router();
 router.use(requireAuth);
 
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OWNER_TYPES = new Set(['resident', 'staff', 'contractor', 'guest']);
 const VEHICLE_TYPES = new Set(['car', 'motorcycle', 'truck', 'service_vehicle']);
@@ -39,7 +42,7 @@ function isNonEmptyString(v, maxLen) {
 const isPropertyAdmin = isAdmin;
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
-  db.query(
+  getDb(req).query(
     `INSERT INTO audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -88,7 +91,7 @@ router.get('/', async (req, res, next) => {
       filters.push(`is_blacklisted = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VEHICLE_COLS} FROM vehicles ${where}
         ORDER BY created_at DESC LIMIT 500`,
       params,
@@ -104,7 +107,7 @@ router.get('/by-plate/:plate', async (req, res, next) => {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     const normalized = normalizePlate(req.params.plate);
     if (!normalized) return res.status(400).json({ error: 'Invalid plate' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VEHICLE_COLS} FROM vehicles WHERE plate_number = $1`,
       [normalized],
     );
@@ -118,7 +121,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT ${VEHICLE_COLS} FROM vehicles WHERE id = $1`,
       [req.params.id],
     );
@@ -186,7 +189,7 @@ router.post('/', async (req, res, next) => {
     if (model !== null && !isNonEmptyString(model, 60)) return res.status(400).json({ error: 'model: 1–60 chars or null' });
     if (notes !== null && typeof notes !== 'string') return res.status(400).json({ error: 'notes must be string or null' });
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO vehicles
          (property_id, owner_type, owner_resident_id, owner_staff_id, owner_contractor_user_id,
           plate_number, vehicle_type, color, brand, model, notes)
@@ -220,7 +223,7 @@ router.patch('/:id', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
 
     // Резидент может редактировать только своё; property_admin — любое.
-    const { rows: currentRows } = await db.query(
+    const { rows: currentRows } = await getDb(req).query(
       `SELECT owner_resident_id FROM vehicles WHERE id = $1`,
       [req.params.id],
     );
@@ -259,7 +262,7 @@ router.patch('/:id', async (req, res, next) => {
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE vehicles SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING ${VEHICLE_COLS}`,
       params,
     );
@@ -274,7 +277,7 @@ router.post('/:id/whitelist', async (req, res, next) => {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE vehicles SET is_whitelisted = true, is_blacklisted = false, updated_at = NOW()
          WHERE id = $1 RETURNING ${VEHICLE_COLS}`,
       [req.params.id],
@@ -302,7 +305,7 @@ router.post('/:id/blacklist', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     if (!reason) return res.status(400).json({ error: 'reason is required' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE vehicles SET is_blacklisted = true, is_whitelisted = false, updated_at = NOW()
          WHERE id = $1 RETURNING ${VEHICLE_COLS}`,
       [req.params.id],
@@ -326,7 +329,7 @@ router.post('/:id/clear-flags', async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE vehicles SET is_whitelisted = false, is_blacklisted = false, updated_at = NOW()
          WHERE id = $1 RETURNING ${VEHICLE_COLS}`,
       [req.params.id],
@@ -350,7 +353,7 @@ router.delete('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
 
-    const { rows: ownerCheck } = await db.query(
+    const { rows: ownerCheck } = await getDb(req).query(
       `SELECT owner_resident_id FROM vehicles WHERE id = $1`,
       [req.params.id],
     );
@@ -361,7 +364,7 @@ router.delete('/:id', async (req, res, next) => {
 
     // Check history.  passes.subject_vehicle_id is ON DELETE RESTRICT in БД —
     // мы отвечаем 409 заранее, чтобы не ловить 500.
-    const { rows: histRows } = await db.query(
+    const { rows: histRows } = await getDb(req).query(
       `SELECT
          (SELECT COUNT(*)::int FROM passes WHERE subject_vehicle_id = $1) AS passes_count,
          (SELECT COUNT(*)::int FROM access_requests WHERE vehicle_id = $1) AS requests_count`,
@@ -375,7 +378,7 @@ router.delete('/:id', async (req, res, next) => {
       });
     }
 
-    await db.query(`DELETE FROM vehicles WHERE id = $1`, [req.params.id]);
+    await getDb(req).query(`DELETE FROM vehicles WHERE id = $1`, [req.params.id]);
     auditLog(req, {
       action: 'vehicle.deleted',
       resourceType: 'vehicle',
