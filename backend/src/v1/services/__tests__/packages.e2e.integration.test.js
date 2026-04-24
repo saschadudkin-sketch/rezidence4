@@ -43,7 +43,7 @@ const {
   RECEIVE_CHANNELS, PICKUP_CONFIRM_CHANNELS,
 } = require('../packages');
 const outboxWorker = require('../../workers/outboxWorker');
-const { V1_PROPERTY_MIGRATIONS } = require('../../migrations');
+const { applyV1Migrations, seedFixture, cleanupFixture } = require('./_fixtures');
 
 describeIfPg('platform-v1 integration e2e: packages receive → pickup', () => {
   /** @type {Pool} */
@@ -224,113 +224,6 @@ describeIfPg('platform-v1 integration e2e: packages receive → pickup', () => {
   }, 30_000);
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-// Дубликаты из announcements.e2e.integration.test.js — можно будет вынести в
-// backend/src/v1/services/__tests__/_fixtures.js когда появится 3-й файл.
-
-async function applyV1Migrations(pool) {
-  const client = await pool.connect();
-  try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        id     TEXT PRIMARY KEY,
-        run_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-    for (const m of V1_PROPERTY_MIGRATIONS) {
-      const { rowCount } = await client.query(
-        'SELECT 1 FROM schema_migrations WHERE id = $1',
-        [m.id],
-      );
-      if (rowCount) continue;
-      await client.query('BEGIN');
-      try {
-        await m.up(client);
-        await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [m.id]);
-        await client.query('COMMIT');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw new Error(`migration ${m.id} failed: ${err.message}`);
-      }
-    }
-  } finally {
-    client.release();
-  }
-}
-
-async function seedFixture(pool, { residentCount = 1 } = {}) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const { rows: [{ pid }] } = await client.query(`SELECT gen_random_uuid() AS pid`);
-
-    const { rows: [building] } = await client.query(
-      `INSERT INTO buildings (property_id, name) VALUES ($1, 'E2E Pkg Building') RETURNING id`,
-      [pid],
-    );
-    const { rows: [entrance] } = await client.query(
-      `INSERT INTO entrances (building_id, name) VALUES ($1, 'E2E Pkg Entrance') RETURNING id`,
-      [building.id],
-    );
-    const { rows: [unit] } = await client.query(
-      `INSERT INTO units (property_id, building_id, entrance_id, unit_number)
-       VALUES ($1, $2, $3, '1')
-       RETURNING id`,
-      [pid, building.id, entrance.id],
-    );
-    const { rows: [staff] } = await client.query(
-      `INSERT INTO staff_users (property_id, full_name, email, role)
-       VALUES ($1, 'E2E Pkg Staff',
-               'e2e-pkg-staff-' || substr($1::text, 1, 8) || '@test.local',
-               'concierge')
-       RETURNING id`,
-      [pid],
-    );
-    const residentIds = [];
-    for (let i = 0; i < residentCount; i++) {
-      const { rows: [r] } = await client.query(
-        `INSERT INTO residents (property_id, unit_id, full_name, phone, is_active)
-         VALUES ($1, $2, $3, $4, true)
-         RETURNING id`,
-        [pid, unit.id, `Pkg Resident ${i}`, `+79000001${String(i).padStart(3, '0')}`],
-      );
-      residentIds.push(r.id);
-    }
-    await client.query('COMMIT');
-    return {
-      propertyId: pid,
-      buildingId: building.id,
-      entranceId: entrance.id,
-      unitId: unit.id,
-      staffId: staff.id,
-      residentIds,
-    };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
-async function cleanupFixture(pool, propertyId) {
-  await pool.query(
-    `DELETE FROM notification_log_v2
-      WHERE outbox_id IN (
-        SELECT id FROM notifications_outbox WHERE property_id = $1
-      )`,
-    [propertyId],
-  );
-  await pool.query(`DELETE FROM notifications_outbox WHERE property_id = $1`, [propertyId]);
-  await pool.query(`DELETE FROM packages_v2 WHERE property_id = $1`, [propertyId]);
-  await pool.query(`DELETE FROM announcements_v2 WHERE property_id = $1`, [propertyId]);
-  await pool.query(`DELETE FROM residents WHERE property_id = $1`, [propertyId]);
-  await pool.query(`DELETE FROM units WHERE property_id = $1`, [propertyId]);
-  await pool.query(
-    `DELETE FROM entrances
-      WHERE building_id IN (SELECT id FROM buildings WHERE property_id = $1)`,
-    [propertyId],
-  );
-  await pool.query(`DELETE FROM buildings WHERE property_id = $1`, [propertyId]);
-  await pool.query(`DELETE FROM staff_users WHERE property_id = $1`, [propertyId]);
-}
+// Helpers — applyV1Migrations / seedFixture / cleanupFixture — вынесены
+// в ./_fixtures.js, там же seed для building/entrance/unit/staff/residents
+// + unified cleanup для packages_v2 + announcements_v2 + notification_*.
