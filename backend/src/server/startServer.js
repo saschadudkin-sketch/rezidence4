@@ -8,7 +8,7 @@ const { startOutboxRunner } = require('../v1/workers/outboxRunner');
 const { startScheduledFanoutRunner } = require('../v1/workers/scheduledFanoutRunner');
 const { startPackageSlaRunner } = require('../v1/workers/packageSlaRunner');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
-const { getPropertyPool } = require('../middleware/propertyDb');
+const { getPropertyPool, closeAllPools } = require('../middleware/propertyDb');
 
 async function startServer({ app, db, config }) {
   await db.assertSchemaCurrent();
@@ -94,8 +94,15 @@ async function startServer({ app, db, config }) {
 
     try { sse.closeAll(); } catch {}
 
-    server.close(() => {
+    server.close(async () => {
       logger.info('[server] HTTP server closed');
+      // AUDIT #5: closeAllPools() обязан вызываться в shutdown — иначе
+      // per-tenant pg.Pool'ы (LRU из middleware/propertyDb.js) остаются
+      // открытыми, их сокеты зависают в CLOSE_WAIT, и сам postgres через
+      // несколько перезапусков упирается в max_connections.  Legacy db.pool
+      // закрывается отдельно — это singleton из require('../db').
+      await closeAllPools().catch((err) =>
+        logger.warn({ err: err.message }, '[server] property pools close failed'));
       db.pool.end(() => {
         logger.info('[server] DB pool closed');
         process.exit(0);

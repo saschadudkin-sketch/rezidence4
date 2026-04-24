@@ -12,6 +12,21 @@ const config = getAppConfig(process.env);
 validateConfig(process.env, config.isProd);
 initBackendSentry();
 
+// AUDIT #6: crash-only на unhandled error — без этих хэндлеров process
+// просто молча падает с exit-code 1 без лога → alerting не видит причину,
+// а с Sentry-init'ом выше мы ещё и теряем stack.  Container orchestrator
+// (docker/compose → systemd) перезапустит — это ожидаемый цикл recovery.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logger.fatal({ err }, '[fatal] unhandledRejection');
+  // flush Pino async transport и exit non-zero, чтобы runtime заметил crash
+  setTimeout(() => process.exit(1), 100).unref();
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, '[fatal] uncaughtException');
+  setTimeout(() => process.exit(1), 100).unref();
+});
+
 const app = createApp({ config, db });
 
 async function start() {

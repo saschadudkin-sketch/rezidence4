@@ -19,11 +19,17 @@ const logger = require('../../../logger');
  * Low-level helper — static POST в Bot API.  Вынесен отдельно, чтобы тесты
  * могли подменить `fetch` без замены всего adapter'а.
  */
+// AUDIT #7: Telegram API без timeout = outbox-runner висит на slow api.telegram.org
+// и не обрабатывает очередь.  AbortSignal.timeout(10s) доступен в Node ≥ 17.3.
+// 10 секунд = ~2× p99 Telegram sendMessage latency по Cloudflare Radar.
+const TELEGRAM_API_TIMEOUT_MS = 10_000;
+
 async function callTelegramApi(botToken, chatId, text) {
   const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    signal: AbortSignal.timeout(TELEGRAM_API_TIMEOUT_MS),
   });
   return res.json();
 }
