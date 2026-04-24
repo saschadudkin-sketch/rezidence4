@@ -12,13 +12,17 @@ import type {
   ListAccessRequestsParams,
   ListAdminAnnouncementsParams,
   ListAnnouncementsParams,
+  ListDocumentsParams,
   ListIncidentsParams,
+  ListMinePackagesParams,
   ListOverridesParams,
+  ListPackagesParams,
   ListPassesParams,
   ListResidentsParams,
   ListUnitsParams,
   ListVehiclesParams,
   ListVisitsParams,
+  PackageMetricsParams,
 } from '../api';
 import type { UUID } from '../api/types';
 
@@ -75,6 +79,24 @@ export const qk = {
     byId: (id: UUID) => ['v1', 'announcements', 'byId', id] as const,
     metrics: (id: UUID) => ['v1', 'announcements', 'metrics', id] as const,
   },
+  packages: {
+    all: ['v1', 'packages'] as const,
+    list: (p?: ListPackagesParams) => ['v1', 'packages', 'list', p ?? null] as const,
+    mine: (p?: ListMinePackagesParams) => ['v1', 'packages', 'mine', p ?? null] as const,
+    metrics: (p?: PackageMetricsParams) =>
+      ['v1', 'packages', 'metrics', p ?? null] as const,
+    byId: (id: UUID) => ['v1', 'packages', 'byId', id] as const,
+  },
+  documents: {
+    all: ['v1', 'documents'] as const,
+    list: (p?: ListDocumentsParams) => ['v1', 'documents', 'list', p ?? null] as const,
+    byId: (id: UUID) => ['v1', 'documents', 'byId', id] as const,
+    versions: (id: UUID) => ['v1', 'documents', 'versions', id] as const,
+    version: (id: UUID, version: number) =>
+      ['v1', 'documents', 'version', id, version] as const,
+    public: (slug: string, limit?: number) =>
+      ['v1', 'documents', 'public', slug, limit ?? null] as const,
+  },
 };
 
 // ─── Invalidators ──────────────────────────────────────────────────────────
@@ -121,5 +143,34 @@ export function invalidateAnnouncement(qc: QueryClient, id: UUID): Promise<void>
     qc.invalidateQueries({ queryKey: qk.announcements.byId(id) }),
     qc.invalidateQueries({ queryKey: qk.announcements.all }),
     qc.invalidateQueries({ queryKey: qk.announcements.metrics(id) }),
+  ]).then(() => undefined);
+}
+
+/**
+ * Invalidates the full packages namespace — one row change can flip:
+ *   - the detail query (byId)
+ *   - every list query (status filter, carrier filter, etc.)
+ *   - the resident's /mine list (if recipient matches)
+ *   - aggregate metrics (status counts and dwell times)
+ * Cheap enough to just nuke `packages.all` plus the per-id detail key.
+ */
+export function invalidatePackage(qc: QueryClient, id: UUID): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.packages.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.packages.all }),
+  ]).then(() => undefined);
+}
+
+/**
+ * Invalidates everything related to one document:
+ *   - detail query
+ *   - all list queries (public/staff/resident all share the namespace)
+ *   - its version history (a PATCH inserts a new snapshot)
+ */
+export function invalidateDocument(qc: QueryClient, id: UUID): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.documents.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.documents.all }),
+    qc.invalidateQueries({ queryKey: qk.documents.versions(id) }),
   ]).then(() => undefined);
 }

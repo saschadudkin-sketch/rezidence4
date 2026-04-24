@@ -407,6 +407,137 @@ export interface Announcement {
   updated_at: IsoDateTime | null;
 }
 
+// ─── Packages (packages_v2) ────────────────────────────────────────────────
+// Source: backend/src/v1/routes/packages.js + services/packages.js.
+// Spec:   docs/product/specs/platform-v1/packages-v2-spec.md §2-§5.
+//
+// State machine §3: awaiting_pickup → {picked_up, returned, lost}. All
+// terminal transitions; 409 if caller tries to move out of a terminal state.
+// CHECK constraints on the DB enforce pickup_identity_exclusive /
+// pickup_identity_required — frontend prevents setting both fields but the
+// backend is the source of truth on 400s.
+
+export type PackageStatus =
+  | 'awaiting_pickup'
+  | 'picked_up'
+  | 'returned'
+  | 'lost';
+
+export type PackageSize =
+  | 'envelope'
+  | 'small'
+  | 'medium'
+  | 'large'
+  | 'oversize';
+
+export interface Package {
+  id: UUID;
+  property_id: UUID;
+  unit_id: UUID;
+  recipient_resident_id: UUID | null;
+  recipient_name_snapshot: string | null;
+  sender_name: string | null;
+  carrier: string | null;
+  tracking_number: string | null;
+  photo_url: string | null;
+  size_category: PackageSize | null;
+  received_at: IsoDateTime;
+  received_by_staff_id: UUID;
+  storage_location: string | null;
+  status: PackageStatus;
+  picked_up_at: IsoDateTime | null;
+  picked_up_by_resident_id: UUID | null;
+  picked_up_by_name: string | null;
+  picked_up_by_staff_id: UUID | null;
+  returned_at: IsoDateTime | null;
+  returned_reason: string | null;
+  notes: string | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+/** Aggregated package metrics response — `GET /api/v1/packages/metrics?period=...`. */
+export interface PackageMetrics {
+  period: '24h' | '7d' | '30d';
+  totals: Record<PackageStatus, number>;
+  received: number;
+  picked_up: number;
+  awaiting_pickup: number;
+  median_dwell_hours: number | null;
+  /** Backend may add new aggregates; index-signature keeps FE forward-compat. */
+  [key: string]: unknown;
+}
+
+// ─── Documents (documents_v2) ──────────────────────────────────────────────
+// Source: backend/src/v1/routes/documents.js + services/documents.js.
+// Spec:   docs/product/specs/platform-v1/documents-v2-spec.md §2-§5.
+//
+// Static content: rules, УК contacts, instructions, contracts, safety, legal.
+// No outbox / no fan-out (пассивный справочник).
+// Snapshot-on-PATCH: every body_md/title/file_url change inserts a
+// document_versions row (history tracked by backend, not a separate
+// resource here — fetched via the admin sub-router).
+// Concierge capability: write только в contacts/instructions; admin — везде.
+// Public endpoint скрывает legal/contracts даже при is_public=true.
+
+export type DocumentCategory =
+  | 'rules'
+  | 'contacts'
+  | 'instructions'
+  | 'contracts'
+  | 'safety'
+  | 'legal'
+  | 'other';
+
+/**
+ * Derived client-side status for displaying badges.  Mirrors the service's
+ * (published_at, deleted_at) combinations.
+ */
+export type DocumentStatus = 'draft' | 'published' | 'deleted';
+
+export interface V1Document {
+  id: UUID;
+  property_id: UUID;
+  title: string;
+  category: DocumentCategory;
+  tag: string | null;
+  body_md: string | null;
+  file_url: string | null;
+  file_mime: string | null;
+  file_size_bytes: number | null;
+  is_public: boolean;
+  sort_order: number;
+  published_at: IsoDateTime | null;
+  created_by_staff_id: UUID | null;
+  updated_by_staff_id: UUID | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+  deleted_at: IsoDateTime | null;
+}
+
+/**
+ * Snapshot row from `document_versions`.  `version` is monotonic per document
+ * (1 = first edit recorded, i.e. the state before that edit).  Only visible
+ * to admin via `/api/v1/admin/documents/:id/versions`.
+ */
+export interface DocumentVersion {
+  id: UUID;
+  document_id: UUID;
+  version: number;
+  title: string;
+  category: DocumentCategory;
+  tag: string | null;
+  body_md: string | null;
+  file_url: string | null;
+  file_mime: string | null;
+  file_size_bytes: number | null;
+  is_public: boolean;
+  sort_order: number;
+  changed_by_staff_id: UUID | null;
+  reason: string | null;
+  created_at: IsoDateTime;
+}
+
 // ─── Composite response shapes (exactly what the backend returns) ──────────
 
 export interface AccessRequestDetailResponse {

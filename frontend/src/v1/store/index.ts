@@ -18,6 +18,8 @@ export {
   qk,
   invalidateAccessRequest,
   invalidateAnnouncement,
+  invalidateDocument,
+  invalidatePackage,
   invalidatePass,
   invalidateVehicle,
 } from './queryKeys';

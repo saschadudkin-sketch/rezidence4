@@ -21,6 +21,8 @@ import { unitsApi } from './units';
 import { residentsApi } from './residents';
 import { sessionApi } from './session';
 import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './announcements';
+import { packagesApi, packageStatusTone } from './packages';
+import { documentsApi, deriveDocumentStatus } from './documents';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -32,10 +34,14 @@ export const api = {
   residents: residentsApi,
   session: sessionApi,
   announcements: announcementsApi,
+  packages: packagesApi,
+  documents: documentsApi,
 };
 
 export { normalizePlate };
 export { deriveAnnouncementStatus };
+export { packageStatusTone };
+export { deriveDocumentStatus };
 
 export type {
   ListAccessRequestsParams,
@@ -58,3 +64,20 @@ export type {
   UpdateAnnouncementBody,
   AnnouncementReachMetrics,
 } from './announcements';
+export type {
+  ListPackagesParams,
+  ListMinePackagesParams,
+  PackageMetricsParams,
+  PackageMetricsPeriod,
+  CreatePackageBody,
+  UpdatePackageBody,
+  PickupPackageBody,
+  ReturnPackageBody,
+  MarkLostPackageBody,
+} from './packages';
+export type {
+  ListDocumentsParams,
+  ListPublicDocumentsParams,
+  CreateDocumentBody,
+  UpdateDocumentBody,
+} from './documents';

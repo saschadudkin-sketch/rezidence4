@@ -43,6 +43,8 @@ import { ResidentAccessPage } from './pages/ResidentAccessPage';
 import { GuardConsolePage } from './pages/GuardConsolePage';
 import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
 import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
+import { PackagesAdminPage } from './pages/PackagesAdminPage';
+import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
 import {
   Alert,
   Button,
@@ -96,6 +98,22 @@ export function V1Router() {
           element={
             <RoleGate allow={CONCIERGE_ALLOW}>
               <AnnouncementsAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="packages"
+          element={
+            <RoleGate allow={CONCIERGE_ALLOW}>
+              <PackagesAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="documents"
+          element={
+            <RoleGate allow={CONCIERGE_ALLOW}>
+              <DocumentsAdminPage />
             </RoleGate>
           }
         />
@@ -178,6 +196,12 @@ function ConciergeLanding() {
             </Button>
             <Button variant="secondary" onClick={() => navigate('/v1/announcements')}>
               Объявления
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/v1/packages')}>
+              Посылки
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/v1/documents')}>
+              Документы
             </Button>
             <Button variant="ghost" onClick={() => navigate('/')}>
               Главная консоль
