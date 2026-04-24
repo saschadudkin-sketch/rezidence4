@@ -52,6 +52,12 @@
 | [notification-templates-v2](./notification-templates-v2-spec.md) | Draft (централизованное хранилище текстов уведомлений + mustache-lite rendering; P3 в Phase 6) |
 | [legacy-utilities-freeze](./legacy-utilities-freeze-spec.md) | Draft (platform-level freeze-gate для meters/billing/bookings/chat до пост-релиза; P4 в Phase 6) |
 
+### Фаза 7 — Go-live (первый production tenant)
+
+| Документ | Статус |
+|---|---|
+| [go-live-zamoskv-runbook](./go-live-zamoskv-runbook.md) | Draft (preflight T-7, deploy T-1, seed УК, smoke-test, DNS cutover, rollback; P5a) |
+
 **Фаза 5 не покрытая спеками (rename, делается миграцией без отдельного spec-файла):**
 - `property_audit_log` — rename из legacy `audit_log` + `actor_type`/`entity_type`/`entity_id`. Миграция в `backend/src/v1/migrations/` при старте Phase 5, отдельный spec-файл не нужен.
 
