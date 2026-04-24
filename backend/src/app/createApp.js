@@ -49,6 +49,24 @@ function createApp({ config, db }) {
     credentials: true,
   }));
 
+  // AUDIT #8: state-changing методы без Origin отклоняются на /api/*.
+  // `cors()` выше разрешает no-Origin для server-to-server (cron, health
+  // probe), но браузер ВСЕГДА ставит Origin на POST/PUT/PATCH/DELETE.
+  // Отсутствие Origin на state-changing = сканер/CSRF-like attempt →
+  // 403 до того, как запрос долетит до authZ/CSRF.  Safe methods
+  // (GET/HEAD/OPTIONS) пропускаются — observability/probes работают.
+  app.use('/api/', (req, res, next) => {
+    const safe = req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS';
+    if (!safe && !req.headers.origin) {
+      logger.warn(
+        { method: req.method, path: req.path, ip: req.ip },
+        '[cors] rejecting no-Origin state-changing request',
+      );
+      return res.status(403).json({ error: 'Origin header required for state-changing requests' });
+    }
+    next();
+  });
+
   app.use(express.json({ limit: '64kb' }));
   app.use(cookieParser());
   app.use((req, res, next) => {
@@ -87,7 +105,17 @@ function createApp({ config, db }) {
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line no-unused-vars
   app.use((err, req, res, _next) => {
-    logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+    // SEC: в production не логируем полный stack trace — он раскрывает пути файлов
+    // и версии фреймворков. Для алертов достаточно кода ошибки и requestId.
+    if (config.isProd) {
+      logger.error(
+        { errorCode: err.code, status: err.status, requestId: req?.requestId },
+        '[error] %s',
+        err.message || 'Internal server error',
+      );
+    } else {
+      logger.error({ err, requestId: req?.requestId }, '[error] %s', err.message || err);
+    }
     captureException(err, {
       requestId: req?.requestId,
       method: req?.method,

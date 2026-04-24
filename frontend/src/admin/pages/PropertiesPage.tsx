@@ -3,15 +3,55 @@ import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import s from '../styles.module.css';
 
+// Phase 1 (D-lite) wire format.  The backend returns many more fields after
+// migration 004 — we surface the ones that matter on the list + detail pages.
+// See: platformMigrations 004, docs/product/specs/platform-v1/README.md.
+type PropertyType = 'residential_complex' | 'club_house' | 'cottage_community';
+type PropertyStatus = 'active' | 'suspended' | 'maintenance' | 'terminated';
+type PropertyPlan = 'core' | 'pro' | 'enterprise';
+
 interface Property {
   id: string;
   slug: string;
   name: string;
   address: string | null;
-  plan: string;
+  plan: PropertyPlan | string;
   hostname: string | null;
   is_active: boolean;
+  // New in 004 — nullable while the migration is fresh on envs that might
+  // still be on an older backend, but the new API always populates them.
+  property_type?: PropertyType;
+  status?: PropertyStatus;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  management_company_id?: string | null;
   created_at: string;
+}
+
+interface ManagementCompanyOption {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
+  residential_complex: 'ЖК',
+  club_house: 'Клубный дом',
+  cottage_community: 'Коттеджный посёлок',
+};
+
+const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
+  active: 'активен',
+  suspended: 'приостановлен',
+  maintenance: 'обслуживание',
+  terminated: 'закрыт',
+};
+
+function statusBadgeClass(status: PropertyStatus | undefined): string {
+  // Only 'active' gets the green/ok badge.  Everything else reads as
+  // "not serving traffic" in the UI and shares the neutral/off colour.
+  if (status === 'active') return `${s.badge} ${s.badgeOk}`;
+  return `${s.badge} ${s.badgeOff}`;
 }
 
 export function PropertiesPage() {
@@ -59,6 +99,7 @@ export function PropertiesPage() {
               <tr>
                 <th>Название</th>
                 <th>Slug</th>
+                <th>Тип</th>
                 <th>Hostname</th>
                 <th>Тариф</th>
                 <th>Статус</th>
@@ -69,12 +110,17 @@ export function PropertiesPage() {
                 <tr key={p.id}>
                   <td><Link to={`/properties/${p.slug}`}>{p.name}</Link></td>
                   <td><code>{p.slug}</code></td>
+                  <td>
+                    {p.property_type
+                      ? <span className={s.badge}>{PROPERTY_TYPE_LABELS[p.property_type]}</span>
+                      : <span className={s.badge}>—</span>}
+                  </td>
                   <td>{p.hostname || <span className={s.badge}>—</span>}</td>
                   <td><span className={s.badge}>{p.plan}</span></td>
                   <td>
-                    {p.is_active
-                      ? <span className={`${s.badge} ${s.badgeOk}`}>активен</span>
-                      : <span className={`${s.badge} ${s.badgeOff}`}>отключён</span>}
+                    <span className={statusBadgeClass(p.status)}>
+                      {p.status ? PROPERTY_STATUS_LABELS[p.status] : (p.is_active ? 'активен' : 'отключён')}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -87,12 +133,42 @@ export function PropertiesPage() {
 }
 
 function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
+  // Defaults match what the POST route assumes when a field is omitted
+  // (plan='core', property_type='residential_complex', status='active').
+  // Keeping them here makes the form's intent obvious at a glance.
   const [form, setForm] = useState({
-    slug: '', name: '', address: '', db_connection_url: '',
-    plan: 'standard', timezone: 'Europe/Moscow', contact_email: '', contact_phone: '',
+    slug: '',
+    name: '',
+    address: '',
+    db_connection_url: '',
+    plan: 'core',
+    timezone: 'Europe/Moscow',
+    contact_email: '',
+    contact_phone: '',
+    property_type: 'residential_complex' as PropertyType,
+    status: 'active' as PropertyStatus,
+    logo_url: '',
+    primary_color: '',
+    management_company_id: '' as string,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mcOptions, setMcOptions] = useState<ManagementCompanyOption[]>([]);
+
+  // Load MC list once — the form offers them as an optional dropdown.
+  // Failure is non-fatal: admins can leave the field empty and assign later.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { managementCompanies } = await api.get<{ managementCompanies: ManagementCompanyOption[] }>(
+          '/management-companies?status=active',
+        );
+        setMcOptions(managementCompanies);
+      } catch {
+        setMcOptions([]);
+      }
+    })();
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -109,6 +185,11 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
         timezone: form.timezone,
         contact_email: form.contact_email.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
+        property_type: form.property_type,
+        status: form.status,
+        logo_url: form.logo_url.trim() || null,
+        primary_color: form.primary_color.trim() || null,
+        management_company_id: form.management_company_id || null,
       });
       onCreated();
     } catch (err) {
@@ -136,6 +217,23 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
           <div className={s.hint}>Латиница, цифры, дефисы, 3-50 символов</div>
         </div>
         <div className={s.formRow}>
+          <label>Тип объекта</label>
+          <select className={s.select} value={form.property_type} onChange={upd('property_type')}>
+            <option value="residential_complex">ЖК</option>
+            <option value="club_house">Клубный дом</option>
+            <option value="cottage_community">Коттеджный посёлок</option>
+          </select>
+        </div>
+        <div className={s.formRow}>
+          <label>Начальный статус</label>
+          <select className={s.select} value={form.status} onChange={upd('status')}>
+            <option value="active">активен</option>
+            <option value="maintenance">обслуживание</option>
+            <option value="suspended">приостановлен</option>
+          </select>
+          <div className={s.hint}>Обычно создаётся в «обслуживание», пока грузят данные</div>
+        </div>
+        <div className={s.formRow}>
           <label>Адрес</label>
           <input className={s.input} value={form.address} onChange={upd('address')} />
         </div>
@@ -146,8 +244,8 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
         <div className={s.formRow}>
           <label>Тариф</label>
           <select className={s.select} value={form.plan} onChange={upd('plan')}>
-            <option value="standard">standard</option>
-            <option value="premium">premium</option>
+            <option value="core">core</option>
+            <option value="pro">pro</option>
             <option value="enterprise">enterprise</option>
           </select>
         </div>
@@ -162,6 +260,26 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
         <div className={s.formRow}>
           <label>Контакт — телефон</label>
           <input className={s.input} value={form.contact_phone} onChange={upd('contact_phone')} />
+        </div>
+        <div className={s.formRow}>
+          <label>Управляющая компания</label>
+          <select className={s.select} value={form.management_company_id} onChange={upd('management_company_id')}>
+            <option value="">— не назначена —</option>
+            {mcOptions.map((mc) => (
+              <option key={mc.id} value={mc.id}>{mc.name}</option>
+            ))}
+          </select>
+          <div className={s.hint}>Можно оставить пустым и назначить позже</div>
+        </div>
+        <div className={s.formRow}>
+          <label>Логотип (URL)</label>
+          <input className={s.input} value={form.logo_url} onChange={upd('logo_url')} placeholder="https://cdn.…/logo.png" />
+          <div className={s.hint}>Только https://, ≤ 2048 символов</div>
+        </div>
+        <div className={s.formRow}>
+          <label>Основной цвет</label>
+          <input className={s.input} value={form.primary_color} onChange={upd('primary_color')} placeholder="#7c3aed" />
+          <div className={s.hint}>CSS-цвет, например #7c3aed или named</div>
         </div>
       </div>
       <button type="submit" className={s.btn} disabled={submitting}>

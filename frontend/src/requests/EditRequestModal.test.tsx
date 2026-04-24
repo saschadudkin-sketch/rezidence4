@@ -114,22 +114,29 @@ describe('EditRequestModal', () => {
     });
   });
 
-  test('пустое имя → patch.visitorName = null', async () => {
+  test('пустое имя → patch.visitorName = undefined (поле не меняется)', async () => {
     render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByDisplayValue('Иван Гостев'), { target: { value: '' } });
     fireEvent.click(screen.getByText('Сохранить'));
     await waitFor(() => {
       const patch = services.requests.updateEverywhere.mock.calls[0][0].patch;
-      expect(patch.visitorName).toBeNull();
+      // Компонент использует `cleanName || undefined` — пустая строка → undefined,
+      // то есть "не переопределять значение" (не null-clear).
+      expect(patch.visitorName).toBeUndefined();
     });
   });
 
-  test('ошибка при сохранении показывает toast error', async () => {
+  test('ошибка при сохранении показывает toast error (через presentError)', async () => {
+    // Error без .status → classifyHttpError возвращает NETWORK, и presentError
+    // отдаёт контекст-специфичную network-копию для request.update.
     services.requests.updateEverywhere.mockRejectedValueOnce(new Error('Network error'));
     render(<EditRequestModal req={makeReq()} onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.click(screen.getByText('Сохранить'));
     await waitFor(() => {
-      expect(toast).toHaveBeenCalledWith('Не удалось сохранить изменения', 'error');
+      expect(toast).toHaveBeenCalledWith(
+        expect.stringContaining('Изменение сохранено локально'),
+        'error',
+      );
     });
   });
 

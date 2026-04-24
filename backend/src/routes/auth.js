@@ -194,6 +194,18 @@ router.post('/verify-otp', async (req, res, next) => {
 
     if (!code || code.length < 4) return res.status(400).json({ error: 'Неверный код' });
 
+    // SEC: проверяем lockout — если телефон заблокирован после 5 неудачных попыток
+    const _redis = getRedis();
+    if (_redis) {
+      try {
+        const locked = await _redis.get(`otp:lock:${phone}`);
+        if (locked) {
+          appMetrics.incrementCounter('otpVerifyFailed');
+          return res.status(429).json({ error: 'Слишком много неудачных попыток. Подождите 15 минут.' });
+        }
+      } catch { /* Redis недоступен — продолжаем без lockout */ }
+    }
+
     // FIX [КРИТ-4]: счётчик попыток — brute-force защита для /verify-otp
     // FIX [КРИТ-5]: атомарный UPDATE RETURNING — защита от race condition TOCTOU
     //   Берём все активные НЕиспользованные коды, проверяем хэш, атомарно помечаем.
@@ -222,6 +234,29 @@ router.post('/verify-otp', async (req, res, next) => {
          WHERE phone=$1 AND expires_at > NOW() AND used=FALSE AND attempts < 5`,
         [phone],
       );
+
+      // SEC: если Redis доступен — инкрементируем lockout-счётчик по номеру.
+      // После OTP_VERIFY_LOCKOUT_MAX неудач блокируем телефон на OTP_VERIFY_LOCKOUT_SEC.
+      // Это предотвращает смену OTP (send-otp) и повторный brute-force.
+      const OTP_VERIFY_LOCKOUT_MAX = 5;
+      const OTP_VERIFY_LOCKOUT_SEC = 900; // 15 минут
+      const _redisFail = getRedis();
+      if (_redisFail) {
+        try {
+          const lockKey = `otp:lock:${phone}`;
+          const failKey = `otp:fail:${phone}`;
+          const fails = await _redisFail.incr(failKey);
+          if (fails === 1) await _redisFail.expire(failKey, OTP_VERIFY_LOCKOUT_SEC);
+          if (fails >= OTP_VERIFY_LOCKOUT_MAX) {
+            await _redisFail.set(lockKey, '1', 'EX', OTP_VERIFY_LOCKOUT_SEC);
+            await _redisFail.del(failKey);
+            logger.warn({ phone: phone.slice(0, -4) + '****' }, '[verify-otp] phone locked after repeated failures');
+          }
+        } catch (redisErr) {
+          logger.warn({ err: redisErr }, '[verify-otp] redis lockout update failed');
+        }
+      }
+
       appMetrics.incrementCounter('otpVerifyFailed');
       return res.status(401).json({ error: 'Неверный или истёкший код' });
     }
@@ -346,9 +381,11 @@ router.post('/refresh', async (req, res, next) => {
 
     const uid = rows[0].uid;
     const { rows: users } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar, property_slug
-       FROM users
-       WHERE uid=$1 AND deleted_at IS NULL`, [uid],
+      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
+              p.id AS property_id
+       FROM users u
+       LEFT JOIN properties p ON p.slug = u.property_slug
+       WHERE u.uid = $1 AND u.deleted_at IS NULL`, [uid],
     );
     if (!users.length) return res.status(404).json({ error: 'User not found' });
 
@@ -361,13 +398,22 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 // ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+//
+// LEFT JOIN resolves property_id from property_slug so the v1 frontend can
+// hand it straight to /visits/verify and /vehicles.list without making a
+// second trip.  Returns property_id=null for users with no tenant context
+// (shouldn't happen in practice — users.property_slug is NOT NULL in schema —
+// but LEFT JOIN keeps /me from 404'ing if the property row was deleted
+// out from under a live session).
 
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT uid, phone, name, role, apartment, avatar, property_slug
-       FROM users
-       WHERE uid=$1 AND deleted_at IS NULL`,
+      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
+              p.id AS property_id
+       FROM users u
+       LEFT JOIN properties p ON p.slug = u.property_slug
+       WHERE u.uid = $1 AND u.deleted_at IS NULL`,
       [req.user.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });

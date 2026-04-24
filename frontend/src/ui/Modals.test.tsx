@@ -31,9 +31,9 @@ vi.mock('./scrollLock', () => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe('AddUserModal', () => {
-  test('рендерится с заголовком "Новый жилец"', () => {
+  test('рендерится с заголовком "Новый собственник" (default role = owner)', () => {
     render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
-    expect(screen.getByText('Новый жилец')).toBeInTheDocument();
+    expect(screen.getByText('Новый собственник')).toBeInTheDocument();
   });
 
   test('поля Имя, Телефон, Роль, Апартамент присутствуют', () => {
@@ -60,7 +60,7 @@ describe('AddUserModal', () => {
   test('пустое имя показывает toast error', async () => {
     render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916 777-88-99' } });
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText('Добавить пользователя'));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Введите имя', 'error');
     });
@@ -70,7 +70,7 @@ describe('AddUserModal', () => {
     render(<AddUserModal onClose={vi.fn()} onDone={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('Иван Иванов'), { target: { value: 'Иван' } });
     fireEvent.change(screen.getByPlaceholderText('+7 000 000-00-00'), { target: { value: '+7 916' } });
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText('Добавить пользователя'));
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith('Введите корректный номер телефона', 'error');
     });
@@ -93,7 +93,7 @@ describe('AddUserModal', () => {
 
     // FIX: убрана искусственная задержка 400мс из AddUserModal.submit(),
     // поэтому timeout: 1000 больше не нужен — операция синхронная
-    fireEvent.click(screen.getByText('Добавить'));
+    fireEvent.click(screen.getByText('Добавить пользователя'));
 
     await waitFor(() => {
       expect(mockAddUser).toHaveBeenCalledWith(

@@ -22,11 +22,25 @@ async function platformAuth(req, res, next) {
 
   let payload;
   try {
-    payload = jwt.verify(token, process.env.PLATFORM_JWT_SECRET);
+    // SEC [AUDIT #2]: алгоритм закреплён HS256 — без pinning jsonwebtoken по
+    // умолчанию принимает любой `alg` из заголовка токена (включая `none` и
+    // RS256→HS256 confusion если PLATFORM_JWT_SECRET когда-либо окажется
+    // pub-key'ом). Это параллельный баг к auth.js:155, который уже pin'ит.
+    payload = jwt.verify(token, process.env.PLATFORM_JWT_SECRET, { algorithms: ['HS256'] });
   } catch (err) {
     logger.warn({ err }, '[platformAuth] token verification failed');
     return res.status(401).json({
       error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+    });
+  }
+
+  // SEC [AUDIT #3]: явный audience-дискриминатор — даже если PLATFORM_JWT_SECRET
+  // случайно окажется равным JWT_SECRET (см. config/appConfig.js guard), токен
+  // резидента не пройдёт, потому что в нём aud != 'platform'.
+  if (payload.aud !== 'platform') {
+    logger.warn({ aud: payload.aud, id: payload.id }, '[platformAuth] wrong audience');
+    return res.status(401).json({
+      error: { code: 'UNAUTHORIZED', message: 'Token not scoped for platform' },
     });
   }
 

@@ -437,4 +437,11 @@ module.exports = {
   getUserSubscriptions,
   getPropertyUsers,
   logNotification,
+  // Exposed for platform-v1 notificationDispatcher (Phase 5): same
+  // event→channel map and message builders remain the single source of
+  // truth in both paths (legacy inline and v1 outbox).
+  buildMessages,
+  EVENT_CHANNELS,
+  getBroadcastRoles,
+  getUserById,
 };

@@ -6,6 +6,9 @@ import s from './styles.module.css';
 const LINKS: Array<{ to: string; label: string; end?: boolean }> = [
   { to: '/', label: 'Обзор', end: true },
   { to: '/properties', label: 'Объекты' },
+  // Phase 1 (D-lite): MC section is visible but empty on go-live;  see
+  // ROADMAP.md §"Фаза 1".
+  { to: '/management-companies', label: 'УК' },
   { to: '/admins',     label: 'Админы' },
   { to: '/audit',      label: 'Журнал' },
 ];

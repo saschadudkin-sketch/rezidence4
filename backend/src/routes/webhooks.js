@@ -42,7 +42,7 @@ function validateUuid(req, res, next) {
 async function writeAudit(db, actorUid, actorRole, action, resourceId, changes) {
   try {
     await db.query(
-      `INSERT INTO audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes)
+      `INSERT INTO property_audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes)
        VALUES ($1, $2, $3, 'webhook', $4, $5)`,
       [actorUid, actorRole, action, resourceId, JSON.stringify(changes)],
     );

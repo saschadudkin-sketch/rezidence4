@@ -214,6 +214,100 @@ async function processWebhooks(db, property) {
   }
 }
 
+// ─── notificationsOutboxRetention ────────────────────────────────────────────
+// Spec: notifications-outbox-spec.md §2 (retention).  Две TTL-политики:
+//
+//   sent:   default 30 дней с sent_at      (успешно доставленные — аудит-хвост)
+//   dead:   default 90 дней с last_attempted_at
+//                                           (постоянно failed — нужен дольше,
+//                                            чтобы операторы успели
+//                                            изучить причину)
+//
+// Ключевые особенности:
+//   • DELETE батчами по NOTIFICATIONS_OUTBOX_RETENTION_BATCH (500), чтобы
+//     большой backlog не локал таблицу часами.  За один tick обрабатываем
+//     ОБА status'а, но каждый из них - отдельным DELETE with CTE/subquery
+//     (Postgres не поддерживает LIMIT в DELETE напрямую).
+//   • status='dead' без last_attempted_at теоретически невозможен, но на
+//     всякий случай используем COALESCE(last_attempted_at, created_at).
+//   • Retention = 0 (env variable) → функция пропускает соответствующий
+//     DELETE; позволяет отключить TTL для status отдельно (например, в dev).
+//   • Ошибки swallow'ятся — interval никогда не должен ломаться.
+
+const NOTIFICATIONS_OUTBOX_SENT_RETENTION_DAYS = Number(
+  process.env.NOTIFICATIONS_OUTBOX_SENT_RETENTION_DAYS || 30,
+);
+const NOTIFICATIONS_OUTBOX_DEAD_RETENTION_DAYS = Number(
+  process.env.NOTIFICATIONS_OUTBOX_DEAD_RETENTION_DAYS || 90,
+);
+const NOTIFICATIONS_OUTBOX_RETENTION_BATCH = 500;
+
+async function notificationsOutboxRetentionSweep(db, property) {
+  const sentDays = NOTIFICATIONS_OUTBOX_SENT_RETENTION_DAYS;
+  const deadDays = NOTIFICATIONS_OUTBOX_DEAD_RETENTION_DAYS;
+  if (!Number.isFinite(sentDays) || !Number.isFinite(deadDays)) return;
+  if (sentDays <= 0 && deadDays <= 0) return; // оба отключены
+
+  let sentDeleted = 0;
+  let deadDeleted = 0;
+
+  if (sentDays > 0) {
+    try {
+      const { rowCount } = await db.query(
+        `DELETE FROM notifications_outbox
+          WHERE id IN (
+            SELECT id FROM notifications_outbox
+             WHERE status = 'sent'
+               AND sent_at IS NOT NULL
+               AND sent_at < NOW() - ($1 || ' days')::INTERVAL
+             LIMIT $2
+          )`,
+        [String(sentDays), NOTIFICATIONS_OUTBOX_RETENTION_BATCH],
+      );
+      sentDeleted = rowCount || 0;
+    } catch (err) {
+      logger.error(
+        { err, property: property?.slug },
+        '[outbox-retention] sent sweep failed',
+      );
+    }
+  }
+
+  if (deadDays > 0) {
+    try {
+      const { rowCount } = await db.query(
+        `DELETE FROM notifications_outbox
+          WHERE id IN (
+            SELECT id FROM notifications_outbox
+             WHERE status = 'dead'
+               AND COALESCE(last_attempted_at, created_at) < NOW() - ($1 || ' days')::INTERVAL
+             LIMIT $2
+          )`,
+        [String(deadDays), NOTIFICATIONS_OUTBOX_RETENTION_BATCH],
+      );
+      deadDeleted = rowCount || 0;
+    } catch (err) {
+      logger.error(
+        { err, property: property?.slug },
+        '[outbox-retention] dead sweep failed',
+      );
+    }
+  }
+
+  if (sentDeleted > 0 || deadDeleted > 0) {
+    logger.info(
+      {
+        sentDeleted,
+        deadDeleted,
+        sentRetentionDays: sentDays,
+        deadRetentionDays: deadDays,
+        property: property?.slug,
+      },
+      '[outbox-retention] expired outbox rows removed',
+    );
+  }
+}
+
 function startRuntimeJobs({ db, property }) {
   const cleanupJob = setInterval(async () => {
     try {
@@ -353,6 +447,15 @@ function startRuntimeJobs({ db, property }) {
   const photoRetentionTimer = setInterval(runPhotoRetention, 60 * 60 * 1000);
   photoRetentionTimer.unref();
 
+  // Notifications outbox retention: каждый час удаляет sent rows старше
+  // NOTIFICATIONS_OUTBOX_SENT_RETENTION_DAYS (30) и dead rows старше
+  // NOTIFICATIONS_OUTBOX_DEAD_RETENTION_DAYS (90).  Работает батчами по
+  // NOTIFICATIONS_OUTBOX_RETENTION_BATCH (500); за несколько tick'ов
+  // дренирует backlog без монополизации пула.
+  const runOutboxRetention = () => notificationsOutboxRetentionSweep(db, property);
+  const outboxRetentionTimer = setInterval(runOutboxRetention, 60 * 60 * 1000);
+  outboxRetentionTimer.unref();
+
   return {
     stop() {
       clearInterval(cleanupJob);
@@ -364,6 +467,7 @@ function startRuntimeJobs({ db, property }) {
       clearInterval(packageReminderTimer);
       clearInterval(webhookDeliveryTimer);
       clearInterval(photoRetentionTimer);
+      clearInterval(outboxRetentionTimer);
     },
   };
 }
@@ -376,4 +480,5 @@ module.exports = {
   sendPackageReminders,
   processWebhooks,
   photoRetentionSweep,
+  notificationsOutboxRetentionSweep,
 };

@@ -1,0 +1,248 @@
+'use strict';
+
+// platform-v1 Visits route — /api/v1/visits.
+// Spec: docs/product/specs/platform-v1/visit-logs-spec.md
+//       docs/product/specs/platform-v1/qr-verification-spec.md
+// Phase: 3 (Access-core).
+//
+// Append-only журнал событий прохода/проезда + verify endpoint для guard-console.
+// Все UPDATE/DELETE запрещены на уровне route (нет соответствующих методов);
+// корректировки — только через access_overrides (отдельный endpoint на
+// accessIncidents route).
+//
+// Legacy `/api/v1/visit-logs` (старый роут) продолжает работать на таблице
+// `visit_logs` до cut-over в Фазе 7.  Здесь работаем с `visit_logs_v2`.
+
+const express = require('express');
+const db = require('../../db');
+const logger = require('../../logger');
+const requireAuth = require('../../middleware/auth');
+const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
+const { verifyPass } = require('../services/verifyPass');
+
+const router = express.Router();
+router.use(requireAuth);
+
+// SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
+const getDb = (req) => req.db || db;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EVENT_TYPES = new Set([
+  'entry_allowed', 'entry_denied', 'exit_allowed', 'exit_denied',
+  'manual_admit', 'manual_deny', 'override',
+]);
+const EVENT_SOURCES = new Set(['domhub', 'skud', 'guard_console', 'import']);
+
+function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
+// Shim: re-export из authz под именем, которого ждут legacy callsites.
+const isSecurity = isSecurityAuthz;
+function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+
+const VL_COLS = `
+  id, property_id, pass_id, access_point_id, event_type, event_source,
+  person_label, vehicle_plate, performed_by_staff_id,
+  provider_event_id, provider_payload, occurred_at, created_at
+`;
+
+// ─── POST /api/v1/visits/verify ──────────────────────────────────────────────
+// Главный endpoint guard-console.  Возвращает 200 OK { allowed } вне
+// зависимости от verdict'а — deny это валидный бизнес-ответ.
+router.post('/verify', async (req, res, next) => {
+  try {
+    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    const { property_id, mode, token = null, plate = null, occurred_at = null } = req.body || {};
+    if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!['qr', 'plate'].includes(mode)) return res.status(400).json({ error: "mode must be 'qr' or 'plate'" });
+    if (mode === 'qr' && (typeof token !== 'string' || token.length < 16)) {
+      return res.status(400).json({ error: 'token required for mode=qr' });
+    }
+    if (mode === 'plate' && (typeof plate !== 'string' || !plate.trim())) {
+      return res.status(400).json({ error: 'plate required for mode=plate' });
+    }
+    if (occurred_at && !isValidIso(occurred_at)) {
+      return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
+    }
+
+    const result = await verifyPass({
+      db: req.db || null,     // SEC [AUDIT #1]: per-tenant dispatch
+      property_id,
+      mode,
+      token,
+      plate,
+      performed_by_staff_id: req.user.uid,
+      occurred_at,
+    });
+
+    // Обогащаем ответ pass-info если pass нашёлся (для UI guard-console).
+    let passInfo = null;
+    if (result.pass_id) {
+      const { rows } = await getDb(req).query(
+        `SELECT id, pass_type, status, valid_from, valid_until FROM passes WHERE id = $1`,
+        [result.pass_id],
+      );
+      if (rows[0]) passInfo = rows[0];
+    }
+
+    res.json({
+      allowed: result.verdict.allowed,
+      reason: result.verdict.reason,
+      visit_log_id: result.visit_log_id,
+      incident_id: result.incident_id,
+      pass: passInfo,
+    });
+  } catch (err) {
+    logger.error({ err }, '[v1/visits] verify failed');
+    next(err);
+  }
+});
+
+// ─── POST /api/v1/visits ─────────────────────────────────────────────────────
+// Прямой INSERT события — для internal services, import, manual admit без
+// цикла verify-pass.  Обычные guard-console сканы идут через /verify.
+router.post('/', async (req, res, next) => {
+  try {
+    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    const {
+      property_id, pass_id = null, event_type, event_source,
+      person_label = null, vehicle_plate = null,
+      provider_event_id = null, provider_payload = null,
+      occurred_at = null,
+    } = req.body || {};
+
+    if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!EVENT_TYPES.has(event_type)) return res.status(400).json({ error: 'Invalid event_type' });
+    if (!EVENT_SOURCES.has(event_source)) return res.status(400).json({ error: 'Invalid event_source' });
+    if (pass_id && !isValidUuid(pass_id)) return res.status(400).json({ error: 'pass_id must be UUID or null' });
+    if (occurred_at && !isValidIso(occurred_at)) return res.status(400).json({ error: 'occurred_at must be ISO-8601' });
+
+    const normalizedPlate = vehicle_plate ? normalizePlate(vehicle_plate) : null;
+    const occurredAtIso = occurred_at || new Date().toISOString();
+
+    const { rows } = await getDb(req).query(
+      `INSERT INTO visit_logs_v2
+         (property_id, pass_id, event_type, event_source,
+          person_label, vehicle_plate, performed_by_staff_id,
+          provider_event_id, provider_payload, occurred_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING ${VL_COLS}`,
+      [
+        property_id, pass_id, event_type, event_source,
+        person_label, normalizedPlate, req.user.uid,
+        provider_event_id, provider_payload ? JSON.stringify(provider_payload) : null,
+        occurredAtIso,
+      ],
+    );
+    res.status(201).json({ visit_log: rows[0] });
+  } catch (err) {
+    if (err && err.code === '23505') {
+      // provider_event_id unique conflict — идемпотентный вебхук, вернуть существующую строку
+      if (req.body?.provider_event_id) {
+        const { rows } = await getDb(req).query(
+          `SELECT ${VL_COLS} FROM visit_logs_v2
+            WHERE event_source = $1 AND provider_event_id = $2`,
+          [req.body.event_source, req.body.provider_event_id],
+        );
+        if (rows[0]) return res.status(200).json({ visit_log: rows[0], idempotent: true });
+      }
+      return res.status(409).json({ error: 'duplicate visit log' });
+    }
+    next(err);
+  }
+});
+
+// ─── GET /api/v1/visits ──────────────────────────────────────────────────────
+router.get('/', async (req, res, next) => {
+  try {
+    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const filters = [];
+    const params = [];
+    if (req.query.pass_id) {
+      if (!isValidUuid(req.query.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
+      params.push(req.query.pass_id); filters.push(`pass_id = $${params.length}`);
+    }
+    if (req.query.vehicle_plate) {
+      params.push(normalizePlate(String(req.query.vehicle_plate)));
+      filters.push(`vehicle_plate = $${params.length}`);
+    }
+    if (req.query.event_type) {
+      if (!EVENT_TYPES.has(req.query.event_type)) return res.status(400).json({ error: 'Invalid event_type' });
+      params.push(req.query.event_type); filters.push(`event_type = $${params.length}`);
+    }
+    if (req.query.from) {
+      if (!isValidIso(String(req.query.from))) return res.status(400).json({ error: 'Invalid from' });
+      params.push(req.query.from); filters.push(`occurred_at >= $${params.length}`);
+    }
+    if (req.query.to) {
+      if (!isValidIso(String(req.query.to))) return res.status(400).json({ error: 'Invalid to' });
+      params.push(req.query.to); filters.push(`occurred_at <= $${params.length}`);
+    }
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const { rows } = await getDb(req).query(
+      `SELECT ${VL_COLS} FROM visit_logs_v2 ${where}
+        ORDER BY occurred_at DESC LIMIT 500`,
+      params,
+    );
+    res.json({ visit_logs: rows });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/v1/visits/by-pass/:pass_id ─────────────────────────────────────
+router.get('/by-pass/:pass_id', async (req, res, next) => {
+  try {
+    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!isValidUuid(req.params.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
+    const { rows } = await getDb(req).query(
+      `SELECT ${VL_COLS} FROM visit_logs_v2
+        WHERE pass_id = $1
+        ORDER BY occurred_at DESC LIMIT 500`,
+      [req.params.pass_id],
+    );
+    res.json({ visit_logs: rows });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/v1/visits/by-plate/:plate ──────────────────────────────────────
+router.get('/by-plate/:plate', async (req, res, next) => {
+  try {
+    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const normalized = normalizePlate(req.params.plate);
+    if (!normalized) return res.status(400).json({ error: 'Invalid plate' });
+    if (!looksLikeRuPlate(normalized) && normalized.length < 3) {
+      return res.status(400).json({ error: 'Plate too short' });
+    }
+    const { rows } = await getDb(req).query(
+      `SELECT ${VL_COLS} FROM visit_logs_v2
+        WHERE vehicle_plate = $1
+        ORDER BY occurred_at DESC LIMIT 500`,
+      [normalized],
+    );
+    res.json({ plate: normalized, visit_logs: rows });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /api/v1/visits/:id ──────────────────────────────────────────────────
+// Детали + linked incident (если есть).  Держим в самом конце, чтобы
+// `/by-pass/:pass_id` и `/by-plate/:plate` не перехватывались.
+router.get('/:id', async (req, res, next) => {
+  try {
+    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const { rows } = await getDb(req).query(
+      `SELECT ${VL_COLS} FROM visit_logs_v2 WHERE id = $1`,
+      [req.params.id],
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Visit log not found' });
+
+    const { rows: incRows } = await getDb(req).query(
+      `SELECT id, incident_type, severity, status, title, created_at
+         FROM access_incidents
+        WHERE related_visit_log_id = $1
+        ORDER BY created_at DESC`,
+      [req.params.id],
+    );
+    res.json({ visit_log: rows[0], incidents: incRows });
+  } catch (err) { next(err); }
+});
+
+module.exports = router;

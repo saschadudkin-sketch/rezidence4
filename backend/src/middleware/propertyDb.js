@@ -146,6 +146,24 @@ async function getProperty(slug) {
 async function getPropertyByHostname(hostname) {
   if (!hostname) return null;
 
+  // AUDIT #10: Host header не доверенный источник — express берёт его as-is
+  // из req.headers.host, и с `trust proxy=1` клиент может послать любой Host.
+  // PLATFORM_ALLOWED_HOSTNAME_SUFFIX задаёт белый список доменных суффиксов
+  // (напр. "domhub.app") — остальные hostname отбрасываются до похода в БД,
+  // чтобы вредоносный Host не замусорил hostnameCache и не попал в запрос
+  // SELECT * FROM properties (DoS через кэш-заливку).
+  //   • Если env НЕ задана → валидация выключена (dev / legacy).
+  //   • Кастомные домены (residence.example.com) добавить via PLATFORM_ALLOWED_HOSTNAMES
+  //     future-work — сейчас первый tenant на поддомене домена платформы.
+  const allowedSuffix = process.env.PLATFORM_ALLOWED_HOSTNAME_SUFFIX;
+  if (allowedSuffix) {
+    const ok = hostname === allowedSuffix || hostname.endsWith(`.${allowedSuffix}`);
+    if (!ok) {
+      logger.warn({ hostname, allowedSuffix }, '[propertyDb] hostname outside allowed suffix');
+      return null;
+    }
+  }
+
   const cached = hostnameCache.get(hostname);
   if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
     return cached.property;

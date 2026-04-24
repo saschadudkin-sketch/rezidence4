@@ -21,6 +21,10 @@ async function query(sql, params) {
 }
 
 const { MIGRATIONS, LATEST_MIGRATION_ID } = require('./dbMigrations');
+// platform-v1 property-DB migrations (Фаза 2+).  Run after the legacy array
+// so legacy tables exist before any v1 FK that might later reference them.
+// IDs are prefixed `v1_` and never collide with legacy IDs in schema_migrations.
+const { V1_PROPERTY_MIGRATIONS } = require('./v1/migrations');
 
 // Platform database pool for property registry
 let platformPool = null;
@@ -62,7 +66,10 @@ async function migrate() {
   const appliedIds = new Set(applied.map(r => r.id));
 
   let ran = 0;
-  for (const migration of MIGRATIONS) {
+  // Legacy + v1 migrations share `schema_migrations` so idempotency is
+  // tracked uniformly; the v1 prefix guarantees no ID collision.
+  const ALL_MIGRATIONS = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS];
+  for (const migration of ALL_MIGRATIONS) {
     if (appliedIds.has(migration.id)) {
       logger.info(`[migrate] skip ${migration.id} (already applied)`);
       continue;

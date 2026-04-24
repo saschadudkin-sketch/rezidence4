@@ -13,7 +13,7 @@ describe('permissions tab access guards', () => {
 
   test('getTabsForRole returns configured order', () => {
     expect(getTabsForRole(ROLES.ADMIN)).toEqual([
-      'stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat',
+      'stats', 'requests', 'users', 'residents', 'perms', 'visitlog', 'blacklist', 'chat', 'features',
     ]);
   });
 });

@@ -1,0 +1,55 @@
+groups:
+  - name: rezidence.notifications
+    rules:
+      # ── Package SLA runner ────────────────────────────────────────────────
+      # Воркер status='awaiting_pickup' >14 дней → 'returned' раз в час.
+      # Если gauge >0 держится полчаса — runner застрял или env отключил
+      # NOTIFICATIONS_OUTBOX_ENABLED.  Пейджим, потому что посылки копятся
+      # физически в комнате консьержа.
+      - alert: RezPackageSlaRunnerStuck
+        expr: package_sla_awaiting_pickup_over_14d > 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: Package SLA runner stuck — packages overdue for auto-return
+          runbook_url: /docs/runbooks/alerts.md#rezpackageslarunnerstuck
+
+      # Reminders не идут: кандидаты есть (over_7d > 0), но за 24 часа ни
+      # одного push'а не было.  Может значить: outbox-runner остановлен,
+      # dispatcher падает, все каналы отключены.  Не paging — warning,
+      # реминдер не критичен.
+      - alert: RezPackageRemindersNotFlowing
+        expr: package_sla_reminders_sent_24h == 0 and package_sla_awaiting_pickup_over_7d > 0
+        for: 2h
+        labels:
+          severity: warning
+        annotations:
+          summary: Pickup reminders not flowing despite due packages
+          runbook_url: /docs/runbooks/alerts.md#rezpackageremindersnotflowing
+
+      # ── Notifications outbox (общая очередь) ──────────────────────────────
+      # Старая pending-строка держится в очереди >10 минут.  Индикатор,
+      # что outbox-worker стал или канал лежит.  threshold 600 сек = 10 мин
+      # соответствует разумному SLA для push.
+      - alert: RezOutboxPendingStuck
+        expr: notifications_outbox_oldest_pending_age_seconds > 600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Outbox has pending rows older than 10 minutes
+          runbook_url: /docs/runbooks/alerts.md#rezoutboxpendingstuck
+
+      # Dead rows — строки, которые worker отказался переслать.  Сам по
+      # себе один dead не страшен, но если их много за сутки — паттерн
+      # сбоя (неверная VAPID-конфигурация, упавший SMS-провайдер и т.д.).
+      # 20 dead за час = паттерн, не случайность.
+      - alert: RezOutboxDeadRowsRising
+        expr: sum(increase(notifications_outbox_dead[1h])) > 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Outbox dead rows rising — likely a broken channel
+          runbook_url: /docs/runbooks/alerts.md#rezoutboxdeadrowsrising

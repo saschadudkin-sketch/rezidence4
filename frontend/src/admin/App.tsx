@@ -5,6 +5,8 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PropertiesPage } from './pages/PropertiesPage';
 import { PropertyDetailPage } from './pages/PropertyDetailPage';
+import { ManagementCompaniesPage } from './pages/ManagementCompaniesPage';
+import { ManagementCompanyDetailPage } from './pages/ManagementCompanyDetailPage';
 import { AdminsPage } from './pages/AdminsPage';
 import { AuditLogPage } from './pages/AuditLogPage';
 import { Shell } from './Shell';
@@ -50,6 +52,8 @@ function AppRoutes() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/properties" element={<PropertiesPage />} />
         <Route path="/properties/:slug" element={<PropertyDetailPage />} />
+        <Route path="/management-companies" element={<ManagementCompaniesPage />} />
+        <Route path="/management-companies/:slug" element={<ManagementCompanyDetailPage />} />
         <Route path="/admins" element={<AdminsPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

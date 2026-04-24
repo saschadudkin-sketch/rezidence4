@@ -29,19 +29,20 @@ export { Toggle } from './Toggle/Toggle';
 export type { ToggleProps, ToggleSize } from './Toggle/Toggle';
 
 // Legacy components (existing)
-export { default as AppIcon } from './AppIcon';
-export { default as AvatarCircle } from './AvatarCircle';
+// NB: these modules use named exports — do not revert to `default as X`.
+export { AppIcon } from './AppIcon';
+export { AvatarCircle } from './AvatarCircle';
 export { default as BadgeStatus } from './BadgeStatus';
-export { default as ConfirmDialog } from './ConfirmDialog';
+export { ConfirmDialog } from './ConfirmDialog';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as ErrorRecoveryPanel } from './ErrorRecoveryPanel';
-export { default as Modals } from './Modals';
+export { AddUserModal, AvatarModal } from './Modals';
 export { default as PageActionBar } from './PageActionBar';
-export { default as PhotoLightbox } from './PhotoLightbox';
+export { PhotoLightbox } from './PhotoLightbox';
 export { default as SectionHeader } from './SectionHeader';
-export { default as SkeletonList } from './SkeletonList';
+export { SkeletonList } from './SkeletonList';
 export { default as SlaDashboard } from './SlaDashboard';
 export { default as StateBlock } from './StateBlock';
 export { default as Toasts } from './Toasts';
 export { default as ViewStateAdapter } from './ViewStateAdapter';
-export { default as VirtualList } from './VirtualList';
+export { VirtualList } from './VirtualList';

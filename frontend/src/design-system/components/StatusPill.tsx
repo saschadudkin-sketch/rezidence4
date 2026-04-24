@@ -3,7 +3,7 @@
  * Status indicators for request lifecycle states
  */
 
-import { HTMLAttributes, ReactNode } from 'react';
+import { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 
 export type RequestStatus =
   | 'pending'
@@ -65,7 +65,7 @@ export function StatusPill({
   };
 
   // Status variant styles
-  const statusStyles: Record<RequestStatus, any> = {
+  const statusStyles: Record<RequestStatus, CSSProperties> = {
     pending: {
       backgroundColor: 'rgba(251,191,36,0.1)',
       color: 'var(--color-warning)',

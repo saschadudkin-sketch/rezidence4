@@ -20,10 +20,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # SEC [AUDIT #13]: внутренний network — БД недоступна напрямую ни frontend'у,
+    # ни (случайно прокинутыми) host portforward'ами.  Только backend и backup
+    # могут её видеть по docker DNS.
+    networks:
+      - internal
     deploy:
       resources:
         limits:
           memory: 1g
+          cpus: "1.0"
 
   # ── Redis (SSE pub/sub + idempotency cache + token revocation) ────────────────
   redis:
@@ -44,10 +50,16 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    # SEC [AUDIT #13]: Redis — только internal.  Session-revocation list,
+    # rate-limit counters, SSE pub/sub не должны быть доступны frontend'у
+    # напрямую (только через backend).
+    networks:
+      - internal
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "0.25"
 
   # ── Backend (Node.js API) ─────────────────────────────────────────────────────
   backend:
@@ -61,11 +73,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # SEC [AUDIT #7]: env_file пробрасывает ВСЕ переменные из .env (PLATFORM_*,
+    # ZAMOSKV_*, VAPID_*, SENTRY_DSN, REFRESH_LEGACY_*, SSE_MAX_CONNECTIONS,
+    # SMSRU_FALLBACK_API_ID, CONTACT_EMAIL) без явного перечисления.  Явные
+    # entries ниже перекрывают .env значения — это те, что зависят от compose-
+    # scoped переменных (DB_PASSWORD, REDIS_PASSWORD и т.п.).
+    env_file:
+      - .env
     environment:
       DATABASE_URL:  postgresql://residenze:${DB_PASSWORD}@db:5432/residenze
+      # SEC [AUDIT #7]: platform-v1 DSN-ы пересобираются из DB_PASSWORD, чтобы
+      # пароль в .env хранился один раз.  Если ZAMOSKV_DB_URL / PLATFORM_DB_URL
+      # заданы в .env напрямую — env_file выше уже их подхватит (эти строки
+      # не применяются, если переменная отсутствует в .env).
+      PLATFORM_DB_URL: ${PLATFORM_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/platform}
+      ZAMOSKV_DB_URL:  ${ZAMOSKV_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/zamoskv}
       # FIX [AUDIT]: Redis URL теперь содержит пароль
       REDIS_URL:     redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET:    ${JWT_SECRET}
+      PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:?PLATFORM_JWT_SECRET must be set}
       # Время жизни access token задаётся в backend/src/routes/auth.js
       # (ACCESS_TOKEN_EXPIRES = '15m'). JWT_EXPIRES здесь не используется — удалён.
       SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
@@ -91,14 +117,20 @@ services:
         max-size: "50m"
         max-file: "5"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/api/health', r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/health', r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
       interval: 30s
       timeout: 5s
       retries: 3
+    # SEC [AUDIT #13]: backend — bridge между internal (db/redis) и public
+    # (frontend / исходящий internet для SMS/Telegram/web-push API).
+    networks:
+      - internal
+      - public
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "1.0"
 
   # ── Frontend (React + nginx) ──────────────────────────────────────────────────
   frontend:
@@ -119,12 +151,13 @@ services:
       ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
     ports:
       - "80:80"
-      # Раскомментируйте для HTTPS (требуется certbot + nginx.prod.conf):
-      # - "443:443"
-    # Uncomment for HTTPS after certificates are issued on the host.
-    # volumes:
-    #   - /etc/letsencrypt:/etc/letsencrypt:ro
-    #   - /var/www/certbot:/var/www/certbot:ro
+    # SEC [AUDIT #6]: HTTPS (443 + letsencrypt volumes) вынесены в
+    # docker-compose.prod.yml overlay — запускать prod через:
+    #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+    # Раньше 443 и volumes были закомментированы inline, что в runbook'е
+    # приводило к расхождению между "ENABLE_HTTPS=true" в .env и реальным
+    # отсутствием binding'а — nginx слушал 80, certbot выдавал cert, но
+    # HTTPS-запросы валились с Connection refused.
     # DO-04: nginx log rotation — без ограничений access.log при 1000 req/day = GB за неделю
     logging:
       driver: "json-file"
@@ -138,6 +171,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # SEC [AUDIT #13]: frontend только в public — не может достучаться до db
+    # или redis (и не должен; proxies всё через backend).
+    networks:
+      - public
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
 
   # ── Резервное копирование БД ──────────────────────────────────────────────────
   # FIX [AUDIT]: заменён sleep-цикл на настоящий cron через busybox crond.
@@ -160,25 +201,68 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${DB_PASSWORD}
+      # SEC [AUDIT #5]: три БД бекапятся, не одна.  При добавлении нового
+      # tenant'а — дописать его slug сюда (порядок: legacy residenze,
+      # platform registry, per-property DB).  Переопределить через .env если
+      # нужен другой список.
+      BACKUP_DATABASES: ${BACKUP_DATABASES:-residenze platform zamoskv}
     volumes:
       - ./backups:/backups
       - ./backup.sh:/backup.sh:ro
     # busybox crond: -f (foreground), -d 8 (log level: notice)
     # crontab передаётся через stdin — не нужен отдельный файл
+    #
+    # SEC [AUDIT #11]: bind-mount ./backups:/backups на новых инсталляциях
+    # создаётся docker'ом как root:root 755 — pg_dump от root это устраивает,
+    # но если оператор вручную создаёт директорию под другим UID (типичная
+    # ошибка на первом deploy), backup.sh падает с "permission denied" и
+    # инкремент тихо не создаётся.  Жёстко нормализуем при старте:
+    #   - mkdir гарантирует наличие.
+    #   - chmod 0700 — только root (owner контейнера) читает/пишет.  Бекапы
+    #     содержат ВСЕ данные жильцов (phone, unit_id, packages, chat) —
+    #     world-readable недопустимо.
     entrypoint:
       - sh
       - -c
       - |
+        mkdir -p /backups
+        chmod 0700 /backups
         chmod +x /backup.sh
         # Создаём crontab: 03:00 UTC каждый день
         echo "0 3 * * * /backup.sh >> /var/log/backup.log 2>&1" | crontab -
-        echo "[backup] cron scheduled: daily at 03:00 UTC"
+        echo "[backup] cron scheduled: daily at 03:00 UTC, BACKUP_DIR=/backups (0700)"
         # Запускаем crond в foreground
         exec crond -f -d 8
+    # SEC [AUDIT #13]: backup видит только БД (internal), исходящий internet
+    # ему не нужен.
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
 
 volumes:
   db_data:
   uploads:
+
+# SEC [AUDIT #13]: две разделённые docker-сети.
+#
+# internal — db, redis, backup, backend (только backend-side).  Без
+# `internal: true` оставляем, потому что backend сидит в обеих сетях и
+# делает outbound (sms.ru, api.telegram.org, VAPID push endpoints).  Лишать
+# всю internal сеть интернета нельзя — backend потеряет исходящие вызовы.
+# Защита здесь — не фильтр egress, а недоступность db/redis для frontend:
+# frontend не подключён к `internal` и физически не может открыть TCP на
+# db:5432 или redis:6379.
+#
+# public — frontend + backend.  Через эту сеть идут только нужные
+# HTTP-запросы frontend → backend.
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge
 
 # ── HTTPS (SEC-3) ─────────────────────────────────────────────────────────────
 # Перед production обязательно включить HTTPS:
