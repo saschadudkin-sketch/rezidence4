@@ -31,7 +31,12 @@ const rateLimit = require('express-rate-limit');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const {
+  isAdmin,
+  isStaffOrAdmin,
+  isResidentUser,
+  requireCapability,
+} = require('../lib/authz');
 const {
   listForTenant,
   listForResident,
@@ -53,9 +58,8 @@ router.use(requireAuth);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isAdmin(req) { return req.user && req.user.role === 'admin'; }
-function isStaffOrAdmin(req) { return req.user && (isStaff(req.user.role) || req.user.role === 'admin'); }
-function isResident(req) { return req.user && req.user.role === 'resident'; }
+// Shim: legacy callsites ожидают `isResident(req)`.
+const isResident = isResidentUser;
 
 // ─── Rate limiters (spec §4) ─────────────────────────────────────────────────
 // Защищены от спама: POST /packages 30/min, POST /:id/remind 1/hour per-package.
@@ -112,8 +116,9 @@ router.get('/mine', async (req, res) => {
 });
 
 // ─── GET /api/v1/packages/metrics (admin) ────────────────────────────────────
-router.get('/metrics', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/metrics',
+  requireCapability('packages:manage', { message: 'Admin only' }),
+  async (req, res) => {
   const periods = { '24h': 24, '7d': 24 * 7, '30d': 24 * 30 };
   const period = String(req.query.period || '7d');
   const hours = periods[period];
@@ -310,8 +315,9 @@ router.post('/:id/return', async (req, res) => {
 });
 
 // ─── POST /api/v1/packages/:id/mark-lost (admin) ─────────────────────────────
-router.post('/:id/mark-lost', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.post('/:id/mark-lost',
+  requireCapability('packages:manage', { message: 'Admin only' }),
+  async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {

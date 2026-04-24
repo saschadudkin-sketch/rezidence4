@@ -19,7 +19,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -38,8 +38,9 @@ const OVERRIDE_TYPES = new Set([
 ]);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isSecurity(req) { return req.user && (req.user.role === 'security' || req.user.role === 'admin'); }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
+// Shim'ы под legacy callsites:
+const isSecurity = isSecurityAuthz;
+const isPropertyAdmin = isAdmin;
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= (maxLen || 500);
 }

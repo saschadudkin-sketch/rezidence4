@@ -30,6 +30,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const { isResidentUser, requireCapability } = require('../lib/authz');
 const {
   listForTenant,
   getById,
@@ -48,8 +49,11 @@ const PERIOD_TO_HOURS = Object.freeze({
   '30d': 24 * 30,
 });
 
-function isAdmin(req) { return req.user && req.user.role === 'admin'; }
-function isResident(req) { return req.user && req.user.role === 'resident'; }
+// Pre-built middleware — `notification-log:read` capability покрывает admin-only
+// доступ ко всем /admin/notification-log/* endpoints.  Resident /mine остаётся
+// через isResident предикат, т.к. это role-filter а не capability.
+const requireLogAdmin = requireCapability('notification-log:read', { message: 'Admin only' });
+const isResident = isResidentUser;
 
 function isValidIso(v) {
   return typeof v === 'string' && !Number.isNaN(Date.parse(v));
@@ -58,9 +62,7 @@ function isValidIso(v) {
 // ─── GET /api/v1/admin/notification-log/metrics ──────────────────────────────
 // ВАЖНО: /metrics должен быть определён ПЕРЕД /:id, иначе express matchнет
 // "metrics" как id и уйдёт в getById.
-router.get('/admin/notification-log/metrics', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
-
+router.get('/admin/notification-log/metrics', requireLogAdmin, async (req, res) => {
   const period = String(req.query.period || '24h');
   const hours = PERIOD_TO_HOURS[period];
   if (!hours) {
@@ -80,9 +82,7 @@ router.get('/admin/notification-log/metrics', async (req, res) => {
 });
 
 // ─── GET /api/v1/admin/notification-log ──────────────────────────────────────
-router.get('/admin/notification-log', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
-
+router.get('/admin/notification-log', requireLogAdmin, async (req, res) => {
   // Anti-full-scan guard: if no recipient_id, at least one temporal filter
   // must be present.  Otherwise we'd ORDER BY created_at DESC across the
   // entire table — safe on 10k rows, painful on 10M.  Spec §3 «limit default
@@ -130,8 +130,7 @@ router.get('/admin/notification-log', async (req, res) => {
 });
 
 // ─── GET /api/v1/admin/notification-log/:id ──────────────────────────────────
-router.get('/admin/notification-log/:id', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/admin/notification-log/:id', requireLogAdmin, async (req, res) => {
   const pool = req.db || db;
   try {
     const row = await getById(pool, req.params.id);

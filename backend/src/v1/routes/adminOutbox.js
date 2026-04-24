@@ -33,6 +33,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const { requireCapability } = require('../lib/authz');
 const {
   listOutbox,
   getOutboxById,
@@ -50,7 +51,12 @@ const {
 const router = express.Router();
 router.use(requireAuth);
 
-function isAdmin(req) { return req.user && req.user.role === 'admin'; }
+// ─── Capability-middleware shortcuts ─────────────────────────────────────────
+// Сохраняем legacy error-message 'Admin only' для всех outbox endpoints
+// (было `if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' })`).
+const requireOutboxRead    = requireCapability('outbox:read',    { message: 'Admin only' });
+const requireOutboxRequeue = requireCapability('outbox:requeue', { message: 'Admin only' });
+const requireOutboxCancel  = requireCapability('outbox:cancel',  { message: 'Admin only' });
 
 // ─── Audit ──────────────────────────────────────────────────────────────────
 // Fire-and-forget INSERT — audit не должен ломать HTTP-ответ, если audit_log
@@ -75,8 +81,7 @@ function audit(req, action, resourceId, changes) {
 // ВАЖНО: регистрируется ДО /:id, иначе express matchнет «metrics» как id.
 // Prometheus scrape-endpoint отдаёт text/plain с `format=prometheus`;
 // default (без query) — JSON для admin UI.
-router.get('/metrics', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/metrics', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
 
   try {
@@ -106,8 +111,7 @@ router.get('/metrics', async (req, res) => {
 // Шесть gauge'ей по packages_v2 + outbox: queue size, overdue-for-reminder,
 // overdue-for-return, auto-returns 24h, reminders 24h, received 24h.
 // Content negotiation тот же, что и /metrics: ?format=prometheus → text/plain.
-router.get('/sla', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/sla', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
 
   try {
@@ -129,8 +133,7 @@ router.get('/sla', async (req, res) => {
 });
 
 // ─── GET / ───────────────────────────────────────────────────────────────────
-router.get('/', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
 
   // Early validation: если `from`/`to` указаны, но невалидны — 400 (не SILENT
@@ -170,8 +173,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── GET /:id ────────────────────────────────────────────────────────────────
-router.get('/:id', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.get('/:id', requireOutboxRead, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -185,8 +187,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─── POST /:id/requeue ───────────────────────────────────────────────────────
-router.post('/:id/requeue', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.post('/:id/requeue', requireOutboxRequeue, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -220,8 +221,7 @@ router.post('/:id/requeue', async (req, res) => {
 });
 
 // ─── POST /:id/cancel ────────────────────────────────────────────────────────
-router.post('/:id/cancel', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.post('/:id/cancel', requireOutboxCancel, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {

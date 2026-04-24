@@ -22,7 +22,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -38,9 +38,8 @@ function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
 
-function isPropertyAdmin(req) {
-  return req.user && req.user.role === 'admin';
-}
+// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
+const isPropertyAdmin = isAdmin;
 
 // Small helper: write to property-DB audit_log with fire-and-forget semantics.
 // We never block the mutation on audit-insert failure — alerting on audit

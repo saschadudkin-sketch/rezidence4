@@ -21,7 +21,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
 
 const router = express.Router();
@@ -35,7 +35,8 @@ function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
+// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
+const isPropertyAdmin = isAdmin;
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
   db.query(

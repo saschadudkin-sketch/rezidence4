@@ -14,6 +14,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const { isAdmin } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -32,7 +33,8 @@ const ROLE_CAPABILITY_DEFAULTS = Object.freeze({
 });
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
+// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
+const isPropertyAdmin = isAdmin;
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }

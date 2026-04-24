@@ -17,7 +17,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
 const { verifyPass } = require('../services/verifyPass');
 
@@ -32,7 +32,8 @@ const EVENT_TYPES = new Set([
 const EVENT_SOURCES = new Set(['domhub', 'skud', 'guard_console', 'import']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isSecurity(req) { return req.user && (req.user.role === 'security' || req.user.role === 'admin'); }
+// Shim: re-export из authz под именем, которого ждут legacy callsites.
+const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 const VL_COLS = `

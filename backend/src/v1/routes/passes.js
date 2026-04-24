@@ -21,7 +21,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -37,8 +37,9 @@ const SUBJECT_TYPES = new Set([
 const TERMINAL_STATUSES = new Set(['expired', 'revoked']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
-function isSecurity(req) { return req.user && (req.user.role === 'security' || req.user.role === 'admin'); }
+// Shim'ы под legacy callsites:
+const isPropertyAdmin = isAdmin;
+const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 function newToken() {

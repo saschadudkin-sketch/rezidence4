@@ -34,7 +34,12 @@ const rateLimit = require('express-rate-limit');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const {
+  isAdmin,
+  isStaffOrAdmin,
+  isResidentUser,
+  requireCapability,
+} = require('../lib/authz');
 const {
   listForResident,
   listForAdmin,
@@ -56,9 +61,8 @@ const {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isAdmin(req) { return req.user && req.user.role === 'admin'; }
-function isStaffOrAdmin(req) { return req.user && (isStaff(req.user.role) || req.user.role === 'admin'); }
-function isResident(req) { return req.user && req.user.role === 'resident'; }
+// Role предикаты — shim под legacy call-sites (name isResident → isResidentUser из authz).
+const isResident = isResidentUser;
 
 // ─── Rate limiters (§4) ──────────────────────────────────────────────────────
 const createLimiter = rateLimit({
@@ -336,8 +340,9 @@ router.post('/:id/publish', async (req, res, next) => {
 });
 
 // ─── POST /api/v1/announcements/:id/unpublish (admin only) ──────────────────
-router.post('/:id/unpublish', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.post('/:id/unpublish',
+  requireCapability('announcements:unpublish_urgent', { message: 'Admin only' }),
+  async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -356,8 +361,9 @@ router.post('/:id/unpublish', async (req, res) => {
 });
 
 // ─── DELETE /api/v1/announcements/:id (admin only, soft) ────────────────────
-router.delete('/:id', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+router.delete('/:id',
+  requireCapability('announcements:archive', { message: 'Admin only' }),
+  async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -412,8 +418,9 @@ adminRouter.get('/', async (req, res) => {
   }
 });
 
-adminRouter.get('/:id/metrics', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+adminRouter.get('/:id/metrics',
+  requireCapability('announcements:publish', { message: 'Admin only' }),
+  async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {

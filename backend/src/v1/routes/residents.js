@@ -17,7 +17,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -31,11 +31,15 @@ const PHONE_RE = /^\+?\d{8,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
+// Shim: legacy имя `isPropertyAdmin` → `isAdmin` из authz.
+const isPropertyAdmin = isAdmin;
 function canViewPhone(req) {
   // Property admin always sees phones.  'concierge' gets phones too because
   // the spec default in staff-users-spec §3 is can_view_resident_phone=true
   // for concierges; 'security' (guards) do not.  Consistent with v1 defaults.
+  // В Фазе 6+ переедет на can(req.user, 'residents:read_phone') (authz §cat),
+  // но пока что JWT не несёт capability-флагов — предикат сохраняет
+  // behavior-preserving role-only check.
   return req.user && (req.user.role === 'admin' || req.user.role === 'concierge');
 }
 

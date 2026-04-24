@@ -20,7 +20,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff } = require('../../constants');
+const { isStaff, isAdmin } = require('../lib/authz');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -45,7 +45,8 @@ const REQUEST_TO_PASS_TYPE = Object.freeze({
 const TERMINAL_STATUSES = new Set(['rejected', 'cancelled', 'expired']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-function isPropertyAdmin(req) { return req.user && req.user.role === 'admin'; }
+// Shim под legacy callsite: isPropertyAdmin → isAdmin из authz.
+const isPropertyAdmin = isAdmin;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
