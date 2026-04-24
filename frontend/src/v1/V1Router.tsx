@@ -42,6 +42,7 @@ import { RoleGate } from './components/RoleGate';
 import { ResidentAccessPage } from './pages/ResidentAccessPage';
 import { GuardConsolePage } from './pages/GuardConsolePage';
 import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
+import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
 import {
   Alert,
   Button,
@@ -87,6 +88,14 @@ export function V1Router() {
           element={
             <RoleGate allow={CONCIERGE_ALLOW}>
               <ConciergeRequestDetailRoute />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="announcements"
+          element={
+            <RoleGate allow={CONCIERGE_ALLOW}>
+              <AnnouncementsAdminPage />
             </RoleGate>
           }
         />
@@ -166,6 +175,9 @@ function ConciergeLanding() {
           <Inline>
             <Button variant="secondary" onClick={() => navigate('/v1/guard')}>
               Пост охраны
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/v1/announcements')}>
+              Объявления
             </Button>
             <Button variant="ghost" onClick={() => navigate('/')}>
               Главная консоль

@@ -10,6 +10,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type {
   ListAccessRequestsParams,
+  ListAdminAnnouncementsParams,
+  ListAnnouncementsParams,
   ListIncidentsParams,
   ListOverridesParams,
   ListPassesParams,
@@ -64,6 +66,15 @@ export const qk = {
     list: (p?: ListResidentsParams) => ['v1', 'residents', 'list', p ?? null] as const,
     byId: (id: UUID) => ['v1', 'residents', 'byId', id] as const,
   },
+  announcements: {
+    all: ['v1', 'announcements'] as const,
+    list: (p?: ListAnnouncementsParams) =>
+      ['v1', 'announcements', 'list', p ?? null] as const,
+    adminList: (p?: ListAdminAnnouncementsParams) =>
+      ['v1', 'announcements', 'adminList', p ?? null] as const,
+    byId: (id: UUID) => ['v1', 'announcements', 'byId', id] as const,
+    metrics: (id: UUID) => ['v1', 'announcements', 'metrics', id] as const,
+  },
 };
 
 // ─── Invalidators ──────────────────────────────────────────────────────────
@@ -93,5 +104,22 @@ export function invalidateVehicle(qc: QueryClient, id: UUID, plate?: string): Pr
     plate
       ? qc.invalidateQueries({ queryKey: qk.vehicles.byPlate(plate) } as { queryKey: KeyLike })
       : Promise.resolve(),
+  ]).then(() => undefined);
+}
+
+/**
+ * Invalidates everything related to one announcement:
+ *   - its detail query (byId)
+ *   - the whole announcements namespace — both resident feed and admin lists
+ *     need to refetch because fields we filter on (published_at, deleted_at,
+ *     starts_at) change on publish/unpublish/delete.
+ *   - metrics — reach counts only exist after publish and grow as the outbox
+ *     worker processes the fan-out.
+ */
+export function invalidateAnnouncement(qc: QueryClient, id: UUID): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.announcements.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.announcements.all }),
+    qc.invalidateQueries({ queryKey: qk.announcements.metrics(id) }),
   ]).then(() => undefined);
 }

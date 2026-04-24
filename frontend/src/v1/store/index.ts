@@ -17,6 +17,7 @@ export type { V1SessionValue, V1SessionProviderProps } from './session';
 export {
   qk,
   invalidateAccessRequest,
+  invalidateAnnouncement,
   invalidatePass,
   invalidateVehicle,
 } from './queryKeys';

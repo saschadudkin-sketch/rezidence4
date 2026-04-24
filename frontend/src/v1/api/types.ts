@@ -354,6 +354,59 @@ export interface Resident {
   updated_at?: IsoDateTime | null;
 }
 
+// ─── Announcements (announcements_v2) ──────────────────────────────────────
+// Source: backend/src/v1/routes/announcements.js + services/announcements.js.
+// Category/audience/channel values mirror the ALLOWED_* arrays in the service.
+
+export type AnnouncementCategory =
+  | 'general'
+  | 'maintenance'
+  | 'event'
+  | 'emergency'
+  | 'marketing';
+
+export type AnnouncementAudienceType = 'all' | 'building' | 'entrance' | 'unit_type';
+
+export type AnnouncementUnitType = 'owner' | 'tenant' | 'family_member';
+
+export type AnnouncementChannel = 'web_push' | 'sms' | 'telegram' | 'email';
+
+/**
+ * Admin status filter values accepted by `GET /api/v1/admin/announcements`.
+ * Not a column — derived by service from (deleted_at, published_at,
+ * starts_at, expires_at).  Frontend derives the same way client-side for
+ * displaying status badges (see announcements.ts deriveStatus).
+ */
+export type AnnouncementStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'active'
+  | 'expired'
+  | 'deleted';
+
+export interface Announcement {
+  id: UUID;
+  property_id: UUID;
+  title: string;
+  body_md: string;
+  is_urgent: boolean;
+  category: AnnouncementCategory;
+  audience_type: AnnouncementAudienceType;
+  audience_building_id: UUID | null;
+  audience_entrance_id: UUID | null;
+  audience_unit_type: AnnouncementUnitType | null;
+  starts_at: IsoDateTime;
+  expires_at: IsoDateTime | null;
+  is_pinned: boolean;
+  notify_channels: AnnouncementChannel[];
+  created_by_staff_id: UUID | null;
+  published_at: IsoDateTime | null;
+  published_by_staff_id: UUID | null;
+  deleted_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
 // ─── Composite response shapes (exactly what the backend returns) ──────────
 
 export interface AccessRequestDetailResponse {

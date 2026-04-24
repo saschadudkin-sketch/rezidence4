@@ -20,6 +20,7 @@ import { accessIncidentsApi } from './accessIncidents';
 import { unitsApi } from './units';
 import { residentsApi } from './residents';
 import { sessionApi } from './session';
+import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './announcements';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -30,9 +31,11 @@ export const api = {
   units: unitsApi,
   residents: residentsApi,
   session: sessionApi,
+  announcements: announcementsApi,
 };
 
 export { normalizePlate };
+export { deriveAnnouncementStatus };
 
 export type {
   ListAccessRequestsParams,
@@ -48,3 +51,10 @@ export type { ListVisitsParams } from './visits';
 export type { ListIncidentsParams, ListOverridesParams } from './accessIncidents';
 export type { ListUnitsParams } from './units';
 export type { ListResidentsParams, ResidentWithUnit } from './residents';
+export type {
+  ListAnnouncementsParams,
+  ListAdminAnnouncementsParams,
+  CreateAnnouncementBody,
+  UpdateAnnouncementBody,
+  AnnouncementReachMetrics,
+} from './announcements';
