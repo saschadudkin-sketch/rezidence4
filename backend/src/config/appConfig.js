@@ -21,9 +21,19 @@ function validateConfig(env, prod) {
     errors.push('PLATFORM_DB_URL must be set in production for multi-tenant registry');
   }
 
-  // Platform JWT secret should be different from main JWT secret for security
+  // SEC [AUDIT #3]: Platform JWT secret обязателен в production и должен
+  // отличаться от JWT_SECRET.  Если секреты совпадают, резидентский токен
+  // пройдёт jwt.verify на /platform/api/v1/* (один ключ, HS256).  В качестве
+  // второго барьера есть aud='platform' claim, но ключи обязаны быть разные —
+  // компрометация одного не должна давать доступ к другому кольцу.
+  if (prod && !env.PLATFORM_JWT_SECRET) {
+    errors.push('PLATFORM_JWT_SECRET must be set in production. Generate with: openssl rand -hex 32');
+  }
   if (env.PLATFORM_JWT_SECRET && env.PLATFORM_JWT_SECRET.length < 32) {
     errors.push('PLATFORM_JWT_SECRET must be at least 32 characters. Generate with: openssl rand -hex 32');
+  }
+  if (env.PLATFORM_JWT_SECRET && env.JWT_SECRET && env.PLATFORM_JWT_SECRET === env.JWT_SECRET) {
+    errors.push('PLATFORM_JWT_SECRET must differ from JWT_SECRET. Regenerate one with: openssl rand -hex 32');
   }
 
   if (prod && !env.FRONTEND_URL) {

@@ -1,0 +1,39 @@
+# docker-compose.prod.yml — HTTPS overlay для production deployments.
+#
+# SEC [AUDIT #6]: раньше HTTPS-bindings были закомментированы в базовом
+# docker-compose.yml — оператор должен был редактировать файл вручную, легко
+# забыть.  Теперь prod-режим — это явный compose-override:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Перед применением убедиться, что выданы Let's Encrypt сертификаты:
+#
+#   docker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt \
+#     certbot/certbot certonly --standalone -d $YOUR_DOMAIN \
+#     --agree-tos -m $ADMIN_EMAIL --non-interactive
+#
+# И что .env содержит:
+#
+#   ENABLE_HTTPS=true
+#   YOUR_DOMAIN=zamoskv.domhub.su
+#
+# Автоматическое обновление сертификатов — host-level cron (см. DEPLOY.md).
+#
+# Требования:
+#   - Этот файл НЕ содержит дублирующего `build:` — только добавляет ports и
+#     volumes к уже собранному образу frontend.
+#   - Base-compose (docker-compose.yml) запускается как обычно в dev-режиме,
+#     без 443 и без volume-маунтов.
+
+services:
+  frontend:
+    environment:
+      # Гарантируем, что nginx entrypoint сгенерирует prod-конфиг с 443 и
+      # ssl_certificate путями.  Без этого nginx проигнорирует :443 binding.
+      ENABLE_HTTPS: "true"
+    ports:
+      - "443:443"
+    volumes:
+      # Read-only mount — ни nginx, ни контейнер не пишет в certbot директории.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro

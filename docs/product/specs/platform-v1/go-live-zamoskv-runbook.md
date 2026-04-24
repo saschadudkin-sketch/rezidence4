@@ -182,25 +182,43 @@ SQL
 
 ### 3.2 Первый platform-admin (superadmin SPA)
 
+**Схема `platform_admins`** (см. `backend/src/platformMigrations.js:30-39`): `id, email,
+password_hash, name, is_active, last_login_at, created_at`. Колонки `role` нет —
+все админы в этой таблице имеют superadmin-доступ по определению (разграничение
+доступа — через `management_company_admins` в миграции 005).
+
+Генерируем случайный пароль и хешируем:
+
 ```bash
-docker compose exec backend node -e "
-const bcrypt = require('bcrypt');
+# Генерация случайного пароля — НЕ использовать фиксированный литерал в runbook'е.
+INITIAL_PW=$(openssl rand -base64 24)
+echo "Initial superadmin password: $INITIAL_PW"   # запомнить и убрать из истории
+
+docker compose exec -T backend node -e "
+const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.PLATFORM_DB_URL });
 (async () => {
-  const hash = await bcrypt.hash('TEMP_PASSWORD_CHANGE_ME', 12);
+  const pw = process.env.INITIAL_PW;
+  if (!pw) throw new Error('INITIAL_PW env missing');
+  const hash = await bcrypt.hash(pw, 12);
   await pool.query(\`
-    INSERT INTO platform_admins (email, password_hash, role, is_active)
-    VALUES (\$1, \$2, 'superadmin', true)
+    INSERT INTO platform_admins (email, password_hash, name, is_active)
+    VALUES (\$1, \$2, \$3, true)
     ON CONFLICT (email) DO NOTHING
-  \`, ['admin@domhub.su', hash]);
+  \`, ['admin@domhub.su', hash, 'Platform Superadmin']);
   console.log('superadmin seeded');
   await pool.end();
 })();
-"
+" -e "process.env.INITIAL_PW = '$INITIAL_PW'"
 ```
 
-Логин: `admin@domhub.su` / пароль `TEMP_PASSWORD_CHANGE_ME` → **немедленно сменить** через superadmin SPA (`/platform/settings`) или SQL.
+Логин: `admin@domhub.su` / пароль из переменной `$INITIAL_PW` → **немедленно сменить** через superadmin SPA (`/platform/settings`).
+
+После смены пароля — очистить `$INITIAL_PW` из shell history:
+```bash
+unset INITIAL_PW && history -d $(history | tail -n 2 | head -n 1 | awk '{print $1}')
+```
 
 ### 3.3 Первый property-admin (per-tenant)
 

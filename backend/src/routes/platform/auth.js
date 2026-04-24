@@ -58,8 +58,15 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-    const tokenPayload = { id: admin.id, email: admin.email, name: admin.name };
-    const token = jwt.sign(tokenPayload, process.env.PLATFORM_JWT_SECRET, { expiresIn: '8h' });
+    // SEC [AUDIT #2/#3]: aud='platform' + algorithm HS256 явно — middleware
+    // platformAuth требует совпадения обоих. Это гарантирует, что даже если
+    // PLATFORM_JWT_SECRET и JWT_SECRET окажутся равны, резидентский токен
+    // (без aud) не пройдёт на /platform/api/v1/*.
+    const tokenPayload = { id: admin.id, email: admin.email, name: admin.name, aud: 'platform' };
+    const token = jwt.sign(tokenPayload, process.env.PLATFORM_JWT_SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '8h',
+    });
 
     auditLog({ adminId: admin.id, action: 'admin.login', ipAddress: req.ip });
 

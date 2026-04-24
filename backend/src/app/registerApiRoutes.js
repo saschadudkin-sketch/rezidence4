@@ -120,6 +120,7 @@ function registerApiRoutes(app, { rateLimiters }) {
     clientLogsLimiter,
     sseEventsLimiter,
     platformAuthLimiter,
+    platformGlobalLimiter,
     publicPassLimiter,
   } = rateLimiters;
 
@@ -218,7 +219,13 @@ function registerApiRoutes(app, { rateLimiters }) {
   // ФЗ-152 — consent tracking and right-to-be-forgotten.  Auth enforced inside.
   app.use('/api/v1/privacy', privacyRouter);
 
-  // Platform superadmin API — no CSRF, no property context required
+  // Platform superadmin API — no CSRF, no property context required.
+  // SEC [AUDIT #8]: platformGlobalLimiter применяется ДО роутеров на всём
+  // /platform/ prefix'е — раньше лимит был только на /auth, остальные роуты
+  // (/properties|admins|stats|audit-log|analytics|outbox/*) не имели никаких
+  // ограничений, украденный superadmin-токен позволял неограниченное
+  // enumeration.
+  app.use('/platform/', platformGlobalLimiter);
   app.use('/platform/api/v1/auth', platformAuthLimiter, platformAuthRouter);
   app.use('/platform/api/v1/properties', platformPropertiesRouter);
   app.use('/platform/api/v1/admins', platformAdminsRouter);

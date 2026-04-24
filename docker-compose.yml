@@ -61,11 +61,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # SEC [AUDIT #7]: env_file пробрасывает ВСЕ переменные из .env (PLATFORM_*,
+    # ZAMOSKV_*, VAPID_*, SENTRY_DSN, REFRESH_LEGACY_*, SSE_MAX_CONNECTIONS,
+    # SMSRU_FALLBACK_API_ID, CONTACT_EMAIL) без явного перечисления.  Явные
+    # entries ниже перекрывают .env значения — это те, что зависят от compose-
+    # scoped переменных (DB_PASSWORD, REDIS_PASSWORD и т.п.).
+    env_file:
+      - .env
     environment:
       DATABASE_URL:  postgresql://residenze:${DB_PASSWORD}@db:5432/residenze
+      # SEC [AUDIT #7]: platform-v1 DSN-ы пересобираются из DB_PASSWORD, чтобы
+      # пароль в .env хранился один раз.  Если ZAMOSKV_DB_URL / PLATFORM_DB_URL
+      # заданы в .env напрямую — env_file выше уже их подхватит (эти строки
+      # не применяются, если переменная отсутствует в .env).
+      PLATFORM_DB_URL: ${PLATFORM_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/platform}
+      ZAMOSKV_DB_URL:  ${ZAMOSKV_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/zamoskv}
       # FIX [AUDIT]: Redis URL теперь содержит пароль
       REDIS_URL:     redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET:    ${JWT_SECRET}
+      PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:?PLATFORM_JWT_SECRET must be set}
       # Время жизни access token задаётся в backend/src/routes/auth.js
       # (ACCESS_TOKEN_EXPIRES = '15m'). JWT_EXPIRES здесь не используется — удалён.
       SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
@@ -119,12 +133,13 @@ services:
       ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
     ports:
       - "80:80"
-      # Раскомментируйте для HTTPS (требуется certbot + nginx.prod.conf):
-      # - "443:443"
-    # Uncomment for HTTPS after certificates are issued on the host.
-    # volumes:
-    #   - /etc/letsencrypt:/etc/letsencrypt:ro
-    #   - /var/www/certbot:/var/www/certbot:ro
+    # SEC [AUDIT #6]: HTTPS (443 + letsencrypt volumes) вынесены в
+    # docker-compose.prod.yml overlay — запускать prod через:
+    #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+    # Раньше 443 и volumes были закомментированы inline, что в runbook'е
+    # приводило к расхождению между "ENABLE_HTTPS=true" в .env и реальным
+    # отсутствием binding'а — nginx слушал 80, certbot выдавал cert, но
+    # HTTPS-запросы валились с Connection refused.
     # DO-04: nginx log rotation — без ограничений access.log при 1000 req/day = GB за неделю
     logging:
       driver: "json-file"
@@ -160,6 +175,11 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${DB_PASSWORD}
+      # SEC [AUDIT #5]: три БД бекапятся, не одна.  При добавлении нового
+      # tenant'а — дописать его slug сюда (порядок: legacy residenze,
+      # platform registry, per-property DB).  Переопределить через .env если
+      # нужен другой список.
+      BACKUP_DATABASES: ${BACKUP_DATABASES:-residenze platform zamoskv}
     volumes:
       - ./backups:/backups
       - ./backup.sh:/backup.sh:ro
