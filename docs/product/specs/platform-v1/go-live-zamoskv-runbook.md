@@ -135,12 +135,35 @@ docker compose exec db psql -U residenze -d zamoskv -c "SELECT id FROM v1_proper
 ### 2.5 Первый запуск (HTTP-only, до выдачи сертификата)
 
 ```bash
+# AUDIT #11: предсоздать директорию для backup bind-mount с правильными правами.
+# Если оставить docker создавать её автоматически — она окажется root:root 755,
+# и файлы дампов будут world-readable (дампы содержат phone/unit_id/chat всех
+# жильцов).  Явно chmod 0700 + chown root:root → доступ только от root.
+# Entrypoint backup-контейнера дополнительно нормализует режим при каждом
+# старте (см. docker-compose.yml), но host-директорию нужно создать заранее.
+sudo mkdir -p /var/www/domhub/backups
+sudo chown root:root /var/www/domhub/backups
+sudo chmod 0700      /var/www/domhub/backups
+
 # БЕЗ overlay — nginx слушает только :80, что нужно certbot standalone в §2.6.
 docker compose up -d --build
 docker compose ps
 ```
 
 Все сервисы `Up`/`healthy`: `db`, `redis`, `backend`, `frontend`, `backup`. HTTPS (overlay) подключим в §2.6 после того как Let's Encrypt выдаст сертификат.
+
+**Sanity (AUDIT #13):** после старта network topology должен показать, что
+frontend и db/redis находятся в разных сетях:
+
+```bash
+docker network inspect domhub_internal --format '{{range .Containers}}{{.Name}} {{end}}'
+# Ожидается: db, redis, backend, backup   (но НЕ frontend)
+docker network inspect domhub_public --format '{{range .Containers}}{{.Name}} {{end}}'
+# Ожидается: backend, frontend           (но НЕ db, redis)
+```
+
+Если frontend оказался в `internal` — compose-файл не был пересобран (`docker
+compose up -d --force-recreate`).
 
 ### 2.6 HTTPS через Let's Encrypt
 
@@ -159,7 +182,12 @@ docker run --rm -p 80:80 \
 # Production compose — ВАЖНО: overlay-файл, иначе frontend стартует без 443.
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 curl -I https://zamoskv.domhub.su
-curl https://zamoskv.domhub.su/api/health
+# AUDIT #12: используем /health, а не /api/health.  /api/health — lightweight
+# stub (всегда 200, не касается БД), а /health делает SELECT 1 + redis PING и
+# возвращает 503 если любой из бэкендов не отвечает.  Это тот же endpoint,
+# что использует docker healthcheck, поэтому smoke-тест и контейнерный probe
+# согласованы.
+curl https://zamoskv.domhub.su/health
 ```
 
 ### 2.7 Авто-обновление Let's Encrypt
@@ -334,7 +362,7 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
 2. Раздать резидентам ссылку + PIN-коды первичной регистрации (см. LoginView docs).
 3. Мониторить первые 48 часов:
    - `docker compose logs backend -f | grep -i error`
-   - `curl https://zamoskv.domhub.su/api/health`
+   - `curl https://zamoskv.domhub.su/health` — deep probe (DB + Redis), 503 если один из бэкендов лёг (AUDIT #12).
    - Sentry (если подключен): errors > 0 = триаж.
 4. После 72h безаварийной работы — перевести `SMSRU_API_ID` с `STUB` на реальный, перезапустить backend.
 

@@ -20,10 +20,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # SEC [AUDIT #13]: внутренний network — БД недоступна напрямую ни frontend'у,
+    # ни (случайно прокинутыми) host portforward'ами.  Только backend и backup
+    # могут её видеть по docker DNS.
+    networks:
+      - internal
     deploy:
       resources:
         limits:
           memory: 1g
+          cpus: "1.0"
 
   # ── Redis (SSE pub/sub + idempotency cache + token revocation) ────────────────
   redis:
@@ -44,10 +50,16 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    # SEC [AUDIT #13]: Redis — только internal.  Session-revocation list,
+    # rate-limit counters, SSE pub/sub не должны быть доступны frontend'у
+    # напрямую (только через backend).
+    networks:
+      - internal
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "0.25"
 
   # ── Backend (Node.js API) ─────────────────────────────────────────────────────
   backend:
@@ -109,10 +121,16 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    # SEC [AUDIT #13]: backend — bridge между internal (db/redis) и public
+    # (frontend / исходящий internet для SMS/Telegram/web-push API).
+    networks:
+      - internal
+      - public
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "1.0"
 
   # ── Frontend (React + nginx) ──────────────────────────────────────────────────
   frontend:
@@ -153,6 +171,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # SEC [AUDIT #13]: frontend только в public — не может достучаться до db
+    # или redis (и не должен; proxies всё через backend).
+    networks:
+      - public
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
 
   # ── Резервное копирование БД ──────────────────────────────────────────────────
   # FIX [AUDIT]: заменён sleep-цикл на настоящий cron через busybox crond.
@@ -185,20 +211,58 @@ services:
       - ./backup.sh:/backup.sh:ro
     # busybox crond: -f (foreground), -d 8 (log level: notice)
     # crontab передаётся через stdin — не нужен отдельный файл
+    #
+    # SEC [AUDIT #11]: bind-mount ./backups:/backups на новых инсталляциях
+    # создаётся docker'ом как root:root 755 — pg_dump от root это устраивает,
+    # но если оператор вручную создаёт директорию под другим UID (типичная
+    # ошибка на первом deploy), backup.sh падает с "permission denied" и
+    # инкремент тихо не создаётся.  Жёстко нормализуем при старте:
+    #   - mkdir гарантирует наличие.
+    #   - chmod 0700 — только root (owner контейнера) читает/пишет.  Бекапы
+    #     содержат ВСЕ данные жильцов (phone, unit_id, packages, chat) —
+    #     world-readable недопустимо.
     entrypoint:
       - sh
       - -c
       - |
+        mkdir -p /backups
+        chmod 0700 /backups
         chmod +x /backup.sh
         # Создаём crontab: 03:00 UTC каждый день
         echo "0 3 * * * /backup.sh >> /var/log/backup.log 2>&1" | crontab -
-        echo "[backup] cron scheduled: daily at 03:00 UTC"
+        echo "[backup] cron scheduled: daily at 03:00 UTC, BACKUP_DIR=/backups (0700)"
         # Запускаем crond в foreground
         exec crond -f -d 8
+    # SEC [AUDIT #13]: backup видит только БД (internal), исходящий internet
+    # ему не нужен.
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
 
 volumes:
   db_data:
   uploads:
+
+# SEC [AUDIT #13]: две разделённые docker-сети.
+#
+# internal — db, redis, backup, backend (только backend-side).  Без
+# `internal: true` оставляем, потому что backend сидит в обеих сетях и
+# делает outbound (sms.ru, api.telegram.org, VAPID push endpoints).  Лишать
+# всю internal сеть интернета нельзя — backend потеряет исходящие вызовы.
+# Защита здесь — не фильтр egress, а недоступность db/redis для frontend:
+# frontend не подключён к `internal` и физически не может открыть TCP на
+# db:5432 или redis:6379.
+#
+# public — frontend + backend.  Через эту сеть идут только нужные
+# HTTP-запросы frontend → backend.
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge
 
 # ── HTTPS (SEC-3) ─────────────────────────────────────────────────────────────
 # Перед production обязательно включить HTTPS:
