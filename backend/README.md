@@ -31,6 +31,7 @@ end-to-end AC из спек (`docs/product/specs/platform-v1/*-spec.md` §7).
 | Файл | AC спеки |
 |------|----------|
 | `src/v1/services/__tests__/announcements.e2e.integration.test.js` | `announcements-v2-spec.md §7` — create → publish → outbox → log_v2, counts совпадают |
+| `src/v1/services/__tests__/packages.e2e.integration.test.js` | `packages-v2-spec.md §7` — receive → outbox(package.received) → pickup → outbox(package.picked_up_confirmation) → оба события в log_v2; pickup по имени (не-резидент) — confirmation outbox пуст |
 
 ### Запуск
 
