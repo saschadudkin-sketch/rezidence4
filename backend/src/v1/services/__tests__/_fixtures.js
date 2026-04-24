@@ -95,12 +95,16 @@ async function seedFixture(pool, opts = {}) {
        RETURNING id`,
       [pid, building.id, entrance.id],
     );
+    // NB: email собираем в JS, а не в SQL — раньше было
+    //   VALUES ($1, 'E2E Staff', 'e2e-staff-' || substr($1::text,1,8) || '@test.local', $2)
+    // и postgres валился с "inconsistent types deduced for parameter $1" (один и тот
+    // же плейсхолдер использовался и как uuid column, и как text внутри substr()).
+    const staffEmail = `e2e-staff-${String(pid).slice(0, 8)}@test.local`;
     const { rows: [staff] } = await client.query(
       `INSERT INTO staff_users (property_id, full_name, email, role)
-       VALUES ($1, 'E2E Staff',
-               'e2e-staff-' || substr($1::text, 1, 8) || '@test.local', $2)
+       VALUES ($1, 'E2E Staff', $2, $3)
        RETURNING id`,
-      [pid, staffRole],
+      [pid, staffEmail, staffRole],
     );
 
     const residentIds = [];

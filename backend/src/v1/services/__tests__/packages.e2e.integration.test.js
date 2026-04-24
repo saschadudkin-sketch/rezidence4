@@ -84,7 +84,7 @@ describeIfPg('platform-v1 integration e2e: packages receive → pickup', () => {
         senderName: 'Yandex Market',
         carrier: 'yandex',
         trackingNumber: 'E2E-12345',
-        sizeCategory: 'm',
+        sizeCategory: 'medium',
         receivedByStaffId: staffId,
         storageLocation: 'A12',
       });

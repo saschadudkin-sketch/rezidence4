@@ -235,15 +235,23 @@ describeIfPg('platform-v1 integration: scheduledFanoutRunner real DB', () => {
     const { propertyId, staffId } = fixture;
 
     try {
+      // Схема, что и в test'е #2: future → publish (scheduled, без fan-out) →
+      // backdate.  Если создавать сразу с прошлым starts_at, publishAnnouncement
+      // fan-out'ит сам и tick'у уже нечего делать.
       const draft = await createAnnouncement(pool, {
         propertyId,
         title: 'Isolation healthy property',
         bodyMd: 'Должно fan-out\'иться в обход broken соседа.',
         audienceType: 'all',
         notifyChannels: ['web_push'],
-        startsAt: new Date(Date.now() - 60 * 1000).toISOString(),
+        startsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         createdByStaffId: staffId,
       });
+      await publishAnnouncement(pool, draft.id, staffId);
+      await pool.query(
+        `UPDATE announcements_v2 SET starts_at = NOW() - INTERVAL '1 minute' WHERE id = $1`,
+        [draft.id],
+      );
 
       // Имитируем listActiveProperties с двумя property: первый «broken»,
       // второй — наш реальный propertyId.  getPool бросает на broken и

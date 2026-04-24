@@ -298,8 +298,9 @@ describeIfPg('platform-v1 integration e2e: documents snapshot + visibility', () 
       // До soft-delete: listPublic видит rules + safety (legal скрыт по §3,
       // contactsDraft скрыт по published_at IS NULL).
       const pub1 = await listPublic(pool, propertyId);
+      // .sort() без локали — codepoint-order: latin 'S'(U+0053) < cyrillic 'П'(U+041F).
       const titles1 = pub1.rows.map((r) => r.title).sort();
-      expect(titles1).toEqual(['Правила', 'Safety']);
+      expect(titles1).toEqual(['Safety', 'Правила']);
 
       // Soft-delete safety → listPublic уменьшается до одного.
       const del = await softDeleteDocument(pool, safety.id);
