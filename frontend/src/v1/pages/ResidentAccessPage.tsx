@@ -39,6 +39,7 @@ import { useV1Session } from '../store';
 import { AccessRequestForm } from '../components/AccessRequestForm';
 import type { UnitOption } from '../components/AccessRequestForm';
 import { AccessRequestCard } from '../components/AccessRequestCard';
+import { ResidentNav } from '../components/ResidentNav';
 import {
   Alert,
   Button,
@@ -126,6 +127,7 @@ export function ResidentAccessPage() {
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
+        <ResidentNav />
         <h1 className={uiClasses.pageTitle}>Мои заявки на доступ</h1>
         <p className={uiClasses.pageSubtitle}>
           {session.apartment

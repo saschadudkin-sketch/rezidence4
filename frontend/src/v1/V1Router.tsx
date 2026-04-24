@@ -40,6 +40,9 @@ import {
 } from './store';
 import { RoleGate } from './components/RoleGate';
 import { ResidentAccessPage } from './pages/ResidentAccessPage';
+import { ResidentPackagesPage } from './pages/ResidentPackagesPage';
+import { ResidentAnnouncementsFeedPage } from './pages/ResidentAnnouncementsFeedPage';
+import { ResidentDocumentsPage } from './pages/ResidentDocumentsPage';
 import { GuardConsolePage } from './pages/GuardConsolePage';
 import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
 import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
@@ -74,6 +77,34 @@ export function V1Router() {
           element={
             <RoleGate allow={RESIDENT_ALLOW}>
               <ResidentAccessPage />
+            </RoleGate>
+          }
+        />
+        {/* Resident-facing views.  `/v1/my/*` namespace keeps them clearly
+            separate from admin/staff endpoints that live at the root
+            (`/v1/packages` is staff admin, `/v1/my/packages` is the
+            resident's own list).  All gated by RESIDENT_ALLOW. */}
+        <Route
+          path="my/packages"
+          element={
+            <RoleGate allow={RESIDENT_ALLOW}>
+              <ResidentPackagesPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="my/announcements"
+          element={
+            <RoleGate allow={RESIDENT_ALLOW}>
+              <ResidentAnnouncementsFeedPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="my/documents"
+          element={
+            <RoleGate allow={RESIDENT_ALLOW}>
+              <ResidentDocumentsPage />
             </RoleGate>
           }
         />
