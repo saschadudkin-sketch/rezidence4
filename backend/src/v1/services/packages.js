@@ -475,30 +475,47 @@ async function pickupPackage(pool, id, input) {
  * awaiting_pickup → returned.  reason — optional (см. §2 note).
  * Уведомлений не шлём — резидент уже игнорировал посылку, лишний push лишний.
  */
-async function returnPackage(db, id, input) {
+async function returnPackage(pool, id, input) {
   if (!isValidUuid(id)) throw new Error('id must be UUID');
   const reason = typeof input?.reason === 'string' ? input.reason.trim() : null;
 
-  const { rows: curRows } = await db.query(
-    `SELECT status FROM packages_v2 WHERE id = $1`,
-    [id],
-  );
-  if (!curRows[0]) return { package: null, conflict: 'not_found' };
-  if (curRows[0].status !== 'awaiting_pickup') {
-    return { package: null, conflict: curRows[0].status };
-  }
+  // AUDIT #2: без BEGIN + SELECT FOR UPDATE параллельные calls (pickup + return,
+  // return + mark-lost) могут оба прочитать `awaiting_pickup`, оба выполнить
+  // UPDATE и dash бы к double-transition.  Mirror'им паттерн pickupPackage.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: curRows } = await client.query(
+      `SELECT status FROM packages_v2 WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    if (!curRows[0]) {
+      await client.query('ROLLBACK');
+      return { package: null, conflict: 'not_found' };
+    }
+    if (curRows[0].status !== 'awaiting_pickup') {
+      await client.query('ROLLBACK');
+      return { package: null, conflict: curRows[0].status };
+    }
 
-  const { rows } = await db.query(
-    `UPDATE packages_v2
-        SET status = 'returned',
-            returned_at = NOW(),
-            returned_reason = $1,
-            updated_at = NOW()
-      WHERE id = $2
-      RETURNING ${FULL_COLS}`,
-    [reason, id],
-  );
-  return { package: rows[0], conflict: null };
+    const { rows } = await client.query(
+      `UPDATE packages_v2
+          SET status = 'returned',
+              returned_at = NOW(),
+              returned_reason = $1,
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING ${FULL_COLS}`,
+      [reason, id],
+    );
+    await client.query('COMMIT');
+    return { package: rows[0], conflict: null };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -506,31 +523,47 @@ async function returnPackage(db, id, input) {
  * это защита от случайного клика в UI.  Запись в любой terminal статус —
  * безвозвратна в рамках этой посылки (создать новую — можно).
  */
-async function markLostPackage(db, id, input) {
+async function markLostPackage(pool, id, input) {
   if (!isValidUuid(id)) throw new Error('id must be UUID');
   if (input?.confirm !== true) throw new Error('confirm:true required');
   const reason = typeof input.reason === 'string' ? input.reason.trim() : null;
   if (!reason) throw new Error('reason required');
 
-  const { rows: curRows } = await db.query(
-    `SELECT status FROM packages_v2 WHERE id = $1`,
-    [id],
-  );
-  if (!curRows[0]) return { package: null, conflict: 'not_found' };
-  if (curRows[0].status !== 'awaiting_pickup') {
-    return { package: null, conflict: curRows[0].status };
-  }
+  // AUDIT #2: см. returnPackage — транзакция с SELECT FOR UPDATE защищает
+  // от double-transition awaiting_pickup → (pickup|return|lost) в race.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: curRows } = await client.query(
+      `SELECT status FROM packages_v2 WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    if (!curRows[0]) {
+      await client.query('ROLLBACK');
+      return { package: null, conflict: 'not_found' };
+    }
+    if (curRows[0].status !== 'awaiting_pickup') {
+      await client.query('ROLLBACK');
+      return { package: null, conflict: curRows[0].status };
+    }
 
-  const { rows } = await db.query(
-    `UPDATE packages_v2
-        SET status = 'lost',
-            returned_reason = $1,
-            updated_at = NOW()
-      WHERE id = $2
-      RETURNING ${FULL_COLS}`,
-    [reason, id],
-  );
-  return { package: rows[0], conflict: null };
+    const { rows } = await client.query(
+      `UPDATE packages_v2
+          SET status = 'lost',
+              returned_reason = $1,
+              updated_at = NOW()
+        WHERE id = $2
+        RETURNING ${FULL_COLS}`,
+      [reason, id],
+    );
+    await client.query('COMMIT');
+    return { package: rows[0], conflict: null };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /**

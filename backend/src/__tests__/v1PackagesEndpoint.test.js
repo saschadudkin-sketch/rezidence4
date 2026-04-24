@@ -545,9 +545,11 @@ describe('POST /:id/return', () => {
   beforeEach(() => { mockCurrentUser = { uid: 's1', role: 'concierge' }; });
 
   test('409 on terminal', async () => {
+    // AUDIT #2: service теперь pool.connect() → client.query, не pool.query.
+    // default target='both' чтобы и client.query отвечал.
     dispatch([
       [/FROM packages_v2 WHERE id/, () => ({ rows: [{ status: 'picked_up' }] })],
-    ], 'pool');
+    ]);
     const res = await supertest(buildApp()).post(`/api/v1/packages/${UUID}/return`)
       .send({ reason: 'x' });
     expect(res.status).toBe(409);
@@ -557,7 +559,7 @@ describe('POST /:id/return', () => {
     dispatch([
       [/FROM packages_v2 WHERE id/, () => ({ rows: [{ status: 'awaiting_pickup' }] })],
       [/UPDATE packages_v2/, () => ({ rows: [{ id: UUID, status: 'returned', returned_reason: 'gone' }] })],
-    ], 'pool');
+    ]);
     const res = await supertest(buildApp()).post(`/api/v1/packages/${UUID}/return`)
       .send({ reason: 'gone' });
     expect(res.status).toBe(200);
@@ -595,10 +597,11 @@ describe('POST /:id/mark-lost', () => {
 
   test('200 admin happy', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
+    // AUDIT #2: см. POST /:id/return — default target='both'.
     dispatch([
       [/FROM packages_v2 WHERE id/, () => ({ rows: [{ status: 'awaiting_pickup' }] })],
       [/UPDATE packages_v2/, () => ({ rows: [{ id: UUID, status: 'lost', returned_reason: 'stolen' }] })],
-    ], 'pool');
+    ]);
     const res = await supertest(buildApp()).post(`/api/v1/packages/${UUID}/mark-lost`)
       .send({ confirm: true, reason: 'stolen' });
     expect(res.status).toBe(200);

@@ -58,7 +58,7 @@ function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.pars
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
   getDb(req).query(
-    `INSERT INTO audit_log
+    `INSERT INTO property_audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
@@ -398,26 +398,41 @@ router.post('/:id/reject', async (req, res, next) => {
 
 // ─── POST /api/v1/access-requests/:id/cancel ─────────────────────────────────
 // Отмена создателем (или property_admin).  Terminal после вызова.
+//
+// AUDIT #3: BEGIN + SELECT FOR UPDATE, как в approve/reject — иначе два
+// одновременных cancel (или approve+cancel) могут оба прочитать 'pending',
+// оба сделать UPDATE, и мы получим поломанный audit-trail ("cancelled после
+// approved" — читается как пост-фактум отмена, хотя на самом деле race).
 router.post('/:id/cancel', async (req, res, next) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  const pool = getDb(req);
+  const client = await pool.connect();
   try {
-    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows: curRows } = await getDb(req).query(
-      `SELECT status, created_by_resident_id FROM access_requests WHERE id = $1`,
+    await client.query('BEGIN');
+    const { rows: curRows } = await client.query(
+      `SELECT status, created_by_resident_id
+         FROM access_requests WHERE id = $1 FOR UPDATE`,
       [req.params.id],
     );
-    if (!curRows[0]) return res.status(404).json({ error: 'Access request not found' });
+    if (!curRows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Access request not found' });
+    }
     if (!isPropertyAdmin(req) && curRows[0].created_by_resident_id !== req.user.uid) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (TERMINAL_STATUSES.has(curRows[0].status)) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ error: `Cannot cancel from status '${curRows[0].status}'` });
     }
-    const { rows } = await getDb(req).query(
+    const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
         WHERE id = $1 RETURNING ${AR_COLS}`,
       [req.params.id],
     );
+    await client.query('COMMIT');
     auditLog(req, {
       action: 'access_request.cancelled',
       resourceType: 'access_request',
@@ -425,7 +440,12 @@ router.post('/:id/cancel', async (req, res, next) => {
       changes: null,
     });
     res.json({ access_request: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    next(err);
+  } finally {
+    client.release();
+  }
 });
 
 // ─── POST /api/v1/access-requests/:id/escalate ───────────────────────────────

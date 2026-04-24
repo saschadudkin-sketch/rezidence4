@@ -549,54 +549,63 @@ describe('pickupPackage', () => {
 
 describe('returnPackage', () => {
   test('not_found conflict', async () => {
-    const db = makeDb([['FROM packages_v2 WHERE id', () => ({ rows: [] })]]);
-    const r = await returnPackage(db, UUID, {});
+    // AUDIT #2: returnPackage теперь pool-based (BEGIN + SELECT FOR UPDATE).
+    const pool = makePool([['FROM packages_v2 WHERE id', () => ({ rows: [] })]]);
+    const r = await returnPackage(pool, UUID, {});
     expect(r.conflict).toBe('not_found');
   });
 
   test('terminal status → conflict', async () => {
-    const db = makeDb([['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'returned' }] })]]);
-    const r = await returnPackage(db, UUID, { reason: 'x' });
+    const pool = makePool([['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'returned' }] })]]);
+    const r = await returnPackage(pool, UUID, { reason: 'x' });
     expect(r.conflict).toBe('returned');
   });
 
   test('happy path: awaiting → returned, trims reason', async () => {
     const pkg = { id: UUID, status: 'returned', returned_reason: 'no one home' };
-    const db = makeDb([
+    const pool = makePool([
       ['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'awaiting_pickup' }] })],
       ['UPDATE packages_v2', () => ({ rows: [pkg] })],
     ]);
-    const r = await returnPackage(db, UUID, { reason: '  no one home  ' });
+    const r = await returnPackage(pool, UUID, { reason: '  no one home  ' });
     expect(r.conflict).toBeNull();
     expect(r.package).toEqual(pkg);
     // args second call: [reason, id]
-    const updateCall = db.calls.find((c) => c.sql.includes('UPDATE'));
+    // NOTE: .includes('UPDATE packages_v2') — 'UPDATE' один также матчит SELECT FOR UPDATE.
+    const updateCall = pool.calls.find((c) => c.sql.includes('UPDATE packages_v2'));
     expect(updateCall.args).toEqual(['no one home', UUID]);
+    // AUDIT #2: убедимся, что SELECT FOR UPDATE и COMMIT есть в SQL-стриме.
+    const sqls = pool.calls.map((c) => c.sql).join(' | ');
+    expect(sqls).toContain('FOR UPDATE');
+    expect(sqls).toContain('COMMIT');
   });
 });
 
 describe('markLostPackage', () => {
   test('requires confirm:true', async () => {
-    await expect(markLostPackage(makeDb(), UUID, { reason: 'x' })).rejects.toThrow(/confirm/i);
-    await expect(markLostPackage(makeDb(), UUID, { confirm: false, reason: 'x' })).rejects.toThrow(/confirm/i);
+    await expect(markLostPackage(makePool(), UUID, { reason: 'x' })).rejects.toThrow(/confirm/i);
+    await expect(markLostPackage(makePool(), UUID, { confirm: false, reason: 'x' })).rejects.toThrow(/confirm/i);
   });
   test('requires reason', async () => {
-    await expect(markLostPackage(makeDb(), UUID, { confirm: true })).rejects.toThrow(/reason/);
-    await expect(markLostPackage(makeDb(), UUID, { confirm: true, reason: '   ' })).rejects.toThrow(/reason/);
+    await expect(markLostPackage(makePool(), UUID, { confirm: true })).rejects.toThrow(/reason/);
+    await expect(markLostPackage(makePool(), UUID, { confirm: true, reason: '   ' })).rejects.toThrow(/reason/);
   });
   test('transitions awaiting → lost', async () => {
     const pkg = { id: UUID, status: 'lost' };
-    const db = makeDb([
+    const pool = makePool([
       ['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'awaiting_pickup' }] })],
       ['UPDATE packages_v2', () => ({ rows: [pkg] })],
     ]);
-    const r = await markLostPackage(db, UUID, { confirm: true, reason: 'never arrived' });
+    const r = await markLostPackage(pool, UUID, { confirm: true, reason: 'never arrived' });
     expect(r.package).toEqual(pkg);
     expect(r.conflict).toBeNull();
+    const sqls = pool.calls.map((c) => c.sql).join(' | ');
+    expect(sqls).toContain('FOR UPDATE');
+    expect(sqls).toContain('COMMIT');
   });
   test('refuses when already terminal', async () => {
-    const db = makeDb([['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'picked_up' }] })]]);
-    const r = await markLostPackage(db, UUID, { confirm: true, reason: 'x' });
+    const pool = makePool([['FROM packages_v2 WHERE id', () => ({ rows: [{ status: 'picked_up' }] })]]);
+    const r = await markLostPackage(pool, UUID, { confirm: true, reason: 'x' });
     expect(r.conflict).toBe('picked_up');
   });
 });
