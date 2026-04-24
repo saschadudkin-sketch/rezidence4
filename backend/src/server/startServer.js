@@ -5,6 +5,8 @@ const sse = require('../sse');
 const { startRuntimeJobs } = require('./runtimeJobs');
 const { startTelegramBot, stopBot: stopTelegramBot } = require('../services/telegramBot');
 const { startOutboxRunner } = require('../v1/workers/outboxRunner');
+const { startScheduledFanoutRunner } = require('../v1/workers/scheduledFanoutRunner');
+const { startPackageSlaRunner } = require('../v1/workers/packageSlaRunner');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { getPropertyPool } = require('../middleware/propertyDb');
 
@@ -36,6 +38,8 @@ async function startServer({ app, db, config }) {
   // Начиная с Фазы 5 это «двигатель», который асинхронно шлёт всё что
   // диспетчер уронил в notifications_outbox.  См. notifications-outbox-spec.md §4.5.
   let outboxRunner = { stop() {}, started: false };
+  let scheduledFanoutRunner = { stop() {}, started: false };
+  let packageSlaRunner = { stop() {}, started: false };
   if (isOutboxEnabled()) {
     let platformDb = null;
     try {
@@ -46,11 +50,23 @@ async function startServer({ app, db, config }) {
       logger.warn({ err: err.message }, '[server] platform DB unavailable for outbox runner');
     }
 
-    outboxRunner = startOutboxRunner({
+    const runnerDb = {
       platformDb,
       getPool: platformDb ? getPropertyPool : null,
       fallbackDb: db.pool,
-    });
+    };
+
+    outboxRunner = startOutboxRunner(runnerDb);
+
+    // Cron-воркер объявлений: каждую минуту проверяет scheduled → active
+    // и кладёт fan-out строки в outbox.  В одном процессе с outbox-runner,
+    // но отдельный таймер — чтобы шейпать частоту независимо.
+    scheduledFanoutRunner = startScheduledFanoutRunner(runnerDb);
+
+    // SLA-воркер посылок: каждый час auto-return (14 дней) + reminder
+    // (7 дней).  Reminder идёт через тот же outbox → outbox-runner уже
+    // запущен выше, цепочка замкнута.
+    packageSlaRunner = startPackageSlaRunner(runnerDb);
   }
 
   const shutdownTimeout = 10_000;
@@ -64,6 +80,12 @@ async function startServer({ app, db, config }) {
     jobs.stop();
     try { outboxRunner.stop(); } catch (err) {
       logger.warn({ err: err.message }, '[server] outbox runner stop failed');
+    }
+    try { scheduledFanoutRunner.stop(); } catch (err) {
+      logger.warn({ err: err.message }, '[server] scheduled-fanout runner stop failed');
+    }
+    try { packageSlaRunner.stop(); } catch (err) {
+      logger.warn({ err: err.message }, '[server] package-sla runner stop failed');
     }
     stopTelegramBot();
     sseRedis.shutdown();
@@ -89,7 +111,14 @@ async function startServer({ app, db, config }) {
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-  return { server, gracefulShutdown, jobs, outboxRunner };
+  return {
+    server,
+    gracefulShutdown,
+    jobs,
+    outboxRunner,
+    scheduledFanoutRunner,
+    packageSlaRunner,
+  };
 }
 
 module.exports = {
