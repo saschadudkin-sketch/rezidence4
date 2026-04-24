@@ -55,6 +55,25 @@ class TemplateNotFoundError extends Error {
  * {{var}}), затем плоские подстановки.  Если в секции встречается та же
  * переменная — её значение подставится вторым проходом.
  *
+ * SEC [AUDIT #9]: инвариант безопасности — строковые значения, подставляемые
+ * в пассе 2, НИКОГДА не должны интерпретироваться как шаблон.  String.prototype.replace
+ * по дизайну не рескан'ит replacement'ы (каждый match ищется в исходной строке,
+ * колбэк возвращает финальный текст), поэтому sequence single-pass'ов ниже
+ * безопасен.  НО: в качестве defense-in-depth мы ЯВНО escape'им пары `{{` и `}}`
+ * в substituted values — вставляем ZWSP (U+200B) между скобками.  Это
+ * гарантирует, что даже если в будущем кто-то:
+ *   (a) добавит re-interpolation pass после этой функции, или
+ *   (b) соберёт payload из нескольких interpolate()-выходов и отрендерит их
+ *       снова в другом движке,
+ * то user-controlled значения (sender_name, recipient_name, tracker_id и т.п.)
+ * не превратятся в управляющие токены.  ZWSP выбран т.к. он invisible в SMS /
+ * push-уведомлениях и не ломает char-count в большинстве gateway'ев (SMS.ru
+ * считает его как 1 char в UCS-2 части сообщения).
+ *
+ * Если эта защита когда-нибудь будет удалена — одновременно нужно убедиться,
+ * что нет re-rendering в цепочке producer → outbox → adapter, иначе regression
+ * в sec тест v1NotificationTemplates.test.js сразу покажет.
+ *
  * @param {string} template
  * @param {Object<string,any>} variables
  * @returns {string}
@@ -75,13 +94,24 @@ function interpolate(template, variables) {
     (_, key, inner) => (vars[key] ? '' : inner),
   );
 
-  // 2. Плоские подстановки: {{key}}
+  // 2. Плоские подстановки: {{key}} — ЗАЩИЩАЕМ `{{` / `}}` в user-данных,
+  // см. блок SEC [AUDIT #9] выше.
   result = result.replace(
     /\{\{(\w+)\}\}/g,
-    (_, key) => (vars[key] != null ? String(vars[key]) : ''),
+    (_, key) => (vars[key] != null ? escapeMustacheDelims(String(vars[key])) : ''),
   );
 
   return result;
+}
+
+// SEC [AUDIT #9]: вставляет U+200B (ZWSP) между парами `{{` и `}}` в
+// user-controlled значениях, чтобы они не могли быть интерпретированы как
+// mustache-токены при возможном последующем rendering'е.  В норме у variables
+// (sender_name, carrier, package_id, …) скобок нет — функция идемпотентна и
+// не добавляет overhead для обычных значений.
+function escapeMustacheDelims(s) {
+  if (s.indexOf('{{') === -1 && s.indexOf('}}') === -1) return s;
+  return s.replace(/\{\{/g, '{\u200B{').replace(/\}\}/g, '}\u200B}');
 }
 
 /**

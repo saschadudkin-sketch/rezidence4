@@ -19,7 +19,7 @@
 - [ ] `cd backend && npx eslint src` → 0 ошибок.
 - [ ] `cd frontend && npm run build` → bundle собирается.
 - [ ] `cd frontend && npx tsc --noEmit` → 0 новых ошибок (pre-existing в `VisitLogView.test.tsx` и тестах без vitest types — игнорировать, не блокирует).
-- [ ] Версия тэгнута: `git tag -a v1.0.0-zamoskv -m "Go-live Zamoskvorechye"`.
+- [ ] Версия тэгнута и запушена: `git tag -a v1.0.0-zamoskv -m "Go-live Zamoskvorechye" && git push origin v1.0.0-zamoskv` (без `--tags` из remote сервер не сможет `git checkout v1.0.0-zamoskv` в §2.1).
 
 ### 1.2 Секреты подготовлены
 
@@ -132,14 +132,15 @@ docker compose exec db psql -U residenze -d zamoskv -c "SELECT id FROM v1_proper
 # Ожидается: 22 строки v1_001..v1_022
 ```
 
-### 2.5 Запуск стека
+### 2.5 Первый запуск (HTTP-only, до выдачи сертификата)
 
 ```bash
+# БЕЗ overlay — nginx слушает только :80, что нужно certbot standalone в §2.6.
 docker compose up -d --build
 docker compose ps
 ```
 
-Все сервисы `Up`/`healthy`: `db`, `redis`, `backend`, `frontend`, `backup`.
+Все сервисы `Up`/`healthy`: `db`, `redis`, `backend`, `frontend`, `backup`. HTTPS (overlay) подключим в §2.6 после того как Let's Encrypt выдаст сертификат.
 
 ### 2.6 HTTPS через Let's Encrypt
 
@@ -151,13 +152,39 @@ docker run --rm -p 80:80 \
   -v /etc/letsencrypt:/etc/letsencrypt \
   -v /var/www/certbot:/var/www/certbot \
   certbot/certbot certonly --standalone \
-  -d zamoskv.domhub.su
+  -d zamoskv.domhub.su \
+  --agree-tos -m admin@zamoskv.ru --non-interactive
 
 # .env: ENABLE_HTTPS=true уже стоит
-docker compose up -d --build
+# Production compose — ВАЖНО: overlay-файл, иначе frontend стартует без 443.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 curl -I https://zamoskv.domhub.su
 curl https://zamoskv.domhub.su/api/health
 ```
+
+### 2.7 Авто-обновление Let's Encrypt
+
+Сертификат выдан на 90 дней — без cron-джобы он протухнет через ~3 месяца и весь сайт ляжет с `NET::ERR_CERT_DATE_INVALID`. Ставим host-level cron (не внутри контейнера — certbot запускается как standalone с bind'ом на :80, а frontend слушает :80 из контейнера):
+
+```bash
+# /etc/cron.d/certbot-renew (host-level, владелец root)
+cat <<'EOF' | sudo tee /etc/cron.d/certbot-renew
+# Проверка дважды в сутки, обновление если ≤30 дней до истечения.
+# nginx-контейнер перезапускается тольно если сертификат реально обновился.
+0 3,15 * * * root docker run --rm \
+  -v /etc/letsencrypt:/etc/letsencrypt \
+  -v /var/www/certbot:/var/www/certbot \
+  -p 80:80 certbot/certbot renew --standalone \
+    --pre-hook  "cd /var/www/domhub && docker compose stop frontend" \
+    --post-hook "cd /var/www/domhub && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d frontend" \
+    >> /var/log/certbot-renew.log 2>&1
+EOF
+
+# Sanity: dry-run, должна завершиться без ошибок.
+sudo certbot renew --dry-run || echo "ABORT: renewal will fail"
+```
+
+**Monitoring:** раз в неделю `openssl s_client -connect zamoskv.domhub.su:443 -servername zamoskv.domhub.su < /dev/null 2>/dev/null | openssl x509 -noout -dates` — ожидаем `notAfter` ≥ 30 дней в будущем. При <14 — ручной `certbot renew --force-renewal` с alertom в incident channel.
 
 ---
 
@@ -318,9 +345,21 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
 Если в первые часы после публикации обнаружены P0-баги:
 
 1. **DNS не откатываем** — резиденты уже кэшировали A-record.
-2. `git checkout PREVIOUS_GOOD_TAG && docker compose up -d --build` — код откатывается, volumes и DB сохраняются.
-3. Если нужен **data rollback** — восстановить из `./backups/zamoskv-latest.dump` (есть ежедневный snapshot через `backup` контейнер).
-4. На админ-панели — отключить модули через feature-flags, чтобы изолировать проблемную фичу без полного отката:
+2. `git checkout PREVIOUS_GOOD_TAG && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build` — код откатывается, volumes и DB сохраняются. Prod-overlay ОБЯЗАТЕЛЕН, без него 443/letsencrypt-маунты отвалятся и HTTPS ляжет.
+3. **Очистить Redis** — иначе token-revocation list и platform-rate-limit буфера из новой версии могут блокировать валидные запросы старого кода:
+   ```bash
+   # Безопасно: Redis держит только кеш и эфемерное state (revoked JWTs, rate counters,
+   # SSE pub/sub). Всё persistent — в Postgres.
+   docker compose exec redis redis-cli -a "$REDIS_PASSWORD" FLUSHDB
+   ```
+4. Если нужен **data rollback** — есть ежедневные бэкапы ВСЕХ трёх БД (см. `backup.sh`, симлинки `*_latest.sql.gz`):
+   ```bash
+   # Восстановление per-tenant данных (zamoskv) — НЕ трогает registry/legacy:
+   docker compose exec -T db psql -U residenze -d zamoskv < <(gunzip -c ./backups/zamoskv_latest.sql.gz)
+   # Если нужен полный откат registry (редко — обычно platform данные критичнее):
+   # docker compose exec -T db psql -U residenze -d platform < <(gunzip -c ./backups/platform_latest.sql.gz)
+   ```
+5. На админ-панели — отключить модули через feature-flags, чтобы изолировать проблемную фичу без полного отката:
    ```bash
    docker compose exec backend node -e "
      const { Pool } = require('pg');
@@ -349,7 +388,7 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
   - **A:** Все подписки web-push в БД станут недействительны. Процедура: сгенерировать новые ключи, залить в `.env`, перезапустить backend, **отправить всем резидентам push-реопт через telegram/email** с призывом «включить уведомления заново». Потерянные ключи — аналог перестановки приложения.
 
 - **Q2:** Нужен ли backup platform DB отдельно от property DB?
-  - **A:** Да. `docker-compose.yml` → `backup` контейнер сейчас делает `pg_dump residenze`; нужно добавить ещё два запуска для `platform` и `zamoskv`. Либо один raw-dump `pg_dumpall`. Зафиксировать как P0-задачу в `BACKLOG.md` после first-deploy dry run.
+  - **A:** Всё уже работает (закрыто в audit fix #5). `backup.sh` читает `BACKUP_DATABASES` env (дефолт `residenze platform zamoskv`), делает `pg_dump` каждой БД в отдельный файл `*_YYYYMMDD_HHMMSS.sql.gz` + симлинк `*_latest.sql.gz`. Rotation — 7 дней. При добавлении нового tenant'а — дописать slug в `docker-compose.yml` → `backup.environment.BACKUP_DATABASES`.
 
 - **Q3:** Что с legacy rezidence4 БД — мигрируем её данные?
   - **A:** На pre-deployment стадии (реальных клиентов нет) — **не мигрируем**. `ROADMAP.md §Фаза 7` ставит «Архивировать legacy/zamoskvoreche-v0» как последний шаг: dump старой БД + tag ветки, новая Замоскворечье стартует с нуля.

@@ -106,6 +106,66 @@ describe('interpolate', () => {
     expect(interpolate('{{#x}}A{{/x}}-{{^x}}B{{/x}}', { x: 1 })).toBe('A-');
     expect(interpolate('{{#x}}A{{/x}}-{{^x}}B{{/x}}', { x: 0 })).toBe('-B');
   });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // SEC [AUDIT #9]: user-controlled значения НЕ должны интерпретироваться как
+  // mustache-токены — ни при первом, ни при последующем rendering'е.
+  // ──────────────────────────────────────────────────────────────────────────
+
+  test('SEC: user value {{other_var}} does NOT leak other_var', () => {
+    // Без защиты: name="{{secret}}" → пасс 3 вернёт "{{secret}}" как literal,
+    // но если бы был второй interpolate-pass, secret протек бы.
+    // С защитой: ZWSP разбивает `{{` пары → токен больше не matched.
+    const out = interpolate('User: {{name}}', {
+      name: '{{secret}}',
+      secret: 'PASSWORD123',
+    });
+    // Вариант без защиты: `User: {{secret}}` — содержит `{{secret}}` как целиком matchable token.
+    // Вариант с защитой: `User: {\u200B{secret}\u200B}` — `{{` разбито ZWSP, не matched.
+    expect(out).not.toContain('{{secret}}');
+    expect(out).not.toContain('PASSWORD123');
+    // Проверяем что ZWSP вставлен между `{` и `{`:
+    expect(out).toMatch(/\{\u200B\{/);
+  });
+
+  test('SEC: re-interpolating output does NOT expand user-supplied delimiters', () => {
+    // Симулируем гипотетический второй pass (bug в будущем):
+    const firstPass = interpolate('Hi {{name}}', {
+      name: '{{admin}}',
+      admin: 'LEAK',
+    });
+    const secondPass = interpolate(firstPass, { admin: 'LEAK' });
+    // Если бы не было ZWSP — secondPass вернул бы "Hi LEAK".  С защитой — нет.
+    expect(secondPass).not.toContain('LEAK');
+  });
+
+  test('SEC: nested user-delimiter in section does NOT expand', () => {
+    // Если section truthy → inner копируется; user значение внутри inner должно
+    // остаться literal (с ZWSP внутри), а не re-interpret'ироваться.
+    const out = interpolate('{{#show}}hi {{msg}}{{/show}}', {
+      show: true,
+      msg: '{{password}}',
+      password: 'hunter2',
+    });
+    expect(out).not.toContain('hunter2');
+    expect(out).not.toContain('{{password}}');
+  });
+
+  test('SEC: substitution without mustache delims has no added overhead', () => {
+    // Обычные значения без скобок — идемпотентны, без ZWSP вставки.
+    const out = interpolate('Hi {{name}}, code: {{code}}', {
+      name: 'Иван Петров',
+      code: 'ABC-123',
+    });
+    expect(out).toBe('Hi Иван Петров, code: ABC-123');
+    expect(out).not.toContain('\u200B');
+  });
+
+  test('SEC: edge case — single `{` or `}` in value is unchanged', () => {
+    // Только parные `{{` / `}}` escape'ятся — одиночные не трогаем.
+    expect(interpolate('{{x}}', { x: 'a{b}c' })).toBe('a{b}c');
+    expect(interpolate('{{x}}', { x: '{just one' })).toBe('{just one');
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
