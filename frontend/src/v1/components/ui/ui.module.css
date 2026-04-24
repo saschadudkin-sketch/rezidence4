@@ -264,6 +264,39 @@
 .marginTop3    { margin-top: var(--space-3); }
 .marginTop4    { margin-top: var(--space-4); }
 
+/* Pre-formatted body text (announcements, documents, packages notes).
+   Replaces inline `style={{ whiteSpace:'pre-wrap', margin:0 }}` patterns
+   that the no-restricted-syntax rule forbids in product UI. */
+.preWrap {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
+/* Section column wrapper — replaces inline display:flex stack on
+   ResidentDocumentsPage groups and similar. */
+.sectionStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Section heading (h2 inside category groups). */
+.sectionHeading {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+/* Resident-nav link — used by ResidentNav <NavLink>. */
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
 /* Link-like in-card button (Подробнее →). */
 .linkButton {
   background: transparent;

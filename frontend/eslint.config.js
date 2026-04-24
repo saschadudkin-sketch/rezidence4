@@ -43,6 +43,10 @@ export default [
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
+      // Tests intentionally use `any` for mock flexibility (vi.spyOn with
+      // generic selectors, partial state shapes, etc). Production rules
+      // still apply to src/**.
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   // Runtime layout / variable-driven infra components where style is part of behavior

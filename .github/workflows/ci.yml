@@ -55,6 +55,7 @@ jobs:
         working-directory: frontend
     env:
       VITE_API_URL: http://localhost:3001
+      VITE_RUNTIME_MODE: live
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -109,6 +110,7 @@ jobs:
         working-directory: frontend
     env:
       VITE_API_URL: http://localhost:3001
+      VITE_RUNTIME_MODE: live
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -145,6 +147,7 @@ jobs:
       - name: Production build passes with VITE_API_URL
         env:
           VITE_API_URL: http://localhost:3001
+          VITE_RUNTIME_MODE: live
         run: npm run build
 
   docker-build:

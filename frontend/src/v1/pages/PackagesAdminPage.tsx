@@ -343,7 +343,7 @@ function PackageRow({ row, isAdmin }: PackageRowProps) {
           </Inline>
         ) : null}
         {row.notes ? (
-          <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{row.notes}</p>
+          <p className={uiClasses.preWrap}>{row.notes}</p>
         ) : null}
 
         {mode === 'pickup' ? (

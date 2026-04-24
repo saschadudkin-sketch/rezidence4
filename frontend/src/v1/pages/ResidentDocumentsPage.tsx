@@ -123,12 +123,9 @@ export function ResidentDocumentsPage() {
           <section
             key={category}
             aria-labelledby={`cat-${category}`}
-            style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}
+            className={uiClasses.sectionStack}
           >
-            <h2
-              id={`cat-${category}`}
-              style={{ margin: 0, fontSize: 'var(--text-lg)' }}
-            >
+            <h2 id={`cat-${category}`} className={uiClasses.sectionHeading}>
               {CATEGORY_LABELS[category]}
             </h2>
             {rows.map((row) => (
@@ -151,16 +148,7 @@ function DocumentCard({ row }: { row: V1Document }) {
     >
       <Stack>
         {row.body_md && (
-          <pre
-            style={{
-              margin: 0,
-              fontFamily: 'inherit',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {row.body_md}
-          </pre>
+          <pre className={uiClasses.preWrap}>{row.body_md}</pre>
         )}
         {row.file_url && (
           <p>

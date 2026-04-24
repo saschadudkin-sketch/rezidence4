@@ -358,9 +358,9 @@ function DocumentRow({ row, isAdmin }: DocumentRowProps) {
     >
       <Stack>
         {row.body_md ? (
-          <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{row.body_md}</p>
+          <p className={uiClasses.preWrap}>{row.body_md}</p>
         ) : (
-          <p className={uiClasses.textMuted} style={{ margin: 0 }}>
+          <p className={uiClasses.textMuted}>
             Тело пустое — документ ссылается на файл: {row.file_url ?? '—'}
           </p>
         )}

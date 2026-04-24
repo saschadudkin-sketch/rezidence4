@@ -39,15 +39,8 @@ export function ResidentNav() {
             end
             aria-label={item.aria}
             className={({ isActive }) =>
-              isActive ? uiClasses.buttonSecondary : uiClasses.buttonGhost
+              `${uiClasses.navLink} ${isActive ? uiClasses.buttonSecondary : uiClasses.buttonGhost}`
             }
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: 'var(--space-2) var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              textDecoration: 'none',
-            }}
           >
             {item.label}
           </NavLink>

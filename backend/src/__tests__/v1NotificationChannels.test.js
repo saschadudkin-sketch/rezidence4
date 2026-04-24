@@ -419,17 +419,23 @@ describe('webPushAdapter.send', () => {
   });
 
   test('invalid snapshot JSON → ok:false with parse error (no throw)', async () => {
-    // Need VAPID set so we reach parseSnapshot branch.  Use the real
-    // web-push module or mock — simpler: set env + stub the module.
-    process.env.VAPID_PUBLIC_KEY = 'pk';
-    process.env.VAPID_PRIVATE_KEY = 'sk';
-    process.env.VAPID_SUBJECT = 'mailto:x@example.com';
-    // The module may not be installed in CI — if missing, getWebPush()
-    // returns false on its own; bail before the parseSnapshot test.
-    // Only run this test when web-push is installable:
+    // Need VAPID set so we reach parseSnapshot branch.  Use real generated
+    // keys — `setVapidDetails` validates key format (P-256 base64url) and
+    // throws on garbage like 'pk'/'sk', which `getWebPush` would catch and
+    // turn into 'vapid_not_configured', masking the real test target.
     let webPushAvailable = true;
     try { require.resolve('web-push'); } catch { webPushAvailable = false; }
     if (!webPushAvailable) return;
+
+    const wp = require('web-push');
+    const { publicKey, privateKey } = wp.generateVAPIDKeys();
+    process.env.VAPID_PUBLIC_KEY = publicKey;
+    process.env.VAPID_PRIVATE_KEY = privateKey;
+    process.env.VAPID_SUBJECT = 'mailto:x@example.com';
+    // Cache may have been set to `false` by the previous test (or a stale
+    // module-load race); reset AFTER env is configured so the next call
+    // to getWebPush() picks up the real keys.
+    webPushAdapter.__resetForTests();
 
     const r = await webPushAdapter.send({
       recipientAddress: '{bad json',

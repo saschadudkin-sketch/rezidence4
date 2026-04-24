@@ -128,18 +128,9 @@ function AnnouncementCard({ row }: { row: Announcement }) {
       }
       elevated={row.is_urgent || row.is_pinned}
     >
-      <pre
-        style={{
-          margin: 0,
-          fontFamily: 'inherit',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}
-      >
-        {row.body_md}
-      </pre>
+      <pre className={uiClasses.preWrap}>{row.body_md}</pre>
       {row.expires_at && (
-        <p className={uiClasses.textMuted} style={{ marginTop: 'var(--space-3)' }}>
+        <p className={`${uiClasses.textMuted} ${uiClasses.marginTop3}`}>
           Действительно до {formatDate(row.expires_at)}
         </p>
       )}

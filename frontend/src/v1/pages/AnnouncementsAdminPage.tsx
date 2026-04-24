@@ -336,7 +336,7 @@ function AnnouncementRow({ row, isAdmin }: AnnouncementRowProps) {
         </Inline>
       }
     >
-      <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{row.body_md}</p>
+      <p className={uiClasses.preWrap}>{row.body_md}</p>
       {fanOut !== null ? (
         <Alert tone="success">Опубликовано. Уведомлений в очереди: {fanOut}.</Alert>
       ) : null}
