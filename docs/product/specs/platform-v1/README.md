@@ -45,6 +45,12 @@
 | [packages-v2](./packages-v2-spec.md) | Draft (state machine + SLA-напоминания + fan-out через outbox) |
 | [announcements-v2](./announcements-v2-spec.md) | Draft (audience-targeting + fan-out через outbox) |
 
+### Фаза 6 — Legacy content migration
+
+| Модуль | Статус |
+|---|---|
+| [notification-templates-v2](./notification-templates-v2-spec.md) | Draft (централизованное хранилище текстов уведомлений + mustache-lite rendering; P3 в Phase 6) |
+
 **Фаза 5 не покрытая спеками (rename, делается миграцией без отдельного spec-файла):**
 - `property_audit_log` — rename из legacy `audit_log` + `actor_type`/`entity_type`/`entity_id`. Миграция в `backend/src/v1/migrations/` при старте Phase 5, отдельный spec-файл не нужен.
 

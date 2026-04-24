@@ -371,6 +371,11 @@ describe('POST /api/v1/packages', () => {
       if (sql.includes('FROM resident_unit_links')) return Promise.resolve({ rows: [
         { resident_id: 'r1' }, { resident_id: 'r2' },
       ] });
+      // Phase 6: notification_templates_v2 lookup в той же транзакции.
+      if (sql.includes('FROM notification_templates_v2')) return Promise.resolve({ rows: [{
+        template_key: 'package.received', channel: null, locale: 'ru',
+        subject: 'Вам посылка', body: 'Посылка ожидает.', url_template: '/packages/x',
+      }] });
       if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({
         rows: [{ id: 'o1' }, { id: 'o2' }, { id: 'o3' }, { id: 'o4' }],
       });
@@ -512,6 +517,11 @@ describe('POST /:id/pickup', () => {
         id: UUID, status: 'picked_up', picked_up_by_resident_id: UUID2,
         picked_up_by_name: null, picked_up_at: '2026-04-20T00:00:00Z',
       }] });
+      if (sql.includes('FROM notification_templates_v2')) return Promise.resolve({ rows: [{
+        template_key: 'package.picked_up_confirmation', channel: null, locale: 'ru',
+        subject: 'Посылка получена', body: 'Вы получили посылку.',
+        url_template: '/packages/{{package_id}}',
+      }] });
       if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({
         rows: [{ id: 'o1' }],
       });
@@ -623,6 +633,11 @@ describe('POST /:id/remind', () => {
       if (sql.includes('FROM packages_v2 WHERE id')) return Promise.resolve({ rows: [{
         id: UUID, status: 'awaiting_pickup', received_at: new Date().toISOString(),
         property_id: UUID4, unit_id: UUID2, recipient_resident_id: UUID3,
+      }] });
+      if (sql.includes('FROM notification_templates_v2')) return Promise.resolve({ rows: [{
+        template_key: 'package.pickup_reminder', channel: null, locale: 'ru',
+        subject: 'Напоминание', body: 'Ваша посылка ждёт вас.',
+        url_template: '/packages/{{package_id}}',
       }] });
       if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({
         rows: [{ id: 'o1' }, { id: 'o2' }],

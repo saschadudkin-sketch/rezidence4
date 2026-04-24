@@ -25,8 +25,9 @@ function byId(id) {
 describe('v1 property migrations — registry invariants', () => {
   test('exports a non-empty ordered array', () => {
     expect(Array.isArray(V1_PROPERTY_MIGRATIONS)).toBe(true);
-    // 7 Фаза 2 + 8 Фаза 3 (Access-core) + 6 Фаза 5 (Content+Notifications) = 21
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(21);
+    // 7 Фаза 2 + 8 Фаза 3 (Access-core) + 6 Фаза 5 (Content+Notifications)
+    // + 1 Фаза 6 (notification_templates_v2) = 22
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(22);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {

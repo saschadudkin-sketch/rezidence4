@@ -27,6 +27,7 @@ const {
   enqueueNotification,
   enqueueNotificationBatch,
 } = require('./notificationOutbox');
+const { renderTemplate } = require('./notificationTemplates');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED_SIZES = new Set([
@@ -279,10 +280,18 @@ async function createPackage(pool, input) {
       ? [recipientResidentId]
       : await fetchActiveResidentIdsForUnit(client, unitId);
 
+    // Phase 6: тексты теперь в notification_templates_v2.  Рендер идёт в той же
+    // транзакции — консистентный read с пользовательской мутацией.
+    const rendered = await renderTemplate(client, 'package.received', {
+      sender_name: pkg.sender_name,
+      carrier: pkg.carrier,
+      storage_location: pkg.storage_location,
+      package_id: pkg.id,
+    });
     const payload = {
-      title: 'Вам посылка',
-      body: buildPackageReceivedBody(pkg),
-      url: `/packages/${pkg.id}`,
+      title: rendered.subject,
+      body: rendered.body,
+      url: rendered.url,
       // Специфичные для package поля (outbox worker пропустит как есть в
       // notification_log_v2.payload; /mine их увидит после trimPayloadForResident).
       package_id: pkg.id,
@@ -431,6 +440,9 @@ async function pickupPackage(pool, id, input) {
     // Для pickedUpByName (не-резидент) — подтверждения нет.
     let outboxRows = [];
     if (pickedUpByResidentId) {
+      const rendered = await renderTemplate(client, 'package.picked_up_confirmation', {
+        package_id: pkg.id,
+      });
       outboxRows = [await enqueueNotification(client, {
         propertyId,
         eventType: 'package.picked_up_confirmation',
@@ -438,9 +450,9 @@ async function pickupPackage(pool, id, input) {
         recipientType: 'resident',
         recipientId: pickedUpByResidentId,
         payload: {
-          title: 'Посылка получена',
-          body: 'Вы получили посылку — подтверждено на ресепшн.',
-          url: `/packages/${pkg.id}`,
+          title: rendered.subject,
+          body: rendered.body,
+          url: rendered.url,
           package_id: pkg.id,
           picked_up_at: pkg.picked_up_at,
         },
@@ -553,10 +565,14 @@ async function remindPackage(pool, id) {
       0,
       Math.floor((Date.now() - new Date(pkg.received_at).getTime()) / (24 * 3600 * 1000)),
     );
+    const rendered = await renderTemplate(client, 'package.pickup_reminder', {
+      days_waiting: daysWaiting,
+      package_id: pkg.id,
+    });
     const payload = {
-      title: 'Напоминание: посылка ждёт вас',
-      body: `Ваша посылка на ресепшн уже ${daysWaiting} дней. Пожалуйста, заберите.`,
-      url: `/packages/${pkg.id}`,
+      title: rendered.subject,
+      body: rendered.body,
+      url: rendered.url,
       package_id: pkg.id,
       days_waiting: daysWaiting,
       received_at: pkg.received_at,
@@ -662,16 +678,10 @@ async function fetchActiveResidentIdsForUnit(client, unitId) {
   return rows.map((r) => r.resident_id);
 }
 
-function buildPackageReceivedBody(pkg) {
-  const bits = [];
-  if (pkg.sender_name) bits.push(`от ${pkg.sender_name}`);
-  if (pkg.carrier) bits.push(`(${pkg.carrier})`);
-  const from = bits.join(' ');
-  if (pkg.storage_location) {
-    return `Посылка${from ? ' ' + from : ''} — хранение: ${pkg.storage_location}`;
-  }
-  return `Посылка${from ? ' ' + from : ''} ожидает на ресепшн.`;
-}
+// Note: ранее здесь был buildPackageReceivedBody — удалён в Phase 6
+// при миграции текстов в notification_templates_v2.  Логика «от X (Y) —
+// хранение: Z» теперь выражается через шаблон с {{#sender_name}}.../{{/...}}
+// секциями (см. миграцию 022 и services/notificationTemplates.js).
 
 module.exports = {
   listForTenant,
@@ -694,5 +704,7 @@ module.exports = {
   REMIND_CHANNELS,
   PICKUP_CONFIRM_CHANNELS,
   clampLimit,
-  buildPackageReceivedBody,
+  // buildPackageReceivedBody removed in Phase 6 — см. notification_templates_v2
+  // + services/notificationTemplates.js.  Логика хранится как шаблон
+  // package.received, покрытие теперь в notificationTemplates.test.js.
 };

@@ -30,6 +30,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./019_packages_v2'),
   require('./020_announcements_v2'),
   require('./021_property_audit_log'),
+  // Фаза 6 — Templates extraction
+  require('./022_notification_templates_v2'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

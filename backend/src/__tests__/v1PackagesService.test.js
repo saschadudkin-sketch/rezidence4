@@ -10,9 +10,12 @@
  * они просто `tx.query(...)` подделанному client'у, так мы проверяем SQL shape
  * end-to-end, включая outbox insert.
  *
+ * Phase 6 note: тексты уведомлений переехали в notification_templates_v2,
+ * поэтому в happy-path тестах createPackage/pickupPackage/remindPackage
+ * добавлен stub-responder на SELECT шаблона (см. templateResponder ниже).
+ *
  * Coverage:
  *   • clampLimit                      — default/cap semantics
- *   • buildPackageReceivedBody        — graceful строка без sender/carrier
  *   • listForTenant                   — фильтры, allowlist, сортировка
  *   • listForResident                 — recipient OR unit; 90-day окно; lost скрыт
  *   • getById                         — UUID-валидация, null на miss
@@ -50,7 +53,6 @@ const {
   REMIND_CHANNELS,
   PICKUP_CONFIRM_CHANNELS,
   clampLimit,
-  buildPackageReceivedBody,
 } = require('../v1/services/packages');
 
 const UUID = '11111111-2222-3333-4444-555555555555';
@@ -94,6 +96,24 @@ function makePool(responders = []) {
   };
 }
 
+// Phase 6: после миграции текстов уведомлений в notification_templates_v2
+// happy-path тесты должны отдавать валидный шаблон на SELECT.  Этот responder
+// возвращает общий stub, который подходит для package.received / pickup_*
+// без различения ключа — достаточно, чтобы interpolate() вернул непустую body.
+const templateResponder = [
+  /FROM notification_templates_v2/,
+  () => ({
+    rows: [{
+      template_key: 'stub',
+      channel: null,
+      locale: 'ru',
+      subject: 'Stub subject',
+      body: 'Stub body {{days_waiting}}',
+      url_template: '/packages/{{package_id}}',
+    }],
+  }),
+];
+
 // ══════════════════════════════════════════════════════════════════════════════
 // constants + helpers
 // ══════════════════════════════════════════════════════════════════════════════
@@ -136,22 +156,10 @@ describe('clampLimit', () => {
   });
 });
 
-describe('buildPackageReceivedBody', () => {
-  test('just “ожидает” when no sender/carrier/storage', () => {
-    expect(buildPackageReceivedBody({ sender_name: null, carrier: null }))
-      .toMatch(/ожидает/);
-  });
-  test('includes sender and carrier', () => {
-    expect(buildPackageReceivedBody({
-      sender_name: 'Иванов', carrier: 'CDEK', storage_location: null,
-    })).toMatch(/Иванов.*CDEK/);
-  });
-  test('prefers storage-location tail when available', () => {
-    expect(buildPackageReceivedBody({
-      sender_name: 'X', carrier: 'Y', storage_location: 'shelf-A',
-    })).toMatch(/хранение: shelf-A/);
-  });
-});
+// Phase 6: buildPackageReceivedBody удалён вместе с миграцией в
+// notification_templates_v2.  Тесты логики «от X (Y) — хранение: Z»
+// теперь покрываются в notificationTemplates.test.js через interpolate()
+// + package.received template.
 
 // ══════════════════════════════════════════════════════════════════════════════
 // listForTenant — filter assembly
@@ -321,6 +329,7 @@ describe('createPackage', () => {
     const pool = makePool([
       ['BEGIN', () => ({})],
       ['INSERT INTO packages_v2', () => ({ rows: [insertedPkg] })],
+      templateResponder,
       ['INSERT INTO notifications_outbox', () => ({ rows: [{ id: 'outbox-1' }, { id: 'outbox-2' }] })],
       ['COMMIT', () => ({})],
     ]);
@@ -353,6 +362,7 @@ describe('createPackage', () => {
       ['BEGIN', () => ({})],
       ['INSERT INTO packages_v2', () => ({ rows: [insertedPkg] })],
       ['FROM resident_unit_links', () => ({ rows: [{ resident_id: 'r1' }, { resident_id: 'r2' }] })],
+      templateResponder,
       ['INSERT INTO notifications_outbox', () => ({
         rows: [{ id: 'o1' }, { id: 'o2' }, { id: 'o3' }, { id: 'o4' }],
       })],
@@ -491,6 +501,7 @@ describe('pickupPackage', () => {
       ['BEGIN', () => ({})],
       ['FOR UPDATE', () => ({ rows: [{ id: UUID, property_id: UUID4, status: 'awaiting_pickup' }] })],
       ['UPDATE packages_v2', () => ({ rows: [pkg] })],
+      templateResponder,
       ['INSERT INTO notifications_outbox', () => ({ rows: [{ id: 'outbox-1' }] })],
       ['COMMIT', () => ({})],
     ]);
@@ -627,6 +638,7 @@ describe('remindPackage', () => {
     const pool = makePool([
       ['BEGIN', () => ({})],
       ['FROM packages_v2 WHERE id', () => ({ rows: [pkg] })],
+      templateResponder,
       ['INSERT INTO notifications_outbox', (_sql, args) => {
         outboxInsertArgs = args;
         // 2 каналов на 1 recipient = 2 rows
