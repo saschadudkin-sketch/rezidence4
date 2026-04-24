@@ -89,6 +89,11 @@ const user = { uid: 'u1', role: 'owner', name: 'Иван' };
 beforeEach(() => {
   vi.mocked(generatePassQR).mockResolvedValue('data:image/png;base64,abc123');
   vi.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
+  // ResidentView использует useAppStoreSelector для computedSelectorRef.current(...);
+  // real селектор читает state.reqState.requests, так что подсовываем минимальный snapshot.
+  vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation((selector: any) =>
+    selector({ reqState: { requests: [baseReq()], history: {} } } as any),
+  );
   vi.spyOn(AppStore, 'useActions').mockReturnValue({
     deleteRequest: vi.fn(),
     updateRequest: vi.fn(),
