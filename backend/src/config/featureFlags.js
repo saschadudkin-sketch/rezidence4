@@ -112,6 +112,18 @@ const FEATURE_FLAGS = {
     description: 'Статистика посещений, заявок и работы объекта',
     category: 'admin',
   },
+  legacy_utilities_enabled: {
+    // Platform-v1 roadmap §Фаза 6: `meter_readings`, `billing_records`, `spaces`,
+    // `space_bookings`, `chat_messages` заморожены до пост-релиза.  Этот флаг
+    // работает ВТОРЫМ слоем защиты поверх per-module requireFeature: даже если
+    // admin выставит meter_readings=true, /api/v1/meter-readings вернёт 404 пока
+    // legacy_utilities_enabled остаётся false.  Для Замоскворечья — false
+    // на старте (см. RECONCILIATION.md §12 Вариант B).
+    default: false,
+    label: 'Устаревшие модули (legacy)',
+    description: 'Разморозить показания, биллинг, бронирования и чат (временно, до пост-релиза)',
+    category: 'admin',
+  },
 };
 
 /**

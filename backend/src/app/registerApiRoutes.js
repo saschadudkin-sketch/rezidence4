@@ -123,10 +123,17 @@ function registerApiRoutes(app, { rateLimiters }) {
     publicPassLimiter,
   } = rateLimiters;
 
+  // Phase 6 P4 — freeze-gate для legacy-модулей (meters/billing/bookings/chat).
+  // Накладывается ДОПОЛНИТЕЛЬНО к per-module requireFeature (где он есть), чтобы
+  // даже при случайном включении meter_readings=true на проде Замоскворечья
+  // endpoint вернул 404 пока legacy_utilities_enabled=false.
+  // См. ROADMAP.md §Фаза 6 + RECONCILIATION.md §12 (Вариант B).
+  const legacyUtilitiesGate = requireFeature('legacy_utilities_enabled');
+
   app.use('/api/v1/auth', authLimiter, authRouter);
   app.use('/api/v1/requests', requestsRouter);
   app.use('/api/v1/users', usersRouter);
-  app.use('/api/v1/chat', chatRouter);
+  app.use('/api/v1/chat', legacyUtilitiesGate, chatRouter);
 
   app.get('/api/v1/events', requireAuth, sseEventsLimiter, (req, res) => {
     const { uid, role } = req.user;
@@ -189,13 +196,13 @@ function registerApiRoutes(app, { rateLimiters }) {
   // fall-through for any endpoint v1 doesn't claim (none today, kept for audit).
   app.use('/api/v1/packages', requireFeature('packages'), v1PackagesRouter);
   app.use('/api/v1/packages', requireFeature('packages'), packagesRouter);
-  app.use('/api/v1/meter-readings', requireFeature('meter_readings'), meterReadingsRouter);
-  app.use('/api/v1/billing', requireFeature('billing'), billingRouter);
-  app.use('/api/v1/spaces', requireFeature('space_booking'), spacesRouter);
+  app.use('/api/v1/meter-readings', legacyUtilitiesGate, requireFeature('meter_readings'), meterReadingsRouter);
+  app.use('/api/v1/billing', legacyUtilitiesGate, requireFeature('billing'), billingRouter);
+  app.use('/api/v1/spaces', legacyUtilitiesGate, requireFeature('space_booking'), spacesRouter);
   // bookingsRouter handles both GET /api/v1/bookings and
   // POST /api/v1/spaces/:spaceId/bookings + PATCH /api/v1/bookings/:id/cancel
-  app.use('/api/v1/bookings', requireFeature('space_booking'), bookingsRouter);
-  app.use('/api/v1', bookingsRouter);
+  app.use('/api/v1/bookings', legacyUtilitiesGate, requireFeature('space_booking'), bookingsRouter);
+  app.use('/api/v1', legacyUtilitiesGate, bookingsRouter);
 
   // Phase 5 — Webhooks (admin cookie auth, enforced inside webhooksRouter)
   app.use('/api/v1/webhooks', requireFeature('webhooks'), webhooksRouter);
@@ -263,7 +270,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);
   app.use('/api/users', deprecate, usersRouter);
-  app.use('/api/chat', deprecate, chatRouter);
+  app.use('/api/chat', deprecate, legacyUtilitiesGate, chatRouter);
   app.use('/api/perms', deprecate, permsRouter);
   app.use('/api/templates', deprecate, templatesRouter);
   app.use('/api/blacklist', deprecate, blacklistRouter);

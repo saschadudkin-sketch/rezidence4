@@ -39,6 +39,7 @@ export const FEATURE_KEYS = [
   'webhooks',
   'skud_integration',
   'analytics',
+  'legacy_utilities_enabled',
 ] as const;
 
 export type FeatureFlagKey = typeof FEATURE_KEYS[number];
