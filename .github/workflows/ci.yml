@@ -43,7 +43,9 @@ jobs:
       # just doesn't fail the build. Tightens back up on merge to main.
       - name: Critical-path coverage (strict on main, advisory on platform-v1)
         run: npm run test:coverage:critical
-        continue-on-error: ${{ github.ref == 'refs/heads/platform-v1' || github.base_ref == 'platform-v1' }}
+        # On PR events `github.base_ref` is the target (main), so we also
+        # check `github.head_ref` — that's the source branch on pull_request.
+        continue-on-error: ${{ github.ref == 'refs/heads/platform-v1' || github.base_ref == 'platform-v1' || github.head_ref == 'platform-v1' }}
       - run: npm run test:contract
       - run: npm run test:detect-open-handles
 
@@ -65,7 +67,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm test -- --watchAll=false
+      # `npm test` resolves to `vitest run` per package.json; the old
+      # `--watchAll=false` was a Jest flag that Vitest's CAC parser rejects.
+      - run: npm test
       - run: mkdir -p ../artifacts
       - run: npm run test:ux-critical:report
       - run: npm run build
