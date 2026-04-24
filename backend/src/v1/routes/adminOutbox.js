@@ -7,12 +7,13 @@
 //
 //   GET    /api/v1/admin/outbox                    list (фильтры status/channel/from/to/q)
 //   GET    /api/v1/admin/outbox/metrics            JSON snapshot + ?format=prometheus text
+//   GET    /api/v1/admin/outbox/sla                package-SLA gauges + ?format=prometheus
 //   GET    /api/v1/admin/outbox/:id                row detail
 //   POST   /api/v1/admin/outbox/:id/requeue        force-retry dead/failed → pending
 //   POST   /api/v1/admin/outbox/:id/cancel         pending/failed → dead (manual)
 //
 // Порядок регистрации важен:
-//   /metrics ДО /:id — иначе express matchнет «metrics» как id → getOutboxById.
+//   /metrics и /sla ДО /:id — иначе express matchнет их как id → UUID-400.
 //
 // Связь с platform-level ручками:
 //   /platform/api/v1/notifications/outbox/health  — cross-tenant superadmin dashboard
@@ -41,6 +42,10 @@ const {
   renderMetricsAsPrometheus,
   isValidUuid,
 } = require('../services/adminOutbox');
+const {
+  getPackageSlaSnapshot,
+  renderSlaAsPrometheus,
+} = require('../services/packageSla');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -92,6 +97,33 @@ router.get('/metrics', async (req, res) => {
     return res.json({ ok: true, ...snapshot });
   } catch (err) {
     logger.error({ err }, '[v1/admin/outbox] metrics query failed');
+    return res.status(503).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── GET /sla ────────────────────────────────────────────────────────────────
+// Registered BEFORE /:id so 'sla' doesn't match UUID guard (which would 400).
+// Шесть gauge'ей по packages_v2 + outbox: queue size, overdue-for-reminder,
+// overdue-for-return, auto-returns 24h, reminders 24h, received 24h.
+// Content negotiation тот же, что и /metrics: ?format=prometheus → text/plain.
+router.get('/sla', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const pool = req.db || db.pool;
+
+  try {
+    const snapshot = await getPackageSlaSnapshot(pool);
+
+    const format = String(req.query.format || '').toLowerCase();
+    if (format === 'prometheus') {
+      const propertySlug = req.property?.slug || '';
+      const body = renderSlaAsPrometheus(snapshot, { propertySlug });
+      res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+      return res.status(200).send(body);
+    }
+
+    return res.json({ ok: true, ...snapshot });
+  } catch (err) {
+    logger.error({ err }, '[v1/admin/outbox] sla query failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
 });
