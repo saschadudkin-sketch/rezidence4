@@ -15,7 +15,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
-import type { Announcement } from '../api/types';
+import type { Announcement, AnnouncementCategory } from '../api/types';
 import { qk } from '../store';
 import { ResidentNav } from '../components/ResidentNav';
 import {
@@ -29,13 +29,15 @@ import {
   uiClasses,
 } from '../components/ui';
 
-const CATEGORY_LABELS: Record<string, string> = {
+// Labels are typed against the exact enum so a new backend category breaks
+// compilation instead of silently falling back to the raw slug.  Capitalised
+// form for the resident feed (admin UI uses lowercase in a compact table).
+const CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
   general: 'Общее',
   maintenance: 'Обслуживание',
-  security: 'Безопасность',
   event: 'Событие',
-  utilities: 'Коммунальные',
   emergency: 'Аварийное',
+  marketing: 'Маркетинг',
 };
 
 function formatDate(iso: string | null): string {
