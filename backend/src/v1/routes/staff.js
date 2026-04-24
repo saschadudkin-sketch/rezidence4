@@ -44,7 +44,7 @@ function isNonEmptyString(v, maxLen) {
 
 function auditLog(req, { action, resourceId, changes }) {
   getDb(req).query(
-    `INSERT INTO audit_log(actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+    `INSERT INTO property_audit_log(actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1, $2, $3, 'staff_user', $4, $5, $6)`,
     [req.user?.uid || null, req.user?.role || null, action, resourceId, changes ? JSON.stringify(changes) : null, req.ip || null],
   ).catch((err) => logger.warn({ err, action }, '[v1/staff] audit write failed'));

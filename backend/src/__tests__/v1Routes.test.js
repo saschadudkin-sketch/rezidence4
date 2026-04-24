@@ -135,7 +135,7 @@ describe('POST /api/v1/buildings', () => {
     expect(res.body.building.name).toBe('Корпус A');
 
     const auditCall = db.query.mock.calls.find(
-      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO audit_log'),
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO property_audit_log'),
     );
     expect(auditCall).toBeDefined();
     expect(auditCall[1][2]).toBe('building.created'); // action
@@ -439,7 +439,7 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
     expect(res.status).toBe(200);
 
     const auditCall = db.query.mock.calls.find(
-      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO audit_log'),
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO property_audit_log'),
     );
     expect(auditCall).toBeDefined();
     const changes = JSON.parse(auditCall[1][4]);

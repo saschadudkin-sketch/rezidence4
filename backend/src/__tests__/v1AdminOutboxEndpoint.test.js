@@ -574,7 +574,7 @@ describe('POST /api/v1/admin/outbox/:id/requeue', () => {
     // audit INSERT — fire-and-forget через mockDb.query (не mockPool).
     expect(mockDb.query).toHaveBeenCalled();
     const auditSql = mockDb.query.mock.calls[0][0];
-    expect(auditSql).toMatch(/INSERT INTO audit_log/i);
+    expect(auditSql).toMatch(/INSERT INTO property_audit_log/i);
     const auditArgs = mockDb.query.mock.calls[0][1];
     // actor_uid, actor_role, action, resource_id, ...
     expect(auditArgs[0]).toBe('admin1');         // actor_uid

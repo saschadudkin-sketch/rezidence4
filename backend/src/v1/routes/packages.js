@@ -91,7 +91,7 @@ function audit(req, action, resourceId, changes) {
   //     mockDb.query с default mockResolvedValue({rows:[]}) — иначе
   //     .catch() на undefined из mockPool.query ломает handler.
   db.query(
-    `INSERT INTO audit_log
+    `INSERT INTO property_audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1,$2,$3,'package',$4,$5,$6)`,
     [

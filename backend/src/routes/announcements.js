@@ -159,7 +159,7 @@ router.post('/', requireAuth, async (req, res, next) => {
     // Audit log
     try {
       await db.query(
-        `INSERT INTO audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+        `INSERT INTO property_audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
           req.user.uid, req.user.role, 'announcement.created', 'announcement', created.id,
@@ -243,7 +243,7 @@ router.patch('/:id', requireAuth, validateUuid, async (req, res, next) => {
     // Audit log
     try {
       await db.query(
-        `INSERT INTO audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+        `INSERT INTO property_audit_log (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
           req.user.uid, req.user.role, 'announcement.updated', 'announcement', req.params.id,
@@ -280,7 +280,7 @@ router.delete('/:id', requireAuth, validateUuid, async (req, res, next) => {
     // Audit log
     try {
       await db.query(
-        `INSERT INTO audit_log (actor_uid, actor_role, action, resource_type, resource_id, ip_address)
+        `INSERT INTO property_audit_log (actor_uid, actor_role, action, resource_type, resource_id, ip_address)
          VALUES ($1,$2,$3,$4,$5,$6)`,
         [req.user.uid, req.user.role, 'announcement.deleted', 'announcement', req.params.id, req.ip || null],
       );
