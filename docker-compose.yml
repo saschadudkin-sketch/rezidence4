@@ -15,6 +15,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
+      # Init scripts (only on FIRST container start, when data dir empty):
+      # создаём platform/zamoskv databases для multi-tenant.  В prod
+      # запускается один раз при initial deployment; на CI каждый run.
+      - ./ops/db-init/:/docker-entrypoint-initdb.d/:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U residenze"]
       interval: 10s
