@@ -2,7 +2,9 @@
 
 const logger = require('../logger');
 
-function validateConfig(env, prod) {
+// Pure function — собирает массив ошибок без побочных эффектов.  Вынесено
+// из validateConfig() ради тестируемости (чтобы не мокать process.exit).
+function collectConfigErrors(env, prod) {
   const errors = [];
 
   // FIX [SEC]: минимальная длина JWT_SECRET увеличена с 16 до 32 символов.
@@ -45,6 +47,33 @@ function validateConfig(env, prod) {
   if (prod && !env.UPLOAD_SIGNING_SECRET) {
     errors.push('UPLOAD_SIGNING_SECRET is required in production. Generate: openssl rand -hex 32');
   }
+
+  // SEC [AUDIT-SSL]: TLS обязателен для PG-соединений в production.  Без
+  // sslmode=require трафик идёт plaintext — credentials/PII утекают на
+  // каждом hop'е между app и БД.  Принимаем 'require', 'verify-ca',
+  // 'verify-full'; 'prefer'/'allow' НЕ годятся (downgrade без ошибки).
+  // Опт-аут только для self-hosted dev/staging через PG_SSL_REQUIRED=0.
+  const sslRequired = env.PG_SSL_REQUIRED !== '0';
+  if (prod && sslRequired) {
+    const SSL_OK = /[?&]sslmode=(require|verify-ca|verify-full)\b/i;
+    for (const [name, val] of [
+      ['DATABASE_URL', env.DATABASE_URL],
+      ['PLATFORM_DB_URL', env.PLATFORM_DB_URL],
+    ]) {
+      if (val && !SSL_OK.test(val)) {
+        errors.push(
+          `${name} must include sslmode=require (or verify-ca/verify-full) in production. ` +
+          `Append "?sslmode=require" or set PG_SSL_REQUIRED=0 to opt out (NOT recommended).`,
+        );
+      }
+    }
+  }
+
+  return errors;
+}
+
+function validateConfig(env, prod) {
+  const errors = collectConfigErrors(env, prod);
 
   if (errors.length) {
     for (const msg of errors) logger.fatal(msg);
@@ -95,5 +124,6 @@ function getAppConfig(env = process.env) {
 
 module.exports = {
   validateConfig,
+  collectConfigErrors,
   getAppConfig,
 };

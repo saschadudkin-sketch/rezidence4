@@ -63,15 +63,67 @@ const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g;
 // жадно съеден и `(inner)` группа не сработает.
 const MD_LINK_RE = /(!?)\[([^\]]*)\]\(([^()]*(?:\([^)]*\)[^()]*)*)\)/g;
 
+// SEC [AUDIT-XSS]: декодируем ведущие HTML-entities + numeric-references перед
+// scheme-detection.  Атакер может закодировать `j` как `&#x6A;` или `&#106;`,
+// чтобы обойти простой `^[a-zA-Z]` regex — markdown-renderer'у потом отдаём
+// `&#x6A;avascript:`, браузер при HTML-attribute-decode превращает в
+// `javascript:` → XSS.  Декодируем только ведущие entity, чтобы остальная
+// часть URL'а не была затронута (URL-encoding в path легитимен).
+function decodeLeadingEntity(s) {
+  // &#NN; (десятичные) и &#xNN; (шестнадцатеричные) — повторно, потому что
+  // могут быть закодированы по нескольку штук подряд: `&#x6A;&#x61;...`.
+  let prev;
+  let cur = s;
+  let safety = 0;
+  do {
+    prev = cur;
+    cur = cur.replace(/&#x([0-9a-fA-F]+);/gi, (_, hex) => {
+      try { return String.fromCodePoint(parseInt(hex, 16)); }
+      catch { return ''; }
+    });
+    cur = cur.replace(/&#(\d+);/g, (_, dec) => {
+      try { return String.fromCodePoint(parseInt(dec, 10)); }
+      catch { return ''; }
+    });
+    // Named entities: &lt; &gt; &quot; — вряд ли в начале URL'а, но дёшево.
+    cur = cur.replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (m, name) => {
+      const named = { lt: '<', gt: '>', quot: '"', amp: '&', apos: "'" };
+      return Object.prototype.hasOwnProperty.call(named, name) ? named[name] : m;
+    });
+    safety += 1;
+  } while (cur !== prev && safety < 8);
+  return cur;
+}
+
 function extractScheme(url) {
-  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(url);
+  // SEC [AUDIT-XSS]: trim'аем whitespace + декодируем ведущие entity ПЕРЕД
+  // regex'ом.  `[click]( javascript:alert(1))` — пробел заставляет
+  // `^[a-zA-Z]` не сработать, но CommonMark парсер тримит destination
+  // → `<a href="javascript:alert(1)">` → XSS.  Решение: любая нормализация,
+  // которую сделает рендерер, должна быть применена и здесь.
+  // \s в JS regex покрывает пробел, таб, NL, CR, FF, VT, NBSP ( ) и др.
+  const trimmed = String(url).replace(/^[\s ]+/, '');
+  const decoded = decodeLeadingEntity(trimmed);
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(decoded);
   return m ? m[1].toLowerCase() : null;
 }
 
 function sanitizeUrl(url, warnings) {
   const scheme = extractScheme(url);
-  if (scheme === null) return url; // относительная или якорь — OK.
-  if (ALLOWED_URL_SCHEMES.has(scheme)) return url;
+  if (scheme === null) {
+    // SEC [AUDIT-XSS]: даже relative/anchor URL — strip leading whitespace,
+    // чтобы рендерер не получил ведущий пробел/таб (они нормализуются
+    // парсером, но руководствуясь принципом «вход === выход» отдаём
+    // канонический вид).  Нормализация безопасна: leading whitespace в
+    // CommonMark inline-link'е и так удаляется.
+    const stripped = String(url).replace(/^[\s ]+/, '');
+    return stripped;
+  }
+  if (ALLOWED_URL_SCHEMES.has(scheme)) {
+    // Если scheme прошёл — отдаём trim'нутую версию (см. выше): renderer
+    // тоже её trim'нет, чтобы не было расхождения.
+    return String(url).replace(/^[\s ]+/, '');
+  }
   warnings.push({
     type: 'url_scheme_stripped',
     detail: { scheme, dangerous: DANGEROUS_SCHEMES.has(scheme) },

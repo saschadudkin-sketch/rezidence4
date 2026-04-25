@@ -16,12 +16,27 @@
 const express     = require('express');
 const requireAuth = require('../middleware/auth');
 const logger      = require('../logger');
+const { validateOutboundUrl } = require('../lib/urlSafety');
 
 const router = express.Router();
 router.use(requireAuth);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HTTPS_RE = /^https:\/\//i;
+
+// SEC [AUDIT-SSRF]: webhook URL'ы — admin-controlled, но требуют отдельной
+// SSRF-валидации.  Без неё malicious admin регистрирует
+// https://169.254.169.254/... и backend POST'ит туда HMAC-payload, ответ
+// сохраняется в webhooks.last_error (clamp 500 chars) — утечка cloud IAM.
+// Возвращает null если URL валиден или объект-ошибку для 400.
+function rejectUnsafeWebhookUrl(rawUrl) {
+  const r = validateOutboundUrl(rawUrl, { allowedProtocols: ['https:'] });
+  if (r.ok) return null;
+  return {
+    code: 'INVALID_URL',
+    message: `webhook url rejected: ${r.reason}`,
+  };
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -79,6 +94,10 @@ router.post('/', requireAdmin, async (req, res, next) => {
         error: { code: 'INVALID_URL', message: 'url must start with https://' },
       });
     }
+    const ssrfErr = rejectUnsafeWebhookUrl(url);
+    if (ssrfErr) {
+      return res.status(400).json({ error: ssrfErr });
+    }
 
     const { rows } = await req.db.query(
       `INSERT INTO webhooks (name, url, secret, events, created_by)
@@ -106,6 +125,12 @@ router.patch('/:id', requireAdmin, validateUuid, async (req, res, next) => {
       return res.status(400).json({
         error: { code: 'INVALID_URL', message: 'url must start with https://' },
       });
+    }
+    if (url !== undefined) {
+      const ssrfErr = rejectUnsafeWebhookUrl(url);
+      if (ssrfErr) {
+        return res.status(400).json({ error: ssrfErr });
+      }
     }
     if (events !== undefined && (!Array.isArray(events) || events.length === 0)) {
       return res.status(400).json({
