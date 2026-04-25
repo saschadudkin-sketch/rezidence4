@@ -27,7 +27,11 @@
 //   всё остальное mutation — staff + admin
 
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+// express-rate-limit v6/v7: default export = function; v8: named export.
+// Поддерживаем оба паттерна — module-itself OR named property.
+const rateLimitModule = require('express-rate-limit');
+const rateLimit = rateLimitModule.rateLimit || rateLimitModule;
+const ipKeyGenerator = rateLimitModule.ipKeyGenerator || ((ip) => String(ip || ''));
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
@@ -70,7 +74,7 @@ const createLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.user?.uid || req.ip),
+  keyGenerator: (req) => (req.user?.uid || ipKeyGenerator(req.ip)),
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Слишком много посылок. Попробуйте позже.' } },
 });
 const remindLimiter = rateLimit({
@@ -78,7 +82,7 @@ const remindLimiter = rateLimit({
   max: 1,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.user?.uid || req.ip}:${req.params?.id || '_'}`,
+  keyGenerator: (req) => `${req.user?.uid || ipKeyGenerator(req.ip)}:${req.params?.id || '_'}`,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Напоминание уже отправлено. Подождите час.' } },
 });
 
