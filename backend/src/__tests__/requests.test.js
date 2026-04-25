@@ -27,6 +27,11 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
+  // Тенант-резолвер инжектит req.db в production через propertyDbMiddleware.
+  // В тестах подменяем mocked singleton, чтобы endpoint'ы, использующие
+  // `req.db.query()` (GET /, POST /:id/rate), могли отрабатывать через
+  // jest.mock('../db').
+  app.use((req, _res, next) => { req.db = db; next(); });
   app.use('/api/requests', requestsRouter);
   return app;
 }
@@ -407,5 +412,144 @@ describe('GET /api/requests — DATA-3 + изоляция', () => {
     const params = db.query.mock.calls[0][1];
     expect(params[0]).toBe(100);
     expect(params[1]).toBe(0);
+  });
+});
+
+// ─── POST /api/requests/:id/rate ─────────────────────────────────────────────
+// Покрытие 6 веток endpoint'а (см. routes/requests.js:186-231): только
+// creator может оценить, статус == 'completed', не оценивалось ранее.
+describe('POST /api/requests/:id/rate — рейтинг по завершению', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
+
+  it('400 INVALID_RATING при rating вне диапазона 1..5', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    // 2.5 / 1.5 — parseInt(...,10) трункейтит до 2/1 (валидный rating);
+    // endpoint работает в integer-семантике.  Проверяем то, что
+    // действительно вне диапазона: 0, 6, не-числа, undefined/null.
+    for (const bad of [0, 6, -1, 'abc', null, undefined]) {
+      const res = await supertest(app)
+        .post('/api/requests/req-123/rate')
+        .set('Cookie', `token=${token}`)
+        .send({ rating: bad });
+      expect(res.status).toBe(400);
+      expect(res.body.error?.code).toBe('INVALID_RATING');
+    }
+    // Ни один невалидный rating не должен дойти до DB-чтения.
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('404 NOT_FOUND если заявка отсутствует или soft-deleted', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-missing/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 5 });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error?.code).toBe('NOT_FOUND');
+    // SELECT прозвучал, UPDATE — нет.
+    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(db.query.mock.calls[0][0]).toMatch(/SELECT id, status, created_by_uid/);
+  });
+
+  it('403 FORBIDDEN — оценить может только создатель заявки', async () => {
+    const token = makeToken({ uid: 'user-B', role: 'owner', name: 'Петров' });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', status: 'completed', created_by_uid: 'user-A', rating: null }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 4, comment: 'fine' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error?.code).toBe('FORBIDDEN');
+    // UPDATE не должен вызываться, когда creator != requester.
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('400 NOT_COMPLETED — нельзя оценить заявку, которая ещё не завершена', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', status: 'in_progress', created_by_uid: 'user-A', rating: null }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 5 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error?.code).toBe('NOT_COMPLETED');
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('409 ALREADY_RATED — повторная оценка не принимается', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', status: 'completed', created_by_uid: 'user-A', rating: 4 }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 5, comment: 'хочу переоценить' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error?.code).toBe('ALREADY_RATED');
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('200 OK — успешная оценка обновляет requests.rating + comment + rated_at', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', status: 'completed', created_by_uid: 'user-A', rating: null }],
+    });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', rating: 5, rating_comment: 'отлично', rated_at: new Date('2026-04-25T12:00:00Z') }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 5, comment: 'отлично' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.rating?.rating).toBe(5);
+    expect(res.body.rating?.rating_comment).toBe('отлично');
+
+    // Проверяем что UPDATE-запрос получил правильные параметры.
+    expect(db.query).toHaveBeenCalledTimes(2);
+    const updateCall = db.query.mock.calls[1];
+    expect(updateCall[0]).toMatch(/UPDATE requests/);
+    expect(updateCall[0]).toMatch(/rating=\$1, rating_comment=\$2, rated_at=NOW\(\)/);
+    expect(updateCall[1]).toEqual([5, 'отлично', 'req-123']);
+  });
+
+  it('200 OK — comment может быть omitted (NULL в БД)', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', status: 'completed', created_by_uid: 'user-A', rating: null }],
+    });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'req-123', rating: 3, rating_comment: null, rated_at: new Date() }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/rate')
+      .set('Cookie', `token=${token}`)
+      .send({ rating: 3 });
+
+    expect(res.status).toBe(200);
+    // В UPDATE-параметрах comment должен быть null (а не undefined/empty).
+    expect(db.query.mock.calls[1][1][1]).toBeNull();
   });
 });
