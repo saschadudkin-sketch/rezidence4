@@ -30,7 +30,10 @@
 //   POST /:id/publish (urgent) — 5/hour per-property
 
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+// express-rate-limit v6/v7: default export = function; v8: named export.
+const rateLimitModule = require('express-rate-limit');
+const rateLimit = rateLimitModule.rateLimit || rateLimitModule;
+const ipKeyGenerator = rateLimitModule.ipKeyGenerator || ((ip) => String(ip || ''));
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
@@ -70,7 +73,7 @@ const createLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => (req.user?.uid || req.ip),
+  keyGenerator: (req) => (req.user?.uid || ipKeyGenerator(req.ip)),
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Лимит объявлений — 10 в час.' } },
 });
 
@@ -84,7 +87,7 @@ const urgentPublishLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `${req.user?.uid || req.ip}:urgent`,
+  keyGenerator: (req) => `${req.user?.uid || ipKeyGenerator(req.ip)}:urgent`,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Лимит срочных объявлений — 5 в час.' } },
 });
 
@@ -94,7 +97,7 @@ const publicLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip,
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Слишком много запросов.' } },
 });
 
