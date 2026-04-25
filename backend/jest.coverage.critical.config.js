@@ -18,9 +18,11 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: [
     '**/__tests__/auth.test.js',
+    '**/__tests__/auth.coverage.test.js',
     '**/__tests__/requests.test.js',
     '**/__tests__/authorize.test.js',
     '**/__tests__/idempotency.test.js',
+    '**/__tests__/idempotency.coverage.test.js',
   ],
   testEnvironment: 'node',
 };
