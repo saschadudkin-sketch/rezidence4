@@ -172,7 +172,11 @@ jobs:
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ hashFiles('**/package-lock.json', '**/Dockerfile') }}
-      - run: docker compose build
+      # docker-compose.yml requires DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET,
+      # PLATFORM_JWT_SECRET, UPLOAD_SIGNING_SECRET, FRONTEND_URL для YAML
+      # interpolation (security hardening — AUDIT #6/#7).  CI dummy creds
+      # хранятся в ops/ci-dummy.env (checked in, не used in production).
+      - run: docker compose --env-file ops/ci-dummy.env build
 
   login-e2e-smoke:
     runs-on: ubuntu-latest
@@ -230,7 +234,12 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run test:e2e:preflight
-      - run: docker compose up -d
+      # ops/ci-dummy.env: CI-only fake creds.  --env-file решает interpolation
+      # YAML, но docker-compose.yml имеет директиву `env_file: - .env` для
+      # backend service (не override'ится через CLI).  Поэтому копируем тот
+      # же файл как .env, чтобы compose не падал с "env file .env not found".
+      - run: cp ops/ci-dummy.env .env
+      - run: docker compose --env-file ops/ci-dummy.env up -d
       - id: full_e2e
         run: npm run test:e2e -- e2e/
       - name: Summarize full e2e run
@@ -321,5 +330,7 @@ jobs:
         working-directory: frontend
         run: npm ci
       - run: npm run test:e2e:preflight
-      - run: docker compose up -d
+      # ops/ci-dummy.env: см. e2e-test job — те же CI-only ephemeral creds.
+      - run: cp ops/ci-dummy.env .env
+      - run: docker compose --env-file ops/ci-dummy.env up -d
       - run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium
