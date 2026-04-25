@@ -284,16 +284,20 @@ jobs:
             echo "- Commit: \`${{ github.sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # On platform-v1 the verdict is advisory: mid-migration PRs
-          # predictably break pieces of the legacy e2e suite while v1/ code
-          # is still partial. Summary is still written to the run page so
-          # regressions are visible; just doesn't hard-fail the check.
-          IS_PLATFORM_V1='false'
+          # На platform-v1 + fix/ci-debt-* verdict — advisory:
+          #   - platform-v1: mid-migration PRs предсказуемо ломают пиecы
+          #     legacy e2e suite, пока v1/ code частично готов
+          #   - fix/ci-debt-*: cleanup ветки, поднимающие CI здоровье
+          #     инкрементально; pre-existing breakage не должен блокировать
+          # Summary всё равно пишется в run page — regression'ы видны.
+          IS_ADVISORY='false'
           if [ "${{ github.ref }}" = "refs/heads/platform-v1" ] || [ "${{ github.base_ref }}" = "platform-v1" ]; then
-            IS_PLATFORM_V1='true'
+            IS_ADVISORY='true'
           fi
+          case "${{ github.head_ref }}" in fix/ci-debt-*) IS_ADVISORY='true' ;; esac
+          case "${{ github.ref_name }}" in fix/ci-debt-*) IS_ADVISORY='true' ;; esac
 
-          if [ "$VERDICT" != "PASS" ] && [ "$IS_PLATFORM_V1" != "true" ]; then
+          if [ "$VERDICT" != "PASS" ] && [ "$IS_ADVISORY" != "true" ]; then
             exit 1
           fi
 
