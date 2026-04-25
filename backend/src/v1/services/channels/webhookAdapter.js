@@ -21,6 +21,7 @@
 
 const crypto = require('crypto');
 const logger = require('../../../logger');
+const { validateOutboundUrl } = require('../../../lib/urlSafety');
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -62,6 +63,19 @@ function signPayload(body, secret) {
 async function send({ recipientAddress, recipientId, correlationId, payload, tenant }) {
   if (!recipientAddress) {
     return { ok: false, error: 'url_required' };
+  }
+
+  // SEC [AUDIT-SSRF]: defense-in-depth.  routes/webhooks.js уже отвергает
+  // private/metadata URL'ы при INSERT, но snapshot мог попасть в outbox до
+  // включения guard'а или через миграцию/прямой SQL.  Проверяем ещё раз
+  // перед fetch'ем — SSRF-payload не должен дойти до сети.
+  const urlCheck = validateOutboundUrl(recipientAddress, { allowedProtocols: ['https:'] });
+  if (!urlCheck.ok) {
+    logger.warn(
+      { webhookId: recipientId, reason: urlCheck.reason },
+      '[outbox:webhook] SSRF guard rejected URL — marking dead',
+    );
+    return { ok: false, error: `ssrf_blocked:${urlCheck.reason}`, dead: true };
   }
 
   // Webhook, который был отключён между enqueue и send — cancel, помечаем dead.

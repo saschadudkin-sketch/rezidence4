@@ -285,7 +285,7 @@
   flex-direction:column;
   gap:10px;
 }
-@media (max-width: 480px){
+@media (--bp-sm-down){
   .admin-users-list,
   .admin-requests-list{
     padding-bottom: calc(var(--nav-h) + var(--sab) + 28px);

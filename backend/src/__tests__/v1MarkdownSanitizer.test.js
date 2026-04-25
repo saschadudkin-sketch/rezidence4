@@ -181,6 +181,59 @@ describe('markdownSanitizer.sanitizeMarkdown', () => {
     });
   });
 
+  // SEC [AUDIT-XSS]: regression-тесты для bypass'ов, найденных в security
+  // review (см. policy комментарий в markdownSanitizer.js).  Без trim'а +
+  // entity-decode CommonMark renderer превращал бы это в
+  // <a href="javascript:..."> через нормализацию destination.
+  describe('XSS bypass via leading whitespace / HTML-entities (AUDIT-XSS)', () => {
+    test.each([
+      ['[click]( javascript:alert(1))'],
+      ['[click](\tjavascript:alert(1))'],
+      ['[click](   javascript:alert(1))'],
+    ])('leading whitespace bypass blocked: %s', (md) => {
+      const out = sanitizeMarkdown(md);
+      expect(out.sanitized).toBe('[click](#)');
+      expect(out.warnings.find((w) => w.type === 'url_scheme_stripped')?.detail?.scheme)
+        .toBe('javascript');
+    });
+
+    test('NBSP (U+00A0) leading bypass blocked', () => {
+      const out = sanitizeMarkdown('[x]( javascript:alert(1))');
+      expect(out.sanitized).toBe('[x](#)');
+    });
+
+    test.each([
+      ['hex entity', '[x](&#x6A;avascript:alert(1))'],
+      ['decimal entity', '[x](&#106;avascript:alert(1))'],
+      ['mixed case hex', '[x](&#X6A;avascript:alert(1))'],
+      ['multiple entities', '[x](&#x6A;&#x61;vascript:alert(1))'],
+    ])('HTML-entity scheme bypass blocked (%s)', (_label, md) => {
+      const out = sanitizeMarkdown(md);
+      expect(out.sanitized).toBe('[x](#)');
+    });
+
+    test('trim применяется и к safe схемам — нет ведущего whitespace на выходе', () => {
+      const out = sanitizeMarkdown('[ok]( https://example.com)');
+      expect(out.sanitized).toBe('[ok](https://example.com)');
+    });
+
+    test('trim применяется к relative URL', () => {
+      const out = sanitizeMarkdown('[doc]( /uploads/x.pdf)');
+      expect(out.sanitized).toBe('[doc](/uploads/x.pdf)');
+    });
+
+    test('vbscript bypass с ведущим whitespace блокируется', () => {
+      const out = sanitizeMarkdown('[x]( vbscript:msgbox(1))');
+      expect(out.sanitized).toBe('[x](#)');
+    });
+
+    test('legitimate text в скобках не страдает', () => {
+      const out = sanitizeMarkdown('Текст [статья](https://example.com/a-b) — продолжение.');
+      expect(out.sanitized).toBe('Текст [статья](https://example.com/a-b) — продолжение.');
+      expect(out.warnings.filter((w) => w.type === 'url_scheme_stripped')).toEqual([]);
+    });
+  });
+
   describe('line endings & clamping', () => {
     test('normalizes CRLF → LF', () => {
       const out = sanitizeMarkdown('line1\r\nline2\r\n');

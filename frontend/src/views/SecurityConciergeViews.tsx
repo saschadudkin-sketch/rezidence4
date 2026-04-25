@@ -15,9 +15,22 @@ import { SecurityPassesPane } from './security/SecurityPassesPane';
 import { SecurityPermsList } from './security/SecurityPermsList';
 import { ConciergePassesTab } from './security/ConciergePassesTab';
 import { ConciergeTechTab } from './security/ConciergeTechTab';
+import StateBlock from '../ui/StateBlock';
+import { getViewStateCopy } from '../ui/viewStateContract';
 import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { Template } from '../store/slices/permsSlice';
+
+// UX-contract (scripts/check-ux-contract.js): featureListView должен иметь
+// видимый fallback-state, если activeTab не совпадает ни с одним из known
+// разделов. Раньше unknown tab отдавал пустой fragment — теперь юзер видит
+// понятный error-state и может вернуться на корректный таб.
+const CONCIERGE_KNOWN_TABS = new Set([
+  'passes', 'tech', 'templates', 'residents', 'visitlog', 'blacklist', 'chat',
+]);
+const SECURITY_KNOWN_TABS = new Set([
+  'passes', 'perms', 'visitlog', 'blacklist', 'guardpost', 'residents', 'chat',
+]);
 
 type ModalState = {
   type: RequestType;
@@ -81,8 +94,17 @@ export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewPr
     [requests, matchQuery],
   );
 
+  const isKnownConciergeTab = CONCIERGE_KNOWN_TABS.has(activeTab);
+
   return (
     <>
+      {!isKnownConciergeTab && (
+        <StateBlock
+          type="error"
+          title={getViewStateCopy('default', 'error').title}
+          subtitle={getViewStateCopy('default', 'error').subtitle}
+        />
+      )}
       {activeTab === 'passes' && (
         <ConciergePassesTab
           user={user}
@@ -135,8 +157,17 @@ export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewPr
 }
 
 export function SecurityView({ user, activeTab, setActiveTab, highlightReqId, setHighlightReqId }: SecurityViewProps) {
+  const isKnownSecurityTab = SECURITY_KNOWN_TABS.has(activeTab);
+
   return (
     <>
+      {!isKnownSecurityTab && (
+        <StateBlock
+          type="error"
+          title={getViewStateCopy('default', 'error').title}
+          subtitle={getViewStateCopy('default', 'error').subtitle}
+        />
+      )}
       {activeTab === 'passes' && (
         <SecurityPassesPane
           user={user}
