@@ -15,6 +15,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -43,10 +44,18 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 
 // ─── Companies ───────────────────────────────────────────────────────────────
 
-// GET /api/v1/contractor-companies?status=&q=
+// GET /api/v1/contractor-companies?status=&q=&limit=&offset=
 router.get('/contractor-companies', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.status) {
@@ -58,16 +67,24 @@ router.get('/contractor-companies', async (req, res, next) => {
       filters.push(`LOWER(name) LIKE $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT c.*,
               (SELECT COUNT(*)::int FROM contractor_users u WHERE u.contractor_company_id = c.id AND u.is_active = true)
                 AS active_users_count
          FROM contractor_companies c
          ${where}
-        ORDER BY name ASC LIMIT 500`,
+        ORDER BY name ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ companies: rows });
+    res.json({
+      companies: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
@@ -166,10 +183,18 @@ router.patch('/contractor-companies/:id', async (req, res, next) => {
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-// GET /api/v1/contractor-users?contractor_company_id=&is_active=
+// GET /api/v1/contractor-users?contractor_company_id=&is_active=&limit=&offset=
 router.get('/contractor-users', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.contractor_company_id) {
@@ -181,11 +206,19 @@ router.get('/contractor-users', async (req, res, next) => {
       params.push(active); filters.push(`is_active = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
-      `SELECT * FROM contractor_users ${where} ORDER BY full_name ASC LIMIT 500`,
+      `SELECT * FROM contractor_users ${where} ORDER BY full_name ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ users: rows });
+    res.json({
+      users: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 

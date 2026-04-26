@@ -21,6 +21,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -83,8 +84,16 @@ const AR_COLS = `
 `;
 
 // ─── GET /api/v1/access-requests ─────────────────────────────────────────────
+// Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
 
@@ -112,12 +121,20 @@ router.get('/', async (req, res, next) => {
       filters.push(`request_type = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${AR_COLS} FROM access_requests ${where}
-        ORDER BY created_at DESC LIMIT 500`,
+        ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ access_requests: rows });
+    res.json({
+      access_requests: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 

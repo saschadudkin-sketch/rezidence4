@@ -23,6 +23,7 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -66,9 +67,18 @@ const VEHICLE_COLS = `
 `;
 
 // ─── GET /api/v1/vehicles ────────────────────────────────────────────────────
+// Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.plate) {
@@ -91,12 +101,20 @@ router.get('/', async (req, res, next) => {
       filters.push(`is_blacklisted = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${VEHICLE_COLS} FROM vehicles ${where}
-        ORDER BY created_at DESC LIMIT 500`,
+        ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ vehicles: rows });
+    res.json({
+      vehicles: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 

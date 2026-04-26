@@ -20,6 +20,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -86,6 +87,14 @@ const OVERRIDE_COLS = `
 router.get('/access-incidents', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
 
@@ -110,12 +119,20 @@ router.get('/access-incidents', async (req, res, next) => {
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     const severityOrder = `CASE severity
       WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 END`;
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${INCIDENT_COLS} FROM access_incidents ${where}
-        ORDER BY ${severityOrder} DESC, created_at DESC LIMIT 500`,
+        ORDER BY ${severityOrder} DESC, created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ incidents: rows });
+    res.json({
+      incidents: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
@@ -398,9 +415,18 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─── GET /api/v1/access-overrides ────────────────────────────────────────────
+// Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/access-overrides', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.pass_id) {
@@ -422,12 +448,20 @@ router.get('/access-overrides', async (req, res, next) => {
       params.push(String(req.query.to)); filters.push(`created_at <= $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${OVERRIDE_COLS} FROM access_overrides ${where}
-        ORDER BY created_at DESC LIMIT 500`,
+        ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ overrides: rows });
+    res.json({
+      overrides: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 

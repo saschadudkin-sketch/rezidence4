@@ -23,6 +23,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -165,10 +166,18 @@ router.post('/entrances', async (req, res, next) => {
 
 // ─── Units ───────────────────────────────────────────────────────────────────
 
-// GET /api/v1/units?building_id=&entrance_id=&unit_type=&q=&is_active=
+// GET /api/v1/units?building_id=&entrance_id=&unit_type=&q=&is_active=&limit=&offset=
 router.get('/units', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.building_id) {
@@ -192,15 +201,23 @@ router.get('/units', async (req, res, next) => {
       filters.push(`LOWER(unit_number) LIKE $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at
          FROM units
          ${where}
         ORDER BY unit_number ASC
-        LIMIT 500`,
+        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ units: rows });
+    res.json({
+      units: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 

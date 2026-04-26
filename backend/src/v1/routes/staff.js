@@ -15,6 +15,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isAdmin } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -50,10 +51,18 @@ function auditLog(req, { action, resourceId, changes }) {
   ).catch((err) => logger.warn({ err, action }, '[v1/staff] audit write failed'));
 }
 
-// GET /api/v1/staff?role=&is_active=&q=
+// GET /api/v1/staff?role=&is_active=&q=&limit=&offset=
 router.get('/', async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.role) {
@@ -69,11 +78,19 @@ router.get('/', async (req, res, next) => {
       filters.push(`(LOWER(full_name) LIKE $${params.length} OR LOWER(email) LIKE $${params.length})`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
-      `SELECT * FROM staff_users ${where} ORDER BY full_name ASC LIMIT 500`,
+      `SELECT * FROM staff_users ${where} ORDER BY full_name ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ staff: rows });
+    res.json({
+      staff: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
