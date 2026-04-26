@@ -30,11 +30,11 @@
 
 | # | Задача | Срок | Статус | Почему P0 |
 |---|---|---|---|---|
-| P0-1 | D-lite рефактор (Фазы 1–7) | 10 нед | IN_PROGRESS (Фазы 0–4 done; впереди 5/6/7) | Pre-deployment окно — разовое |
-| P0-2 | Outbox pattern для notifications | 1 нед | TODO (в Фазе 5) | Inline-send ломает заявки при падении канала |
-| P0-3 | Onboarding wizard для property-admin | 1 нед | TODO (в Фазе 7) | Без него подключение объекта = 2 дня ручной работы |
-| P0-4 | Observability per-tenant (Grafana) | 4 дня | TODO (параллельно Фазе 1–2) | С go-live слепые проблемы = видимые резидентам |
-| P0-5 | Runbook + incident-процесс | 2 дня | TODO (до Фазы 7) | Нет описания on-call / SLA / эскалации |
+| P0-1 | D-lite рефактор (Фазы 1–7) | 10 нед | **DONE (код)** — все 7 фаз закрыты, Phase 5/6/7 в PR #124 (2026-04-24). Остаётся execution runbook на VPS. | Pre-deployment окно — разовое |
+| P0-2 | Outbox pattern для notifications | 1 нед | **DONE** — PR #124: `notificationOutbox.js` + 4 workers + миграция v1_016 | Inline-send ломает заявки при падении канала |
+| P0-3 | Onboarding wizard для property-admin | 1 нед | **PARTIAL** — admin SPA готов; для одного объекта (Замоскворечье) seed через SQL в `go-live-zamoskv-runbook.md §3`; полный wizard для самостоятельного onboarding'а УК — после второго tenant'а | Без него подключение объекта = 2 дня ручной работы |
+| P0-4 | Observability per-tenant (Grafana) | 4 дня | TODO (Sentry + Prometheus metrics есть; дашбордов нет) | С go-live слепые проблемы = видимые резидентам |
+| P0-5 | Runbook + incident-процесс | 2 дня | **PARTIAL** — `go-live-zamoskv-runbook.md` есть; нужен зонтичный `docs/runbooks/README.md` (DOCS-5) | Нет описания on-call / SLA / эскалации |
 
 ---
 
@@ -244,6 +244,12 @@
 - ~~Phase 2 — Structure + People layer (buildings/entrances/units/residents/staff_users/contractor_companies/contractor_users)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 2"; 59 новых unit-тестов, 556 total pass)
 - ~~Phase 3 — Access-core (vehicles/access_requests/access_approvals/passes/qr_passes_v2/visit_logs_v2/access_incidents/access_overrides + verify-pass service)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 3"; 8 миграций, 5 routes, 1 сервис, 3 новые спеки, 62+45+17=124 новых unit-тестов, 655 total pass; cut-over legacy qr_passes → visit_logs_v2 отложен на Фазу 7)
 - ~~Phase 4 — Frontend access-core (resident page + guard console + concierge detail + `/v1/*` router)~~ — 2026-04-23 (D-lite ROADMAP §"Фаза 4"; `frontend-phase4-spec.md`; 3 страницы, 9 ui-компонентов, 9 api-клиентов, V1Router + RoleGate, 31 новый unit-тест; backend: `property_id` добавлен в `/users/me`; все проверки зелёные — frontend lint/typecheck/v1-tests, backend 46 suites / 655 tests; D-lite §2 соблюдён — v1/ не импортирует из legacy)
+- ~~Phase 5 — Content + Notifications (announcements_v2, packages_v2, documents_v2, notifications-outbox + workers, notification_log_v2, scheduled-fanout + package-SLA runners, admin outbox, outbox health/retry, notification-templates-v2)~~ — 2026-04-24 (PR #124; ~32 коммитов; 6 v1-routes + 6 services + 4 workers + 7 миграций v1_016..v1_022; admin SPA: AnnouncementsAdminPage / DocumentsAdminPage / PackagesAdminPage; resident: ResidentAnnouncementsFeedPage / ResidentDocumentsPage / ResidentPackagesPage; spec'ы — `notifications-outbox-spec.md`, `announcements-v2-spec.md`, `packages-v2-spec.md`, `documents-v2-spec.md`, `notification-log-v2-spec.md`)
+- ~~Phase 6 — Frontend v1 + legacy freeze gate~~ — 2026-04-24 (PR #124; ~12 коммитов; V1Router + RoleGate + admin pages + resident pages + session/role predicates; `legacy_utilities_enabled` feature flag + middleware wiring в registerApiRoutes.js + `v1LegacyUtilitiesFrozen.test.js` smoke; spec — `legacy-utilities-freeze-spec.md`; freeze покрывает chat/meter-readings/billing/spaces/bookings — все 5 endpoints возвращают 404 FEATURE_DISABLED при default state)
+- ~~Phase 7 P5b audit blockers — 13 closed for go-live readiness~~ — 2026-04-24 (PR #124; 8 коммитов; multi-tenant routing wired, audit_log → property_audit_log rename across 19 files, race-safe transactions для approve/issue, ops hardening для outbox-health/retry, security middleware: markdown sanitizer XSS, normalizePlate, verifyPass; security review: `npm audit` 0/598 backend + 0/655 frontend, owasp-top10-expert 0 HIGH / 0 MEDIUM)
+- ~~Phase 7 deploy infrastructure~~ — 2026-04-25 (PR #131; deploy/ folder с bundle.sh + check-config.sh + .env.production.template + backend/.dockerignore; runbook — `docs/product/specs/platform-v1/go-live-zamoskv-runbook.md`; **остаётся:** реальное выполнение runbook'а на VPS — не engineering, а ops action)
+- ~~Migration 011 fix (push_subscriptions FK type + idx_announcements_active immutable predicate)~~ — 2026-04-26 (PR #132; разблокировка свежих БД от PG error 42804/42P17 — обязательно до go-live)
+- ~~Audit P1/P2 hardening (TS strict, OpenAPI 9→33 paths, a11y Login + PassesTab, pagination helper + 12 list endpoints, idempotency middleware + 7 create POSTs, forward-only migrations policy, frontend pagination types + usePaginatedList hook)~~ — 2026-04-26 (PRs #133-#143; 9 PR; `backend/src/v1/lib/pagination.js`, `frontend/src/v1/hooks/usePaginatedList.ts`, `docs/api/README.md`, `backend/src/v1/migrations/README.md`)
 
 ---
 
@@ -262,3 +268,6 @@
 | 2026-04-22 | — | — | — | Первая версия бэклога |
 | 2026-04-23 | DOCS-1..14 / BRAND-1..4 / OPS-1..6 / ENT-1..5 | — | new | Gap-аудит всех документов и артефактов: 29 пунктов добавлены единым блоком «📚 Документы и артефакты» после Архитектурных улучшений. Источник: сквозной sweep `docs/`, `BACKLOG.md`, `ROADMAP.md`, `.github/`, `ops/` + сверка с `docs/product/specs/domhub-missing-docs-priority.md` (5 из 14 всё ещё не закрыты). Приоритеты расставлены по влиянию на уже существующие P0–P2 задачи. |
 | 2026-04-23 | LOAD-1..4 / A11Y-1..4 / PERF-1..4 / I18N-1..3 / DATA-1..4 / SEC-1..5 | — | new | Второй проход gap-аудита по нефункциональным требованиям (NFRs): 24 пункта добавлены в тот же блок. Покрывают нагрузку, доступность, performance budgets, локализацию, backup/restore, security ops. DATA-1 (restore drill) стал P0 — до go-live обязателен. |
+| 2026-04-27 | Phase 5 / Phase 6 / Phase 7 P5b blockers | P0 IN_PROGRESS | Done | Закрытие drift'a между BACKLOG (помечал TODO) и реальностью кода. Phase 5/6/7-blockers фактически замёржены в PR #124 (2026-04-24); deploy infra — PR #131 (2026-04-25); migration 011 + audit hardening — PRs #132-#143 (2026-04-26). Остаётся только **execution на VPS** (DNS + secrets + docker compose up + smoke), не engineering work. |
+| 2026-04-27 | P0-1 D-lite refactor | IN_PROGRESS | Done (code) | Все 7 фаз завершены в коде. Оставшиеся P0 blockers до go-live: P0-4 (Grafana per-tenant), P0-5 (runbook index — `go-live-zamoskv-runbook.md` есть, нужен индексный файл по `docs/runbooks/`), DATA-1 (первый restore drill). |
+| 2026-04-27 | P0-2 Outbox pattern | TODO | Done | Реализован в PR #124: `backend/src/v1/services/notificationOutbox.js` + 4 workers (outboxRunner, outboxWorker, scheduledFanoutRunner, packageSlaRunner) + миграция v1_016. |
