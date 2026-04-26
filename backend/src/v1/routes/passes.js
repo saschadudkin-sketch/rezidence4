@@ -21,6 +21,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 
 const router = express.Router();
@@ -198,7 +199,9 @@ router.get('/:id/qr', async (req, res, next) => {
 // ─── POST /api/v1/passes/:id/regenerate-qr ───────────────────────────────────
 // Резидент потерял экран — генерим новый token, инкрементим render_version.
 // Старый token становится невалидным сразу (UNIQUE token enforced).
-router.post('/:id/regenerate-qr', async (req, res, next) => {
+// Idempotency: повторный POST с тем же Idempotency-Key вернёт кеш — клиент
+// не создаст лишний QR при retries (network glitches на мобиле).
+router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows: passRows } = await getDb(req).query(
@@ -239,7 +242,9 @@ router.post('/:id/regenerate-qr', async (req, res, next) => {
 // Создать pass напрямую (staff/contractor onboarding без промежуточной заявки).
 // Для passes из одобренной access_request используется accessRequests.approve,
 // не этот endpoint.
-router.post('/', async (req, res, next) => {
+// Idempotency: optional Idempotency-Key header — defends against
+// double-tap при создании пассов из admin UI.
+router.post('/', idempotency, async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     const {
