@@ -22,6 +22,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -102,9 +103,20 @@ function validateSubject({ subject_type, subject_resident_id, subject_staff_id,
 }
 
 // ─── GET /api/v1/passes ──────────────────────────────────────────────────────
+// Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0).
+// Response: { passes: [...], page: { limit, offset, hasMore } } —
+// `passes` сохраняется (back-compat), `page` — additive.
 router.get('/', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.status) {
@@ -127,12 +139,20 @@ router.get('/', async (req, res, next) => {
       filters.push(`access_request_id = $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${PASS_COLS} FROM passes ${where}
-        ORDER BY created_at DESC LIMIT 500`,
+        ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ passes: rows });
+    res.json({
+      passes: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
