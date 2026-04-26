@@ -21,6 +21,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
@@ -151,7 +152,9 @@ router.get('/:id', async (req, res, next) => {
 // ─── POST /api/v1/vehicles ───────────────────────────────────────────────────
 // Регистрация.  Резидент может создать своё авто (owner_resident_id=uid-resident);
 // property_admin — любое.
-router.post('/', async (req, res, next) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при регистрации
+// своего авто резидентом через мобильный UI.
+router.post('/', idempotency, async (req, res, next) => {
   try {
     const {
       property_id, owner_type,

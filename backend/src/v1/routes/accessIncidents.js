@@ -19,6 +19,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
@@ -159,7 +160,9 @@ router.get('/access-incidents/:id', async (req, res, next) => {
 // ─── POST /api/v1/access-incidents ───────────────────────────────────────────
 // Ручное создание инцидента staff'ом (система создаёт через verify-flow,
 // минуя этот endpoint).
-router.post('/access-incidents', async (req, res, next) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при создании
+// инцидента из guard-console.
+router.post('/access-incidents', idempotency, async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     const {

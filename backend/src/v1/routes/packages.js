@@ -35,6 +35,7 @@ const ipKeyGenerator = rateLimitModule.ipKeyGenerator || ((ip) => String(ip || '
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const {
   isAdmin,
   isStaffOrAdmin,
@@ -206,7 +207,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─── POST /api/v1/packages (staff, admin) ────────────────────────────────────
-router.post('/', createLimiter, async (req, res) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при создании
+// записи о посылке из reception-консоли.
+router.post('/', createLimiter, idempotency, async (req, res) => {
   if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
   const b = req.body || {};
   if (!isValidUuid(b.property_id)) return res.status(400).json({ error: 'property_id must be UUID' });

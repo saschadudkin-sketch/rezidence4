@@ -17,6 +17,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 
@@ -138,7 +139,9 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/v1/residents — property_admin only
-router.post('/', async (req, res, next) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при создании
+// resident-записи из admin UI.
+router.post('/', idempotency, async (req, res, next) => {
   try {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
