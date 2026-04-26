@@ -19,6 +19,7 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
+const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const { verifyPass } = require('../services/verifyPass');
 
 const router = express.Router();
@@ -152,9 +153,18 @@ router.post('/', async (req, res, next) => {
 });
 
 // ─── GET /api/v1/visits ──────────────────────────────────────────────────────
+// Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
+
     const filters = [];
     const params = [];
     if (req.query.pass_id) {
@@ -178,12 +188,20 @@ router.get('/', async (req, res, next) => {
       params.push(req.query.to); filters.push(`occurred_at <= $${params.length}`);
     }
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    params.push(pagination.limit);
+    const limitIdx = params.length;
+    params.push(pagination.offset);
+    const offsetIdx = params.length;
+
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2 ${where}
-        ORDER BY occurred_at DESC LIMIT 500`,
+        ORDER BY occurred_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );
-    res.json({ visit_logs: rows });
+    res.json({
+      visit_logs: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
@@ -192,13 +210,22 @@ router.get('/by-pass/:pass_id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
         WHERE pass_id = $1
-        ORDER BY occurred_at DESC LIMIT 500`,
-      [req.params.pass_id],
+        ORDER BY occurred_at DESC LIMIT $2 OFFSET $3`,
+      [req.params.pass_id, pagination.limit, pagination.offset],
     );
-    res.json({ visit_logs: rows });
+    res.json({
+      visit_logs: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
@@ -211,13 +238,23 @@ router.get('/by-plate/:plate', async (req, res, next) => {
     if (!looksLikeRuPlate(normalized) && normalized.length < 3) {
       return res.status(400).json({ error: 'Plate too short' });
     }
+    let pagination;
+    try {
+      pagination = parsePaginationParams(req.query);
+    } catch (rangeErr) {
+      return res.status(400).json({ error: rangeErr.message });
+    }
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
         WHERE vehicle_plate = $1
-        ORDER BY occurred_at DESC LIMIT 500`,
-      [normalized],
+        ORDER BY occurred_at DESC LIMIT $2 OFFSET $3`,
+      [normalized, pagination.limit, pagination.offset],
     );
-    res.json({ plate: normalized, visit_logs: rows });
+    res.json({
+      plate: normalized,
+      visit_logs: rows,
+      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+    });
   } catch (err) { next(err); }
 });
 
