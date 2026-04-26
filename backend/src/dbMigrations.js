@@ -340,10 +340,12 @@ const MIGRATIONS = [
       await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS property_slug VARCHAR(50)`);
 
       // Push notification subscriptions (Phase 1 prep)
+      // user_id — TEXT, чтобы матчить users.uid TEXT (см. CREATE TABLE users
+      // выше). Раньше было UUID и FK падал с PG error 42804 на свежих БД.
       await client.query(`
         CREATE TABLE IF NOT EXISTS push_subscriptions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          user_id UUID NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+          user_id TEXT NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
           endpoint TEXT NOT NULL,
           p256dh TEXT NOT NULL,
           auth TEXT NOT NULL,
@@ -373,7 +375,11 @@ const MIGRATIONS = [
 
       await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(published_at DESC)`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_pinned ON announcements(pinned, published_at DESC) WHERE pinned = true`);
-      await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(published_at DESC) WHERE expires_at IS NULL OR expires_at > NOW()`);
+      // PG требует IMMUTABLE функции в predicate partial index.
+      // NOW() — STABLE, ловится ошибкой 42P17. Оставляем только expires_at IS NULL;
+      // фильтрацию "не истёк" делаем в WHERE запроса (planner всё равно умеет
+      // bitmap-or с idx_announcements_published).
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_announcements_active ON announcements(published_at DESC) WHERE expires_at IS NULL`);
 
       // Documents / Info board (Phase 2 prep)
       await client.query(`
