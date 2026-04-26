@@ -5,6 +5,10 @@
 // db.migrate() after the legacy MIGRATIONS array.  IDs are prefixed `v1_` so
 // they never collide with legacy IDs in schema_migrations.
 //
+// FORWARD-ONLY: down() rollbacks намеренно не реализованы.  Реальная
+// стратегия отката — forward-fix migration.  См. ./README.md для
+// обоснования и conventions.
+//
 // See docs/product/specs/platform-v1/ for per-module specs.
 
 const V1_PROPERTY_MIGRATIONS = [
