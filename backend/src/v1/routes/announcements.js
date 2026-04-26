@@ -37,6 +37,7 @@ const ipKeyGenerator = rateLimitModule.ipKeyGenerator || ((ip) => String(ip || '
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const {
   isAdmin,
   isStaffOrAdmin,
@@ -200,7 +201,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─── POST /api/v1/announcements (concierge, admin) ──────────────────────────
-router.post('/', createLimiter, async (req, res) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при создании
+// объявления из admin UI.
+router.post('/', createLimiter, idempotency, async (req, res) => {
   if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
   const pool = req.db || db.pool;
   const b = req.body || {};

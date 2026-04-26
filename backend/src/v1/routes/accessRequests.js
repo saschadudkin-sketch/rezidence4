@@ -20,6 +20,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin } = require('../lib/authz');
 
 const router = express.Router();
@@ -159,7 +160,9 @@ router.get('/:id', async (req, res, next) => {
 // ─── POST /api/v1/access-requests ────────────────────────────────────────────
 // Создание.  Резидент создаёт как себя; staff — от имени любого; contractor
 // пока не создаёт через этот endpoint в v1 (см. BACKLOG Фаза 4).
-router.post('/', async (req, res, next) => {
+// Idempotency: optional Idempotency-Key — защита от double-tap при создании
+// заявки из резидентского UI.
+router.post('/', idempotency, async (req, res, next) => {
   try {
     const {
       property_id, request_type,
