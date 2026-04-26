@@ -2,7 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Rezidence4 API",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "DomHub multi-tenant API. Platform-v1 routes под /api/v1/* serve as source of truth (см. CLAUDE.md). Этот spec — минимальный contract anchor для openapi_route.test.js + клиентов; полные request/response schemas наполняются инкрементально (см. docs/api/README.md)."
   },
   "x-api-versioning": {
     "current": "/api/v1",
@@ -109,6 +110,336 @@
           "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
+    },
+    "/api/v1/passes": {
+      "get": {
+        "tags": ["passes"],
+        "parameters": [
+          { "in": "query", "name": "status", "schema": { "type": "string" } },
+          { "in": "query", "name": "pass_type", "schema": { "type": "string", "enum": ["guest", "vehicle", "resident", "staff", "contractor", "courier", "service", "emergency"] } },
+          { "in": "query", "name": "subject_vehicle_id", "schema": { "type": "string", "format": "uuid" } },
+          { "in": "query", "name": "access_request_id", "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassListResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["passes"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/passes/{id}": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": {
+        "tags": ["passes"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassWithQrResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["passes"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/passes/{id}/qr": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": {
+        "tags": ["passes"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassQrResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/passes/{id}/regenerate-qr": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "post": {
+        "tags": ["passes"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassQrResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/announcements": {
+      "get": {
+        "tags": ["announcements"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["announcements"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/announcements/{id}": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": {
+        "tags": ["announcements"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["announcements"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["announcements"],
+        "responses": {
+          "204": { "description": "Soft-deleted" },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/announcements/{id}/publish": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "post": {
+        "tags": ["announcements"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } },
+          "429": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/admin/announcements": {
+      "get": {
+        "tags": ["announcements", "admin"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnnouncementListResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/packages": {
+      "get": {
+        "tags": ["packages"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PackageListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["packages"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PackageResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/packages/{id}": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": {
+        "tags": ["packages"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PackageResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["packages"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PackageResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "tags": ["documents"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["documents"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "get": {
+        "tags": ["documents"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "patch": {
+        "tags": ["documents"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/access-requests": {
+      "get": {
+        "tags": ["access-requests"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccessRequestListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["access-requests"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccessRequestResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}": {
+      "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+      "patch": {
+        "tags": ["access-requests"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccessRequestResponse" } } } },
+          "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/visits/verify": {
+      "post": {
+        "tags": ["visits"],
+        "summary": "Verify QR pass token (security checkpoint scan)",
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyPassResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/visits": {
+      "get": {
+        "tags": ["visits"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VisitListResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/access-incidents": {
+      "get": {
+        "tags": ["access-incidents"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccessIncidentListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["access-incidents"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccessIncidentResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/vehicles": {
+      "get": {
+        "tags": ["vehicles"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VehicleListResponse" } } } }
+        }
+      },
+      "post": {
+        "tags": ["vehicles"],
+        "responses": {
+          "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VehicleResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/residents": {
+      "get": {
+        "tags": ["residents"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResidentListResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/staff": {
+      "get": {
+        "tags": ["staff"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StaffListResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/contractors": {
+      "get": {
+        "tags": ["contractors"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContractorListResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/structure": {
+      "get": {
+        "tags": ["structure"],
+        "summary": "Property structure (buildings + entrances + units tree)",
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StructureResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/notification-log": {
+      "get": {
+        "tags": ["notifications"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationLogResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/admin/outbox": {
+      "get": {
+        "tags": ["notifications", "admin"],
+        "responses": {
+          "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OutboxListResponse" } } } }
+        }
+      }
     }
   },
   "components": {
@@ -202,6 +533,249 @@
           "messages": { "type": "array", "items": { "$ref": "#/components/schemas/ChatMessage" } },
           "hasMore": { "type": "boolean" }
         }
+      },
+      "Pass": {
+        "type": "object",
+        "required": ["id", "property_id", "pass_type", "subject_type", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "property_id": { "type": "string", "format": "uuid" },
+          "access_request_id": { "type": "string", "format": "uuid", "nullable": true },
+          "pass_type": { "type": "string", "enum": ["guest", "vehicle", "resident", "staff", "contractor", "courier", "service", "emergency"] },
+          "subject_type": { "type": "string", "enum": ["resident", "staff", "contractor_user", "vehicle", "guest"] },
+          "subject_resident_id": { "type": "string", "nullable": true },
+          "subject_staff_id": { "type": "string", "nullable": true },
+          "subject_contractor_user_id": { "type": "string", "nullable": true },
+          "subject_vehicle_id": { "type": "string", "format": "uuid", "nullable": true },
+          "zone_id": { "type": "string", "nullable": true },
+          "point_id": { "type": "string", "nullable": true },
+          "policy_id": { "type": "string", "nullable": true },
+          "valid_from": { "type": "string", "format": "date-time", "nullable": true },
+          "valid_until": { "type": "string", "format": "date-time", "nullable": true },
+          "status": { "type": "string", "enum": ["active", "used", "expired", "revoked", "blocked"] },
+          "approved_by_staff_id": { "type": "string", "nullable": true },
+          "revoked_at": { "type": "string", "format": "date-time", "nullable": true },
+          "revoked_by_staff_id": { "type": "string", "nullable": true },
+          "revoked_reason": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PassQR": {
+        "type": "object",
+        "required": ["id", "token", "render_version"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "token": { "type": "string" },
+          "render_version": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PassListResponse": {
+        "type": "object",
+        "required": ["passes"],
+        "properties": { "passes": { "type": "array", "items": { "$ref": "#/components/schemas/Pass" } } }
+      },
+      "PassResponse": {
+        "type": "object",
+        "required": ["pass"],
+        "properties": { "pass": { "$ref": "#/components/schemas/Pass" } }
+      },
+      "PassWithQrResponse": {
+        "type": "object",
+        "required": ["pass"],
+        "properties": {
+          "pass": { "$ref": "#/components/schemas/Pass" },
+          "qr": { "oneOf": [{ "$ref": "#/components/schemas/PassQR" }, { "type": "null" }] }
+        }
+      },
+      "PassQrResponse": {
+        "type": "object",
+        "required": ["qr"],
+        "properties": { "qr": { "$ref": "#/components/schemas/PassQR" } }
+      },
+      "Announcement": {
+        "type": "object",
+        "required": ["id", "property_id", "title", "type", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "property_id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "body": { "type": "string", "nullable": true },
+          "type": { "type": "string", "enum": ["info", "urgent", "maintenance", "rule", "event"] },
+          "status": { "type": "string", "enum": ["draft", "scheduled", "active", "expired", "deleted"] },
+          "audience": { "type": "string", "enum": ["all", "owners", "tenants", "staff"] },
+          "scheduled_at": { "type": "string", "format": "date-time", "nullable": true },
+          "expires_at": { "type": "string", "format": "date-time", "nullable": true },
+          "author_uid": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AnnouncementListResponse": {
+        "type": "object",
+        "required": ["announcements"],
+        "properties": { "announcements": { "type": "array", "items": { "$ref": "#/components/schemas/Announcement" } } }
+      },
+      "AnnouncementResponse": {
+        "type": "object",
+        "required": ["announcement"],
+        "properties": { "announcement": { "$ref": "#/components/schemas/Announcement" } }
+      },
+      "Package": {
+        "type": "object",
+        "required": ["id", "property_id", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "property_id": { "type": "string", "format": "uuid" },
+          "resident_uid": { "type": "string", "nullable": true },
+          "tracking_number": { "type": "string", "nullable": true },
+          "carrier": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["received", "awaiting_pickup", "picked_up", "returned"] },
+          "received_at": { "type": "string", "format": "date-time" },
+          "picked_up_at": { "type": "string", "format": "date-time", "nullable": true },
+          "returned_at": { "type": "string", "format": "date-time", "nullable": true },
+          "shelf_location": { "type": "string", "nullable": true },
+          "notes": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PackageListResponse": {
+        "type": "object",
+        "required": ["packages"],
+        "properties": { "packages": { "type": "array", "items": { "$ref": "#/components/schemas/Package" } } }
+      },
+      "PackageResponse": {
+        "type": "object",
+        "required": ["package"],
+        "properties": { "package": { "$ref": "#/components/schemas/Package" } }
+      },
+      "Document": {
+        "type": "object",
+        "required": ["id", "property_id", "title", "category", "version", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "property_id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "body": { "type": "string", "nullable": true },
+          "file_url": { "type": "string", "nullable": true },
+          "is_public": { "type": "boolean" },
+          "version": { "type": "integer" },
+          "author_uid": { "type": "string", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "required": ["documents"],
+        "properties": { "documents": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } } }
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "required": ["document"],
+        "properties": { "document": { "$ref": "#/components/schemas/Document" } }
+      },
+      "AccessRequest": {
+        "type": "object",
+        "required": ["id", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "property_id": { "type": "string", "format": "uuid" },
+          "request_type": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "denied", "fulfilled", "cancelled"] },
+          "subject_resident_id": { "type": "string", "nullable": true },
+          "valid_from": { "type": "string", "format": "date-time", "nullable": true },
+          "valid_until": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AccessRequestListResponse": {
+        "type": "object",
+        "required": ["access_requests"],
+        "properties": { "access_requests": { "type": "array", "items": { "$ref": "#/components/schemas/AccessRequest" } } }
+      },
+      "AccessRequestResponse": {
+        "type": "object",
+        "required": ["access_request"],
+        "properties": { "access_request": { "$ref": "#/components/schemas/AccessRequest" } }
+      },
+      "VerifyPassResponse": {
+        "type": "object",
+        "required": ["allowed"],
+        "properties": {
+          "allowed": { "type": "boolean" },
+          "pass_id": { "type": "string", "format": "uuid", "nullable": true },
+          "subject": { "type": "object", "additionalProperties": true },
+          "reason": { "type": "string", "nullable": true },
+          "visit_log_id": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "Visit": { "type": "object" },
+      "VisitListResponse": {
+        "type": "object",
+        "required": ["visits"],
+        "properties": { "visits": { "type": "array", "items": { "$ref": "#/components/schemas/Visit" } } }
+      },
+      "AccessIncident": { "type": "object" },
+      "AccessIncidentListResponse": {
+        "type": "object",
+        "required": ["incidents"],
+        "properties": { "incidents": { "type": "array", "items": { "$ref": "#/components/schemas/AccessIncident" } } }
+      },
+      "AccessIncidentResponse": {
+        "type": "object",
+        "required": ["incident"],
+        "properties": { "incident": { "$ref": "#/components/schemas/AccessIncident" } }
+      },
+      "Vehicle": { "type": "object" },
+      "VehicleListResponse": {
+        "type": "object",
+        "required": ["vehicles"],
+        "properties": { "vehicles": { "type": "array", "items": { "$ref": "#/components/schemas/Vehicle" } } }
+      },
+      "VehicleResponse": {
+        "type": "object",
+        "required": ["vehicle"],
+        "properties": { "vehicle": { "$ref": "#/components/schemas/Vehicle" } }
+      },
+      "Resident": { "type": "object" },
+      "ResidentListResponse": {
+        "type": "object",
+        "required": ["residents"],
+        "properties": { "residents": { "type": "array", "items": { "$ref": "#/components/schemas/Resident" } } }
+      },
+      "Staff": { "type": "object" },
+      "StaffListResponse": {
+        "type": "object",
+        "required": ["staff"],
+        "properties": { "staff": { "type": "array", "items": { "$ref": "#/components/schemas/Staff" } } }
+      },
+      "Contractor": { "type": "object" },
+      "ContractorListResponse": {
+        "type": "object",
+        "required": ["contractors"],
+        "properties": { "contractors": { "type": "array", "items": { "$ref": "#/components/schemas/Contractor" } } }
+      },
+      "StructureResponse": {
+        "type": "object",
+        "properties": {
+          "buildings": { "type": "array", "items": { "type": "object" } },
+          "entrances": { "type": "array", "items": { "type": "object" } },
+          "units": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "NotificationLogEntry": { "type": "object" },
+      "NotificationLogResponse": {
+        "type": "object",
+        "required": ["entries"],
+        "properties": { "entries": { "type": "array", "items": { "$ref": "#/components/schemas/NotificationLogEntry" } } }
+      },
+      "OutboxEntry": { "type": "object" },
+      "OutboxListResponse": {
+        "type": "object",
+        "required": ["outbox"],
+        "properties": { "outbox": { "type": "array", "items": { "$ref": "#/components/schemas/OutboxEntry" } } }
       }
     }
   }
