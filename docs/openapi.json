@@ -118,10 +118,13 @@
           { "in": "query", "name": "status", "schema": { "type": "string" } },
           { "in": "query", "name": "pass_type", "schema": { "type": "string", "enum": ["guest", "vehicle", "resident", "staff", "contractor", "courier", "service", "emergency"] } },
           { "in": "query", "name": "subject_vehicle_id", "schema": { "type": "string", "format": "uuid" } },
-          { "in": "query", "name": "access_request_id", "schema": { "type": "string", "format": "uuid" } }
+          { "in": "query", "name": "access_request_id", "schema": { "type": "string", "format": "uuid" } },
+          { "in": "query", "name": "limit", "description": "Page size, 1..200 (default 50)", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+          { "in": "query", "name": "offset", "description": "Skip first N rows, 0..100000 (default 0)", "schema": { "type": "integer", "minimum": 0, "maximum": 100000, "default": 0 } }
         ],
         "responses": {
           "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PassListResponse" } } } },
+          "400": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
           "403": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       },
@@ -570,10 +573,22 @@
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
+      "PageMeta": {
+        "type": "object",
+        "required": ["limit", "offset", "hasMore"],
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1 },
+          "offset": { "type": "integer", "minimum": 0 },
+          "hasMore": { "type": "boolean" }
+        }
+      },
       "PassListResponse": {
         "type": "object",
         "required": ["passes"],
-        "properties": { "passes": { "type": "array", "items": { "$ref": "#/components/schemas/Pass" } } }
+        "properties": {
+          "passes": { "type": "array", "items": { "$ref": "#/components/schemas/Pass" } },
+          "page": { "$ref": "#/components/schemas/PageMeta" }
+        }
       },
       "PassResponse": {
         "type": "object",
