@@ -95,7 +95,7 @@ export function ConciergeRequestDetailPage({
         ? (await api.passes.getById(detail.pass.id)).pass
         : null;
       const visits: VisitLog[] = fullPass
-        ? (await api.visits.list({ pass_id: fullPass.id, limit: 50 })).visits
+        ? (await api.visits.list({ pass_id: fullPass.id, limit: 50 })).visit_logs
         : [];
       let incidents: AccessIncident[] = [];
       if (fullPass) {

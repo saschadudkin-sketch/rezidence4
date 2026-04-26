@@ -4,15 +4,21 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { Unit, UnitDetailResponse, UnitType, UUID } from './types';
+import type {
+  PageMeta,
+  PaginationParams,
+  Unit,
+  UnitDetailResponse,
+  UnitType,
+  UUID,
+} from './types';
 
-export interface ListUnitsParams {
+export interface ListUnitsParams extends PaginationParams {
   building_id?: UUID;
   entrance_id?: UUID;
   unit_type?: UnitType;
   q?: string;
   is_active?: boolean;
-  limit?: number;
 }
 
 function toQuery(params: object | undefined): string {
@@ -28,7 +34,10 @@ function toQuery(params: object | undefined): string {
 
 export const unitsApi = {
   list(params?: ListUnitsParams, opts?: RequestOpts) {
-    return v1Client.get<{ units: Unit[] }>(`/units${toQuery(params)}`, opts);
+    return v1Client.get<{ units: Unit[]; page?: PageMeta }>(
+      `/units${toQuery(params)}`,
+      opts,
+    );
   },
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<UnitDetailResponse>(`/units/${id}`, opts);

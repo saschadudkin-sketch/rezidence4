@@ -17,18 +17,20 @@ import type {
   IncidentType,
   IsoDateTime,
   OverrideType,
+  PageMeta,
+  PaginationParams,
   Severity,
   UUID,
 } from './types';
 
-export interface ListIncidentsParams {
+export interface ListIncidentsParams extends PaginationParams {
   status?: IncidentStatus;
   severity?: Severity;
   incident_type?: IncidentType;
   assigned_to_staff_id?: UUID;
 }
 
-export interface ListOverridesParams {
+export interface ListOverridesParams extends PaginationParams {
   pass_id?: UUID;
   incident_id?: UUID;
   performed_by_staff_id?: UUID;
@@ -51,7 +53,7 @@ function toQuery(params: object | undefined): string {
 
 export const accessIncidentsApi = {
   list(params?: ListIncidentsParams, opts?: RequestOpts) {
-    return v1Client.get<{ incidents: AccessIncident[] }>(
+    return v1Client.get<{ incidents: AccessIncident[]; page?: PageMeta }>(
       `/access-incidents${toQuery(params)}`,
       opts,
     );
@@ -60,7 +62,7 @@ export const accessIncidentsApi = {
     return v1Client.get<IncidentDetailResponse>(`/access-incidents/${id}`, opts);
   },
   listOverrides(params?: ListOverridesParams, opts?: RequestOpts) {
-    return v1Client.get<{ overrides: AccessOverride[] }>(
+    return v1Client.get<{ overrides: AccessOverride[]; page?: PageMeta }>(
       `/access-overrides${toQuery(params)}`,
       opts,
     );

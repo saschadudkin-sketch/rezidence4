@@ -37,6 +37,9 @@ import type {
 } from './types';
 
 // ─── Query params ───────────────────────────────────────────────────────────
+// NB: packages routes используют свой service-layer pagination contract
+// (`{limit, offset, count}` плоско в response, без `page` обёртки), поэтому
+// shared PaginationParams / PageMeta из types.ts не подходят.
 
 export interface ListPackagesParams {
   status?: PackageStatus;

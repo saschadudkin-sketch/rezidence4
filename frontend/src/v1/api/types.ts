@@ -12,6 +12,28 @@
 export type UUID = string;
 export type IsoDateTime = string; // ISO-8601 string from PG timestamps
 
+// ─── Pagination ─────────────────────────────────────────────────────────────
+// Backend returns `page` meta on list endpoints when client passes
+// limit/offset (см. backend/src/v1/lib/pagination.js).  Existing clients
+// без limit/offset продолжают получать массив без `page`, поэтому в response
+// types `page` помечается optional.
+
+export interface PageMeta {
+  limit: number;
+  offset: number;
+  /** True iff returnedCount === limit — клиенту стоит запросить next page. */
+  hasMore: boolean;
+}
+
+/**
+ * Common pagination query params для list endpoints.  Embed via intersection:
+ * `interface ListXxxParams extends PaginationParams { ... }`.
+ */
+export interface PaginationParams {
+  limit?: number;
+  offset?: number;
+}
+
 // ─── Session ────────────────────────────────────────────────────────────────
 
 export type UserRole =

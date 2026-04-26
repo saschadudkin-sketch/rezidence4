@@ -8,12 +8,11 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { Resident, UUID } from './types';
+import type { PageMeta, PaginationParams, Resident, UUID } from './types';
 
-export interface ListResidentsParams {
+export interface ListResidentsParams extends PaginationParams {
   unit_id?: UUID;
   is_active?: boolean;
-  limit?: number;
 }
 
 function toQuery(params: object | undefined): string {
@@ -45,7 +44,7 @@ export interface ResidentWithUnit extends Omit<Resident, 'unit_id' | 'property_i
 
 export const residentsApi = {
   list(params?: ListResidentsParams, opts?: RequestOpts) {
-    return v1Client.get<{ residents: ResidentWithUnit[] }>(
+    return v1Client.get<{ residents: ResidentWithUnit[]; page?: PageMeta }>(
       `/residents${toQuery(params)}`,
       opts,
     );

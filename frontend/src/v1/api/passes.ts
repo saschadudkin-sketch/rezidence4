@@ -5,15 +5,22 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { Pass, PassStatus, PassType, QrToken, UUID } from './types';
+import type {
+  PageMeta,
+  PaginationParams,
+  Pass,
+  PassStatus,
+  PassType,
+  QrToken,
+  UUID,
+} from './types';
 
-export interface ListPassesParams {
+export interface ListPassesParams extends PaginationParams {
   status?: PassStatus;
   pass_type?: PassType;
   access_request_id?: UUID;
   subject_vehicle_id?: UUID;
   subject_resident_id?: UUID;
-  limit?: number;
 }
 
 function toQuery(params: object | undefined): string {
@@ -29,7 +36,10 @@ function toQuery(params: object | undefined): string {
 
 export const passesApi = {
   list(params?: ListPassesParams, opts?: RequestOpts) {
-    return v1Client.get<{ passes: Pass[] }>(`/passes${toQuery(params)}`, opts);
+    return v1Client.get<{ passes: Pass[]; page?: PageMeta }>(
+      `/passes${toQuery(params)}`,
+      opts,
+    );
   },
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ pass: Pass }>(`/passes/${id}`, opts);

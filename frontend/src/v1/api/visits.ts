@@ -14,18 +14,19 @@ import { normalizePlate } from './vehicles';
 import { v1Client, type RequestOpts } from './client';
 import type {
   IsoDateTime,
+  PageMeta,
+  PaginationParams,
   UUID,
   VerifyRequest,
   VerifyResult,
   VisitLog,
 } from './types';
 
-export interface ListVisitsParams {
+export interface ListVisitsParams extends PaginationParams {
   pass_id?: UUID;
   point_id?: UUID;
   from?: IsoDateTime;
   to?: IsoDateTime;
-  limit?: number;
 }
 
 function toQuery(params: object | undefined): string {
@@ -41,7 +42,10 @@ function toQuery(params: object | undefined): string {
 
 export const visitsApi = {
   list(params?: ListVisitsParams, opts?: RequestOpts) {
-    return v1Client.get<{ visits: VisitLog[] }>(`/visits${toQuery(params)}`, opts);
+    return v1Client.get<{ visit_logs: VisitLog[]; page?: PageMeta }>(
+      `/visits${toQuery(params)}`,
+      opts,
+    );
   },
   verify(body: VerifyRequest, opts?: RequestOpts) {
     const payload: VerifyRequest = {

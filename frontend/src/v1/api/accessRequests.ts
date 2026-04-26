@@ -12,19 +12,20 @@ import type {
   AccessRequest,
   AccessRequestDetailResponse,
   IsoDateTime,
+  PageMeta,
+  PaginationParams,
   RequestStatus,
   RequestType,
   UUID,
 } from './types';
 
-export interface ListAccessRequestsParams {
+export interface ListAccessRequestsParams extends PaginationParams {
   status?: RequestStatus;
   request_type?: RequestType;
   target_unit_id?: UUID;
   created_by_resident_id?: UUID;
   from?: IsoDateTime;
   to?: IsoDateTime;
-  limit?: number;
 }
 
 export interface CreateAccessRequestBody {
@@ -55,7 +56,7 @@ function toQuery(params: object | undefined): string {
 
 export const accessRequestsApi = {
   list(params?: ListAccessRequestsParams, opts?: RequestOpts) {
-    return v1Client.get<{ access_requests: AccessRequest[] }>(
+    return v1Client.get<{ access_requests: AccessRequest[]; page?: PageMeta }>(
       `/access-requests${toQuery(params)}`,
       opts,
     );
