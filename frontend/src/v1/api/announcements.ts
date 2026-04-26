@@ -32,6 +32,9 @@ import type {
 } from './types';
 
 // ─── Query params ───────────────────────────────────────────────────────────
+// NB: announcements использует service-layer pagination (`count` плоско в
+// response, без `page` обёртки), поэтому общий PaginationParams здесь не
+// применяется.
 
 export interface ListAnnouncementsParams {
   category?: AnnouncementCategory;

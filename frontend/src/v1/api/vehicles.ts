@@ -12,13 +12,20 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { UUID, Vehicle, VehicleKind, VehicleOwnerType } from './types';
+import type {
+  PageMeta,
+  PaginationParams,
+  UUID,
+  Vehicle,
+  VehicleKind,
+  VehicleOwnerType,
+} from './types';
 
 export function normalizePlate(plate: string): string {
   return plate.replace(/[\s-]+/g, '').toUpperCase();
 }
 
-export interface ListVehiclesParams {
+export interface ListVehiclesParams extends PaginationParams {
   plate?: string;
   owner_type?: VehicleOwnerType;
   owner_resident_id?: UUID;
@@ -26,7 +33,6 @@ export interface ListVehiclesParams {
   owner_contractor_user_id?: UUID;
   is_whitelisted?: boolean;
   is_blacklisted?: boolean;
-  limit?: number;
 }
 
 export interface CreateVehicleBody {
@@ -64,7 +70,10 @@ function toQuery(params: object | undefined): string {
 
 export const vehiclesApi = {
   list(params?: ListVehiclesParams, opts?: RequestOpts) {
-    return v1Client.get<{ vehicles: Vehicle[] }>(`/vehicles${toQuery(params)}`, opts);
+    return v1Client.get<{ vehicles: Vehicle[]; page?: PageMeta }>(
+      `/vehicles${toQuery(params)}`,
+      opts,
+    );
   },
   getByPlate(plate: string, opts?: RequestOpts) {
     return v1Client.get<{ vehicle: Vehicle }>(
