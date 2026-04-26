@@ -72,8 +72,14 @@ describe('OpenAPI contract smoke', () => {
 
   test('all declared operations have response schema', () => {
     const spec = readOpenApiSpec();
+    // OpenAPI 3.0 Path Item Object разрешает на уровне пути не-метод поля
+    // (parameters, summary, description, servers).  Фильтруем итерацию строго
+    // на HTTP методы, иначе assertOperationResponseSchemas падает на массиве
+    // parameters, у которого нет .responses.
+    const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
     for (const [, methods] of Object.entries(spec.paths)) {
-      for (const [, operation] of Object.entries(methods)) {
+      for (const [methodName, operation] of Object.entries(methods)) {
+        if (!HTTP_METHODS.has(methodName.toLowerCase())) continue;
         assertOperationResponseSchemas(operation);
       }
     }
