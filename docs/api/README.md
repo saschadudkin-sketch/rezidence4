@@ -36,6 +36,33 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 - **Authentication** — `securitySchemes` и `security` не задано; сейчас все non-`auth/*` endpoint'ы требуют JWT cookie + `X-Complex-Slug` header. Документируем после введения OAuth-style description.
 - **Tags + descriptions** — теги проставлены, но без top-level `tags[]` array с описаниями.
 
+## Cross-cutting headers
+
+### `Idempotency-Key`
+
+POST mutations поддерживают опциональный `Idempotency-Key` header (≤256 chars). При наличии и совпадении ключа в течение 24 часов middleware вернёт **закешированный 2xx-ответ** вместо повторного выполнения handler'а — защита от double-tap / network retry.
+
+**Где включено сейчас:**
+- `POST /api/v1/passes` — create pass
+- `POST /api/v1/passes/{id}/regenerate-qr` — regenerate QR
+
+**Поведение:**
+- Кешируются только 2xx ответы (4xx/5xx — повтор приведёт к новому handler call)
+- Cache key изолирован по user uid (`idem:{uid}:{key}`) — нет утечек между пользователями
+- TTL 24h, fallback на in-memory Map если REDIS_URL не задан
+
+**Implementation:** `backend/src/middleware/idempotency.js` (один singleton-Redis client через `lib/redisClient.js`).
+
+**Что ещё нужно подключить (follow-up):**
+- POST `/api/v1/announcements`, `/announcements/{id}/publish`
+- POST `/api/v1/packages`
+- POST `/api/v1/documents`
+- POST `/api/v1/access-requests`
+- POST `/api/v1/access-incidents`
+- POST `/api/v1/vehicles`
+
+State-mutating endpoints с встроенной семантической идемпотентностью (revoke/block/unblock — возвращают 409 при повторе) middleware **не требуют** — 409 информативнее.
+
 ## Как расширять
 
 1. **Новый endpoint:** добавить запись в `paths` с минимум: `responses.200`, `responses.4xx`. Создать schema-stub в `components.schemas` (`{ "type": "object" }` если контракт ещё не утвердился).
