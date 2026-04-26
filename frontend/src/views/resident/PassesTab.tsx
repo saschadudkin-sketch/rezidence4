@@ -209,10 +209,12 @@ const PassesTab = memo(function PassesTab({
 
       {myPasses.length > 0 && (
         <div className="search-wrap u-mb8">
-          <span className="search-ico"><AppIcon name="search" size={14} /></span>
+          <span className="search-ico" aria-hidden="true"><AppIcon name="search" size={14} /></span>
           <input
             className="search-inp"
+            type="search"
             placeholder="Имя, авто или комментарий"
+            aria-label="Поиск по моим пропускам"
             value={query}
             onChange={(event) => updatePassSearch(event.target.value)}
           />
@@ -220,7 +222,7 @@ const PassesTab = memo(function PassesTab({
       )}
 
       {myPasses.length > 0 && (
-        <div className="pass-filter-pills">
+        <div className="pass-filter-pills" role="group" aria-label="Фильтр пропусков по статусу">
           {PASS_FILTER_PILLS.map(([key, label]) => {
             const count = key === 'scheduled'
               ? scheduledCount
@@ -236,7 +238,9 @@ const PassesTab = memo(function PassesTab({
             return count > 0 || key === 'all' || key === 'active' ? (
               <button
                 key={key}
+                type="button"
                 className={`date-pill${passFilter === key ? ' active' : ''}`}
+                aria-pressed={passFilter === key}
                 onClick={() => setPassFilter(key)}
               >
                 {label}

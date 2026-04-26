@@ -65,8 +65,10 @@ export function LoginPhoneStep({
           inputMode="tel"
           autoComplete="tel"
           autoFocus
+          aria-invalid={Boolean(phoneError)}
+          aria-describedby={phoneError ? 'login-phone-err' : undefined}
         />
-        {phoneError && <div className="field-err">{phoneError}</div>}
+        {phoneError && <div id="login-phone-err" className="field-err" role="alert">{phoneError}</div>}
       </div>
       <button className="btn-gold" onClick={() => { void sendCode(); }} disabled={loading}>
         <span>{loading ? 'Проверка...' : 'Получить SMS-код'}</span>

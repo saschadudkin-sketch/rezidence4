@@ -55,8 +55,10 @@ export function LoginOtpStep({
           onKeyDown={(e) => e.key === 'Enter' && void verify()}
           autoComplete="one-time-code"
           autoFocus
+          aria-invalid={Boolean(otpError)}
+          aria-describedby={otpError ? 'login-code-err' : undefined}
         />
-        {otpError && <div className="field-err">{otpError}</div>}
+        {otpError && <div id="login-code-err" className="field-err" role="alert">{otpError}</div>}
       </div>
       <button className="btn-gold" onClick={() => { void verify(); }} disabled={loading}>
         <span>{loading ? 'Проверка...' : 'Войти'}</span>
