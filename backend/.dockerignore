@@ -1,0 +1,14 @@
+node_modules
+coverage
+.git
+.github
+docs
+*.md
+.env.local
+.env
+src/__tests__
+src/__mocks__
+*.test.js
+jest.config*.js
+nodemon.json
+.eslint*
