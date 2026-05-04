@@ -13,7 +13,7 @@
 #   4. Проверяет invariants:
 #       - residenze: SELECT COUNT(*) FROM users > 0
 #       - platform:  SELECT COUNT(*) FROM properties >= 1
-#       - zamoskv:   SELECT COUNT(*) FROM v1_property_migrations >= 22
+#       - zamoskv:   SELECT COUNT(*) FROM schema_migrations WHERE id LIKE 'v1_%' >= 25
 #   5. Замеряет RTO для каждой БД + total wall-clock.
 #   6. Чистит за собой контейнер и сеть.
 #
@@ -197,7 +197,7 @@ if echo "$BACKUP_DATABASES" | grep -qw platform; then
   check_count platform "SELECT COUNT(*) FROM properties" 1 "properties count"
 fi
 if echo "$BACKUP_DATABASES" | grep -qw zamoskv; then
-  check_count zamoskv "SELECT COUNT(*) FROM v1_property_migrations" 22 "v1_property_migrations applied"
+  check_count zamoskv "SELECT COUNT(*) FROM schema_migrations WHERE id LIKE 'v1_%'" 25 "v1 schema_migrations applied"
 fi
 
 # ─── 6. Финальный отчёт ─────────────────────────────────────────────────────

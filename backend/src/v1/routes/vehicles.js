@@ -25,6 +25,7 @@ const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const { resolveResidentIdByUid } = require('../services/accessActorResolver');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -42,6 +43,15 @@ function isNonEmptyString(v, maxLen) {
 }
 // Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
 const isPropertyAdmin = isAdmin;
+
+async function requireResidentId(req, res) {
+  const residentId = await resolveResidentIdByUid(getDb(req), req.user?.uid);
+  if (!residentId) {
+    res.status(403).json({ error: 'Resident identity is not mapped to v1' });
+    return null;
+  }
+  return residentId;
+}
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
   getDb(req).query(
@@ -201,8 +211,12 @@ router.post('/', idempotency, async (req, res, next) => {
     if (!isPropertyAdmin(req) && owner_type !== 'resident') {
       return res.status(403).json({ error: 'Only property_admin may create non-resident vehicles' });
     }
-    if (!isPropertyAdmin(req) && owner_type === 'resident' && req.user.uid !== owner_resident_id) {
-      return res.status(403).json({ error: 'Residents may register only their own vehicle' });
+    if (!isPropertyAdmin(req) && owner_type === 'resident') {
+      const residentId = await requireResidentId(req, res);
+      if (!residentId) return;
+      if (residentId !== owner_resident_id) {
+        return res.status(403).json({ error: 'Residents may register only their own vehicle' });
+      }
     }
 
     if (color !== null && !isNonEmptyString(color, 40)) return res.status(400).json({ error: 'color: 1–40 chars or null' });
@@ -249,8 +263,12 @@ router.patch('/:id', async (req, res, next) => {
       [req.params.id],
     );
     if (!currentRows[0]) return res.status(404).json({ error: 'Vehicle not found' });
-    if (!isPropertyAdmin(req) && currentRows[0].owner_resident_id !== req.user.uid) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (!isPropertyAdmin(req)) {
+      const residentId = await requireResidentId(req, res);
+      if (!residentId) return;
+      if (currentRows[0].owner_resident_id !== residentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
     }
 
     const sets = [];
@@ -379,8 +397,12 @@ router.delete('/:id', async (req, res, next) => {
       [req.params.id],
     );
     if (!ownerCheck[0]) return res.status(404).json({ error: 'Vehicle not found' });
-    if (!isPropertyAdmin(req) && ownerCheck[0].owner_resident_id !== req.user.uid) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (!isPropertyAdmin(req)) {
+      const residentId = await requireResidentId(req, res);
+      if (!residentId) return;
+      if (ownerCheck[0].owner_resident_id !== residentId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
     }
 
     // Check history.  passes.subject_vehicle_id is ON DELETE RESTRICT in БД —

@@ -22,6 +22,7 @@ const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const { resolveStaffIdByUid } = require('../services/accessActorResolver');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -51,12 +52,22 @@ function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= (maxLen || 500);
 }
 
-function auditLog(req, { action, resourceType, resourceId, changes }) {
+async function requireStaffId(req, res, queryable = getDb(req)) {
+  const staffId = await resolveStaffIdByUid(queryable, req.user?.uid);
+  if (!staffId) {
+    res.status(403).json({ error: 'Staff identity is not mapped to v1' });
+    return null;
+  }
+  return staffId;
+}
+
+function auditLog(req, { propertyId = null, action, resourceType, resourceId, changes }) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (property_id, actor_uid, actor_role, actor_type, action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, 'staff', $4, $5, $6, $7, $8)`,
     [
+      propertyId,
       req.user?.uid || null,
       req.user?.role || null,
       action,
@@ -186,17 +197,20 @@ router.post('/access-incidents', idempotency, async (req, res, next) => {
     ]) {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
+    const staffId = await requireStaffId(req, res);
+    if (!staffId) return;
 
     const { rows } = await getDb(req).query(
       `INSERT INTO access_incidents
          (property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
           incident_type, severity, status, title, description, created_by_staff_id)
        VALUES ($1,$2,$3,$4,$5,$6,'open',$7,$8,$9)
-       RETURNING ${INCIDENT_COLS}`,
+      RETURNING ${INCIDENT_COLS}`,
       [property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
-       incident_type, severity, title, description, req.user.uid],
+       incident_type, severity, title, description, staffId],
     );
     auditLog(req, {
+      propertyId: rows[0].property_id,
       action: 'incident.created',
       resourceType: 'access_incident',
       resourceId: rows[0].id,
@@ -238,6 +252,7 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
       [assignee, req.params.id],
     );
     auditLog(req, {
+      propertyId: rows[0].property_id,
       action: 'incident.assigned',
       resourceType: 'access_incident',
       resourceId: req.params.id,
@@ -268,6 +283,11 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
   const client = await getTxPool(req).connect();
   try {
     await client.query('BEGIN');
+    const staffId = await requireStaffId(req, res, client);
+    if (!staffId) {
+      await client.query('ROLLBACK');
+      return;
+    }
     const { rows: curRows } = await client.query(
       `SELECT property_id, status, related_pass_id, assigned_to_staff_id
          FROM access_incidents WHERE id = $1 FOR UPDATE`,
@@ -284,7 +304,7 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
     // ACL: assigned_to or property_admin
     if (!isPropertyAdmin(req)
         && curRows[0].assigned_to_staff_id
-        && curRows[0].assigned_to_staff_id !== req.user.uid) {
+        && curRows[0].assigned_to_staff_id !== staffId) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Incident is assigned to another staff' });
     }
@@ -308,13 +328,14 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
          RETURNING ${OVERRIDE_COLS}`,
         [incRows[0].property_id, req.params.id,
          overrideInput.pass_id || curRows[0].related_pass_id || null,
-         req.user.uid, overrideInput.override_type, overrideInput.reason.trim()],
+         staffId, overrideInput.override_type, overrideInput.reason.trim()],
       );
       overrideRow = ovRows[0];
     }
 
     await client.query('COMMIT');
     auditLog(req, {
+      propertyId: incRows[0].property_id,
       action: 'incident.resolved',
       resourceType: 'access_incident',
       resourceId: req.params.id,
@@ -346,9 +367,11 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
     if (TERMINAL_INCIDENT.has(curRows[0].status)) {
       return res.status(409).json({ error: `Incident already ${curRows[0].status}` });
     }
+    const staffId = await requireStaffId(req, res);
+    if (!staffId) return;
     if (!isPropertyAdmin(req)
         && curRows[0].assigned_to_staff_id
-        && curRows[0].assigned_to_staff_id !== req.user.uid) {
+        && curRows[0].assigned_to_staff_id !== staffId) {
       return res.status(403).json({ error: 'Incident is assigned to another staff' });
     }
     const { rows } = await getDb(req).query(
@@ -361,6 +384,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
       [reason, req.params.id],
     );
     auditLog(req, {
+      propertyId: rows[0].property_id,
       action: 'incident.dismissed',
       resourceType: 'access_incident',
       resourceId: req.params.id,
@@ -404,6 +428,7 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Incident not found' });
     auditLog(req, {
+      propertyId: rows[0].property_id,
       action: 'incident.patched',
       resourceType: 'access_incident',
       resourceId: req.params.id,
@@ -498,15 +523,18 @@ router.post('/access-overrides', async (req, res, next) => {
     }
     if (!OVERRIDE_TYPES.has(override_type)) return res.status(400).json({ error: 'Invalid override_type' });
     if (!isNonEmptyString(reason, 500)) return res.status(422).json({ error: 'reason is required' });
+    const staffId = await requireStaffId(req, res);
+    if (!staffId) return;
 
     const { rows } = await getDb(req).query(
       `INSERT INTO access_overrides
          (property_id, incident_id, pass_id, performed_by_staff_id, override_type, reason)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING ${OVERRIDE_COLS}`,
-      [property_id, incident_id, pass_id, req.user.uid, override_type, reason.trim()],
+      [property_id, incident_id, pass_id, staffId, override_type, reason.trim()],
     );
     auditLog(req, {
+      propertyId: rows[0].property_id,
       action: 'override.created',
       resourceType: 'access_override',
       resourceId: rows[0].id,

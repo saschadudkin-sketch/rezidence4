@@ -138,6 +138,13 @@ function registerApiRoutes(app, { rateLimiters }) {
   // endpoint вернул 404 пока legacy_utilities_enabled=false.
   // См. ROADMAP.md §Фаза 6 + RECONCILIATION.md §12 (Вариант B).
   const legacyUtilitiesGate = requireFeature('legacy_utilities_enabled');
+  const legacySpacesBookingsOnly = (req, res, next) => {
+    if (!/^\/spaces\/[^/]+\/bookings(?:\/|$)/.test(req.path)) return next();
+    legacyUtilitiesGate(req, res, (err) => {
+      if (err) return next(err);
+      return bookingsRouter(req, res, next);
+    });
+  };
 
   // SEC [AUDIT #1] — mount multi-tenant gate ПЕРЕД всеми /api/v1/* роутерами,
   // включая /auth (login-фазе тоже нужен tenant context: какую БД проверять
@@ -228,7 +235,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   // bookingsRouter handles both GET /api/v1/bookings and
   // POST /api/v1/spaces/:spaceId/bookings + PATCH /api/v1/bookings/:id/cancel
   app.use('/api/v1/bookings', legacyUtilitiesGate, requireFeature('space_booking'), bookingsRouter);
-  app.use('/api/v1', legacyUtilitiesGate, bookingsRouter);
+  app.use('/api/v1', legacySpacesBookingsOnly);
 
   // Phase 5 — Webhooks (admin cookie auth, enforced inside webhooksRouter)
   app.use('/api/v1/webhooks', requireFeature('webhooks'), webhooksRouter);

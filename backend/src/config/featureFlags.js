@@ -64,6 +64,12 @@ const FEATURE_FLAGS = {
     description: 'Автоматические QR-коды для гостевых пропусков',
     category: 'access',
   },
+  manual_access_approval: {
+    default: false,
+    label: 'Ручное согласование пропусков',
+    description: 'Если включено, пропуска требуют решения консьержа перед выпуском QR',
+    category: 'access',
+  },
   meter_readings: {
     default: false,
     label: 'Показания счётчиков',

@@ -111,7 +111,7 @@ router.post('/', async (req, res, next) => {
     if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, full_name, email, role,
-      phone = null, specialization = null,
+      phone = null, specialization = null, external_uid = null,
       can_view_resident_phone, can_assign_requests,
     } = req.body || {};
 
@@ -125,6 +125,9 @@ router.post('/', async (req, res, next) => {
     if (specialization !== null && specialization !== undefined && specialization !== '' && !SPECIALIZATIONS.has(specialization)) {
       return res.status(400).json({ error: 'Invalid specialization' });
     }
+    if (external_uid !== null && external_uid !== undefined && external_uid !== '' && !isNonEmptyString(external_uid, 200)) {
+      return res.status(400).json({ error: 'external_uid must be 1-200 chars or null' });
+    }
 
     // Capability flags: caller override > role default.
     const defaults = ROLE_CAPABILITY_DEFAULTS[role];
@@ -134,13 +137,13 @@ router.post('/', async (req, res, next) => {
     const { rows } = await getDb(req).query(
       `INSERT INTO staff_users(
          property_id, full_name, phone, email, role, specialization,
-         can_view_resident_phone, can_assign_requests
+         can_view_resident_phone, can_assign_requests, external_uid
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         property_id, full_name.trim(), phone || null, email, role,
-        specialization || null, effectivePhoneView, effectiveAssign,
+        specialization || null, effectivePhoneView, effectiveAssign, external_uid || null,
       ],
     );
     auditLog(req, {
@@ -197,6 +200,13 @@ router.patch('/:id', async (req, res, next) => {
       }
       params.push(req.body.specialization || null); sets.push(`specialization = $${params.length}`);
       changes.specialization = { from: before.specialization, to: req.body.specialization || null };
+    }
+    if (req.body.external_uid !== undefined) {
+      if (req.body.external_uid !== null && req.body.external_uid !== '' && !isNonEmptyString(req.body.external_uid, 200)) {
+        return res.status(400).json({ error: 'external_uid must be 1-200 chars or null' });
+      }
+      params.push(req.body.external_uid || null); sets.push(`external_uid = $${params.length}`);
+      changes.external_uid = { from: before.external_uid || null, to: req.body.external_uid || null };
     }
     if (typeof req.body.can_view_resident_phone === 'boolean') {
       params.push(req.body.can_view_resident_phone); sets.push(`can_view_resident_phone = $${params.length}`);

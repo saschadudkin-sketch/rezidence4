@@ -27,14 +27,33 @@ if (!steps) {
 const env = { ...process.env };
 delete env.npm_execpath;
 
+const RETRYABLE_INFRA_EXIT_CODES = new Set([3221225477]);
+
+function shouldRetryInfraFailure(result, attempt) {
+  if (attempt > 1) return false;
+  const status = result.status ?? 1;
+  return RETRYABLE_INFRA_EXIT_CODES.has(status);
+}
+
 for (const { label, cwd, args } of steps) {
-  console.log(`\n[run-checks] ${label}`);
-  const result = spawnSync(process.execPath, args, {
-    cwd,
-    env,
-    stdio: 'inherit',
-    shell: false,
-  });
+  let result;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    console.log(`\n[run-checks] ${label}${attempt > 1 ? ` (retry ${attempt - 1})` : ''}`);
+    result = spawnSync(process.execPath, args, {
+      cwd,
+      env,
+      stdio: 'inherit',
+      shell: false,
+    });
+
+    if (!result.error && (result.status ?? 1) !== 0 && shouldRetryInfraFailure(result, attempt)) {
+      console.warn(`[run-checks] ${label} hit retryable infra exit code ${result.status}; retrying once`);
+      continue;
+    }
+
+    break;
+  }
 
   if (result.error) {
     console.error(`[run-checks] ${label} failed to start: ${result.error.message}`);

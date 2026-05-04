@@ -126,14 +126,20 @@ router.get('/', async (req, res, next) => {
 // GET /api/v1/residents/:id — self + staff
 router.get('/:id', async (req, res, next) => {
   try {
-    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid resident id' });
-    if (!isStaff(req.user.role) && req.user.uid !== req.params.id) {
+    const ref = String(req.params.id || '');
+    const byUuid = isValidUuid(ref);
+    if (!byUuid && !isStaff(req.user.role) && req.user.uid !== ref) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const { rows } = await getDb(req).query(`SELECT * FROM residents WHERE id = $1`, [req.params.id]);
+    const { rows } = byUuid
+      ? await getDb(req).query(`SELECT * FROM residents WHERE id = $1`, [ref])
+      : await getDb(req).query(`SELECT * FROM residents WHERE external_uid = $1`, [ref]);
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
+    if (!isStaff(req.user.role) && rows[0].external_uid !== req.user.uid && rows[0].id !== req.user.uid) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     // Phone always visible to self, else capability-gated.
-    const showPhone = req.user.uid === req.params.id || canViewPhone(req);
+    const showPhone = rows[0].external_uid === req.user.uid || rows[0].id === req.user.uid || canViewPhone(req);
     res.json({ resident: formatResident(rows[0], showPhone) });
   } catch (err) { next(err); }
 });

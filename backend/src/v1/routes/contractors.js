@@ -229,6 +229,7 @@ router.post('/contractor-users', async (req, res, next) => {
     const {
       contractor_company_id, property_id, full_name,
       phone = null, email = null, specialization = null,
+      external_uid = null,
       access_expires_at = null,
     } = req.body || {};
 
@@ -237,6 +238,9 @@ router.post('/contractor-users', async (req, res, next) => {
     if (!isNonEmptyString(full_name, 200)) return res.status(400).json({ error: 'full_name required' });
     if (phone && !PHONE_RE.test(String(phone))) return res.status(400).json({ error: 'phone must be E.164-like' });
     if (email && !EMAIL_RE.test(String(email))) return res.status(400).json({ error: 'Invalid email' });
+    if (external_uid !== null && external_uid !== undefined && external_uid !== '' && !isNonEmptyString(external_uid, 200)) {
+      return res.status(400).json({ error: 'external_uid must be 1-200 chars or null' });
+    }
 
     let expiresAt = null;
     if (access_expires_at) {
@@ -260,13 +264,14 @@ router.post('/contractor-users', async (req, res, next) => {
     const { rows } = await getDb(req).query(
       `INSERT INTO contractor_users(
          contractor_company_id, property_id, full_name, phone, email,
-         specialization, access_expires_at
+         specialization, access_expires_at, external_uid
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         contractor_company_id, property_id, full_name.trim(),
         phone || null, email || null, specialization || null, expiresAt,
+        external_uid || null,
       ],
     );
     auditLog(req, {
@@ -276,7 +281,10 @@ router.post('/contractor-users', async (req, res, next) => {
       changes: { contractor_company_id, access_expires_at: expiresAt },
     });
     res.status(201).json({ user: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err && err.code === '23505') return res.status(409).json({ error: 'contractor user external_uid already exists' });
+    next(err);
+  }
 });
 
 // PATCH /api/v1/contractor-users/:id
@@ -304,6 +312,12 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
     if (req.body.specialization !== undefined) {
       params.push(req.body.specialization || null); sets.push(`specialization = $${params.length}`); changes.specialization = req.body.specialization || null;
     }
+    if (req.body.external_uid !== undefined) {
+      if (req.body.external_uid !== null && req.body.external_uid !== '' && !isNonEmptyString(req.body.external_uid, 200)) {
+        return res.status(400).json({ error: 'external_uid must be 1-200 chars or null' });
+      }
+      params.push(req.body.external_uid || null); sets.push(`external_uid = $${params.length}`); changes.external_uid = req.body.external_uid || null;
+    }
     if (req.body.access_expires_at !== undefined) {
       if (req.body.access_expires_at === null) {
         params.push(null); sets.push(`access_expires_at = $${params.length}`); changes.access_expires_at = null;
@@ -325,7 +339,10 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     auditLog(req, { action: 'contractor_user.updated', resourceType: 'contractor_user', resourceId: rows[0].id, changes });
     res.json({ user: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err && err.code === '23505') return res.status(409).json({ error: 'contractor user external_uid already exists' });
+    next(err);
+  }
 });
 
 // POST /api/v1/contractor-users/:id/deactivate

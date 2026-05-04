@@ -63,9 +63,11 @@ const validPayload = { uid: 'u1', role: 'owner', name: 'Test' };
 const validToken = jwt.sign(validPayload, 'test-secret-key-16chars', { expiresIn: '1h' });
 const expiredToken = jwt.sign(validPayload, 'test-secret-key-16chars', { expiresIn: '-1s' });
 const wrongSecret = jwt.sign(validPayload, 'wrong-secret');
+const originalAuthSkipActiveCheck = process.env.AUTH_SKIP_ACTIVE_CHECK;
 
 describe('requireAuth middleware', () => {
   beforeEach(() => {
+    process.env.AUTH_SKIP_ACTIVE_CHECK = '0';
     jest.clearAllMocks();
     requireAuth.__clearUserActiveFallbackCache?.();
     requireAuth.__clearRedisWarnThrottle?.();
@@ -73,6 +75,14 @@ describe('requireAuth middleware', () => {
     mockRedisGet.mockResolvedValue(null);
     mockRedisSetex.mockResolvedValue('OK');
     mockRedisDel.mockResolvedValue(1);
+  });
+
+  afterAll(() => {
+    if (originalAuthSkipActiveCheck === undefined) {
+      delete process.env.AUTH_SKIP_ACTIVE_CHECK;
+    } else {
+      process.env.AUTH_SKIP_ACTIVE_CHECK = originalAuthSkipActiveCheck;
+    }
   });
 
   test('401 when neither cookie nor Bearer token exists', async () => {

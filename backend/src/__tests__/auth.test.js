@@ -309,6 +309,7 @@ describe('POST /api/auth/refresh', () => {
 
 describe('GET /api/auth/me', () => {
   beforeEach(() => {
+    process.env.AUTH_SKIP_ACTIVE_CHECK = '0';
     jest.resetAllMocks();
     const authMw = require('../middleware/auth');
     authMw.__clearUserActiveFallbackCache?.();

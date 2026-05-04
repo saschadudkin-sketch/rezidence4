@@ -87,6 +87,41 @@ async function setRefreshTokenCookie(res, uid) {
   return refreshTokenRaw;
 }
 
+async function attachPropertyId(user) {
+  if (!user || !user.property_slug || user.property_id) return user;
+
+  let propertyId = null;
+  try {
+    const { rows } = await db.query(
+      `SELECT id FROM properties WHERE slug = $1 LIMIT 1`,
+      [user.property_slug],
+    );
+    propertyId = rows[0]?.id || null;
+  } catch (err) {
+    if (err?.code !== '42P01') throw err;
+    // Older legacy DBs do not have a local properties projection.  In
+    // multi-tenant mode the platform registry is authoritative.
+  }
+
+  if (!propertyId && process.env.PLATFORM_DB_URL && typeof db.getPlatformDb === 'function') {
+    try {
+      const platformDb = db.getPlatformDb();
+      const { rows } = await platformDb.query(
+        `SELECT id FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
+        [user.property_slug],
+      );
+      propertyId = rows[0]?.id || null;
+    } catch (err) {
+      logger.warn(
+        { err: err.message, property_slug: user.property_slug },
+        '[auth] property_id resolution via platform registry failed',
+      );
+    }
+  }
+
+  return { ...user, property_id: propertyId };
+}
+
 // normalizePhone — imported from '../constants' (единая реализация)
 // sendSms — imported from '../services/smsService' (abstraction with fallback chain)
 
@@ -381,15 +416,13 @@ router.post('/refresh', async (req, res, next) => {
 
     const uid = rows[0].uid;
     const { rows: users } = await db.query(
-      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
-              p.id AS property_id
-       FROM users u
-       LEFT JOIN properties p ON p.slug = u.property_slug
-       WHERE u.uid = $1 AND u.deleted_at IS NULL`, [uid],
+      `SELECT uid, phone, name, role, apartment, avatar, property_slug
+       FROM users
+       WHERE uid = $1 AND deleted_at IS NULL`, [uid],
     );
     if (!users.length) return res.status(404).json({ error: 'User not found' });
 
-    const user = users[0];
+    const user = await attachPropertyId(users[0]);
     setTokenCookie(res, user);
     await setRefreshTokenCookie(res, user.uid); // ротация — новый refresh token
     appMetrics.incrementCounter('authRefreshSuccess');
@@ -409,15 +442,14 @@ router.post('/refresh', async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT u.uid, u.phone, u.name, u.role, u.apartment, u.avatar, u.property_slug,
-              p.id AS property_id
-       FROM users u
-       LEFT JOIN properties p ON p.slug = u.property_slug
-       WHERE u.uid = $1 AND u.deleted_at IS NULL`,
+      `SELECT uid, phone, name, role, apartment, avatar, property_slug
+       FROM users
+       WHERE uid = $1 AND deleted_at IS NULL`,
       [req.user.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json({ user: rows[0] });
+    const user = await attachPropertyId(rows[0]);
+    res.json({ user });
   } catch (err) { next(err); }
 });
 

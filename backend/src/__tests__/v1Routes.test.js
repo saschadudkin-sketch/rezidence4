@@ -271,6 +271,19 @@ describe('GET /api/v1/residents — phone-visibility gate', () => {
     const res = await supertest(buildApp()).get('/api/v1/residents');
     expect(res.status).toBe(403);
   });
+
+  test('resident can fetch own row by external_uid', async () => {
+    mockCurrentUser = { uid: 'e2e-v1-resident', role: 'owner' };
+    db.query.mockResolvedValueOnce({
+      rows: [{ ...residentRow, external_uid: 'e2e-v1-resident' }],
+    });
+
+    const res = await supertest(buildApp()).get('/api/v1/residents/e2e-v1-resident');
+    expect(res.status).toBe(200);
+    expect(res.body.resident.external_uid).toBe('e2e-v1-resident');
+    expect(res.body.resident.phone).toBe('+79991234567');
+    expect(db.query.mock.calls[0][0]).toContain('WHERE external_uid = $1');
+  });
 });
 
 describe('POST /api/v1/residents', () => {

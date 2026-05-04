@@ -21,6 +21,7 @@ const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const { verifyPass } = require('../services/verifyPass');
+const { resolveStaffIdByUid } = require('../services/accessActorResolver');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -39,6 +40,15 @@ function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // Shim: re-export из authz под именем, которого ждут legacy callsites.
 const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+
+async function requireStaffId(req, res) {
+  const staffId = await resolveStaffIdByUid(getDb(req), req.user?.uid);
+  if (!staffId) {
+    res.status(403).json({ error: 'Staff identity is not mapped to v1' });
+    return null;
+  }
+  return staffId;
+}
 
 const VL_COLS = `
   id, property_id, pass_id, access_point_id, event_type, event_source,
@@ -64,6 +74,8 @@ router.post('/verify', async (req, res, next) => {
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
     }
+    const staffId = await requireStaffId(req, res);
+    if (!staffId) return;
 
     const result = await verifyPass({
       db: req.db || null,     // SEC [AUDIT #1]: per-tenant dispatch
@@ -71,7 +83,7 @@ router.post('/verify', async (req, res, next) => {
       mode,
       token,
       plate,
-      performed_by_staff_id: req.user.uid,
+      performed_by_staff_id: staffId,
       occurred_at,
     });
 
@@ -119,6 +131,8 @@ router.post('/', async (req, res, next) => {
 
     const normalizedPlate = vehicle_plate ? normalizePlate(vehicle_plate) : null;
     const occurredAtIso = occurred_at || new Date().toISOString();
+    const staffId = await requireStaffId(req, res);
+    if (!staffId) return;
 
     const { rows } = await getDb(req).query(
       `INSERT INTO visit_logs_v2
@@ -129,7 +143,7 @@ router.post('/', async (req, res, next) => {
        RETURNING ${VL_COLS}`,
       [
         property_id, pass_id, event_type, event_source,
-        person_label, normalizedPlate, req.user.uid,
+        person_label, normalizedPlate, staffId,
         provider_event_id, provider_payload ? JSON.stringify(provider_payload) : null,
         occurredAtIso,
       ],

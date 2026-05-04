@@ -62,7 +62,7 @@ PG_IMAGE=postgres:17-alpine bash scripts/restore-drill.sh
 |---|---|---|
 | `residenze` | `SELECT COUNT(*) FROM users` | ≥ 1 |
 | `platform` | `SELECT COUNT(*) FROM properties` | ≥ 1 |
-| `zamoskv` | `SELECT COUNT(*) FROM v1_property_migrations` | = 22 (все v1_001..v1_022) |
+| `zamoskv` | `SELECT COUNT(*) FROM schema_migrations WHERE id LIKE 'v1_%'` | ≥ 25 (все v1_001..v1_025) |
 
 Дополнительные кастомные invariants можно добавить в `scripts/restore-drill.sh` функцией `check_count`.
 

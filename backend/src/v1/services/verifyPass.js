@@ -289,9 +289,10 @@ async function verifyPass({
     // Step 8: audit_log fire-and-forget (внутри транзакции, чтобы rollback был единым)
     await client.query(
       `INSERT INTO property_audit_log
-         (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-       VALUES ($1, 'security', $2, 'visit_log', $3, $4, NULL)`,
-      [performed_by_staff_id || null, `visit.${verdict.event_type}`, visitLogId,
+         (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+          action, resource_type, resource_id, changes, ip_address)
+       VALUES ($1, NULL, 'security', 'staff', 'staff', $2, $3, 'visit_log', $4, $5, NULL)`,
+      [property_id, performed_by_staff_id || null, `visit.${verdict.event_type}`, visitLogId,
        JSON.stringify({ verdict: verdict.reason, mode, plate: normalizedPlate })],
     );
 

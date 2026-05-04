@@ -26,8 +26,9 @@ describe('v1 property migrations — registry invariants', () => {
   test('exports a non-empty ordered array', () => {
     expect(Array.isArray(V1_PROPERTY_MIGRATIONS)).toBe(true);
     // 7 Фаза 2 + 8 Фаза 3 (Access-core) + 6 Фаза 5 (Content+Notifications)
-    // + 1 Фаза 6 (notification_templates_v2) = 22
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(22);
+    // + 1 Фаза 6 (notification_templates_v2) + 1 Фаза 0 bridge
+    // + 1 access-request list indexes + 1 escalated status = 25
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(25);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -316,7 +317,7 @@ describe('v1_009_access_requests', () => {
     const tbl = client.query.mock.calls.map((c) => c[0])
       .find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_requests'));
     expect(tbl).toContain(
-      "CHECK (status IN (\n                                          'new','pending_approval','approved','rejected','cancelled','expired'\n                                        ))",
+      "CHECK (status IN (\n                                          'new','pending_approval','escalated','approved','rejected','cancelled','expired'\n                                        ))",
     );
   });
 
@@ -1024,5 +1025,57 @@ describe('v1_021_property_audit_log', () => {
     expect(idx).toBeDefined();
     expect(idx).toContain('(property_id, created_at DESC)');
     expect(idx).toContain('WHERE property_id IS NOT NULL');
+  });
+});
+
+describe('v1_023_actor_external_uid', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds external_uid bridge columns to staff and contractor users', async () => {
+    await byId('v1_023_actor_external_uid').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('ALTER TABLE staff_users') && s.includes('external_uid TEXT'))).toBeDefined();
+    expect(sqls.find((s) => s.includes('ALTER TABLE contractor_users') && s.includes('external_uid TEXT'))).toBeDefined();
+  });
+
+  test('guards non-null external_uid uniqueness', async () => {
+    await byId('v1_023_actor_external_uid').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    const staffIdx = sqls.find((s) => s.includes('uq_staff_users_external_uid'));
+    const contractorIdx = sqls.find((s) => s.includes('uq_contractor_users_external_uid'));
+    expect(staffIdx).toContain('WHERE external_uid IS NOT NULL');
+    expect(contractorIdx).toContain('WHERE external_uid IS NOT NULL');
+  });
+});
+
+describe('v1_024_access_request_list_indexes', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds resident/status/created_at indexes for access request list queries', async () => {
+    await byId('v1_024_access_request_list_indexes').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_access_requests_resident_created'))).toContain('created_by_resident_id, created_at DESC');
+    expect(sqls.find((s) => s.includes('idx_access_requests_status_created'))).toContain('status, created_at DESC');
+    expect(sqls.find((s) => s.includes('idx_access_requests_created'))).toContain('created_at DESC');
+  });
+});
+
+describe('v1_025_access_request_escalated_status', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('replaces access_requests status CHECK with escalated lifecycle status', async () => {
+    await byId('v1_025_access_request_escalated_status').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls[0]).toContain('DROP CONSTRAINT IF EXISTS access_requests_status_check');
+    expect(sqls[1]).toContain('ADD CONSTRAINT access_requests_status_check');
+    expect(sqls[1]).toContain("'escalated'");
+    expect(sqls[1]).toContain("'pending_approval','escalated','approved'");
   });
 });

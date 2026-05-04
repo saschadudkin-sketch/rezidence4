@@ -24,6 +24,10 @@ const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  resolveResidentIdByUid,
+  resolveStaffIdByUid,
+} = require('../services/accessActorResolver');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -46,6 +50,24 @@ function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 const isPropertyAdmin = isAdmin;
 const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+
+async function canReadPass(req, pass) {
+  if (isStaff(req.user.role)) return true;
+  const residentId = await resolveResidentIdByUid(getDb(req), req.user?.uid);
+  if (!residentId) return false;
+  if (pass.subject_resident_id === residentId) return true;
+  if (!pass.access_request_id) return false;
+
+  const { rows } = await getDb(req).query(
+    `SELECT 1
+       FROM access_requests
+      WHERE id = $1
+        AND created_by_resident_id = $2
+      LIMIT 1`,
+    [pass.access_request_id, residentId],
+  );
+  return rows.length > 0;
+}
 
 function newToken() {
   // 32 hex chars = 128 bits of entropy.  Enough to prevent brute-force for
@@ -165,8 +187,8 @@ router.get('/:id', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = rows[0];
 
-    // Visibility: staff — всё; резидент — только свои (subject_resident_id=uid).
-    if (!isStaff(req.user.role) && pass.subject_resident_id !== req.user.uid) {
+    // Visibility: staff — all; resident — own subject or request-created pass.
+    if (!(await canReadPass(req, pass))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -186,13 +208,13 @@ router.get('/:id/qr', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
     const { rows: passRows } = await getDb(req).query(
-      `SELECT id, property_id, subject_resident_id, status FROM passes WHERE id = $1`,
+      `SELECT id, property_id, access_request_id, subject_resident_id, status FROM passes WHERE id = $1`,
       [req.params.id],
     );
     if (!passRows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = passRows[0];
 
-    if (!isStaff(req.user.role) && pass.subject_resident_id !== req.user.uid) {
+    if (!(await canReadPass(req, pass))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (TERMINAL_STATUSES.has(pass.status)) {
@@ -225,12 +247,12 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows: passRows } = await getDb(req).query(
-      `SELECT id, property_id, subject_resident_id, status FROM passes WHERE id = $1`,
+      `SELECT id, property_id, access_request_id, subject_resident_id, status FROM passes WHERE id = $1`,
       [req.params.id],
     );
     if (!passRows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = passRows[0];
-    if (!isStaff(req.user.role) && pass.subject_resident_id !== req.user.uid) {
+    if (!(await canReadPass(req, pass))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (TERMINAL_STATUSES.has(pass.status)) {
@@ -299,6 +321,9 @@ router.post('/', idempotency, async (req, res, next) => {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
 
+    const staffId = await resolveStaffIdByUid(getDb(req), req.user.uid);
+    if (!staffId) return res.status(403).json({ error: 'Staff identity is not mapped to v1' });
+
     const { rows } = await getDb(req).query(
       `INSERT INTO passes
          (property_id, access_request_id, pass_type, subject_type,
@@ -309,7 +334,7 @@ router.post('/', idempotency, async (req, res, next) => {
       [
         property_id, access_request_id, pass_type, subject_type,
         subject_resident_id, subject_staff_id, subject_contractor_user_id, subject_vehicle_id,
-        valid_from, valid_until, req.user.uid,
+        valid_from, valid_until, staffId,
       ],
     );
     auditLog(req, {
@@ -336,6 +361,8 @@ router.post('/:id/revoke', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
+    const staffId = await resolveStaffIdByUid(getDb(req), req.user.uid);
+    if (!staffId) return res.status(403).json({ error: 'Staff identity is not mapped to v1' });
 
     const { rows: curRows } = await getDb(req).query(
       `SELECT status FROM passes WHERE id = $1`,
@@ -352,9 +379,9 @@ router.post('/:id/revoke', async (req, res, next) => {
          revoked_at = NOW(),
          revoked_by_staff_id = $1,
          revoked_reason = $2
-       WHERE id = $3
+      WHERE id = $3
        RETURNING ${PASS_COLS}`,
-      [req.user.uid, reason, req.params.id],
+      [staffId, reason, req.params.id],
     );
     auditLog(req, {
       action: 'pass.revoked',

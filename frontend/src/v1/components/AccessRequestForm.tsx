@@ -241,6 +241,7 @@ export function AccessRequestForm({
               value={visitorName}
               onChange={(e) => setVisitorName(e.target.value)}
               disabled={submitting}
+              aria-label="Имя посетителя"
               placeholder="Иван Иванов"
             />
           </Field>
@@ -252,6 +253,7 @@ export function AccessRequestForm({
             value={visitorPhone}
             onChange={(e) => setVisitorPhone(e.target.value)}
             disabled={submitting}
+            aria-label="Телефон (необязательно)"
             placeholder="+7 999 000 00 00"
             inputMode="tel"
           />
@@ -311,6 +313,7 @@ export function AccessRequestForm({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             disabled={submitting}
+            aria-label="Комментарий (необязательно)"
             placeholder="Любая полезная информация для охраны"
           />
         </Field>

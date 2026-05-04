@@ -129,8 +129,10 @@ describe('registerApiRoutes.js wiring contract', () => {
   test('/api/v1/bookings проходит через gate (и main, и root-mount)', () => {
     // Главный mount /api/v1/bookings
     expect(src).toMatch(/app\.use\(['"]\/api\/v1\/bookings['"]\s*,\s*legacyUtilitiesGate/);
-    // Root mount для POST /spaces/:spaceId/bookings — тоже за гейтом
-    expect(src).toMatch(/app\.use\(['"]\/api\/v1['"]\s*,\s*legacyUtilitiesGate\s*,\s*bookingsRouter\)/);
+    // Root mount для POST /spaces/:spaceId/bookings — тоже за гейтом, но
+    // ограничен этим legacy path и не перехватывает новые /api/v1/* модули.
+    expect(src).toMatch(/const\s+legacySpacesBookingsOnly\s*=/);
+    expect(src).toMatch(/app\.use\(['"]\/api\/v1['"]\s*,\s*legacySpacesBookingsOnly\)/);
   });
 
   test('legacy /api/chat (deprecate) тоже за гейтом', () => {

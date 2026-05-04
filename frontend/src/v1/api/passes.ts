@@ -45,10 +45,10 @@ export const passesApi = {
     return v1Client.get<{ pass: Pass }>(`/passes/${id}`, opts);
   },
   getQr(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<QrToken>(`/passes/${id}/qr`, opts);
+    return v1Client.get<{ qr: QrToken }>(`/passes/${id}/qr`, opts);
   },
   regenerateQr(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<QrToken>(`/passes/${id}/regenerate-qr`, undefined, opts);
+    return v1Client.post<{ qr: QrToken }>(`/passes/${id}/regenerate-qr`, undefined, opts);
   },
   revoke(id: UUID, reason: string, opts?: RequestOpts) {
     return v1Client.post<{ pass: Pass }>(`/passes/${id}/revoke`, { reason }, opts);

@@ -20,6 +20,7 @@
     "build": "node scripts/run-frontend-script.cjs build",
     "frontend:build": "node scripts/run-frontend-script.cjs build",
     "verify": "node scripts/run-checks.cjs verify",
+    "verify:strict": "node scripts/run-strict-verify.cjs",
     "e2e": "node scripts/playwright-preflight.cjs && playwright test",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
     "test:e2e": "node scripts/playwright-preflight.cjs && playwright test",

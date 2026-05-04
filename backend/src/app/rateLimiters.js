@@ -54,6 +54,20 @@ function makeRedisStore(prefix) {
 
 function createRateLimiters() {
   const { ipKeyGenerator } = rateLimit;
+  const noopLimiter = (_req, _res, next) => next();
+
+  if (process.env.E2E_DISABLE_RATE_LIMITS === '1' || process.env.DISABLE_RATE_LIMITS === '1') {
+    return {
+      authLimiter: noopLimiter,
+      globalLimiter: noopLimiter,
+      clientLogsLimiter: noopLimiter,
+      uploadLimiter: noopLimiter,
+      sseEventsLimiter: noopLimiter,
+      platformAuthLimiter: noopLimiter,
+      platformGlobalLimiter: noopLimiter,
+      publicPassLimiter: noopLimiter,
+    };
+  }
 
   return {
     authLimiter: rateLimit({

@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AccessRequest, RequestType, UUID } from '../api/types';
+import type { AccessRequest, QrToken, RequestType, UUID } from '../api/types';
 import { api, isV1ApiError } from '../api';
 import type { ResidentWithUnit } from '../api/residents';
 import { useV1Session } from '../store';
@@ -234,15 +234,105 @@ function ResidentAccessReady({
 
       {requests.length === 0 ? (
         <EmptyState>
-          Заявок пока нет. Создайте первую — консьерж согласует за пару минут.
+          Заявок пока нет. Создайте первую — QR появится сразу, если объект не требует ручного согласования.
         </EmptyState>
       ) : (
         <Stack>
           {requests.map((r) => (
-            <AccessRequestCard key={r.id} request={r} />
+            <AccessRequestCard key={r.id} request={r}>
+              <ResidentQrPanel request={r} />
+            </AccessRequestCard>
           ))}
         </Stack>
       )}
+    </Stack>
+  );
+}
+
+type QrState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; qr: QrToken; dataUrl: string | null }
+  | { kind: 'error'; message: string };
+
+function ResidentQrPanel({ request }: { request: AccessRequest }) {
+  const [state, setState] = useState<QrState>({ kind: 'idle' });
+
+  const openQr = useCallback(async () => {
+    setState({ kind: 'loading' });
+    try {
+      const detail = await api.accessRequests.getById(request.id);
+      if (!detail.pass) {
+        setState({ kind: 'error', message: 'Пропуск ещё не выпущен.' });
+        return;
+      }
+      const { qr } = await api.passes.getQr(detail.pass.id);
+      let dataUrl: string | null = null;
+      try {
+        const QRCode = (await import('qrcode')).default;
+        dataUrl = await QRCode.toDataURL(qr.token, {
+          margin: 1,
+          width: 168,
+          color: { dark: '#13110E', light: '#FFFFFF' },
+        });
+      } catch {
+        dataUrl = null;
+      }
+      setState({ kind: 'ready', qr, dataUrl });
+    } catch (err) {
+      setState({
+        kind: 'error',
+        message: isV1ApiError(err) ? err.message : 'Не удалось открыть QR.',
+      });
+    }
+  }, [request.id]);
+
+  if (request.status !== 'approved') return null;
+
+  return (
+    <Stack>
+      {state.kind === 'idle' ? (
+        <Inline>
+          <Button type="button" variant="secondary" onClick={openQr}>
+            Открыть QR
+          </Button>
+        </Inline>
+      ) : null}
+
+      {state.kind === 'loading' ? (
+        <Inline>
+          <Spinner />
+          <span className={uiClasses.textMuted}>Готовим QR…</span>
+        </Inline>
+      ) : null}
+
+      {state.kind === 'error' ? (
+        <Alert tone="error">{state.message}</Alert>
+      ) : null}
+
+      {state.kind === 'ready' ? (
+        <Inline>
+          {state.dataUrl ? (
+            <img
+              src={state.dataUrl}
+              alt="QR пропуска"
+              width={168}
+              height={168}
+            />
+          ) : null}
+          <Stack>
+            <span className={uiClasses.textMuted}>QR-токен</span>
+            <span className={uiClasses.textMono} data-testid="v1-qr-token">
+              {state.qr.token}
+            </span>
+            <Inline>
+              <Button type="button" variant="ghost" onClick={openQr}>
+                Обновить
+              </Button>
+            </Inline>
+          </Stack>
+        </Inline>
+      ) : null}
     </Stack>
   );
 }

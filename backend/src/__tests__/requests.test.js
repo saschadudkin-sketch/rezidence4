@@ -627,15 +627,16 @@ describe('GET /api/requests/:id, /:id/history, DELETE — handler coverage', () 
 
   it('POST / handler entered (idempotency middleware applies)', async () => {
     const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
-    db.query.mockResolvedValue({ rows: [] }); // any DB call
+    db.query.mockResolvedValueOnce({
+      rows: [makeReqRow({ id: 'coverage-post', status: 'approved', created_by_uid: 'user-A' })],
+    });
 
     const res = await supertest(app)
       .post('/api/requests')
       .set('Cookie', `token=${token}`)
       .send({ type: 'pass', category: 'guest', visitorName: 'Гость' });
 
-    // Handler may 400/500 на validation или DB issue — нам важно
-    // только что он зашёл в try-блок (function coverage).
-    expect([200, 201, 400, 403, 500]).toContain(res.status);
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe('coverage-post');
   });
 });

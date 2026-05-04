@@ -37,20 +37,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run test:ci
-      # На platform-v1 (D-lite refactor branch) и fix/ci-debt-* CI-debt
-      # ветках critical-path coverage gate — advisory:
-      #   - platform-v1: parallel v1/ code и legacy reshuffles временно
-      #     меняют, какие файлы попадают в critical threshold.
-      #   - fix/ci-debt-*: cleanup ветки которые поднимают coverage инкрементально
-      #     (PR #125 поднял requests.js 54%→79%, но auth.js/idempotency.js gaps
-      #     pre-existing — отдельный follow-up PR закроет их).
-      # Coverage всё равно собирается и отображается — просто не fail'ит build.
-      # Возвращается к strict при merge в main.
-      - name: Critical-path coverage (strict on main, advisory on platform-v1 + fix/ci-debt-*)
+      - name: Critical-path coverage
         run: npm run test:coverage:critical
-        # На PR events `github.base_ref` = main, поэтому также проверяем
-        # `github.head_ref` — source branch на pull_request событии.
-        continue-on-error: ${{ github.ref == 'refs/heads/platform-v1' || github.base_ref == 'platform-v1' || github.head_ref == 'platform-v1' || startsWith(github.head_ref, 'fix/ci-debt-') || startsWith(github.ref_name, 'fix/ci-debt-') }}
       - run: npm run test:contract
       - run: npm run test:detect-open-handles
 
@@ -224,15 +212,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [docker-build]
-    # E2E запускается только на pull_request событиях.  На push в main
-    # (после merge'а) — skip, чтобы pre-existing migration 011 bug
-    # (FK push_subscriptions.user_id uuid ↔ users.uid text — backend
-    # backlog) не делал main badge red.  Phase1 advisory всё равно
-    # absorbs e2e fail на PR'ах, но workflow conclusion = failure
-    # на main pushes негативно сигналил во всех PR-checklist'ах.
-    # Когда migration 011 будет fixed — revert обратно на
-    # `!= 'schedule'`.
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -241,6 +221,9 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - name: Install frontend deps for Playwright webServer (Vite)
+        working-directory: frontend
+        run: npm ci
       - run: npm run test:e2e:preflight
       # ops/ci-dummy.env: CI-only fake creds.  --env-file решает interpolation
       # YAML, но docker-compose.yml имеет директиву `env_file: - .env` для
@@ -249,10 +232,18 @@ jobs:
       - run: cp ops/ci-dummy.env .env
       - id: compose_up
         run: docker compose --env-file ops/ci-dummy.env up -d
+      - id: seed_v1_access
+        run: docker compose exec -T backend node src/e2e/seedV1Access.js
+      - id: v1_access_e2e
+        env:
+          E2E_V1_ACCESS: "1"
+          E2E_PROPERTY_SLUG: zamoskv
+          JWT_SECRET: ci-dummy-jwt-secret-32chars-padding-ok
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1
+          PLAYWRIGHT_SKIP_WEBSERVER: "1"
+        run: npm run test:e2e -- e2e/v1-access-production.spec.js --project=chromium --reporter=list
       # Если compose up или последующие тесты упали — выгружаем логи db +
-      # backend для диагностики.  Phase1 gate не блокирует на e2e-test
-      # (см. phase1-gate-summary), поэтому failure здесь advisory; logs
-      # помогают backend team разобрать root cause.
+      # backend для диагностики strict gate.
       - name: Diagnose compose state on failure
         if: failure()
         run: |
@@ -271,9 +262,10 @@ jobs:
         if: always()
         env:
           SUMMARY_TITLE: Phase 1 status — e2e-test
-          SUMMARY_SCOPE: Full Playwright e2e suite
+          SUMMARY_SCOPE: Full Playwright e2e suite + v1 access production flow
           SUMMARY_OUTCOME: ${{ steps.full_e2e.outcome }}
           SUMMARY_COMMAND: npm run test:e2e -- e2e/
+          SUMMARY_V1_ACCESS_OUTCOME: ${{ steps.v1_access_e2e.outcome }}
           SUMMARY_ARTIFACT: playwright-report
           SUMMARY_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -291,22 +283,20 @@ jobs:
     needs: [frontend-test, login-e2e-smoke, e2e-test]
     steps:
       - name: Phase 1 gate verdict
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend-test.result }}
+          LOGIN_SMOKE_RESULT: ${{ needs.login-e2e-smoke.result }}
+          FULL_E2E_RESULT: ${{ needs.e2e-test.result }}
+          RUN_REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          FRONTEND_RESULT='${{ needs.frontend-test.result }}'
-          LOGIN_SMOKE_RESULT='${{ needs.login-e2e-smoke.result }}'
-          FULL_E2E_RESULT='${{ needs.e2e-test.result }}'
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          RUN_URL="https://github.com/${RUN_REPOSITORY}/actions/runs/${RUN_ID}"
           RUN_TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-          # E2E_RESULT в verdict не учитываем — pre-existing migration bug
-          # 011_multi_tenant_support (push_subscriptions.user_id uuid vs
-          # users.uid text) валит migrate.js на fresh CI database.
-          # Backend team backlog: исправить migration 011, после чего
-          # вернуть e2e-test в strict gate.  Сам job всё равно запускается
-          # и появляется в Phase 1 summary — regressions видны, но не
-          # блокируют merge.
           VERDICT='PASS'
-          if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ]; then
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$LOGIN_SMOKE_RESULT" != "success" ] || [ "$FULL_E2E_RESULT" != "success" ]; then
             VERDICT='FAIL'
           fi
 
@@ -315,30 +305,17 @@ jobs:
             echo "- Verdict: **$VERDICT**"
             echo "- frontend-test: \`$FRONTEND_RESULT\` (strict)"
             echo "- login-e2e-smoke: \`$LOGIN_SMOKE_RESULT\` (strict)"
-            echo "- e2e-test: \`$FULL_E2E_RESULT\` (advisory — backend migration 011 bug)"
+            echo "- e2e-test: \`$FULL_E2E_RESULT\` (strict)"
             echo "- UX report artifact: \`ux-critical-vitest-report\`"
             echo "- Login smoke artifact (on failure): \`login-smoke-playwright-report\`"
             echo "- Full e2e artifact: \`playwright-report\`"
             echo "- Run page: $RUN_URL"
             echo "- Timestamp (UTC): \`$RUN_TS\`"
-            echo "- Ref: \`${{ github.ref_name }}\`"
-            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Ref: \`$REF_NAME\`"
+            echo "- Commit: \`$COMMIT_SHA\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # На platform-v1 + fix/ci-debt-* verdict — advisory:
-          #   - platform-v1: mid-migration PRs предсказуемо ломают пиecы
-          #     legacy e2e suite, пока v1/ code частично готов
-          #   - fix/ci-debt-*: cleanup ветки, поднимающие CI здоровье
-          #     инкрементально; pre-existing breakage не должен блокировать
-          # Summary всё равно пишется в run page — regression'ы видны.
-          IS_ADVISORY='false'
-          if [ "${{ github.ref }}" = "refs/heads/platform-v1" ] || [ "${{ github.base_ref }}" = "platform-v1" ]; then
-            IS_ADVISORY='true'
-          fi
-          case "${{ github.head_ref }}" in fix/ci-debt-*) IS_ADVISORY='true' ;; esac
-          case "${{ github.ref_name }}" in fix/ci-debt-*) IS_ADVISORY='true' ;; esac
-
-          if [ "$VERDICT" != "PASS" ] && [ "$IS_ADVISORY" != "true" ]; then
+          if [ "$VERDICT" != "PASS" ]; then
             exit 1
           fi
 

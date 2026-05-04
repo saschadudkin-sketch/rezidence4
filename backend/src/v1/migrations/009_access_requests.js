@@ -44,7 +44,7 @@ module.exports = {
         ends_at                         TIMESTAMPTZ NOT NULL,
         status                          VARCHAR(20) NOT NULL DEFAULT 'new'
                                         CHECK (status IN (
-                                          'new','pending_approval','approved','rejected','cancelled','expired'
+                                          'new','pending_approval','escalated','approved','rejected','cancelled','expired'
                                         )),
         approval_required               BOOLEAN NOT NULL DEFAULT true,
         approved_at                     TIMESTAMPTZ,

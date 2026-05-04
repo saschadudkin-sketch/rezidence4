@@ -31,6 +31,7 @@ export const FEATURE_KEYS = [
   'documents',
   'kiosk_mode',
   'qr_pass',
+  'manual_access_approval',
   'meter_readings',
   'billing',
   'space_booking',
@@ -80,6 +81,8 @@ interface FeatureFlagsContextValue {
   categories: CategorySchemaEntry[];
   /** True once BOTH schema and values have been fetched (or skipped). */
   isLoaded: boolean;
+  /** Non-null when live admin loading failed and admin UI should not render fallback keys. */
+  loadError: string | null;
   isFeatureEnabled: (flag: FeatureFlagKey) => boolean;
   updateFlag: (flag: FeatureFlagKey, value: boolean) => Promise<void>;
 }
@@ -108,9 +111,13 @@ function buildFlagsFromSchemaDefaults(schema: FeatureFlagsSchema | null): Featur
 
 export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
   const { user } = useAuth();
+  const userRole = user?.role;
+  const userUid = user?.uid;
+  const isAdmin = userRole === 'admin';
   const [schema, setSchema] = useState<FeatureFlagsSchema | null>(null);
   const [flags, setFlags] = useState<FeatureFlags>(EMPTY_FLAGS);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Fetch schema + values in parallel once the user is an admin.  Non-admin
   // users never learn the property's flag state from this context — they
@@ -122,10 +129,16 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
     let cancelled = false;
 
     async function hydrate() {
-      if (!user || user.role !== 'admin' || !isLiveMode()) {
+      if (!isAdmin || !isLiveMode()) {
+        setSchema(null);
+        setFlags(EMPTY_FLAGS);
+        setLoadError(null);
         setIsLoaded(true);
         return;
       }
+
+      setIsLoaded(false);
+      setLoadError(null);
 
       try {
         const [schemaResp, valuesResp] = await Promise.all([
@@ -141,28 +154,25 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
         // server-side, tenant hasn't stored it yet).
         const merged = { ...buildFlagsFromSchemaDefaults(schemaResp), ...valuesResp } as FeatureFlags;
         setFlags(merged);
+        setLoadError(null);
         setIsLoaded(true);
         logger.debug('[FeatureFlags] Loaded schema + values', { schemaEntries: schemaResp.flags.length, values: valuesResp });
       } catch (error) {
         if (cancelled) return;
         logger.error('[FeatureFlags] Failed to fetch flags', error);
-        // On error: fall back to whatever schema we have (maybe none) so the
-        // admin screen can still render "all off" rather than crash.
-        setFlags(buildFlagsFromSchemaDefaults(schema));
+        setSchema(null);
+        setFlags(EMPTY_FLAGS);
+        setLoadError('Проверьте соединение с сервером');
         setIsLoaded(true);
       }
     }
 
     hydrate();
     return () => { cancelled = true; };
-    // `schema` is intentionally excluded from the dep array — we read the
-    // latest value only when the catch branch fires, which happens once at
-    // most.  Including it would cause an infinite refetch loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [isAdmin, userUid]);
 
   const updateFlag = useCallback(async (flag: FeatureFlagKey, value: boolean) => {
-    if (!user || user.role !== 'admin') return;
+    if (!isAdmin) return;
 
     // Locked flags are controlled server-side — the UI should be preventing
     // the toggle in the first place, but mirror the rule here as defence in
@@ -184,7 +194,7 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
       setFlags(previousFlags);
       throw error;
     }
-  }, [user, flags, schema]);
+  }, [isAdmin, flags, schema]);
 
   const isFeatureEnabled = useCallback((flag: FeatureFlagKey) => {
     return flags[flag];
@@ -214,6 +224,7 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
     flagsMeta,
     categories: schema?.categories ?? [],
     isLoaded,
+    loadError,
     isFeatureEnabled,
     updateFlag,
   };

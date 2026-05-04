@@ -180,7 +180,7 @@ module.exports = async function requireAuth(req, res, next) {
 
 module.exports.markTokenRevoked = markTokenRevoked;
 module.exports.invalidateUserActiveCache = invalidateUserActiveCache;
-if (process.env.NODE_ENV === 'test') {
+if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
   module.exports.__clearUserActiveFallbackCache = () => userActiveFallbackCache.clear();
   module.exports.__clearRedisWarnThrottle = () => redisWarnAtByScope.clear();
 }

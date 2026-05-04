@@ -36,6 +36,12 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./021_property_audit_log'),
   // Фаза 6 — Templates extraction
   require('./022_notification_templates_v2'),
+  // Фаза 0 — legacy uid → v1 actor id bridge
+  require('./023_actor_external_uid'),
+  // Access list planner support
+  require('./024_access_request_list_indexes'),
+  // Access request lifecycle production-slice status
+  require('./025_access_request_escalated_status'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

@@ -12,6 +12,9 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-access-platform-final-plan.md`
   - Master specification and staged development plan for DomHub as an access-control platform for residential complexes and cottage communities.
 
+- `domhub-access-core-production-slice-plan.md`
+  - Execution plan for stabilizing the current `rezidence4` access-core slice before further platform expansion: identity mapping, restore/fresh-install drift, strict e2e, backend refactor, role/scope model, v1 cutover, legacy freeze, policy engine, and pilot readiness.
+
 - `domhub-role-maturity-matrix.md`
   - Role-by-role matrix showing which DomHub actors belong in MVP, strong v2, and mature v3, and which ones should remain support or integration layers instead of full daily workspaces.
 

@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
   const viteEnv = loadEnv(mode, process.cwd(), 'VITE_');
   const isProdBuild = mode === 'production';
   const appVersion = viteEnv.VITE_APP_VERSION || getGitVersion();
+  const devApiProxy = viteEnv.VITE_DEV_API_PROXY || viteEnv.VITE_API_URL || '';
 
   if (isProdBuild && !viteEnv.VITE_API_URL) {
     throw new Error(
@@ -95,6 +96,15 @@ export default defineConfig(({ mode }) => {
     // 'unsafe-inline' and 'unsafe-eval' are required for Vite HMR in dev only;
     // they are NOT present in the nginx CSP for production.
     server: {
+      proxy: devApiProxy
+        ? {
+            '/api': {
+              target: devApiProxy,
+              changeOrigin: true,
+              secure: false,
+            },
+          }
+        : undefined,
       headers: {
         'Content-Security-Policy': [
           "default-src 'self'",

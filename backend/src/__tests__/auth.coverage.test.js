@@ -334,6 +334,61 @@ describe('GET /api/auth/me — coverage', () => {
     expect(res.body.user.property_slug).toBe('zamoskvorechye');
   });
 
+  it('200 resolves property_id from legacy properties projection', async () => {
+    const token = makeAuthToken();
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          uid: 'u1', phone: VALID_PHONE, name: 'Test',
+          role: 'owner', apartment: '10', avatar: null,
+          property_slug: 'zamoskvorechye',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [{ id: 'legacy-prop-uuid' }] });
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', [`token=${token}`]);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.property_id).toBe('legacy-prop-uuid');
+    expect(db.query.mock.calls[1][0]).toContain('FROM properties');
+  });
+
+  it('200 falls back to platform registry when legacy properties table is absent', async () => {
+    const token = makeAuthToken();
+    const missingTable = new Error('relation "properties" does not exist');
+    missingTable.code = '42P01';
+    const platformQuery = jest.fn().mockResolvedValue({ rows: [{ id: 'platform-prop-uuid' }] });
+    const prevPlatformUrl = process.env.PLATFORM_DB_URL;
+    process.env.PLATFORM_DB_URL = 'postgres://platform-db';
+    db.getPlatformDb = jest.fn(() => ({ query: platformQuery }));
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          uid: 'u1', phone: VALID_PHONE, name: 'Test',
+          role: 'owner', apartment: '10', avatar: null,
+          property_slug: 'zamoskvorechye',
+        }],
+      })
+      .mockRejectedValueOnce(missingTable);
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', [`token=${token}`]);
+
+    if (prevPlatformUrl === undefined) delete process.env.PLATFORM_DB_URL;
+    else process.env.PLATFORM_DB_URL = prevPlatformUrl;
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.property_id).toBe('platform-prop-uuid');
+    expect(db.getPlatformDb).toHaveBeenCalledTimes(1);
+    expect(platformQuery).toHaveBeenCalledWith(
+      expect.stringContaining('FROM properties'),
+      ['zamoskvorechye'],
+    );
+  });
+
   it('404 если user soft-deleted (rows.length === 0)', async () => {
     const token = makeAuthToken();
     db.query.mockResolvedValueOnce({ rows: [] });

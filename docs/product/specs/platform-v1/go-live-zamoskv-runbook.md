@@ -121,15 +121,15 @@ docker compose exec backend node src/migrate.js
 
 Ожидается:
 - Platform миграции (`001_properties_full_spec … 006_platform_audit_log`) применяются на `platform` DB.
-- Per-property миграции (v1_001 … v1_022) применяются на `zamoskv` DB.
+- Per-property миграции (v1_001 … v1_025) применяются на `zamoskv` DB.
 - Seed property `zamoskv` создаётся в `platform.properties` автоматически из `ZAMOSKV_DB_URL` + `ZAMOSKV_HOSTNAME` (см. `platformMigrations.js` §001).
 
 **Sanity:**
 ```bash
 docker compose exec db psql -U residenze -d platform -c "SELECT slug, hostname, is_active FROM properties;"
 # Ожидается: zamoskv | zamoskv.domhub.su | t
-docker compose exec db psql -U residenze -d zamoskv -c "SELECT id FROM v1_property_migrations ORDER BY id;"
-# Ожидается: 22 строки v1_001..v1_022
+docker compose exec db psql -U residenze -d zamoskv -c "SELECT id FROM schema_migrations WHERE id LIKE 'v1_%' ORDER BY id;"
+# Ожидается: 25 строк v1_001..v1_025
 ```
 
 ### 2.5 Первый запуск (HTTP-only, до выдачи сертификата)

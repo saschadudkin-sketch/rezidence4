@@ -17,10 +17,16 @@ import {
 export interface AccessRequestCardProps {
   request: AccessRequest;
   actions?: ReactNode;
+  children?: ReactNode;
   onClick?: () => void;
 }
 
-export function AccessRequestCard({ request, actions, onClick }: AccessRequestCardProps) {
+export function AccessRequestCard({
+  request,
+  actions,
+  children,
+  onClick,
+}: AccessRequestCardProps) {
   const subjectLine =
     request.request_type === 'vehicle_access'
       ? 'Заявка на въезд авто'
@@ -52,6 +58,7 @@ export function AccessRequestCard({ request, actions, onClick }: AccessRequestCa
       {request.reason ? (
         <p className={`${uiClasses.textBody} ${uiClasses.marginTop2}`}>{request.reason}</p>
       ) : null}
+      {children ? <div className={uiClasses.marginTop3}>{children}</div> : null}
       {onClick ? (
         <div className={uiClasses.marginTop3}>
           <button type="button" onClick={onClick} className={uiClasses.linkButton}>

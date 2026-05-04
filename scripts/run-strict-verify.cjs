@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+const { spawnSync } = require('node:child_process');
+const path = require('node:path');
+const { buildE2EEnv, repoRoot } = require('./e2e-env.cjs');
+
+const node = process.execPath;
+
+function run(args, env = process.env) {
+  const result = spawnSync(node, args, {
+    cwd: repoRoot,
+    stdio: 'inherit',
+    env,
+  });
+  return result.status ?? 1;
+}
+
+let status = run([path.join(repoRoot, 'scripts', 'run-checks.cjs'), 'verify']);
+if (status !== 0) process.exit(status);
+
+const e2eEnv = buildE2EEnv({
+  ...process.env,
+  E2E_BACKEND_MODE: '1',
+  E2E_V1_ACCESS: '1',
+  E2E_START_BACKEND: '1',
+  VITE_RUNTIME_MODE: 'live',
+  VITE_ENABLE_DEMO: 'false',
+});
+
+status = run([
+  path.join(repoRoot, 'scripts', 'playwright-preflight.cjs'),
+], e2eEnv);
+if (status !== 0) process.exit(status);
+
+status = run([
+  path.join(repoRoot, 'node_modules', '@playwright', 'test', 'cli.js'),
+  'test',
+  'e2e/v1-access-production.spec.js',
+  '--project=chromium',
+], e2eEnv);
+
+process.exit(status);
