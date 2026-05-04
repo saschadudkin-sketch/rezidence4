@@ -86,12 +86,17 @@ describe('AccessActorResolver route adoption', () => {
   });
 
   test('accessRequests supports contractor creator mapping explicitly', () => {
-    const source = fs.readFileSync(
+    const routeSource = fs.readFileSync(
       path.join(__dirname, '..', 'v1', 'routes', 'accessRequests.js'),
       'utf8',
     );
-    expect(source).toContain('resolveContractorUserIdByUid');
-    expect(source).toContain("created_by_type = 'contractor'");
-    expect(source).toContain('created_by_contractor_user_id = contractorUserId');
+    const serviceSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'services', 'accessRequestService.js'),
+      'utf8',
+    );
+    expect(routeSource).toContain('createAccessRequest');
+    expect(serviceSource).toContain('resolveContractorUserIdByUid');
+    expect(serviceSource).toContain("created_by_type: 'contractor'");
+    expect(serviceSource).toContain('created_by_contractor_user_id: contractorUserId');
   });
 });
