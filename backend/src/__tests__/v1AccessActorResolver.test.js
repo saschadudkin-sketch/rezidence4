@@ -71,7 +71,6 @@ describe('AccessActorResolver', () => {
 describe('AccessActorResolver route adoption', () => {
   const routeFiles = [
     'accessRequests.js',
-    'passes.js',
     'vehicles.js',
     'visits.js',
     'accessIncidents.js',
@@ -83,6 +82,21 @@ describe('AccessActorResolver route adoption', () => {
       'utf8',
     );
     expect(source).toContain("require('../services/accessActorResolver')");
+  });
+
+  test('passes delegates actor-aware logic to PassService', () => {
+    const routeSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'routes', 'passes.js'),
+      'utf8',
+    );
+    const serviceSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'services', 'passService.js'),
+      'utf8',
+    );
+    expect(routeSource).toContain("require('../services/passService')");
+    expect(serviceSource).toContain("require('./accessActorResolver')");
+    expect(serviceSource).toContain('resolveResidentIdByUid');
+    expect(serviceSource).toContain('resolveStaffIdByUid');
   });
 
   test('accessRequests supports contractor creator mapping explicitly', () => {
