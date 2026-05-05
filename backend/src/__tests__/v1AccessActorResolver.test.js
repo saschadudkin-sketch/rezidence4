@@ -71,7 +71,6 @@ describe('AccessActorResolver', () => {
 describe('AccessActorResolver route adoption', () => {
   const routeFiles = [
     'accessRequests.js',
-    'accessIncidents.js',
   ];
 
   test.each(routeFiles)('%s uses AccessActorResolver for v1 actor IDs', (file) => {
@@ -106,6 +105,20 @@ describe('AccessActorResolver route adoption', () => {
       'utf8',
     );
     expect(routeSource).toContain("require('../services/visitService')");
+    expect(serviceSource).toContain("require('./accessActorResolver')");
+    expect(serviceSource).toContain('resolveStaffIdByUid');
+  });
+
+  test('accessIncidents delegates actor-aware logic to AccessIncidentService', () => {
+    const routeSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'routes', 'accessIncidents.js'),
+      'utf8',
+    );
+    const serviceSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'services', 'accessIncidentService.js'),
+      'utf8',
+    );
+    expect(routeSource).toContain("require('../services/accessIncidentService')");
     expect(serviceSource).toContain("require('./accessActorResolver')");
     expect(serviceSource).toContain('resolveStaffIdByUid');
   });
