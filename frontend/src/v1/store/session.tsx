@@ -120,20 +120,47 @@ export function useV1SessionState(): V1SessionValue {
 
 // ─── Role predicates ────────────────────────────────────────────────────────
 
-const RESIDENT_ROLES: ReadonlySet<UserRole> = new Set(['owner', 'tenant', 'contractor']);
-const STAFF_ROLES: ReadonlySet<UserRole> = new Set(['concierge', 'security', 'admin']);
-const GUARD_ROLES: ReadonlySet<UserRole> = new Set(['security', 'admin']);
-const CONCIERGE_ROLES: ReadonlySet<UserRole> = new Set(['concierge', 'admin']);
+const LEGACY_ROLE_TO_FINAL_ROLE: Readonly<Partial<Record<UserRole, UserRole>>> = {
+  owner: 'resident',
+  tenant: 'resident',
+  admin: 'property_admin',
+};
+
+const RESIDENT_ROLES: ReadonlySet<UserRole> = new Set(['resident']);
+const STAFF_ROLES: ReadonlySet<UserRole> = new Set([
+  'concierge',
+  'security',
+  'technician',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+]);
+const GUARD_ROLES: ReadonlySet<UserRole> = new Set([
+  'security',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+]);
+const CONCIERGE_ROLES: ReadonlySet<UserRole> = new Set([
+  'concierge',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+]);
+
+export function normalizeUserRole(role: UserRole): UserRole {
+  return LEGACY_ROLE_TO_FINAL_ROLE[role] ?? role;
+}
 
 export function isResidentRole(role: UserRole): boolean {
-  return RESIDENT_ROLES.has(role);
+  return RESIDENT_ROLES.has(normalizeUserRole(role));
 }
 export function isStaffRole(role: UserRole): boolean {
-  return STAFF_ROLES.has(role);
+  return STAFF_ROLES.has(normalizeUserRole(role));
 }
 export function isGuardRole(role: UserRole): boolean {
-  return GUARD_ROLES.has(role);
+  return GUARD_ROLES.has(normalizeUserRole(role));
 }
 export function isConciergeRole(role: UserRole): boolean {
-  return CONCIERGE_ROLES.has(role);
+  return CONCIERGE_ROLES.has(normalizeUserRole(role));
 }

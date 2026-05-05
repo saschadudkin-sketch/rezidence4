@@ -11,6 +11,7 @@ export {
   isStaffRole,
   isGuardRole,
   isConciergeRole,
+  normalizeUserRole,
 } from './session';
 export type { V1SessionValue, V1SessionProviderProps } from './session';
 

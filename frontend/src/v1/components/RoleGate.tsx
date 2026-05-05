@@ -11,7 +11,7 @@
 
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useV1SessionState } from '../store';
+import { normalizeUserRole, useV1SessionState } from '../store';
 import type { UserRole } from '../api/types';
 import { Spinner, Stack } from './ui';
 
@@ -50,7 +50,9 @@ export function RoleGate({ allow, children, fallback = '/' }: RoleGateProps) {
   }
 
   if (!user) return <Navigate to={fallback} replace />;
-  if (!allow.includes(user.role)) return <Navigate to={fallback} replace />;
+  const normalizedUserRole = normalizeUserRole(user.role);
+  const normalizedAllow = allow.map(normalizeUserRole);
+  if (!normalizedAllow.includes(normalizedUserRole)) return <Navigate to={fallback} replace />;
 
   return <>{children}</>;
 }

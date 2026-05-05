@@ -58,14 +58,13 @@ import {
   uiClasses,
 } from './components/ui';
 
-// Role sets — mirror the predicates in store/session.tsx.  We list roles
-// explicitly here so the RoleGate's `allow` prop is typed statically and
-// obvious at the call site.
-const RESIDENT_ALLOW = ['owner', 'tenant', 'contractor'] as const;
-const GUARD_ALLOW = ['security', 'admin'] as const;
+// Role sets mirror the final role model in store/session.tsx. Legacy aliases
+// stay listed where current sessions can still emit them.
+const RESIDENT_ALLOW = ['resident', 'owner', 'tenant'] as const;
+const GUARD_ALLOW = ['security', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
 // concierge-detail is gated to staff because the approvals UI is a staff-only
 // view of the lifecycle; residents have their own (read-only) request cards.
-const CONCIERGE_ALLOW = ['concierge', 'admin', 'staff'] as const;
+const CONCIERGE_ALLOW = ['concierge', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
 
 export function V1Router() {
   return (

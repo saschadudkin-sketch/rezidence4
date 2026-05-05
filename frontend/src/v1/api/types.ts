@@ -37,11 +37,16 @@ export interface PaginationParams {
 // ─── Session ────────────────────────────────────────────────────────────────
 
 export type UserRole =
+  | 'resident'
   | 'owner'
   | 'tenant'
   | 'contractor'
   | 'concierge'
   | 'security'
+  | 'technician'
+  | 'property_admin'
+  | 'management_company_admin'
+  | 'platform_admin'
   | 'admin'
   // legacy roles still present in prod — we type them for safety
   | 'user'

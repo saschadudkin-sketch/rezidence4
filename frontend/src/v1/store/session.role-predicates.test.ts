@@ -8,10 +8,10 @@
  * consumer pages.
  *
  * Truth table (from store/session.tsx):
- *   RESIDENT  = { owner, tenant, contractor }
- *   STAFF     = { concierge, security, admin }
- *   GUARD     = { security, admin }
- *   CONCIERGE = { concierge, admin }
+ *   RESIDENT  = { resident } plus legacy { owner, tenant }
+ *   STAFF     = { concierge, security, technician, property_admin, management_company_admin, platform_admin }
+ *   GUARD     = { security, property_admin, management_company_admin, platform_admin }
+ *   CONCIERGE = { concierge, property_admin, management_company_admin, platform_admin }
  *
  * Legacy roles (`user`, `staff`) fall through to "not any named set" — they
  * are typed for safety but not actionable in v1 pages.
@@ -21,6 +21,7 @@ import { describe, expect, test } from 'vitest';
 import {
   isConciergeRole,
   isGuardRole,
+  normalizeUserRole,
   isResidentRole,
   isStaffRole,
 } from './index';
@@ -35,11 +36,16 @@ const matrix: Record<UserRole, {
   guard: boolean;
   concierge: boolean;
 }> = {
+  resident:    { resident: true,  staff: false, guard: false, concierge: false },
   owner:       { resident: true,  staff: false, guard: false, concierge: false },
   tenant:      { resident: true,  staff: false, guard: false, concierge: false },
-  contractor:  { resident: true,  staff: false, guard: false, concierge: false },
+  contractor:  { resident: false, staff: false, guard: false, concierge: false },
   concierge:   { resident: false, staff: true,  guard: false, concierge: true  },
   security:    { resident: false, staff: true,  guard: true,  concierge: false },
+  technician:  { resident: false, staff: true,  guard: false, concierge: false },
+  property_admin: { resident: false, staff: true, guard: true, concierge: true },
+  management_company_admin: { resident: false, staff: true, guard: true, concierge: true },
+  platform_admin: { resident: false, staff: true, guard: true, concierge: true },
   admin:       { resident: false, staff: true,  guard: true,  concierge: true  },
   // Legacy roles — intentionally not members of any v1 set.
   user:        { resident: false, staff: false, guard: false, concierge: false },
@@ -64,5 +70,12 @@ describe('v1 role predicates', () => {
   test('security is guard-only (not concierge) — /v1 sends them to /v1/guard', () => {
     expect(isGuardRole('security')).toBe(true);
     expect(isConciergeRole('security')).toBe(false);
+  });
+
+  test('legacy roles normalize to the backend Phase 3 final roles', () => {
+    expect(normalizeUserRole('owner')).toBe('resident');
+    expect(normalizeUserRole('tenant')).toBe('resident');
+    expect(normalizeUserRole('admin')).toBe('property_admin');
+    expect(normalizeUserRole('contractor')).toBe('contractor');
   });
 });
