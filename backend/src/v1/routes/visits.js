@@ -20,8 +20,12 @@ const requireAuth = require('../../middleware/auth');
 const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
-const { verifyPass } = require('../services/verifyPass');
-const { resolveStaffIdByUid } = require('../services/accessActorResolver');
+const {
+  VL_COLS,
+  createVisitLog,
+  isVisitServiceError,
+  verifyVisit,
+} = require('../services/visitService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -41,20 +45,11 @@ function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
-async function requireStaffId(req, res) {
-  const staffId = await resolveStaffIdByUid(getDb(req), req.user?.uid);
-  if (!staffId) {
-    res.status(403).json({ error: 'Staff identity is not mapped to v1' });
-    return null;
-  }
-  return staffId;
+function sendServiceError(res, err) {
+  if (!isVisitServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
 }
-
-const VL_COLS = `
-  id, property_id, pass_id, access_point_id, event_type, event_source,
-  person_label, vehicle_plate, performed_by_staff_id,
-  provider_event_id, provider_payload, occurred_at, created_at
-`;
 
 // ─── POST /api/v1/visits/verify ──────────────────────────────────────────────
 // Главный endpoint guard-console.  Возвращает 200 OK { allowed } вне
@@ -74,37 +69,22 @@ router.post('/verify', async (req, res, next) => {
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
     }
-    const staffId = await requireStaffId(req, res);
-    if (!staffId) return;
-
-    const result = await verifyPass({
-      db: req.db || null,     // SEC [AUDIT #1]: per-tenant dispatch
-      property_id,
-      mode,
-      token,
-      plate,
-      performed_by_staff_id: staffId,
-      occurred_at,
+    const { result, pass } = await verifyVisit({
+      queryable: getDb(req),
+      verifyDb: req.db || null,
+      user: req.user,
+      input: { property_id, mode, token, plate, occurred_at },
     });
-
-    // Обогащаем ответ pass-info если pass нашёлся (для UI guard-console).
-    let passInfo = null;
-    if (result.pass_id) {
-      const { rows } = await getDb(req).query(
-        `SELECT id, pass_type, status, valid_from, valid_until FROM passes WHERE id = $1`,
-        [result.pass_id],
-      );
-      if (rows[0]) passInfo = rows[0];
-    }
 
     res.json({
       allowed: result.verdict.allowed,
       reason: result.verdict.reason,
       visit_log_id: result.visit_log_id,
       incident_id: result.incident_id,
-      pass: passInfo,
+      pass,
     });
   } catch (err) {
+    if (sendServiceError(res, err)) return;
     logger.error({ err }, '[v1/visits] verify failed');
     next(err);
   }
@@ -129,27 +109,24 @@ router.post('/', async (req, res, next) => {
     if (pass_id && !isValidUuid(pass_id)) return res.status(400).json({ error: 'pass_id must be UUID or null' });
     if (occurred_at && !isValidIso(occurred_at)) return res.status(400).json({ error: 'occurred_at must be ISO-8601' });
 
-    const normalizedPlate = vehicle_plate ? normalizePlate(vehicle_plate) : null;
-    const occurredAtIso = occurred_at || new Date().toISOString();
-    const staffId = await requireStaffId(req, res);
-    if (!staffId) return;
-
-    const { rows } = await getDb(req).query(
-      `INSERT INTO visit_logs_v2
-         (property_id, pass_id, event_type, event_source,
-          person_label, vehicle_plate, performed_by_staff_id,
-          provider_event_id, provider_payload, occurred_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       RETURNING ${VL_COLS}`,
-      [
-        property_id, pass_id, event_type, event_source,
-        person_label, normalizedPlate, staffId,
-        provider_event_id, provider_payload ? JSON.stringify(provider_payload) : null,
-        occurredAtIso,
-      ],
-    );
-    res.status(201).json({ visit_log: rows[0] });
+    const result = await createVisitLog({
+      queryable: getDb(req),
+      user: req.user,
+      input: {
+        property_id,
+        pass_id,
+        event_type,
+        event_source,
+        person_label,
+        vehicle_plate,
+        provider_event_id,
+        provider_payload,
+        occurred_at,
+      },
+    });
+    res.status(201).json({ visit_log: result.visit_log });
   } catch (err) {
+    if (sendServiceError(res, err)) return;
     if (err && err.code === '23505') {
       // provider_event_id unique conflict — идемпотентный вебхук, вернуть существующую строку
       if (req.body?.provider_event_id) {
