@@ -13,9 +13,15 @@ const {
   isResidentUser,
   isStaff,
   isResident,
+  FINAL_ROLES,
+  LEGACY_ROLE_TO_FINAL_ROLE,
   ROLES,
+  ROLE_CAPABILITIES,
+  SCOPE_LEVELS,
   listAllCapabilities,
   CAPABILITIES,
+  isKnownScopeLevel,
+  normalizeRole,
 } = require('../authz');
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -38,12 +44,9 @@ describe('can(user, capability)', () => {
     expect(can(admin, 'incidents:override')).toBe(true);
   });
 
-  test('admin bypass работает ДАЖЕ для несуществующих capability (не throw)', () => {
-    // Это design-decision: admin check идёт ДО lookup'а в CAPABILITIES,
-    // так что admin не получит Error при опечатке в capability-name.
-    // Это ок: admin всё равно true, deny-case не нужен.
+  test('unknown capability throws for admin too', () => {
     const admin = { role: 'admin' };
-    expect(can(admin, 'any:nonsense:string')).toBe(true);
+    expect(() => can(admin, 'any:nonsense:string')).toThrow(/unknown capability/i);
   });
 
   test('throws on unknown capability для не-admin user', () => {
@@ -109,18 +112,22 @@ describe('can(user, capability)', () => {
     expect(can({ role: 'concierge' }, 'requests:assign')).toBe(true); // via roles
   });
 
-  test('resident never has staff caps', () => {
+  test('resident never gets staff caps from leaked staff flags', () => {
     const resident = { role: 'resident', can_view_resident_phone: true };
-    // Резидент не становится staff из-за флага — roles whitelist НЕ
-    // includes 'resident', и staffFlag даёт TRUE только если role — staff.
-    // Вообще-то, текущая логика: staffFlag проверяется независимо от role.
-    // Это соответствует тому, как выдаёт JWT — resident не получит этих
-    // флагов, но если получит (bug), то can() всё равно пропустит.
-    // Документируем текущее поведение: да, пропустит.  Защита от bug'а
-    // в JWT должна быть на уровне issuance, не consume.
-    expect(can(resident, 'residents:read_phone')).toBe(true);
-    // …но 'announcements:publish' (admin-only) — точно нет.
+    expect(can(resident, 'residents:read_phone')).toBe(false);
     expect(can(resident, 'announcements:publish')).toBe(false);
+  });
+
+  test('Phase 3 access capability catalog is explicit by final role', () => {
+    expect(can({ role: 'owner' }, 'access.request.create')).toBe(true);
+    expect(can({ role: 'tenant' }, 'access.request.create')).toBe(true);
+    expect(can({ role: 'contractor' }, 'access.request.create')).toBe(true);
+    expect(can({ role: 'security' }, 'access.qr.verify')).toBe(true);
+    expect(can({ role: 'concierge' }, 'access.qr.verify')).toBe(false);
+    expect(can({ role: 'admin' }, 'access.request.approve')).toBe(true);
+    expect(can({ role: 'property_admin' }, 'audit.read')).toBe(true);
+    expect(can({ role: 'management_company_admin' }, 'access.pass.revoke')).toBe(true);
+    expect(can({ role: 'platform_admin' }, 'access.override.create')).toBe(true);
   });
 });
 
@@ -221,25 +228,28 @@ describe('Role predicates — req/user duality', () => {
     expect(isStaffOrAdmin({ role: 'owner' })).toBe(false);  // owner — resident-level в legacy
   });
 
-  test('isResidentUser: только string "resident" (v1 convention)', () => {
+  test('isResidentUser: final resident plus legacy owner/tenant mapping', () => {
     expect(isResidentUser({ role: 'resident' })).toBe(true);
     expect(isResidentUser({ user: { role: 'resident' } })).toBe(true);
-    expect(isResidentUser({ role: 'owner' })).toBe(false);   // legacy role ≠ v1 literal
+    expect(isResidentUser({ role: 'owner' })).toBe(true);
+    expect(isResidentUser({ role: 'tenant' })).toBe(true);
     expect(isResidentUser({ role: 'admin' })).toBe(false);
+    expect(isResidentUser({ role: 'contractor' })).toBe(false);
     expect(isResidentUser(null)).toBe(false);
   });
 
-  test('re-exported isStaff/isResident — legacy constants semantics', () => {
+  test('role predicates use Phase 3 compatibility mapping', () => {
     expect(isStaff('security')).toBe(true);
     expect(isStaff('concierge')).toBe(true);
+    expect(isStaff('technician')).toBe(true);
+    expect(isStaff('property_admin')).toBe(true);
     expect(isStaff('admin')).toBe(true);
     expect(isStaff('resident')).toBe(false);
     expect(isStaff('owner')).toBe(false);
-    // isResident (constants.js) = Set{owner, tenant, contractor}
     expect(isResident('owner')).toBe(true);
     expect(isResident('tenant')).toBe(true);
-    expect(isResident('contractor')).toBe(true);
-    expect(isResident('resident')).toBe(false);  // literal "resident" — не в Set'е
+    expect(isResident('contractor')).toBe(false);
+    expect(isResident('resident')).toBe(true);
   });
 });
 
@@ -281,9 +291,43 @@ describe('Catalog introspection', () => {
       'contractors:read', 'contractors:write',
       'structure:read', 'structure:write',
       'vehicles:read', 'vehicles:manage',
+      'access.request.create', 'access.request.approve', 'access.request.reject',
+      'access.pass.read', 'access.pass.revoke', 'access.pass.block',
+      'access.qr.verify', 'access.plate.verify',
+      'access.incident.create', 'access.incident.resolve',
+      'access.override.create', 'audit.read',
     ];
     for (const cap of required) {
       expect(CAPABILITIES[cap]).toBeDefined();
+    }
+  });
+
+  test('final role and scope catalogs expose Phase 3 source of truth', () => {
+    expect(Object.values(FINAL_ROLES)).toEqual(expect.arrayContaining([
+      'resident',
+      'security',
+      'concierge',
+      'technician',
+      'contractor',
+      'property_admin',
+      'management_company_admin',
+      'platform_admin',
+    ]));
+    expect(LEGACY_ROLE_TO_FINAL_ROLE[ROLES.OWNER]).toBe(FINAL_ROLES.RESIDENT);
+    expect(LEGACY_ROLE_TO_FINAL_ROLE[ROLES.ADMIN]).toBe(FINAL_ROLES.PROPERTY_ADMIN);
+    expect(normalizeRole('tenant')).toBe(FINAL_ROLES.RESIDENT);
+    expect(SCOPE_LEVELS).toEqual(expect.arrayContaining([
+      'property', 'building', 'entrance', 'floor', 'unit',
+      'parking_zone', 'access_zone', 'access_point',
+    ]));
+    expect(isKnownScopeLevel('access_point')).toBe(true);
+    expect(isKnownScopeLevel('portfolio')).toBe(false);
+  });
+
+  test('every final role has an explicit capability entry', () => {
+    for (const role of Object.values(FINAL_ROLES)) {
+      expect(Object.prototype.hasOwnProperty.call(ROLE_CAPABILITIES, role)).toBe(true);
+      expect(Array.isArray(ROLE_CAPABILITIES[role])).toBe(true);
     }
   });
 });
