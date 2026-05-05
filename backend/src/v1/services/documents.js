@@ -1,6 +1,7 @@
 'use strict';
 
 const { sanitizeMarkdown, sanitizeTitle } = require('./markdownSanitizer');
+const { FINAL_ROLES, normalizeRole } = require('../lib/authz');
 
 // platform-v1 documents_v2 service — Spec: documents-v2-spec.md §2-§5.
 //
@@ -77,8 +78,15 @@ function validateCategory(c) {
  * Throws if concierge пытается писать в legal/contracts/safety.
  */
 function assertConciergeCanWriteCategory(role, category) {
-  if (role === 'admin' || role === 'property_admin') return; // админ — во всё.
-  if (role === 'concierge') {
+  const finalRole = normalizeRole(role);
+  if (
+    finalRole === FINAL_ROLES.PROPERTY_ADMIN ||
+    finalRole === FINAL_ROLES.MANAGEMENT_COMPANY_ADMIN ||
+    finalRole === FINAL_ROLES.PLATFORM_ADMIN
+  ) {
+    return;
+  }
+  if (finalRole === FINAL_ROLES.CONCIERGE) {
     if (!CONCIERGE_CATEGORIES.includes(category)) {
       throw new Error(
         `invalid category for concierge: only ${CONCIERGE_CATEGORIES.join(', ')} allowed`

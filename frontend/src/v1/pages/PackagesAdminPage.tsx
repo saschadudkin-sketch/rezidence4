@@ -34,7 +34,7 @@ import type {
   PackageStatus,
   UUID,
 } from '../api';
-import { useV1Session, qk, invalidatePackage } from '../store';
+import { normalizeUserRole, useV1Session, qk, invalidatePackage } from '../store';
 import {
   Alert,
   Badge,
@@ -90,7 +90,11 @@ const SIZE_LABELS: Record<PackageSize, string> = {
 export function PackagesAdminPage() {
   const user = useV1Session();
   const propertyId = user.property_id ?? null;
-  const isAdmin = user.role === 'admin';
+  const isAdmin = [
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ].includes(normalizeUserRole(user.role));
 
   const [statusFilter, setStatusFilter] = useState<PackageStatus | 'all'>('awaiting_pickup');
   const [formOpen, setFormOpen] = useState(false);
