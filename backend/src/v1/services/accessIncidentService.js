@@ -1,6 +1,10 @@
 'use strict';
 
 const { resolveStaffIdByUid } = require('./accessActorResolver');
+const {
+  StateTransitionError,
+  assertIncidentAction,
+} = require('./accessStateMachine');
 
 const INCIDENT_COLS = `
   id, property_id,
@@ -12,8 +16,6 @@ const OVERRIDE_COLS = `
   id, property_id, incident_id, pass_id,
   performed_by_staff_id, override_type, reason, created_at
 `;
-
-const TERMINAL_INCIDENT = new Set(['resolved', 'dismissed']);
 
 class AccessIncidentServiceError extends Error {
   constructor(status, message) {
@@ -28,7 +30,7 @@ function serviceError(status, message) {
 }
 
 function isAccessIncidentServiceError(err) {
-  return err instanceof AccessIncidentServiceError;
+  return err instanceof AccessIncidentServiceError || err instanceof StateTransitionError;
 }
 
 async function requireStaffId(queryable, user) {
@@ -66,9 +68,7 @@ async function assignIncident({ queryable, incidentId, assignee }) {
     [incidentId],
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
-  if (TERMINAL_INCIDENT.has(curRows[0].status)) {
-    throw serviceError(409, `Cannot assign in status '${curRows[0].status}'`);
-  }
+  assertIncidentAction(curRows[0].status, 'assign');
   const { rows } = await queryable.query(
     `UPDATE access_incidents
         SET assigned_to_staff_id = $1,
@@ -90,9 +90,7 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
       [incidentId],
     );
     if (!curRows[0]) throw serviceError(404, 'Incident not found');
-    if (TERMINAL_INCIDENT.has(curRows[0].status)) {
-      throw serviceError(409, `Incident already ${curRows[0].status}`);
-    }
+    assertIncidentAction(curRows[0].status, 'resolve');
     if (!isPropertyAdmin && curRows[0].assigned_to_staff_id && curRows[0].assigned_to_staff_id !== staffId) {
       throw serviceError(403, 'Incident is assigned to another staff');
     }
@@ -142,9 +140,7 @@ async function dismissIncident({ queryable, user, incidentId, reason, isProperty
     [incidentId],
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
-  if (TERMINAL_INCIDENT.has(curRows[0].status)) {
-    throw serviceError(409, `Incident already ${curRows[0].status}`);
-  }
+  assertIncidentAction(curRows[0].status, 'dismiss');
   const staffId = await requireStaffId(queryable, user);
   if (!isPropertyAdmin && curRows[0].assigned_to_staff_id && curRows[0].assigned_to_staff_id !== staffId) {
     throw serviceError(403, 'Incident is assigned to another staff');

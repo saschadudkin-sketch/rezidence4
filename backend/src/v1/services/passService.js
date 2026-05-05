@@ -5,6 +5,10 @@ const {
   resolveResidentIdByUid,
   resolveStaffIdByUid,
 } = require('./accessActorResolver');
+const {
+  StateTransitionError,
+  assertPassAction,
+} = require('./accessStateMachine');
 
 const PASS_COLS = `
   id, property_id, access_request_id, pass_type, subject_type,
@@ -13,8 +17,6 @@ const PASS_COLS = `
   valid_from, valid_until, status,
   approved_by_staff_id, revoked_at, revoked_by_staff_id, revoked_reason, created_at
 `;
-
-const TERMINAL_STATUSES = new Set(['expired', 'revoked']);
 
 class PassServiceError extends Error {
   constructor(status, message) {
@@ -29,7 +31,7 @@ function serviceError(status, message) {
 }
 
 function isPassServiceError(err) {
-  return err instanceof PassServiceError;
+  return err instanceof PassServiceError || err instanceof StateTransitionError;
 }
 
 function newToken() {
@@ -75,9 +77,7 @@ async function getOrCreateQr({ queryable, user, isStaffUser, passId }) {
     passId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status',
   });
-  if (TERMINAL_STATUSES.has(pass.status)) {
-    throw serviceError(409, `Cannot fetch QR for pass in status '${pass.status}'`);
-  }
+  assertPassAction(pass.status, 'qr');
 
   const { rows: existing } = await queryable.query(
     `SELECT id, token, render_version FROM qr_passes_v2 WHERE pass_id = $1`,
@@ -102,9 +102,7 @@ async function regenerateQr({ queryable, user, isStaffUser, passId }) {
     passId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status',
   });
-  if (TERMINAL_STATUSES.has(pass.status)) {
-    throw serviceError(409, `Cannot regenerate QR for pass in status '${pass.status}'`);
-  }
+  assertPassAction(pass.status, 'regenerate_qr');
 
   const { rows } = await queryable.query(
     `INSERT INTO qr_passes_v2 (property_id, pass_id, token)
@@ -149,7 +147,7 @@ async function revokePass({ queryable, user, passId, reason }) {
     [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
-  if (curRows[0].status === 'revoked') throw serviceError(409, 'Pass already revoked');
+  assertPassAction(curRows[0].status, 'revoke');
 
   const { rows } = await queryable.query(
     `UPDATE passes SET
@@ -170,9 +168,7 @@ async function blockPass({ queryable, passId }) {
     [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
-  if (curRows[0].status === 'revoked' || curRows[0].status === 'expired') {
-    throw serviceError(409, `Cannot block pass in status '${curRows[0].status}'`);
-  }
+  assertPassAction(curRows[0].status, 'block');
   const { rows } = await queryable.query(
     `UPDATE passes SET status = 'blocked' WHERE id = $1 RETURNING ${PASS_COLS}`,
     [passId],
@@ -186,9 +182,7 @@ async function unblockPass({ queryable, passId }) {
     [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
-  if (curRows[0].status !== 'blocked') {
-    throw serviceError(409, `Pass is not blocked (status='${curRows[0].status}')`);
-  }
+  assertPassAction(curRows[0].status, 'unblock');
   const { rows } = await queryable.query(
     `UPDATE passes SET status = 'active' WHERE id = $1 RETURNING ${PASS_COLS}`,
     [passId],

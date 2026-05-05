@@ -7,6 +7,10 @@ const {
   resolveStaffIdByUid,
   resolveContractorUserIdByUid,
 } = require('./accessActorResolver');
+const {
+  StateTransitionError,
+  assertAccessRequestAction,
+} = require('./accessStateMachine');
 
 const AR_COLS = `
   id, property_id, created_by_type,
@@ -26,7 +30,6 @@ const REQUEST_TO_PASS_TYPE = Object.freeze({
   temporary_resident_access: 'guest',
 });
 
-const TERMINAL_STATUSES = new Set(['rejected', 'cancelled', 'expired']);
 const AUTO_ISSUE_REQUEST_TYPES = new Set(['guest_access', 'courier_access', 'contractor_access']);
 const AUTO_ISSUE_MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -43,7 +46,7 @@ function serviceError(status, message) {
 }
 
 function isAccessRequestServiceError(err) {
-  return err instanceof AccessRequestServiceError;
+  return err instanceof AccessRequestServiceError || err instanceof StateTransitionError;
 }
 
 function getResolvedFeatureFlags(property) {
@@ -207,15 +210,6 @@ async function requireStaffId(client, user) {
   return staffId;
 }
 
-function assertCanTransition(status, action) {
-  const invalid = TERMINAL_STATUSES.has(status) ||
-    status === 'approved' ||
-    (action === 'escalate' && status === 'escalated');
-  if (invalid) {
-    throw serviceError(409, `Cannot ${action} from status '${status}'`);
-  }
-}
-
 async function approveAccessRequest({ txPool, user, accessRequestId, comment }) {
   const client = await txPool.connect();
   try {
@@ -229,7 +223,7 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
     );
     if (!arRows[0]) throw serviceError(404, 'Access request not found');
     const ar = arRows[0];
-    assertCanTransition(ar.status, 'approve');
+    assertAccessRequestAction(ar.status, 'approve');
 
     await client.query(
       `INSERT INTO access_approvals
@@ -266,7 +260,7 @@ async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
-    assertCanTransition(curRows[0].status, 'reject');
+    assertAccessRequestAction(curRows[0].status, 'reject');
 
     await client.query(
       `INSERT INTO access_approvals
@@ -313,9 +307,7 @@ async function cancelAccessRequest({ txPool, user, accessRequestId, isPropertyAd
         }
       }
     }
-    if (TERMINAL_STATUSES.has(curRows[0].status)) {
-      throw serviceError(409, `Cannot cancel from status '${curRows[0].status}'`);
-    }
+    assertAccessRequestAction(curRows[0].status, 'cancel');
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
@@ -342,7 +334,7 @@ async function escalateAccessRequest({ txPool, user, accessRequestId, comment })
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
-    assertCanTransition(curRows[0].status, 'escalate');
+    assertAccessRequestAction(curRows[0].status, 'escalate');
 
     await client.query(
       `INSERT INTO access_approvals

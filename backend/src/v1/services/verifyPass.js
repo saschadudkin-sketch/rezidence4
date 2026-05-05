@@ -19,6 +19,7 @@
 const defaultDb = require('../../db');
 const logger = require('../../logger');
 const { normalizePlate } = require('../lib/normalizePlate');
+const { assertPassAction } = require('./accessStateMachine');
 
 const ONE_SHOT_PASS_TYPES = new Set(['guest', 'courier', 'service']);
 const GUARD_IDEMPOTENCY_WINDOW_MS = 30_000;
@@ -280,6 +281,7 @@ async function verifyPass({
 
     // Step 7: pass.status='used' для one-shot passes при allowed
     if (verdict.allowed && pass && ONE_SHOT_PASS_TYPES.has(pass.pass_type)) {
+      assertPassAction(pass.status, 'use');
       await client.query(
         `UPDATE passes SET status = 'used' WHERE id = $1 AND status = 'active'`,
         [pass.id],
