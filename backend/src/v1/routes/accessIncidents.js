@@ -20,7 +20,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { can, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
   INCIDENT_COLS,
@@ -54,8 +54,6 @@ const OVERRIDE_TYPES = new Set([
 ]);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim'ы под legacy callsites:
-const isSecurity = isSecurityAuthz;
 const isPropertyAdmin = isAdmin;
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= (maxLen || 500);
@@ -93,7 +91,7 @@ function sendServiceError(res, err) {
 // Guard dashboard: default status=open|investigating, sort by severity DESC.
 router.get('/access-incidents', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -146,7 +144,7 @@ router.get('/access-incidents', async (req, res, next) => {
 // ─── GET /api/v1/access-incidents/:id ────────────────────────────────────────
 router.get('/access-incidents/:id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows } = await getDb(req).query(
       `SELECT ${INCIDENT_COLS} FROM access_incidents WHERE id = $1`,
@@ -170,7 +168,7 @@ router.get('/access-incidents/:id', async (req, res, next) => {
 // инцидента из guard-console.
 router.post('/access-incidents', idempotency, async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.incident.create')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, incident_type,
       severity = 'medium',
@@ -229,7 +227,7 @@ router.post('/access-incidents', idempotency, async (req, res, next) => {
 // ─── POST /api/v1/access-incidents/:id/assign ────────────────────────────────
 router.post('/access-incidents/:id/assign', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:write')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const assignee = req.body?.assigned_to_staff_id;
     if (!isValidUuid(assignee)) return res.status(400).json({ error: 'assigned_to_staff_id must be UUID' });
@@ -256,13 +254,14 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
 // ─── POST /api/v1/access-incidents/:id/resolve ───────────────────────────────
 // Транзакция: incident → 'resolved' + optional override INSERT.
 router.post('/access-incidents/:id/resolve', async (req, res, next) => {
-  if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!can(req.user, 'access.incident.resolve')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!reason) return res.status(400).json({ error: 'reason is required' });
 
   const overrideInput = req.body?.create_override || null;
   if (overrideInput) {
+    if (!can(req.user, 'access.override.create')) return res.status(403).json({ error: 'Forbidden' });
     if (!OVERRIDE_TYPES.has(overrideInput.override_type)) {
       return res.status(400).json({ error: 'Invalid override_type' });
     }
@@ -298,7 +297,7 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
 // ─── POST /api/v1/access-incidents/:id/dismiss ───────────────────────────────
 router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.incident.resolve')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
@@ -329,7 +328,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
 // dedicated endpoints (assign/resolve/dismiss).
 router.patch('/access-incidents/:id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:write')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
     const changes = {};
@@ -370,7 +369,7 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
 // Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/access-overrides', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -420,7 +419,7 @@ router.get('/access-overrides', async (req, res, next) => {
 // ─── GET /api/v1/access-overrides/:id ────────────────────────────────────────
 router.get('/access-overrides/:id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows } = await getDb(req).query(`SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Override not found' });
@@ -433,7 +432,7 @@ router.get('/access-overrides/:id', async (req, res, next) => {
 // но допускается напрямую для temp-whitelist/temp-block.
 router.post('/access-overrides', async (req, res, next) => {
   try {
-    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.override.create')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, incident_id = null, pass_id = null,
       override_type, reason,

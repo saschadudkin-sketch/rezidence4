@@ -21,7 +21,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { isStaff, isAdmin, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { can } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
   PASS_COLS,
@@ -51,9 +51,6 @@ const SUBJECT_TYPES = new Set([
 ]);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim'ы под legacy callsites:
-const isPropertyAdmin = isAdmin;
-const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
@@ -110,7 +107,7 @@ function validateSubject({ subject_type, subject_resident_id, subject_staff_id,
 // `passes` сохраняется (back-compat), `page` — additive.
 router.get('/', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'passes:read')) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -170,7 +167,7 @@ router.get('/:id', async (req, res, next) => {
     if (!(await canReadPass({
       queryable: getDb(req),
       user: req.user,
-      isStaffUser: isStaff(req.user.role),
+      isStaffUser: can(req.user, 'passes:read'),
       pass,
     }))) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -194,7 +191,7 @@ router.get('/:id/qr', async (req, res, next) => {
     const result = await getOrCreateQr({
       queryable: getDb(req),
       user: req.user,
-      isStaffUser: isStaff(req.user.role),
+      isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
     });
     res.json({ qr: result.qr });
@@ -215,7 +212,7 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
     const result = await regenerateQr({
       queryable: getDb(req),
       user: req.user,
-      isStaffUser: isStaff(req.user.role),
+      isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
     });
     auditLog(req, {
@@ -239,7 +236,7 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
 // double-tap при создании пассов из admin UI.
 router.post('/', idempotency, async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'passes:manage')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, pass_type, subject_type,
       subject_resident_id = null, subject_staff_id = null,
@@ -307,9 +304,7 @@ router.post('/', idempotency, async (req, res, next) => {
 // One-way: revoked — terminal.  reason обязателен (CHECK в БД).
 router.post('/:id/revoke', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req) && req.user?.role !== 'security') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    if (!can(req.user, 'access.pass.revoke')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
@@ -339,7 +334,7 @@ router.post('/:id/revoke', async (req, res, next) => {
 // Можно снять через /unblock.  Не terminal.
 router.post('/:id/block', async (req, res, next) => {
   try {
-    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.pass.block')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     const result = await blockPass({ queryable: getDb(req), passId: req.params.id });
@@ -359,7 +354,7 @@ router.post('/:id/block', async (req, res, next) => {
 // ─── POST /api/v1/passes/:id/unblock ─────────────────────────────────────────
 router.post('/:id/unblock', async (req, res, next) => {
   try {
-    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.pass.block')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
     const result = await unblockPass({ queryable: getDb(req), passId: req.params.id });

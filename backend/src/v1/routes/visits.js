@@ -17,7 +17,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff, isSecurity: isSecurityAuthz } = require('../lib/authz');
+const { can } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
@@ -41,8 +41,6 @@ const EVENT_TYPES = new Set([
 const EVENT_SOURCES = new Set(['domhub', 'skud', 'guard_console', 'import']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim: re-export из authz под именем, которого ждут legacy callsites.
-const isSecurity = isSecurityAuthz;
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
 function sendServiceError(res, err) {
@@ -56,7 +54,9 @@ function sendServiceError(res, err) {
 // зависимости от verdict'а — deny это валидный бизнес-ответ.
 router.post('/verify', async (req, res, next) => {
   try {
-    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const { property_id, mode, token = null, plate = null, occurred_at = null } = req.body || {};
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
     if (!['qr', 'plate'].includes(mode)) return res.status(400).json({ error: "mode must be 'qr' or 'plate'" });
@@ -95,7 +95,9 @@ router.post('/verify', async (req, res, next) => {
 // цикла verify-pass.  Обычные guard-console сканы идут через /verify.
 router.post('/', async (req, res, next) => {
   try {
-    if (!isSecurity(req)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const {
       property_id, pass_id = null, event_type, event_source,
       person_label = null, vehicle_plate = null,
@@ -147,7 +149,7 @@ router.post('/', async (req, res, next) => {
 // Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -199,7 +201,7 @@ router.get('/', async (req, res, next) => {
 // ─── GET /api/v1/visits/by-pass/:pass_id ─────────────────────────────────────
 router.get('/by-pass/:pass_id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
     let pagination;
     try {
@@ -223,7 +225,7 @@ router.get('/by-pass/:pass_id', async (req, res, next) => {
 // ─── GET /api/v1/visits/by-plate/:plate ──────────────────────────────────────
 router.get('/by-plate/:plate', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
     const normalized = normalizePlate(req.params.plate);
     if (!normalized) return res.status(400).json({ error: 'Invalid plate' });
     if (!looksLikeRuPlate(normalized) && normalized.length < 3) {
@@ -254,7 +256,7 @@ router.get('/by-plate/:plate', async (req, res, next) => {
 // `/by-pass/:pass_id` и `/by-plate/:plate` не перехватывались.
 router.get('/:id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2 WHERE id = $1`,

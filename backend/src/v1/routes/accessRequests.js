@@ -22,7 +22,7 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { isStaff, isAdmin } = require('../lib/authz');
+const { can, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
   resolveResidentIdByUid,
@@ -118,8 +118,8 @@ router.get('/', async (req, res, next) => {
     const filters = [];
     const params = [];
 
-    // Резиденты/contractors видят только свои; staff — все в property.
-    if (!isStaff(req.user.role)) {
+    // Резиденты/contractors видят только свои; access staff — все в property.
+    if (!can(req.user, 'requests:read')) {
       if (isContractorRole(req.user.role)) {
         const contractorUserId = await requireContractorUserId(req, res);
         if (!contractorUserId) return;
@@ -183,8 +183,8 @@ router.get('/:id', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Access request not found' });
     const ar = rows[0];
 
-    // Visibility: staff — всё; resident/contractor — только своё.
-    if (!isStaff(req.user.role)) {
+    // Visibility: access staff — всё; resident/contractor — только своё.
+    if (!can(req.user, 'requests:read')) {
       if (isContractorRole(req.user.role)) {
         const contractorUserId = await requireContractorUserId(req, res);
         if (!contractorUserId) return;
@@ -228,6 +228,7 @@ router.get('/:id', async (req, res, next) => {
 // заявки из резидентского UI.
 router.post('/', idempotency, async (req, res, next) => {
   try {
+    if (!can(req.user, 'access.request.create')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, request_type,
       visitor_name = null, visitor_phone = null, vehicle_id = null,
@@ -309,7 +310,7 @@ router.post('/:id/submit', async (req, res, next) => {
       [req.params.id],
     );
     if (!curRows[0]) return res.status(404).json({ error: 'Access request not found' });
-    if (!isStaff(req.user.role)) {
+    if (!can(req.user, 'requests:write')) {
       const residentId = await requireResidentId(req, res);
       if (!residentId) return;
       if (curRows[0].created_by_resident_id !== residentId) {
@@ -337,7 +338,7 @@ router.post('/:id/submit', async (req, res, next) => {
 // ─── POST /api/v1/access-requests/:id/approve ────────────────────────────────
 // Транзакция: access_approvals INSERT + access_requests UPDATE + passes INSERT.
 router.post('/:id/approve', async (req, res, next) => {
-  if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!can(req.user, 'access.request.approve')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
@@ -364,7 +365,7 @@ router.post('/:id/approve', async (req, res, next) => {
 
 // ─── POST /api/v1/access-requests/:id/reject ─────────────────────────────────
 router.post('/:id/reject', async (req, res, next) => {
-  if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!can(req.user, 'access.request.reject')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const comment = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!comment) return res.status(400).json({ error: 'reason is required' });
@@ -422,7 +423,7 @@ router.post('/:id/cancel', async (req, res, next) => {
 // Staff просит property_admin'а посмотреть заявку.  Пишет approval и переводит
 // заявку в status='escalated', чтобы state machine совпадала с production plan.
 router.post('/:id/escalate', async (req, res, next) => {
-  if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  if (!can(req.user, 'requests:escalate')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
   try {
