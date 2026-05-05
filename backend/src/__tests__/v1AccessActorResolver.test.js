@@ -71,7 +71,6 @@ describe('AccessActorResolver', () => {
 describe('AccessActorResolver route adoption', () => {
   const routeFiles = [
     'accessRequests.js',
-    'vehicles.js',
     'visits.js',
     'accessIncidents.js',
   ];
@@ -82,6 +81,20 @@ describe('AccessActorResolver route adoption', () => {
       'utf8',
     );
     expect(source).toContain("require('../services/accessActorResolver')");
+  });
+
+  test('vehicles delegates actor-aware logic to VehicleService', () => {
+    const routeSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'routes', 'vehicles.js'),
+      'utf8',
+    );
+    const serviceSource = fs.readFileSync(
+      path.join(__dirname, '..', 'v1', 'services', 'vehicleService.js'),
+      'utf8',
+    );
+    expect(routeSource).toContain("require('../services/vehicleService')");
+    expect(serviceSource).toContain("require('./accessActorResolver')");
+    expect(serviceSource).toContain('resolveResidentIdByUid');
   });
 
   test('passes delegates actor-aware logic to PassService', () => {
