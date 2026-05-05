@@ -33,7 +33,7 @@ import type {
   UUID,
   V1Document,
 } from '../api';
-import { useV1Session, qk, invalidateDocument } from '../store';
+import { normalizeUserRole, useV1Session, qk, invalidateDocument } from '../store';
 import {
   Alert,
   Badge,
@@ -87,8 +87,13 @@ const CONCIERGE_ALLOWED: readonly DocumentCategory[] = ['contacts', 'instruction
 export function DocumentsAdminPage() {
   const user = useV1Session();
   const propertyId = user.property_id ?? null;
-  const isAdmin = user.role === 'admin';
-  const isConcierge = user.role === 'concierge';
+  const normalizedRole = normalizeUserRole(user.role);
+  const isAdmin = [
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ].includes(normalizedRole);
+  const isConcierge = normalizedRole === 'concierge';
 
   const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | 'all'>('all');
   const [includeDraft, setIncludeDraft] = useState(true);

@@ -41,7 +41,7 @@ import type {
   CreateAnnouncementBody,
   UUID,
 } from '../api';
-import { useV1Session, qk, invalidateAnnouncement } from '../store';
+import { normalizeUserRole, useV1Session, qk, invalidateAnnouncement } from '../store';
 import {
   Alert,
   Badge,
@@ -117,7 +117,11 @@ export function AnnouncementsAdminPage() {
   // above this route ensures status === 'ready' before we render).
   const user = useV1Session();
   const propertyId = user.property_id ?? null;
-  const isAdmin = user.role === 'admin';
+  const isAdmin = [
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ].includes(normalizeUserRole(user.role));
 
   const [statusFilter, setStatusFilter] = useState<AnnouncementStatus | 'all'>('all');
   const [formOpen, setFormOpen] = useState(false);
