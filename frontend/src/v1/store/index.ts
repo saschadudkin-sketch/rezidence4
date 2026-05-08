@@ -24,5 +24,6 @@ export {
   invalidatePass,
   invalidateStaffWorkspaceRequest,
   invalidateTechnicianWorkspaceRequest,
+  invalidateContractorWorkspaceRequest,
   invalidateVehicle,
 } from './queryKeys';

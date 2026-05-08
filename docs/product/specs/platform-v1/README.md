@@ -58,6 +58,7 @@
 | [technician-workspace](./technician-workspace-spec.md) | Draft (DH-27 technician queue, start/wait/resolve transitions, resolution output and KPI events API) |
 | [technician-workspace-ui](./technician-workspace-ui-spec.md) | Draft (DH-28 technician execution UI over the technician workspace API) |
 | [contractor-workspace](./contractor-workspace-spec.md) | Draft (DH-29 contractor assignment, restricted queue/detail and completion API) |
+| [contractor-portal-ui](./contractor-portal-ui-spec.md) | Draft (DH-30 restricted external contractor portal over the contractor workspace API) |
 | [notification-templates-v2](./notification-templates-v2-spec.md) | Draft (централизованное хранилище текстов уведомлений + mustache-lite rendering; P3 в Phase 6) |
 | [legacy-utilities-freeze](./legacy-utilities-freeze-spec.md) | Draft (platform-level freeze-gate для meters/billing/bookings/chat до пост-релиза; P4 в Phase 6) |
 

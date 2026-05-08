@@ -22,6 +22,7 @@ import { securityWorkspaceApi } from './securityWorkspace';
 import { accessIncidentsApi } from './accessIncidents';
 import { staffWorkspaceApi } from './staffWorkspace';
 import { technicianWorkspaceApi } from './technicianWorkspace';
+import { contractorWorkspaceApi } from './contractorWorkspace';
 import { unitsApi } from './units';
 import { residentsApi } from './residents';
 import { sessionApi } from './session';
@@ -40,6 +41,7 @@ export const api = {
   incidents: accessIncidentsApi,
   staffWorkspace: staffWorkspaceApi,
   technicianWorkspace: technicianWorkspaceApi,
+  contractorWorkspace: contractorWorkspaceApi,
   units: unitsApi,
   residents: residentsApi,
   session: sessionApi,
@@ -83,6 +85,12 @@ export type {
   ResolveTechnicianRequestBody,
   SetTechnicianWaitingBody,
 } from './technicianWorkspace';
+export type {
+  AssignContractorRequestBody,
+  ListContractorWorkspaceQueueParams,
+  ResolveContractorRequestBody,
+  SetContractorWaitingBody,
+} from './contractorWorkspace';
 export type { ListUnitsParams } from './units';
 export type { ListResidentsParams, ResidentWithUnit } from './residents';
 export type {

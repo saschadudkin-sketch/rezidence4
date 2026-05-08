@@ -87,6 +87,8 @@ function makeRequest(overrides: Partial<StaffWorkspaceRequest> = {}): StaffWorks
     assignedToName: null,
     assignedToRole: null,
     assignedAt: null,
+    assignedContractorUserId: null,
+    assignedContractorCompanyId: null,
     startedAt: null,
     firstResponseAt: null,
     resolvedAt: null,

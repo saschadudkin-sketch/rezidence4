@@ -79,7 +79,7 @@ The largest gaps are still structural:
 | `DH-27` | Technician Workflow Backend | Improved, backend baseline added | `/api/v1/technician-workspace` now exposes technician queue/detail plus claim, start/resume, waiting and resolve actions. `v1_032_technician_workflow` adds execution output fields and technician KPI events. |
 | `DH-28` | Technician Workflow UI | Improved, frontend baseline added | `/v1/technician-workspace` now provides technician queue filters, task detail, claim/start/resume/waiting/resolve actions, resolution notes, follow-up flag, attachment ids and technician event timelines. |
 | `DH-29` | Contractor Workflow Backend | Improved, backend baseline added | `/api/v1/contractor-workspace` now exposes contractor queue/detail plus concierge/admin assignment and contractor start/resume/waiting/resolve actions. `v1_033_contractor_workflow` adds contractor assignment bindings and contractor KPI events with active/expiry/company checks. |
-| `DH-30` | Contractor Portal UI | Docs/planned | No dedicated contractor portal found. |
+| `DH-30` | Contractor Portal UI | Improved, frontend baseline added | `/v1/contractor-workspace` now provides a restricted contractor queue/detail portal with start/resume, waiting-for-parts and result submission actions over `/api/v1/contractor-workspace`. |
 | `DH-31` | Packages Domain | Implemented baseline | `packages_v2`, package SLA/reminder services and admin/resident pages exist. |
 | `DH-32` | Announcements And Documents Backend | Implemented baseline | `announcements_v2`, `documents_v2`, versions, public/admin routes and services exist. |
 | `DH-33` | Resident Communications UI | Implemented baseline | Resident announcements and documents pages exist. |
@@ -146,11 +146,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-27` | Improved, backend baseline added | `technicianWorkspaceService.js`, `technicianWorkspace.js`, `/technician-workspace/queue`, `/requests/:id`, `/claim`, `/start`, `/resume`, `/waiting`, `/resolve`, migration `v1_032_technician_workflow` and route/migration tests now cover technician visibility, transitions, output fields and KPI events. | Continue with `DH-28` Technician Workflow UI using the technician workspace contracts. |
 | `DH-28` | Improved, frontend baseline added | `TechnicianWorkspacePage`, `technicianWorkspaceApi`, `/v1/technician-workspace` routing and page/router tests now cover queue/detail loading, filters, claim/start, waiting and resolve with result fields. | Continue with `DH-29` Contractor Workflow Backend. |
 | `DH-29` | Improved, backend baseline added | `contractorWorkspaceService.js`, `contractorWorkspace.js`, `/contractor-workspace/queue`, `/requests/:id`, `/assign`, `/start`, `/resume`, `/waiting`, `/resolve`, migration `v1_033_contractor_workflow` and route/migration/authz tests now cover active/expiry profile checks, company status, limited payloads, assignment and completion events. | Continue with `DH-30` Contractor Portal UI. |
+| `DH-30` | Improved, frontend baseline added | `ContractorWorkspacePage`, `contractorWorkspaceApi`, `/v1/contractor-workspace` routing, restricted detail rendering and page/router tests now cover contractor queue/detail loading, filters, start/resume, waiting, resolve and local non-contractor denial. | Recheck `DH-31` Packages Domain and confirm no remaining package gaps. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Continue service-request specialization with `DH-30` contractor portal UI over the new contractor workspace API.
+2. Recheck `DH-31` Packages Domain and confirm no remaining package gaps before moving deeper into operations-ready hardening.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 

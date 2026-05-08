@@ -575,6 +575,8 @@ export interface StaffWorkspaceRequest {
   assignedToName: string | null;
   assignedToRole: string | null;
   assignedAt: IsoDateTime | null;
+  assignedContractorUserId: UUID | null;
+  assignedContractorCompanyId: UUID | null;
   startedAt: IsoDateTime | null;
   firstResponseAt: IsoDateTime | null;
   resolvedAt: IsoDateTime | null;
@@ -711,6 +713,68 @@ export interface TechnicianWorkspaceRequestDetail {
   internalComments: StaffWorkspaceUpdate[];
   slaEvents: StaffWorkspaceSlaEvent[];
   technicianEvents: TechnicianWorkspaceEvent[];
+}
+
+// ─── Contractor Workspace ─────────────────────────────────────────────────
+
+export type ContractorWorkspaceQueue =
+  | 'active'
+  | 'mine'
+  | 'in_progress'
+  | 'waiting'
+  | 'waiting_assignment'
+  | 'resolved'
+  | 'all';
+
+export interface ContractorWorkflowState {
+  canStart: boolean;
+  canResume: boolean;
+  canWait: boolean;
+  canResolve: boolean;
+}
+
+export interface ContractorWorkspaceProfile {
+  id: UUID | null;
+  uid: string | null;
+  fullName: string | null;
+  companyId: UUID | null;
+  companyName: string | null;
+  companyStatus: string | null;
+  accessExpiresAt: IsoDateTime | null;
+}
+
+export interface ContractorWorkspaceRequest extends Omit<StaffWorkspaceRequest, 'counters'> {
+  contractor: ContractorWorkspaceProfile | null;
+  workflow: ContractorWorkflowState;
+  counters: {
+    residentUpdates: number;
+    contractorEvents: number;
+  };
+}
+
+export interface ContractorWorkspaceEvent {
+  id: UUID;
+  requestId: string;
+  contractorUserId: UUID | null;
+  contractorCompanyId: UUID | null;
+  contractorUid: string | null;
+  actorUid: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  eventType: string;
+  fromStatus: StaffRequestStatus | string | null;
+  toStatus: StaffRequestStatus | string;
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime;
+}
+
+export interface ContractorWorkspaceRequestDetail {
+  request: ContractorWorkspaceRequest;
+  attachments: StaffWorkspaceAttachment[];
+  residentUpdates: StaffWorkspaceUpdate[];
+  internalComments: StaffWorkspaceUpdate[];
+  slaEvents: StaffWorkspaceSlaEvent[];
+  contractorEvents: ContractorWorkspaceEvent[];
 }
 
 export interface StaffResidentQuickView {

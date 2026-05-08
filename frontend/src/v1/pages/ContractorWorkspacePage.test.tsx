@@ -4,13 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type {
-  TechnicianWorkspaceRequest,
-  TechnicianWorkspaceRequestDetail,
+  ContractorWorkspaceRequest,
+  ContractorWorkspaceRequestDetail,
   UserMe,
 } from '../api/types';
 
 const {
-  claimRequestMock,
   getRequestDetailMock,
   listQueueMock,
   resolveRequestMock,
@@ -18,7 +17,6 @@ const {
   setWaitingMock,
   startRequestMock,
 } = vi.hoisted(() => ({
-  claimRequestMock: vi.fn(),
   getRequestDetailMock: vi.fn(),
   listQueueMock: vi.fn(),
   resolveRequestMock: vi.fn(),
@@ -32,10 +30,9 @@ vi.mock('../api', async () => {
   return {
     ...actual,
     api: {
-      technicianWorkspace: {
+      contractorWorkspace: {
         listQueue: listQueueMock,
         getRequestDetail: getRequestDetailMock,
-        claimRequest: claimRequestMock,
         startRequest: startRequestMock,
         resumeRequest: resumeRequestMock,
         setWaiting: setWaitingMock,
@@ -46,16 +43,18 @@ vi.mock('../api', async () => {
   };
 });
 
-import { TechnicianWorkspacePage } from './TechnicianWorkspacePage';
+import { ContractorWorkspacePage } from './ContractorWorkspacePage';
 import { V1SessionProvider } from '../store';
 
 const ATTACHMENT_ID = '11111111-1111-4111-8111-111111111111';
+const CONTRACTOR_USER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const CONTRACTOR_COMPANY_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 function makeUser(overrides: Partial<UserMe> = {}): UserMe {
   return {
-    uid: 'tech-1',
-    role: 'technician',
-    name: 'Техник',
+    uid: 'contractor-uid-1',
+    role: 'contractor',
+    name: 'Сергей Подрядчик',
     phone: null,
     apartment: null,
     avatar: null,
@@ -66,10 +65,10 @@ function makeUser(overrides: Partial<UserMe> = {}): UserMe {
   };
 }
 
-function makeRequest(overrides: Partial<TechnicianWorkspaceRequest> = {}): TechnicianWorkspaceRequest {
+function makeRequest(overrides: Partial<ContractorWorkspaceRequest> = {}): ContractorWorkspaceRequest {
   return {
     id: 'req-1',
-    type: 'service',
+    type: 'repair',
     category: 'plumber',
     status: 'in_progress',
     priority: 'high',
@@ -82,12 +81,12 @@ function makeRequest(overrides: Partial<TechnicianWorkspaceRequest> = {}): Techn
     dueAt: '2026-05-08T10:00:00Z',
     isOverdue: false,
     emergencyMetadata: {},
-    assignedToUid: 'tech-1',
-    assignedToName: 'Техник',
-    assignedToRole: 'technician',
+    assignedToUid: 'contractor-uid-1',
+    assignedToName: 'Сергей Подрядчик',
+    assignedToRole: 'contractor',
     assignedAt: '2026-05-08T07:15:00Z',
-    assignedContractorUserId: null,
-    assignedContractorCompanyId: null,
+    assignedContractorUserId: CONTRACTOR_USER_ID,
+    assignedContractorCompanyId: CONTRACTOR_COMPANY_ID,
     startedAt: '2026-05-08T08:05:00Z',
     firstResponseAt: '2026-05-08T08:05:00Z',
     resolvedAt: null,
@@ -121,8 +120,16 @@ function makeRequest(overrides: Partial<TechnicianWorkspaceRequest> = {}): Techn
       name: 'Иван Петров',
       apt: '12',
     },
+    contractor: {
+      id: CONTRACTOR_USER_ID,
+      uid: 'contractor-uid-1',
+      fullName: 'Сергей Подрядчик',
+      companyId: CONTRACTOR_COMPANY_ID,
+      companyName: 'ООО Ремонт',
+      companyStatus: 'active',
+      accessExpiresAt: '2026-06-01T00:00:00Z',
+    },
     workflow: {
-      canClaim: false,
       canStart: false,
       canResume: false,
       canWait: true,
@@ -130,21 +137,19 @@ function makeRequest(overrides: Partial<TechnicianWorkspaceRequest> = {}): Techn
     },
     counters: {
       residentUpdates: 1,
-      internalComments: 1,
-      slaEvents: 0,
-      technicianEvents: 1,
+      contractorEvents: 1,
     },
     ...overrides,
   };
 }
 
-function makeDetail(request = makeRequest()): TechnicianWorkspaceRequestDetail {
+function makeDetail(request = makeRequest()): ContractorWorkspaceRequestDetail {
   return {
     request,
     attachments: [{
       id: ATTACHMENT_ID,
       requestId: request.id,
-      uploadedByUid: 'tech-1',
+      uploadedByUid: 'contractor-uid-1',
       fileUrl: '/uploads/result.jpg',
       fileKind: 'photo',
       visibility: 'resident',
@@ -165,22 +170,34 @@ function makeDetail(request = makeRequest()): TechnicianWorkspaceRequestDetail {
     internalComments: [{
       id: '55555555-5555-4555-8555-555555555555',
       requestId: request.id,
-      actorUid: 'tech-1',
-      actorName: 'Техник',
-      actorRole: 'technician',
-      body: 'Проверяю узел ввода',
+      actorUid: 'staff-1',
+      actorName: 'Мария Консьерж',
+      actorRole: 'concierge',
+      body: 'Внутренний staff-only комментарий',
       visibility: 'internal',
       attachmentIds: [],
       createdAt: '2026-05-08T08:20:00Z',
     }],
-    slaEvents: [],
-    technicianEvents: [{
+    slaEvents: [{
       id: '66666666-6666-4666-8666-666666666666',
       requestId: request.id,
-      technicianUid: 'tech-1',
-      actorUid: 'tech-1',
-      actorName: 'Техник',
-      actorRole: 'technician',
+      eventKey: 'req-1:resolution_due',
+      eventType: 'resolution_due',
+      severity: 'warning',
+      dueAt: '2026-05-08T10:00:00Z',
+      detectedAt: null,
+      metadata: {},
+      createdAt: '2026-05-08T08:00:00Z',
+    }],
+    contractorEvents: [{
+      id: '77777777-7777-4777-8777-777777777777',
+      requestId: request.id,
+      contractorUserId: CONTRACTOR_USER_ID,
+      contractorCompanyId: CONTRACTOR_COMPANY_ID,
+      contractorUid: 'contractor-uid-1',
+      actorUid: 'contractor-uid-1',
+      actorName: 'Сергей Подрядчик',
+      actorRole: 'contractor',
       eventType: 'started',
       fromStatus: 'accepted',
       toStatus: 'in_progress',
@@ -190,7 +207,7 @@ function makeDetail(request = makeRequest()): TechnicianWorkspaceRequestDetail {
   };
 }
 
-function mockTechnicianData(request = makeRequest()) {
+function mockContractorData(request = makeRequest()) {
   listQueueMock.mockResolvedValue({
     requests: [request],
     total: 1,
@@ -217,8 +234,7 @@ function renderWithProviders(node: ReactElement, user = makeUser()) {
 }
 
 beforeEach(() => {
-  mockTechnicianData();
-  claimRequestMock.mockResolvedValue({ request: makeRequest({ assignedToUid: 'tech-1' }) });
+  mockContractorData();
   startRequestMock.mockResolvedValue({ request: makeRequest({ status: 'in_progress' }) });
   resumeRequestMock.mockResolvedValue({ request: makeRequest({ status: 'in_progress' }) });
   setWaitingMock.mockResolvedValue({ request: makeRequest({ status: 'waiting_parts' }) });
@@ -235,23 +251,24 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('TechnicianWorkspacePage', () => {
-  test('loads technician queue, detail, attachments and timelines', async () => {
-    renderWithProviders(<TechnicianWorkspacePage />);
+describe('ContractorWorkspacePage', () => {
+  test('loads contractor queue, detail, public attachments and contractor timeline', async () => {
+    renderWithProviders(<ContractorWorkspacePage />);
 
-    expect(await screen.findByRole('heading', { name: /рабочее место техника/i })).toBeInTheDocument();
-    expect(await screen.findByText('Проверяю узел ввода')).toBeInTheDocument();
-    expect(screen.getByText('Дома, доступ открыт')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /портал подрядчика/i })).toBeInTheDocument();
+    expect(await screen.findByText('ООО Ремонт')).toBeInTheDocument();
+    expect(await screen.findByText('Дома, доступ открыт')).toBeInTheDocument();
     expect(screen.getByText('/uploads/result.jpg')).toBeInTheDocument();
     expect(screen.getByText(/Работа начата/)).toBeInTheDocument();
+    expect(screen.queryByText('Внутренний staff-only комментарий')).toBeNull();
     expect(listQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({ queue: 'mine', limit: 30, offset: 0 }),
       expect.any(Object),
     );
   });
 
-  test('sends queue filters to technician workspace API', async () => {
-    renderWithProviders(<TechnicianWorkspacePage />);
+  test('sends queue filters to contractor workspace API', async () => {
+    renderWithProviders(<ContractorWorkspacePage />);
     await screen.findByText('Протечка в санузле');
 
     fireEvent.change(screen.getByLabelText('Очередь'), { target: { value: 'waiting' } });
@@ -271,62 +288,59 @@ describe('TechnicianWorkspacePage', () => {
     });
   });
 
-  test('claims available work and starts assigned work', async () => {
-    const available = makeRequest({
-      status: 'pending',
-      assignedToUid: null,
-      assignedToName: null,
-      assignedToRole: null,
-      workflow: {
-        canClaim: true,
-        canStart: false,
-        canResume: false,
-        canWait: false,
-        canResolve: false,
-      },
-    });
-    mockTechnicianData(available);
-    const firstRender = renderWithProviders(<TechnicianWorkspacePage />);
-    await screen.findByText('Протечка в санузле');
-
-    fireEvent.click(screen.getByRole('button', { name: /взять задачу/i }));
-    await waitFor(() => {
-      expect(claimRequestMock).toHaveBeenCalledWith('req-1');
-    });
-
-    firstRender.unmount();
-    vi.clearAllMocks();
+  test('starts assigned work and resumes waiting work', async () => {
     const assigned = makeRequest({
-      status: 'accepted',
+      status: 'assigned',
+      startedAt: null,
       workflow: {
-        canClaim: false,
         canStart: true,
         canResume: false,
         canWait: false,
         canResolve: false,
       },
     });
-    mockTechnicianData(assigned);
-    renderWithProviders(<TechnicianWorkspacePage />);
+    mockContractorData(assigned);
+    const firstRender = renderWithProviders(<ContractorWorkspacePage />);
     await screen.findByText('Протечка в санузле');
 
     fireEvent.click(screen.getByRole('button', { name: /^начать$/i }));
     await waitFor(() => {
       expect(startRequestMock).toHaveBeenCalledWith('req-1');
     });
+
+    firstRender.unmount();
+    vi.clearAllMocks();
+    const waiting = makeRequest({
+      status: 'waiting_parts',
+      workflow: {
+        canStart: false,
+        canResume: true,
+        canWait: false,
+        canResolve: false,
+      },
+    });
+    mockContractorData(waiting);
+    renderWithProviders(<ContractorWorkspacePage />);
+    await screen.findByText('Протечка в санузле');
+
+    fireEvent.click(screen.getByRole('button', { name: /^возобновить$/i }));
+    await waitFor(() => {
+      expect(resumeRequestMock).toHaveBeenCalledWith('req-1');
+    });
   });
 
-  test('sets waiting state and resolves work with result fields', async () => {
-    renderWithProviders(<TechnicianWorkspacePage />);
-    await screen.findByText('Проверяю узел ввода');
+  test('sets waiting parts and resolves work with result fields', async () => {
+    renderWithProviders(<ContractorWorkspacePage />);
+    await screen.findByText('ООО Ремонт');
 
-    fireEvent.change(screen.getByLabelText('Ожидание'), { target: { value: 'parts' } });
-    fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Нужен смеситель' } });
-    fireEvent.click(screen.getByRole('button', { name: /поставить на ожидание/i }));
+    fireEvent.change(screen.getByLabelText('Комментарий к ожиданию'), {
+      target: { value: 'Нет фитинга' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /ждём материалы/i }));
     await waitFor(() => {
       expect(setWaitingMock).toHaveBeenCalledWith(
         'req-1',
-        { reason: 'parts', note: 'Нужен смеситель' },
+        { reason: 'parts', note: 'Нет фитинга' },
       );
     });
 
@@ -337,7 +351,7 @@ describe('TechnicianWorkspacePage', () => {
       target: { value: `${ATTACHMENT_ID}, 22222222-2222-4222-8222-222222222222` },
     });
     fireEvent.click(screen.getByLabelText(/нужен контрольный осмотр/i));
-    fireEvent.click(screen.getByRole('button', { name: /завершить задачу/i }));
+    fireEvent.click(screen.getByRole('button', { name: /сдать работу/i }));
 
     await waitFor(() => {
       expect(resolveRequestMock).toHaveBeenCalledWith(
@@ -354,10 +368,10 @@ describe('TechnicianWorkspacePage', () => {
     });
   });
 
-  test('denies non-technician resident locally', async () => {
-    renderWithProviders(<TechnicianWorkspacePage />, makeUser({ role: 'owner' }));
+  test('denies non-contractor resident locally', async () => {
+    renderWithProviders(<ContractorWorkspacePage />, makeUser({ role: 'owner' }));
 
-    expect(await screen.findByText(/доступно только техникам/i)).toBeInTheDocument();
+    expect(await screen.findByText(/доступен только подрядчикам/i)).toBeInTheDocument();
     expect(listQueueMock).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import type {
   ListAccessRequestsParams,
   ListAdminAnnouncementsParams,
   ListAnnouncementsParams,
+  ListContractorWorkspaceQueueParams,
   ListDocumentsParams,
   ListIncidentsParams,
   ListStaffWorkspaceInboxParams,
@@ -77,6 +78,12 @@ export const qk = {
     queue: (p?: ListTechnicianWorkspaceQueueParams) =>
       ['v1', 'technician-workspace', 'queue', p ?? null] as const,
     request: (id: string) => ['v1', 'technician-workspace', 'request', id] as const,
+  },
+  contractorWorkspace: {
+    all: ['v1', 'contractor-workspace'] as const,
+    queue: (p?: ListContractorWorkspaceQueueParams) =>
+      ['v1', 'contractor-workspace', 'queue', p ?? null] as const,
+    request: (id: string) => ['v1', 'contractor-workspace', 'request', id] as const,
   },
   units: {
     all: ['v1', 'units'] as const,
@@ -164,6 +171,17 @@ export function invalidateTechnicianWorkspaceRequest(
   return Promise.all([
     qc.invalidateQueries({ queryKey: qk.technicianWorkspace.request(id) }),
     qc.invalidateQueries({ queryKey: qk.technicianWorkspace.all }),
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
+  ]).then(() => undefined);
+}
+
+export function invalidateContractorWorkspaceRequest(
+  qc: QueryClient,
+  id: string,
+): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.contractorWorkspace.request(id) }),
+    qc.invalidateQueries({ queryKey: qk.contractorWorkspace.all }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
   ]).then(() => undefined);
 }
