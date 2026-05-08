@@ -1,0 +1,207 @@
+# DomHub Project Implementation Status
+
+Date: 2026-05-08
+Status: audit snapshot
+
+This file records what is visible in the current `rezidence4` working tree against the `DH-01` through `DH-61` project backlog. It is not a roadmap and does not override `domhub-final-product-plan.md`, `domhub-master-jira-backlog.md`, or the supporting specs.
+
+Important limitation: the working tree contains many uncommitted and untracked changes. This status means "present in the current local codebase", not "merged, deployed, and production-validated".
+
+## Legend
+
+- `Implemented baseline` - code exists for the main operational path, but normal hardening and release validation may still be required.
+- `Partial` - some foundation exists, but the ticket's Definition of Done is not fully met.
+- `Docs/planned` - documented in specs/backlog, but not implemented as product/runtime behavior.
+- `Legacy/prototype` - older or experimental implementation exists, but it is not aligned enough with the current platform-v1 target.
+
+## Executive Summary
+
+DomHub is no longer just documentation. The codebase already contains a meaningful platform-v1 core:
+
+- platform tenant registry, property lifecycle, tenant resolution, platform admin APIs;
+- property structure, role/scope membership primitives, and profile entities for residents, staff, contractors;
+- vehicle model, access topology, access requests, passes, QR/plate verification, visit logs, incidents and overrides;
+- v1 frontend routes for resident access, guard console, onboarding, announcements, documents and packages;
+- notifications outbox/log infrastructure, documents, announcements and packages v2;
+- partial management-company, platform-admin, analytics, feature-gating and integration surfaces.
+
+The largest gaps are still structural:
+
+- durable `access_policies` runtime tables/routes now exist as a backend baseline;
+- guard verification now accepts and stores optional `access_point_id` and `direction`; guard UI can select active access points, choose entry/exit, and record manual admit/deny decisions;
+- access decisions are now backed by a deterministic policy engine baseline; manual КПП decisions now have a backend baseline, while full admin UI and offline policy/cache replay are still missing;
+- service-request v1, assignment, SLA and staff workspace are mostly legacy/partial;
+- Russia-readiness tickets `DH-55` through `DH-61` are mostly documented, not runtime-complete.
+
+## Status By Delivery Block
+
+| Block | Tickets | Status | Notes |
+|---|---:|---|---|
+| Core Access Foundation | `DH-01` to `DH-09` | Partial to implemented baseline | Strong base exists, including DH-06 topology and DH-09 row-property guard baseline; full route-by-route scope audit is still incomplete. |
+| Operational Access Backend | `DH-10` to `DH-16` | Implemented backend baseline, with hardening gaps | Requests, passes, vehicles, verification, incidents, policy CRUD/engine, security workspace and manual point-scoped actions exist; offline client replay and broader E2E remain. |
+| Pilot-Capable Access Product | `DH-17` to `DH-20` | Partial | Resident/guard/onboarding UI exists; checkpoint selector, entry/exit control, manual decision UI, property access admin baseline, planned-checkpoint conversion baseline and DH-20 production smoke E2E exist; offline replay and full release-gate validation remain. |
+| Operations-Ready v2 | `DH-21` to `DH-34` | Mixed | Content, packages and notifications are advanced; service requests, SLA, staff/technician/contractor workflows are incomplete. |
+| Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives exist; portfolio ops and integrations need hardening. |
+| Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial/docs | Some SKUD prototypes, tests and ops docs exist; not a production hardening layer yet. |
+| Russia Production Readiness | `DH-55` to `DH-61` | Mostly docs/planned | Consent/delete baseline exists, but lifecycle/offboarding, emergency, GIS/OSS, hardware registry and reviews are not complete. |
+| Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
+
+## Ticket-Level Status
+
+| Ticket | Title | Status | Evidence / gap |
+|---|---|---|---|
+| `DH-01` | Tenant Foundation | Implemented baseline | `platformMigrations.js`, platform property/admin routes, and `propertyDbMiddleware` exist. Needs final release validation for isolation. |
+| `DH-02` | Property Structure | Implemented baseline | v1 `buildings`, `entrances`, `units` migrations/routes exist; cottage labels/import support exists. |
+| `DH-03` | Memberships And Roles | Partial | `role_scope_memberships` migration/spec and scope-aware authz primitives exist; property-scoped create gates and row-property guards are now applied in structure/residents/staff/contractors/vehicles. Remaining work: platform/company subject provisioning and persistence-backed membership lookup. |
+| `DH-04` | Profiles Domain | Implemented baseline | `residents`, `staff_users`, `contractor_companies`, `contractor_users` migrations/routes exist. |
+| `DH-05` | Vehicle Model | Implemented baseline | `vehicles` migration/routes/service, normalization, whitelist/blacklist and ownership checks exist. |
+| `DH-06` | Access Zones And Points | Implemented backend baseline | `access_zones` / `access_points` migration, FK-ready constraints, CRUD routes, validation helper, import provisioning and guard verify wiring exist. |
+| `DH-07` | Access Request And Pass Schema | Implemented baseline | `access_requests`, `access_approvals`, `passes`, `qr_passes_v2`, `visit_logs_v2` migrations exist and now carry optional topology references through runtime flows. |
+| `DH-08` | Access Incident And Audit Schema | Partial, backend review baseline added | `access_incidents`, `access_overrides`, `property_audit_log`, audit event catalog and read-only sensitive-action report exist; full DH-60 review workflow is not implemented. |
+| `DH-09` | Permission Middleware | Partial, backend guard baseline added | Shared capability middleware, property-scope helpers and `resourceScope` row ownership lookups now protect critical id-only mutations in structure/residents/staff/contractors/vehicles. Remaining work: complete all v1 route coverage and replace derived JWT scope with persisted memberships. |
+| `DH-10` | Access Request Service | Implemented baseline | `accessRequestService.js`, lifecycle routes and transition guards exist; optional topology target validation and pass inheritance are wired. |
+| `DH-11` | Pass Issuance And QR Flow | Implemented baseline | `passService.js`, pass routes, QR fetch/regenerate/revoke/block flows exist; direct passes can carry validated `zone_id` / `point_id`. |
+| `DH-12` | Vehicle Access Service | Partial | Plate verification and vehicle access exist and can persist `access_point_id`; verify now supports entry/exit direction, but richer vehicle-specific policy decisions are incomplete. |
+| `DH-13` | Policy And Approval CRUD | Implemented backend baseline | `028_access_policies`, `accessPolicyService.js`, `/api/v1/access-policies`, default policy templates and route tests exist. |
+| `DH-14` | Policy Evaluation Engine | Implemented backend baseline | Deterministic priority/schedule/scope evaluation is wired into `verifyPass` after hard checks; verify API and audit include `policy_decision`. |
+| `DH-15` | Security Workspace API | Implemented backend baseline | `/api/v1/security-workspace/bootstrap`, `/search`, `/recent-events` exist; verify supports `direction=entry|exit`; manual/degraded decision action is covered by `DH-16`. |
+| `DH-16` | Manual Override And Incident Flow | Implemented backend baseline | `/api/v1/security-workspace/manual-decision` records manual admit/deny as visit log + resolved manual_override incident + override + sensitive audit; local offline replay and UI are still missing. |
+| `DH-17` | Resident Access UI | Partial | `ResidentAccessPage` and access request components exist; not all end-to-end cases are complete. |
+| `DH-18` | Security Workspace UI | Improved, still partial | `GuardConsolePage` and `ScanPanel` exist with vehicle-first cottage behavior, active access-point selector, entry/exit control and manual admit/deny form with degraded metadata; offline replay and broader event panels are missing. |
+| `DH-19` | Property Admin UI | Improved, baseline added | `/v1/admin/access` now covers access zones/points, policy creation/deactivation, vehicle flag lookup, and incident review; richer edit flows and analytics are still missing. |
+| `DH-20` | Onboarding, Import, And Smoke E2E | Improved, smoke E2E added | CSV import supports cottage homes/vehicles and provisions planned checkpoints into real `access_zones` / `access_points`; `e2e/v1-access-production.spec.js` now covers cottage onboarding import, checkpoint selector, vehicle verify with `access_point_id` + `direction` + `policy_decision`, and manual admit. Full release-gate validation still depends on live E2E DB/infra. |
+| `DH-21` | Resident Auth And Session Hardening | Improved, still partial | Auth, `/me`, refresh, consent and delete-account now use tenant DB context where `req.db` is attached; admin/user offboarding and privacy deletion revoke refresh tokens, invalidate active-session cache and clear current auth cookies. Remaining work: full v1 subject split, consent history and lifecycle hooks under `DH-55`/`DH-56`. |
+| `DH-22` | Request Categories And Request Core | Improved, backend baseline added | `/api/v1/requests` now has category catalog/config endpoints, territory/emergency built-in categories, tenant-aware request service calls, v1 target/priority/SLA fields and migration `v1_029_service_request_core`; local DB migration applied successfully. Full dedicated `service_requests` split, assignment and UI remain deferred. |
+| `DH-23` | Request Attachments And Resident Updates | Improved, backend baseline added | `request_attachments`, `request_updates`, `/requests/:id/attachments`, `/requests/:id/updates`, local upload ownership validation and resident-visible filtering now exist. Internal-only staff notes UI/API remain deferred. |
+| `DH-24` | Assignment, SLA, And Escalation Engine | Improved, backend baseline added | `v1_031_request_assignment_sla`, request assignee/SLA columns, `request_sla_events`, `/requests/:id/assign`, `/requests/:id/first-response`, lifecycle timestamp updates and deterministic SLA event escalation now exist. Company-level SLA UI remains deferred. |
+| `DH-25` | Staff Workspace API | Improved, backend baseline added | `/api/v1/staff-workspace` now exposes inbox, overdue queue, request detail aggregation, internal comments and resident quick view. Phone visibility and resident denial are covered by tests. |
+| `DH-26` | Staff Workspace UI | Improved, frontend baseline added | `/v1/staff-workspace` now provides a unified staff inbox, queue/status/priority/search filters, request detail workspace, internal notes, resident quick view, SLA timeline and quick actions for assignment, first response and status transitions. |
+| `DH-27` | Technician Workflow Backend | Docs/planned | Technician role exists, but no full technician queue/workflow backend. |
+| `DH-28` | Technician Workflow UI | Docs/planned | No technician execution workspace found. |
+| `DH-29` | Contractor Workflow Backend | Partial | Contractor profile and access foundations exist; no full contractor request/work execution flow. |
+| `DH-30` | Contractor Portal UI | Docs/planned | No dedicated contractor portal found. |
+| `DH-31` | Packages Domain | Implemented baseline | `packages_v2`, package SLA/reminder services and admin/resident pages exist. |
+| `DH-32` | Announcements And Documents Backend | Implemented baseline | `announcements_v2`, `documents_v2`, versions, public/admin routes and services exist. |
+| `DH-33` | Resident Communications UI | Implemented baseline | Resident announcements and documents pages exist. |
+| `DH-34` | Notification Orchestration | Partial | Outbox, log, worker, templates and adapters exist; channel production configuration/reliability still needs validation. |
+| `DH-35` | Property Admin Operational Dashboard | Partial | Admin/config surfaces exist, but no complete object-level operations dashboard with review workflows. |
+| `DH-36` | Management Company Portfolio API | Partial | Management-company platform routes and platform analytics exist; portfolio KPIs/governance are not complete. |
+| `DH-37` | Management Company Portfolio UI | Partial | Platform admin management-company pages exist; full MC admin portfolio workspace is not complete. |
+| `DH-38` | Platform Admin Registry And Property Lifecycle | Implemented baseline | Platform properties/admins/stats/audit routes and lifecycle operations exist. |
+| `DH-39` | Packaging And Feature Gating Enforcement | Implemented baseline | Feature-flag registry, admin settings and legacy utility freeze gates exist. |
+| `DH-40` | Webhooks And Outbound Integration Baseline | Partial | Legacy webhooks/integrations and outbox foundations exist; not yet a full canonical integration layer. |
+| `DH-41` | SKUD Adapter Framework | Legacy/prototype | `services/skud` adapters exist, but not wired to v1 topology/policy/device registry. |
+| `DH-42` | SKUD Vendor Integration Wave 1 | Legacy/prototype | Bolid/Hikvision adapter code exists; production vendor rollout is not complete. |
+| `DH-43` | Video Evidence Integration | Docs/planned | No first-class video evidence link/review workflow found. |
+| `DH-44` | ERP / 1C / ЖКХ Exchange Baseline | Partial/prototype | Generic integrations exist; no complete ERP/1C/ЖКХ exchange layer. |
+| `DH-45` | Analytics Aggregation Jobs | Partial | Some analytics endpoints and outbox/package metrics exist; canonical event-based aggregation is incomplete. |
+| `DH-46` | Onboarding Center And Import Wizard | Partial | v1 onboarding/import exists for structure/residents/vehicles/planned checkpoints; staff/contractor/lifecycle imports are incomplete. |
+| `DH-47` | Deployment And Tenant Ops Automation | Partial | Migrations, Docker and some ops scripts/runbooks exist; full tenant ops automation is incomplete. |
+| `DH-48` | Regression E2E And Release Gates | Partial | Unit/smoke/e2e files and coverage gates exist; full release-blocking gate matrix is not proven in this audit. |
+| `DH-49` | Pilot Rollout Tooling And Runbooks | Partial/docs | Runbook index and support docs exist; pilot tooling and degraded-mode product support are incomplete. |
+| `DH-50` | Meter Readings Module | Legacy/prototype | Legacy meter routes are present and feature-gated; not a final expansion module. |
+| `DH-51` | Billing Records Baseline | Legacy/prototype | Legacy billing routes are present and feature-gated; not final v2 billing. |
+| `DH-52` | Space Booking Module | Legacy/prototype | Legacy spaces/bookings are present and feature-gated; not final expansion work. |
+| `DH-53` | OCR And Smart Capture | Docs/planned | No OCR product implementation found. |
+| `DH-54` | White-Label And Branding Expansion | Partial | Some styling/runtime surfaces exist; full customer branding module is not complete. |
+| `DH-55` | Resident Lifecycle And Ownership Changes | Docs/planned | Basic resident active/consent fields exist; ownership/membership lifecycle and offboarding cascades are missing. |
+| `DH-56` | RU Personal Data Compliance Controls | Partial | Consent and account deletion/anonymization baseline exists; consent history, DSAR workflow, classification and localization controls are incomplete. |
+| `DH-57` | Emergency Dispatch Mode | Docs/planned | Emergency categories exist in docs/content, but no dedicated emergency request runtime/SLA mode. |
+| `DH-58` | GIS ЖКХ And OSS Readiness | Docs/planned | Documents/announcements can store content; no GIS/OSS export/readiness workflow. |
+| `DH-59` | Hardware Device Registry And Manual-Control Boundaries | Docs/planned | SKUD prototypes exist, but no hardware device registry/manual-control boundary model. |
+| `DH-60` | Sensitive Action Audit And Anti-Abuse Reviews | Partial | Audit log exists; review reports/workflows for sensitive actions are not implemented. |
+| `DH-61` | Pilot Operations And Training Pack | Partial/docs | Runbook docs exist; not packaged as an operational product/training workflow. |
+
+## Sequential Verification Progress
+
+Started after `DH-03` implementation pass on 2026-05-05.
+
+| Ticket | Verification result | Evidence checked | Next action |
+|---|---|---|---|
+| `DH-01` | Confirmed implemented baseline | `propertyDbMiddleware`, platform property/admin routes, platform DB/property tests. | Keep release validation for isolation/cross-tenant regression. |
+| `DH-02` | Confirmed implemented baseline | `001_buildings`, `002_entrances`, `003_units`, `structure.js`, cottage import/template support. | No immediate blocker; dependent on `DH-06` for real checkpoints. |
+| `DH-03` | Improved, still partial | `026_role_scope_memberships`, `authz.js`, scope tests, property-scoped create gates and row-property guards in v1 routes. | Add persisted membership lookup/provisioning for platform/company subjects. |
+| `DH-04` | Confirmed implemented baseline | `004_residents`, `005_staff_users`, `006_contractor_companies`, `007_contractor_users`, profile routes. | Later hardening: lifecycle/offboarding under `DH-55`. |
+| `DH-05` | Confirmed implemented baseline | `008_vehicles`, `vehicles.js`, `vehicleService.js`, whitelist/blacklist/owner checks. | Later hardening: checkpoint-aware vehicle decisions under `DH-12`/`DH-15`. |
+| `DH-06` | Improved to backend baseline | `027_access_topology`, `accessTopology.js`, `accessTopologyService.js`, route/service tests and updated platform-v1 spec now exist. | Use topology in policy CRUD/evaluation under DH-13/DH-14. |
+| `DH-07` | Rechecked implemented baseline | `009_access_requests`, `010_access_approvals`, `011_passes`, `012_qr_passes_v2`, `013_visit_logs_v2`; topology ids now flow through access request, pass and visit-log services. | Keep schema release validation with FK constraints. |
+| `DH-08` | Improved, still partial | `014_access_incidents`, `015_access_overrides`, `property_audit_log`, `auditEventCatalog.js`, `/api/v1/audit/sensitive-actions` route and tests. | Add full review assignment/attestation under `DH-60`; keep access incident flow tied to `DH-16`. |
+| `DH-09` | Improved, still partial | `resourceScope.js`, `authz.js`, and route guards now resolve row `property_id` before critical id-only writes in structure/residents/staff/contractors/vehicles. | Continue route coverage for access incidents, passes, packages, documents, announcements and management-company/platform surfaces. |
+| `DH-10` | Rechecked implemented baseline | `accessRequests.js`, `accessRequestService.js`, state-machine tests and route tests; topology targets validate and pass inheritance is covered. | Later add policy-backed approval rules under DH-13/DH-14. |
+| `DH-11` | Rechecked implemented baseline | `passes.js`, `passService.js`, QR/regenerate/revoke/block tests; direct pass topology scope is wired. | Keep policy binding nullable until DH-13/DH-14. |
+| `DH-12` | Rechecked partial | `verifyPass.js`, `visitService.js`, `visits.js`; QR/plate verification can store `access_point_id` and direction. | Add richer policy-backed vehicle decisions. |
+| `DH-13` | Implemented backend baseline | `028_access_policies`, `accessPolicies.js`, `accessPolicyService.js`, template catalog and CRUD tests now exist. | Add richer approval-rule UI later. |
+| `DH-14` | Implemented backend baseline | `verifyPass` now evaluates active policies after base hard checks and records `policy_decision` trace in API/audit. | Add degraded guard policy cache and broader policy E2E. |
+| `DH-15` | Implemented backend baseline | `securityWorkspace.js`, `securityWorkspaceService.js`, route tests and verify `direction=entry|exit` now exist. | Wire full UI under `DH-18`; keep offline replay as hardening. |
+| `DH-16` | Implemented backend baseline | `createManualSecurityDecision` and `POST /security-workspace/manual-decision` now write visit log, resolved incident, override and audit in one transaction. | Add local offline queue/replay under hardening. |
+| `DH-18` | Improved, still partial | `ScanPanel` loads `/access-points`, lets guard select КПП, sends `access_point_id` and `direction` to `/visits/verify`, and records manual admit/deny through `/security-workspace/manual-decision`. | Add local offline replay and recent-event panel integration. |
+| `DH-19` | Improved, baseline added | `AccessAdminPage`, `accessPoliciesApi`, topology mutation helpers and `/v1/admin/access` route now exist for topology, policies, vehicle flags and incident review. | Add edit/details flows, policy dry-run UI and richer admin analytics. |
+| `DH-20` | Improved, smoke E2E added | `units/import` converts `planned_access_points` into `access_topology` zones/points; onboarding UI shows provisioned КПП; `v1-access-production.spec.js` now covers cottage import → policy → guard КПП selector → plate verify/manual admit. | Run full strict E2E against live local/staging DB before marking pilot-ready. |
+| `DH-21` | Improved, still partial | `auth.js`, `middleware/auth.js`, `privacy.js`, `users.js` and `authSessionService.js` now align session reads/writes with tenant DB context and close refresh-token/cache gaps on offboarding. Focused auth/privacy/users tests pass. | Continue with full resident subject provisioning, consent history and lifecycle/offboarding cascades in `DH-55`/`DH-56`. |
+| `DH-22` | Improved, backend baseline added | `service_request_categories`, request target/priority/SLA columns, `/requests/categories` endpoints, territory/emergency defaults and tests now exist. `/api/v1/requests` remains the compatibility bridge instead of a final dedicated table split. | Continue with attachments/resident updates in `DH-23`, then assignment/SLA automation in `DH-24`. |
+| `DH-23` | Improved, backend baseline added | `v1_030_request_attachments_updates`, `RequestUpdatesService`, `/requests/:id/attachments`, `/requests/:id/updates`, upload ACL integration and focused tests now exist. | Continue with assignment/SLA automation in `DH-24`; later add internal staff notes UI/API and richer media gallery only if product scope requires it. |
+| `DH-24` | Improved, backend baseline added | `RequestSlaService`, `v1_031_request_assignment_sla`, `/requests/:id/assign`, `/requests/:id/first-response`, request lifecycle timestamps and `request_sla_events` now exist; runtime SLA job uses idempotent events instead of only legacy history markers. | Continue with `DH-25` staff workspace API: inbox filters, overdue queues and request detail aggregation over the new assignment/SLA fields. |
+| `DH-25` | Improved, backend baseline added | `staffWorkspaceService.js`, `staffWorkspace.js`, `/staff-workspace/inbox`, `/overdue`, `/requests/:id`, `/requests/:id/internal-comments` and `/residents/:id/quick-view` now exist with access and phone-visibility tests. | Use these contracts from `DH-26`; keep backend hardening for dedicated service-request v1 split. |
+| `DH-26` | Improved, frontend baseline added | `StaffWorkspacePage`, `staffWorkspaceApi`, `/v1/staff-workspace` routing, router smoke coverage and page tests now cover queue loading/filtering, request detail, resident quick view, internal notes and quick actions. | Continue with `DH-27` Technician Workflow Backend. |
+
+## Current Critical Path
+
+1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
+2. Continue service-request specialization with `DH-27` technician workflow backend, keeping staff workspace on the v1 contracts.
+3. Implement full sensitive-action review assignment/attestation under `DH-60`.
+4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
+
+## Validation Performed
+
+This audit used source inspection and read-only commands:
+
+- `platform-v1/README.md` and recent `git log --oneline -30`;
+- `rg --files backend/src/v1` and `rg --files frontend/src/v1`;
+- route/migration searches for v1 endpoints, schema entities, access topology, policy, emergency, ПДн and hardware terms;
+- Jira CSV/backlog inspection for `DH-01` through `DH-61`.
+
+Focused backend/frontend checks were executed for the latest `DH-03`/`DH-06`/`DH-08`/`DH-09`/`DH-18`/`DH-20`/`DH-21`/`DH-22`/`DH-23`/`DH-24`/`DH-25` updates:
+
+- `authz.test.js`
+- `v1Routes.test.js`
+- `v1PropertyMigrations.test.js`
+- `v1AccessTopologyRoutes.test.js`
+- `v1AccessTopologyService.test.js`
+- `v1AccessRequestsRoute.test.js`
+- `v1AccessRequestService.test.js`
+- `v1PassService.test.js`
+- `v1VisitService.test.js`
+- `v1VerifyPassOrchestration.test.js`
+- `v1VisitsRoute.test.js`
+- `v1ResourceScopeService.test.js`
+- `v1VehiclesRoute.test.js`
+- `v1AuditEventCatalog.test.js`
+- `v1AuditReviewsRoute.test.js`
+- `auth.test.js`
+- `auth.coverage.test.js`
+- `auth_redis_revocation.test.js`
+- `users.test.js`
+- `privacy.test.js`
+- `requests.test.js`
+- `requestSlaService.test.js`
+- `runtimeJobs.test.js`
+- `uploadAccess.test.js`
+- `requests_service_validation.test.js`
+- `v1PropertyMigrations.test.js`
+- `v1StaffWorkspaceRoutes.test.js`
+- `npx jest --runInBand --runTestsByPath src/__tests__/requests.test.js src/__tests__/requestSlaService.test.js src/__tests__/uploadAccess.test.js src/__tests__/v1PropertyMigrations.test.js`
+- `npx jest --runInBand --runTestsByPath src/__tests__/requests.test.js src/__tests__/requestSlaService.test.js src/__tests__/runtimeJobs.test.js src/__tests__/v1PropertyMigrations.test.js`
+- `npx jest --runInBand --runTestsByPath src/__tests__/v1StaffWorkspaceRoutes.test.js`
+- `npm --prefix backend run test:coverage:critical`
+- `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
+- `npm --prefix frontend run typecheck:compile`
+- `node --check e2e/v1-access-production.spec.js`
+- `node --check backend/src/e2e/seedV1Access.js`
+- `node --check scripts/run-strict-verify.cjs`
+- Playwright spec load/skip check for `e2e/v1-access-production.spec.js` with backend mode disabled
+- Backend-backed Playwright run for `e2e/v1-access-production.spec.js` with
+  `E2E_BACKEND_MODE=1`, `E2E_V1_ACCESS=1`, and
+  `E2E_PROPERTY_TYPE=cottage_community`: 2 tests passed, including DH-20
+  onboarding/import/checkpoint/policy/manual-decision smoke
+
+No full runtime test suite was executed for this snapshot.

@@ -5,8 +5,7 @@
  *   - wraps everything in <V1SessionProvider> so pages/RoleGate can use
  *     `useV1Session()` / `useV1SessionState()`;
  *   - provides role-based redirects at the /v1 index (residents → /v1/access,
- *     guards → /v1/guard, concierge-only → /v1/requests, admins see the full
- *     landing with cross-links);
+ *     security → /v1/guard, staff/admin → /v1/staff-workspace);
  *   - bridges URL params into page props so the pages themselves stay
  *     router-agnostic (the pages accept `requestId` / `onBack` props rather
  *     than calling `useParams()` internally).
@@ -34,9 +33,9 @@ import {
   V1SessionProvider,
   useV1SessionState,
   isConciergeRole,
-  isGuardRole,
   isResidentRole,
   isStaffRole,
+  normalizeUserRole,
 } from './store';
 import { RoleGate } from './components/RoleGate';
 import { ResidentAccessPage } from './pages/ResidentAccessPage';
@@ -45,16 +44,16 @@ import { ResidentAnnouncementsFeedPage } from './pages/ResidentAnnouncementsFeed
 import { ResidentDocumentsPage } from './pages/ResidentDocumentsPage';
 import { GuardConsolePage } from './pages/GuardConsolePage';
 import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
+import { StaffWorkspacePage } from './pages/StaffWorkspacePage';
 import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
 import { PackagesAdminPage } from './pages/PackagesAdminPage';
 import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
+import { OnboardingAdminPage } from './pages/OnboardingAdminPage';
+import { AccessAdminPage } from './pages/AccessAdminPage';
 import {
   Alert,
-  Button,
-  Card,
   Inline,
   Spinner,
-  Stack,
   uiClasses,
 } from './components/ui';
 
@@ -62,9 +61,19 @@ import {
 // stay listed where current sessions can still emit them.
 const RESIDENT_ALLOW = ['resident', 'owner', 'tenant'] as const;
 const GUARD_ALLOW = ['security', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
+const ADMIN_ALLOW = ['admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
 // concierge-detail is gated to staff because the approvals UI is a staff-only
 // view of the lifecycle; residents have their own (read-only) request cards.
 const CONCIERGE_ALLOW = ['concierge', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
+const STAFF_WORKSPACE_ALLOW = [
+  'concierge',
+  'security',
+  'staff',
+  'admin',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+] as const;
 
 export function V1Router() {
   return (
@@ -116,10 +125,34 @@ export function V1Router() {
           }
         />
         <Route
+          path="onboarding"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <OnboardingAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/access"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <AccessAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
           path="requests/:id"
           element={
             <RoleGate allow={CONCIERGE_ALLOW}>
               <ConciergeRequestDetailRoute />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="staff-workspace"
+          element={
+            <RoleGate allow={STAFF_WORKSPACE_ALLOW}>
+              <StaffWorkspacePage />
             </RoleGate>
           }
         />
@@ -160,9 +193,8 @@ export function V1Router() {
 //
 // Why not a static <Navigate>? Because `/v1` means different things per role:
 //   - resident  → their request list is the natural home
-//   - guard     → duty station
-//   - concierge → no list page (yet); show a small landing card with a link
-//     to paste a request id / go back to the legacy dashboard
+//   - security  → duty station
+//   - staff     → DH-26 operations workspace
 //
 // We intentionally do NOT redirect to /login here — RoleGate handles 401 via
 // window.location.  Loading state is rendered in place so the URL does not
@@ -192,55 +224,17 @@ function V1IndexRedirect() {
 
   if (!user) return <Navigate to="/" replace />;
 
-  // Guard priority is highest: an admin who is also on duty as guard still
-  // wants the scan console as their home.  Residents get their own list.
-  if (isGuardRole(user.role)) return <Navigate to="/v1/guard" replace />;
+  // Security lands on the duty station. Admin/concierge roles land on the
+  // DH-26 operations workspace but can still open /v1/guard directly.
+  if (normalizeUserRole(user.role) === 'security') return <Navigate to="/v1/guard" replace />;
   if (isResidentRole(user.role)) return <Navigate to="/v1/access" replace />;
 
-  // Concierge / staff: no list page yet.  Show a small landing that explains
-  // how to reach a request (they typically arrive via a link from the legacy
-  // dashboard or from the request list that still lives there).
   if (isConciergeRole(user.role) || isStaffRole(user.role)) {
-    return <ConciergeLanding />;
+    return <Navigate to="/v1/staff-workspace" replace />;
   }
 
   // Unknown role — bounce to legacy dashboard.
   return <Navigate to="/" replace />;
-}
-
-function ConciergeLanding() {
-  const navigate = useNavigate();
-  return (
-    <div className={uiClasses.pageShell}>
-      <header className={uiClasses.pageHeader}>
-        <h1 className={uiClasses.pageTitle}>Платформа доступа</h1>
-        <p className={uiClasses.pageSubtitle}>
-          Откройте заявку из списка в основной консоли или перейдите на пост охраны.
-        </p>
-      </header>
-      <Stack>
-        <Card title="Куда перейти?">
-          <Inline>
-            <Button variant="secondary" onClick={() => navigate('/v1/guard')}>
-              Пост охраны
-            </Button>
-            <Button variant="secondary" onClick={() => navigate('/v1/announcements')}>
-              Объявления
-            </Button>
-            <Button variant="secondary" onClick={() => navigate('/v1/packages')}>
-              Посылки
-            </Button>
-            <Button variant="secondary" onClick={() => navigate('/v1/documents')}>
-              Документы
-            </Button>
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              Главная консоль
-            </Button>
-          </Inline>
-        </Card>
-      </Stack>
-    </div>
-  );
 }
 
 function V1LoadingShell({ children }: { children: ReactNode }) {

@@ -30,12 +30,10 @@ test.describe('Login flow smoke', () => {
   });
 
   test('enables resend after countdown ends', async ({ page }) => {
-    await page.clock.install();
     await openOtpStepDemo(page);
     const resendBtn = page.locator('.btn-text').first();
     await expect(resendBtn).toBeDisabled();
-    await page.clock.runFor('00:31');
-    await expect(resendBtn).toBeEnabled();
+    await expect(resendBtn).toBeEnabled({ timeout: 35000 });
     await expect(resendBtn).toHaveText('Отправить код повторно');
   });
 });

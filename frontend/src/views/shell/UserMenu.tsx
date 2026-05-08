@@ -31,6 +31,7 @@ export default function UserMenu({ user, pendingCount, onLogout, cycleTheme, the
   const [menuOpen, setMenuOpen] = useState(false);
   const [avOpen, setAvOpen] = useState(false);
   const headerUserRef = useRef<HTMLDivElement | null>(null);
+  const menuId = `user-menu-${user.uid}`;
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -59,67 +60,72 @@ export default function UserMenu({ user, pendingCount, onLogout, cycleTheme, the
     <>
       <div
         ref={headerUserRef}
-        className="header-user"
-        role="button"
-        tabIndex={0}
-        aria-label="Меню пользователя"
-        aria-expanded={menuOpen}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => setMenuOpen((value) => !value)}
-        onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), setMenuOpen((value) => !value))}
+        className="header-user-menu"
       >
-        <div className="header-info">
-          <div className="header-name">{user.name}</div>
-          <div className="header-role">{ROLE_LABELS[user.role]}</div>
-        </div>
-        <div className="u-rel">
-          <div className="header-avatar usermenu-avatar-reset">
-            <AvatarCircle avData={avData} role={user.role} name={user.name} size={34} fontSize={14} />
+        <button
+          type="button"
+          className="header-user"
+          aria-label="Меню пользователя"
+          aria-haspopup="true"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? menuId : undefined}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          <div className="header-info">
+            <div className="header-name">{user.name}</div>
+            <div className="header-role">{ROLE_LABELS[user.role]}</div>
           </div>
-          {canManageRequests(user.role) && pendingCount > 0 && (
-            <span className="usermenu-badge">{formatBadgeCount(pendingCount)}</span>
-          )}
-        </div>
+          <div className="u-rel">
+            <div className="header-avatar usermenu-avatar-reset">
+              <AvatarCircle avData={avData} role={user.role} name={user.name} size={34} fontSize={14} />
+            </div>
+            {canManageRequests(user.role) && pendingCount > 0 && (
+              <span className="usermenu-badge">{formatBadgeCount(pendingCount)}</span>
+            )}
+          </div>
+        </button>
         {menuOpen && (
-          <div className="dropdown">
-            <div className="dd-avatar-wrap" onClick={(event) => event.stopPropagation()}>
-              <div
+          <div
+            id={menuId}
+            className="dropdown"
+          >
+            <div className="dd-avatar-wrap">
+              <button
+                type="button"
                 className="usermenu-avatar-clickable"
-                role="button"
-                tabIndex={0}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={openAvatarModal}
-                onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && (event.preventDefault(), openAvatarModal())}
                 aria-label="Изменить аватарку"
               >
                 <div className="dd-avatar-big usermenu-avatar-reset">
                   <AvatarCircle avData={avData} role={user.role} name={user.name} size={56} fontSize={22} />
                   <div className="dd-avatar-overlay"><AppIcon name="camera" size={14} /></div>
                 </div>
+              </button>
+              <div className="dd-user-info">
+                <div className="dd-user-name">{user.name}</div>
+                <div className="dd-user-phone">{user.phone}</div>
               </div>
-            <div className="dd-user-info">
-              <div className="dd-user-name">{user.name}</div>
-              <div className="dd-user-phone">{user.phone}</div>
+              <button className="dd-upload-btn" onMouseDown={(event) => event.preventDefault()} onClick={openAvatarModal}>
+                Настроить аватарку
+              </button>
             </div>
-            <button className="dd-upload-btn" onMouseDown={(event) => event.preventDefault()} onClick={openAvatarModal}>
-              Настроить аватарку
+            <button
+              className="dd-action"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                cycleTheme();
+                setMenuOpen(false);
+              }}
+              aria-label={`Сменить тему. Сейчас: ${themeLabel}`}
+            >
+              <span className="dd-action-icon"><AppIcon name={themeIcon} size={14} /></span>
+              <span>Тема: {themeLabel}</span>
             </button>
+            <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
           </div>
-          <button
-            className="dd-action"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              cycleTheme();
-              setMenuOpen(false);
-            }}
-            aria-label={`Сменить тему. Сейчас: ${themeLabel}`}
-          >
-            <span className="dd-action-icon"><AppIcon name={themeIcon} size={14} /></span>
-            <span>Тема: {themeLabel}</span>
-          </button>
-          <button className="dd-out" onClick={onLogout}>Выйти из аккаунта</button>
-        </div>
-      )}
+        )}
       </div>
       {avOpen && typeof document !== 'undefined' && createPortal(
         <AvatarModal avatar={avData} onSave={saveAvatar} onClose={() => setAvOpen(false)} />,

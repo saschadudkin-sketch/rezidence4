@@ -123,9 +123,10 @@ Tenant isolation должна считаться **release-blocking област
 3. Resident creates request -> staff assigns -> technician resolves -> resident sees result  
 4. Contractor access tied to service request  
 5. Invalid QR -> incident created -> security resolves  
-6. Blacklisted vehicle attempt -> deny -> incident  
-7. Property admin creates policy -> resident flow follows new rule  
-8. Management company admin sees portfolio-level access analytics without raw cross-tenant leakage
+6. Blacklisted vehicle attempt -> deny -> incident
+7. Property admin creates policy -> resident flow follows new rule
+8. Cottage-community onboarding import -> provisioned КПП -> guard vehicle verify with policy decision -> manual admit
+9. Management company admin sees portfolio-level access analytics without raw cross-tenant leakage
 
 ## 3.5 Smoke tests
 
@@ -136,6 +137,7 @@ Tenant isolation должна считаться **release-blocking област
 - access request creation
 - QR public page availability
 - security dashboard load
+- cottage-community onboarding/checkpoint/guard smoke (`e2e/v1-access-production.spec.js` with `E2E_PROPERTY_TYPE=cottage_community`)
 - core analytics endpoint health
 
 ---

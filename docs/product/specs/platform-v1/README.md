@@ -17,6 +17,7 @@
 | [staff-users](./staff-users-spec.md) | Draft |
 | [contractors](./contractors-spec.md) | Draft (covers `contractor_companies` + `contractor_users`) |
 | [auth-v1](./auth-v1-spec.md) | Draft (§7: `requireAuthV1` middleware deferred до Phase 7) |
+| [role-scope-memberships](./role-scope-memberships-spec.md) | Draft (DH-03 bridge: durable subject role/scope assignments + scope-aware authz primitives) |
 
 ### Фаза 3 — Access-core
 
@@ -24,6 +25,9 @@
 |---|---|
 | [passes](./passes-spec.md) | Draft (образец формата) |
 | [vehicles](./vehicles-spec.md) | Draft |
+| [access-topology](./access-topology-spec.md) | Draft (DH-06 zones/points runtime topology) |
+| [access-policies](./access-policies-spec.md) | Draft (DH-13/DH-14 policy CRUD + deterministic evaluation) |
+| [security-workspace](./security-workspace-spec.md) | Draft (DH-15 workspace API + DH-16 manual decision baseline) |
 | [access-requests](./access-requests-spec.md) | Draft |
 | [visit-logs](./visit-logs-spec.md) | Draft |
 | [access-incidents](./access-incidents-spec.md) | Draft (covers и `access_overrides`) |
@@ -49,6 +53,8 @@
 
 | Модуль | Статус |
 |---|---|
+| [service-requests](./service-requests-spec.md) | Draft (DH-22 categories + territory/emergency bridge; DH-23 resident-visible attachments/updates; DH-24 assignment/SLA/escalation on `/api/v1/requests`) |
+| [staff-workspace](./staff-workspace-spec.md) | Draft (DH-25 unified staff inbox, overdue queue, request detail, resident quick view and internal comments API) |
 | [notification-templates-v2](./notification-templates-v2-spec.md) | Draft (централизованное хранилище текстов уведомлений + mustache-lite rendering; P3 в Phase 6) |
 | [legacy-utilities-freeze](./legacy-utilities-freeze-spec.md) | Draft (platform-level freeze-gate для meters/billing/bookings/chat до пост-релиза; P4 в Phase 6) |
 
@@ -66,7 +72,6 @@
 Пишутся по мере подхода к соответствующей фазе. Создаются только для сущностей, которые мы реально строим в v1 — не пишем спеки «на будущее».
 
 **Пост-релиз (не пишем сейчас):**
-- `access-zones-spec.md`, `access-points-spec.md`, `access-policies-spec.md` — при появлении первого СКУД-контракта
 - `meters-module-spec.md`, `billing-module-spec.md`, `bookings-module-spec.md`, `chat-module-spec.md` — после стабилизации access-core
 
 ## Правила

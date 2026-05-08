@@ -12,7 +12,17 @@ const {
 } = require('../constants');
 
 describe('ROLES', () => {
-  const expected = ['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'];
+  const expected = [
+    'owner',
+    'tenant',
+    'contractor',
+    'concierge',
+    'security',
+    'admin',
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ];
 
   test.each(expected)('содержит роль "%s"', (role) => {
     expect(Object.values(ROLES)).toContain(role);
@@ -31,6 +41,7 @@ describe('ROLES', () => {
   test('ADMIN = "admin"', () => expect(ROLES.ADMIN).toBe('admin'));
   test('SECURITY = "security"', () => expect(ROLES.SECURITY).toBe('security'));
   test('CONCIERGE = "concierge"', () => expect(ROLES.CONCIERGE).toBe('concierge'));
+  test('PROPERTY_ADMIN = "property_admin"', () => expect(ROLES.PROPERTY_ADMIN).toBe('property_admin'));
 });
 
 describe('STATUSES', () => {
@@ -60,7 +71,14 @@ describe('STAFF_ROLES', () => {
     expect(STAFF_ROLES).toBeInstanceOf(Set);
   });
 
-  test.each(['security', 'concierge', 'admin'])('содержит "%s"', (role) => {
+  test.each([
+    'security',
+    'concierge',
+    'admin',
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ])('содержит "%s"', (role) => {
     expect(STAFF_ROLES.has(role)).toBe(true);
   });
 
@@ -78,7 +96,14 @@ describe('RESIDENT_ROLES', () => {
     expect(RESIDENT_ROLES.has(role)).toBe(true);
   });
 
-  test.each(['security', 'concierge', 'admin'])('не содержит персонал "%s"', (role) => {
+  test.each([
+    'security',
+    'concierge',
+    'admin',
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ])('не содержит персонал "%s"', (role) => {
     expect(RESIDENT_ROLES.has(role)).toBe(false);
   });
 });
@@ -89,14 +114,21 @@ describe('STAFF_ROLES и RESIDENT_ROLES не пересекаются', () => {
     expect(intersection).toHaveLength(0);
   });
 
-  test('в сумме покрывают все 6 ролей', () => {
+  test('в сумме покрывают все роли', () => {
     const all = new Set([...STAFF_ROLES, ...RESIDENT_ROLES]);
     expect(all.size).toBe(Object.keys(ROLES).length);
   });
 });
 
 describe('isStaff(role)', () => {
-  test.each(['security', 'concierge', 'admin'])('%s → true', (role) => {
+  test.each([
+    'security',
+    'concierge',
+    'admin',
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ])('%s → true', (role) => {
     expect(isStaff(role)).toBe(true);
   });
 
@@ -117,7 +149,14 @@ describe('isResident(role)', () => {
     expect(isResident(role)).toBe(true);
   });
 
-  test.each(['security', 'concierge', 'admin'])('%s → false', (role) => {
+  test.each([
+    'security',
+    'concierge',
+    'admin',
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ])('%s → false', (role) => {
     expect(isResident(role)).toBe(false);
   });
 

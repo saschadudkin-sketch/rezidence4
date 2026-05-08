@@ -22,9 +22,13 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { isStaff, isAdmin } = require('../lib/authz');
+const { canInPropertyScope, isStaff, isAdmin } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 const {
   VEHICLE_COLS,
   blacklistVehicle,
@@ -50,8 +54,24 @@ function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
-// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'vehicles:manage', propertyId);
+}
+
+function canSecurityManageVehicleFlag(req, propertyId) {
+  return canInPropertyScope(req, 'access.plate.verify', propertyId);
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function loadVehicleProperty(req, vehicleId) {
+  return loadResourcePropertyId(getDb(req), 'vehicle', vehicleId, { notFoundMessage: 'Vehicle not found' });
+}
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
   getDb(req).query(
@@ -215,7 +235,7 @@ router.post('/', idempotency, async (req, res, next) => {
     const result = await createVehicle({
       queryable: getDb(req),
       user: req.user,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: isPropertyAdmin(req, property_id),
       input: {
         property_id,
         owner_type,
@@ -251,6 +271,9 @@ router.post('/', idempotency, async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    const propertyId = await loadVehicleProperty(req, req.params.id);
+    const adminForVehicle = isPropertyAdmin(req, propertyId);
+    if (isAdmin(req) && !adminForVehicle) return res.status(403).json({ error: 'Forbidden' });
 
     const changes = {};
     const str = (k, max) => {
@@ -279,13 +302,14 @@ router.patch('/:id', async (req, res, next) => {
     const result = await updateVehicle({
       queryable: getDb(req),
       user: req.user,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: adminForVehicle,
       vehicleId: req.params.id,
       changes,
     });
     auditLog(req, { action: 'vehicle.updated', resourceType: 'vehicle', resourceId: result.vehicle.id, changes });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -294,8 +318,9 @@ router.patch('/:id', async (req, res, next) => {
 // ─── POST /api/v1/vehicles/:id/whitelist ─────────────────────────────────────
 router.post('/:id/whitelist', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    const propertyId = await loadVehicleProperty(req, req.params.id);
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     const result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
     auditLog(req, {
@@ -306,6 +331,7 @@ router.post('/:id/whitelist', async (req, res, next) => {
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     if (err && err.code === '23514') return res.status(400).json({ error: 'flag conflict' });
     next(err);
@@ -315,10 +341,11 @@ router.post('/:id/whitelist', async (req, res, next) => {
 // ─── POST /api/v1/vehicles/:id/blacklist ─────────────────────────────────────
 router.post('/:id/blacklist', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req) && req.user?.role !== 'security') {
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    const propertyId = await loadVehicleProperty(req, req.params.id);
+    if (!isPropertyAdmin(req, propertyId) && !canSecurityManageVehicleFlag(req, propertyId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     if (!reason) return res.status(400).json({ error: 'reason is required' });
     const result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
@@ -330,6 +357,7 @@ router.post('/:id/blacklist', async (req, res, next) => {
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     if (err && err.code === '23514') return res.status(400).json({ error: 'flag conflict' });
     next(err);
@@ -339,8 +367,9 @@ router.post('/:id/blacklist', async (req, res, next) => {
 // ─── POST /api/v1/vehicles/:id/clear-flags ───────────────────────────────────
 router.post('/:id/clear-flags', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    const propertyId = await loadVehicleProperty(req, req.params.id);
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id });
     auditLog(req, {
       action: 'vehicle.flags_cleared',
@@ -350,6 +379,7 @@ router.post('/:id/clear-flags', async (req, res, next) => {
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -362,10 +392,13 @@ router.post('/:id/clear-flags', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    const propertyId = await loadVehicleProperty(req, req.params.id);
+    const adminForVehicle = isPropertyAdmin(req, propertyId);
+    if (isAdmin(req) && !adminForVehicle) return res.status(403).json({ error: 'Forbidden' });
     await deleteVehicle({
       queryable: getDb(req),
       user: req.user,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: adminForVehicle,
       vehicleId: req.params.id,
     });
     auditLog(req, {
@@ -376,6 +409,7 @@ router.delete('/:id', async (req, res, next) => {
     });
     res.status(204).end();
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     if (err && err.code === '23503') return res.status(409).json({ error: 'Cannot delete: FK constraint' });
     next(err);

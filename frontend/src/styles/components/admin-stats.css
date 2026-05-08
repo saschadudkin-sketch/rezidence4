@@ -62,18 +62,24 @@
 .btn-edit{
   background:none;border:1px solid var(--b2);border-radius:4px;
   padding:4px 10px;font-family:var(--font-body);font-size:var(--fs-2xs);
-  color:var(--t3);cursor:pointer;transition:all .13s;white-space:nowrap;
+  color:var(--t3);cursor:pointer;transition:border-color .13s,color .13s,transform .13s;white-space:nowrap;
 }
-.btn-edit:hover{border-color:var(--g2);color:var(--g2)}
+@media (hover: hover) and (pointer: fine){
+  .btn-edit:hover{border-color:var(--g2);color:var(--g2)}
+}
+.btn-edit:active{transform:scale(.97)}
 /* P-03: inline confirm для отклонения заявки */
 .req-confirm-reject{display:inline-flex;align-items:center;gap:6px}
 .req-confirm-label{font-size:var(--fs-2xs);color:var(--t3)}
 .btn-del-sm{
   background:none;border:1px solid rgba(106,40,40,.3);border-radius:4px;
   padding:4px 10px;font-family:var(--font-body);font-size:var(--fs-2xs);
-  color:var(--err-t);cursor:pointer;transition:all .13s;white-space:nowrap;
+  color:var(--err-t);cursor:pointer;transition:background .13s,border-color .13s,color .13s,transform .13s;white-space:nowrap;
 }
-.btn-del-sm:hover{background:rgba(106,40,40,.1)}
+@media (hover: hover) and (pointer: fine){
+  .btn-del-sm:hover{background:rgba(106,40,40,.1)}
+}
+.btn-del-sm:active{transform:scale(.97)}
 /* RESP-1: touch targets — min 44px on touch devices */
 @media(pointer:coarse){
   .btn-edit,.btn-del-sm{min-height:44px;padding:8px 14px}
@@ -299,10 +305,11 @@
   border:1px solid color-mix(in srgb, var(--b2) 86%, transparent);
   font-size:var(--fs-2xs);font-weight:400;
   box-shadow:var(--sh-l);
-  animation:riseUp .2s ease, fadeIn .2s ease 2.8s reverse forwards;
+  animation:toastIn .18s var(--ease-out) both, fadeIn .2s var(--ease-out) 2.8s reverse forwards;
   pointer-events:auto;
   display:flex;align-items:center;gap:10px;
 }
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .toast-msg{flex:1}
 @media(max-width:1024px){
   .toast{

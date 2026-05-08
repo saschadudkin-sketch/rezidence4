@@ -98,6 +98,33 @@ describe('AdminUserRow', () => {
     expect(screen.getByPlaceholderText('Телефон')).toHaveValue('+7 916 123-45-67');
   });
 
+  test('форма берёт свежие props если строка не редактировалась', () => {
+    const { rerender } = render(<AdminUserRow u={targetUser} currentUser={adminUser} />);
+    rerender(<AdminUserRow
+      u={{ ...targetUser, name: 'Пётр Новый', phone: '+7 916 999-00-00', apartment: '15', parkingSpot: 'P-12' }}
+      currentUser={adminUser}
+    />);
+    fireEvent.click(screen.getByLabelText('Редактировать'));
+    expect(screen.getByPlaceholderText('Имя')).toHaveValue('Пётр Новый');
+    expect(screen.getByPlaceholderText('Телефон')).toHaveValue('+7 916 999-00-00');
+    expect(screen.getByPlaceholderText('Апарт.')).toHaveValue('15');
+    expect(screen.getByPlaceholderText('Парк.')).toHaveValue('P-12');
+  });
+
+  test('форма не перетирает локальный черновик пока идёт редактирование', () => {
+    const { rerender } = render(<AdminUserRow u={targetUser} currentUser={adminUser} />);
+    fireEvent.click(screen.getByLabelText('Редактировать'));
+    fireEvent.change(screen.getByPlaceholderText('Имя'), { target: { value: 'Черновик' } });
+
+    rerender(<AdminUserRow
+      u={{ ...targetUser, name: 'Свежее имя', phone: '+7 916 999-00-00' }}
+      currentUser={adminUser}
+    />);
+
+    expect(screen.getByPlaceholderText('Имя')).toHaveValue('Черновик');
+    expect(screen.getByPlaceholderText('Телефон')).toHaveValue('+7 916 123-45-67');
+  });
+
   test('Отмена закрывает форму', () => {
     render(<AdminUserRow u={targetUser} currentUser={adminUser} />);
     fireEvent.click(screen.getByLabelText('Редактировать'));

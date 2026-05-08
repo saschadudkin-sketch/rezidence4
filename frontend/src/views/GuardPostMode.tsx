@@ -132,7 +132,7 @@ export default function GuardPostMode({ user, onViewDetails }: GuardPostModeProp
   return (
     <>
       <div className="guard-post">
-        <div className="guard-mode-banner" role="status" aria-label="Активный режим охраны">
+        <div className="guard-mode-banner" role="status" aria-live="polite" aria-label="Активный режим охраны">
           <span className="guard-mode-banner-dot" aria-hidden="true" />
           <span>Режим поста охраны активен</span>
         </div>

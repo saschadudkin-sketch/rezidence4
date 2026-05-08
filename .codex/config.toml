@@ -1,0 +1,17 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+NODE_ENV = "development"
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = [
+  "-y",
+  "chrome-devtools-mcp@latest",
+  "--isolated",
+  "--viewport",
+  "1440x1000",
+  "--no-usage-statistics",
+]
+type = "stdio"

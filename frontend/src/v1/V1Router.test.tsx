@@ -19,6 +19,7 @@
 
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { UserMe } from './api/types';
@@ -52,13 +53,49 @@ vi.mock('./api', () => {
       vehicles: { getByPlate: neverResolves },
       visits: { list: neverResolves },
       incidents: { list: neverResolves },
+      staffWorkspace: {
+        listInbox: neverResolves,
+        getRequestDetail: neverResolves,
+        getResidentQuickView: neverResolves,
+      },
       residents: { getById: neverResolves },
-      units: { list: neverResolves },
+      units: { list: neverResolves, importRows: neverResolves },
     },
     isV1ApiError: () => false,
     normalizePlate: (s: string) => s.toUpperCase().replace(/[\s-]+/g, ''),
   };
 });
+
+vi.mock('./api/accessTopology', () => ({
+  accessTopologyApi: {
+    listZones: vi.fn(() => Promise.resolve({ zones: [] })),
+    listPoints: vi.fn(() => Promise.resolve({ points: [] })),
+    createZone: vi.fn(() => Promise.resolve({ zone: null })),
+    createPoint: vi.fn(() => Promise.resolve({ point: null })),
+    deactivatePoint: vi.fn(() => Promise.resolve(undefined)),
+  },
+}));
+
+vi.mock('./api/accessPolicies', () => ({
+  accessPoliciesApi: {
+    list: vi.fn(() => Promise.resolve({ policies: [] })),
+    create: vi.fn(() => Promise.resolve({ policy: null })),
+    deactivate: vi.fn(() => Promise.resolve(undefined)),
+  },
+}));
+
+vi.mock('./api/accessIncidents', () => ({
+  accessIncidentsApi: {
+    list: vi.fn(() => Promise.resolve({ incidents: [] })),
+  },
+}));
+
+vi.mock('./api/vehicles', () => ({
+  vehiclesApi: {
+    getByPlate: vi.fn(() => Promise.resolve({ vehicle: null })),
+  },
+  normalizePlate: (s: string) => s.toUpperCase().replace(/[\s-]+/g, ''),
+}));
 
 import { V1Router } from './V1Router';
 
@@ -71,6 +108,7 @@ const baseUser = (role: UserMe['role'], extras: Partial<UserMe> = {}): UserMe =>
   avatar: null,
   property_slug: 'zamoskvorechie',
   property_id: 'prop-1',
+  property_type: 'residential_complex',
   ...extras,
 });
 
@@ -85,12 +123,20 @@ const baseUser = (role: UserMe['role'], extras: Partial<UserMe> = {}): UserMe =>
  * empty. Wrapping here reproduces the production route tree exactly.
  */
 function renderAt(initial: string): ReactNode {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0, staleTime: 0 },
+    },
+  });
   return render(
-    <MemoryRouter initialEntries={[initial]}>
-      <Routes>
-        <Route path="/v1/*" element={<V1Router />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[initial]}>
+        <Routes>
+          <Route path="/v1/*" element={<V1Router />} />
+          <Route path="/" element={<div data-testid="legacy-home" />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   ) as unknown as ReactNode;
 }
 
@@ -118,23 +164,40 @@ describe('V1Router role redirects (from /v1 index)', () => {
     expect(await screen.findByRole('heading', { name: /мои заявки/i })).toBeInTheDocument();
   });
 
+  test('cottage-community resident sees house/plot label, not apartment label', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('owner', { property_type: 'cottage_community' }));
+    renderAt('/v1');
+
+    expect(await screen.findByText(/Дом\/участок 12/)).toBeInTheDocument();
+    expect(screen.queryByText(/Квартира 12/)).toBeNull();
+  });
+
   test('security → guard console', async () => {
     sessionMeMock.mockResolvedValue(baseUser('security'));
     renderAt('/v1');
     expect(await screen.findByRole('heading', { name: /пост охраны/i })).toBeInTheDocument();
   });
 
-  test('admin → guard console (guard priority over concierge)', async () => {
-    sessionMeMock.mockResolvedValue(baseUser('admin'));
+  test('cottage-community security opens vehicle-first checkpoint console', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('security', { property_type: 'cottage_community' }));
     renderAt('/v1');
-    expect(await screen.findByRole('heading', { name: /пост охраны/i })).toBeInTheDocument();
+
+    expect(await screen.findByRole('heading', { name: /пост кпп/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /въезд авто/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(/Vehicle-first режим/i)).toBeInTheDocument();
   });
 
-  test('concierge (not guard) → landing card with navigation hints', async () => {
+  test('admin → staff workspace', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1');
+    expect(await screen.findByRole('heading', { name: /рабочее место staff/i })).toBeInTheDocument();
+  });
+
+  test('concierge → staff workspace', async () => {
     sessionMeMock.mockResolvedValue(baseUser('concierge'));
     renderAt('/v1');
     expect(
-      await screen.findByRole('heading', { name: /платформа доступа/i }),
+      await screen.findByRole('heading', { name: /рабочее место staff/i }),
     ).toBeInTheDocument();
   });
 });
@@ -148,12 +211,9 @@ describe('V1Router direct deep-links gate by role', () => {
     sessionMeMock.mockResolvedValue(baseUser('owner'));
     renderAt('/v1/guard');
     // A resident must not see the guard header.  After the session resolves
-    // the RoleGate emits <Navigate to="/" replace>, which has no matching
-    // route in this harness — MemoryRouter simply stops rendering children.
-    // Give React two ticks so the useEffect → setState chain completes, then
-    // assert the heading is absent.
-    await new Promise((r) => setTimeout(r, 0));
-    await new Promise((r) => setTimeout(r, 0));
+    // the RoleGate emits <Navigate to="/" replace>, which lands on the
+    // harness' legacy-home route.
+    expect(await screen.findByTestId('legacy-home')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /пост охраны/i })).toBeNull();
   });
 
@@ -164,5 +224,41 @@ describe('V1Router direct deep-links gate by role', () => {
     expect(
       await screen.findByRole('heading', { name: /заявка на доступ/i }),
     ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/onboarding reaches onboarding import page', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin', { property_type: 'cottage_community' }));
+    renderAt('/v1/onboarding');
+    expect(
+      await screen.findByRole('heading', { name: /онбординг объекта/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Импорт домов\/участков/)).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/access reaches access admin page', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin', { property_type: 'cottage_community' }));
+    renderAt('/v1/admin/access');
+    expect(
+      await screen.findByRole('heading', { name: /настройки доступа/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /кпп и зоны/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  test('security deep-linked to /v1/staff-workspace reaches staff workspace', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('security'));
+    renderAt('/v1/staff-workspace');
+    expect(
+      await screen.findByRole('heading', { name: /рабочее место staff/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('resident deep-linked to /v1/admin/access gets kicked home', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('owner'));
+    renderAt('/v1/admin/access');
+    expect(await screen.findByTestId('legacy-home')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /настройки доступа/i })).toBeNull();
   });
 });

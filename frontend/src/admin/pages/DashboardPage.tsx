@@ -65,6 +65,7 @@ export function DashboardPage() {
               <div className={s.empty}>Пока ничего не происходило</div>
             ) : (
               <table className={s.table}>
+                <caption className={s.tableCaption}>Последние действия</caption>
                 <thead>
                   <tr>
                     <th>Когда</th>

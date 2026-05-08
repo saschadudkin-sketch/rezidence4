@@ -18,8 +18,12 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { can, isStaff, isAdmin } = require('../lib/authz');
+const { can, canInPropertyScope, isStaff, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -36,10 +40,27 @@ const PHONE_RE = /^\+?\d{8,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim: legacy имя `isPropertyAdmin` → `isAdmin` из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'residents:write', propertyId);
+}
 function canViewPhone(req) {
   return can(req.user, 'residents:read_phone');
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function requirePropertyAdminForResource(req, res, resourceType, resourceId, notFoundMessage) {
+  const propertyId = await loadResourcePropertyId(getDb(req), resourceType, resourceId, { notFoundMessage });
+  if (!isPropertyAdmin(req, propertyId)) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return propertyId;
 }
 
 function isNonEmptyString(v, maxLen) {
@@ -143,13 +164,13 @@ router.get('/:id', async (req, res, next) => {
 // resident-записи из admin UI.
 router.post('/', idempotency, async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, unit_id, full_name, phone, email = null,
       resident_type = 'owner', external_uid = null,
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(unit_id)) return res.status(400).json({ error: 'unit_id must be UUID' });
     if (!isNonEmptyString(full_name, 200)) return res.status(400).json({ error: 'full_name required (1–200 chars)' });
     if (!PHONE_RE.test(String(phone || ''))) return res.status(400).json({ error: 'phone must be E.164-like (+ and 8–15 digits)' });
@@ -161,10 +182,13 @@ router.post('/', idempotency, async (req, res, next) => {
     // Pre-check unit exists and is active — otherwise the FK will still allow
     // the insert but we want a 400 with a more helpful message than a 23503.
     const { rows: unitCheck } = await getDb(req).query(
-      `SELECT is_active FROM units WHERE id = $1`,
+      `SELECT property_id, is_active FROM units WHERE id = $1`,
       [unit_id],
     );
     if (!unitCheck[0]) return res.status(400).json({ error: 'unit_id does not exist' });
+    if (unitCheck[0].property_id !== property_id) {
+      return res.status(400).json({ error: 'unit_id does not belong to this property' });
+    }
     if (!unitCheck[0].is_active) return res.status(400).json({ error: 'Cannot attach resident to inactive unit' });
 
     const { rows } = await getDb(req).query(
@@ -191,8 +215,15 @@ router.post('/', idempotency, async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid resident id' });
-    const self = req.user.uid === req.params.id;
-    if (!isPropertyAdmin(req) && !self) return res.status(403).json({ error: 'Forbidden' });
+    const { rows: existingRows } = await getDb(req).query(
+      `SELECT id, property_id, external_uid FROM residents WHERE id = $1`,
+      [req.params.id],
+    );
+    if (!existingRows[0]) return res.status(404).json({ error: 'Resident not found' });
+    const existing = existingRows[0];
+    const self = req.user.uid === req.params.id || existing.external_uid === req.user.uid;
+    const adminForResident = isPropertyAdmin(req, existing.property_id);
+    if (!adminForResident && !self) return res.status(403).json({ error: 'Forbidden' });
 
     const changes = {};
     const sets = [];
@@ -209,18 +240,27 @@ router.patch('/:id', async (req, res, next) => {
       params.push(req.body.email || null); sets.push(`email = $${params.length}`); changes.email = req.body.email;
     }
     if (req.body.phone !== undefined) {
-      if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Only property_admin may change phone' });
+      if (!adminForResident) return res.status(403).json({ error: 'Only property_admin may change phone' });
       if (!PHONE_RE.test(String(req.body.phone || ''))) return res.status(400).json({ error: 'phone must be E.164-like' });
       params.push(req.body.phone); sets.push(`phone = $${params.length}`); changes.phone = req.body.phone;
     }
     if (req.body.resident_type !== undefined) {
-      if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Only property_admin may change resident_type' });
+      if (!adminForResident) return res.status(403).json({ error: 'Only property_admin may change resident_type' });
       if (!RESIDENT_TYPES.has(req.body.resident_type)) return res.status(400).json({ error: 'Invalid resident_type' });
       params.push(req.body.resident_type); sets.push(`resident_type = $${params.length}`); changes.resident_type = req.body.resident_type;
     }
     if (req.body.unit_id !== undefined) {
-      if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Only property_admin may change unit_id' });
+      if (!adminForResident) return res.status(403).json({ error: 'Only property_admin may change unit_id' });
       if (!isValidUuid(req.body.unit_id)) return res.status(400).json({ error: 'unit_id must be UUID' });
+      const targetUnitPropertyId = await loadResourcePropertyId(
+        getDb(req),
+        'unit',
+        req.body.unit_id,
+        { notFoundStatus: 400, notFoundMessage: 'unit_id does not exist' },
+      );
+      if (targetUnitPropertyId !== existing.property_id) {
+        return res.status(400).json({ error: 'unit_id does not belong to resident property' });
+      }
       params.push(req.body.unit_id); sets.push(`unit_id = $${params.length}`); changes.unit_id = req.body.unit_id;
     }
 
@@ -235,14 +275,18 @@ router.patch('/:id', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.updated', resourceId: rows[0].id, changes });
     res.json({ resident: formatResident(rows[0], canViewPhone(req) || self) });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/residents/:id/deactivate
 router.post('/:id/deactivate', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid resident id' });
+    const propertyId = await requirePropertyAdminForResource(req, res, 'resident', req.params.id, 'Resident not found');
+    if (!propertyId) return;
     const { rows } = await getDb(req).query(
       `UPDATE residents SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
@@ -250,7 +294,10 @@ router.post('/:id/deactivate', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.deactivated', resourceId: rows[0].id, changes: null });
     res.status(204).end();
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/residents/:id/consent — self only

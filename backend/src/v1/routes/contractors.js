@@ -14,8 +14,12 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff, isAdmin } = require('../lib/authz');
+const { canInPropertyScope, isStaff, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -29,8 +33,24 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?\d{8,15}$/;
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'contractors:write', propertyId);
+}
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function requirePropertyAdminForResource(req, res, resourceType, resourceId, notFoundMessage) {
+  const propertyId = await loadResourcePropertyId(getDb(req), resourceType, resourceId, { notFoundMessage });
+  if (!isPropertyAdmin(req, propertyId)) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return propertyId;
+}
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
@@ -106,13 +126,13 @@ router.get('/contractor-companies/:id', async (req, res, next) => {
 // POST /api/v1/contractor-companies
 router.post('/contractor-companies', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, name,
       contact_name = null, contact_phone = null, contact_email = null,
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isNonEmptyString(name, 200)) return res.status(400).json({ error: 'name required (1–200 chars)' });
     if (contact_email && !EMAIL_RE.test(String(contact_email))) return res.status(400).json({ error: 'Invalid contact_email' });
     if (contact_phone && !PHONE_RE.test(String(contact_phone))) return res.status(400).json({ error: 'contact_phone must be E.164-like' });
@@ -139,8 +159,15 @@ router.post('/contractor-companies', async (req, res, next) => {
 // PATCH /api/v1/contractor-companies/:id
 router.patch('/contractor-companies/:id', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid company id' });
+    const propertyId = await requirePropertyAdminForResource(
+      req,
+      res,
+      'contractor_company',
+      req.params.id,
+      'Company not found',
+    );
+    if (!propertyId) return;
 
     const sets = [];
     const params = [];
@@ -176,6 +203,7 @@ router.patch('/contractor-companies/:id', async (req, res, next) => {
     auditLog(req, { action: 'contractor_company.updated', resourceType: 'contractor_company', resourceId: rows[0].id, changes });
     res.json({ company: rows[0] });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (err && err.code === '23505') return res.status(409).json({ error: 'company name already exists for this property' });
     next(err);
   }
@@ -225,7 +253,6 @@ router.get('/contractor-users', async (req, res, next) => {
 // POST /api/v1/contractor-users
 router.post('/contractor-users', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       contractor_company_id, property_id, full_name,
       phone = null, email = null, specialization = null,
@@ -235,6 +262,7 @@ router.post('/contractor-users', async (req, res, next) => {
 
     if (!isValidUuid(contractor_company_id)) return res.status(400).json({ error: 'contractor_company_id must be UUID' });
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isNonEmptyString(full_name, 200)) return res.status(400).json({ error: 'full_name required' });
     if (phone && !PHONE_RE.test(String(phone))) return res.status(400).json({ error: 'phone must be E.164-like' });
     if (email && !EMAIL_RE.test(String(email))) return res.status(400).json({ error: 'Invalid email' });
@@ -253,10 +281,13 @@ router.post('/contractor-users', async (req, res, next) => {
     // Confirm the company is active.  This is a business-rule check — the DB
     // still permits the insert, but inactive companies can't issue passes.
     const { rows: companyCheck } = await getDb(req).query(
-      `SELECT status FROM contractor_companies WHERE id = $1`,
+      `SELECT property_id, status FROM contractor_companies WHERE id = $1`,
       [contractor_company_id],
     );
     if (!companyCheck[0]) return res.status(400).json({ error: 'contractor_company_id does not exist' });
+    if (companyCheck[0].property_id !== property_id) {
+      return res.status(400).json({ error: 'contractor_company_id does not belong to this property' });
+    }
     if (companyCheck[0].status !== 'active') {
       return res.status(409).json({ error: `Cannot add user to company with status '${companyCheck[0].status}'` });
     }
@@ -290,8 +321,15 @@ router.post('/contractor-users', async (req, res, next) => {
 // PATCH /api/v1/contractor-users/:id
 router.patch('/contractor-users/:id', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid user id' });
+    const propertyId = await requirePropertyAdminForResource(
+      req,
+      res,
+      'contractor_user',
+      req.params.id,
+      'User not found',
+    );
+    if (!propertyId) return;
 
     const sets = [];
     const params = [];
@@ -340,6 +378,7 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
     auditLog(req, { action: 'contractor_user.updated', resourceType: 'contractor_user', resourceId: rows[0].id, changes });
     res.json({ user: rows[0] });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (err && err.code === '23505') return res.status(409).json({ error: 'contractor user external_uid already exists' });
     next(err);
   }
@@ -348,8 +387,15 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
 // POST /api/v1/contractor-users/:id/deactivate
 router.post('/contractor-users/:id/deactivate', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid user id' });
+    const propertyId = await requirePropertyAdminForResource(
+      req,
+      res,
+      'contractor_user',
+      req.params.id,
+      'User not found',
+    );
+    if (!propertyId) return;
     const { rows } = await getDb(req).query(
       `UPDATE contractor_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
@@ -357,7 +403,10 @@ router.post('/contractor-users/:id/deactivate', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     auditLog(req, { action: 'contractor_user.deactivated', resourceType: 'contractor_user', resourceId: rows[0].id, changes: null });
     res.status(204).end();
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 module.exports = router;

@@ -27,8 +27,12 @@ describe('v1 property migrations — registry invariants', () => {
     expect(Array.isArray(V1_PROPERTY_MIGRATIONS)).toBe(true);
     // 7 Фаза 2 + 8 Фаза 3 (Access-core) + 6 Фаза 5 (Content+Notifications)
     // + 1 Фаза 6 (notification_templates_v2) + 1 Фаза 0 bridge
-    // + 1 access-request list indexes + 1 escalated status = 25
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(25);
+    // + 1 access-request list indexes + 1 escalated status
+    // + 1 DH-03 role/scope membership foundation
+    // + 1 DH-06 access topology foundation + 1 DH-13/DH-14 policy layer
+    // + 1 DH-22 service request core + 1 DH-23 attachments/updates
+    // + 1 DH-24 assignment/SLA/escalation = 31
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(31);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1077,5 +1081,261 @@ describe('v1_025_access_request_escalated_status', () => {
     expect(sqls[1]).toContain('ADD CONSTRAINT access_requests_status_check');
     expect(sqls[1]).toContain("'escalated'");
     expect(sqls[1]).toContain("'pending_approval','escalated','approved'");
+  });
+});
+
+describe('v1_026_role_scope_memberships', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates role_scope_memberships with subject exclusivity and role enum', async () => {
+    await byId('v1_026_role_scope_memberships').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS role_scope_memberships'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT role_scope_memberships_subject_exclusive');
+    for (const role of [
+      'resident', 'security', 'concierge', 'technician', 'contractor',
+      'property_admin', 'management_company_admin', 'platform_admin',
+    ]) {
+      expect(tbl).toContain(`'${role}'`);
+    }
+  });
+
+  test('enforces property scope without scope_id and non-property scopes with scope_id', async () => {
+    await byId('v1_026_role_scope_memberships').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS role_scope_memberships'));
+
+    expect(tbl).toContain('CONSTRAINT role_scope_memberships_scope_consistent');
+    expect(tbl).toContain("(scope_level = 'property' AND scope_id IS NULL)");
+    expect(tbl).toContain("(scope_level <> 'property' AND scope_id IS NOT NULL)");
+  });
+
+  test('indexes active memberships by property, subject, scope, and unique active assignment', async () => {
+    await byId('v1_026_role_scope_memberships').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_role_scope_memberships_property_active'))).toContain("WHERE status = 'active'");
+    expect(sqls.find((s) => s.includes('idx_role_scope_memberships_scope'))).toContain('scope_level, scope_id');
+    expect(sqls.find((s) => s.includes('uq_role_scope_memberships_resident_active'))).toContain('COALESCE(scope_id, property_id)');
+    expect(sqls.find((s) => s.includes('uq_role_scope_memberships_staff_active'))).toContain("status = 'active'");
+    expect(sqls.find((s) => s.includes('uq_role_scope_memberships_contractor_active'))).toContain('contractor_user_id');
+  });
+});
+
+describe('v1_027_access_topology', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates access_zones with property scope, zone enum, and active name uniqueness', async () => {
+    await byId('v1_027_access_topology').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_zones'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT access_zones_property_id_unique UNIQUE (property_id, id)');
+    for (const zoneType of ['perimeter', 'checkpoint', 'parking', 'street', 'sector', 'service_area']) {
+      expect(tbl).toContain(`'${zoneType}'`);
+    }
+    expect(sqls.find((s) => s.includes('idx_access_zones_property_active'))).toContain('property_id, is_active');
+    expect(sqls.find((s) => s.includes('uq_access_zones_property_name_active'))).toContain('LOWER(name)');
+  });
+
+  test('creates access_points with same-property zone FK and point enum', async () => {
+    await byId('v1_027_access_topology').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_points'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT access_points_zone_property_fk');
+    expect(tbl).toContain('FOREIGN KEY (property_id, zone_id)');
+    for (const pointType of ['gate', 'barrier', 'door', 'turnstile', 'wicket', 'intercom', 'checkpoint', 'service_gate']) {
+      expect(tbl).toContain(`'${pointType}'`);
+    }
+    expect(sqls.find((s) => s.includes('idx_access_points_zone'))).toContain('property_id, zone_id, is_active');
+    expect(sqls.find((s) => s.includes('idx_access_points_provider'))).toContain('provider_external_id');
+  });
+
+  test('adds NOT VALID topology FKs to access requests, passes, and visit logs', async () => {
+    await byId('v1_027_access_topology').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    for (const constraint of [
+      'access_requests_target_zone_fk',
+      'access_requests_target_point_fk',
+      'passes_zone_fk',
+      'passes_point_fk',
+      'visit_logs_v2_access_point_fk',
+    ]) {
+      const sql = sqls.find((s) => s.includes(constraint));
+      expect(sql).toBeDefined();
+      expect(sql).toContain('NOT VALID');
+      expect(sql).toContain('ON DELETE RESTRICT');
+    }
+  });
+});
+
+describe('v1_028_access_policies', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates access_policies with policy enums, priority, and same-property topology FKs', async () => {
+    await byId('v1_028_access_policies').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS access_policies'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('subject_type        VARCHAR(30) NOT NULL');
+    for (const value of ['resident', 'guest', 'staff', 'contractor', 'vehicle', 'courier']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    for (const value of ['qr', 'manual', 'plate', 'ble', 'card', 'face', 'pin']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    for (const value of ['allow', 'deny', 'needs_approval', 'needs_security_review', 'incident_required']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    expect(tbl).toContain('priority            INTEGER NOT NULL DEFAULT 100');
+    expect(tbl).toContain('CONSTRAINT access_policies_zone_property_fk');
+    expect(tbl).toContain('FOREIGN KEY (property_id, zone_id)');
+    expect(tbl).toContain('CONSTRAINT access_policies_point_property_fk');
+    expect(tbl).toContain('FOREIGN KEY (property_id, point_id)');
+  });
+
+  test('indexes active policies and links passes.policy_id to access_policies', async () => {
+    await byId('v1_028_access_policies').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_access_policies_property_active'))).toContain('subject_type, access_method, priority');
+    expect(sqls.find((s) => s.includes('idx_access_policies_zone'))).toContain('WHERE zone_id IS NOT NULL');
+    expect(sqls.find((s) => s.includes('idx_access_policies_point'))).toContain('WHERE point_id IS NOT NULL');
+    expect(sqls.find((s) => s.includes('uq_access_policies_property_name_active'))).toContain('LOWER(name)');
+
+    const fk = sqls.find((s) => s.includes('passes_policy_fk'));
+    expect(fk).toBeDefined();
+    expect(fk).toContain('REFERENCES access_policies(property_id, id)');
+    expect(fk).toContain('NOT VALID');
+  });
+
+  test('extends access incident types for policy-driven deny and review events', async () => {
+    await byId('v1_028_access_policies').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const constraint = sqls.find((s) => s.includes('policy_security_review_required'));
+
+    expect(constraint).toBeDefined();
+    expect(constraint).toContain('policy_denied');
+    expect(constraint).toContain('policy_security_review_required');
+  });
+});
+
+describe('v1_029_service_request_core', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates configurable service request categories with territory and emergency profile fields', async () => {
+    await byId('v1_029_service_request_core').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS service_request_categories'));
+
+    expect(tbl).toBeDefined();
+    for (const value of ['service', 'territory', 'emergency', 'security', 'contractor']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    for (const value of ['unit', 'home', 'access_zone', 'access_point', 'common_territory', 'road']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    expect(tbl).toContain('first_response_minutes');
+    expect(tbl).toContain('resolution_minutes');
+    expect(tbl).toContain('service_request_categories_emergency_profile');
+  });
+
+  test('extends legacy requests with v1 target, priority and SLA columns plus indexes', async () => {
+    await byId('v1_029_service_request_core').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE requests') && s.includes('request_category_id'));
+
+    expect(alter).toContain('target_type TEXT');
+    expect(alter).toContain('target_id UUID');
+    expect(alter).toContain("priority TEXT NOT NULL DEFAULT 'normal'");
+    expect(alter).toContain("sla_profile TEXT NOT NULL DEFAULT 'standard'");
+    expect(alter).toContain('first_response_due_at TIMESTAMPTZ');
+    expect(alter).toContain('resolution_due_at TIMESTAMPTZ');
+    expect(alter).toContain("emergency_metadata JSONB NOT NULL DEFAULT '{}'::jsonb");
+
+    expect(sqls.find((s) => s.includes('requests_service_category_fk'))).toContain('NOT VALID');
+    expect(sqls.find((s) => s.includes('idx_requests_target'))).toContain('WHERE target_type IS NOT NULL');
+    expect(sqls.find((s) => s.includes('idx_requests_priority_status'))).toContain('priority, status, created_at DESC');
+  });
+});
+
+describe('v1_030_request_attachments_updates', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates request attachments with safe local upload URL and visibility split', async () => {
+    await byId('v1_030_request_attachments_updates').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_attachments'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id        TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain("CHECK (file_kind IN ('photo','document','other'))");
+    expect(tbl).toContain("CHECK (visibility IN ('resident','internal'))");
+    expect(tbl).toContain("CHECK (file_url LIKE '/uploads/%')");
+    expect(sqls.find((s) => s.includes('idx_request_attachments_request_visibility')))
+      .toContain('request_id, visibility, created_at DESC');
+  });
+
+  test('creates request updates with resident/internal visibility and optional attachments', async () => {
+    await byId('v1_030_request_attachments_updates').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_updates'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id        TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain('body              TEXT NOT NULL');
+    expect(tbl).toContain("CHECK (visibility IN ('resident','internal'))");
+    expect(tbl).toContain("attachment_ids    UUID[] NOT NULL DEFAULT '{}'::uuid[]");
+    expect(tbl).toContain('request_updates_body_not_blank');
+    expect(sqls.find((s) => s.includes('idx_request_updates_request_visibility')))
+      .toContain('request_id, visibility, created_at DESC');
+  });
+});
+
+describe('v1_031_request_assignment_sla', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('extends requests with assignee, timestamps and SLA state fields', async () => {
+    await byId('v1_031_request_assignment_sla').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE requests') && s.includes('assigned_to_uid'));
+
+    expect(alter).toContain('assigned_to_uid TEXT');
+    expect(alter).toContain('assigned_at TIMESTAMPTZ');
+    expect(alter).toContain('first_response_at TIMESTAMPTZ');
+    expect(alter).toContain('resolved_at TIMESTAMPTZ');
+    expect(alter).toContain("sla_state VARCHAR(30) NOT NULL DEFAULT 'on_track'");
+    expect(alter).toContain('escalation_level INTEGER NOT NULL DEFAULT 0');
+    expect(sqls.find((s) => s.includes('requests_assigned_to_role_check'))).toContain('technician');
+    expect(sqls.find((s) => s.includes('requests_sla_state_check'))).toContain('emergency_escalated');
+  });
+
+  test('creates request_sla_events with idempotent event key and severity indexes', async () => {
+    await byId('v1_031_request_assignment_sla').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_sla_events'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id    TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain("CHECK (event_type IN (");
+    expect(tbl).toContain('first_response_overdue');
+    expect(tbl).toContain('resolution_overdue');
+    expect(tbl).toContain("CHECK (severity IN ('warning','breach','emergency'))");
+    expect(tbl).toContain('CONSTRAINT request_sla_events_key_unique UNIQUE (request_id, event_key)');
+    expect(sqls.find((s) => s.includes('idx_request_sla_events_type')))
+      .toContain('event_type, severity, detected_at DESC');
   });
 });

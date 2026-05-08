@@ -73,10 +73,11 @@ Add platform-level tenant entities and request-time tenant resolution.
 ## DH-02 Property Structure
 
 **Summary**
-Implement property hierarchy for buildings, entrances, and units.
+Implement property hierarchy for buildings, entrances, and units across residential complexes, club houses, and cottage communities.
 
 **Scope**
 - Add `building`, `entrance`, `unit`
+- Add property-type-aware labels and address formatting rules
 - Add `/api/v1` CRUD endpoints for property structure
 - Add validation and ownership checks
 - Add tests for hierarchy consistency
@@ -89,6 +90,7 @@ Implement property hierarchy for buildings, entrances, and units.
 - Schema and migrations are applied
 - CRUD endpoints work under tenant scope
 - Validation rejects invalid parent-child relationships
+- `cottage_community` can model houses/plots through documented `unit_type='house'` / `townhouse` mapping without apartment-only UI labels
 - Tests cover create/update/list/delete flows
 
 **Dependencies**
@@ -196,15 +198,21 @@ Implement physical access topology for the property.
 **Scope**
 - Add `access_zone` and `access_point`
 - Add point-to-zone and property mappings
+- Add durable migrations and foreign-key-ready IDs for `access_requests.target_*`, `passes.zone_id/point_id`, and `visit_logs_v2.access_point_id`
+- Support property-type-aware point types: `checkpoint`, `gate`, `barrier`, `service_gate`, `wicket`, `door`, `intercom`
+- Convert onboarding `planned_access_points` into real admin-created topology before pilot launch
 - Add CRUD endpoints and validation
 - Add tests for topology integrity
 
 **Implementation Notes**
 - Keep point types extensible for future SKUD/video integrations
+- Treat cottage-community checkpoint/gate topology as first-class, not as a vendor-integration concern
 
 **Definition of Done**
 - Zones and points can be managed per property
 - Invalid zone/point assignments are blocked
+- Guard/checkpoint flows can select a concrete access point
+- Cottage-community tenants can model at least one КПП/gate without custom SQL
 - Tests cover creation and hierarchy constraints
 
 **Dependencies**
@@ -255,6 +263,7 @@ Implement incident and audit entities for access control operations.
 **Scope**
 - Add `access_incident` and `audit_event`
 - Define incident categories and audit baselines
+- Add sensitive-action taxonomy for manual overrides, policy changes, exports, video evidence access, and provider setting changes
 - Add persistence and retrieval services
 - Add schema and service tests
 
@@ -265,6 +274,7 @@ Implement incident and audit entities for access control operations.
 **Definition of Done**
 - Incident and audit entities are persisted correctly
 - Core access actions can be represented in audit records
+- Sensitive access/admin actions can be reviewed from persisted audit data
 - Tests cover creation and linkage to passes/requests/vehicles
 
 **Dependencies**
@@ -373,7 +383,7 @@ Implement vehicle-based access request and pass handling.
 **Scope**
 - Link vehicles to access requests and passes
 - Support guest and contractor vehicle access cases
-- Add visit logging for vehicle entries/exits
+- Add visit logging for vehicle entries/exits with optional `access_point_id` and direction
 - Add tests for vehicle-specific scenarios
 
 **Implementation Notes**
@@ -403,6 +413,8 @@ Add storage and management APIs for access policies and approval rules.
 **Scope**
 - Add `access_policy` CRUD
 - Add approval rule representation
+- Add default policy templates for resident vehicle, guest vehicle, courier, contractor/service, staff operational, and emergency access
+- Bind policies to zone/point scope, access method, schedule, duration, recurring flag, and approval mode
 - Validate policy conflicts and invalid references
 - Add tests for policy persistence and validation
 
@@ -434,11 +446,14 @@ Implement rule evaluation for access permissions and decisions.
 - Evaluate who can access which point/zone and when
 - Return allow/deny/override-needed decisions
 - Support approval and blacklist checks
+- Integrate evaluation into QR and plate verification before final allow/deny
+- Persist evaluation trace into audit/visit context for disputes
 - Add service-level tests and API integration tests
 
 **Implementation Notes**
 - Make evaluation deterministic and testable
 - Prefer explicit evaluation traces for debugging
+- Policy engine is the internal source of truth; SKUD/vendor adapters must map to it later
 
 **Definition of Done**
 - Evaluation service returns consistent results for documented scenarios
@@ -467,6 +482,9 @@ Provide backend APIs for the guard/security console.
 - Search by pass, resident, unit, vehicle
 - Recent access events
 - Blacklist hit visibility
+- Access point / checkpoint context for the current guard station
+- Entry/exit direction in verify and recent-event APIs
+- Vehicle-first search profile for `cottage_community`
 
 **Implementation Notes**
 - Optimize for guard workflow, not generic reporting
@@ -497,17 +515,23 @@ Implement guard-side allow/deny/manual override actions and incident generation.
 **Scope**
 - Manual allow/deny endpoints
 - Override reasons and audit events
+- Manual admit/deny at a specific `access_point_id`
+- Manual entry/exit visit-log rows for offline/degraded guard decisions
+- Degraded checkpoint mode reasons for cached lookup, no lookup, manual admit, manual deny, and later reconciliation
 - Automatic incident creation for selected failure/override scenarios
 - Tests for override and incident behavior
 
 **Implementation Notes**
 - Every manual action must leave an audit trail
 - Incident policy should be explicit, not hidden in UI code
+- Degraded КПП actions must be distinguishable from normal online verification
 
 **Definition of Done**
 - Guards can allow/deny/override through backend actions
 - Audit events capture actor, reason, and target
 - Incident linkage is created for configured scenarios
+- Manual actions produce visit-log rows linked to point, vehicle/pass where known, and incident where required
+- Degraded-mode actions can be reconciled after connectivity returns
 
 **Dependencies**
 - `DH-08`
@@ -559,6 +583,10 @@ Implement guard-facing console for access operations.
 **Scope**
 - Active pass list
 - Search and result handling
+- Checkpoint/access-point selector
+- Entry/exit mode for plate and QR verification
+- Vehicle-first default tab for cottage-community properties
+- Degraded-mode indicator and manual-entry path for short connectivity loss
 - Allow/deny/manual override actions
 - Recent events view
 - Incident launch entry points
@@ -570,6 +598,8 @@ Implement guard-facing console for access operations.
 **Definition of Done**
 - Guard can complete core desk workflows through UI
 - Actions are wired to backend endpoints and statuses
+- Cottage-community КПП flow can run by plate first, then resident/house/guest context
+- Guard can record manual decisions during degraded operation with reason and later reconciliation state
 - Tests cover primary operational scenarios
 
 **Dependencies**
@@ -592,6 +622,8 @@ Implement property admin screens for access configuration and monitoring.
 - Manage access policies
 - Manage blacklist/whitelist entries
 - View access incidents for the property
+- Provision planned checkpoint/gate access points from onboarding output
+- Preview property-type labels for access topology and addresses
 
 **Implementation Notes**
 - Keep configuration flows distinct from resident and security workflows
@@ -619,9 +651,12 @@ Deliver pilot-ready onboarding and a smoke-tested access slice.
 
 **Scope**
 - Import residents, units, staff, and vehicles
+- Import cottage-community homes/plots, resident vehicles, and planned checkpoints
+- Import/offboarding correction path for resident lifecycle changes
 - Add seed/demo data flow
 - Add onboarding helpers for first property setup
 - Add smoke E2E scenarios for the core access journey
+- Add smoke E2E for vehicle-first КПП flow on `cottage_community`
 
 **Implementation Notes**
 - Focus on pilot readiness, not full enterprise import complexity
@@ -629,6 +664,7 @@ Deliver pilot-ready onboarding and a smoke-tested access slice.
 **Definition of Done**
 - New property can be initialized with minimal seed/import process
 - Smoke E2E covers resident request to guard action flow
+- Cottage-community pilot data can be imported and then converted into real access points
 - Pilot demo environment is repeatable
 
 **Dependencies**

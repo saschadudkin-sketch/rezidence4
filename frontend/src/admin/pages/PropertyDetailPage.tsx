@@ -1,4 +1,4 @@
-import React, { useEffect, useState, FormEvent } from 'react';
+import React, { useCallback, useEffect, useState, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import s from '../styles.module.css';
@@ -68,7 +68,7 @@ export function PropertyDetailPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [mcOptions, setMcOptions] = useState<ManagementCompanyOption[]>([]);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const resp = await api.get<Response>(`/properties/${slug}`);
@@ -76,9 +76,9 @@ export function PropertyDetailPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     }
-  }
+  }, [slug]);
 
-  useEffect(() => { void load(); }, [slug]);
+  useEffect(() => { void load(); }, [load]);
 
   // Fetch MCs once for the reassignment dropdown.  Failures are silent —
   // the admin can always clear the field or enter a new MC via the MC page.
@@ -272,6 +272,7 @@ export function PropertyDetailPage() {
           <div className={s.empty}>Ничего не менялось</div>
         ) : (
           <table className={s.table}>
+            <caption className={s.tableCaption}>Последние изменения объекта</caption>
             <thead>
               <tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Детали</th></tr>
             </thead>
@@ -309,6 +310,7 @@ function EditableField({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const fieldId = React.useId();
 
   React.useEffect(() => { setDraft(value); }, [value]);
 
@@ -328,10 +330,11 @@ function EditableField({
 
   return (
     <div className={s.formRow}>
-      <label>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       {editing ? (
         <form onSubmit={submit} className={s.inlineForm}>
           <input
+            id={fieldId}
             className={s.input}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -360,9 +363,8 @@ function EditableField({
 }
 
 /**
- * Same inline-edit dance as EditableField but for enum-like fields.  Kept as
- * a sibling rather than a prop on the existing component to keep the input
- * typing honest (native <select> vs <input>).
+ * Same inline-edit dance as EditableField but for enum-like fields. Kept as
+ * a sibling so native select and text input typing stay honest.
  */
 function EditableSelect({
   label, value, options, hint, onSave,
@@ -376,6 +378,7 @@ function EditableSelect({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const fieldId = React.useId();
 
   React.useEffect(() => { setDraft(value); }, [value]);
 
@@ -394,10 +397,11 @@ function EditableSelect({
 
   return (
     <div className={s.formRow}>
-      <label>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       {editing ? (
         <div className={s.inlineForm}>
           <select
+            id={fieldId}
             className={s.select}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -427,7 +431,7 @@ function EditableSelect({
 
 /**
  * MC selector — small dedicated component because "null" is a legal value
- * (unlink from any MC) and <select> can't natively carry that semantics
+ * (unlink from any MC) and a native select can't carry that semantics
  * without a sentinel.  We use '' internally and map it to null on save.
  */
 function ManagementCompanySelector({
@@ -441,6 +445,7 @@ function ManagementCompanySelector({
 }) {
   const [draft, setDraft] = useState<string>(current ?? '');
   const [saving, setSaving] = useState(false);
+  const selectorId = React.useId();
 
   React.useEffect(() => { setDraft(current ?? ''); }, [current]);
 
@@ -459,9 +464,10 @@ function ManagementCompanySelector({
   // grayed-out via :disabled so admins see why they're not pickable.
   return (
     <div className={s.formRow}>
-      <label>Сменить УК</label>
+      <label htmlFor={selectorId}>Сменить УК</label>
       <div className={s.inlineForm}>
         <select
+          id={selectorId}
           className={s.select}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

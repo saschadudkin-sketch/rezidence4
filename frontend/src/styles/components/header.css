@@ -65,19 +65,19 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--g1) 68%, var(--b2)), transparent);
   opacity: .9;
 }
-.header-wordmark { font-size: 11px; letter-spacing: 2.8px; text-transform: uppercase; color: color-mix(in srgb, var(--t2) 82%, var(--t4)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.header-wordmark { display: inline-block; min-width: 0; flex: 0 1 auto; font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase; color: color-mix(in srgb, var(--t2) 82%, var(--t4)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(40ch, calc(100vw - 430px)); }
 @media (--bp-sm-down) { .header-wordmark { display: none; } }
 @media (--bp-sm-down) { .header-wordmark-mobile { display: inline-block; } }
 @media (--bp-wide-header-down) {
   .header-wordmark {
-    max-width: 24ch;
+    max-width: min(38ch, calc(100vw - 410px));
     letter-spacing: 2.2px;
   }
 }
 @media (--bp-lg-down) {
   .header-wordmark {
-    max-width: 18ch;
-    letter-spacing: 1.8px;
+    max-width: min(36ch, calc(100vw - 390px));
+    letter-spacing: 1.55px;
   }
   .header-brand-status {
     gap: 6px;
@@ -88,9 +88,9 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
    Полное название скрывается при 680px → только "Резиденции". */
 @media (--bp-header-down) {
   .header-wordmark {
-    max-width: 16ch;
-    letter-spacing: 1.4px;
-    font-size: 10px;
+    max-width: min(34ch, calc(100vw - 370px));
+    letter-spacing: 1px;
+    font-size: 10.5px;
   }
   .header-brand-copy {
     gap: 6px;
@@ -146,7 +146,10 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   transition: border-color .13s, background .13s, color .13s, box-shadow .13s, transform .13s;
   flex-shrink: 0;
 }
-.theme-btn:hover { border-color: var(--g1); color: var(--t1); background: var(--g-bg); box-shadow: var(--sh-s); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .theme-btn:hover { border-color: var(--g1); color: var(--t1); background: var(--g-bg); box-shadow: var(--sh-s); transform: translateY(-1px); }
+}
+.theme-btn:active { transform: scale(.97); }
 .header-chat-btn{
   position:relative;
 }
@@ -175,7 +178,8 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   gap:6px;
 }
 
-.header-user { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 7px 8px 7px 10px; border: 1px solid color-mix(in srgb, var(--b2) 78%, transparent); border-radius: 999px; background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 82%, transparent)); box-shadow: var(--sh-s); }
+.header-user-menu { position: relative; display: inline-flex; align-items: center; }
+.header-user { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 7px 8px 7px 10px; border: 1px solid color-mix(in srgb, var(--b2) 78%, transparent); border-radius: 999px; background: linear-gradient(180deg, color-mix(in srgb, var(--s2) 88%, transparent), color-mix(in srgb, var(--s1) 82%, transparent)); box-shadow: var(--sh-s); font: inherit; color: inherit; }
 .header-info { text-align: right; }
 .header-name { font-size: 12px; font-weight: 600; color: var(--t1); line-height: 1.15; }
 .header-role { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--t4); margin-top: 2px; }
@@ -460,6 +464,7 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   transition: border-color .13s, color .13s;
 }
 .dd-upload-btn:hover, .dd-upload-btn:active { border-color: var(--b3); color: var(--t1); }
+.usermenu-avatar-clickable { appearance: none; background: none; border: 0; padding: 0; color: inherit; font: inherit; }
 
 .dd-action {
   display: flex;
@@ -689,6 +694,23 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
     display: none !important;
   }
   .demo-badge {
+    display: none !important;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 767px) {
+  .header-brand-copy {
+    display: flex !important;
+    min-width: 0;
+    gap: 6px;
+  }
+  .header-wordmark {
+    display: inline-block !important;
+    max-width: min(34ch, calc(100vw - 370px));
+    font-size: 10.5px;
+    letter-spacing: 1px;
+  }
+  .header-wordmark-mobile {
     display: none !important;
   }
 }

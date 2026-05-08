@@ -171,6 +171,26 @@ test('401 когда пользователь удалён (deleted_at IS NOT NU
   expect(res.json).toHaveBeenCalledWith({ error: 'User not found or deleted' });
 });
 
+test('проверяет активность пользователя через req.db для /api/v1 tenant context', async () => {
+  const token = makeToken({ uid: 'u-tenant', role: 'owner' }); // без jti
+  const tenantDb = {
+    query: jest.fn().mockResolvedValueOnce({ rows: [{ '?column?': 1 }] }),
+  };
+
+  const req = { ...buildReq(token), db: tenantDb };
+  const res = buildRes();
+  const next = jest.fn();
+
+  await requireAuth(req, res, next);
+
+  expect(next).toHaveBeenCalled();
+  expect(tenantDb.query).toHaveBeenCalledWith(
+    expect.stringContaining('FROM users'),
+    ['u-tenant'],
+  );
+  expect(db.query).not.toHaveBeenCalled();
+});
+
 // ─── 7. markTokenRevoked пишет в DB ──────────────────────────────────────────
 
 test('markTokenRevoked делает INSERT в token_revocations', async () => {

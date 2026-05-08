@@ -26,10 +26,11 @@ The immediate goal is proof, not breadth.
 4. CI strict gate cleanup
 5. Service refactor
 6. Role/scope model
-7. Frontend cutover
-8. Legacy freeze
-9. Policy engine
-10. Pilot readiness
+7. Residential territory / property-type baseline
+8. Frontend cutover
+9. Legacy freeze
+10. Policy engine
+11. Pilot readiness
 
 ## Phase 0. Project Base Unblock
 
@@ -369,6 +370,40 @@ Exit criteria for Phase 3:
 - Negative permission tests cover each role.
 - Frontend role gates match backend authz.
 
+## Phase 3.5. Residential Territory Baseline
+
+Start after the role/scope catalog is stable and before the frontend cutover.
+
+Goal: align the production slice with `domhub-residential-territory-model-spec.md` without expanding into a separate v2 territory schema.
+
+Work:
+
+1. Treat `properties.property_type` as the mode switch for labels, onboarding templates, and guard emphasis.
+2. Keep the v1 structure `property -> building -> entrance -> unit`; do not add `streets`, `land_plots`, `houses`, `checkpoints`, or `territory_sections` tables until a pilot proves the need.
+3. Add or document a property-type-aware display address formatter:
+   - ЖК: корпус / подъезд / квартира.
+   - club house: корпус / секция / вход / апартамент.
+   - cottage community: сектор / улица / дом / участок.
+4. Ensure UI copy and shared components do not hardcode apartment-only terms for `cottage_community`.
+5. For cottage-community onboarding, require homes/plots, resident vehicles, guard checkpoint mode, and at least one planned checkpoint/gate access point.
+6. Keep full policy evaluation in Phase 6, but make Phase 4 UI and Phase 7 pilot checks ready to display zones, points, and checkpoint context.
+
+Exit criteria for Phase 3.5:
+
+- `property_type` is available to frontend/admin contexts that render structure, access, onboarding, or guard screens.
+- `unit` is treated as addressable dwelling/asset, not only as apartment.
+- Cottage-community flows can be planned through `unit_type='house'` / `townhouse` without schema forks.
+- No shared UI path leaks "квартира" / "подъезд" where property mode requires "дом/участок" / "КПП/сектор".
+- Frontend Phase 4 can build pass-first ЖК flows and vehicle-first checkpoint flows from the same contracts.
+
+Implementation status 2026-05-05:
+
+- Done: `/api/auth/verify-otp`, `/api/auth/me`, and `/api/auth/refresh` can expose `property_type` to the frontend session.
+- Done: active v1 resident access, guard console, packages, announcements, and access-request lifecycle views use property-type-aware labels.
+- Done: cottage-community guard console opens in vehicle-first checkpoint mode from the same v1 contracts.
+- Done: admin onboarding/import template supports sector/street + house/plot + resident vehicles and returns planned checkpoint/gate provisioning data without creating v2 territory tables.
+- Deferred beyond Phase 3.5: durable `access_zones` / `access_points` tables and full policy evaluation.
+
 ## Phase 4. V1 Frontend Cutover
 
 ### 4.1 Access Work Only In `/v1/*`
@@ -384,9 +419,10 @@ Build or stabilize:
 - my passes
 - QR
 - my vehicles
-- apartment vehicle list
+- unit / house vehicle list through property-type labels
 - parking space numbers
 - visit history
+- no hardcoded apartment-only labels in shared access components
 
 ### 4.3 Security UI
 
@@ -395,6 +431,8 @@ Build or stabilize:
 - guard console
 - QR scan
 - plate lookup
+- vehicle-first checkpoint mode for `cottage_community`
+- lookup by unit / house / plot
 - deny reason
 - manual incident
 - override flow
@@ -408,6 +446,7 @@ Build or stabilize:
 - access requests
 - residents
 - units
+- property type and address label preview
 - vehicles
 - parking spaces
 - contractors
@@ -423,6 +462,7 @@ Add smoke/e2e for:
 - resident access page loads
 - staff request queue loads
 - security guard console loads
+- property-type label smoke for ЖК and cottage community
 - QR scan happy path
 - plate deny path
 - incident list visible
@@ -430,6 +470,7 @@ Add smoke/e2e for:
 Exit criteria for Phase 4:
 
 - `/v1/access` covers the main user workflow.
+- `/v1/guard` supports pass-first and vehicle/checkpoint-first operation modes.
 - Legacy access UI no longer grows.
 - Frontend smoke suite is green.
 
@@ -542,8 +583,10 @@ Verify:
 
 - residents
 - units
+- property type and display address labels
 - vehicles
 - parking spaces
+- planned access zones / points for checkpoint-style properties
 - staff
 - security users
 - contractors
@@ -589,4 +632,4 @@ Exit criteria for Phase 7:
 
 ## Planning Guardrail
 
-First prove one working access-core flow. Then expand the product.
+First prove one working access-core flow. Keep the territory model compatible with ЖК, club house, and cottage community while doing it. Then expand the product.

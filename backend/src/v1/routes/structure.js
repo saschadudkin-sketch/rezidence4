@@ -22,11 +22,25 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isStaff, isAdmin } = require('../lib/authz');
+const { canInPropertyScope, isStaff, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  buildImportTemplate,
+  importStructureRows,
+  isStructureImportError,
+  normalizePropertyType,
+} = require('../services/structureImport');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const router = express.Router();
 router.use(requireAuth);
+const importCsvParser = express.text({
+  type: ['text/csv', 'text/plain', 'application/csv'],
+  limit: '1mb',
+});
 
 // SEC [AUDIT #1] — multi-tenant гейт смонтирован в registerApiRoutes.js на
 // `/api/v1/*` и прикрепляет per-property pool в req.db.  Роут-функции
@@ -47,8 +61,25 @@ function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
 
-// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'structure:write', propertyId);
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function requirePropertyAdminForResource(req, res, resourceType, resourceId, notFoundMessage) {
+  const propertyId = await loadResourcePropertyId(getDb(req), resourceType, resourceId, { notFoundMessage });
+  if (!isPropertyAdmin(req, propertyId)) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return propertyId;
+}
 
 // Small helper: write to property-DB audit_log with fire-and-forget semantics.
 // We never block the mutation on audit-insert failure — alerting on audit
@@ -88,10 +119,10 @@ router.get('/buildings', async (req, res, next) => {
 // POST /api/v1/buildings — create (property_admin only)
 router.post('/buildings', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const { property_id, name, code = null, sort_order = 0 } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isNonEmptyString(name, 100)) return res.status(400).json({ error: 'name required (1–100 chars)' });
     if (code !== null && !isNonEmptyString(code, 50)) return res.status(400).json({ error: 'code must be 1–50 chars or null' });
     if (!Number.isInteger(sort_order)) return res.status(400).json({ error: 'sort_order must be integer' });
@@ -136,10 +167,16 @@ router.get('/buildings/:id/entrances', async (req, res, next) => {
 // POST /api/v1/entrances — create
 router.post('/entrances', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const { building_id, name, code = null, sort_order = 0 } = req.body || {};
 
     if (!isValidUuid(building_id)) return res.status(400).json({ error: 'building_id must be UUID' });
+    const buildingPropertyId = await loadResourcePropertyId(
+      getDb(req),
+      'building',
+      building_id,
+      { notFoundStatus: 400, notFoundMessage: 'building_id does not exist' },
+    );
+    if (!isPropertyAdmin(req, buildingPropertyId)) return res.status(403).json({ error: 'Forbidden' });
     if (!isNonEmptyString(name, 100)) return res.status(400).json({ error: 'name required (1–100 chars)' });
     if (code !== null && !isNonEmptyString(code, 50)) return res.status(400).json({ error: 'code must be 1–50 chars or null' });
     if (!Number.isInteger(sort_order)) return res.status(400).json({ error: 'sort_order must be integer' });
@@ -158,6 +195,7 @@ router.post('/entrances', async (req, res, next) => {
     });
     res.status(201).json({ entrance: rows[0] });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (err && err.code === '23503') return res.status(400).json({ error: 'building_id does not exist' });
     if (err && err.code === '23505') return res.status(409).json({ error: 'entrance code already exists for this building' });
     next(err);
@@ -221,6 +259,65 @@ router.get('/units', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/units/import/template?property_type=
+router.get('/units/import/template', async (req, res, next) => {
+  try {
+    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const template = buildImportTemplate(req.query.property_type);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${template.filename}"`);
+    res.send(template.content);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/units/import — CSV or JSON initial onboarding import.
+router.post('/units/import', importCsvParser, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const property_id = typeof body === 'object' && !Array.isArray(body)
+      ? body.property_id
+      : req.query.property_id;
+    const property_type = normalizePropertyType(
+      typeof body === 'object' && !Array.isArray(body)
+        ? body.property_type
+        : req.query.property_type,
+    );
+
+    if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
+
+    const result = await importStructureRows({
+      queryable: getDb(req),
+      propertyId: property_id,
+      propertyType: property_type,
+      body,
+    });
+    auditLog(req, {
+      action: 'units.imported',
+      resourceType: 'unit_import',
+      resourceId: property_id,
+      changes: {
+        property_type,
+        imported: result.imported,
+        skipped: result.skipped,
+        readiness: result.readiness,
+        planned_access_points: result.planned_access_points,
+        access_topology: result.access_topology,
+      },
+    });
+    res.status(201).json({ property_type, ...result });
+  } catch (err) {
+    if (isStructureImportError(err)) {
+      const body = { error: err.message };
+      if (err.details) body.details = err.details;
+      return res.status(err.status).json(body);
+    }
+    if (err && err.code === '23505') return res.status(409).json({ error: 'import duplicate conflict' });
+    if (err && err.code === '23503') return res.status(400).json({ error: 'import references a non-existent row' });
+    next(err);
+  }
+});
+
 // GET /api/v1/units/:id — detail + list of residents
 router.get('/units/:id', async (req, res, next) => {
   try {
@@ -246,13 +343,13 @@ router.get('/units/:id', async (req, res, next) => {
 // POST /api/v1/units — create single unit
 router.post('/units', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, building_id, entrance_id, unit_number,
       unit_type = 'apartment', floor = null,
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(building_id)) return res.status(400).json({ error: 'building_id must be UUID' });
     if (!isValidUuid(entrance_id)) return res.status(400).json({ error: 'entrance_id must be UUID' });
     if (!isNonEmptyString(unit_number, 30)) return res.status(400).json({ error: 'unit_number required (1–30 chars)' });
@@ -262,8 +359,13 @@ router.post('/units', async (req, res, next) => {
     // Defense in depth: verify entrance belongs to building so the
     // denormalised fields can never drift from the authoritative FK.
     const { rows: check } = await getDb(req).query(
-      `SELECT 1 FROM entrances WHERE id = $1 AND building_id = $2`,
-      [entrance_id, building_id],
+      `SELECT 1
+         FROM entrances e
+         JOIN buildings b ON b.id = e.building_id
+        WHERE e.id = $1
+          AND e.building_id = $2
+          AND b.property_id = $3`,
+      [entrance_id, building_id, property_id],
     );
     if (!check[0]) return res.status(400).json({ error: 'entrance does not belong to the given building' });
 
@@ -289,8 +391,9 @@ router.post('/units', async (req, res, next) => {
 // PATCH /api/v1/units/:id
 router.patch('/units/:id', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid unit id' });
+    const propertyId = await requirePropertyAdminForResource(req, res, 'unit', req.params.id, 'Unit not found');
+    if (!propertyId) return;
 
     const changes = {};
     const sets = [];
@@ -324,6 +427,7 @@ router.patch('/units/:id', async (req, res, next) => {
     auditLog(req, { action: 'unit.updated', resourceType: 'unit', resourceId: rows[0].id, changes });
     res.json({ unit: rows[0] });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (err && err.code === '23505') return res.status(409).json({ error: 'unit_number already exists at this address' });
     next(err);
   }
@@ -334,8 +438,9 @@ router.patch('/units/:id', async (req, res, next) => {
 // deactivate residents first (units-spec §5 acceptance criterion).
 router.post('/units/:id/deactivate', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid unit id' });
+    const propertyId = await requirePropertyAdminForResource(req, res, 'unit', req.params.id, 'Unit not found');
+    if (!propertyId) return;
 
     const { rows: residents } = await getDb(req).query(
       `SELECT COUNT(*)::int AS c FROM residents WHERE unit_id = $1 AND is_active = true`,
@@ -352,7 +457,10 @@ router.post('/units/:id/deactivate', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Unit not found' });
     auditLog(req, { action: 'unit.deactivated', resourceType: 'unit', resourceId: rows[0].id, changes: null });
     res.status(204).end();
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 module.exports = router;

@@ -85,8 +85,7 @@ const AppShell = memo(function AppShell({
       {showBanner && (
         <div
           className="offline-banner is-visible"
-          role="status"
-          aria-live="polite"
+          role="status" aria-live="polite"
           aria-atomic="true"
         >
           <AppIcon name={bannerIcon} size={13} />

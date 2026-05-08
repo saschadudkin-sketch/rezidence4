@@ -52,11 +52,14 @@ function FeatureRow({
   isUpdating,
   onToggle,
 }: FeatureRowProps) {
+  const labelId = `feature-flag-${flagKey}-label`;
+  const descriptionId = description ? `feature-flag-${flagKey}-description` : undefined;
+
   return (
     <div className={styles.featureRow}>
       <div className={styles.featureContent}>
-        <div className={styles.featureLabel}>{label}</div>
-        <div className={styles.featureDescription}>{description}</div>
+        <div id={labelId} className={styles.featureLabel}>{label}</div>
+        <div id={descriptionId} className={styles.featureDescription}>{description}</div>
       </div>
       <div className={styles.featureControl}>
         {isUpdating ? (
@@ -67,6 +70,8 @@ function FeatureRow({
             onChange={(newValue) => onToggle(flagKey, newValue)}
             disabled={isDisabled}
             size="md"
+            ariaLabelledBy={labelId}
+            ariaDescribedBy={descriptionId}
           />
         )}
       </div>
@@ -75,7 +80,7 @@ function FeatureRow({
 }
 
 export function AdminFeaturesView() {
-  const { flags, flagsMeta, categories, isLoaded, updateFlag } = useFeatureFlags();
+  const { flagsMeta, categories, isLoaded, loadError, updateFlag } = useFeatureFlags();
   const [updatingFlags, setUpdatingFlags] = useState<Set<FeatureFlagKey>>(new Set());
 
   const handleToggleFlag = async (flagKey: FeatureFlagKey, value: boolean) => {
@@ -135,7 +140,7 @@ export function AdminFeaturesView() {
     );
   }
 
-  if (!flags) {
+  if (loadError) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
@@ -143,7 +148,7 @@ export function AdminFeaturesView() {
         </div>
         <EmptyState
           title="Не удалось загрузить настройки"
-          subtitle="Проверьте соединение с сервером"
+          subtitle={loadError}
           action={{ label: 'Обновить', onClick: () => window.location.reload() }}
         />
       </div>

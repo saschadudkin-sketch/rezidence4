@@ -25,7 +25,7 @@ export const Spinner: React.FC<SpinnerProps> = ({
   return (
     <div
       className={spinnerClasses}
-      role="status"
+      role="status" aria-live="polite"
       aria-label="Загрузка"
     >
       <span className={styles.visuallyHidden}>Загрузка...</span>

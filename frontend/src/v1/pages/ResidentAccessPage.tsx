@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AccessRequest, QrToken, RequestType, UUID } from '../api/types';
+import type { AccessRequest, PropertyType, QrToken, RequestType, UUID } from '../api/types';
 import { api, isV1ApiError } from '../api';
 import type { ResidentWithUnit } from '../api/residents';
 import { useV1Session } from '../store';
@@ -40,6 +40,7 @@ import { AccessRequestForm } from '../components/AccessRequestForm';
 import type { UnitOption } from '../components/AccessRequestForm';
 import { AccessRequestCard } from '../components/AccessRequestCard';
 import { ResidentNav } from '../components/ResidentNav';
+import { formatUnitLabel, getPropertyLabels } from '../lib/propertyLabels';
 import {
   Alert,
   Button,
@@ -73,6 +74,7 @@ type PageState =
 
 export function ResidentAccessPage() {
   const session = useV1Session();
+  const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [refreshToken, setRefreshToken] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
@@ -131,8 +133,8 @@ export function ResidentAccessPage() {
         <h1 className={uiClasses.pageTitle}>Мои заявки на доступ</h1>
         <p className={uiClasses.pageSubtitle}>
           {session.apartment
-            ? `Квартира ${session.apartment}`
-            : 'Квартира не привязана — обратитесь в управляющую.'}
+            ? formatUnitLabel({ unit_number: session.apartment }, session.property_type)
+            : labels.unitMissing}
           {session.property_slug ? ` · ${session.property_slug}` : ''}
         </p>
       </header>
@@ -156,6 +158,7 @@ export function ResidentAccessPage() {
           resident={state.data.resident}
           requests={state.data.requests}
           apartmentLabel={session.apartment ?? null}
+          propertyType={session.property_type ?? null}
           formOpen={formOpen}
           onOpenForm={() => setFormOpen(true)}
           onCancelForm={() => setFormOpen(false)}
@@ -170,6 +173,7 @@ interface ReadyProps {
   resident: ResidentWithUnit;
   requests: readonly AccessRequest[];
   apartmentLabel: string | null;
+  propertyType: PropertyType | null;
   formOpen: boolean;
   onOpenForm: () => void;
   onCancelForm: () => void;
@@ -180,6 +184,7 @@ function ResidentAccessReady({
   resident,
   requests,
   apartmentLabel,
+  propertyType,
   formOpen,
   onOpenForm,
   onCancelForm,
@@ -195,9 +200,12 @@ function ResidentAccessReady({
       {
         id: resident.unit_id as UUID,
         unit_number: apartmentLabel ?? '—',
+        unit_type: propertyType === 'cottage_community' ? 'house' : 'apartment',
       },
     ];
-  }, [resident.unit_id, apartmentLabel]);
+  }, [resident.unit_id, apartmentLabel, propertyType]);
+
+  const labels = useMemo(() => getPropertyLabels(propertyType), [propertyType]);
 
   return (
     <Stack>
@@ -216,7 +224,7 @@ function ResidentAccessReady({
 
       {!canCreate ? (
         <Alert tone="warning">
-          К вашей учётной записи не привязана квартира. Попросите консьержа обновить
+          К вашей учётной записи не привязан {labels.unitLower}. Попросите консьержа обновить
           профиль — без этого заявка на гостя не пройдёт.
         </Alert>
       ) : null}
@@ -224,6 +232,7 @@ function ResidentAccessReady({
       {formOpen && canCreate && resident.property_id ? (
         <AccessRequestForm
           propertyId={resident.property_id}
+          propertyType={propertyType}
           units={units}
           vehicles={[]}
           allowedRequestTypes={RESIDENT_REQUEST_TYPES}

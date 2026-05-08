@@ -1,15 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { api, setToken, STORAGE_KEY, ApiError } from './api';
+import { api, setToken, hasToken, subscribeUnauthorized, ApiError } from './api';
 
 /**
  * admin/auth — auth state for the platform superadmin SPA.
  *
- * Tokens are plain JWTs held in localStorage.  We deliberately don't persist
- * the admin profile: on every reload we hit GET /stats (a cheap call behind
- * the same platformAuth guard) to verify the token still works, and only
- * then mark the session as authenticated.  A 401 response from `api` wipes
- * the stored token automatically (see api.ts), so we just observe the error
- * here and drop back to the login screen.
+ * Tokens are plain JWTs held in memory for the current tab only. We
+ * deliberately don't persist the admin token or profile: reloads require a new
+ * login, while in-tab auth can still be verified against GET /stats. A 401
+ * response from `api` clears the memory token automatically and notifies this
+ * provider so we drop back to the login screen.
  */
 
 export interface PlatformAdmin {
@@ -38,6 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [error, setError] = useState<string | null>(null);
 
+  const clearSession = useCallback(() => {
+    setToken(null);
+    setAdmin(null);
+    setError(null);
+    setStatus('unauthenticated');
+  }, []);
+
+  useEffect(() => subscribeUnauthorized(clearSession), [clearSession]);
+
   // On mount: if a token is present, verify it by calling a protected endpoint.
   // If it works, we consider the session live; if it 401s, api.ts has already
   // wiped the token and we land on the login page.
@@ -45,8 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function verify() {
-      const token = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
-      if (!token) {
+      if (!hasToken()) {
         if (!cancelled) setStatus('unauthenticated');
         return;
       }
@@ -89,11 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // call fails (network down, token already expired).
       await api.post('/auth/logout').catch(() => undefined);
     } finally {
-      setToken(null);
-      setAdmin(null);
-      setStatus('unauthenticated');
+      clearSession();
     }
-  }, []);
+  }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ admin, status, error, login, logout }),

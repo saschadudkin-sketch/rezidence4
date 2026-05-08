@@ -76,8 +76,11 @@
 - `buildings`;
 - `entrances`;
 - `units`;
+- `resident_unit_memberships`;
 - foreign keys `property -> building -> entrance -> unit`;
+- property-type-aware mapping for ЖК, club house, and cottage community address structures;
 - resident-to-unit and staff-to-property mapping;
+- ownership/tenancy/representative lifecycle fields;
 - contractor company tables.
 
 ### Backend/API
@@ -85,24 +88,30 @@
 - CRUD or import endpoints for object structure;
 - lookup services for structure navigation;
 - validation for address hierarchy;
+- property-type-aware display address formatter;
 - scope calculation helpers.
+- resident membership lifecycle service.
 
 ### Frontend/UI
 
 - property structure screens;
 - unit assignment UI;
+- resident membership and offboarding UI;
+- labels for apartment/entrance vs house/plot modes;
 - import preview UI or admin upload state;
 - staff property context views.
 
 ### Tests
 
 - entity relation integrity tests;
+- lifecycle cascade tests for passes, vehicles and scopes;
 - import validation tests;
 - scope resolution tests.
 
 ### Docs
 
 - domain model spec;
+- residential territory model spec;
 - import format spec;
 - object setup guide.
 
@@ -116,6 +125,7 @@
 - access scope tables or mapping tables;
 - temporary access fields;
 - contractor access expiry fields;
+- access review tables/fields;
 - consent and permission audit fields.
 
 ### Backend/API
@@ -125,12 +135,14 @@
 - permission matrix enforcement;
 - account lifecycle actions;
 - access review support endpoints.
+- sensitive-action audit emitters.
 
 ### Frontend/UI
 
 - role assignment forms;
 - scope assignment UI;
 - access review screens;
+- sensitive-action report states;
 - restricted data masking states.
 
 ### Tests
@@ -139,6 +151,7 @@
 - role/scope integration tests;
 - negative access tests;
 - contractor visibility tests.
+- sensitive-action audit tests.
 
 ### Docs
 
@@ -153,14 +166,17 @@
 ### Database
 
 - resident profile fields;
+- resident membership status fields;
 - notification preferences;
 - consent timestamps;
+- consent version/source fields;
 - session-related security data.
 
 ### Backend/API
 
 - auth/session endpoints;
 - profile endpoint;
+- resident offboarding/revocation endpoint;
 - consent endpoint;
 - preferences update endpoint;
 - logout/session revocation flow.
@@ -171,12 +187,14 @@
 - profile page;
 - consent modal/flow;
 - notification settings.
+- offboarding/admin correction states.
 
 ### Tests
 
 - auth flow tests;
 - session restore tests;
 - consent flow tests;
+- offboarding cascade tests;
 - profile permission tests.
 
 ### Docs
@@ -194,6 +212,9 @@
 - `passes` or request-linked pass model;
 - `qr_passes`;
 - `visit_logs`;
+- `access_zones`;
+- `access_points`;
+- access policy templates/bindings for zone, point, method, schedule and vehicle rules;
 - pass token indexes;
 - audit fields for admit/deny.
 
@@ -203,6 +224,8 @@
 - pass detail endpoints;
 - public pass endpoint;
 - QR validation endpoint;
+- zone/point CRUD endpoints;
+- policy evaluation service used by QR/plate verification;
 - admit/deny endpoints;
 - visit log listing/search endpoints.
 
@@ -212,6 +235,8 @@
 - QR pass card;
 - public pass screen;
 - security scan/decision screens;
+- access point selector for guard/checkpoint;
+- entry/exit mode and vehicle-first checkpoint flow for cottage communities;
 - visit log views.
 
 ### Tests
@@ -219,6 +244,8 @@
 - token validation tests;
 - public pass security tests;
 - admit/deny flow integration tests;
+- access point selection and visit-log linkage tests;
+- policy binding/evaluation tests for zone, point and vehicle access;
 - visit log persistence tests.
 
 ### Docs
@@ -235,6 +262,8 @@
 
 - request tables/fields;
 - request category/type tables or enums;
+- target fields for unit/home, access zone, access point, and common territory;
+- emergency request profile fields;
 - attachments relation;
 - request history;
 - resident-facing vs internal fields.
@@ -245,11 +274,15 @@
 - request detail endpoint;
 - comment/history endpoints;
 - request filters;
+- target validation for unit/home, zone, point, and common territory;
+- emergency priority/SLA classification;
 - resident and staff visibility rules.
 
 ### Frontend/UI
 
 - resident request creation form;
+- property-type-aware target picker;
+- emergency category and severity picker where permitted;
 - resident request history;
 - staff request detail;
 - attachments UI;
@@ -258,6 +291,8 @@
 ### Tests
 
 - request creation tests;
+- cottage-community territory request tests;
+- emergency request classification tests;
 - visibility tests;
 - history tests;
 - attachment handling tests.
@@ -275,6 +310,7 @@
 ### Database
 
 - `request_sla_config`;
+- emergency SLA config;
 - fields `assigned_to`, `assigned_at`, `sla_due_at`, `first_response_at`, `resolved_at`, `completed_at`;
 - escalation markers;
 - overdue notification markers.
@@ -283,6 +319,7 @@
 
 - assignment endpoints;
 - SLA calculation service;
+- emergency escalation service;
 - overdue jobs;
 - escalation rules;
 - timeline event generation.
@@ -291,6 +328,7 @@
 
 - assignment controls;
 - SLA badges;
+- emergency queue indicators;
 - overdue indicators;
 - timeline state changes;
 - property admin SLA views.
@@ -298,6 +336,7 @@
 ### Tests
 
 - SLA calculation unit tests;
+- emergency escalation tests;
 - overdue job tests;
 - assignment visibility tests;
 - state transition tests.
@@ -701,12 +740,17 @@
 - audit fields;
 - deletion markers;
 - retention-relevant flags;
+- data subject request tables/fields;
+- consent version/source fields;
+- sensitive data classification fields;
 - access review timestamps if needed.
 
 ### Backend/API
 
 - consent storage endpoints;
 - deletion/anonymization flows;
+- data subject export/correction/delete request flows;
+- sensitive-data masking helpers;
 - access review support endpoints if needed;
 - audit export support if required.
 
@@ -714,12 +758,16 @@
 
 - consent UI;
 - privacy-related account states;
+- data export/deletion request admin states;
+- sensitive-data masking states;
 - admin-facing deletion controls if applicable.
 
 ### Tests
 
 - consent persistence tests;
 - anonymization/deletion tests;
+- data subject request tests;
+- masking/visibility tests;
 - audit logging tests.
 
 ### Docs
@@ -727,6 +775,8 @@
 - полный legal packet;
 - compliance policies;
 - controller/processor model;
+- data localization and ИСПДн readiness memo;
+- biometric exclusion / feature-gating policy;
 - incident response docs.
 
 ---
@@ -739,6 +789,8 @@
 - `webhook_deliveries`;
 - integration config tables;
 - provider secret references.
+- hardware device registry for SKUD, barriers/gates, intercoms, LPR and cameras where needed;
+- GIS ЖКХ / ОСС export job metadata where needed.
 
 ### Backend/API
 
@@ -747,12 +799,16 @@
 - retry logic;
 - integration settings endpoints;
 - provider adapter interfaces.
+- hardware integration adapter interfaces;
+- GIS ЖКХ / ОСС export helpers.
 
 ### Frontend/UI
 
 - integration settings screens;
 - webhook management UI;
 - delivery/error visibility UI.
+- hardware integration map UI;
+- GIS ЖКХ / ОСС export/readiness status UI.
 
 ### Tests
 
@@ -760,11 +816,14 @@
 - signature tests;
 - provider adapter tests;
 - integration failure handling tests.
+- hardware fallback boundary tests.
 
 ### Docs
 
 - integrations spec;
 - provider config docs;
+- hardware integration map docs;
+- GIS ЖКХ / ОСС readiness docs;
 - troubleshooting docs.
 
 ---

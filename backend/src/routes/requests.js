@@ -11,8 +11,11 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = rateLimit;
 const requireAuth = require('../middleware/auth');
 const idempotency = require('../middleware/idempotency');
+const db = require('../db');
 const { broadcastRequestUpdate } = require('../sse');
 const { RequestsService, ServiceError, ConflictError } = require('../services/RequestsService');
+const { RequestSlaService } = require('../services/requests/RequestSlaService');
+const { RequestUpdatesService } = require('../services/requests/RequestUpdatesService');
 const { dispatch: notifyDispatch } = require('../services/notificationService');
 const { createSkudAdapter } = require('../services/skud');
 const logger = require('../logger');
@@ -32,6 +35,10 @@ const createRequestLimiter = rateLimit({
 
 const router = express.Router();
 router.use(requireAuth);
+
+const getDb = (req) => req.db || db;
+const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+const getPropertyId = (req) => req.property?.id || req.body?.propertyId || req.query?.propertyId || null;
 
 // FIX: поддерживаем и UUID, и legacy/string id (например "req-123"),
 // чтобы не ломать существующие данные/тесты, но всё ещё отсеивать мусор.
@@ -57,13 +64,85 @@ function handleServiceError(err, res, next) {
   next(err);
 }
 
+// ─── GET /api/requests/categories ────────────────────────────────────────────
+router.get('/categories', async (req, res, next) => {
+  try {
+    const categories = await RequestsService.listCategories(getDb(req), {
+      propertyId: getPropertyId(req),
+    });
+    res.json({ data: categories });
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── PUT /api/requests/categories/:code ──────────────────────────────────────
+router.put('/categories/:code', async (req, res, next) => {
+  try {
+    const category = await RequestsService.upsertCategory(
+      req.user,
+      getDb(req),
+      getPropertyId(req),
+      req.params.code,
+      req.body,
+    );
+    res.json(category);
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── GET /api/requests/:id/attachments ───────────────────────────────────────
+router.get('/:id/attachments', validateId, async (req, res, next) => {
+  try {
+    const data = await RequestUpdatesService.listAttachments(req.user, req.params.id, getDb(req));
+    res.json({ data });
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/:id/attachments ──────────────────────────────────────
+router.post('/:id/attachments', validateId, async (req, res, next) => {
+  try {
+    const attachment = await RequestUpdatesService.createAttachment(req.user, req.params.id, req.body, getDb(req));
+    res.status(201).json(attachment);
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── GET /api/requests/:id/updates ───────────────────────────────────────────
+router.get('/:id/updates', validateId, async (req, res, next) => {
+  try {
+    const data = await RequestUpdatesService.listUpdates(req.user, req.params.id, getDb(req));
+    res.json({ data });
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/:id/updates ──────────────────────────────────────────
+router.post('/:id/updates', validateId, async (req, res, next) => {
+  try {
+    const update = await RequestUpdatesService.createUpdate(req.user, req.params.id, req.body, getDb(req));
+    res.status(201).json(update);
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/:id/assign ───────────────────────────────────────────
+router.post('/:id/assign', validateId, async (req, res, next) => {
+  try {
+    const request = await RequestSlaService.assignRequest(req.user, req.params.id, req.body, getDb(req));
+    res.json(request);
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/:id/first-response ───────────────────────────────────
+router.post('/:id/first-response', validateId, async (req, res, next) => {
+  try {
+    const request = await RequestSlaService.markFirstResponse(req.user, req.params.id, getDb(req));
+    res.json(request);
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
 // ─── GET /api/requests/:id ────────────────────────────────────────────────────
 // Ownership check внутри RequestsService.getOne:
 //   - Жилец получает 404 если заявка чужая (а не 403, чтобы не раскрывать факт существования)
 //   - Персонал и админ видят любую заявку
 router.get('/:id', validateId, async (req, res, next) => {
   try {
-    res.json(await RequestsService.getOne(req.user, req.params.id));
+    res.json(await RequestsService.getOne(req.user, req.params.id, getDb(req)));
   } catch (err) { handleServiceError(err, res, next); }
 });
 
@@ -72,7 +151,7 @@ router.get('/', async (req, res, next) => {
   try {
     const page  = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
-    res.json(await RequestsService.list(req.user, { page, limit }));
+    res.json(await RequestsService.list(req.user, { page, limit }, getDb(req)));
   } catch (err) { handleServiceError(err, res, next); }
 });
 
@@ -81,7 +160,9 @@ router.get('/', async (req, res, next) => {
 // SEC-03: createRequestLimiter — per-user rate limit 20/min
 router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
   try {
-    const created = await RequestsService.create(req.user, req.body);
+    const created = await RequestsService.create(req.user, req.body, getDb(req), {
+      propertyId: getPropertyId(req),
+    });
     broadcastRequestUpdate(created);
     res.status(201).json(created);
   } catch (err) { handleServiceError(err, res, next); }
@@ -90,7 +171,7 @@ router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
 // ─── PATCH /api/requests/:id ─────────────────────────────────────────────────
 router.patch('/:id', validateId, async (req, res, next) => {
   try {
-    const updated = await RequestsService.update(req.user, req.params.id, req.body);
+    const updated = await RequestsService.update(req.user, req.params.id, req.body, getDb(req), getTxPool(req));
     broadcastRequestUpdate(updated);
     res.json(updated);
 
@@ -166,7 +247,7 @@ router.patch('/:id', validateId, async (req, res, next) => {
 // переподключения SSE или перезагрузки страницы.
 router.delete('/:id', validateId, async (req, res, next) => {
   try {
-    const result = await RequestsService.delete(req.user, req.params.id);
+    const result = await RequestsService.delete(req.user, req.params.id, getDb(req));
     broadcastRequestUpdate({ id: req.params.id, status: 'deleted', deletedAt: new Date().toISOString() });
     res.json(result);
   } catch (err) { handleServiceError(err, res, next); }
@@ -176,7 +257,7 @@ router.delete('/:id', validateId, async (req, res, next) => {
 // FIX [SECURITY]: передаём req.user для проверки владения (см. RequestsService.getHistory)
 router.get('/:id/history', validateId, async (req, res, next) => {
   try {
-    res.json(await RequestsService.getHistory(req.user, req.params.id));
+    res.json(await RequestsService.getHistory(req.user, req.params.id, getDb(req)));
   } catch (err) { handleServiceError(err, res, next); }
 });
 

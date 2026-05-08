@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../api';
 import s from '../styles.module.css';
 
@@ -31,7 +31,7 @@ export function AuditLogPage() {
   const [offset, setOffset] = useState(0);
   const [actionFilter, setActionFilter] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const params = new URLSearchParams();
@@ -43,9 +43,9 @@ export function AuditLogPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     }
-  }
+  }, [actionFilter, offset]);
 
-  useEffect(() => { void load(); }, [offset, actionFilter]);
+  useEffect(() => { void load(); }, [load]);
 
   const total = data?.total ?? 0;
   const page = Math.floor(offset / PAGE_SIZE) + 1;
@@ -75,6 +75,7 @@ export function AuditLogPage() {
         ) : (
           <>
             <table className={s.table}>
+              <caption className={s.tableCaption}>Журнал аудита</caption>
               <thead>
                 <tr>
                   <th>Когда</th>

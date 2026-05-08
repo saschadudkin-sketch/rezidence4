@@ -67,6 +67,10 @@ const UUID_A = '11111111-1111-4111-8111-111111111111';
 const UUID_B = '22222222-2222-4222-8222-222222222222';
 const UUID_C = '33333333-3333-4333-8333-333333333333';
 const UUID_D = '44444444-4444-4444-8444-444444444444';
+const UUID_E = '55555555-5555-4555-8555-555555555555';
+const UUID_F = '66666666-6666-4666-8666-666666666666';
+const UUID_G = '77777777-7777-4777-8777-777777777777';
+const UUID_H = '88888888-8888-4888-8888-888888888888';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -112,6 +116,17 @@ describe('POST /api/v1/buildings', () => {
       .send({ property_id: 'not-a-uuid', name: 'Корпус A' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/property_id/);
+  });
+
+  test('403 when admin token belongs to another property', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_B };
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/buildings')
+      .send({ property_id: UUID_A, name: 'Корпус A' });
+
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
   });
 
   test('400 on empty name', async () => {
@@ -205,10 +220,142 @@ describe('POST /api/v1/units — cross-check entrance belongs to building', () =
   });
 });
 
+describe('GET /api/v1/units/import/template', () => {
+  test('returns cottage-community CSV template with checkpoint columns', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin' };
+
+    const res = await supertest(buildApp())
+      .get('/api/v1/units/import/template?property_type=cottage_community');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/csv/);
+    expect(res.text).toContain('sector_or_street,house_or_plot_number,unit_type');
+    expect(res.text).toContain('vehicle_plates,checkpoint_name,checkpoint_type');
+  });
+});
+
+describe('POST /api/v1/units/import', () => {
+  test('imports cottage house, resident, vehicle, and planned checkpoint data', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin' };
+    db.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_B }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_C }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_D }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_E }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_F }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_G, name: 'КПП 1', zone_type: 'checkpoint' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID_H, zone_id: UUID_G, name: 'КПП 1', point_type: 'checkpoint' }] });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/units/import')
+      .send({
+        property_id: UUID_A,
+        property_type: 'cottage_community',
+        rows: [{
+          sector_or_street: 'Северная',
+          house_or_plot_number: '14',
+          unit_type: 'house',
+          owner_full_name: 'Иванов Иван',
+          phone: '+79991234567',
+          resident_type: 'owner',
+          vehicle_plates: 'А001АА77',
+          checkpoint_name: 'КПП 1',
+          checkpoint_type: 'checkpoint',
+        }],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.imported).toMatchObject({
+      buildings: 1,
+      entrances: 1,
+      units: 1,
+      residents: 1,
+      vehicles: 1,
+    });
+    expect(res.body.planned_access_points).toEqual([
+      { name: 'КПП 1', point_type: 'checkpoint', notes: null },
+    ]);
+    expect(res.body.access_topology).toEqual({
+      zones: [{ id: UUID_G, name: 'КПП 1', zone_type: 'checkpoint', created: true }],
+      points: [{
+        id: UUID_H,
+        zone_id: UUID_G,
+        name: 'КПП 1',
+        point_type: 'checkpoint',
+        notes: null,
+        created: true,
+      }],
+    });
+    expect(res.body.readiness.ready).toBe(true);
+
+    const unitInsert = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO units'));
+    expect(unitInsert[1]).toEqual([UUID_A, UUID_B, UUID_C, '14', 'house', null]);
+
+    const vehicleInsert = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO vehicles'));
+    expect(vehicleInsert[1]).toEqual([
+      UUID_A,
+      UUID_E,
+      'A001AA77',
+      'Imported during property onboarding',
+    ]);
+
+    const zoneInsert = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO access_zones'));
+    expect(zoneInsert[1]).toEqual([
+      UUID_A,
+      'КПП 1',
+      null,
+      1,
+      JSON.stringify({ source: 'onboarding_import', planned_point_type: 'checkpoint' }),
+    ]);
+
+    const pointInsert = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO access_points'));
+    expect(pointInsert[1]).toEqual([
+      UUID_A,
+      UUID_G,
+      'КПП 1',
+      'checkpoint',
+      null,
+      1,
+      JSON.stringify({ source: 'onboarding_import' }),
+    ]);
+  });
+
+  test('rejects invalid cottage unit_type before writing rows', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin' };
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/units/import')
+      .send({
+        property_id: UUID_A,
+        property_type: 'cottage_community',
+        rows: [{
+          sector_or_street: 'Северная',
+          house_or_plot_number: '14',
+          unit_type: 'apartment',
+          owner_full_name: 'Иванов Иван',
+          phone: '+79991234567',
+        }],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/cottage unit_type/);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+});
+
 describe('POST /api/v1/units/:id/deactivate', () => {
   test('409 when active residents remain on the unit', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin' };
-    db.query.mockResolvedValueOnce({ rows: [{ c: 2 }] }); // residents count
+    db.query
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_A }] }) // row ownership lookup
+      .mockResolvedValueOnce({ rows: [{ c: 2 }] }); // residents count
 
     const res = await supertest(buildApp())
       .post(`/api/v1/units/${UUID_D}/deactivate`);
@@ -219,12 +366,24 @@ describe('POST /api/v1/units/:id/deactivate', () => {
   test('204 when no active residents', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin' };
     db.query
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_A }] }) // row ownership lookup
       .mockResolvedValueOnce({ rows: [{ c: 0 }] })   // count
       .mockResolvedValueOnce({ rows: [{ id: UUID_D }] }); // update
 
     const res = await supertest(buildApp())
       .post(`/api/v1/units/${UUID_D}/deactivate`);
     expect(res.status).toBe(204);
+  });
+
+  test('403 when scoped admin deactivates unit from another property', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_A };
+    db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_B }] });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/units/${UUID_D}/deactivate`);
+
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -312,7 +471,7 @@ describe('POST /api/v1/residents', () => {
 
   test('400 when unit is inactive', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
-    db.query.mockResolvedValueOnce({ rows: [{ is_active: false }] });
+    db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_A, is_active: false }] });
 
     const res = await supertest(buildApp())
       .post('/api/v1/residents')
@@ -395,6 +554,19 @@ describe('POST /api/v1/staff — capability defaults and override', () => {
     expect(insertCall[1][6]).toBe(true); // override stuck
   });
 
+  test('403 when scoped admin creates staff for another property', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/staff')
+      .send({
+        property_id: UUID_A, full_name: 'Guard', email: 'g@uk.ru', role: 'security',
+      });
+
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
   test('400 on invalid role', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     const res = await supertest(buildApp())
@@ -436,7 +608,7 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
       // read current row
       .mockResolvedValueOnce({
         rows: [{
-          id: UUID_A, full_name: 'Guard', phone: null, role: 'security',
+          id: UUID_A, property_id: UUID_A, full_name: 'Guard', phone: null, role: 'security',
           specialization: null,
           can_view_resident_phone: false, can_assign_requests: false,
         }],
@@ -458,6 +630,24 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
     const changes = JSON.parse(auditCall[1][4]);
     expect(changes.role).toEqual({ from: 'security', to: 'concierge' });
   });
+
+  test('403 when scoped admin patches staff from another property', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: UUID_D, property_id: UUID_B, full_name: 'Guard', phone: null, role: 'security',
+        specialization: null,
+        can_view_resident_phone: false, can_assign_requests: false,
+      }],
+    });
+
+    const res = await supertest(buildApp())
+      .patch(`/api/v1/staff/${UUID_D}`)
+      .send({ role: 'concierge' });
+
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
 });
 
 // ─── Contractors ─────────────────────────────────────────────────────────────
@@ -465,7 +655,7 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
 describe('POST /api/v1/contractor-users — company-status gate', () => {
   test('409 when company status is suspended', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
-    db.query.mockResolvedValueOnce({ rows: [{ status: 'suspended' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_B, status: 'suspended' }] });
 
     const res = await supertest(buildApp())
       .post('/api/v1/contractor-users')
@@ -503,7 +693,7 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
   test('201 when company is active and payload is valid', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     db.query
-      .mockResolvedValueOnce({ rows: [{ status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_B, status: 'active' }] })
       .mockResolvedValueOnce({ rows: [{ id: UUID_C, full_name: 'Worker', is_active: true }] });
 
     const res = await supertest(buildApp())
@@ -512,6 +702,20 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
         contractor_company_id: UUID_A, property_id: UUID_B, full_name: 'Worker',
       });
     expect(res.status).toBe(201);
+  });
+
+  test('400 when company belongs to another property', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_A, status: 'active' }] });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/contractor-users')
+      .send({
+        contractor_company_id: UUID_A, property_id: UUID_B, full_name: 'Worker',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/does not belong/);
   });
 });
 

@@ -81,10 +81,15 @@ const v1ContractorsRouter = require('../v1/routes/contractors');
 //                       т.к. owns two top-level resources: /access-incidents,
 //                       /access-overrides)
 const v1VehiclesRouter          = require('../v1/routes/vehicles');
+const v1AccessTopologyRouter    = require('../v1/routes/accessTopology');
+const v1AccessPoliciesRouter    = require('../v1/routes/accessPolicies');
+const v1SecurityWorkspaceRouter = require('../v1/routes/securityWorkspace');
+const v1StaffWorkspaceRouter    = require('../v1/routes/staffWorkspace');
 const v1AccessRequestsRouter    = require('../v1/routes/accessRequests');
 const v1PassesRouter            = require('../v1/routes/passes');
 const v1VisitsRouter            = require('../v1/routes/visits');
 const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
+const v1AuditReviewsRouter      = require('../v1/routes/auditReviews');
 
 // Phase 5 (platform-v1) — notification_log_v2 read API.  Spec:
 // docs/product/specs/platform-v1/notification-log-v2-spec.md §3.
@@ -282,10 +287,15 @@ function registerApiRoutes(app, { rateLimiters }) {
   // vehicles/access-requests/passes/visits — single-resource routers.
   // accessIncidents owns /access-incidents + /access-overrides (root mount).
   app.use('/api/v1/vehicles', v1VehiclesRouter);
+  app.use('/api/v1', v1AccessTopologyRouter);
+  app.use('/api/v1', v1AccessPoliciesRouter);
+  app.use('/api/v1/security-workspace', v1SecurityWorkspaceRouter);
+  app.use('/api/v1/staff-workspace', v1StaffWorkspaceRouter);
   app.use('/api/v1/access-requests', v1AccessRequestsRouter);
   app.use('/api/v1/passes', v1PassesRouter);
   app.use('/api/v1/visits', v1VisitsRouter);
   app.use('/api/v1', v1AccessIncidentsRouter);
+  app.use('/api/v1/audit', v1AuditReviewsRouter);
 
   // Phase 5 — notification_log_v2 read API.  Exposes:
   //   GET  /api/v1/admin/notification-log             (list)

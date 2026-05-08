@@ -237,7 +237,7 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
       <div className="admin-toolbar admin-toolbar--requests">
         <div className="search-wrap u-mb0">
           <span className="search-ico"><AppIcon name="search" size={13} /></span>
-          <input className="search-inp" placeholder={'Поиск по имени, апарт., авто...'} value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
+          <input className="search-inp" aria-label="Поиск заявок" placeholder={'Поиск по имени, апарт., авто...'} value={reqQuery} onChange={e => setReqQuery(e.target.value)} />
         </div>
         <div className="sec-filters-toggle-row">
           <button

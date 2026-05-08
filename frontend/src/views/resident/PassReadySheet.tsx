@@ -26,6 +26,31 @@ function getPassReadyText(request: AppRequest) {
   return `Пропуск для: ${guest}\n${apartment}${schedule}${car}\nСтатус: ${STS_LABEL[request.status] || 'создан'}\nПокажите QR-код охране на КПП.`;
 }
 
+async function writeClipboardText(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === 'undefined') return false;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+
+  try {
+    textarea.focus();
+    textarea.select();
+    return document.execCommand('copy');
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
 export function PassReadySheet({ request, onClose, onCreateAnother }: PassReadySheetProps) {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState(false);
@@ -59,7 +84,8 @@ export function PassReadySheet({ request, onClose, onCreateAnother }: PassReadyS
 
   const copyPass = async () => {
     try {
-      await navigator.clipboard?.writeText(shareText);
+      const copied = await writeClipboardText(shareText);
+      if (!copied) throw new Error('Clipboard API is unavailable');
       toast('Данные пропуска скопированы', 'success');
     } catch {
       toast('Не удалось скопировать. Проверьте разрешения браузера', 'error');

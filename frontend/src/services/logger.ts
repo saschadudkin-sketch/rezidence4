@@ -3,6 +3,12 @@
  */
 const MODE = import.meta?.env?.MODE ?? process.env.NODE_ENV;
 const IS_DEV = import.meta?.env?.DEV === true || MODE === 'test' || MODE === 'development';
+const PROCESS_ENV = typeof process !== 'undefined' ? process.env : {};
+const IS_TEST = MODE === 'test' || PROCESS_ENV.NODE_ENV === 'test' || Boolean(PROCESS_ENV.VITEST);
+
+function isConsoleEnabled(): boolean {
+  return IS_DEV && (!IS_TEST || PROCESS_ENV.VITEST_LOGGER_CONSOLE === '1');
+}
 
 export type LoggerContext = Record<string, unknown>;
 export type LoggerArg = unknown;
@@ -93,15 +99,15 @@ export function createLogger() {
     },
 
     debug(...args: LoggerArg[]): void {
-      if (IS_DEV) console.debug('[DEBUG]', ...formatArgs(args));
+      if (isConsoleEnabled()) console.info('[DEBUG]', ...formatArgs(args));
     },
 
     info(...args: LoggerArg[]): void {
-      if (IS_DEV) console.info('[INFO]', ...formatArgs(args));
+      if (isConsoleEnabled()) console.info('[INFO]', ...formatArgs(args));
     },
 
     warn(...args: LoggerArg[]): void {
-      if (IS_DEV) console.warn('[WARN]', ...formatArgs(args));
+      if (isConsoleEnabled()) console.warn('[WARN]', ...formatArgs(args));
     },
 
     error(message: string, error: unknown, extra: Record<string, unknown> = {}): void {
@@ -113,16 +119,18 @@ export function createLogger() {
         timestamp: new Date().toISOString(),
       };
 
-      if (IS_DEV) {
+      if (isConsoleEnabled()) {
         console.error('[ERROR]', payload);
         return;
       }
+
+      if (IS_DEV) return;
 
       sendToService(payload);
     },
 
     action(name: string, data: Record<string, unknown> = {}): void {
-      if (IS_DEV) console.log('[ACTION]', name, { ...context, ...data });
+      if (isConsoleEnabled()) console.info('[ACTION]', name, { ...context, ...data });
     },
   };
 }

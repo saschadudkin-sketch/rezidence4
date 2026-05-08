@@ -3,15 +3,17 @@ const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
 const requireAuth = require('../middleware/auth');
-const { invalidateUserActiveCache } = requireAuth;
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
 const { USER_FIELD_MAX } = require('../constants/validationLimits');
 const { broadcastUserUpdate, broadcastUserDelete } = require('../sse');
+const { invalidateUserSessionCache, revokeUserSessions } = require('../services/authSessionService');
 
 const router = express.Router();
 router.use(requireAuth);
 
 const ALLOWED_ROLES = ['owner','tenant','contractor','concierge','security','admin'];
+
+const getDb = (req) => req.db || db;
 
 // FIX [AUDIT]: валидация формата UID — принимаем UUID или legacy safe-id.
 // Без проверки PATCH /api/users/<любая-строка> доходил до БД с мусорным uid.
@@ -45,7 +47,7 @@ router.get('/', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     // FIX [PERF-1]: явные колонки вместо SELECT *
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT uid, phone, name, role, apartment, avatar
        FROM users
        WHERE deleted_at IS NULL
@@ -76,7 +78,7 @@ router.post('/', async (req, res, next) => {
     const uid        = uuid();
     const normalised = normalizePhone(phone);
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO users(uid, phone, name, role, apartment)
        VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [uid, normalised, name, role, apartment || null],
@@ -147,7 +149,7 @@ router.patch('/:uid', validateUid, async (req, res, next) => {
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
 
     vals.push(req.params.uid);
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE users
        SET ${fields.join(',')}
        WHERE uid=$${i} AND deleted_at IS NULL
@@ -168,13 +170,14 @@ router.delete('/:uid', validateUid, async (req, res, next) => {
     if (req.user.uid === req.params.uid) return res.status(400).json({ error: 'Cannot delete yourself' });
 
     // FIX [BUG]: updated_at добавлена в миграции 005 — теперь безопасно использовать.
-    await db.query(
+    const queryDb = getDb(req);
+    await queryDb.query(
       `UPDATE users
        SET deleted_at=NOW(), updated_at=NOW()
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.params.uid],
     );
-    await invalidateUserActiveCache(req.params.uid);
+    await revokeUserSessions(queryDb, req.params.uid);
     broadcastUserDelete(req.params.uid);
     res.json({ ok: true });
   } catch (err) { next(err); }
@@ -186,7 +189,7 @@ router.patch('/:uid/restore', validateUid, async (req, res, next) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
     // FIX [BUG]: updated_at добавлена в миграции 005 — теперь безопасно использовать.
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `UPDATE users
        SET deleted_at=NULL, updated_at=NOW()
        WHERE uid=$1 AND deleted_at IS NOT NULL
@@ -194,7 +197,7 @@ router.patch('/:uid/restore', validateUid, async (req, res, next) => {
       [req.params.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
-    await invalidateUserActiveCache(req.params.uid);
+    await invalidateUserSessionCache(req.params.uid);
     broadcastUserUpdate(fmt(rows[0]));
     res.json({ ok: true });
   } catch (err) { next(err); }

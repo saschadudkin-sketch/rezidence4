@@ -56,6 +56,7 @@
 - audit logging;
 - onboarding process;
 - legal/compliance baseline;
+- Russian production readiness baseline;
 - migration discipline;
 - OpenAPI updates.
 
@@ -78,6 +79,7 @@
 - платформа умеет оперировать несколькими объектами;
 - есть platform admin базового уровня;
 - заложена объектная структура и база ролевой модели;
+- `property_type` задаёт labels and onboarding mode для ЖК, club house and cottage community;
 - tenant isolation формализован и проверяем.
 
 ### Scope
@@ -87,6 +89,9 @@
 - create / enable / disable property;
 - property settings baseline;
 - `management_company`, `property`, `building`, `entrance`, `unit` domain model;
+- property-type-aware labels and address formatting baseline;
+- resident/unit membership lifecycle baseline;
+- sensitive personal-data category baseline;
 - roles and scope baseline;
 - feature flags baseline;
 - platform audit log baseline.
@@ -98,6 +103,8 @@
 - базовый platform admin UI;
 - property list / property detail / status view;
 - базовая матрица ролей и scope;
+- baseline resident lifecycle/offboarding decisions;
+- baseline ПДн classification and no-biometrics-by-default decision;
 - обновлённая продуктовая и техническая документация.
 
 ### Risks
@@ -109,6 +116,8 @@
 ### Exit criteria
 
 - объект создаётся без изменения кода;
+- объект может быть создан как `residential_complex`, `club_house` или `cottage_community`;
+- resident can be linked as owner/resident/tenant/representative without apartment-only assumptions;
 - property context разрешается стабильно;
 - данные объектов не пересекаются;
 - platform admin видит объекты и может управлять их статусом.
@@ -129,13 +138,17 @@
 ### Scope
 
 - resident profile baseline;
+- access zones / points baseline for КПП, gates, barriers, doors and service entries;
 - pass creation;
 - QR pass generation;
+- vehicle access baseline;
 - public pass page;
-- scan/admit/deny flow;
+- scan/admit/deny flow with selected access point;
+- plate lookup baseline;
 - visit logs;
 - request creation;
 - request categories baseline;
+- emergency categories baseline;
 - request detail;
 - request history;
 - resident-facing status view.
@@ -143,9 +156,11 @@
 ### Deliverables
 
 - backend APIs для passes, visit logs, requests;
+- backend APIs for access points/zones;
 - resident UI для создания пропуска и заявки;
-- security flow UI;
+- security flow UI for QR, plate baseline, access point selection and entry/exit mode;
 - базовая карточка заявки;
+- emergency request creation path for permitted categories;
 - критичные интеграционные тесты;
 - обновление OpenAPI.
 
@@ -159,7 +174,9 @@
 
 - resident может пройти end-to-end сценарий по пропуску;
 - security может проверить и завершить QR-flow;
+- security может проверить baseline vehicle access по номеру на конкретном КПП/access point;
 - resident может создать заявку и видеть её статус;
+- emergency заявка отличается от обычной по priority/category;
 - staff видит заявки в общей очереди.
 
 ---
@@ -180,6 +197,8 @@
 
 - assignment model;
 - SLA config;
+- territory/service request categories for cottage communities;
+- emergency first-response SLA and escalation rules;
 - overdue logic;
 - request states enrichment;
 - internal comments;
@@ -192,6 +211,8 @@
 ### Deliverables
 
 - backend rules for assignment and SLA;
+- request model supports unit/home, access zone, access point and common-territory targets;
+- emergency request model supports distinct priority/SLA/escalation profile;
 - queue/inbox UI;
 - request action controls;
 - property admin controls for SLA visibility;
@@ -207,7 +228,9 @@
 ### Exit criteria
 
 - staff может назначить, взять в работу и обработать заявку;
+- cottage-community заявка не требует apartment-only fields;
 - просрочка считается автоматически;
+- emergency queue is visible separately from ordinary backlog;
 - property admin видит queue и critical issues;
 - package flow работает базово.
 
@@ -245,8 +268,13 @@
 - Telegram baseline;
 - notification logs;
 - notification preferences baseline;
+- urgent/emergency notification routing baseline;
 - property launch guide implementation support;
-- CSV import for units/residents/staff;
+- CSV import for units/residents/staff/vehicles;
+- cottage-community import for sector/street, house/plot, vehicles and planned checkpoints;
+- resident offboarding/import correction rules;
+- access topology provisioning checklist after import;
+- emergency dispatch and checkpoint degraded-mode setup checklist;
 - launch checklist in product operations flow.
 
 ### Deliverables
@@ -257,6 +285,7 @@
 - import tooling baseline;
 - onboarding docs refinement;
 - runbook updates.
+- first-week pilot support playbook update.
 
 ### Risks
 
@@ -269,7 +298,9 @@
 - уведомления идут по минимум двум каналам;
 - announcements/documents управляются через UI;
 - новый объект можно загрузить импортом без ручных SQL-манипуляций;
+- cottage-community onboarding produces homes/vehicles/checkpoints readiness output;
 - есть формальный launch flow.
+- launch flow covers offboarding, emergency dispatch and КПП degraded-mode setup.
 
 ---
 
@@ -293,6 +324,8 @@
 - statuses `in_progress`, `waiting_parts`, `waiting_contractor`, `resolved`;
 - resolution notes and result photos;
 - contractor access limits;
+- contractor/service access policies for zones, points and service windows;
+- sensitive-action audit for admin/contractor/security changes;
 - request KPI analytics;
 - SLA analytics;
 - notification health analytics;
@@ -317,7 +350,9 @@
 
 - technician может завершить work cycle внутри платформы;
 - contractor видит только свои задачи;
+- contractor/service access can be limited to point/zone/time window;
 - property admin видит SLA и performance baseline;
+- property admin can review sensitive access/admin actions;
 - ключевые KPI доступны на объекте.
 
 ### Gate 2: v2 Operations+
@@ -351,6 +386,13 @@
 - cross-property SLA/backlog overview;
 - legal docs review pass;
 - compliance policy review pass;
+- data localization and ИСПДн readiness memo;
+- consent/version history and data subject request procedure;
+- GIS ЖКХ / ОСС export/readiness boundary;
+- hardware integration map for SKUD/barriers/intercoms/LPR/cameras;
+- no-biometrics-by-default release note;
+- КПП degraded-mode procedure: cached lookup, manual admit/deny, later reconciliation;
+- emergency dispatch runbook;
 - bug fixing and hardening;
 - release checklist and support handoff;
 - final v2 packaging.
@@ -360,6 +402,7 @@
 - management company UI baseline;
 - portfolio analytics endpoints;
 - finalised legal/compliance docs for first release set;
+- Russia production readiness checklist;
 - release notes;
 - support and rollout handoff package.
 
@@ -374,6 +417,8 @@
 - management company admin видит свой портфель;
 - есть cross-property view без утечки данных;
 - legal/compliance baseline готов;
+- ПДн, resident lifecycle, emergency/degraded-mode and sensitive-action review baselines are documented;
+- КПП имеет documented fallback на краткий сбой связи;
 - есть release-ready package для внедрения.
 
 ### Gate 3: Portfolio-ready
@@ -394,6 +439,9 @@
 - billing records;
 - online payments;
 - booking;
+- legally significant OSS voting;
+- biometric identity matching;
+- full native VMS;
 - advanced webhooks;
 - advanced automation;
 - wide white-label;
@@ -417,6 +465,11 @@
 - onboarding tooling;
 - analytics baseline;
 - legal/compliance baseline.
+- resident lifecycle/offboarding baseline;
+- emergency dispatch baseline;
+- sensitive-action audit baseline;
+- GIS ЖКХ / ОСС readiness boundary;
+- hardware integration map.
 
 Это и есть целевой **release-ready v2+**.
 
@@ -429,6 +482,8 @@
 ### Wave 2
 
 - integrations expansion;
+- hardware adapter pilots;
+- GIS ЖКХ / ОСС export maturity;
 - import/export maturity;
 - contractor ecosystem depth;
 - advanced portfolio analytics;

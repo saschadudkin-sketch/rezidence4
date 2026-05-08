@@ -20,19 +20,47 @@
 
 ---
 
+## 1.1 Documentation Source Of Truth Map
+
+Этот master-plan задаёт продуктовую стратегию и порядок реализации. Детальные документы не должны противоречить ему; если противоречие найдено, обновляется более узкий документ или явно фиксируется override от пользователя.
+
+Основная карта supporting specs:
+- residential territory model: `domhub-residential-territory-model-spec.md`;
+- Russia production readiness: `domhub-russia-production-readiness-spec.md`;
+- access platform plan: `domhub-access-platform-final-plan.md`;
+- data model: `domhub-access-data-model-spec.md`;
+- policies and state machines: `domhub-access-policy-spec.md`, `domhub-state-machines-spec.md`;
+- API contracts: `domhub-access-api-contract-spec.md`;
+- security and threat model: `domhub-security-threat-model.md`;
+- testing and release gates: `domhub-test-strategy-spec.md`, `domhub-release-gate-checklists.md`;
+- deployment and tenant ops: `domhub-deployment-and-tenant-ops-spec.md`;
+- runbooks and support operations: `domhub-operational-runbooks-index.md`;
+- event taxonomy: `domhub-event-taxonomy-spec.md`;
+- UI surface map: `domhub-ui-screen-map.md`;
+- integrations and vendors: `domhub-integration-architecture-spec.md`, `domhub-skud-vendor-priority-spec.md`, `domhub-video-integration-spec.md`, `domhub-erp-1c-integration-spec.md`;
+- delivery planning: `domhub-backlog-epics.md`, `domhub-master-jira-backlog.md`, `domhub-platform-jira-ready-backlog.md`, `domhub-access-jira-ready-backlog.md`, `domhub-12-week-sprint-plan.md`, `domhub-work-breakdown.md`;
+- v1 migration/module specs: `platform-v1/README.md`.
+
+Optional/reference documents for parking, commercial tenants, first-working-MVP and design/Figma workflows are useful planning inputs, but they do not override this master-plan.
+
+---
+
 ## 2. Видение конечного продукта
 
-**DomHub** — multi-tenant платформа для управления жилыми комплексами и портфелями объектов.
+**DomHub** — multi-tenant платформа для управления закрытыми жилыми территориями: ЖК, клубными домами, коттеджными посёлками и портфелями таких объектов.
 
 Платформа должна объединять:
 - доступ и гостевые пропуска;
+- КПП / охрану / автомобильный доступ для закрытых территорий;
 - заявки и сервисные процессы;
+- аварийные заявки и диспетчеризация;
 - рабочее пространство персонала;
 - работу технических специалистов и подрядчиков;
 - коммуникацию с жителями;
 - управление несколькими объектами для УК;
 - аналитику и контроль качества сервиса;
 - интеграции с внешними системами;
+- готовность к российским эксплуатационным требованиям: ПДн, ГИС ЖКХ / ОСС, КПП degraded mode, пилотные runbooks;
 - юридически и операционно зрелый контур эксплуатации.
 
 Итоговая формула продукта:
@@ -48,13 +76,14 @@
 - управляющие компании;
 - девелоперы;
 - операторы нескольких жилых комплексов;
+- операторы коттеджных посёлков и закрытых жилых территорий;
 - premium и business-class ЖК;
 - объекты, которым нужен высокий уровень сервиса и контроля.
 
 ### 3.2 Позиционирование
 
-DomHub — не просто resident app и не просто back-office для УК.  
-Это **операционная платформа для управления жилыми комплексами**, ориентированная на качество сервиса, контроль доступа, управляемые процессы и портфельное управление объектами.
+DomHub — не просто resident app и не просто back-office для УК.
+Это **операционная платформа для управления закрытыми жилыми объектами**, ориентированная на качество сервиса, контроль доступа, КПП/охрану, управляемые процессы и портфельное управление объектами.
 
 ### 3.3 Ключевая ценность
 
@@ -79,26 +108,44 @@ DomHub — не просто resident app и не просто back-office дл�
 - `platform`
 - `management_company`
 - `property`
+- `access_zone`
+- `access_point`
 - `building`
 - `entrance`
 - `unit`
 
+`unit` в целевой модели означает адресуемую жилую или эксплуатационную единицу: квартиру, апартамент, таунхаус, дом, участок, коммерческое или служебное помещение. Для `cottage_community` UI и onboarding должны показывать "дом/участок", а не квартирные labels.
+
+Для российской эксплуатации объектная модель также должна поддерживать формальную связь "человек -> объект недвижимости -> роль/основание доступа" через membership/lifecycle слой: собственник, проживающий, арендатор, член семьи, представитель, юрлицо-собственник.
+
 ### 4.2 Основные сущности домена
 
 - `resident`
+- `resident_unit_membership`
 - `staff_user`
 - `contractor_company`
 - `contractor_user`
+- `vehicle`
+- `access_zone`
+- `access_point`
+- `access_policy`
 - `request`
 - `request_comment`
 - `pass`
 - `qr_pass`
 - `visit_log`
+- `access_incident`
+- `emergency_request_profile`
 - `announcement`
 - `document`
+- `oss_document`
 - `package`
 - `notification`
 - `audit_log`
+- `data_consent`
+- `data_subject_request`
+- `access_review`
+- `hardware_device`
 - `integration`
 - `property_settings`
 - `feature_flag`
@@ -110,7 +157,11 @@ DomHub — не просто resident app и не просто back-office дл�
 - audit trail для критичных действий;
 - mobile-friendly staff UX;
 - простая resident-facing часть и глубокая operations-facing часть;
+- property-type-aware UX для ЖК, клубного дома и коттеджного посёлка;
 - минимизация доступа к персональным данным;
+- формальный resident lifecycle для продажи объекта, окончания аренды, отзыва доверенного лица и удаления автомобиля;
+- no-biometrics-by-default: распознавание лиц / biometric identity matching не входит в MVP/v2 Core;
+- audit and review для sensitive actions персонала, охраны и администраторов;
 - возможность масштабирования на сеть объектов без ручного перепроектирования.
 
 ---
@@ -206,6 +257,10 @@ DomHub — не просто resident app и не просто back-office дл�
 
 - гостевые пропуска;
 - QR-пропуска;
+- КПП / guard console;
+- авто-доступ;
+- зоны и точки доступа;
+- access policies;
 - публичная карточка пропуска;
 - scan/admit/deny flow;
 - журнал посещений;
@@ -216,6 +271,7 @@ DomHub — не просто resident app и не просто back-office дл�
 
 - заявки;
 - категории и типы;
+- emergency dispatch mode для аварийных и security-critical заявок;
 - SLA;
 - assignment;
 - очереди;
@@ -266,7 +322,9 @@ DomHub — не просто resident app и не просто back-office дл�
 - webhooks;
 - CSV import/export;
 - integrations with access systems;
+- integrations with SKUD, barriers/gates, intercoms, LPR and cameras/video evidence by adapter;
 - integrations with billing/ERP/1C;
+- GIS ЖКХ / ОСС readiness: документы, объявления, протоколы, exports and clear authority boundaries;
 - integrations with messaging providers;
 - integration logs and retry control.
 
@@ -279,7 +337,25 @@ DomHub — не просто resident app и не просто back-office дл�
 - template setup;
 - branding basics;
 - launch checklist;
+- КПП degraded-mode runbook;
+- emergency dispatch runbook;
+- first-week support playbook;
 - onboarding runbooks.
+
+### 6.10 Russia Production Readiness
+
+- operator/processor model for ПДн;
+- consent history and data subject request flow;
+- data localization assumptions for Russian residents;
+- retention/deletion/anonymization procedures;
+- resident ownership/tenancy/offboarding lifecycle;
+- sensitive operational data classification;
+- emergency categories, priority and escalation rules;
+- periodic access reviews;
+- anti-abuse reports for sensitive staff/admin actions;
+- GIS ЖКХ / ОСС readiness without claiming legal authority in MVP;
+- hardware integration map and manual fallback boundaries;
+- video evidence reference handling without native VMS scope.
 
 ### 6.9 Growth Modules
 
@@ -340,6 +416,7 @@ Core DomHub — это:
 - platform admin auth;
 - enable/disable property;
 - property-level settings;
+- property ПДн classification settings;
 - tenant isolation;
 - базовый platform audit;
 - design system foundation.
@@ -361,10 +438,18 @@ Core DomHub — это:
 
 **Scope:**
 - property structure;
+- `property_type` baseline and property-type-aware labels;
+- resident/unit membership lifecycle baseline;
+- consent and sensitive-data baseline;
 - resident/staff roles;
 - guest passes;
 - QR passes;
+- vehicle access baseline;
+- security / guard workspace baseline;
+- КПП degraded-mode baseline;
 - visit logs;
+- access incidents and audit baseline;
+- emergency request categories and first-response SLA baseline;
 - requests;
 - assignment;
 - SLA;
@@ -383,8 +468,11 @@ Core DomHub — это:
 
 **Критерии выхода:**
 - житель может оформить пропуск и создать заявку;
-- охрана может отработать QR-flow;
+- охрана может отработать QR-flow and vehicle lookup baseline;
+- охрана может продолжить КПП-flow при кратком сбое связи по documented fallback;
 - staff может принять и закрыть заявку;
+- emergency заявка отличается от обычной по priority/SLA/escalation;
+- интерфейс не подменяет дом/участок квартирными labels для `cottage_community`;
 - уведомления приходят по согласованным каналам;
 - property_admin может контролировать queue, SLA и контент;
 - новый объект можно запустить по формализованной инструкции.
@@ -403,6 +491,7 @@ Core DomHub — это:
 - internal notes;
 - resident-visible updates;
 - contractor access limits;
+- sensitive-action audit and review for contractor/admin changes;
 - performance metrics by technician and contractor.
 
 **Результат фазы:**
@@ -447,14 +536,19 @@ Core DomHub — это:
 **Scope:**
 - webhook/API layer;
 - access system integrations;
+- hardware integration map for SKUD, barriers, intercoms, LPR and cameras;
 - billing/ERP/1C connectors;
+- GIS ЖКХ / ОСС export/readiness boundaries;
 - import/export maturity;
 - integration logs;
 - retry model;
 - final legal packet;
 - compliance policies;
 - retention/deletion procedures;
+- data subject request procedures;
+- data localization and ИСПДн readiness assumptions;
 - incident runbooks;
+- emergency and checkpoint degraded-mode runbooks;
 - access governance.
 
 **Результат фазы:**
@@ -465,7 +559,9 @@ Core DomHub — это:
 **Критерии выхода:**
 - есть формализованный юрпакет;
 - есть политика доступов, инцидентов и удаления данных;
+- есть resident lifecycle, consent history, DSAR/export/deletion baseline and sensitive-action audit;
 - есть контролируемый integration layer;
+- есть карта аппаратных интеграций and GIS ЖКХ / ОСС readiness без ложной юридической роли;
 - есть экспорт/импорт, пригодный для реальных внедрений.
 
 ### Фаза F. Growth Modules
@@ -553,9 +649,15 @@ Core DomHub — это:
 ### 9.5 Security & Compliance Stream
 
 - access control;
+- personal data classification;
+- consent and data subject request flows;
+- resident lifecycle/offboarding controls;
 - retention/deletion;
 - incident response;
 - audit trail;
+- sensitive-action review;
+- data localization assumptions;
+- no-biometrics-by-default guardrail;
 - legal docs;
 - operator/processor model.
 
@@ -564,6 +666,8 @@ Core DomHub — это:
 - onboarding guides;
 - import tooling;
 - launch checklist;
+- emergency dispatch runbook;
+- КПП degraded-mode runbook;
 - support process;
 - operational runbooks.
 
@@ -575,7 +679,11 @@ Core DomHub — это:
 
 - multi-tenant foundation;
 - property structure;
+- `property_type` labels and onboarding baseline;
 - roles and permissions baseline;
+- resident lifecycle and consent baseline;
+- vehicle / checkpoint access baseline;
+- emergency request category baseline;
 - audit logging baseline;
 - notification infrastructure baseline.
 
@@ -593,6 +701,12 @@ Core DomHub — это:
 - access policy;
 - incident policy;
 - retention/deletion standard;
+- data localization and ИСПДн readiness assumptions;
+- DSAR/export/deletion flow;
+- resident offboarding and access review procedure;
+- emergency/degraded operation runbooks;
+- GIS ЖКХ / ОСС readiness boundaries;
+- hardware integration map;
 - integration governance;
 - backup/recovery summary.
 
@@ -657,6 +771,7 @@ Staff работает с полной внутренней статусной �
 - terms of use;
 - consent to personal data processing;
 - consent to notifications.
+- consent/version history model.
 
 ### 12.2 B2B документы
 
@@ -673,11 +788,19 @@ Staff работает с полной внутренней статусной �
 - incident response policy;
 - contractor access policy;
 - controller/processor model.
+- data localization and ИСПДн readiness memo;
+- sensitive data classification;
+- biometric exclusion / feature-gating policy;
+- data subject request procedure.
 
 ### 12.4 Operations docs
 
 - property launch guide;
 - launch checklist;
+- resident lifecycle/offboarding guide;
+- emergency dispatch guide;
+- КПП degraded-mode guide;
+- first-week pilot support guide;
 - property admin guide;
 - management company admin guide;
 - security guide;
@@ -762,7 +885,9 @@ Staff работает с полной внутренней статусной �
 
 - multi-tenant core;
 - property structure;
+- property-type-aware labels and onboarding templates;
 - access/pass/visit flows;
+- vehicle / checkpoint access baseline;
 - requests + SLA + assignment;
 - notifications;
 - staff workspace baseline;

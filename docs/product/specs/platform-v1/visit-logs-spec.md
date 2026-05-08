@@ -31,7 +31,7 @@ visit_logs
   id                          UUID PK
   property_id                 UUID NOT NULL
   pass_id                     UUID NULL    → passes
-  access_point_id             UUID NULL    → access_points  (всегда NULL в v1, активируется пост-релиз)
+  access_point_id             UUID NULL    → access_points  (optional DH-06 checkpoint context)
   event_type                  ENUM(entry_allowed/entry_denied/exit_allowed/exit_denied/
                                    manual_admit/manual_deny/override) NOT NULL
   event_source                ENUM(domhub/skud/guard_console/import) NOT NULL
@@ -64,7 +64,7 @@ visit_logs
 
 | Метод | Путь | Роль | Назначение |
 |---|---|---|---|
-| `POST` | `/api/v1/visits` | `security`, internal services | Записать событие (обычно вызывается из `passes.verify`, `skud-webhook`, `guard-console`) |
+| `POST` | `/api/v1/visits` | `security`, internal services | Записать событие с optional `access_point_id` (обычно вызывается из verify/skud/guard-console) |
 | `GET` | `/api/v1/visits?pass_id=&vehicle_plate=&event_type=&from=&to=&access_point_id=` | `security`, `concierge`, `property_admin` | Список событий с фильтрами, сортировка `occurred_at DESC` |
 | `GET` | `/api/v1/visits/:id` | `security`, `property_admin` | Детали события + связанный pass + linked incident (если есть) |
 | `GET` | `/api/v1/visits/by-pass/:pass_id` | owner + staff | История сканов конкретного пропуска |
@@ -100,6 +100,7 @@ visit_logs
 - [ ] `GET /visits?pass_id=&from=&to=` покрыт integration-тестом на паре (allowed + denied) в одном окне
 - [ ] `GET /visits/by-plate/:plate` работает и по pass-free событиям (manual admit freehand, без привязки к `passes`)
 - [ ] Запись события автоматически создаёт `access_incident` если `event_type IN (entry_denied, manual_deny)` — см. `access-incidents-spec.md §3`
+- [ ] `access_point_id` валидируется через `access_points` и сохраняется для guard-console verify и direct visit-log insert
 
 ---
 
@@ -109,4 +110,4 @@ visit_logs
 2. **Retention политика.** Сколько держим `provider_payload` JSONB (может быть тяжёлый у СКУД)? → **Решено:** v1 без retention, держим всё. Если размер начнёт тянуть БД — Фаза пост-релиз: `payload_archived_to_s3=true` + очистка JSONB.
 3. **Out-of-order events.** СКУД может прислать событие с `occurred_at` в прошлом (retry после выключения). → **Решено:** принимаем любой `occurred_at`, индекс по `occurred_at DESC` возвращает корректный порядок. Нет защиты «не писать события старше 24h» — это потеря данных.
 4. **`person_label` vs резидент.** Зачем TEXT, если есть `passes.subject_resident_id`? → **Immutable snapshot**. Если резидент сменит ФИО или уволится — исторический event должен показывать ФИО на момент события. Не нормализуем.
-5. **`access_point_id` NULL во всей v1.** Подтверждено: активируется только после появления первого СКУД-интегратора. Гварды в v1 не привязаны к access_points — у них роль `security` и один property.
+5. **`access_point_id` в v1.** → **Решено:** после DH-06/DH-18 guard-console verify и direct insert могут передавать optional `access_point_id`; backend валидирует активную точку в том же property и пишет её в `visit_logs_v2`. Entry/exit direction и hardware mapping остаются отдельными задачами DH-12/DH-59.

@@ -42,6 +42,19 @@ describe('Toggle', () => {
     expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
+  test('standalone toggle can be named for assistive technologies', () => {
+    const mockOnChange = vi.fn();
+    render(
+      <Toggle
+        checked={false}
+        onChange={mockOnChange}
+        ariaLabel="QR-пропуска"
+      />
+    );
+
+    expect(screen.getByRole('switch', { name: 'QR-пропуска' })).toHaveAttribute('aria-checked', 'false');
+  });
+
   test('calls onChange when clicked', () => {
     const mockOnChange = vi.fn();
     render(
@@ -86,5 +99,6 @@ describe('Toggle', () => {
     fireEvent.click(toggle);
 
     expect(mockOnChange).not.toHaveBeenCalled();
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
   });
 });

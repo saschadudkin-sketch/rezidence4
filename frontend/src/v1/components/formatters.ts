@@ -79,6 +79,8 @@ const INCIDENT_TYPE_RU: Record<IncidentType, string> = {
   manual_override: 'Ручной обход',
   provider_conflict: 'Конфликт провайдера',
   suspicious_repeat_attempt: 'Подозрительные повторы',
+  policy_denied: 'Отказ по политике',
+  policy_security_review_required: 'Требуется решение охраны',
 };
 
 const SEVERITY_RU: Record<Severity, string> = {

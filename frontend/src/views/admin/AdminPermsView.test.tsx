@@ -87,6 +87,13 @@ describe('AdminPermsView', () => {
     expect(screen.getByText(/Анна Соколова/)).toBeInTheDocument();
   });
 
+  test('фильтр по роли отображает арендаторов', () => {
+    render(<AdminPermsView user={user} />);
+    fireEvent.click(screen.getByRole('button', { name: /арендаторы/i }));
+    expect(screen.queryByText(/Иван Петров/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Анна Соколова/)).toBeInTheDocument();
+  });
+
   test('кнопка редактирования записи открывает форму', () => {
     render(<AdminPermsView user={user} />);
     const editBtns = screen.getAllByLabelText('Редактировать');

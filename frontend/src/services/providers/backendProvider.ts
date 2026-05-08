@@ -61,6 +61,14 @@ type PermsService = {
   saveTemplates: (uid: string, items: Template[]) => Promise<unknown>;
 };
 
+function normalizePermsPayload(perms: PermsPayloadInput): UserPerms | null {
+  if (Array.isArray(perms)) return null;
+  return {
+    visitors: [...perms.visitors],
+    workers: [...perms.workers],
+  };
+}
+
 type DeletedRequestEvent = Pick<AppRequest, 'id'> & { status: 'deleted' };
 type RequestUpdateEvent = AppRequest | DeletedRequestEvent;
 type SseEventMap = {
@@ -730,7 +738,6 @@ export const permsProvider: PermsService = {
     if (Array.isArray(permsObj)) {
       return apiClient.post('/api/v1/perms', { uid, type: 'visitors', items: permsObj });
     }
-    if (!permsObj.visitors.length && !permsObj.workers.length) return { ok: true };
     return apiClient.post('/api/v1/perms/batch', {
       uid,
       visitors: [...permsObj.visitors],
@@ -769,7 +776,12 @@ export function createBackendProvider(): ServiceContracts {
       resolvePhotos:    requestsProvider.resolvePhotos.bind(requestsProvider),
     },
     admin: {
-      savePermsEverywhere:  (args) => permsProvider.savePerms(args.uid, args.perms) as Promise<ServiceAck | void>,
+      savePermsEverywhere: async (args) => {
+        const result = await permsProvider.savePerms(args.uid, args.perms) as ServiceAck | void;
+        const normalizedPerms = normalizePermsPayload(args.perms);
+        if (normalizedPerms) args.saveLocal?.(args.uid, normalizedPerms);
+        return result;
+      },
       saveUserEverywhere:   (args) => usersProvider.update(args.uid, args.patch) as Promise<ServiceAck | void>,
       removeUserEverywhere: (args) => usersProvider.delete(args.uid) as Promise<ServiceAck | void>,
     },

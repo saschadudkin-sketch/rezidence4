@@ -96,19 +96,27 @@
 
 Поддерживаемые `zone_type`:
 - `perimeter`
+- `checkpoint`
 - `residential_entry`
 - `parking`
+- `guest_parking`
+- `resident_parking`
 - `public_area`
 - `technical_area`
 - `service_area`
+- `street`
+- `sector`
 
 ### Примеры зон
 
 - внешний периметр
+- КПП
 - основной въезд
 - гостевой паркинг
+- резидентский паркинг
 - подземный паркинг
 - подъезд 1
+- улица / сектор коттеджного посёлка
 - техническое помещение
 - хозяйственная зона
 - клубная зона / общественная территория
@@ -126,14 +134,25 @@
 - `turnstile`
 - `wicket`
 - `intercom`
+- `checkpoint`
+- `service_gate`
 
 ### Примеры точек
 
 - шлагбаум КПП 1
+- пост охраны / КПП
 - калитка A
 - дверь подъезда 2
 - ворота сервисного въезда
 - турникет паркинга
+
+### 6.1 Property-type guidance
+
+Для `residential_complex` primary access points обычно: подъездная дверь, паркинг, калитка, гостевой вход.
+
+Для `cottage_community` primary access points обычно: КПП, шлагбаум, ворота, сервисный въезд, калитка, гостевой паркинг.
+
+Policy engine не должен хардкодить разные модели для ЖК и посёлка. Различие выражается через `property_type`, `access_zone`, `access_point`, `subject_type`, `access_method`, schedule and approval mode.
 
 ---
 
@@ -148,6 +167,8 @@
 - `zone_id` и/или `point_id`
 - `access_method`
 - `approval_mode`
+- `effect`
+- `priority`
 - `schedule_json`
 - `duration_minutes`
 - `is_recurring`
@@ -164,6 +185,9 @@ Policy должна отвечать на вопросы:
 - как долго длится доступ;
 - может ли доступ быть многоразовым;
 - допускается ли auto-approval.
+- какое решение возвращается при совпадении: `allow`, `deny`, `needs_approval`,
+  `needs_security_review` или `incident_required`;
+- какой приоритет правила используется при нескольких совпадениях.
 
 ---
 
@@ -368,6 +392,9 @@ Override всегда требует:
 - `needs_approval`
 - `needs_security_review`
 - `incident_required`
+
+Если несколько активных policy совпадают, порядок должен быть детерминированным:
+`priority ASC`, затем `created_at ASC`, затем `id ASC`.
 
 ### Значение результатов
 

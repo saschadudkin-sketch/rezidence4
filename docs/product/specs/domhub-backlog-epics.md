@@ -68,14 +68,16 @@
 ## 4. Epic 2 — Property Domain Model
 
 **Приоритет:** P0  
-**Цель:** ввести нормальную объектную структуру ЖК.
+**Цель:** ввести нормальную объектную структуру для ЖК, клубного дома и коттеджного посёлка.
 
 ### Задачи
 
 - добавить сущности `management_company`, `property`, `building`, `entrance`, `unit`;
 - определить связи resident/staff/unit/property;
+- добавить resident/unit membership model для собственника, проживающего, арендатора, члена семьи, представителя и юрлица-собственника;
 - определить модель contractor_company;
 - определить адресную модель объекта;
+- определить property-type-aware labels для корпуса/подъезда/квартиры и сектора/дома/участка;
 - определить scope доступа по объекту и зонам;
 - подготовить импорт структуры объекта.
 
@@ -83,6 +85,8 @@
 
 - объект имеет формализованную структуру;
 - resident и staff привязаны к корректному контексту;
+- жизненный цикл владения/проживания можно менять без ручной чистки пропусков, машин и прав;
+- `cottage_community` не требует ad hoc адресных полей и работает через documented `unit_type='house'` / `townhouse` mapping;
 - будущие workflows не требуют ad hoc полей для адресации.
 
 ---
@@ -99,6 +103,7 @@
 - добавить ограничение доступа к чувствительным данным;
 - добавить временные доступы для подрядчиков;
 - реализовать review/rotation процесса доступов;
+- добавить sensitive-action audit для выдачи прав, смены политик, экспорта данных и ручных решений охраны;
 - подготовить матрицу прав.
 
 ### Definition of Done
@@ -107,6 +112,7 @@
 - contractor не видит лишние данные;
 - platform_admin не используется для ежедневной операционки клиента;
 - права можно формально проверить по матрице.
+- периодический access review возможен без SQL и ручного сбора данных.
 
 ---
 
@@ -120,6 +126,7 @@
 - доработать resident auth flow;
 - добавить resident profile;
 - добавить связь resident с unit/property;
+- добавить lifecycle states для продажи объекта, окончания аренды, выезда, отзыва представителя и удаления автомобиля;
 - реализовать consent flow;
 - добавить notification preferences;
 - реализовать session resilience и secure logout.
@@ -128,6 +135,7 @@
 
 - resident может безопасно войти и восстановить сессию;
 - профиль содержит корректный контекст объекта;
+- offboarding resident отзывает или помечает к review связанные пропуска, машины и scope;
 - consent и notification preferences формально поддерживаются.
 
 ---
@@ -143,8 +151,10 @@
 - guest pass model;
 - QR pass generation;
 - public pass page;
+- access zones / points for КПП, gates, barriers, doors, parking and service entries;
+- access policy templates and bindings for zone, point, access method, schedule and vehicle rules;
 - scan-pass flow for security;
-- admit/deny actions;
+- admit/deny actions with selected access point and entry/exit context;
 - visit log persistence;
 - search/filter по посещениям;
 - audit событий доступа.
@@ -152,7 +162,8 @@
 ### Definition of Done
 
 - житель может оформить пропуск;
-- охрана может его проверить и обработать;
+- охрана может его проверить и обработать на конкретной точке доступа;
+- решение доступа опирается на явную политику, а не только на наличие активного пропуска;
 - события прохода видны в журнале;
 - статус прохода прозрачен для staff.
 
@@ -166,8 +177,11 @@
 ### Задачи
 
 - модель заявок и категорий;
+- категории для территории посёлка: КПП, шлагбаумы, дороги, освещение, мусор, вода, благоустройство, охрана;
+- emergency categories: вода/протечка, отопление, электричество, пожар/дым, доступ/шлагбаум, безопасность, аварийный подрядчик;
 - формализация request types;
 - request creation for resident and staff;
+- привязка заявки к квартире/дому, зоне, точке доступа или общей территории;
 - базовые статусы;
 - request history;
 - attachments;
@@ -177,6 +191,8 @@
 ### Definition of Done
 
 - resident может создать заявку;
+- cottage-community заявка не требует apartment-only fields;
+- emergency заявка получает отдельный priority/SLA/escalation profile;
 - staff видит полную карточку;
 - история заявки прозрачна;
 - статусная модель пригодна для дальнейшего SLA и assignment.
@@ -192,6 +208,7 @@
 
 - assignment model;
 - SLA config by request type;
+- emergency first-response SLA and escalation rules;
 - due date and overdue logic;
 - escalation rules;
 - first response tracking;
@@ -203,6 +220,7 @@
 
 - заявка может быть назначена исполнителю;
 - SLA считается автоматически;
+- аварийная заявка маршрутизируется отдельно от обычной сервисной очереди;
 - просрочки фиксируются и подсвечиваются;
 - есть событийная база для analytics.
 
@@ -364,11 +382,13 @@
 - SLA visibility;
 - property settings;
 - audit view.
+- access review and sensitive-action reports.
 
 ### Definition of Done
 
 - property_admin управляет объектом без участия platform_admin;
 - staff, контент и базовые процессы конфигурируются в рамках объекта.
+- property_admin может проверить, кто и почему выдал доступ, изменил политику или выполнил manual override.
 
 ---
 
@@ -409,6 +429,7 @@
 - notification delivery analytics;
 - technician/contractor analytics;
 - resident adoption analytics;
+- sensitive-action and access-review reports;
 - CSV export.
 
 ### Definition of Done
@@ -431,6 +452,11 @@
 - CSV import for residents;
 - CSV import for staff;
 - contractor import;
+- vehicle import and resident/vehicle link validation;
+- cottage-community homes/plots/checkpoints import readiness;
+- resident lifecycle/offboarding import actions;
+- checkpoint degraded-mode setup checklist;
+- emergency dispatch setup checklist;
 - launch checklist;
 - onboarding guide integration;
 - validation and error reporting for imports.
@@ -459,12 +485,18 @@
 - incident response policy;
 - controller/processor model;
 - contractor access policy.
+- data localization and ИСПДн readiness memo;
+- consent/version history model;
+- data subject export/deletion/correction procedure;
+- sensitive data classification;
+- biometric exclusion / feature-gating policy.
 
 ### Definition of Done
 
 - пакет документов существует в репозитории;
 - роли по ПДн формализованы;
-- процессы удаления, инцидентов и доступов описаны.
+- процессы удаления, инцидентов и доступов описаны;
+- no-biometrics-by-default boundary documented for MVP/v2 Core.
 
 ---
 
@@ -481,12 +513,15 @@
 - integration settings;
 - retry model;
 - integration error logs;
-- connectors for access/billing systems.
+- connectors for access/billing systems;
+- hardware integration map for SKUD, barriers/gates, intercoms, LPR, cameras/video evidence;
+- GIS ЖКХ / ОСС export/readiness boundaries.
 
 ### Definition of Done
 
 - есть формальный integration layer;
 - сбои интеграций отслеживаются;
+- hardware adapters have explicit manual fallback boundaries;
 - платформу можно подключать к внешним системам без костылей.
 
 ---
@@ -555,6 +590,9 @@
 - property domain model;
 - roles and permissions baseline;
 - access/pass/visit flows;
+- access zones/points, checkpoint selection and policy-backed access decisions;
+- resident lifecycle/offboarding and consent baseline;
+- emergency request priority/SLA/escalation baseline;
 - requests + assignment + SLA;
 - staff workspace baseline;
 - communications;
@@ -567,6 +605,7 @@
 Должны быть готовы:
 - technician workflow;
 - contractor model;
+- sensitive-action review and anti-abuse reporting;
 - richer analytics;
 - operational maturity for object teams.
 
@@ -582,6 +621,9 @@
 Должны быть готовы:
 - integrations;
 - compliance maturity;
+- GIS ЖКХ / ОСС readiness boundaries;
+- hardware integration map and fallback rules;
+- КПП degraded-mode and emergency runbooks;
 - repeatable rollout;
 - growth modules selectively enabled.
 

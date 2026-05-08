@@ -1,0 +1,25 @@
+# docker-compose.override.yml — Local development overrides.
+#
+# Compose автоматически подгружает этот файл поверх docker-compose.yml.
+# В prod НЕ применяется (Timeweb deploy использует только docker-compose.yml +
+# .env, а override файл deploy/.env.production.template / production .env
+# выключает его явно через `docker compose -f docker-compose.yml`).
+#
+# Цель: открыть порты db + redis на host для backend dev mode (npm run dev).
+# В prod compose строит свою backend контейнер inside docker network — там
+# expose не нужен и нарушает security audit #13 (internal-only DB).
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+    # Override (с !override tag — Compose v2.20+): убираем mount db-init/ —
+    # Docker Desktop на Windows имеет file-sharing issue с
+    # /run/desktop/mnt/host/d/.  Базы platform/zamoskv создаём вручную
+    # через psql после старта (см. dev-setup README).
+    volumes: !override
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"

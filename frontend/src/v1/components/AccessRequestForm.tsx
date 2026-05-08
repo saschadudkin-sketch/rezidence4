@@ -18,6 +18,7 @@ import type {
   UUID,
   Unit,
   Vehicle,
+  PropertyType,
 } from '../api/types';
 import { accessRequestsApi } from '../api/accessRequests';
 import type { CreateAccessRequestBody } from '../api/accessRequests';
@@ -33,18 +34,20 @@ import {
   Textarea,
   uiClasses,
 } from './ui';
+import { formatUnitLabel, getPropertyLabels } from '../lib/propertyLabels';
 
 /**
  * Minimal unit shape the form needs — full Unit objects pass through too.
  * Residents can't read full unit rows from the backend, so we widen the
  * accepted type to just the label/id pair.
  */
-export type UnitOption = Pick<Unit, 'id' | 'unit_number'>;
+export type UnitOption = Pick<Unit, 'id' | 'unit_number'> & Partial<Pick<Unit, 'unit_type'>>;
 /** Same idea for vehicles — display label comes from plate/brand/model. */
 export type VehicleOption = Pick<Vehicle, 'id' | 'plate_number' | 'brand' | 'model'>;
 
 export interface AccessRequestFormProps {
   propertyId: UUID;
+  propertyType?: PropertyType | null;
   units: readonly UnitOption[];
   vehicles: readonly VehicleOption[];
   /** Optional whitelist of request types to show. Default: all. */
@@ -99,6 +102,7 @@ function localInputToIso(value: string): string {
 
 export function AccessRequestForm({
   propertyId,
+  propertyType,
   units,
   vehicles,
   allowedRequestTypes,
@@ -106,6 +110,7 @@ export function AccessRequestForm({
   onCancel,
 }: AccessRequestFormProps) {
   const initialWindow = useMemo(defaultWindow, []);
+  const labels = useMemo(() => getPropertyLabels(propertyType), [propertyType]);
   const typeOptions = useMemo(
     () =>
       allowedRequestTypes
@@ -128,7 +133,7 @@ export function AccessRequestForm({
 
   function validate(): FormErrors {
     const e: FormErrors = {};
-    if (!targetUnitId) e.target_unit_id = 'Выберите квартиру';
+    if (!targetUnitId) e.target_unit_id = labels.unitSelectError;
     if (!typeOptions.some((o) => o.value === requestType)) {
       e.request_type = 'Некорректный тип заявки';
     }
@@ -200,7 +205,7 @@ export function AccessRequestForm({
       <Stack>
         {errors._root ? <Alert tone="error">{errors._root}</Alert> : null}
 
-        <Field label="Квартира" id="v1-ar-unit" error={errors.target_unit_id}>
+        <Field label={labels.unitField} id="v1-ar-unit" error={errors.target_unit_id}>
           <Select
             id="v1-ar-unit"
             value={targetUnitId}
@@ -208,11 +213,11 @@ export function AccessRequestForm({
             disabled={submitting || units.length === 0}
           >
             {units.length === 0 ? (
-              <option value="">Нет доступных квартир</option>
+              <option value="">{labels.noUnits}</option>
             ) : (
               units.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.unit_number}
+                  {formatUnitLabel(u, propertyType)}
                 </option>
               ))
             )}

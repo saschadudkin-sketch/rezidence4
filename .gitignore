@@ -7,6 +7,12 @@ build/
 dist/
 **/dist/
 frontend/build/
+frontend/storybook-static/
+coverage/
+**/coverage/
+__pycache__/
+**/__pycache__/
+*.pyc
 
 # logs
 npm-debug.log*

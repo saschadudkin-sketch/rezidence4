@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DomHub — платформа для закрытых жилых территорий</title>
+  <meta name="description" content="DomHub — современная операционная платформа для доступа, заявок, КПП, персонала и портфельного контроля жилых объектов.">
+  <meta name="theme-color" content="#082e62">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600;700;800&family=Unbounded:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">К содержанию</a>
+  <div class="scroll-progress" aria-hidden="true"></div>
+
+  <header class="site-header" aria-label="Навигация">
+    <a class="brand" href="#top" aria-label="DomHub">
+      <span class="brand-symbol" aria-hidden="true"></span>
+      <span>DOMHUB</span>
+    </a>
+    <nav class="main-nav" aria-label="Разделы сайта">
+      <a href="#advantages">Преимущества</a>
+      <a href="#efficiency">Эффективность</a>
+      <a href="#configuration">Комплектация</a>
+      <a href="#comfort">Комфорт</a>
+      <a href="#contact">Купить пилот</a>
+    </nav>
+  </header>
+
+  <main id="content">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="sky" aria-hidden="true">
+        <div class="cloud cloud-a"></div>
+        <div class="cloud cloud-b"></div>
+        <div class="cloud cloud-c"></div>
+        <div class="mountain ridge-a"></div>
+        <div class="mountain ridge-b"></div>
+      </div>
+
+      <div class="hero-title-wrap" data-reveal>
+        <p class="hero-kicker">Операционная платформа нового поколения</p>
+        <h1 id="hero-title">
+          <span>УПРАВЛЯЯ</span>
+          <span>НОВЫМИ</span>
+          <span>ТЕРРИТОРИЯМИ</span>
+        </h1>
+      </div>
+
+      <canvas class="hero-canvas" id="future-canvas" aria-hidden="true"></canvas>
+
+      <div class="hero-caption" data-reveal>
+        <p>DomHub объединяет доступ, заявки, КПП, персонал и портфельный контроль для premium и business-class объектов.</p>
+        <div class="hero-actions">
+          <a class="button button-primary magnetic" href="#contact">Запросить пилот</a>
+          <a class="button button-ghost magnetic" href="#advantages">Посмотреть возможности</a>
+        </div>
+      </div>
+
+      <div class="hero-stat stat-left" data-reveal>
+        <span>Рабочих ролей</span>
+        <b data-count="5">5</b>
+      </div>
+      <div class="hero-stat stat-right" data-reveal>
+        <span>Пилотный запуск</span>
+        <b data-count="21">21</b>
+        <em>день</em>
+      </div>
+    </section>
+
+    <section class="section advantages" id="advantages" aria-labelledby="advantages-title">
+      <div class="section-shell">
+        <div class="section-head" data-reveal>
+          <p class="section-kicker">Преимущества</p>
+          <h2 id="advantages-title">Комфорт жителей и точность эксплуатации</h2>
+          <p>Вместо разрозненных чатов, таблиц и звонков объект получает один управляемый контур.</p>
+        </div>
+
+        <div class="feature-flight">
+          <article class="feature-card" data-reveal>
+            <div class="feature-visual phone-visual">
+              <span></span><span></span><span></span>
+            </div>
+            <h3>Гостевой доступ за минуту</h3>
+            <p>Житель оформляет QR-пропуск, а охрана уже видит валидный контекст на КПП.</p>
+            <dl><dt data-count="60">60</dt><dd>секунд на частый сценарий</dd></dl>
+          </article>
+
+          <article class="feature-card lifted" data-reveal>
+            <div class="feature-visual gate-visual">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <h3>КПП работает по правилам</h3>
+            <p>Решения admit/deny, ручные пропуски и спорные события остаются в журнале.</p>
+            <dl><dt data-count="100">100</dt><dd>% критичных действий в аудите</dd></dl>
+          </article>
+
+          <article class="feature-card" data-reveal>
+            <div class="feature-visual ops-visual">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <h3>Портфельный контроль УК</h3>
+            <p>SLA, инциденты, роли и качество сервиса сравниваются между объектами.</p>
+            <dl><dt>N</dt><dd>объектов в едином стандарте</dd></dl>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section efficiency" id="efficiency" aria-labelledby="efficiency-title">
+      <div class="section-shell efficiency-grid">
+        <div class="efficiency-copy" data-reveal>
+          <p class="section-kicker">Эффективность</p>
+          <h2 id="efficiency-title">Сокращаем ручную операционку на объекте</h2>
+          <p>Bulk-hydrate, live-события, роли и access-policy слой разделены так, чтобы платформа масштабировалась от одного дома до сети объектов.</p>
+        </div>
+        <div class="efficiency-panel" data-reveal>
+          <div class="panel-row"><span>Гостевые и авто-пропуска</span><b>Access core</b></div>
+          <div class="panel-row"><span>Заявки и аварийные сценарии</span><b>Requests</b></div>
+          <div class="panel-row"><span>Охрана, консьерж, техник</span><b>Staff OS</b></div>
+          <div class="panel-row"><span>Портфель объектов УК</span><b>Portfolio</b></div>
+          <div class="runway"><i></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section comfort" id="comfort" aria-labelledby="comfort-title">
+      <div class="section-shell">
+        <div class="section-head" data-reveal>
+          <p class="section-kicker">Комфорт</p>
+          <h2 id="comfort-title">Роли получают разные кабины управления</h2>
+          <p>Жителю просто, охране быстро, администратору прозрачно. Это одна система, но разные плотности интерфейса.</p>
+        </div>
+
+        <div class="role-tabs" role="tablist" aria-label="Роли DomHub" data-reveal>
+          <button class="role-tab active" type="button" role="tab" aria-selected="true" data-role="resident">Житель</button>
+          <button class="role-tab" type="button" role="tab" aria-selected="false" data-role="security">Охрана</button>
+          <button class="role-tab" type="button" role="tab" aria-selected="false" data-role="staff">Консьерж</button>
+          <button class="role-tab" type="button" role="tab" aria-selected="false" data-role="admin">УК</button>
+        </div>
+
+        <div class="role-showcase" aria-live="polite" data-reveal>
+          <div class="role-copy">
+            <p class="role-label" id="role-label">Resident experience</p>
+            <h3 id="role-title">Гостевые и сервисные сценарии без звонков в диспетчерскую</h3>
+            <p id="role-body">Житель оформляет пропуск, заявку или уведомление за несколько действий. Персонал сразу видит контекст квартиры, гостя, автомобиля или заявки.</p>
+          </div>
+          <div class="role-dashboard">
+            <div class="screen-phone">
+              <span class="speaker"></span>
+              <span class="line title"></span>
+              <span class="line action"></span>
+              <span class="card wide"></span>
+              <span class="card"></span>
+              <span class="card short"></span>
+            </div>
+            <div class="screen-table">
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="role-stat">
+              <b id="role-stat">2 минуты</b>
+              <span id="role-stat-copy">на выпуск гостевого пропуска</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section configuration" id="configuration" aria-labelledby="configuration-title">
+      <div class="section-shell">
+        <div class="section-head" data-reveal>
+          <p class="section-kicker">Комплектация</p>
+          <h2 id="configuration-title">Техническая платформа для пилота и роста</h2>
+          <p>Модули можно запускать поэтапно, не ломая источник правды `/api/v1/*` и модель изоляции объектов.</p>
+        </div>
+
+        <div class="spec-accordion" data-reveal>
+          <button class="spec-button active" type="button" aria-expanded="true" data-panel="access">Access-core</button>
+          <div class="spec-panel active" id="access">
+            <dl>
+              <div><dt>QR-пропуска</dt><dd>гость, курьер, сервис, авто</dd></div>
+              <div><dt>КПП</dt><dd>ручные решения и degraded mode</dd></div>
+              <div><dt>Аудит</dt><dd>критичные действия staff/admin</dd></div>
+            </dl>
+          </div>
+
+          <button class="spec-button" type="button" aria-expanded="false" data-panel="operations">Operations</button>
+          <div class="spec-panel" id="operations">
+            <dl>
+              <div><dt>Заявки</dt><dd>SLA, назначения, статусы</dd></div>
+              <div><dt>Персонал</dt><dd>консьерж, охрана, техник, подрядчик</dd></div>
+              <div><dt>Live sync</dt><dd>bulk hydrate + SSE updates</dd></div>
+            </dl>
+          </div>
+
+          <button class="spec-button" type="button" aria-expanded="false" data-panel="portfolio">Portfolio</button>
+          <div class="spec-panel" id="portfolio">
+            <dl>
+              <div><dt>УК</dt><dd>несколько объектов в одном контуре</dd></div>
+              <div><dt>Роли</dt><dd>property/admin/company scopes</dd></div>
+              <div><dt>Метрики</dt><dd>SLA, инциденты, качество сервиса</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="leasing" id="contact" aria-labelledby="contact-title">
+      <div class="leasing-sky" aria-hidden="true"></div>
+      <div class="leasing-card" data-reveal>
+        <p class="section-kicker">Купить пилот</p>
+        <h2 id="contact-title">Запустить DomHub на первом объекте</h2>
+        <p class="leasing-price">Пилот от <b>3 недель</b></p>
+        <form class="contact-form" id="contact-form">
+          <label>
+            Имя
+            <input name="name" autocomplete="name" placeholder="Как к вам обращаться">
+          </label>
+          <label>
+            Объект или компания
+            <input name="company" autocomplete="organization" placeholder="УК, девелопер, ЖК">
+          </label>
+          <label>
+            Контакт
+            <input name="contact" autocomplete="email" placeholder="Телефон или email">
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="consent">
+            <span>Я согласен на обработку данных для связи по пилоту</span>
+          </label>
+          <button class="button button-primary magnetic" type="submit">Оставить заявку</button>
+          <p class="form-note" id="form-note">Адрес получателя можно поменять в `script.js`.</p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <a href="tel:+78000000000">8 800 000 00 00</a>
+    <span>Клиентская служба DomHub</span>
+    <span>Сайт является отдельным промо-лендингом и не входит в SPA приложения.</span>
+  </footer>
+
+  <script defer src="./script.js"></script>
+</body>
+</html>

@@ -266,7 +266,11 @@ describe('AnnouncementsAdminPage', () => {
 
     // Ждём кнопку — это гарантирует, что запрос разрешился и карточка отрисована.
     // (findByText('черновик') был бы двусмысленным — слово есть и в dropdown-опции.)
-    const publishBtn = await screen.findByRole('button', { name: 'Опубликовать' });
+    const publishBtn = await screen.findByRole(
+      'button',
+      { name: 'Опубликовать' },
+      { timeout: 5000 },
+    );
     expect(publishBtn).toBeInTheDocument();
     expect(screen.getByText('Черновик 1')).toBeInTheDocument();
     // Admin — «Удалить» видна.

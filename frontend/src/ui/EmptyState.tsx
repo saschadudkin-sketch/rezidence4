@@ -36,7 +36,7 @@ export function EmptyState({
   className = '',
 }: EmptyStateProps) {
   return (
-    <div className={`empty-state${className ? ' ' + className : ''}`} role="status">
+    <div className={`empty-state${className ? ' ' + className : ''}`} role="status" aria-live="polite">
       <div className="empty-state-icon" aria-hidden="true">
         <AppIcon name={icon} size={36} />
       </div>

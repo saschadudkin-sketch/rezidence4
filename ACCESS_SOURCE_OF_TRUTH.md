@@ -11,6 +11,9 @@ This file exists to anchor all access-control implementation work to the same se
 - contractor/service access
 - access incidents
 - zones / points / policies
+- degraded checkpoint mode
+- sensitive action audit
+- vehicle/resident lifecycle effects
 - access analytics
 - SKUD/video integrations
 
@@ -19,16 +22,22 @@ This file exists to anchor all access-control implementation work to the same se
 Read these first for any access-related implementation:
 
 1. `docs/product/specs/domhub-access-platform-final-plan.md`
-2. `docs/product/specs/domhub-access-data-model-spec.md`
-3. `docs/product/specs/domhub-access-policy-spec.md`
-4. `docs/product/specs/domhub-state-machines-spec.md`
-5. `docs/product/specs/domhub-access-api-contract-spec.md`
+2. `docs/product/specs/domhub-residential-territory-model-spec.md`
+3. `docs/product/specs/domhub-russia-production-readiness-spec.md`
+4. `docs/product/specs/domhub-access-data-model-spec.md`
+5. `docs/product/specs/domhub-access-policy-spec.md`
+6. `docs/product/specs/domhub-state-machines-spec.md`
+7. `docs/product/specs/domhub-access-api-contract-spec.md`
 
 ## Supporting Access Documents
 
 Use when relevant:
 
 - `docs/product/specs/domhub-test-strategy-spec.md`
+- `docs/product/specs/domhub-security-threat-model.md`
+- `docs/product/specs/domhub-release-gate-checklists.md`
+- `docs/product/specs/domhub-operational-runbooks-index.md`
+- `docs/product/specs/domhub-event-taxonomy-spec.md`
 - `docs/product/specs/domhub-deployment-and-tenant-ops-spec.md`
 - `docs/product/specs/domhub-integration-architecture-spec.md`
 - `docs/product/specs/domhub-skud-vendor-priority-spec.md`
@@ -49,4 +58,6 @@ Do not invent:
 - new tenant ownership boundaries
 
 without updating the access source-of-truth docs.
+
+Do not add face recognition / biometric identity matching to access flows unless a separate biometric feature spec and legal approval exist.
 

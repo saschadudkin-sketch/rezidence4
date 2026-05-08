@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRequests } from '../../store/AppStore';
 import type { AppUser } from '../../store/slices/usersSlice';
 import type { RequestStatus, RequestType, AppRequest } from '../../store/slices/requestsSlice';
@@ -19,6 +19,8 @@ type SecurityPassesPaneProps = {
   highlightReqId?: string | null;
   setHighlightReqId?: (reqId: string | null) => void;
 };
+
+const SECURITY_FILTER_KEYS = ['securityRole', 'securityType', 'securityStatus', 'securityPeriod', 'securityQ'] as const;
 
 function matchesSecurityQuery(req: AppRequest, query: string): boolean {
   if (!query) return true;
@@ -57,6 +59,16 @@ export function SecurityPassesPane({ user, highlightReqId, setHighlightReqId }: 
     () => requests.filter(isSecurityActionablePass).length,
     [requests],
   );
+
+  useEffect(() => {
+    if (!highlightReqId) return;
+    if (!SECURITY_FILTER_KEYS.some((key) => searchParams.has(key))) return;
+
+    const next = new URLSearchParams(searchParams);
+    SECURITY_FILTER_KEYS.forEach((key) => next.delete(key));
+    setSearchParams(next, { replace: true });
+  }, [highlightReqId, searchParams, setSearchParams]);
+
   const pendingTechCount = useMemo(
     () => requests.filter((req) => req.type === 'tech' && req.status === 'pending').length,
     [requests],

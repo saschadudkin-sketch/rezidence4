@@ -137,6 +137,32 @@ describe('POST /api/auth/verify-otp — success path coverage', () => {
     expect(res.headers['set-cookie'].some((c) => /^refreshToken=/.test(c))).toBe(true);
   });
 
+  it('200 includes property_type on initial login when user has property_slug', async () => {
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'otp-1', code: 'hashed-code' }],
+    });
+    passwordHasher.compare.mockResolvedValueOnce(true);
+    db.query.mockResolvedValueOnce({ rows: [{ id: 'otp-1' }] });
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        uid: 'u1', phone: VALID_PHONE, name: 'Test',
+        role: 'owner', apartment: '10', avatar: null, property_slug: 'lesnaya-rezidenciya',
+      }],
+    });
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'prop-uuid-1', property_type: 'cottage_community' }],
+    });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/verify-otp')
+      .send({ phone: VALID_PHONE, code: '123456' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.property_id).toBe('prop-uuid-1');
+    expect(res.body.user.property_type).toBe('cottage_community');
+  });
+
   it('400 при коротком code', async () => {
     const res = await request(app)
       .post('/api/auth/verify-otp')
@@ -321,6 +347,7 @@ describe('GET /api/auth/me — coverage', () => {
         uid: 'u1', phone: VALID_PHONE, name: 'Test',
         role: 'owner', apartment: '10', avatar: null,
         property_slug: 'zamoskvorechye', property_id: 'prop-uuid-1',
+        property_type: 'cottage_community',
       }],
     });
 
@@ -332,6 +359,7 @@ describe('GET /api/auth/me — coverage', () => {
     expect(res.body.user.uid).toBe('u1');
     expect(res.body.user.property_id).toBe('prop-uuid-1');
     expect(res.body.user.property_slug).toBe('zamoskvorechye');
+    expect(res.body.user.property_type).toBe('cottage_community');
   });
 
   it('200 resolves property_id from legacy properties projection', async () => {
@@ -344,7 +372,9 @@ describe('GET /api/auth/me — coverage', () => {
           property_slug: 'zamoskvorechye',
         }],
       })
-      .mockResolvedValueOnce({ rows: [{ id: 'legacy-prop-uuid' }] });
+      .mockResolvedValueOnce({
+        rows: [{ id: 'legacy-prop-uuid', property_type: 'club_house' }],
+      });
 
     const res = await request(app)
       .get('/api/auth/me')
@@ -352,6 +382,7 @@ describe('GET /api/auth/me — coverage', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.user.property_id).toBe('legacy-prop-uuid');
+    expect(res.body.user.property_type).toBe('club_house');
     expect(db.query.mock.calls[1][0]).toContain('FROM properties');
   });
 
@@ -359,7 +390,9 @@ describe('GET /api/auth/me — coverage', () => {
     const token = makeAuthToken();
     const missingTable = new Error('relation "properties" does not exist');
     missingTable.code = '42P01';
-    const platformQuery = jest.fn().mockResolvedValue({ rows: [{ id: 'platform-prop-uuid' }] });
+    const platformQuery = jest.fn().mockResolvedValue({
+      rows: [{ id: 'platform-prop-uuid', property_type: 'cottage_community' }],
+    });
     const prevPlatformUrl = process.env.PLATFORM_DB_URL;
     process.env.PLATFORM_DB_URL = 'postgres://platform-db';
     db.getPlatformDb = jest.fn(() => ({ query: platformQuery }));
@@ -382,6 +415,7 @@ describe('GET /api/auth/me — coverage', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.user.property_id).toBe('platform-prop-uuid');
+    expect(res.body.user.property_type).toBe('cottage_community');
     expect(db.getPlatformDb).toHaveBeenCalledTimes(1);
     expect(platformQuery).toHaveBeenCalledWith(
       expect.stringContaining('FROM properties'),

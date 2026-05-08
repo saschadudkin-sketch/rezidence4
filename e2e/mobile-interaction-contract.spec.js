@@ -1,6 +1,4 @@
-const { test, expect, devices } = require('./test');
-
-test.use({ ...devices['iPhone 13'] });
+const { test, expect } = require('./test');
 
 test('mobile interaction contract: modal closes with Escape and overlay tap', async ({ page }) => {
   await page.goto('/');

@@ -59,7 +59,10 @@ html.theme-light .top-nav--mobile-top{border-bottom-color:var(--b2)}
 .demo-private-toggle{
   display:inline-flex;align-items:center;gap:6px;
   font-size:var(--fs-2xs);color:var(--t2);white-space:nowrap;
+  border:0;margin:0;padding:0;min-inline-size:0;
 }
+.demo-private-toggle legend{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.demo-private-toggle label{display:inline-flex;align-items:center;gap:6px;width:100%;min-width:0;cursor:pointer}
 .demo-private-toggle input{accent-color:var(--g1)}
 .demo-welcome-close{
   flex-shrink:0;background:none;border:none;cursor:pointer;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, FormEvent } from 'react';
+import React, { useCallback, useEffect, useState, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import s from '../styles.module.css';
@@ -69,7 +69,7 @@ export function ManagementCompanyDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       setError(null);
       const resp = await api.get<Response>(`/management-companies/${slug}`);
@@ -77,9 +77,9 @@ export function ManagementCompanyDetailPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     }
-  }
+  }, [slug]);
 
-  async function loadAdmins() {
+  const loadAdmins = useCallback(async () => {
     try {
       const { admins } = await api.get<{ admins: MCAdmin[] }>(`/management-companies/${slug}/admins`);
       setAdmins(admins);
@@ -89,12 +89,12 @@ export function ManagementCompanyDetailPage() {
       // because the admins block is a secondary widget.
       setAdmins([]);
     }
-  }
+  }, [slug]);
 
   useEffect(() => {
     void load();
     void loadAdmins();
-  }, [slug]);
+  }, [load, loadAdmins]);
 
   async function patch(changes: Partial<ManagementCompany>) {
     try {
@@ -177,6 +177,7 @@ export function ManagementCompanyDetailPage() {
           <div className={s.empty}>Пока ни одного объекта. Назначьте УК из карточки объекта.</div>
         ) : (
           <table className={s.table}>
+            <caption className={s.tableCaption}>Объекты под управлением</caption>
             <thead>
               <tr><th>Название</th><th>Slug</th><th>Статус</th><th>Создан</th></tr>
             </thead>
@@ -207,6 +208,7 @@ export function ManagementCompanyDetailPage() {
           </div>
         ) : (
           <table className={s.table}>
+            <caption className={s.tableCaption}>Администраторы управляющей компании</caption>
             <thead>
               <tr><th>Имя</th><th>Email</th><th>Последний вход</th><th>Статус</th></tr>
             </thead>
@@ -238,6 +240,7 @@ export function ManagementCompanyDetailPage() {
           <div className={s.empty}>Ничего не менялось</div>
         ) : (
           <table className={s.table}>
+            <caption className={s.tableCaption}>Последние изменения управляющей компании</caption>
             <thead>
               <tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Детали</th></tr>
             </thead>
@@ -270,6 +273,7 @@ function EditableField({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const fieldId = React.useId();
 
   React.useEffect(() => { setDraft(value); }, [value]);
 
@@ -289,10 +293,10 @@ function EditableField({
 
   return (
     <div className={s.formRow}>
-      <label>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       {editing ? (
         <form onSubmit={submit} className={s.inlineForm}>
-          <input className={s.input} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
+          <input id={fieldId} className={s.input} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
           <button type="submit" className={s.btn} disabled={saving}>
             {saving ? '…' : 'OK'}
           </button>
@@ -327,6 +331,7 @@ function EditableSelect({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const fieldId = React.useId();
 
   React.useEffect(() => { setDraft(value); }, [value]);
 
@@ -345,10 +350,10 @@ function EditableSelect({
 
   return (
     <div className={s.formRow}>
-      <label>{label}</label>
+      <label htmlFor={fieldId}>{label}</label>
       {editing ? (
         <div className={s.inlineForm}>
-          <select className={s.select} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus>
+          <select id={fieldId} className={s.select} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus>
             {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <button type="button" className={s.btn} disabled={saving} onClick={() => void submit()}>

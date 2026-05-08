@@ -290,6 +290,16 @@ describe('permsProvider', () => {
     });
   });
 
+  test('savePerms sends empty arrays so remote clear is persisted', async () => {
+    apiClient.post.mockResolvedValue({ ok: true });
+    await permsProvider.savePerms('u1', { visitors: [], workers: [] });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/perms/batch', {
+      uid: 'u1',
+      visitors: [],
+      workers:  [],
+    });
+  });
+
   test('savePerms → POST /api/perms (legacy flat array format)', async () => {
     apiClient.post.mockResolvedValueOnce({ ok: true });
     const items = [{ id: 'p1', name: 'Гость' }];
@@ -377,6 +387,25 @@ describe('createBackendProvider', () => {
         headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }),
       }),
     );
+  });
+
+  test('admin.savePermsEverywhere updates local store after remote save', async () => {
+    const p = createBackendProvider();
+    const saveLocal = vi.fn();
+    const perms = { visitors: [{ id: 'p1', name: 'Гость', phone: '' }], workers: [] };
+    apiClient.post.mockResolvedValueOnce({ ok: true });
+
+    await p.admin.savePermsEverywhere({ uid: 'u1', perms, saveLocal });
+
+    expect(apiClient.post).toHaveBeenCalledWith('/api/v1/perms/batch', {
+      uid: 'u1',
+      visitors: perms.visitors,
+      workers:  perms.workers,
+    });
+    expect(saveLocal).toHaveBeenCalledWith('u1', {
+      visitors: perms.visitors,
+      workers:  perms.workers,
+    });
   });
 
   test('admin.saveUserEverywhere вызывает PATCH /api/users/:uid', async () => {

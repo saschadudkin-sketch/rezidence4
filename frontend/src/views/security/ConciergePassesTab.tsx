@@ -40,6 +40,8 @@ export function ConciergePassesTab({
   debouncedQuery,
 }: ConciergePassesTabProps) {
   const emptyCopy = useMemo(() => getViewStateCopy('security_passes', 'empty'), []);
+  const hasQuery = debouncedQuery.trim().length > 0;
+  const shouldShowPasses = showAll || hasQuery;
 
   return (
     <>
@@ -72,7 +74,7 @@ export function ConciergePassesTab({
           {showAll ? '▴ Скрыть все пропуска' : '▾ Все пропуска'}
         </button>
       </div>
-      {showAll && allPasses.length > 0 && (
+      {shouldShowPasses && allPasses.length > 0 && (
         <VirtualList
           items={allPasses}
           renderItem={(req, index) => (
@@ -82,11 +84,11 @@ export function ConciergePassesTab({
           className="req-list"
         />
       )}
-      {showAll && allPasses.length === 0 && (
+      {shouldShowPasses && allPasses.length === 0 && (
         <StateBlock
           type="empty"
-          title={debouncedQuery ? 'Ничего не найдено' : emptyCopy.title}
-          subtitle={debouncedQuery ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
+          title={hasQuery ? 'Ничего не найдено' : emptyCopy.title}
+          subtitle={hasQuery ? 'Попробуйте другой запрос' : emptyCopy.subtitle}
         />
       )}
     </>

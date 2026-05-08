@@ -15,11 +15,13 @@ describe('chatGateway.sendChatMessage', () => {
   let warnSpy;
 
   beforeEach(() => {
+    process.env.VITEST_LOGGER_CONSOLE = '1';
     vi.clearAllMocks();
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    delete process.env.VITEST_LOGGER_CONSOLE;
     warnSpy.mockRestore();
   });
 

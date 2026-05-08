@@ -5,8 +5,11 @@
 
 import { v1Client, type RequestOpts } from './client';
 import type {
+  AccessPointType,
+  AccessZoneType,
   PageMeta,
   PaginationParams,
+  PropertyType,
   Unit,
   UnitDetailResponse,
   UnitType,
@@ -19,6 +22,46 @@ export interface ListUnitsParams extends PaginationParams {
   unit_type?: UnitType;
   q?: string;
   is_active?: boolean;
+}
+
+export interface UnitImportPayload {
+  property_id: UUID;
+  property_type?: PropertyType | null;
+  csv?: string;
+  rows?: Array<Record<string, unknown>>;
+}
+
+export interface UnitImportResponse {
+  property_type: PropertyType;
+  imported: Record<'buildings' | 'entrances' | 'units' | 'residents' | 'vehicles', number>;
+  skipped: Record<'buildings' | 'entrances' | 'units' | 'residents' | 'vehicles', number>;
+  warnings: string[];
+  planned_access_points: Array<{ name: string; point_type: string; notes: string | null }>;
+  access_topology: {
+    zones: Array<{ id: UUID; name: string; zone_type: AccessZoneType; created: boolean }>;
+    points: Array<{
+      id: UUID;
+      zone_id: UUID;
+      name: string;
+      point_type: AccessPointType;
+      notes: string | null;
+      created: boolean;
+    }>;
+  };
+  readiness: {
+    ready: boolean;
+    homes_plots: number;
+    vehicles: number | null;
+    planned_access_points: number | null;
+  };
+  rows: Array<{
+    row: number;
+    building_id: UUID;
+    entrance_id: UUID;
+    unit_id: UUID;
+    resident_id: UUID;
+    vehicle_ids: UUID[];
+  }>;
 }
 
 function toQuery(params: object | undefined): string {
@@ -41,5 +84,8 @@ export const unitsApi = {
   },
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<UnitDetailResponse>(`/units/${id}`, opts);
+  },
+  importRows(payload: UnitImportPayload, opts?: RequestOpts) {
+    return v1Client.post<UnitImportResponse>('/units/import', payload, opts);
   },
 };

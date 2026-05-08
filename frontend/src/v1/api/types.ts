@@ -52,6 +52,11 @@ export type UserRole =
   | 'user'
   | 'staff';
 
+export type PropertyType =
+  | 'residential_complex'
+  | 'club_house'
+  | 'cottage_community';
+
 /**
  * Shape of `{ user }` in `GET /api/auth/me` response.  The legacy JWT still
  * drives auth so the row comes straight from `users` (not v1 tables).
@@ -71,6 +76,8 @@ export interface UserMe {
   property_slug?: string | null;
   /** Resolved from property_slug on the backend.  `null` only in edge cases. */
   property_id?: UUID | null;
+  /** Resolved from the platform/local property registry; drives address labels. */
+  property_type?: PropertyType | null;
 }
 
 // ─── Access Requests ────────────────────────────────────────────────────────
@@ -225,9 +232,107 @@ export interface Vehicle {
   updated_at: IsoDateTime | null;
 }
 
+// ─── Access Topology ───────────────────────────────────────────────────────
+
+export type AccessZoneType =
+  | 'perimeter'
+  | 'checkpoint'
+  | 'residential_entry'
+  | 'parking'
+  | 'guest_parking'
+  | 'resident_parking'
+  | 'public_area'
+  | 'technical_area'
+  | 'service_area'
+  | 'street'
+  | 'sector';
+
+export type AccessPointType =
+  | 'gate'
+  | 'barrier'
+  | 'door'
+  | 'turnstile'
+  | 'wicket'
+  | 'intercom'
+  | 'checkpoint'
+  | 'service_gate';
+
+export interface AccessZone {
+  id: UUID;
+  property_id: UUID;
+  building_id: UUID | null;
+  name: string;
+  zone_type: AccessZoneType;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
+  metadata: Record<string, unknown> | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+export interface AccessPoint {
+  id: UUID;
+  property_id: UUID;
+  zone_id: UUID;
+  name: string;
+  point_type: AccessPointType;
+  provider: string | null;
+  provider_external_id: string | null;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
+  metadata: Record<string, unknown> | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+// ─── Access Policies ───────────────────────────────────────────────────────
+
+export type AccessPolicySubjectType =
+  | 'resident'
+  | 'guest'
+  | 'staff'
+  | 'contractor'
+  | 'contractor_user'
+  | 'vehicle'
+  | 'courier';
+
+export type AccessPolicyMethod = 'qr' | 'manual' | 'plate' | 'ble' | 'card' | 'face' | 'pin';
+export type AccessPolicyApprovalMode = 'auto' | 'required' | 'security_only' | 'admin_only';
+export type AccessPolicyEffect =
+  | 'allow'
+  | 'deny'
+  | 'needs_approval'
+  | 'needs_security_review'
+  | 'incident_required';
+
+export interface AccessPolicy {
+  id: UUID;
+  property_id: UUID;
+  name: string;
+  subject_type: AccessPolicySubjectType;
+  subject_role: string | null;
+  zone_id: UUID | null;
+  point_id: UUID | null;
+  access_method: AccessPolicyMethod;
+  approval_mode: AccessPolicyApprovalMode;
+  effect: AccessPolicyEffect;
+  priority: number;
+  schedule_json: Record<string, unknown> | null;
+  duration_minutes: number | null;
+  is_recurring: boolean;
+  is_active: boolean;
+  created_by: UUID | null;
+  metadata: Record<string, unknown> | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
 // ─── Visits (visit_logs_v2) + verify ────────────────────────────────────────
 
 export type VerifyMode = 'qr' | 'plate';
+export type VerifyDirection = 'entry' | 'exit';
 
 export type VisitEventType =
   | 'entry_allowed'
@@ -273,12 +378,16 @@ export interface VerifyRequest {
   mode: VerifyMode;
   token?: string;
   plate?: string;
+  access_point_id?: UUID | null;
+  direction?: VerifyDirection;
   occurred_at?: IsoDateTime;
 }
 
 export interface VerifyResult {
   allowed: boolean;
   reason?: DenyReason | string; // backend may add new reasons before FE
+  direction?: VerifyDirection;
+  policy_decision?: Record<string, unknown> | null;
   visit_log_id: UUID | null;
   incident_id: UUID | null;
   pass: PassSummary | null;
@@ -295,7 +404,9 @@ export type IncidentType =
   | 'unauthorized_vehicle'
   | 'manual_override'
   | 'provider_conflict'
-  | 'suspicious_repeat_attempt';
+  | 'suspicious_repeat_attempt'
+  | 'policy_denied'
+  | 'policy_security_review_required';
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -328,6 +439,23 @@ export type OverrideType =
   | 'temporary_whitelist'
   | 'temporary_block';
 
+export type ManualDecision = 'manual_admit' | 'manual_deny';
+export type ManualDecisionDegradedReason =
+  | 'cached_lookup'
+  | 'no_lookup'
+  | 'manual_admit'
+  | 'manual_deny'
+  | 'later_reconciliation'
+  | 'connectivity_loss'
+  | 'provider_outage'
+  | 'policy_override';
+export type ManualDecisionLookupState =
+  | 'online'
+  | 'cached_hit'
+  | 'cached_miss'
+  | 'not_checked'
+  | 'unavailable';
+
 export interface AccessOverride {
   id: UUID;
   property_id: UUID;
@@ -337,6 +465,232 @@ export interface AccessOverride {
   override_type: OverrideType;
   reason: string;
   created_at: IsoDateTime;
+}
+
+export interface ManualSecurityDecisionRequest {
+  property_id: UUID;
+  access_point_id?: UUID | null;
+  decision: ManualDecision;
+  direction?: VerifyDirection;
+  reason: string;
+  pass_id?: UUID | null;
+  vehicle_id?: UUID | null;
+  related_vehicle_id?: UUID | null;
+  person_label?: string | null;
+  vehicle_plate?: string | null;
+  degraded_mode?: boolean;
+  degraded_reason?: ManualDecisionDegradedReason | null;
+  lookup_state?: ManualDecisionLookupState | null;
+  occurred_at?: IsoDateTime | null;
+  severity?: Severity | null;
+}
+
+export interface ManualSecurityDecisionResponse {
+  visit_log: VisitLog;
+  incident: AccessIncident;
+  override: AccessOverride;
+}
+
+// ─── Staff Workspace / Service Requests ────────────────────────────────────
+
+export type StaffWorkspaceQueue =
+  | 'active'
+  | 'unassigned'
+  | 'assigned'
+  | 'mine'
+  | 'overdue'
+  | 'emergency'
+  | 'all';
+
+export type StaffRequestStatus =
+  | 'pending'
+  | 'approved'
+  | 'accepted'
+  | 'arrived'
+  | 'cancelled'
+  | 'scheduled'
+  | 'expired'
+  | 'completed'
+  | 'rejected';
+
+export type StaffRequestPriority = 'low' | 'normal' | 'high' | 'emergency';
+export type StaffSlaProfile = 'standard' | 'urgent' | 'emergency';
+
+export type StaffRequestType =
+  | 'pass'
+  | 'tech'
+  | 'repair'
+  | 'cleaning'
+  | 'concierge'
+  | 'complaint'
+  | 'suggestion'
+  | 'car'
+  | 'move_in'
+  | 'move_out'
+  | 'service'
+  | 'territory'
+  | 'emergency';
+
+export type StaffRequestTargetType =
+  | 'unit'
+  | 'home'
+  | 'access_zone'
+  | 'access_point'
+  | 'common_territory'
+  | 'road'
+  | 'service_area';
+
+export type StaffSlaState =
+  | 'on_track'
+  | 'responded'
+  | 'escalated'
+  | 'emergency_escalated'
+  | 'resolved'
+  | (string & {});
+
+export interface StaffWorkspaceRequest {
+  id: string;
+  type: StaffRequestType | (string & {});
+  category: string;
+  status: StaffRequestStatus;
+  priority: StaffRequestPriority;
+  slaProfile: StaffSlaProfile;
+  requestCategoryId: UUID | null;
+  targetType: StaffRequestTargetType | null;
+  targetId: UUID | null;
+  firstResponseDueAt: IsoDateTime | null;
+  resolutionDueAt: IsoDateTime | null;
+  dueAt: IsoDateTime | null;
+  isOverdue: boolean;
+  emergencyMetadata: Record<string, unknown>;
+  assignedToUid: string | null;
+  assignedToName: string | null;
+  assignedToRole: string | null;
+  assignedAt: IsoDateTime | null;
+  firstResponseAt: IsoDateTime | null;
+  resolvedAt: IsoDateTime | null;
+  completedAt: IsoDateTime | null;
+  slaState: StaffSlaState;
+  escalationLevel: number;
+  escalatedAt: IsoDateTime | null;
+  escalationReason: string | null;
+  lastSlaCheckAt: IsoDateTime | null;
+  createdByUid: string;
+  createdByName: string;
+  createdByRole: string;
+  createdByApt: string | null;
+  visitorName: string | null;
+  visitorPhone: string | null;
+  carPlate: string | null;
+  comment: string | null;
+  passDuration: string | null;
+  validUntil: IsoDateTime | null;
+  scheduledFor: IsoDateTime | null;
+  arrivedAt: IsoDateTime | null;
+  photos: string[];
+  photo: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime | null;
+  resident: {
+    id?: UUID | null;
+    uid: string | null;
+    name: string | null;
+    apt: string | null;
+  };
+  counters: {
+    residentUpdates: number;
+    internalComments: number;
+    slaEvents: number;
+  };
+}
+
+export interface StaffWorkspaceProperty {
+  id: UUID | null;
+  slug: string | null;
+  type: PropertyType | null;
+}
+
+export interface StaffWorkspaceAttachment {
+  id: UUID;
+  requestId: string;
+  uploadedByUid: string | null;
+  fileUrl: string;
+  fileKind: string | null;
+  visibility: 'resident' | 'internal' | (string & {});
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime;
+}
+
+export interface StaffWorkspaceUpdate {
+  id: UUID;
+  requestId: string;
+  actorUid: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  body: string;
+  visibility: 'resident' | 'internal' | (string & {});
+  attachmentIds: UUID[];
+  createdAt: IsoDateTime;
+}
+
+export interface StaffWorkspaceSlaEvent {
+  id: UUID;
+  requestId: string;
+  eventKey: string;
+  eventType: string;
+  severity: string;
+  dueAt: IsoDateTime | null;
+  detectedAt: IsoDateTime | null;
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime;
+}
+
+export interface StaffWorkspaceRequestDetail {
+  request: StaffWorkspaceRequest;
+  attachments: StaffWorkspaceAttachment[];
+  residentUpdates: StaffWorkspaceUpdate[];
+  internalComments: StaffWorkspaceUpdate[];
+  slaEvents: StaffWorkspaceSlaEvent[];
+}
+
+export interface StaffResidentQuickView {
+  resident: {
+    id: UUID;
+    externalUid: string | null;
+    propertyId: UUID;
+    fullName: string;
+    phone: string | null;
+    email: string | null;
+    role: string | null;
+    residentType: string;
+    isActive: boolean;
+    unit: {
+      id: UUID;
+      number: string;
+      type: string;
+      floor: number | null;
+      buildingId: UUID | null;
+      buildingName: string | null;
+      buildingCode: string | null;
+      entranceId: UUID | null;
+      entranceName: string | null;
+      entranceCode: string | null;
+    };
+  };
+  vehicles: Array<Pick<
+    Vehicle,
+    | 'id'
+    | 'property_id'
+    | 'plate_number'
+    | 'vehicle_type'
+    | 'color'
+    | 'brand'
+    | 'model'
+    | 'is_whitelisted'
+    | 'is_blacklisted'
+  >>;
+  requestCounts: Partial<Record<StaffRequestStatus | string, number>>;
+  recentRequests: StaffWorkspaceRequest[];
 }
 
 // ─── Structure ──────────────────────────────────────────────────────────────

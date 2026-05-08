@@ -506,7 +506,10 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
   color: color-mix(in srgb, var(--g2) 84%, var(--g3));
   transition: border-color .13s, background .13s, box-shadow .13s, transform .13s;
 }
-.demo-toggle:hover, .demo-toggle:active { border-color: var(--g1); background: rgba(196, 150, 60, .12); box-shadow: var(--sh-s); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .demo-toggle:hover { border-color: var(--g1); background: rgba(196, 150, 60, .12); box-shadow: var(--sh-s); transform: translateY(-1px); }
+}
+.demo-toggle:active { border-color: var(--g1); background: rgba(196, 150, 60, .12); box-shadow: var(--sh-s); transform: scale(.97); }
 .demo-toggle-arrow { font-size: var(--fs-2xs); transition: transform .2s; display: inline-block; }
 .demo-toggle.open .demo-toggle-arrow { transform: rotate(180deg); }
 .demo-list { margin-top: 8px; overflow: hidden; transition: max-height .25s ease; display: grid; gap: 6px; }
@@ -521,7 +524,10 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
   border-radius: var(--r);
   transition: border-color .13s, background .13s, transform .13s;
 }
-.demo-row:hover, .demo-row:active { background: var(--g-bg); border-color: var(--b2); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) {
+  .demo-row:hover { background: var(--g-bg); border-color: var(--b2); transform: translateY(-1px); }
+}
+.demo-row:active { background: var(--g-bg); border-color: var(--b2); transform: scale(.97); }
 .demo-ph { font-size: var(--fs-2xs); color: var(--t2); }
 .demo-rl { font-size: var(--fs-2xs); color: var(--t3); }
 
@@ -589,7 +595,9 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 
 .login-help { margin-top: 12px; text-align: center; font-size: 11px; letter-spacing: .01em; color: var(--t3); }
 .login-help-link { color: color-mix(in srgb, var(--g2) 88%, var(--g3)); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color .15s; }
-.login-help-link:hover { border-bottom-color: color-mix(in srgb, var(--g2) 88%, var(--g3)); }
+@media (hover: hover) and (pointer: fine) {
+  .login-help-link:hover { border-bottom-color: color-mix(in srgb, var(--g2) 88%, var(--g3)); }
+}
 
 .login-otp-phone {
   font-size: 11px;
@@ -646,8 +654,10 @@ html.theme-light .login-mobile-top img { filter: var(--logo-filter-light); }
 .login-form .btn-text:disabled {
   opacity: .72;
 }
-.login-form .btn-text:hover:not(:disabled) {
-  color: color-mix(in srgb, var(--g2) 88%, var(--g3));
+@media (hover: hover) and (pointer: fine) {
+  .login-form .btn-text:hover:not(:disabled) {
+    color: color-mix(in srgb, var(--g2) 88%, var(--g3));
+  }
 }
 .login-form .field-otp {
   padding-inline: 18px;

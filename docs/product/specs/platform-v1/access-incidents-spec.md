@@ -138,6 +138,12 @@ Severity: `critical` оставляем только для руч. выстав
 - `entity_type='access_incident'` для создания/assign/resolve/dismiss/patch
 - `entity_type='access_override'` для создания
 
+Sensitive-action review baseline:
+- `override.created`, `incident.resolved`, `incident.dismissed` and `incident.patched` are classified by `backend/src/v1/services/auditEventCatalog.js`;
+- property admins can review them through `GET /api/v1/audit/sensitive-actions`;
+- the review response maps legacy audit action names to canonical events from `domhub-event-taxonomy-spec.md`;
+- this is read-only in DH-08. Full review assignment/attestation remains DH-60.
+
 ---
 
 ## 5. Миграция из legacy
@@ -172,6 +178,7 @@ Severity: `critical` оставляем только для руч. выстав
 - [ ] `temporary_whitelist` создаёт `access_override` + записывает `vehicles.flags += ['temp_whitelist']` с TTL (TTL через cron-job, не cron-expression в БД)
 - [ ] `temporary_block` аналогично: `pass.status='blocked'` + override row
 - [ ] Audit-trail: все overrides видны в `GET /access-overrides?performed_by_staff_id=X` для расследования
+- [ ] Sensitive-action report: `GET /api/v1/audit/sensitive-actions?category=manual_override` returns override audit rows with canonical taxonomy metadata
 
 ---
 
@@ -182,4 +189,4 @@ Severity: `critical` оставляем только для руч. выстав
 3. **Incident без `related_*`.** Guard создаёт incident руками без ссылки на pass/visit/vehicle (напр., «подозрительный человек у входа»). → **Разрешено.** Все `related_*` nullable; CHECK только на overrides (`incident_id OR pass_id`), не на incidents.
 4. **Severity для `suspicious_repeat_attempt`.** Сейчас `high`. → Вопрос на наблюдение: если окажется шумно (false positives от плохо отсканированных QR) — понизить до `medium` в Фазе 4 после сбора статистики.
 5. **Notification в v1 без `notification_log` (Фаза 5).** → **Решено:** сейчас пишем только в лог `logger.info({severity, incident_id}, 'incident.notify.pending')`; канал уведомления появится в Фазе 5. BACKLOG отмечает, что `notification_log` должен дозабрать эти события на backfill.
-6. **Override для невалидированных попыток.** Нужно ли разрешать `manual_admit` без существующего incident (guard просто пропустил знакомого)? → **Разрешено.** Override с `incident_id=NULL, pass_id=NULL` допустим? **Нет** — CHECK требует одно из двух. Guard создаёт `access_incident(incident_type='manual_override', status='resolved')` и override с FK на него. Это компромисс: incident-шум, но полный аудит.
+6. **Override для невалидированных попыток.** Нужно ли разрешать `manual_admit` без существующего incident (guard просто пропустил знакомого)? → **Разрешено.** Override с `incident_id=NULL, pass_id=NULL` допустим? **Нет** — CHECK требует одно из двух. Guard использует `POST /api/v1/security-workspace/manual-decision`; backend создаёт `visit_logs_v2`, `access_incident(incident_type='manual_override', status='resolved')` и override с FK на incident в одной транзакции. Это компромисс: incident-шум, но полный аудит.

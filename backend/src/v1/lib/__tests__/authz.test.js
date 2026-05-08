@@ -18,10 +18,20 @@ const {
   ROLES,
   ROLE_CAPABILITIES,
   SCOPE_LEVELS,
+  ROLE_ALLOWED_SCOPE_LEVELS,
+  buildRoleScopeMembership,
+  canInPropertyScope,
+  canInScope,
+  hasScope,
   listAllCapabilities,
   CAPABILITIES,
   isKnownScopeLevel,
   normalizeRole,
+  normalizeScope,
+  requireCapabilityInScope,
+  requireCapabilityInPropertyScope,
+  resolvePropertyScopeTarget,
+  roleCanUseScope,
 } = require('../authz');
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -295,7 +305,9 @@ describe('Catalog introspection', () => {
       'access.pass.read', 'access.pass.revoke', 'access.pass.block',
       'access.qr.verify', 'access.plate.verify',
       'access.incident.create', 'access.incident.resolve',
-      'access.override.create', 'audit.read',
+      'access.override.create', 'access.topology.read',
+      'access.topology.write', 'access.policy.read', 'access.policy.write',
+      'access.security.workspace.read', 'audit.read',
     ];
     for (const cap of required) {
       expect(CAPABILITIES[cap]).toBeDefined();
@@ -317,7 +329,7 @@ describe('Catalog introspection', () => {
     expect(LEGACY_ROLE_TO_FINAL_ROLE[ROLES.ADMIN]).toBe(FINAL_ROLES.PROPERTY_ADMIN);
     expect(normalizeRole('tenant')).toBe(FINAL_ROLES.RESIDENT);
     expect(SCOPE_LEVELS).toEqual(expect.arrayContaining([
-      'property', 'building', 'entrance', 'floor', 'unit',
+      'platform', 'management_company', 'property', 'building', 'entrance', 'floor', 'unit',
       'parking_zone', 'access_zone', 'access_point',
     ]));
     expect(isKnownScopeLevel('access_point')).toBe(true);
@@ -329,5 +341,169 @@ describe('Catalog introspection', () => {
       expect(Object.prototype.hasOwnProperty.call(ROLE_CAPABILITIES, role)).toBe(true);
       expect(Array.isArray(ROLE_CAPABILITIES[role])).toBe(true);
     }
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// DH-03 role/scope membership primitives
+// ──────────────────────────────────────────────────────────────────────────
+
+describe('Role/scope membership primitives', () => {
+  test('normalizeScope validates known levels and resolves context ids', () => {
+    expect(normalizeScope('platform')).toEqual({
+      scope_level: 'platform',
+      scope_id: null,
+      property_id: null,
+      management_company_id: null,
+    });
+    expect(normalizeScope({ scope_level: 'property' }, { property_id: 'p1' })).toMatchObject({
+      scope_level: 'property',
+      scope_id: 'p1',
+      property_id: 'p1',
+    });
+    expect(() => normalizeScope('portfolio')).toThrow(/unknown scope level/);
+  });
+
+  test('buildRoleScopeMembership maps final and legacy roles to default scopes', () => {
+    expect(buildRoleScopeMembership({ role: 'platform_admin' })).toMatchObject({
+      role: 'platform_admin',
+      scope_level: 'platform',
+      scope_id: null,
+    });
+    expect(buildRoleScopeMembership({
+      role: 'management_company_admin',
+      management_company_id: 'mc1',
+    })).toMatchObject({
+      role: 'management_company_admin',
+      scope_level: 'management_company',
+      scope_id: 'mc1',
+    });
+    expect(buildRoleScopeMembership({ role: 'admin', property_id: 'p1' })).toMatchObject({
+      role: 'property_admin',
+      scope_level: 'property',
+      scope_id: 'p1',
+    });
+    expect(buildRoleScopeMembership({ user: { role: 'owner', property_id: 'p1' } })).toMatchObject({
+      role: 'resident',
+      scope_level: 'property',
+      scope_id: 'p1',
+    });
+  });
+
+  test('roleCanUseScope follows final role boundaries', () => {
+    expect(roleCanUseScope('platform_admin', 'platform')).toBe(true);
+    expect(roleCanUseScope('platform_admin', 'access_point')).toBe(true);
+    expect(roleCanUseScope('management_company_admin', 'management_company')).toBe(true);
+    expect(roleCanUseScope('management_company_admin', 'platform')).toBe(false);
+    expect(roleCanUseScope('security', 'access_point')).toBe(true);
+    expect(roleCanUseScope('security', 'unit')).toBe(false);
+    expect(Object.isFrozen(ROLE_ALLOWED_SCOPE_LEVELS.property_admin)).toBe(true);
+  });
+
+  test('hasScope denies cross-property access for property admins', () => {
+    const adminReq = { user: { role: 'admin', property_id: 'p1' } };
+    expect(hasScope(adminReq, { scope_level: 'property', property_id: 'p1' })).toBe(true);
+    expect(hasScope(adminReq, { scope_level: 'property', property_id: 'p2' })).toBe(false);
+    expect(hasScope(adminReq, { scope_level: 'property' })).toBe(false);
+  });
+
+  test('management company scope can cover a property only when MC id is known', () => {
+    const mcAdmin = { role: 'management_company_admin', management_company_id: 'mc1' };
+    expect(hasScope(mcAdmin, {
+      scope_level: 'property',
+      property_id: 'p1',
+      management_company_id: 'mc1',
+    })).toBe(true);
+    expect(hasScope(mcAdmin, {
+      scope_level: 'property',
+      property_id: 'p2',
+      management_company_id: 'mc2',
+    })).toBe(false);
+    expect(hasScope(mcAdmin, { scope_level: 'property', property_id: 'p3' })).toBe(false);
+  });
+
+  test('canInScope combines capability and scope checks', () => {
+    expect(canInScope(
+      { role: 'admin', property_id: 'p1' },
+      'staff:write',
+      { scope_level: 'property', property_id: 'p1' },
+    )).toBe(true);
+    expect(canInScope(
+      { role: 'admin', property_id: 'p1' },
+      'staff:write',
+      { scope_level: 'property', property_id: 'p2' },
+    )).toBe(false);
+    expect(canInScope(
+      { role: 'platform_admin' },
+      'staff:write',
+      { scope_level: 'property', property_id: 'p-any' },
+    )).toBe(true);
+    expect(canInScope(
+      { role: 'resident', property_id: 'p1' },
+      'staff:write',
+      { scope_level: 'property', property_id: 'p1' },
+    )).toBe(false);
+  });
+
+  test('canInPropertyScope resolves tenant property and denies cross-property tokens', () => {
+    expect(canInPropertyScope(
+      { user: { role: 'admin' }, property: { id: 'p1' } },
+      'staff:write',
+      'p1',
+    )).toBe(true);
+    expect(canInPropertyScope(
+      { user: { role: 'admin', property_id: 'p2' }, property: { id: 'p1' } },
+      'staff:write',
+      'p1',
+    )).toBe(false);
+    expect(canInPropertyScope(
+      { user: { role: 'admin' } },
+      'staff:write',
+      'p1',
+    )).toBe(true);
+  });
+
+  test('resolvePropertyScopeTarget prefers explicit and tenant property ids', () => {
+    expect(resolvePropertyScopeTarget(
+      { user: { property_id: 'user-p' }, property: { id: 'tenant-p' } },
+      'explicit-p',
+    )).toBe('explicit-p');
+    expect(resolvePropertyScopeTarget(
+      { user: { property_id: 'user-p' }, property: { id: 'tenant-p' } },
+    )).toBe('tenant-p');
+    expect(resolvePropertyScopeTarget({ user: { property_id: 'user-p' } })).toBe('user-p');
+  });
+
+  test('requireCapabilityInScope returns 403 on scope mismatch', () => {
+    const mw = requireCapabilityInScope(
+      'staff:write',
+      (req) => ({ scope_level: 'property', property_id: req.params.propertyId }),
+    );
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    mw({ user: { role: 'admin', property_id: 'p1' }, params: { propertyId: 'p2' } }, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Forbidden' });
+  });
+
+  test('requireCapabilityInPropertyScope returns 403 on property mismatch', () => {
+    const mw = requireCapabilityInPropertyScope('staff:write', (req) => req.params.propertyId);
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    mw({ user: { role: 'admin', property_id: 'p1' }, params: { propertyId: 'p2' } }, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Forbidden' });
   });
 });

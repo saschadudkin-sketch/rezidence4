@@ -28,12 +28,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Pass, Vehicle } from '../api/types';
+import { useNavigate } from 'react-router-dom';
+import type { Pass, PropertyType, Vehicle } from '../api/types';
 import { api, isV1ApiError } from '../api';
-import { useV1Session, isGuardRole } from '../store';
+import { useV1Session, isGuardRole, normalizeUserRole } from '../store';
 import { ScanPanel } from '../components/ScanPanel';
 import { PassCard } from '../components/PassCard';
 import { VehicleCard } from '../components/VehicleCard';
+import { getPropertyLabels, isCheckpointFirstProperty } from '../lib/propertyLabels';
 import {
   Alert,
   Button,
@@ -52,9 +54,14 @@ type RightTab = 'passes' | 'vehicles';
 
 export function GuardConsolePage() {
   const session = useV1Session();
+  const navigate = useNavigate();
   const canGuard = isGuardRole(session.role);
+  const canOnboard = ['property_admin', 'management_company_admin', 'platform_admin']
+    .includes(normalizeUserRole(session.role));
   const propertyId = session.property_id ?? null;
-  const [tab, setTab] = useState<RightTab>('passes');
+  const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
+  const checkpointFirst = isCheckpointFirstProperty(session.property_type);
+  const [tab, setTab] = useState<RightTab>(checkpointFirst ? 'vehicles' : 'passes');
   const [refreshToken, setRefreshToken] = useState(0);
 
   if (!canGuard) {
@@ -80,9 +87,24 @@ export function GuardConsolePage() {
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
-        <h1 className={uiClasses.pageTitle}>Пост охраны</h1>
+        <Inline>
+          <h1 className={uiClasses.pageTitle}>{labels.guardTitle}</h1>
+          <Button variant="ghost" onClick={() => navigate('/v1/staff-workspace')}>
+            Рабочее место staff
+          </Button>
+          {canOnboard ? (
+            <>
+              <Button variant="ghost" onClick={() => navigate('/v1/admin/access')}>
+                Настройки доступа
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/v1/onboarding')}>
+                Онбординг
+              </Button>
+            </>
+          ) : null}
+        </Inline>
         <p className={uiClasses.pageSubtitle}>
-          Проверка пропусков и авто{session.property_slug ? ` · ${session.property_slug}` : ''}
+          {labels.guardSubtitle}{session.property_slug ? ` · ${session.property_slug}` : ''}
         </p>
       </header>
 
@@ -101,7 +123,7 @@ export function GuardConsolePage() {
               className={`${uiClasses.tab} ${tab === 'passes' ? uiClasses.tabActive : ''}`}
               onClick={() => setTab('passes')}
             >
-              Активные пропуски
+              {labels.guardPassesTab}
             </button>
             <button
               type="button"
@@ -110,12 +132,12 @@ export function GuardConsolePage() {
               className={`${uiClasses.tab} ${tab === 'vehicles' ? uiClasses.tabActive : ''}`}
               onClick={() => setTab('vehicles')}
             >
-              Авто
+              {labels.guardVehiclesTab}
             </button>
           </div>
 
           {tab === 'passes' ? <ActivePassesTab refreshToken={refreshToken} /> : null}
-          {tab === 'vehicles' ? <VehicleLookupTab /> : null}
+          {tab === 'vehicles' ? <VehicleLookupTab propertyType={session.property_type ?? null} /> : null}
         </Stack>
       </div>
     </div>
@@ -188,7 +210,12 @@ function ActivePassesTab({ refreshToken }: ActivePassesTabProps) {
 
 // ─── Vehicle lookup tab ─────────────────────────────────────────────────────
 
-function VehicleLookupTab() {
+interface VehicleLookupTabProps {
+  propertyType?: PropertyType | null;
+}
+
+function VehicleLookupTab({ propertyType }: VehicleLookupTabProps) {
+  const labels = useMemo(() => getPropertyLabels(propertyType), [propertyType]);
   const [input, setInput] = useState('');
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [searching, setSearching] = useState(false);
@@ -223,7 +250,7 @@ function VehicleLookupTab() {
   }, []);
 
   return (
-    <Card title="Поиск по номеру">
+    <Card title={labels.vehicleLookupTitle}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -234,7 +261,7 @@ function VehicleLookupTab() {
           label="Номер авто"
           id="v1-guard-plate"
           error={error ?? undefined}
-          hint="Пробелы и дефисы обрезаются, буквы приводятся к верхнему регистру"
+          hint={labels.vehicleLookupHint}
         >
           <Input
             id="v1-guard-plate"

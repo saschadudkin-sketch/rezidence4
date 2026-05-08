@@ -11,6 +11,9 @@ export interface ToggleProps {
   description?: string;
   id?: string;
   size?: ToggleSize;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
+  ariaDescribedBy?: string;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -21,6 +24,9 @@ export const Toggle: React.FC<ToggleProps> = ({
   description,
   id: providedId,
   size = 'md',
+  ariaLabel,
+  ariaLabelledBy,
+  ariaDescribedBy,
 }) => {
   const fallbackId = useId();
   const id = providedId || fallbackId;
@@ -56,7 +62,10 @@ export const Toggle: React.FC<ToggleProps> = ({
           className={`${styles.toggle} ${styles[`toggle--${size}`]} ${disabled ? styles['toggle--disabled'] : ''}`}
           role="switch"
           aria-checked={checked}
-          aria-labelledby={id}
+          aria-disabled={disabled || undefined}
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy ?? id}
+          aria-describedby={ariaDescribedBy}
           tabIndex={disabled ? -1 : 0}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
@@ -76,6 +85,10 @@ export const Toggle: React.FC<ToggleProps> = ({
       className={`${styles.toggle} ${styles[`toggle--${size}`]} ${disabled ? styles['toggle--disabled'] : ''}`}
       role="switch"
       aria-checked={checked}
+      aria-disabled={disabled || undefined}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      aria-describedby={ariaDescribedBy}
       tabIndex={disabled ? -1 : 0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

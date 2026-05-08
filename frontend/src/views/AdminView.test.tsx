@@ -7,6 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import AdminView from './AdminView';
 import * as AppStore from '../store/AppStore';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { AppStoreSnapshot } from '../store/boundedContexts/contexts';
 
 
 const mockRequests = [
@@ -23,6 +24,12 @@ const mockUsers = {
 };
 
 beforeEach(() => {
+  const storeSnapshot = {
+    reqState: { requests: mockRequests, history: {} },
+  } as unknown as AppStoreSnapshot;
+  vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation(
+    <T,>(selector: (state: AppStoreSnapshot) => T) => selector(storeSnapshot),
+  );
   vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
   vi.spyOn(AppStore, 'useUsers').mockReturnValue(mockUsers);
 });
@@ -61,7 +68,7 @@ describe('AdminView', () => {
     expect(screen.getByText('Пользователей')).toBeInTheDocument();
   });
 
-  test.skip('вкладка requests показывает список заявок', () => {
+  test('вкладка requests показывает список заявок', () => {
     render(<AdminView user={adminUser} activeTab="requests" setActiveTab={vi.fn()} />);
     expect(screen.getByTestId('req-row')).toBeInTheDocument();
   });

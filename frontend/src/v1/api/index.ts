@@ -15,8 +15,12 @@ export type { RequestOpts } from './client';
 import { accessRequestsApi } from './accessRequests';
 import { passesApi } from './passes';
 import { vehiclesApi, normalizePlate } from './vehicles';
+import { accessTopologyApi } from './accessTopology';
+import { accessPoliciesApi } from './accessPolicies';
 import { visitsApi } from './visits';
+import { securityWorkspaceApi } from './securityWorkspace';
 import { accessIncidentsApi } from './accessIncidents';
+import { staffWorkspaceApi } from './staffWorkspace';
 import { unitsApi } from './units';
 import { residentsApi } from './residents';
 import { sessionApi } from './session';
@@ -28,8 +32,12 @@ export const api = {
   accessRequests: accessRequestsApi,
   passes: passesApi,
   vehicles: vehiclesApi,
+  accessTopology: accessTopologyApi,
+  accessPolicies: accessPoliciesApi,
   visits: visitsApi,
+  securityWorkspace: securityWorkspaceApi,
   incidents: accessIncidentsApi,
+  staffWorkspace: staffWorkspaceApi,
   units: unitsApi,
   residents: residentsApi,
   session: sessionApi,
@@ -53,8 +61,21 @@ export type {
   CreateVehicleBody,
   UpdateVehicleBody,
 } from './vehicles';
+export type {
+  CreateAccessPointBody,
+  CreateAccessZoneBody,
+  ListAccessZonesParams,
+  ListAccessPointsParams,
+} from './accessTopology';
+export type { CreateAccessPolicyBody, ListAccessPoliciesParams } from './accessPolicies';
 export type { ListVisitsParams } from './visits';
 export type { ListIncidentsParams, ListOverridesParams } from './accessIncidents';
+export type {
+  AssignStaffRequestBody,
+  CreateInternalCommentBody,
+  ListStaffWorkspaceInboxParams,
+  UpdateStaffRequestStatusBody,
+} from './staffWorkspace';
 export type { ListUnitsParams } from './units';
 export type { ListResidentsParams, ResidentWithUnit } from './residents';
 export type {

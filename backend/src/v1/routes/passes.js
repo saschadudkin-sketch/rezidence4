@@ -34,6 +34,10 @@ const {
   revokePass,
   unblockPass,
 } = require('../services/passService');
+const {
+  isAccessTopologyServiceError,
+  validateAccessTopologyTarget,
+} = require('../services/accessTopologyService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -72,6 +76,13 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 
 function sendServiceError(res, err) {
   if (!isPassServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+function sendKnownError(res, err) {
+  if (sendServiceError(res, err)) return true;
+  if (!isAccessTopologyServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
   return true;
 }
@@ -241,6 +252,7 @@ router.post('/', idempotency, async (req, res, next) => {
       property_id, pass_type, subject_type,
       subject_resident_id = null, subject_staff_id = null,
       subject_contractor_user_id = null, subject_vehicle_id = null,
+      zone_id = null, point_id = null,
       valid_from, valid_until,
       access_request_id = null,
     } = req.body || {};
@@ -264,10 +276,17 @@ router.post('/', idempotency, async (req, res, next) => {
       ['subject_staff_id', subject_staff_id],
       ['subject_contractor_user_id', subject_contractor_user_id],
       ['subject_vehicle_id', subject_vehicle_id],
+      ['zone_id', zone_id],
+      ['point_id', point_id],
       ['access_request_id', access_request_id],
     ]) {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
+    await validateAccessTopologyTarget(getDb(req), {
+      propertyId: property_id,
+      zoneId: zone_id,
+      pointId: point_id,
+    });
 
     const result = await createPass({
       queryable: getDb(req),
@@ -281,6 +300,8 @@ router.post('/', idempotency, async (req, res, next) => {
         subject_staff_id,
         subject_contractor_user_id,
         subject_vehicle_id,
+        zone_id,
+        point_id,
         valid_from,
         valid_until,
       },
@@ -289,11 +310,11 @@ router.post('/', idempotency, async (req, res, next) => {
       action: 'pass.created',
       resourceType: 'pass',
       resourceId: result.pass.id,
-      changes: { pass_type, subject_type, valid_from, valid_until },
+      changes: { pass_type, subject_type, zone_id, point_id, valid_from, valid_until },
     });
     res.status(201).json({ pass: result.pass });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
     if (err && err.code === '23514') return res.status(400).json({ error: 'pass constraint violation' });
     next(err);

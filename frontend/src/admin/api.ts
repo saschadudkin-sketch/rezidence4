@@ -1,16 +1,16 @@
 /**
  * admin/api.ts — HTTP client for the DomHub superadmin SPA.
  *
- * Talks to /platform/api/v1/* endpoints.  Auth is a single bearer token that
- * the caller obtains from POST /auth/login and stores in localStorage under
- * STORAGE_KEY.  We deliberately do NOT share the tenant SPA's apiClient: the
+ * Talks to /platform/api/v1/* endpoints. Auth is a bearer token kept in memory
+ * for the current tab after POST /auth/login. We deliberately do NOT share the tenant SPA's apiClient: the
  * tenant client sends cookies and fingerprinting headers that would break
  * platform-admin CSRF expectations, and keeping the two HTTP stacks separate
  * means a future auth rework in one cannot accidentally leak into the other.
  */
-export const STORAGE_KEY = 'domhub.platform.token';
-
 const API_BASE = '/platform/api/v1';
+let memoryToken: string | null = null;
+type UnauthorizedListener = () => void;
+const unauthorizedListeners = new Set<UnauthorizedListener>();
 
 export class ApiError extends Error {
   status: number;
@@ -25,21 +25,23 @@ export class ApiError extends Error {
   }
 }
 
-function readToken(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
+export function hasToken(): boolean {
+  return Boolean(memoryToken);
 }
 
 export function setToken(token: string | null): void {
-  try {
-    if (token) localStorage.setItem(STORAGE_KEY, token);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* Safari Private + full storage; the SPA will just ask to re-login. */
-  }
+  memoryToken = token;
+}
+
+export function subscribeUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener);
+  return () => {
+    unauthorizedListeners.delete(listener);
+  };
+}
+
+function notifyUnauthorized(): void {
+  unauthorizedListeners.forEach((listener) => listener());
 }
 
 async function request<T,>(
@@ -52,15 +54,14 @@ async function request<T,>(
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   if (!skipAuth) {
-    const token = readToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (memoryToken) headers.Authorization = `Bearer ${memoryToken}`;
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    // We don't rely on cookies for platform auth (JWT is in localStorage),
+    // We don't rely on cookies for platform auth (JWT is an in-memory bearer),
     // but `credentials: 'same-origin'` is still set so any reverse-proxy
     // injected session cookies aren't dropped on cross-path requests.
     credentials: 'same-origin',
@@ -82,10 +83,12 @@ async function request<T,>(
     const message = err?.error?.message || `HTTP ${res.status}`;
     const code = err?.error?.code;
 
-    // Auto-logout on 401: the token expired or was revoked.  Wipe storage
-    // before throwing so the auth context re-renders into the login page on
-    // the next tick.
-    if (res.status === 401 && !skipAuth) setToken(null);
+    // Auto-logout on 401: the token expired or was revoked. Clear memory and
+    // notify AuthProvider so the shell returns to the login screen immediately.
+    if (res.status === 401 && !skipAuth) {
+      setToken(null);
+      notifyUnauthorized();
+    }
 
     throw new ApiError(res.status, message, code, payload);
   }

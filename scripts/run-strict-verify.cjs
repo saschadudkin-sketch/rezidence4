@@ -22,6 +22,7 @@ const e2eEnv = buildE2EEnv({
   E2E_BACKEND_MODE: '1',
   E2E_V1_ACCESS: '1',
   E2E_START_BACKEND: '1',
+  E2E_PROPERTY_TYPE: 'cottage_community',
   VITE_RUNTIME_MODE: 'live',
   VITE_ENABLE_DEMO: 'false',
 });

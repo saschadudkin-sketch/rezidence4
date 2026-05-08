@@ -252,7 +252,9 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
   };
 
   return (
-    <div className="login">
+    <>
+      <a className="skip-link" href="#main-content">Перейти к форме входа</a>
+      <main className="login" id="main-content" tabIndex={-1}>
       <LoginArt />
 
       <div className="login-panel" style={loginPanelStyle}>
@@ -336,6 +338,7 @@ export default function Login({ onLogin, authNotice = '' }: { onLogin: (user: Ap
         </div>
         <div className="login-panel-balance" aria-hidden="true" />
       </div>
-    </div>
+      </main>
+    </>
   );
 }

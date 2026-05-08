@@ -281,6 +281,7 @@ export function ConciergeRequestDetailPage({
             pass={state.data.pass}
             visits={state.data.visits}
             incidents={state.data.incidents}
+            propertyType={session.property_type ?? null}
             onPassRevoked={handlePassRevoked}
           />
         </Stack>

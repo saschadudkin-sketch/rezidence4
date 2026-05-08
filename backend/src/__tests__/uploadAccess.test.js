@@ -34,6 +34,7 @@ describe('uploadAccess ACL', () => {
       '/uploads/photo_own.jpg',
       'http://backend.test/uploads/photo_own.jpg',
     ]);
+    expect(db.query.mock.calls[0][0]).toMatch(/request_attachments/);
   });
 
   test('resident denied for чужой/несвязанный upload', async () => {

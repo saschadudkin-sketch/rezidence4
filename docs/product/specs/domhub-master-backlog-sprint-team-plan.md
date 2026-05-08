@@ -1,6 +1,6 @@
 # DomHub Master Backlog Sprint And Team Plan
 
-This document maps `DH-01` through `DH-54` to sprints and primary delivery teams.
+This document maps `DH-01` through `DH-61` to sprints and primary delivery teams.
 
 ## Planning Model
 
@@ -249,37 +249,49 @@ Make rollout repeatable and production-safe.
 ## Sprint 11
 
 **Goal**
-Deliver first post-core expansion modules.
+Close Russian production readiness gaps before expansion.
 
 **Primary Teams**
 - Platform Backend
 - Frontend App
+- Ops And Enablement
+- QA And Release
 
 **Tickets**
-- `DH-50`
-- `DH-51`
-- `DH-52`
+- `DH-55`
+- `DH-56`
+- `DH-57`
+- `DH-58`
+- `DH-59`
+- `DH-60`
+- `DH-61`
 
 **Support**
-- QA And Release: expansion module regression baseline
+- Integrations: hardware/GIS/OSS boundaries
+- Legal/Product: PDn and no-biometrics review
 
 ---
 
 ## Sprint 12
 
 **Goal**
-Complete advanced expansion and branding layer.
+Deliver first post-readiness expansion modules.
 
 **Primary Teams**
-- Integrations
+- Platform Backend
 - Frontend App
+- Integrations
 
 **Tickets**
+- `DH-50`
+- `DH-51`
+- `DH-52`
 - `DH-53`
 - `DH-54`
 
 **Support**
-- Ops And Enablement: package and branding rollout rules
+- Ops And Enablement: package, billing, and branding rollout rules
+- QA And Release: expansion module regression baseline
 
 ---
 
@@ -293,6 +305,7 @@ Complete advanced expansion and branding layer.
 | `DH-32` to `DH-40` | Platform Backend + Frontend App | Integrations, Ops And Enablement |
 | `DH-41` to `DH-45` | Integrations | Platform Backend, Data And Infra, QA And Release |
 | `DH-46` to `DH-49` | Data And Infra + Ops And Enablement | Platform Backend, Frontend App, QA And Release |
+| `DH-55` to `DH-61` | Platform Backend + Ops And Enablement + QA And Release | Frontend App, Integrations, Legal/Product |
 | `DH-50` to `DH-54` | Platform Backend + Frontend App | Integrations, QA And Release |
 
 ## Critical Cross-Team Dependencies

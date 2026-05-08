@@ -387,19 +387,23 @@ describe('DELETE /api/users/:uid', () => {
     expect(sql).toMatch(/SET deleted_at=NOW\(\)/i);
     expect(sql).toMatch(/updated_at=NOW\(\)/i);
     expect(db.query.mock.calls[0][1]).toEqual(['u1']);
+    const refreshDelete = db.query.mock.calls.find(([stmt]) => /DELETE FROM refresh_tokens WHERE uid=\$1/i.test(stmt));
+    expect(refreshDelete).toBeDefined();
+    expect(refreshDelete[1]).toEqual(['u1']);
     expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
   });
 
   it('не удаляет связанные данные каскадно при soft-delete', async () => {
-    db.query.mockResolvedValueOnce({ rows: [] });
+    db.query.mockResolvedValue({ rows: [] });
     const res = await request(app)
       .delete('/api/users/u1').set('Cookie', `token=${T_ADMIN}`);
     expect(res.status).toBe(200);
-    expect(db.query).toHaveBeenCalledTimes(1);
     const sql = db.query.mock.calls[0][0];
     expect(sql).not.toMatch(/DELETE FROM users/i);
     expect(sql).not.toMatch(/DELETE FROM requests/i);
     expect(sql).toMatch(/UPDATE users/i);
+    const refreshSql = db.query.mock.calls[1][0];
+    expect(refreshSql).toMatch(/DELETE FROM refresh_tokens/i);
   });
 });
 

@@ -12,8 +12,20 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-access-platform-final-plan.md`
   - Master specification and staged development plan for DomHub as an access-control platform for residential complexes and cottage communities.
 
+- `domhub-residential-territory-model-spec.md`
+  - Source-of-truth model for supporting residential complexes, club houses, cottage communities, address labels, territory structure, checkpoint-first guard workflows, and v1/v2 data-model boundaries.
+
+- `domhub-russia-production-readiness-spec.md`
+  - Source-of-truth readiness spec for Russian production pilots: personal data compliance, resident lifecycle, emergency dispatch, degraded checkpoint operation, GIS ЖКХ / ОСС readiness, hardware integration boundaries, sensitive action audit, and pilot runbooks.
+
+- `domhub-security-threat-model.md`
+  - Threat model for tenant isolation, access control, personal data, staff/admin abuse, checkpoint operations, integrations, video evidence, audit, and no-biometrics boundaries.
+
 - `domhub-access-core-production-slice-plan.md`
   - Execution plan for stabilizing the current `rezidence4` access-core slice before further platform expansion: identity mapping, restore/fresh-install drift, strict e2e, backend refactor, role/scope model, v1 cutover, legacy freeze, policy engine, and pilot readiness.
+
+- `platform-v1/README.md`
+  - Sub-index for detailed platform-v1 migration and module specs. Use these files for current v1 implementation and migration details; they do not override the master product roadmap.
 
 - `domhub-role-maturity-matrix.md`
   - Role-by-role matrix showing which DomHub actors belong in MVP, strong v2, and mature v3, and which ones should remain support or integration layers instead of full daily workspaces.
@@ -40,7 +52,10 @@ This directory contains the working product source of truth for DomHub platform 
   - Module specification for DomHub parking as a controlled vehicle-access and parking-operations layer rather than a standalone smart-parking product.
 
 - `domhub-missing-docs-priority.md`
-  - Prioritized list of missing documents required to move DomHub from planning-ready to production-grade engineering readiness.
+  - Docs-health and remaining-gaps list. It tracks missing or incomplete supporting specs and does not override the master plan.
+
+- `domhub-project-implementation-status.md`
+  - Audit snapshot comparing the current local codebase against `DH-01` through `DH-61`. It reports implemented, partial, planned, and legacy/prototype areas and does not override the master plan.
 
 - `domhub-access-data-model-spec.md`
   - ERD/data model source of truth for DomHub as an access-control platform.
@@ -57,11 +72,20 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-test-strategy-spec.md`
   - Test strategy source of truth for multi-tenant platform, access-domain, roles, policies, and release gates.
 
+- `domhub-release-gate-checklists.md`
+  - Formal release gate checklists for v2 Core, Operations+, Portfolio-ready, Pilot-To-Production Hardening, Russia Production Readiness, and Expansion Layer.
+
 - `domhub-deployment-and-tenant-ops-spec.md`
   - Deployment, provisioning, migration, rollback, and operational model for DomHub tenants.
 
+- `domhub-operational-runbooks-index.md`
+  - Runbook coverage index for property launch, КПП degraded mode, emergency dispatch, resident offboarding, PDn/DSAR handling, support escalation, backup/restore, and pilot support.
+
 - `domhub-integration-architecture-spec.md`
   - Architecture rules for external integrations, adapters, sync models, retries, and multi-tenant integration behavior.
+
+- `domhub-event-taxonomy-spec.md`
+  - Canonical event naming and envelope rules for audit, analytics, notifications, integrations, webhooks, release gates, and operational reporting.
 
 - `domhub-analytics-metric-definitions.md`
   - Canonical definitions of KPI and operational metrics for dashboards, exports, and portfolio views.
@@ -100,13 +124,13 @@ This directory contains the working product source of truth for DomHub platform 
   - Jira-ready backlog for the remaining DomHub platform beyond access-core: operations, communications, portfolio, integrations, onboarding, hardening, and expansion modules.
 
 - `domhub-master-jira-backlog.md`
-  - Unified master backlog registry for the full DomHub platform from `DH-01` through `DH-54`.
+  - Unified master backlog registry for the full DomHub platform from `DH-01` through `DH-61`.
 
 - `domhub-jira-import.csv`
-  - CSV backlog structure for Jira import, covering `DH-01` through `DH-54`.
+  - CSV backlog structure for Jira import, covering `DH-01` through `DH-61`.
 
 - `domhub-jira-import-v2.csv`
-  - Jira-friendly CSV with `Epic Name`, `Sprint`, `Team`, and `Depends On` columns for `DH-01` through `DH-54`.
+  - Jira-friendly CSV with `Epic Name`, `Sprint`, `Team`, and `Depends On` columns for `DH-01` through `DH-61`.
 
 - `domhub-master-backlog-sprint-team-plan.md`
   - Sprint-by-sprint and team-by-team execution allocation for the full DomHub backlog.
@@ -165,14 +189,20 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-work-breakdown.md`
   - Work breakdown to `database / API / UI / tests / docs` level.
 
-## Legacy / Higher-Level Reference
+- `domhub-ui-screen-map.md`
+  - Role-by-role UI screen map for resident, security, concierge, technician, contractor, property admin, management company admin, and platform admin surfaces.
 
-- `platform-spec.md`
-  - Shorter platform summary document. Use the newer files above for detailed delivery and planning decisions.
+## Optional / Reference Groups
+
+- Parking, commercial tenant, first working MVP, and Figma/design documents are optional/reference planning groups. They remain useful when their module is in scope, but they do not override `domhub-final-product-plan.md`.
+- `platform-v1/*` files are detailed implementation and migration specs covered by `platform-v1/README.md`; the root index intentionally links the sub-index instead of listing every module file.
 
 ## Usage Guidance
 
 - When implementing new DomHub platform features, start with `domhub-final-product-plan.md`.
+- When a feature touches ЖК vs cottage-community behavior, address labels, property structure, checkpoint/guard mode, or onboarding imports, also use `domhub-residential-territory-model-spec.md`.
+- When a feature touches Russian production readiness, ПДн, resident offboarding, emergency dispatch, degraded КПП mode, GIS ЖКХ / ОСС documents, hardware devices, video evidence, or sensitive action audit, also use `domhub-russia-production-readiness-spec.md`.
+- When a feature changes tenant isolation, role/scope, sensitive data, access decisions, integrations, video evidence, audit, or staff/admin sensitive actions, also use `domhub-security-threat-model.md`.
 - When implementing or refining access-control features, also use `domhub-access-platform-final-plan.md`.
 - When deciding which roles deserve full product workspaces versus support-only or integration-first treatment, also use `domhub-role-maturity-matrix.md`.
 - When planning mixed-use properties with salons, clinics, cafes, shops, or other on-site businesses, also use `domhub-commercial-tenant-module-spec.md`.
@@ -190,8 +220,11 @@ This directory contains the working product source of truth for DomHub platform 
 - When implementing QA or platform operations, also use:
   - `domhub-test-strategy-spec.md`
   - `domhub-deployment-and-tenant-ops-spec.md`
+  - `domhub-release-gate-checklists.md`
+  - `domhub-operational-runbooks-index.md`
 - When implementing integrations, analytics, or package/feature rollout, also use:
   - `domhub-integration-architecture-spec.md`
+  - `domhub-event-taxonomy-spec.md`
   - `domhub-analytics-metric-definitions.md`
   - `domhub-packaging-and-feature-gating-spec.md`
 - When implementing vendor-specific access/video/ERP integrations, also use:
@@ -199,6 +232,7 @@ This directory contains the working product source of truth for DomHub platform 
   - `domhub-video-integration-spec.md`
   - `domhub-erp-1c-integration-spec.md`
 - When deciding priority or order, use `domhub-backlog-epics.md` and `domhub-12-week-sprint-plan.md`.
+- When checking what has already been implemented versus what remains, use `domhub-project-implementation-status.md` as a current audit snapshot, then verify against code/tests before treating an item as release-ready.
 - When creating implementation tickets, use `domhub-access-jira-ready-backlog.md`.
 - When creating parking-only MVP implementation tickets, use `domhub-parking-mvp-jira-backlog.md`.
 - When creating non-access implementation tickets, use `domhub-platform-jira-ready-backlog.md`.
@@ -225,4 +259,5 @@ This directory contains the working product source of truth for DomHub platform 
 - When you need parking MVP Jira import with richer execution metadata, use `domhub-parking-mvp-jira-import-v2.csv`.
 - When coordinating the first parking MVP by week and team, use `domhub-parking-mvp-week-team-plan.md`.
 - When decomposing engineering work, use `domhub-technical-streams-plan.md` and `domhub-work-breakdown.md`.
+- When planning role-specific UI surfaces, use `domhub-ui-screen-map.md` alongside the design/Figma documents.
 - If the user gives instructions that conflict with these files, follow the user and then update the docs accordingly.

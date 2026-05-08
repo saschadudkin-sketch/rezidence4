@@ -58,14 +58,14 @@ export function LoginOtpStep({
           aria-invalid={Boolean(otpError)}
           aria-describedby={otpError ? 'login-code-err' : undefined}
         />
-        {otpError && <div id="login-code-err" className="field-err" role="alert">{otpError}</div>}
+        {otpError && <div id="login-code-err" className="field-err" role="alert" aria-live="assertive">{otpError}</div>}
       </div>
       <button className="btn-gold" onClick={() => { void verify(); }} disabled={loading}>
         <span>{loading ? 'Проверка...' : 'Войти'}</span>
       </button>
 
       {sendAttempts >= otpWarnOnAttempt && resendIn === 0 && (
-        <div className="field-warn" role="alert">
+        <div className="field-warn" role="alert" aria-live="assertive">
           Слишком много попыток: следующая может заблокировать вход на несколько минут
         </div>
       )}
@@ -79,7 +79,7 @@ export function LoginOtpStep({
       <button className="btn-text" onClick={() => { void sendCode(); }} disabled={loading || resendIn > 0}>
         {resendIn > 0 ? `Отправить повторно через ${resendIn}с` : 'Отправить код повторно'}
       </button>
-      <button className="btn-text" onClick={onBack}>
+      <button className="btn-text" onClick={onBack} disabled={loading}>
         ← Изменить номер
       </button>
       <div className="login-help">

@@ -9,12 +9,12 @@
  *
  * Truth table (from store/session.tsx):
  *   RESIDENT  = { resident } plus legacy { owner, tenant }
- *   STAFF     = { concierge, security, technician, property_admin, management_company_admin, platform_admin }
+ *   STAFF     = { concierge, security, technician, property_admin, management_company_admin, platform_admin, staff }
  *   GUARD     = { security, property_admin, management_company_admin, platform_admin }
  *   CONCIERGE = { concierge, property_admin, management_company_admin, platform_admin }
  *
- * Legacy roles (`user`, `staff`) fall through to "not any named set" — they
- * are typed for safety but not actionable in v1 pages.
+ * Legacy `user` falls through to "not any named set" — it is typed for safety
+ * but not actionable in v1 pages.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -47,9 +47,9 @@ const matrix: Record<UserRole, {
   management_company_admin: { resident: false, staff: true, guard: true, concierge: true },
   platform_admin: { resident: false, staff: true, guard: true, concierge: true },
   admin:       { resident: false, staff: true,  guard: true,  concierge: true  },
-  // Legacy roles — intentionally not members of any v1 set.
+  // Legacy roles — `user` is intentionally not a member of any v1 set.
   user:        { resident: false, staff: false, guard: false, concierge: false },
-  staff:       { resident: false, staff: false, guard: false, concierge: false },
+  staff:       { resident: false, staff: true,  guard: false, concierge: false },
 };
 
 describe('v1 role predicates', () => {

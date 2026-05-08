@@ -100,9 +100,9 @@ async function insertPassForAccessRequest(client, ar, approvedByStaffId = null) 
     `INSERT INTO passes
        (property_id, access_request_id, pass_type, subject_type,
         subject_contractor_user_id, subject_vehicle_id,
-        valid_from, valid_until, status, approved_by_staff_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9)
-     RETURNING id, pass_type, status, valid_from, valid_until`,
+        zone_id, point_id, valid_from, valid_until, status, approved_by_staff_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11)
+     RETURNING id, pass_type, status, zone_id, point_id, valid_from, valid_until`,
     [
       ar.property_id,
       ar.id,
@@ -110,6 +110,8 @@ async function insertPassForAccessRequest(client, ar, approvedByStaffId = null) 
       subjectType,
       subjectContractorUserId,
       subjectVehicleId,
+      ar.target_zone_id || null,
+      ar.target_point_id || null,
       ar.starts_at,
       ar.ends_at,
       approvedByStaffId,
@@ -217,7 +219,8 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
     const staffId = await requireStaffId(client, user);
     const { rows: arRows } = await client.query(
       `SELECT id, property_id, request_type, vehicle_id,
-              created_by_contractor_user_id, starts_at, ends_at, status
+              created_by_contractor_user_id, target_zone_id, target_point_id,
+              starts_at, ends_at, status
          FROM access_requests WHERE id = $1 FOR UPDATE`,
       [accessRequestId],
     );

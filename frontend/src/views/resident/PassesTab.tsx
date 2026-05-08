@@ -72,8 +72,14 @@ const PassesTab = memo(function PassesTab({
 
   const visiblePasses = useMemo(() => filteredPasses.filter(matchQuery), [filteredPasses, matchQuery]);
   const visibleScheduled = useMemo(() => scheduledPasses.filter(matchQuery), [scheduledPasses, matchQuery]);
+  const visiblePassCount = passFilter === 'scheduled'
+    ? visiblePasses.length
+    : visiblePasses.length + visibleScheduled.length;
   const passesEmptyCopy = getViewStateCopy('passes', 'empty');
   const isResidentExperience = user.role !== 'contractor';
+  const isPassesEmpty = visiblePasses.length === 0 && myPasses.length === 0;
+  const shouldShowPassesEmptyState = isPassesEmpty && !isResidentExperience;
+  const shouldHideResidentEmptyState = isPassesEmpty && isResidentExperience;
   const activePasses = useMemo(
     () => myPasses.filter((request) => !['cancelled', 'rejected', 'expired', 'arrived'].includes(request.status)),
     [myPasses],
@@ -254,18 +260,18 @@ const PassesTab = memo(function PassesTab({
       {isResidentExperience && myPasses.length > 0 && (
         <SectionHeader
           title="Ваши пропуска"
-          count={visiblePasses.length + visibleScheduled.length}
+          count={visiblePassCount}
           className="resident-passes-header"
         />
       )}
 
-      {visiblePasses.length === 0 && myPasses.length === 0 ? (
+      {shouldShowPassesEmptyState ? (
         <StateBlock
           type="empty"
-          title={isResidentExperience ? 'Пока нет пропусков' : 'Рабочих пропусков пока нет'}
-          subtitle={isResidentExperience ? 'Выберите ниже гостя, курьера или такси, когда к вам кто-то собирается.' : 'Начните с «Оформить въезд» или выберите ниже бригаду, доставку или автомобиль.'}
+          title="Рабочих пропусков пока нет"
+          subtitle="Начните с «Оформить въезд» или выберите ниже бригаду, доставку или автомобиль."
         />
-      ) : visiblePasses.length === 0 && visibleScheduled.length === 0 ? (
+      ) : shouldHideResidentEmptyState ? null : visiblePasses.length === 0 && visibleScheduled.length === 0 ? (
         <StateBlock
           type="empty"
           title={debouncedQuery ? 'Ничего не найдено' : passesEmptyCopy.title}

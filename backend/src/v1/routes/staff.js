@@ -14,8 +14,12 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { isAdmin } = require('../lib/authz');
+const { canInPropertyScope, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -37,8 +41,24 @@ const ROLE_CAPABILITY_DEFAULTS = Object.freeze({
 });
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-// Shim под legacy callsite — isPropertyAdmin = isAdmin из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'staff:write', propertyId);
+}
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function requirePropertyAdminForResource(req, res, resourceType, resourceId, notFoundMessage) {
+  const propertyId = await loadResourcePropertyId(getDb(req), resourceType, resourceId, { notFoundMessage });
+  if (!isPropertyAdmin(req, propertyId)) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return propertyId;
+}
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= maxLen;
 }
@@ -108,7 +128,6 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/v1/staff
 router.post('/', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, full_name, email, role,
       phone = null, specialization = null, external_uid = null,
@@ -116,6 +135,7 @@ router.post('/', async (req, res, next) => {
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!isNonEmptyString(full_name, 200)) return res.status(400).json({ error: 'full_name required (1–200 chars)' });
     if (!EMAIL_RE.test(String(email || ''))) return res.status(400).json({ error: 'Invalid email' });
     if (!STAFF_ROLES.has(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -165,13 +185,13 @@ router.post('/', async (req, res, next) => {
 // PATCH /api/v1/staff/:id
 router.patch('/:id', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
 
     // Read current row for audit before/after.
     const { rows: existing } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
     if (!existing[0]) return res.status(404).json({ error: 'Staff not found' });
     const before = existing[0];
+    if (!isPropertyAdmin(req, before.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
     const sets = [];
     const params = [];
@@ -236,8 +256,9 @@ router.patch('/:id', async (req, res, next) => {
 // POST /api/v1/staff/:id/deactivate
 router.post('/:id/deactivate', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
+    const propertyId = await requirePropertyAdminForResource(req, res, 'staff_user', req.params.id, 'Staff not found');
+    if (!propertyId) return;
     const { rows } = await getDb(req).query(
       `UPDATE staff_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
       [req.params.id],
@@ -245,7 +266,10 @@ router.post('/:id/deactivate', async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
     auditLog(req, { action: 'staff.deactivated', resourceId: rows[0].id, changes: null });
     res.status(204).end();
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 module.exports = router;

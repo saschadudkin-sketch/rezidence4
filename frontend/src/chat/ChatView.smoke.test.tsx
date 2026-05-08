@@ -4,10 +4,24 @@ import { ChatView } from './ChatView';
 
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 const sendMessageMock = vi.fn().mockResolvedValue({});
+const updateMessageMock = vi.fn().mockResolvedValue({});
+const deleteMessageMock = vi.fn().mockResolvedValue({});
 const getMessagesMock = vi.fn().mockResolvedValue({ messages: [], hasMore: false });
+const resolvePhotosMock = vi.fn().mockResolvedValue(['/uploads/chat-photo.jpg']);
 
 vi.mock('../services/providers/serviceContainer', () => ({
-  services: { chat: { sendMessage: (...args) => sendMessageMock(...args), updateMessage: vi.fn(), deleteMessage: vi.fn(), markSeen: vi.fn(), getMessages: (...args) => getMessagesMock(...args) } },
+  services: {
+    chat: {
+      sendMessage: (...args) => sendMessageMock(...args),
+      updateMessage: (...args) => updateMessageMock(...args),
+      deleteMessage: (...args) => deleteMessageMock(...args),
+      markSeen: vi.fn(),
+      getMessages: (...args) => getMessagesMock(...args),
+    },
+    requests: {
+      resolvePhotos: (...args) => resolvePhotosMock(...args),
+    },
+  },
 }));
 vi.mock('../config/runtimeMode', () => ({
   isLiveMode: () => true,
@@ -20,6 +34,10 @@ describe('ChatView', () => {
   beforeEach(() => {
     vi.mocked(window.HTMLElement.prototype.scrollIntoView).mockClear();
     sendMessageMock.mockClear();
+    updateMessageMock.mockClear();
+    deleteMessageMock.mockClear();
+    resolvePhotosMock.mockClear();
+    resolvePhotosMock.mockResolvedValue(['/uploads/chat-photo.jpg']);
     getMessagesMock.mockReset();
     getMessagesMock.mockResolvedValue({ messages: [], hasMore: false });
   });
@@ -56,6 +74,46 @@ describe('ChatView', () => {
       await Promise.resolve();
     });
     await vi.waitFor(() => expect(sendMessageMock).toHaveBeenCalled());
+  });
+
+  test('отправляет live payload в backend-формате, без gateway wrapper', async () => {
+    const user = { uid:'u1', role:'owner', name:'Иван' };
+    render(<ChatView user={user} />);
+    const input = screen.getByPlaceholderText(/напишите сообщение/i);
+    const sendBtn = screen.getByLabelText(/отправить сообщение/i);
+    fireEvent.change(input, { target: { value: 'Тест контракта' } });
+    await act(async () => {
+      fireEvent.click(sendBtn);
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => expect(sendMessageMock).toHaveBeenCalled());
+    const payload = sendMessageMock.mock.calls[0][0];
+    expect(payload).toEqual(expect.objectContaining({
+      id: expect.stringMatching(/^m/),
+      text: 'Тест контракта',
+      photo: null,
+      replyTo: null,
+    }));
+    expect(payload).not.toHaveProperty('remotePayload');
+    expect(payload).not.toHaveProperty('localMessage');
+    expect(payload).not.toHaveProperty('sendLocal');
+  });
+
+  test('не очищает поле ввода, если live-отправка упала', async () => {
+    sendMessageMock.mockRejectedValueOnce(new Error('network'));
+    const user = { uid:'u1', role:'owner', name:'Иван' };
+    render(<ChatView user={user} />);
+    const input = screen.getByPlaceholderText(/напишите сообщение/i);
+    const sendBtn = screen.getByLabelText(/отправить сообщение/i);
+    fireEvent.change(input, { target: { value: 'Не терять' } });
+    await act(async () => {
+      fireEvent.click(sendBtn);
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => expect(sendMessageMock).toHaveBeenCalled());
+    expect(input).toHaveValue('Не терять');
   });
 
   test('Enter без Shift отправляет сообщение', async () => {
@@ -167,5 +225,14 @@ describe('linkify XSS protection (source-level)', () => {
     // catch блок возвращает [url, part] — текст без тега <a>
     expect(src).toContain('catch {');
     expect(src).toContain('return [url, part];');
+  });
+
+  test('live reactions отправляют per-user patch, совместимый с backend merge', () => {
+    expect(src).toContain('reactions: { [emoji]: already ? [] : [user.uid] }');
+    expect(src).not.toContain('services.chat.updateMessage(msgId, { reactions: nextReactions })');
+  });
+
+  test('live photo flow загружает data URL перед отправкой сообщения', () => {
+    expect(src).toContain('services.requests.resolvePhotos(messageId, [compressed])');
   });
 });

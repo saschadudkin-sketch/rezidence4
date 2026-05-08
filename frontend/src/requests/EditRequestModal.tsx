@@ -94,31 +94,31 @@ export function EditRequestModal({ req, onClose, onDone }: EditRequestModalProps
         <div className="modal-body">
           {req.type === 'pass' && category !== 'taxi' && (
             <div className="field">
-              <label className="field-lbl">{category === 'team' ? 'Имена посетителей' : 'Имя посетителя'}</label>
-              <input className="field-inp" value={vName} onChange={(event) => setVName(event.target.value)} onBlur={(event) => setVName(sanitizeText(event.target.value))} autoCapitalize="words" />
+              <label className="field-lbl" htmlFor="edit-request-visitor-name">{category === 'team' ? 'Имена посетителей' : 'Имя посетителя'}</label>
+              <input id="edit-request-visitor-name" className="field-inp" value={vName} onChange={(event) => setVName(event.target.value)} onBlur={(event) => setVName(sanitizeText(event.target.value))} autoCapitalize="words" />
             </div>
           )}
           {req.type === 'pass' && category !== 'taxi' && category !== 'team' && (
             <div className="field">
-              <label className="field-lbl">Телефон</label>
-              <input className="field-inp" value={vPhone} onChange={(event) => setVPhone(event.target.value)} onBlur={(event) => setVPhone(sanitizePhone(event.target.value))} type="tel" inputMode="tel" />
+              <label className="field-lbl" htmlFor="edit-request-visitor-phone">Телефон</label>
+              <input id="edit-request-visitor-phone" className="field-inp" value={vPhone} onChange={(event) => setVPhone(event.target.value)} onBlur={(event) => setVPhone(sanitizePhone(event.target.value))} type="tel" inputMode="tel" />
             </div>
           )}
           {req.type === 'pass' && category === 'taxi' && (
             <div className="field">
-              <label className="field-lbl">Марка и номер авто</label>
-              <input className="field-inp" value={carPlate} onChange={(event) => setCarPlate(event.target.value)} onBlur={(event) => setCarPlate(sanitizeCarPlate(event.target.value))} autoCapitalize="characters" />
+              <label className="field-lbl" htmlFor="edit-request-taxi-car">Марка и номер авто</label>
+              <input id="edit-request-taxi-car" className="field-inp" value={carPlate} onChange={(event) => setCarPlate(event.target.value)} onBlur={(event) => setCarPlate(sanitizeCarPlate(event.target.value))} autoCapitalize="characters" />
             </div>
           )}
           {req.type === 'pass' && needsPlate && category !== 'taxi' && (
             <div className="field">
-              <label className="field-lbl">Марка и номер авто</label>
-              <input className="field-inp" value={carPlate} onChange={(event) => setCarPlate(event.target.value)} onBlur={(event) => setCarPlate(sanitizeCarPlate(event.target.value))} autoCapitalize="characters" />
+              <label className="field-lbl" htmlFor="edit-request-pass-car">Марка и номер авто</label>
+              <input id="edit-request-pass-car" className="field-inp" value={carPlate} onChange={(event) => setCarPlate(event.target.value)} onBlur={(event) => setCarPlate(sanitizeCarPlate(event.target.value))} autoCapitalize="characters" />
             </div>
           )}
           <div className="field">
-            <label className="field-lbl">Комментарий</label>
-            <textarea className="field-textarea" rows={3} value={comment} onChange={(event) => setComment(event.target.value)} onBlur={(event) => setComment(sanitizeText(event.target.value))} />
+            <label className="field-lbl" htmlFor="edit-request-comment">Комментарий</label>
+            <textarea id="edit-request-comment" className="field-textarea" rows={3} value={comment} onChange={(event) => setComment(event.target.value)} onBlur={(event) => setComment(sanitizeText(event.target.value))} />
           </div>
         </div>
         <div className="modal-foot">

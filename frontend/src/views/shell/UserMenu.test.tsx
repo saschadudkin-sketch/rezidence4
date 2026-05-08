@@ -49,5 +49,7 @@ describe('UserMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /сменить тему\. сейчас: тёмная/i }));
 
     expect(cycleTheme).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /меню пользователя/i })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: /сменить тему\. сейчас: тёмная/i })).not.toBeInTheDocument();
   });
 });

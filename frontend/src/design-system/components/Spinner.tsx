@@ -32,7 +32,7 @@ export function Spinner({
     <div
       className={`spinner ${className}`}
       style={styles}
-      role="status"
+      role="status" aria-live="polite"
       aria-label="Loading"
     >
       <span className="sr-only">Loading...</span>

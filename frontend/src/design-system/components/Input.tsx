@@ -69,7 +69,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       background: variant === 'ghost' ? 'transparent' : 'var(--color-bg-surface)',
       color: 'var(--color-text-primary)',
       width: '100%',
-      transition: 'all var(--transition-base)',
+      transition: 'background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), color var(--transition-base)',
       outline: 'none',
     };
 

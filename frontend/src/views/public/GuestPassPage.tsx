@@ -179,7 +179,7 @@ export default function GuestPassPage() {
         )}
 
         {state.kind === 'error' && (
-          <div className={styles.errorBox} role="alert">{state.message}</div>
+          <div className={styles.errorBox} role="alert" aria-live="assertive">{state.message}</div>
         )}
 
         {state.kind === 'ready' && (

@@ -4,7 +4,14 @@
  */
 
 // Перезагружаем модуль перед каждым тестом чтобы сбросить _ctx
-beforeEach(() => vi.resetModules());
+beforeEach(() => {
+  process.env.VITEST_LOGGER_CONSOLE = '1';
+  vi.resetModules();
+});
+
+afterEach(() => {
+  delete process.env.VITEST_LOGGER_CONSOLE;
+});
 
 async function getLogger() {
   const { logger } = await import('./logger');
@@ -12,14 +19,12 @@ async function getLogger() {
 }
 
 describe('logger', () => {
-  let debugSpy, infoSpy, warnSpy, errorSpy, logSpy;
+  let infoSpy, warnSpy, errorSpy;
 
   beforeEach(() => {
-    debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
     infoSpy  = vi.spyOn(console, 'info').mockImplementation(() => {});
     warnSpy  = vi.spyOn(console, 'warn').mockImplementation(() => {});
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    logSpy   = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -40,11 +45,11 @@ describe('logger', () => {
   });
 
   describe('debug / info (dev only)', () => {
-    test('debug вызывает console.debug в NODE_ENV=test (dev)', async () => {
+    test('debug вызывает console.info в NODE_ENV=test (dev)', async () => {
       const logger = await getLogger();
       logger.debug('тест debug');
       // В test-окружении NODE_ENV !== 'production', значит IS_DEV = true
-      expect(debugSpy).toHaveBeenCalledWith('[DEBUG]', 'тест debug');
+      expect(infoSpy).toHaveBeenCalledWith('[DEBUG]', 'тест debug');
     });
 
     test('info вызывает console.info в dev', async () => {
@@ -105,10 +110,10 @@ describe('logger', () => {
   });
 
   describe('action', () => {
-    test('action вызывает console.log в dev', async () => {
+    test('action вызывает console.info в dev', async () => {
       const logger = await getLogger();
       logger.action('Создание заявки', { type: 'pass' });
-      expect(logSpy).toHaveBeenCalledWith('[ACTION]', 'Создание заявки', expect.objectContaining({ type: 'pass' }));
+      expect(infoSpy).toHaveBeenCalledWith('[ACTION]', 'Создание заявки', expect.objectContaining({ type: 'pass' }));
     });
 
     test('action без данных не падает', async () => {
@@ -122,7 +127,7 @@ describe('logger', () => {
       const logger = await getLogger();
       logger.setContext({ uid: 'u5' });
       logger.debug('сообщение');
-      expect(debugSpy).toHaveBeenCalledWith('[DEBUG]', 'сообщение', { uid: 'u5' });
+      expect(infoSpy).toHaveBeenCalledWith('[DEBUG]', 'сообщение', { uid: 'u5' });
     });
   });
 });

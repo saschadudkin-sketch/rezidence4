@@ -83,7 +83,7 @@ import './styles/theme.css';
 const LoadingScreen = memo(function LoadingScreen() {
   return (
     <div className="loading">
-      <img src={LOGO} alt="" className="loading-logo" />
+      <img src={LOGO} alt="Резиденции Замоскворечья" className="loading-logo" />
       <div className="loading-name">Резиденции Замоскворечья</div>
       <div className="loading-bar" />
     </div>
@@ -133,7 +133,7 @@ const AppInner = memo(function AppInner() {
     return (
       <>
         <div className="loading">
-          <img src={LOGO} alt="" className="loading-logo" />
+          <img src={LOGO} alt="Резиденции Замоскворечья" className="loading-logo" />
           <div className="loading-name">Ошибка конфигурации</div>
           <div className="api-config-error">{API_CONFIG_ERROR}</div>
         </div>

@@ -306,9 +306,15 @@ export default function GuardScannerView() {
                 </div>
               ) : (
                 <>
-                  <video ref={videoRef} playsInline muted />
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    aria-label="Предпросмотр камеры для проверки QR"
+                    aria-describedby="guard-scanner-camera-hint"
+                  />
                   <div className={styles.viewportFrame} aria-hidden="true" />
-                  <div className={styles.viewportHint}>Наведите камеру на QR-код гостя</div>
+                  <div id="guard-scanner-camera-hint" className={styles.viewportHint}>Наведите камеру на QR-код гостя</div>
                 </>
               )}
             </div>
@@ -318,6 +324,7 @@ export default function GuardScannerView() {
                 value={manualEntry}
                 onChange={(e) => setManualEntry(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit(); }}
+                aria-label="Ссылка или токен пропуска"
                 placeholder="Вставьте ссылку или токен пропуска"
                 spellCheck={false}
                 autoCapitalize="off"
@@ -360,8 +367,7 @@ export default function GuardScannerView() {
           <>
             <div
               className={`${styles.statusBanner} ${styles.statusBannerOk}`}
-              role="alert"
-              aria-live="polite"
+              role="alert" aria-live="polite"
             >
               <div className={`${styles.statusIcon} ${styles.statusIconOk}`} aria-hidden="true">
                 <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

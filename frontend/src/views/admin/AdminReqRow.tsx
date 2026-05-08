@@ -67,12 +67,12 @@ export default function AdminReqRow({ r, adminUid }: AdminReqRowProps) {
       {editing && (
         <div className="edit-inline u-mt4">
           <div className="edit-inline-row">
-            <select className="edit-inline-sel" value={status} onChange={e => setStatus(e.target.value as RequestStatus)} aria-label="Статус заявки">
+            <select className="edit-inline-sel" aria-label="Статус заявки" value={status} onChange={e => setStatus(e.target.value as RequestStatus)}>
               {Object.entries(STS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           <div className="edit-inline-row">
-            <input className="edit-inline-inp" placeholder="Комментарий" value={comment}
+            <input className="edit-inline-inp" aria-label="Комментарий к заявке" placeholder="Комментарий" value={comment}
               onChange={e => setComment(e.target.value)} />
           </div>
           <div className="admin-user-actions-end">

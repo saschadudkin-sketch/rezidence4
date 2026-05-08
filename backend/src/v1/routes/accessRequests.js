@@ -37,6 +37,10 @@ const {
   isAccessRequestServiceError,
   rejectAccessRequest,
 } = require('../services/accessRequestService');
+const {
+  isAccessTopologyServiceError,
+  validateAccessTopologyTarget,
+} = require('../services/accessTopologyService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -100,6 +104,13 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 
 function sendServiceError(res, err) {
   if (!isAccessRequestServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+function sendKnownError(res, err) {
+  if (sendServiceError(res, err)) return true;
+  if (!isAccessTopologyServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
   return true;
 }
@@ -249,6 +260,13 @@ router.post('/', idempotency, async (req, res, next) => {
                           ['target_zone_id', target_zone_id], ['target_point_id', target_point_id]]) {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
+    await validateAccessTopologyTarget(getDb(req), {
+      propertyId: property_id,
+      zoneId: target_zone_id,
+      pointId: target_point_id,
+      zoneField: 'target_zone_id',
+      pointField: 'target_point_id',
+    });
 
     // vehicle_access: vehicle_id обязателен.
     if (request_type === 'vehicle_access' && !vehicle_id) {
@@ -293,7 +311,7 @@ router.post('/', idempotency, async (req, res, next) => {
     });
     res.status(201).json({ access_request: result.access_request, pass: result.pass });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
     if (err && err.code === '23514') return res.status(400).json({ error: 'access_request constraint violation' });
     next(err);
@@ -357,7 +375,8 @@ router.post('/:id/approve', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request, pass: result.pass });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
+    if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
     if (err && err.code === '23514') return res.status(400).json({ error: 'constraint violation during approve' });
     next(err);
   }
@@ -385,7 +404,7 @@ router.post('/:id/reject', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     next(err);
   }
 });
@@ -414,7 +433,7 @@ router.post('/:id/cancel', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     next(err);
   }
 });
@@ -441,7 +460,7 @@ router.post('/:id/escalate', async (req, res, next) => {
     });
     res.json({ ok: true, access_request_id: req.params.id, access_request: result.access_request });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     next(err);
   }
 });

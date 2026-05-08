@@ -74,7 +74,7 @@
 .tn-btn.blink-y { color: var(--wrn-t); }
 .mn-btn.blink-y .mn-label { color: var(--wrn-t); }
 @media (prefers-reduced-motion: no-preference) {
-  .tn-btn.blink .tn-icon, .tn-btn.blink-y .tn-icon, .mn-btn.blink-y .mn-icon, .mn-btn.blink-y .mn-label { animation: blink 1s ease infinite; }
+  .tn-btn.blink .tn-icon, .tn-btn.blink-y .tn-icon, .mn-btn.blink-y .mn-icon, .mn-btn.blink-y .mn-label { animation: blink 1.4s ease 3; }
 }
 
 .content { padding: 28px 40px calc(28px + var(--sab)); min-height: 100%; max-width: 960px; margin: 0 auto; }
@@ -335,7 +335,7 @@
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .mn-btn.blink .mn-label { color: var(--err-t); }
 @media (prefers-reduced-motion: no-preference) {
-  .mn-btn.blink .mn-icon, .mn-btn.blink .mn-label { animation: blink 1s ease infinite; }
+  .mn-btn.blink .mn-icon, .mn-btn.blink .mn-label { animation: blink 1.4s ease 3; }
 }
 .mn-badge {
   position: absolute;
@@ -725,6 +725,57 @@
 
   .mobile-nav {
     display: none !important;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 767px) {
+  .top-nav {
+    display: none !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: flex !important;
+    position: sticky;
+    top: calc(var(--header-h) + var(--sat));
+    z-index: var(--z-sticky);
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    margin: 0;
+    justify-content: flex-start;
+    padding-left: max(14px, var(--sal));
+    padding-right: max(14px, var(--sar));
+    gap: 4px;
+    border-top: none;
+    border-bottom: 1px solid var(--b1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .top-nav.top-nav--mobile-top::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-btn {
+    gap: 6px;
+    padding: 0 12px;
+    min-height: 40px;
+    font-size: 11.5px;
+    scroll-snap-align: start;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-icon {
+    font-size: 13px;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+
+  .content {
+    padding: 20px 16px calc(28px + var(--sab)) !important;
   }
 }
 

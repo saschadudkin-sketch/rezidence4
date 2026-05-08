@@ -20,7 +20,7 @@
 - Нет идемпотентности: повторный скан того же QR через 2 сек может создать дубль `used_at` update или показать противоречие
 
 **В platform-v1 мы делаем:**
-- Один endpoint `POST /api/v1/passes/verify` инкапсулирует всю логику
+- Один endpoint `POST /api/v1/visits/verify` инкапсулирует всю логику
 - Сервер-side проверки: status, time window, blacklist, provider-conflict
 - Каждый verdict → `visit_log` row (allow или deny) — источник правды
 - Deny с определёнными причинами → auto-created `access_incident`
@@ -34,11 +34,11 @@ Flow покрывает пять сценариев guard-console:
 
 1. **QR-скан резидента/гостя/подрядчика** — `{ mode: 'qr', token: '...' }`
 2. **Ввод госномера** (авто без QR; охранник вручную вводит plate) — `{ mode: 'plate', plate: 'А001АА77' }`
-3. **Manual admit без pass** (охранник пропускает знакомого) — `{ mode: 'manual_admit', person_label: '...', reason: '...' }`
-4. **Manual deny без pass** (подозрительный посетитель) — `{ mode: 'manual_deny', person_label: '...', reason: '...' }`
+3. **Manual admit без pass** (охранник пропускает знакомого) — `POST /api/v1/security-workspace/manual-decision` with `{ decision: 'manual_admit', person_label: '...', reason: '...' }`
+4. **Manual deny без pass** (подозрительный посетитель) — `POST /api/v1/security-workspace/manual-decision` with `{ decision: 'manual_deny', person_label: '...', reason: '...' }`
 5. **СКУД-вебхук** (провайдер присылает событие вместо охранника) — `{ mode: 'provider', provider_event_id, event_type, occurred_at, ... }`
 
-В v1 роут принимает `mode='qr'` и `mode='plate'` от guard-console; `manual_admit/manual_deny` дергают `POST /api/v1/access-overrides` напрямую (который внутри зовёт verify-сервис); `provider` — отдельный webhook endpoint, но использует тот же core-сервис (`services/verify-pass.js`).
+В v1 `POST /api/v1/visits/verify` принимает `mode='qr'` и `mode='plate'` от guard-console. `manual_admit/manual_deny` идут через `POST /api/v1/security-workspace/manual-decision`, который атомарно пишет `visit_logs_v2`, `access_incidents(manual_override, resolved)`, `access_overrides` и sensitive audit. `provider` — отдельный webhook endpoint, но использует тот же core-сервис (`services/verify-pass.js`).
 
 ---
 
@@ -142,7 +142,7 @@ function verifyPass({ property_id, mode, token?, plate?, performed_by_staff_id, 
 
 ## 4. API
 
-### `POST /api/v1/passes/verify`
+### `POST /api/v1/visits/verify`
 
 Роль: `security` (guard-console). SSE push обновляет `access_incidents` channel для property_admin.
 
@@ -152,6 +152,7 @@ function verifyPass({ property_id, mode, token?, plate?, performed_by_staff_id, 
   "mode": "qr" | "plate",
   "token": "base64url-string",              // для mode='qr'
   "plate": "А001АА77",                      // для mode='plate', нормализуется в сервисе
+  "access_point_id": "uuid",                // optional; active access point for this property
   "occurred_at": "2026-04-23T10:15:00Z"     // optional; default = now
 }
 ```
@@ -195,7 +196,7 @@ function verifyPass({ property_id, mode, token?, plate?, performed_by_staff_id, 
 
 | Legacy вызов | v1 замена | Где |
 |---|---|---|
-| `POST /api/requests/:id/use` | `POST /api/v1/passes/verify { mode: 'qr', token }` | Frontend: `src/views/GuardConsole.tsx` |
+| `POST /api/requests/:id/use` | `POST /api/v1/visits/verify { mode: 'qr', token }` | Frontend: `src/views/GuardConsole.tsx` |
 | `GET /api/requests/:id` (для guard display) | `GET /api/v1/passes/:id` | Подменяется на fetch-of-pass после verify |
 | `qr_passes.used_at + used_by_uid` UPDATE | INSERT в `visit_logs` + pass.status='used' (для one-shot) | backend/src/v1/services/verify-pass.js |
 | JS check `valid_until < now` на фронте | убираем; сервер авторитетен | Удалить `frontend/src/views/GuardConsole.tsx:L?` |
@@ -215,6 +216,7 @@ Cutover в Фазе 7 — вместе с остальной access-миграц
 - [ ] One-shot pass (`pass_type='guest'`) после `allowed` verify имеет `status='used'`, второй verify того же token → `allowed=false` с `reason='pass_used'` (добавляем в cascade §3 step 3)
 - [ ] Multi-use pass (`pass_type='resident'`) после 10 `allowed` verify — status по-прежнему `'active'`
 - [ ] Audit-trail: `property_audit_log` содержит по одной записи на каждый verify (allow или deny)
+- [ ] Optional `access_point_id` валидируется через DH-06 topology и сохраняется в `visit_logs_v2`
 
 ---
 

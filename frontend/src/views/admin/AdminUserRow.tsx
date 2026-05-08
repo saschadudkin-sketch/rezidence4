@@ -18,6 +18,10 @@ type AdminUserRowProps = {
 
 const EDITABLE_ROLES = ['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'] as const;
 
+function apartmentToInputValue(apartment: AppUser['apartment']) {
+  return apartment === '—' ? '' : (apartment ?? '');
+}
+
 export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
   const isSelf = u.uid === currentUser.uid;
   const canDel = canDeleteUser(currentUser, u);
@@ -27,7 +31,7 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
   const [name, setName] = useState(u.name);
   const [phone, setPhone] = useState(u.phone);
   const [role, setRole] = useState<UserRole>(u.role);
-  const [apt, setApt] = useState<string>(u.apartment === '—' ? '' : (u.apartment ?? ''));
+  const [apt, setApt] = useState<string>(apartmentToInputValue(u.apartment));
   const [parking, setParking] = useState<string>(u.parkingSpot ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { updateUser, deleteUser } = useActions();
@@ -40,6 +44,16 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!editing) {
+      setName(u.name);
+      setPhone(u.phone);
+      setRole(u.role);
+      setApt(apartmentToInputValue(u.apartment));
+      setParking(u.parkingSpot ?? '');
+    }
+  }, [u.name, u.phone, u.role, u.apartment, u.parkingSpot, editing]);
 
   async function save() {
     const sanitized = sanitizeUserFormFields({

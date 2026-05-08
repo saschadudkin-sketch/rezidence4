@@ -4,7 +4,7 @@
   background:var(--overlay-bg);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   display:flex;align-items:flex-end;justify-content:center;
-  animation:fadeIn .18s ease;overscroll-behavior:contain;overflow-y:auto;
+  animation:fadeIn .18s var(--ease-out);overscroll-behavior:contain;overflow-y:auto;
 }
 @media(min-width:768px){.overlay{align-items:flex-start;padding:20px 24px 40px}}
 .modal{
@@ -14,7 +14,7 @@
   border-radius:10px 10px 0 0;
   border:1px solid var(--b2);border-bottom:none;
   box-shadow:var(--sh-l);
-  animation:sheetUp .28s cubic-bezier(.32,0,.67,0);
+  animation:sheetUp .28s var(--ease-drawer);
   padding-bottom:var(--sab);
   margin:0 auto;
   overflow:hidden;
@@ -22,7 +22,7 @@
 @media(min-width:768px){
   .modal{
     border-radius:var(--r);
-    animation:riseUp .2s ease;
+    animation:riseUp .2s var(--ease-out);
     border-bottom:1px solid var(--b2);
     padding-bottom:0;
     height:auto;
@@ -75,8 +75,10 @@
   font-size:var(--fs-body);border-radius:var(--r);transition:background .13s, color .13s;
   flex-shrink:0;
 }
-.modal-close:hover{background:var(--s3);color:var(--t2)}
-.modal-close:active{background:var(--s3);color:var(--t1)}
+@media (hover: hover) and (pointer: fine) {
+  .modal-close:hover{background:var(--s3);color:var(--t2)}
+}
+.modal-close:active{background:var(--s3);color:var(--t1);transform:scale(.97)}
 .modal-body{
   padding:var(--space-md);
   padding-bottom:calc(var(--space-md) + 8px);
@@ -153,7 +155,10 @@
   font-family:var(--font-body);font-size:var(--fs-2xs);letter-spacing:.4px;text-transform:none;
   color:var(--t3);transition:border-color .13s,color .13s,background .13s;
 }
-.photo-btn:active,.photo-btn:hover{border-color:var(--b3);color:var(--t2);background:var(--s3)}
+@media (hover: hover) and (pointer: fine) {
+  .photo-btn:hover{border-color:var(--b3);color:var(--t2);background:var(--s3)}
+}
+.photo-btn:active{border-color:var(--b3);color:var(--t2);background:var(--s3);transform:scale(.97)}
 /* P-06: disabled-состояние — кнопка остаётся видимой, сообщает о лимите */
 .photo-btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 .photo-btn--col{flex-direction:row;gap:10px}
@@ -681,18 +686,20 @@
   width:7px;height:7px;border-radius:50%;
   background:color-mix(in srgb, var(--g1) 74%, var(--g2));
   flex-shrink:0;
-  animation:blink 2s ease infinite;
+  animation:blink 2s ease 3;
 }
 .guard-header{text-align:center;margin-bottom:18px}
 
 /* ── Guard subtabs ── */
 .guard-subtabs{display:flex;gap:0;margin-bottom:18px;border:1px solid color-mix(in srgb, var(--b2) 82%, transparent);border-radius:12px;overflow:hidden;background:color-mix(in srgb, var(--s2) 96%, transparent)}
-.guard-subtab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:11px 10px;background:transparent;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.2px;color:var(--t3);transition:all .15s}
+.guard-subtab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:11px 10px;background:transparent;border:none;cursor:pointer;font-family:var(--font-body);font-size:11px;font-weight:500;letter-spacing:.2px;color:var(--t3);transition:background .15s,color .15s,border-color .15s,transform .15s}
 .guard-subtab:not(:last-child){border-right:1px solid var(--b2)}
 .guard-subtab.active{background:linear-gradient(180deg, color-mix(in srgb, var(--g-bg2) 46%, transparent), color-mix(in srgb, var(--g-bg) 94%, transparent));color:var(--g2);font-weight:600}
-.guard-subtab:hover:not(.active){background:var(--s3)}
+@media (hover: hover) and (pointer: fine) {
+  .guard-subtab:hover:not(.active){background:var(--s3)}
+}
 .guard-subtab-badge{font-size:var(--fs-2xs);font-weight:700;background:var(--g1);color:var(--s0);min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
-.guard-subtab.has-new{color:var(--err-t);animation:blink 1s ease infinite}
+.guard-subtab.has-new{color:var(--err-t);animation:blink 1.4s ease 3}
 .guard-tech-status{font-size:var(--fs-2xs);font-weight:600;letter-spacing:.5px;padding:4px 10px;border-radius:20px;white-space:nowrap}
 .guard-tech-status.pending{background:rgba(192,150,60,.15);color:var(--wrn-t)}
 .guard-tech-status.accepted{background:rgba(60,150,192,.15);color:var(--g2)}
@@ -889,7 +896,7 @@
 .guard-photo-thumb:hover{opacity:.85}
 .guard-actions{display:flex;gap:10px;flex-wrap:wrap}
 /* R-02: mobile-first — base = mobile button size, desktop overrides at min-width:460px */
-.guard-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:10px;border:none;cursor:pointer;font-family:var(--font-body);font-size:var(--fs-body);font-weight:600;letter-spacing:.5px;transition:all .15s;min-height:52px;text-decoration:none}
+.guard-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:10px;border:none;cursor:pointer;font-family:var(--font-body);font-size:var(--fs-body);font-weight:600;letter-spacing:.5px;transition:background .15s,border-color .15s,color .15s,filter .15s,transform .15s;min-height:52px;text-decoration:none}
 @media(min-width:480px){.guard-btn{font-size:15px;min-height:56px;padding:16px 12px}}
 .guard-btn:active{transform:scale(.97)}
 .guard-btn:disabled{opacity:.4;cursor:not-allowed}
@@ -902,11 +909,11 @@
 .guard-btn.approve:hover{background:linear-gradient(180deg, color-mix(in srgb, var(--ok) 88%, #9fddb0), color-mix(in srgb, var(--ok) 100%, #25573a))}
 .guard-btn.reject{background:transparent;border:2px solid var(--err-t);color:var(--err-t)}
 .guard-btn.reject:hover{background:rgba(192,96,96,.1)}
-.guard-btn.reject.confirm{background:var(--err-t);color:#fff;border-color:var(--err-t);animation:urgentPulse 1.5s ease infinite}
+.guard-btn.reject.confirm{background:var(--err-t);color:#fff;border-color:var(--err-t);animation:urgentPulse 1.5s ease 3}
 .guard-btn--primary-risk{background:color-mix(in srgb, var(--err-t) 10%, transparent)}
 .guard-btn.override{background:var(--s3);color:var(--wrn-t);border:1.5px solid color-mix(in srgb, var(--wrn-t) 54%, var(--b2))}
 .guard-btn.override:hover{background:color-mix(in srgb, var(--wrn-t) 10%, var(--s3))}
-.guard-btn.override.confirm{background:color-mix(in srgb, var(--wrn-t) 16%, var(--s3));border-color:var(--wrn-t);animation:urgentPulse 1.5s ease infinite}
+.guard-btn.override.confirm{background:color-mix(in srgb, var(--wrn-t) 16%, var(--s3));border-color:var(--wrn-t);animation:urgentPulse 1.5s ease 3}
 .guard-btn.arrive{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;border:none}
 .guard-btn.arrive:hover{filter:brightness(1.1)}
 .guard-btn.call{background:var(--s3);color:var(--t1);border:1.5px solid var(--b2);flex:0 0 auto;padding:16px 20px}

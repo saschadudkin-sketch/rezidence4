@@ -121,6 +121,5 @@ export function useFlatItems<TItem, TKey extends string>(
   pages: ReadonlyArray<PaginatedResponse>,
   key: TKey,
 ): TItem[] {
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- key — string literal в caller'е, не reactive
   return useMemo(() => extractItems<TItem, TKey>(pages, key), [pages, key]);
 }

@@ -2,12 +2,13 @@
 
 const { REQUEST_FIELD_MAX } = require('../../constants/validationLimits');
 const { ServiceError } = require('./RequestErrors');
+const { CATEGORY_CODE_RE, getDefaultCategories } = require('./RequestCategories');
 
-const VALID_TYPES = new Set(['pass', 'tech', 'repair', 'cleaning', 'concierge', 'complaint', 'suggestion', 'car', 'move_in', 'move_out']);
-const VALID_CATEGORIES = new Set([
-  'guest', 'courier', 'taxi', 'car', 'master', 'cleaner', 'other',
-  'worker', 'team', 'delivery', 'electrician', 'plumber',
+const VALID_TYPES = new Set([
+  'pass', 'tech', 'repair', 'cleaning', 'concierge', 'complaint', 'suggestion',
+  'car', 'move_in', 'move_out', 'service', 'territory', 'emergency',
 ]);
+const VALID_CATEGORIES = new Set(getDefaultCategories().map((category) => category.code));
 const ALLOWED_INITIAL_STATUSES = new Set(['pending', 'scheduled']);
 
 function isAutoApprovedPass({ type, scheduledFor, requestedStatus }) {
@@ -47,8 +48,8 @@ function validateCreatePayload(body) {
   if (!VALID_TYPES.has(body.type)) {
     throw new ServiceError(`Invalid type. Allowed: ${[...VALID_TYPES].join(', ')}`);
   }
-  if (!VALID_CATEGORIES.has(body.category)) {
-    throw new ServiceError(`Invalid category. Allowed: ${[...VALID_CATEGORIES].join(', ')}`);
+  if (typeof body.category !== 'string' || !CATEGORY_CODE_RE.test(body.category)) {
+    throw new ServiceError('Invalid category code');
   }
   validateFieldLengths(body);
   validatePhotos(body.photos);

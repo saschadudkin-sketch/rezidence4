@@ -40,6 +40,8 @@ async function verifyVisit({ queryable, verifyDb, user, input }) {
     mode: input.mode,
     token: input.token,
     plate: input.plate,
+    access_point_id: input.access_point_id,
+    direction: input.direction,
     performed_by_staff_id: staffId,
     occurred_at: input.occurred_at,
   });
@@ -63,14 +65,15 @@ async function createVisitLog({ queryable, user, input }) {
 
   const { rows } = await queryable.query(
     `INSERT INTO visit_logs_v2
-       (property_id, pass_id, event_type, event_source,
+       (property_id, pass_id, access_point_id, event_type, event_source,
         person_label, vehicle_plate, performed_by_staff_id,
         provider_event_id, provider_payload, occurred_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
      RETURNING ${VL_COLS}`,
     [
       input.property_id,
       input.pass_id,
+      input.access_point_id || null,
       input.event_type,
       input.event_source,
       input.person_label,

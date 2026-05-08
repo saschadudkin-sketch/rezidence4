@@ -42,6 +42,18 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./024_access_request_list_indexes'),
   // Access request lifecycle production-slice status
   require('./025_access_request_escalated_status'),
+  // DH-03 role/scope membership foundation
+  require('./026_role_scope_memberships'),
+  // DH-06 durable access zones / access points topology
+  require('./027_access_topology'),
+  // DH-13/DH-14 access policy CRUD and deterministic evaluation
+  require('./028_access_policies'),
+  // DH-22 service/territory/emergency request baseline
+  require('./029_service_request_core'),
+  // DH-23 request attachments and resident-visible updates
+  require('./030_request_attachments_updates'),
+  // DH-24 request assignment, SLA state and escalation events
+  require('./031_request_assignment_sla'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

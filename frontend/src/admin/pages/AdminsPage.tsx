@@ -64,6 +64,7 @@ export function AdminsPage() {
           <div className={s.empty}>Нет активных админов</div>
         ) : (
           <table className={s.table}>
+            <caption className={s.tableCaption}>Активные администраторы</caption>
             <thead>
               <tr>
                 <th>Имя</th>

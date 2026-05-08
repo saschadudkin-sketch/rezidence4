@@ -87,15 +87,15 @@ export default function GarageView({ user, targetUid }: GarageViewProps) {
         <div className="garage-form">
           <div className="field">
             <label className="field-lbl">Гос. номер *</label>
-            <input className="field-inp" placeholder="А 000 АА 000" value={plate} onChange={(event) => setPlate(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && save()} autoFocus />
+            <input className="field-inp" aria-label="Гос. номер" placeholder="А 000 АА 000" value={plate} onChange={(event) => setPlate(event.target.value.toUpperCase())} onKeyDown={(event) => event.key === 'Enter' && save()} autoFocus />
           </div>
           <div className="field">
             <label className="field-lbl">Марка / модель</label>
-            <input className="field-inp" placeholder="Toyota Camry" value={brand} onChange={(event) => setBrand(event.target.value)} />
+            <input className="field-inp" aria-label="Марка или модель" placeholder="Toyota Camry" value={brand} onChange={(event) => setBrand(event.target.value)} />
           </div>
           <div className="field">
             <label className="field-lbl">Заметка</label>
-            <input className="field-inp" placeholder="Белый, парковка место 101" value={note} onChange={(event) => setNote(event.target.value)} />
+            <input className="field-inp" aria-label="Заметка" placeholder="Белый, парковка место 101" value={note} onChange={(event) => setNote(event.target.value)} />
           </div>
           <div className="garage-form-btns">
             <button className="btn-outline" onClick={resetForm}>Отмена</button>

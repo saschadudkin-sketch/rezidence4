@@ -95,6 +95,7 @@ export function PropertiesPage() {
       ) : (
         <div className={s.card}>
           <table className={s.table}>
+            <caption className={s.tableCaption}>Объекты</caption>
             <thead>
               <tr>
                 <th>Название</th>
@@ -208,25 +209,25 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
       {error && <div className={s.error}>{error}</div>}
       <div className={s.detailGrid}>
         <div className={s.formRow}>
-          <label>Название</label>
-          <input className={s.input} required value={form.name} onChange={upd('name')} />
+          <label htmlFor="property-create-name">Название</label>
+          <input id="property-create-name" className={s.input} required value={form.name} onChange={upd('name')} />
         </div>
         <div className={s.formRow}>
-          <label>Slug</label>
-          <input className={s.input} required value={form.slug} onChange={upd('slug')} placeholder="zamoskvorechya" />
+          <label htmlFor="property-create-slug">Slug</label>
+          <input id="property-create-slug" className={s.input} required value={form.slug} onChange={upd('slug')} placeholder="zamoskvorechya" />
           <div className={s.hint}>Латиница, цифры, дефисы, 3-50 символов</div>
         </div>
         <div className={s.formRow}>
-          <label>Тип объекта</label>
-          <select className={s.select} value={form.property_type} onChange={upd('property_type')}>
+          <label htmlFor="property-create-type">Тип объекта</label>
+          <select id="property-create-type" className={s.select} value={form.property_type} onChange={upd('property_type')}>
             <option value="residential_complex">ЖК</option>
             <option value="club_house">Клубный дом</option>
             <option value="cottage_community">Коттеджный посёлок</option>
           </select>
         </div>
         <div className={s.formRow}>
-          <label>Начальный статус</label>
-          <select className={s.select} value={form.status} onChange={upd('status')}>
+          <label htmlFor="property-create-status">Начальный статус</label>
+          <select id="property-create-status" className={s.select} value={form.status} onChange={upd('status')}>
             <option value="active">активен</option>
             <option value="maintenance">обслуживание</option>
             <option value="suspended">приостановлен</option>
@@ -234,36 +235,36 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
           <div className={s.hint}>Обычно создаётся в «обслуживание», пока грузят данные</div>
         </div>
         <div className={s.formRow}>
-          <label>Адрес</label>
-          <input className={s.input} value={form.address} onChange={upd('address')} />
+          <label htmlFor="property-create-address">Адрес</label>
+          <input id="property-create-address" className={s.input} value={form.address} onChange={upd('address')} />
         </div>
         <div className={s.formRow}>
-          <label>DB connection URL</label>
-          <input className={s.input} required value={form.db_connection_url} onChange={upd('db_connection_url')} placeholder="postgresql://…" />
+          <label htmlFor="property-create-db-url">DB connection URL</label>
+          <input id="property-create-db-url" className={s.input} required value={form.db_connection_url} onChange={upd('db_connection_url')} placeholder="postgresql://…" />
         </div>
         <div className={s.formRow}>
-          <label>Тариф</label>
-          <select className={s.select} value={form.plan} onChange={upd('plan')}>
+          <label htmlFor="property-create-plan">Тариф</label>
+          <select id="property-create-plan" className={s.select} value={form.plan} onChange={upd('plan')}>
             <option value="core">core</option>
             <option value="pro">pro</option>
             <option value="enterprise">enterprise</option>
           </select>
         </div>
         <div className={s.formRow}>
-          <label>Временная зона</label>
-          <input className={s.input} value={form.timezone} onChange={upd('timezone')} />
+          <label htmlFor="property-create-timezone">Временная зона</label>
+          <input id="property-create-timezone" className={s.input} value={form.timezone} onChange={upd('timezone')} />
         </div>
         <div className={s.formRow}>
-          <label>Контакт — email</label>
-          <input className={s.input} type="email" value={form.contact_email} onChange={upd('contact_email')} />
+          <label htmlFor="property-create-email">Контакт — email</label>
+          <input id="property-create-email" className={s.input} type="email" value={form.contact_email} onChange={upd('contact_email')} />
         </div>
         <div className={s.formRow}>
-          <label>Контакт — телефон</label>
-          <input className={s.input} value={form.contact_phone} onChange={upd('contact_phone')} />
+          <label htmlFor="property-create-phone">Контакт — телефон</label>
+          <input id="property-create-phone" className={s.input} value={form.contact_phone} onChange={upd('contact_phone')} />
         </div>
         <div className={s.formRow}>
-          <label>Управляющая компания</label>
-          <select className={s.select} value={form.management_company_id} onChange={upd('management_company_id')}>
+          <label htmlFor="property-create-mc">Управляющая компания</label>
+          <select id="property-create-mc" className={s.select} value={form.management_company_id} onChange={upd('management_company_id')}>
             <option value="">— не назначена —</option>
             {mcOptions.map((mc) => (
               <option key={mc.id} value={mc.id}>{mc.name}</option>
@@ -272,13 +273,13 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
           <div className={s.hint}>Можно оставить пустым и назначить позже</div>
         </div>
         <div className={s.formRow}>
-          <label>Логотип (URL)</label>
-          <input className={s.input} value={form.logo_url} onChange={upd('logo_url')} placeholder="https://cdn.…/logo.png" />
+          <label htmlFor="property-create-logo">Логотип (URL)</label>
+          <input id="property-create-logo" className={s.input} value={form.logo_url} onChange={upd('logo_url')} placeholder="https://cdn.…/logo.png" />
           <div className={s.hint}>Только https://, ≤ 2048 символов</div>
         </div>
         <div className={s.formRow}>
-          <label>Основной цвет</label>
-          <input className={s.input} value={form.primary_color} onChange={upd('primary_color')} placeholder="#7c3aed" />
+          <label htmlFor="property-create-primary-color">Основной цвет</label>
+          <input id="property-create-primary-color" className={s.input} value={form.primary_color} onChange={upd('primary_color')} placeholder="#7c3aed" />
           <div className={s.hint}>CSS-цвет, например #7c3aed или named</div>
         </div>
       </div>

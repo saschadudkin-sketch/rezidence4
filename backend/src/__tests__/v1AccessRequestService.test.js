@@ -9,6 +9,8 @@ const {
 const UUID_REQUEST = '22222222-2222-4222-8222-222222222222';
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
+const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
+const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 
 function makeTxClient(handler) {
   return {
@@ -116,6 +118,8 @@ describe('AccessRequestService state transitions', () => {
             property_id: UUID_PROPERTY,
             request_type: 'guest_access',
             vehicle_id: null,
+            target_zone_id: UUID_ZONE,
+            target_point_id: UUID_POINT,
             starts_at: '2026-05-05T10:00:00.000Z',
             ends_at: '2026-05-05T12:00:00.000Z',
             status: 'pending_approval',
@@ -145,5 +149,8 @@ describe('AccessRequestService state transitions', () => {
       'BEGIN',
       'COMMIT',
     ]));
+    const passCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO passes'));
+    expect(passCall[1][6]).toBe(UUID_ZONE);
+    expect(passCall[1][7]).toBe(UUID_POINT);
   });
 });

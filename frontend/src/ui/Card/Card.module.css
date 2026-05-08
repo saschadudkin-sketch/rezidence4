@@ -29,22 +29,11 @@
   padding: 24px;
 }
 
-/* Accent variant with gold left border */
+/* Accent variant */
 .card--accent {
-  border-left: 3px solid var(--ds-accent);
-  padding-left: calc(var(--card-padding) - 3px);
-}
-
-.card--accent.card--padding-sm {
-  padding-left: 9px; /* 12px - 3px */
-}
-
-.card--accent.card--padding-md {
-  padding-left: 13px; /* 16px - 3px */
-}
-
-.card--accent.card--padding-lg {
-  padding-left: 21px; /* 24px - 3px */
+  background: color-mix(in srgb, var(--ds-bg-surface) 92%, var(--ds-accent) 8%);
+  border-color: color-mix(in srgb, var(--ds-accent) 42%, var(--ds-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-accent) 10%, transparent);
 }
 
 /* Clickable variant */

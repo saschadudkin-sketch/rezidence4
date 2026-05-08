@@ -9,6 +9,7 @@ function setViewportWidth(width: number) {
     value: vi.fn().mockImplementation((query: string) => ({
       matches:
         (query === '(max-width:1024px)' && width <= 1024) ||
+        (query === '(min-width:721px) and (max-width:1024px)' && width >= 721 && width <= 1024) ||
         (query === '(min-width:768px) and (max-width:1024px)' && width >= 768 && width <= 1024),
       media: query,
       onchange: null,
@@ -147,6 +148,44 @@ describe('NavigationShell mobile prioritization', () => {
     expect(bottom.queryByRole('button', { name: /шаблоны/i })).not.toBeInTheDocument();
     expect(bottom.queryByRole('button', { name: /история/i })).not.toBeInTheDocument();
     expect(bottom.queryByRole('button', { name: /доступ/i })).not.toBeInTheDocument();
+  });
+
+  test('at narrow tablet width owner keeps every dashboard tab in the top row', () => {
+    setViewportWidth(747);
+    const nav = [
+      ['passes', 'ticket', 'Пропуска', 0],
+      ['tech', 'tools', 'Техслужба', 0],
+      ['perms', 'list', 'Доступ', 0],
+      ['templates', 'file', 'Шаблоны', 0],
+      ['history', 'history', 'История', 0],
+      ['chat', 'chat', 'Чат', 0],
+    ] as Array<[string, string, string, number]>;
+    const navClassMap = Object.fromEntries(
+      nav.flatMap(([key]) => [[key, 'tn-btn'], [`${key}_mn`, 'mn-btn']]),
+    );
+
+    const { container } = render(
+      <NavigationShell
+        nav={nav}
+        navClassMap={navClassMap}
+        goTab={vi.fn()}
+        userRole="owner"
+      />,
+    );
+
+    const topNav = container.querySelector('.top-nav');
+    const mobileNav = container.querySelector('.mobile-nav');
+    expect(topNav).toHaveClass('top-nav--mobile-top');
+    expect(mobileNav).toBeInTheDocument();
+
+    const top = within(topNav as HTMLElement);
+    expect(top.getByRole('button', { name: /пропуска/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /техслужба/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /шаблоны/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /история/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /доступ/i })).toBeInTheDocument();
+    expect(top.getByRole('button', { name: /чат/i })).toBeInTheDocument();
+    expect(within(mobileNav as HTMLElement).queryAllByRole('button')).toHaveLength(0);
   });
 
   test('for contractor keeps templates history and access on top, passes tech and chat on bottom', () => {

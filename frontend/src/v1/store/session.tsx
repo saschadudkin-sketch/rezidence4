@@ -134,6 +134,7 @@ const STAFF_ROLES: ReadonlySet<UserRole> = new Set([
   'property_admin',
   'management_company_admin',
   'platform_admin',
+  'staff',
 ]);
 const GUARD_ROLES: ReadonlySet<UserRole> = new Set([
   'security',

@@ -64,17 +64,25 @@ export function Button({
 // direct alias so callers still see "InputProps" in tooltips.
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
-export function Input({ className, ...rest }: InputProps) {
-  return <input className={cx(styles.input, className)} {...rest} />;
+export function Input({ className, placeholder, 'aria-label': ariaLabel, ...rest }: InputProps) {
+  const fallbackLabel = typeof placeholder === 'string' ? placeholder : undefined;
+  return (
+    <input
+      className={cx(styles.input, className)}
+      placeholder={placeholder}
+      aria-label={ariaLabel ?? fallbackLabel}
+      {...rest}
+    />
+  );
 }
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   children?: ReactNode;
 }
 
-export function Select({ className, children, ...rest }: SelectProps) {
+export function Select({ className, children, 'aria-label': ariaLabel, ...rest }: SelectProps) {
   return (
-    <select className={cx(styles.select, className)} {...rest}>
+    <select className={cx(styles.select, className)} aria-label={ariaLabel ?? undefined} {...rest}>
       {children}
     </select>
   );
@@ -82,8 +90,16 @@ export function Select({ className, children, ...rest }: SelectProps) {
 
 export type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
-export function Textarea({ className, ...rest }: TextareaProps) {
-  return <textarea className={cx(styles.textarea, className)} {...rest} />;
+export function Textarea({ className, placeholder, 'aria-label': ariaLabel, ...rest }: TextareaProps) {
+  const fallbackLabel = typeof placeholder === 'string' ? placeholder : undefined;
+  return (
+    <textarea
+      className={cx(styles.textarea, className)}
+      placeholder={placeholder}
+      aria-label={ariaLabel ?? fallbackLabel}
+      {...rest}
+    />
+  );
 }
 
 export type LabelProps = LabelHTMLAttributes<HTMLLabelElement>;
@@ -133,8 +149,16 @@ export function Card({ title, subtitle, actions, elevated, className, children }
       {title || actions ? (
         <header className={styles.cardHeader}>
           <div>
-            {title ? <h3 className={styles.cardTitle}>{title}</h3> : null}
-            {subtitle ? <p className={styles.cardSubtitle}>{subtitle}</p> : null}
+            {title
+              ? (typeof title === 'string'
+                ? <h3 className={styles.cardTitle}>{title}</h3>
+                : <div className={styles.cardTitle}>{title}</div>)
+              : null}
+            {subtitle
+              ? (typeof subtitle === 'string'
+                ? <p className={styles.cardSubtitle}>{subtitle}</p>
+                : <div className={styles.cardSubtitle}>{subtitle}</div>)
+              : null}
           </div>
           {actions ? <div className={styles.inline}>{actions}</div> : null}
         </header>
@@ -169,7 +193,7 @@ export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
 // ─── Spinner / Empty / Alerts ──────────────────────────────────────────────
 
 export function Spinner({ className }: { className?: string }) {
-  return <span className={cx(styles.spinner, className)} role="status" aria-label="loading" />;
+  return <span className={cx(styles.spinner, className)} role="status" aria-live="polite" aria-label="loading" />;
 }
 
 export function EmptyState({ children, className }: { children: ReactNode; className?: string }) {
@@ -190,7 +214,7 @@ export function Alert({ tone = 'info', children, className }: AlertProps) {
     info: '',
   }[tone];
   return (
-    <div className={cx(styles.alert, toneClass, className)} role="alert">
+    <div className={cx(styles.alert, toneClass, className)} role="alert" aria-live="assertive">
       {children}
     </div>
   );

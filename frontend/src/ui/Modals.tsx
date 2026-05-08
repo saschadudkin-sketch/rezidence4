@@ -120,24 +120,25 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
         </div>
         <div className="modal-body">
           <div className="field">
-            <label className="field-lbl">Имя *</label>
-            <input className="field-inp" placeholder="Иван Иванов" value={name} onChange={(event) => setName(event.target.value)} autoCapitalize="words" />
+            <label className="field-lbl" htmlFor="add-user-name">Имя *</label>
+            <input id="add-user-name" className="field-inp" placeholder="Иван Иванов" value={name} onChange={(event) => setName(event.target.value)} autoCapitalize="words" />
           </div>
           <div className="field">
-            <label className="field-lbl">Телефон *</label>
-            <input className="field-inp" placeholder="+7 000 000-00-00" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
+            <label className="field-lbl" htmlFor="add-user-phone">Телефон *</label>
+            <input id="add-user-phone" className="field-inp" placeholder="+7 000 000-00-00" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
           </div>
           <div className="field">
-            <label className="field-lbl">Роль</label>
-            <select className="field-select" value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
+            <label className="field-lbl" htmlFor="add-user-role">Роль</label>
+            <select id="add-user-role" className="field-select" value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
               {(['owner', 'tenant', 'contractor', 'concierge', 'security', 'admin'] as UserRole[]).map((itemRole) => (
                 <option key={itemRole} value={itemRole}>{ROLE_LABELS[itemRole]}</option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label className="field-lbl">Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}</label>
+            <label className="field-lbl" htmlFor="add-user-apartment">Апартамент{(role === 'owner' || role === 'tenant') ? ' *' : ''}</label>
             <input
+              id="add-user-apartment"
               className="field-inp"
               placeholder={isResidentRole ? '12' : 'Не нужен для этой роли'}
               value={apt}
@@ -146,8 +147,9 @@ export function AddUserModal({ onClose, onDone, initialRole }: AddUserModalProps
             />
           </div>
           <div className="field">
-            <label className="field-lbl">Паркинг</label>
+            <label className="field-lbl" htmlFor="add-user-parking">Паркинг</label>
             <input
+              id="add-user-parking"
               className="field-inp"
               placeholder={isResidentRole ? 'A-12' : 'Необязательно'}
               value={parking}
@@ -299,14 +301,18 @@ export function AvatarModal({ avatar, onSave, onClose }: AvatarModalProps) {
         <div className="av-preview">
           <div className="av-preview-circle">
             {src
-              ? <img src={src} alt="" className="u-cover" />
+              ? <img src={src} alt="Фото профиля" className="u-cover" />
               : <div className="av-preview-empty"><AppIcon name="camera" size={28} /></div>}
           </div>
           {cameraOpen && (
             <div className="av-camera-stage">
               {cameraError
                 ? <div className="av-camera-fallback">{cameraError}</div>
-                : <video ref={videoRef} className="av-camera-video" playsInline muted autoPlay />}
+                : (
+                  <video ref={videoRef} className="av-camera-video" playsInline muted aria-label="Предпросмотр камеры для фото профиля">
+                    <track kind="captions" src="" srcLang="ru" label="Без звука" />
+                  </video>
+                )}
             </div>
           )}
         </div>

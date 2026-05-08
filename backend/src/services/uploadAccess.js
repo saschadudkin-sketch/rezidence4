@@ -24,6 +24,14 @@ async function canUserAccessUpload(user, filename) {
          AND ($2 = ANY(r.photos) OR ($3 IS NOT NULL AND $3 = ANY(r.photos)))
       UNION ALL
       SELECT 1
+        FROM request_attachments a
+        JOIN requests r ON r.id = a.request_id
+       WHERE r.created_by_uid = $1
+         AND r.deleted_at IS NULL
+         AND a.visibility = 'resident'
+         AND (a.file_url = $2 OR ($3 IS NOT NULL AND a.file_url = $3))
+      UNION ALL
+      SELECT 1
         FROM users u
        WHERE u.uid = $1
          AND u.deleted_at IS NULL

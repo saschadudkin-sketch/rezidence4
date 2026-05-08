@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 type ConfirmDialogProps = {
@@ -67,8 +67,12 @@ export function ConfirmDialog({
     return () => dialog.removeEventListener('keydown', handleKeyDown);
   }, [onCancel]);
 
+  const handleOverlayKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') onCancel();
+  };
+
   return createPortal(
-    <div className="overlay" onClick={onCancel}>
+    <div className="overlay" onClick={onCancel} onKeyDown={handleOverlayKeyDown}>
       <div
         className="modal modal--confirm"
         ref={dialogRef}

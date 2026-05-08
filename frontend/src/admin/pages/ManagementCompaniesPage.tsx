@@ -86,6 +86,7 @@ export function ManagementCompaniesPage() {
       ) : (
         <div className={s.card}>
           <table className={s.table}>
+            <caption className={s.tableCaption}>Управляющие компании</caption>
             <thead>
               <tr>
                 <th>Название</th>
@@ -162,35 +163,35 @@ function CreateManagementCompanyForm({ onCreated }: { onCreated: () => void }) {
       {error && <div className={s.error}>{error}</div>}
       <div className={s.detailGrid}>
         <div className={s.formRow}>
-          <label>Название</label>
-          <input className={s.input} required value={form.name} onChange={upd('name')} />
+          <label htmlFor="mc-create-name">Название</label>
+          <input id="mc-create-name" className={s.input} required value={form.name} onChange={upd('name')} />
         </div>
         <div className={s.formRow}>
-          <label>Slug</label>
-          <input className={s.input} required value={form.slug} onChange={upd('slug')} placeholder="rezidentsii-zamoskv" />
+          <label htmlFor="mc-create-slug">Slug</label>
+          <input id="mc-create-slug" className={s.input} required value={form.slug} onChange={upd('slug')} placeholder="rezidentsii-zamoskv" />
           <div className={s.hint}>Латиница, цифры, дефисы, 3-80 символов</div>
         </div>
         <div className={s.formRow}>
-          <label>ИНН</label>
-          <input className={s.input} value={form.inn} onChange={upd('inn')} placeholder="7707083893" />
+          <label htmlFor="mc-create-inn">ИНН</label>
+          <input id="mc-create-inn" className={s.input} value={form.inn} onChange={upd('inn')} placeholder="7707083893" />
           <div className={s.hint}>10 или 12 цифр. Можно оставить пустым.</div>
         </div>
         <div className={s.formRow}>
-          <label>Контакт — email</label>
-          <input className={s.input} type="email" value={form.contact_email} onChange={upd('contact_email')} />
+          <label htmlFor="mc-create-email">Контакт — email</label>
+          <input id="mc-create-email" className={s.input} type="email" value={form.contact_email} onChange={upd('contact_email')} />
         </div>
         <div className={s.formRow}>
-          <label>Контакт — телефон</label>
-          <input className={s.input} value={form.contact_phone} onChange={upd('contact_phone')} />
+          <label htmlFor="mc-create-phone">Контакт — телефон</label>
+          <input id="mc-create-phone" className={s.input} value={form.contact_phone} onChange={upd('contact_phone')} />
         </div>
         <div className={s.formRow}>
-          <label>Сайт</label>
-          <input className={s.input} value={form.website} onChange={upd('website')} placeholder="https://…" />
+          <label htmlFor="mc-create-website">Сайт</label>
+          <input id="mc-create-website" className={s.input} value={form.website} onChange={upd('website')} placeholder="https://…" />
           <div className={s.hint}>Только https://</div>
         </div>
         <div className={s.formRow}>
-          <label>Логотип (URL)</label>
-          <input className={s.input} value={form.logo_url} onChange={upd('logo_url')} placeholder="https://cdn.…/logo.png" />
+          <label htmlFor="mc-create-logo">Логотип (URL)</label>
+          <input id="mc-create-logo" className={s.input} value={form.logo_url} onChange={upd('logo_url')} placeholder="https://cdn.…/logo.png" />
           <div className={s.hint}>Только https://, ≤ 2048 символов</div>
         </div>
       </div>

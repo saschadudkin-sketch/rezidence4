@@ -317,6 +317,7 @@ export const ReqCard = memo(function ReqCard({ req, userRole, userName, userId, 
     } finally {
       if (isMountedRef.current) setActLoading(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- useIsMounted returns a stable ref; act reads latest mounted state via .current
   }, []);
 
   const doApprove = useCallback(() => act('approve', () => Promise.resolve(approveRequest(req.id, actorName, userRole)), 'Допуск предоставлен', 'success'), [act, approveRequest, req.id, actorName, userRole]);

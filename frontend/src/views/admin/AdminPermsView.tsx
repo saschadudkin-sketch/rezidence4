@@ -25,10 +25,10 @@ type AdminPermsAptGroupProps = {
 };
 const EMPTY_PERMS: UserPerms = { visitors: [], workers: [] };
 const ROLE_FILTERS = [
-  ['all', 'Р’СЃРµ'],
-  ['owner', 'РЎРѕР±СЃС‚РІРµРЅРЅРёРєРё'],
-  ['tenant', 'РђСЂРµРЅРґР°С‚РѕСЂС‹'],
-  ['contractor', 'РџРѕРґСЂСЏРґС‡РёРєРё'],
+  ['all', 'Все'],
+  ['owner', 'Собственники'],
+  ['tenant', 'Арендаторы'],
+  ['contractor', 'Подрядчики'],
 ] as const;
 
 // ─── AdminPermsItemRow ────────────────────────────────────────────────────────
@@ -85,12 +85,12 @@ function AdminPermsItemRow({ uid, listKey, item, onDel }: AdminPermsItemRowProps
       {editing && (
         <div className="edit-inline admin-perm-edit-inline">
           <div className="edit-inline-row">
-            <input className="edit-inline-inp" placeholder="ФИО *" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" />
-            <input className="edit-inline-inp" placeholder="Телефон" type="tel" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" />
+            <input className="edit-inline-inp" aria-label="ФИО" placeholder="ФИО *" value={name} onChange={e => setName(e.target.value)} autoCapitalize="words" />
+            <input className="edit-inline-inp" aria-label="Телефон" placeholder="Телефон" type="tel" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" />
           </div>
           {isWorker && (
             <div className="edit-inline-row">
-              <input className="edit-inline-inp" placeholder="Авто (марка, номер)" value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
+              <input className="edit-inline-inp" aria-label="Авто" placeholder="Авто (марка, номер)" value={carPlate} onChange={e => setCarPlate(e.target.value)} autoCapitalize="characters" />
             </div>
           )}
           <div className="admin-user-actions-end">
@@ -189,12 +189,12 @@ function AdminPermsAptGroup({ u, tab }: AdminPermsAptGroupProps) {
       {adding ? (
         <div className="perm-form">
           <div className="perm-form-row">
-            <input className="perm-form-inp" placeholder="ФИО *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoCapitalize="words" />
-            <input className="perm-form-inp" placeholder="Телефон" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel" />
+            <input className="perm-form-inp" aria-label="ФИО" placeholder="ФИО *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoCapitalize="words" />
+            <input className="perm-form-inp" aria-label="Телефон" placeholder="Телефон" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel" />
           </div>
           {isWorker && (
             <div className="perm-form-row">
-              <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={form.carPlate} onChange={e => setForm({ ...form, carPlate: e.target.value })} autoCapitalize="characters" />
+              <input className="perm-form-inp" aria-label="Авто" placeholder="Авто (марка, номер)" value={form.carPlate} onChange={e => setForm({ ...form, carPlate: e.target.value })} autoCapitalize="characters" />
             </div>
           )}
           <div className="perm-form-btns">

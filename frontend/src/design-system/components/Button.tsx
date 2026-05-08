@@ -40,7 +40,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       borderRadius: 'var(--radius-md)',
       border: 'none',
       cursor: disabled || loading ? 'not-allowed' : 'pointer',
-      transition: 'all var(--transition-base)',
+      transition: 'background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), color var(--transition-base), transform var(--transition-fast)',
       textDecoration: 'none',
       userSelect: 'none' as const,
       outline: 'none',
@@ -120,7 +120,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       },
       ':active': {
         background: `var(--active-bg, ${variantStyles[variant].background})`,
-        transform: 'translateY(0)',
+        transform: 'scale(0.97)',
       },
       ':focus-visible': {
         outline: '2px solid var(--color-accent-gold)',

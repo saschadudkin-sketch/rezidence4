@@ -151,6 +151,13 @@ Enum `property_type`:
 - `club_house`
 - `cottage_community`
 
+Смысл `property_type`:
+- `residential_complex` — квартирный ЖК: корпус / подъезд / квартира являются основными labels;
+- `club_house` — малый премиальный объект: корпус / секция / лобби / апартамент;
+- `cottage_community` — коттеджный посёлок или закрытая территория: сектор / улица / дом / участок / КПП.
+
+`property_type` не меняет tenant isolation и API contracts. Он определяет UI labels, import templates, default access policies and guard workspace emphasis.
+
 Enum `status`:
 - `active`
 - `suspended`
@@ -206,6 +213,21 @@ Enum `status`:
 
 ## 5.1 Structure layer
 
+### Product principle
+
+Текущая v1-структура `property -> building -> entrance -> unit` является общей для ЖК, клубных домов и коттеджных посёлков.
+
+`unit` не должен трактоваться только как квартира. В продуктовой модели это addressable dwelling/asset:
+- квартира;
+- апартамент;
+- таунхаус;
+- дом;
+- участок;
+- коммерческое помещение;
+- служебная единица.
+
+Для `cottage_community` допускается использовать `building` как "сектор", "улица", "очередь" или "территория", а `entrance` как технический placeholder. UI и import должны скрывать apartment-only terminology and render labels as "дом/участок" and "КПП/сектор" where appropriate.
+
 ### `buildings`
 
 Поля:
@@ -254,6 +276,15 @@ Enum `unit_type`:
 - `house`
 - `commercial`
 - `utility`
+
+Property-type mapping:
+- `residential_complex`: default `unit_type='apartment'`;
+- `club_house`: `apartment` or `commercial`, depending on object model;
+- `cottage_community`: primary `unit_type='house'` or `townhouse`; `unit_number` stores the displayed house/plot number.
+
+Future extension rule:
+- do not add separate `streets`, `land_plots`, or `houses` tables until a pilot proves that the v1 mapping creates operational or reporting errors;
+- if needed, add `property_areas` / `land_plots` as additive v2 entities without changing existing `unit_id` references.
 
 ## 5.2 People layer
 
@@ -438,6 +469,8 @@ Enum `point_type`:
 - `point_id UUID NULL`
 - `access_method VARCHAR(30) NOT NULL`
 - `approval_mode VARCHAR(20) NOT NULL DEFAULT 'required'`
+- `effect VARCHAR(30) NOT NULL DEFAULT 'allow'`
+- `priority INTEGER NOT NULL DEFAULT 100`
 - `schedule_json JSONB NULL`
 - `duration_minutes INTEGER NULL`
 - `is_recurring BOOLEAN NOT NULL DEFAULT false`
@@ -472,6 +505,13 @@ Enum `approval_mode`:
 - `required`
 - `security_only`
 - `admin_only`
+
+Enum `effect`:
+- `allow`
+- `deny`
+- `needs_approval`
+- `needs_security_review`
+- `incident_required`
 
 ## 5.5 Access lifecycle
 

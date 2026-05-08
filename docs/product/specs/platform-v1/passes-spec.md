@@ -29,7 +29,8 @@ passes
   access_request_id          UUID NULL    → access_requests
   pass_type                  ENUM(guest/vehicle/resident/staff/contractor/courier/service/emergency)
   subject_{resident|staff|contractor_user|vehicle}_id  UUID NULL  (XOR по subject_type)
-  zone_id / point_id / policy_id    UUID NULL  (Фаза пост-релиз; nullable в v1)
+  zone_id / point_id           UUID NULL  → access_zones/access_points (optional DH-06 topology scope)
+  policy_id                    UUID NULL  (policy engine activates in DH-13/DH-14)
   valid_from / valid_until   TIMESTAMPTZ NOT NULL
   status                     ENUM(active/used/expired/revoked/blocked)  DEFAULT 'active'
   approved_by_staff_id       UUID NULL
@@ -83,7 +84,7 @@ qr_passes
 | `POST` | `/api/v1/passes/:id/block` | `security` | Временная блокировка |
 | `POST` | `/api/v1/passes/:id/unblock` | `security` | Снять блокировку |
 | `GET` | `/api/v1/passes/:id/qr` | owner | Получить QR-токен (свежий render_version) |
-| `POST` | `/api/v1/passes/verify` | `security` (guard-console) | Scan: проверка token + запись в visit_logs |
+| `POST` | `/api/v1/visits/verify` | `security` (guard-console) | Scan: проверка token/plate + запись в visit_logs |
 
 Все mutations пишут в `property_audit_log` с `entity_type='pass'`, `entity_id=passes.id`.
 
@@ -110,6 +111,7 @@ qr_passes
 - [ ] `visit_logs.pass_id` FK работает; guard-scan создаёт корректный event
 - [ ] Audit-trail: каждая mutation → запись в `property_audit_log`
 - [ ] Фронт guard-console (Фаза 4) работает с `passes`, не с `requests`
+- [ ] `zone_id` / `point_id` валидируются через `access_zones` / `access_points`; пасс из approved access_request наследует `target_zone_id` / `target_point_id`
 
 ---
 
@@ -117,7 +119,7 @@ qr_passes
 
 1. **Re-issue QR:** если резидент потерял экран с QR — генерим новый token (новая строка в `qr_passes` с инкрементом `render_version`) или правим существующую? → **Решено:** обновляем row, инкремент `render_version`. Старый token становится невалидным сразу.
 2. **Multi-pass на одну заявку:** нужен ли сейчас или откладываем? → **Решено:** nullable `access_request_id` + FK без UNIQUE — multi-pass поддержан schemaтически, UX в v1 выдаёт только 1 пасс на заявку (enforce в сервисе, не в БД).
-3. **`zone_id/point_id/policy_id`** — в Фазе 3 оставляем всегда NULL. Активируем, когда появится первый СКУД-интегратор (пост-релиз).
+3. **`zone_id/point_id/policy_id`** → **Решено:** `zone_id`/`point_id` активированы в DH-06 как optional topology scope и валидируются при создании pass. `policy_id` остаётся nullable до DH-13/DH-14.
 
 ---
 

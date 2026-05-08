@@ -18,6 +18,11 @@ const db = require('../db');
 const requireAuth = require('../middleware/auth');
 const logger = require('../logger');
 const { broadcastUserDelete } = require('../sse');
+const {
+  clearAuthCookies,
+  deleteRefreshTokensForUser,
+  invalidateUserSessionCache,
+} = require('../services/authSessionService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -25,6 +30,9 @@ router.use(requireAuth);
 // Current consent document version.  Bump whenever the privacy policy changes
 // so we can tell whether residents have re-accepted the new terms.
 const CURRENT_CONSENT_VERSION = process.env.PRIVACY_CONSENT_VERSION || '2026-04-01';
+
+const getDb = (req) => req.db || db;
+const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
 
 function hashPhone(phone) {
   if (!phone) return null;
@@ -37,7 +45,7 @@ function hashPhone(phone) {
 // GET /api/v1/privacy/consent — current consent state for the authenticated user.
 router.get('/consent', async (req, res, next) => {
   try {
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT consent_accepted_at, consent_version
          FROM users
          WHERE uid = $1 AND deleted_at IS NULL`,
@@ -63,7 +71,7 @@ router.post('/consent', express.json(), async (req, res, next) => {
     if (version !== CURRENT_CONSENT_VERSION) {
       return res.status(400).json({ error: 'Consent version mismatch', currentVersion: CURRENT_CONSENT_VERSION });
     }
-    const { rowCount } = await db.query(
+    const { rowCount } = await getDb(req).query(
       `UPDATE users
          SET consent_accepted_at = NOW(), consent_version = $2, updated_at = NOW()
          WHERE uid = $1 AND deleted_at IS NULL`,
@@ -83,7 +91,7 @@ router.post('/delete-account', express.json(), async (req, res, next) => {
   const { uid, phone } = req.user;
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.slice(0, 500) : null;
 
-  const client = await db.pool.connect();
+  const client = await getTxPool(req).connect();
   try {
     await client.query('BEGIN');
 
@@ -122,14 +130,8 @@ router.post('/delete-account', express.json(), async (req, res, next) => {
       [uid],
     );
 
-    // Revoke all refresh tokens so current sessions can't re-auth.  The table
-    // may not exist in all deployments, so swallow the "table not found" error.
-    await client.query(
-      `DELETE FROM refresh_tokens WHERE uid = $1`,
-      [uid],
-    ).catch((err) => {
-      if (err.code !== '42P01') throw err; // 42P01 = undefined_table
-    });
+    // Revoke all refresh tokens so current sessions can't re-auth.
+    await deleteRefreshTokensForUser(client, uid);
 
     await client.query(
       `UPDATE privacy_deletion_requests
@@ -142,11 +144,11 @@ router.post('/delete-account', express.json(), async (req, res, next) => {
 
     logger.warn({ uid, auditId }, '[privacy] account anonymized on user request');
 
+    await invalidateUserSessionCache(uid);
     try { broadcastUserDelete(uid); } catch { /* SSE errors should not fail the flow */ }
 
     // Clear auth cookies so the client is immediately logged out.
-    res.clearCookie('rezi_at', { path: '/' });
-    res.clearCookie('rezi_rt', { path: '/' });
+    clearAuthCookies(res);
 
     res.status(202).json({ ok: true, auditId });
   } catch (err) {

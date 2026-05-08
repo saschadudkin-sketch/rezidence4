@@ -11,6 +11,7 @@ const { V1_PROPERTY_MIGRATIONS } = require('../v1/migrations');
 
 const PROPERTY_SLUG = process.env.E2E_PROPERTY_SLUG || 'zamoskv';
 const PROPERTY_NAME = 'E2E Резиденции Замоскворечья';
+const PROPERTY_TYPE = process.env.E2E_PROPERTY_TYPE || 'residential_complex';
 
 const USERS = {
   resident: {
@@ -32,6 +33,13 @@ const USERS = {
     phone: '+79005550103',
     name: 'E2E Security',
     role: 'security',
+    apartment: null,
+  },
+  admin: {
+    uid: 'e2e-v1-admin',
+    phone: '+79005550104',
+    name: 'E2E Property Admin',
+    role: 'admin',
     apartment: null,
   },
 };
@@ -87,19 +95,21 @@ async function runMigrations(pool, tableName, migrations) {
 
 async function upsertPlatformProperty(platformPool, tenantDbUrl) {
   const { rows } = await platformPool.query(
-    `INSERT INTO properties (slug, name, address, db_connection_url, is_active, plan, contact_email)
-     VALUES ($1, $2, $3, $4, true, 'premium', 'e2e@domhub.local')
+    `INSERT INTO properties (slug, name, address, db_connection_url, is_active, plan, contact_email, property_type)
+     VALUES ($1, $2, $3, $4, true, 'premium', 'e2e@domhub.local', $5)
      ON CONFLICT (slug) DO UPDATE SET
        name = EXCLUDED.name,
        db_connection_url = EXCLUDED.db_connection_url,
        is_active = true,
+       property_type = EXCLUDED.property_type,
        updated_at = NOW()
-     RETURNING id, slug, db_connection_url`,
+     RETURNING id, slug, db_connection_url, property_type`,
     [
       PROPERTY_SLUG,
       PROPERTY_NAME,
       'E2E tenant property',
       tenantDbUrl,
+      PROPERTY_TYPE,
     ],
   );
   return rows[0];
@@ -312,6 +322,7 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       property_slug: PROPERTY_SLUG,
+      property_type: property.property_type,
       ...seeded,
       users: USERS,
     }, null, 2));
@@ -336,4 +347,5 @@ module.exports = {
   main,
   USERS,
   PROPERTY_SLUG,
+  PROPERTY_TYPE,
 };

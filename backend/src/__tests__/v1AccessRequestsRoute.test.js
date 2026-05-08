@@ -26,6 +26,8 @@ const UUID_RESIDENT = '33333333-3333-4333-8333-333333333333';
 const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
 const UUID_CONTRACTOR = '55555555-5555-4555-8555-555555555555';
 const UUID_PASS = '66666666-6666-4666-8666-666666666666';
+const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
+const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 
 function buildApp({ featureFlags = null } = {}) {
   const app = express();
@@ -188,6 +190,57 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(passCall[1][2]).toBe('contractor');
     expect(passCall[1][3]).toBe('contractor_user');
     expect(passCall[1][4]).toBe(UUID_CONTRACTOR);
+  });
+
+  test('create validates topology target and auto-issued pass inherits zone and point', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
+    const row = accessRequestRow({
+      status: 'approved',
+      approval_required: false,
+      approved_at: '2026-05-04T10:01:00.000Z',
+      target_zone_id: UUID_ZONE,
+      target_point_id: UUID_POINT,
+    });
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('INSERT INTO passes')) {
+        return Promise.resolve({ rows: [{
+          id: UUID_PASS,
+          pass_type: 'guest',
+          status: 'active',
+          zone_id: UUID_ZONE,
+          point_id: UUID_POINT,
+          valid_from: row.starts_at,
+          valid_until: row.ends_at,
+        }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+      if (sql.includes('FROM access_points')) {
+        return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+    db.pool.connect.mockResolvedValue(txClient);
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-requests')
+      .send(validCreatePayload({
+        target_zone_id: UUID_ZONE,
+        target_point_id: UUID_POINT,
+      }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.pass.zone_id).toBe(UUID_ZONE);
+    expect(res.body.pass.point_id).toBe(UUID_POINT);
+
+    const passCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO passes'));
+    expect(passCall[1][6]).toBe(UUID_ZONE);
+    expect(passCall[1][7]).toBe(UUID_POINT);
   });
 
   test('manual approval setting keeps non-contractor request pending and does not issue pass', async () => {

@@ -257,7 +257,9 @@
 - integration logs;
 - notification provider integrations;
 - access system integrations;
+- SKUD, barrier/gate, intercom, LPR and camera/video-evidence integration map;
 - billing/ERP/1C integration adapters.
+- GIS ЖКХ / ОСС export/readiness boundary.
 
 ### 5.3 Deliverables
 
@@ -290,6 +292,7 @@
 - terms of use;
 - consent to PD;
 - consent to notifications.
+- consent/version history model.
 
 #### B2B Docs
 
@@ -306,14 +309,21 @@
 - incident response policy;
 - contractor access policy;
 - controller/processor model.
+- personal-data category registry;
+- data localization and ИСПДн readiness assumptions;
+- biometric exclusion / feature-gating policy;
+- data subject request procedure.
 
 ### 6.3 Внутренние задачи
 
 - определить модель оператора/обработчика;
 - определить состав ПДн;
 - определить сроки хранения;
+- определить masking/default visibility для чувствительных полей;
 - описать data localization assumptions;
 - описать процедуры удаления;
+- описать resident offboarding and access revocation procedure;
+- описать no-biometrics-by-default boundary;
 - описать инцидентный процесс.
 
 ### 6.4 Definition of Done
@@ -337,6 +347,10 @@
 - import instructions;
 - support process;
 - runbooks;
+- emergency dispatch runbook;
+- КПП degraded-mode runbook;
+- first-week pilot support playbook;
+- resident lifecycle/offboarding guide;
 - property admin guide;
 - management company admin guide;
 - security guide;
@@ -351,6 +365,7 @@
 - escalation map;
 - first-week launch procedure;
 - incident runbooks.
+- checkpoint training procedure.
 
 ### 7.4 Definition of Done
 

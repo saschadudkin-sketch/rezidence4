@@ -27,7 +27,7 @@
     transform: translateY(-1px);
   }
 }
-.btn-gold:active { background: linear-gradient(135deg, var(--g2), var(--g1)); transform: translateY(0); }
+.btn-gold:active { background: linear-gradient(135deg, var(--g2), var(--g1)); transform: scale(.97); }
 .btn-gold:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
 .btn-outline:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
 
@@ -54,7 +54,7 @@
     transform: translateY(-1px);
   }
 }
-.btn-outline:active { border-color: var(--g1); color: var(--g1); }
+.btn-outline:active { border-color: var(--g1); color: var(--g1); transform: scale(.97); }
 
 .btn-danger {
   background: var(--danger-bg);
@@ -78,7 +78,7 @@
     transform: translateY(-1px);
   }
 }
-.btn-danger:active { background: rgba(122, 32, 32, .30); transform: translateY(0); }
+.btn-danger:active { background: rgba(122, 32, 32, .30); transform: scale(.97); }
 
 .btn-text {
   display: flex;
@@ -117,7 +117,7 @@
   text-shadow: 0 1px 0 rgba(0,0,0,.18);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
 }
-.btn-yes:active { opacity: .75; }
+.btn-yes:active { opacity: .85; transform: scale(.97); }
 @media (hover: hover) { .btn-yes:hover:not(:disabled) { filter: brightness(1.04); } }
 
 .btn-no {
@@ -134,7 +134,7 @@
   transition: opacity .13s, background .13s;
   white-space: nowrap;
 }
-.btn-no:active { opacity: .75; }
+.btn-no:active { opacity: .85; transform: scale(.97); }
 @media (hover: hover) { .btn-no:hover:not(:disabled) { background: rgba(192, 96, 96, .08); } }
 
 .btn-accept {
@@ -151,7 +151,7 @@
   transition: background .13s;
   white-space: nowrap;
 }
-.btn-accept:active { background: var(--g-bg2); }
+.btn-accept:active { background: var(--g-bg2); transform: scale(.97); }
 
 .btn-gold, .btn-outline, .btn-danger, .btn-text, .btn-yes, .btn-no, .btn-accept,
 .date-pill, .tab-btn, .scan-qr-btn, .schedule-toggle, .schedule-preset,
@@ -177,7 +177,7 @@
   transition: opacity .13s;
   white-space: nowrap;
 }
-.btn-arrive:active { opacity: .75; }
+.btn-arrive:active { opacity: .85; transform: scale(.97); }
 .btn-spin {
   display: inline-block;
   width: 15px;

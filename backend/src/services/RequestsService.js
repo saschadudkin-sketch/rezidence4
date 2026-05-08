@@ -24,12 +24,19 @@ const {
   validateInitialStatus,
   validateUpdatePayload,
 } = require('./requests/RequestValidator');
+const {
+  listRequestCategories,
+  resolveRequestCategory,
+  upsertRequestCategory,
+  computeDueDate,
+  normalizeRequestTarget,
+} = require('./requests/RequestCategories');
 const { ServiceError, ConflictError } = require('./requests/RequestErrors');
 
 // ─── Transaction helper ───────────────────────────────────────────────────────
 
-async function withTransaction(fn) {
-  const client = await db.pool.connect();
+async function withTransaction(txPool, fn) {
+  const client = await txPool.connect();
   try {
     await client.query('BEGIN');
     const result = await fn(client);
@@ -46,23 +53,32 @@ async function withTransaction(fn) {
 // ─── Service methods ──────────────────────────────────────────────────────────
 
 class RequestsService {
+  static async listCategories(queryDb = db, { propertyId } = {}) {
+    return listRequestCategories(queryDb, { propertyId });
+  }
+
+  static async upsertCategory(user, queryDb = db, propertyId, code, body) {
+    if (user.role !== 'admin') throw new ServiceError('Forbidden', 403);
+    return upsertRequestCategory(queryDb, propertyId, code, body);
+  }
+
   /**
    * Получить одну заявку по id с проверкой доступа.
    * Жилец видит только свои заявки; персонал и админ видят все.
    * @returns {object} Заявка (formatted)
    */
-  static async getOne(user, id) {
+  static async getOne(user, id, queryDb = db) {
     const { uid, role } = user;
     const staff = isStaff(role);
 
     let rows;
     if (staff || role === 'admin') {
-      ({ rows } = await db.query(
+      ({ rows } = await queryDb.query(
         `SELECT ${REQUEST_COLUMNS} FROM requests WHERE id=$1 AND deleted_at IS NULL`,
         [id],
       ));
     } else {
-      ({ rows } = await db.query(
+      ({ rows } = await queryDb.query(
         `SELECT ${REQUEST_COLUMNS} FROM requests WHERE id=$1 AND created_by_uid=$2 AND deleted_at IS NULL`,
         [id, uid],
       ));
@@ -76,7 +92,7 @@ class RequestsService {
    * Получить список заявок с пагинацией.
    * @returns {{ data: object[], total: number, page: number, limit: number }}
    */
-  static async list({ uid, role }, { page = 1, limit = 50 } = {}) {
+  static async list({ uid, role }, { page = 1, limit = 50 } = {}, queryDb = db) {
     page  = Math.max(1, page);
     limit = Math.min(100, limit);
     const offset = (page - 1) * limit;
@@ -87,14 +103,14 @@ class RequestsService {
     // При высоком RPS (200 RPM) это убирает 200 лишних DB-запросов в минуту только для list().
     let rows;
     if (staff) {
-      ({ rows } = await db.query(
+      ({ rows } = await queryDb.query(
         `SELECT ${REQUEST_COLUMNS}, COUNT(*) OVER() AS total_count
          FROM requests WHERE deleted_at IS NULL
          ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
         [limit, offset],
       ));
     } else {
-      ({ rows } = await db.query(
+      ({ rows } = await queryDb.query(
         `SELECT ${REQUEST_COLUMNS}, COUNT(*) OVER() AS total_count
          FROM requests WHERE created_by_uid=$1 AND deleted_at IS NULL
          ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
@@ -110,10 +126,12 @@ class RequestsService {
    * Создать заявку.
    * @returns {object} Созданная заявка (formatted)
    */
-  static async create(user, body) {
+  static async create(user, body, queryDb = db, { propertyId } = {}) {
     const { uid, name, role } = user;
 
     validateCreatePayload(body);
+    const categoryProfile = await resolveRequestCategory(queryDb, body.category, { propertyId });
+    const { targetType, targetId } = normalizeRequestTarget(body, categoryProfile);
 
     const id = uuid();
     const requestedStatus = body.status || 'pending';
@@ -124,15 +142,27 @@ class RequestsService {
       requestedStatus,
     });
     const initialStatus = autoApprovePass ? 'approved' : requestedStatus;
+    const firstResponseDueAt = computeDueDate(categoryProfile.firstResponseMinutes);
+    const resolutionDueAt = computeDueDate(categoryProfile.resolutionMinutes);
+    const emergencyMetadata = categoryProfile.isEmergency
+      ? {
+          category: categoryProfile.code,
+          first_response_minutes: categoryProfile.firstResponseMinutes,
+          resolution_minutes: categoryProfile.resolutionMinutes,
+        }
+      : {};
 
     validateInitialStatus(role, initialStatus, autoApprovePass, isStaff);
 
-    const { rows } = await db.query(
+    const { rows } = await queryDb.query(
       `INSERT INTO requests
          (id, type, category, status, created_by_uid, created_by_name, created_by_role,
           created_by_apt, visitor_name, visitor_phone, car_plate, comment,
-          pass_duration, valid_until, scheduled_for, photos)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          pass_duration, valid_until, scheduled_for, photos,
+          request_category_id, target_type, target_id, priority, sla_profile,
+          first_response_due_at, resolution_due_at, emergency_metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
+               $17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING *`,
       [
         id, body.type, body.category, initialStatus,
@@ -146,6 +176,14 @@ class RequestsService {
         body.validUntil   || null,
         body.scheduledFor || null,
         body.photos       || [],
+        categoryProfile.id,
+        targetType,
+        targetId,
+        categoryProfile.priority,
+        categoryProfile.slaProfile,
+        firstResponseDueAt,
+        resolutionDueAt,
+        emergencyMetadata,
       ],
     );
 
@@ -156,7 +194,7 @@ class RequestsService {
    * Обновить заявку (статус, комментарий и т.д.)
    * @returns {object} Обновлённая заявка
    */
-  static async update(user, id, patch) {
+  static async update(user, id, patch, queryDb = db, txPool = db.pool) {
     const { uid, name, role } = user;
     const staff = isStaff(role);
 
@@ -180,10 +218,19 @@ class RequestsService {
       }
     }
 
+    if (patch.status !== undefined && staff && ['approved', 'accepted', 'completed'].includes(patch.status)) {
+      fields.push(`first_response_at=COALESCE(first_response_at, NOW())`);
+    }
+    if (patch.status === 'completed') {
+      fields.push(`resolved_at=COALESCE(resolved_at, NOW())`);
+      fields.push(`completed_at=COALESCE(completed_at, NOW())`);
+      fields.push(`sla_state='resolved'`);
+    }
+
     fields.push(`updated_at=$${i++}`);
     vals.push(new Date());
 
-    const updated = await withTransaction(async (client) => {
+    const updated = await withTransaction(txPool, async (client) => {
       const { rows: existing } = await client.query(
         `SELECT id, status, created_by_uid
            FROM requests
@@ -234,18 +281,18 @@ class RequestsService {
   /**
    * Soft-delete заявки.
    */
-  static async delete(user, id) {
+  static async delete(user, id, queryDb = db) {
     const { uid, role } = user;
 
     if (role !== 'admin') {
-      const { rows } = await db.query(
+      const { rows } = await queryDb.query(
         `SELECT id FROM requests WHERE id=$1 AND created_by_uid=$2 AND status='pending' AND deleted_at IS NULL`,
         [id, uid],
       );
       if (!rows.length) throw new ServiceError('Forbidden', 403);
     }
 
-    await db.query(`UPDATE requests SET deleted_at = NOW(), updated_at = NOW() WHERE id=$1`, [id]);
+    await queryDb.query(`UPDATE requests SET deleted_at = NOW(), updated_at = NOW() WHERE id=$1`, [id]);
     return { ok: true };
   }
 
@@ -254,19 +301,19 @@ class RequestsService {
    * FIX [SECURITY]: добавлена проверка владения/доступа — жилец видит только свои заявки.
    * Ранее любой авторизованный пользователь мог получить историю ЛЮБОЙ заявки по id.
    */
-  static async getHistory(user, id) {
+  static async getHistory(user, id, queryDb = db) {
     const { uid, role } = user;
     const staff = isStaff(role);
 
     if (!staff) {
-      const { rows: ownership } = await db.query(
+      const { rows: ownership } = await queryDb.query(
         `SELECT id FROM requests WHERE id=$1 AND created_by_uid=$2 AND deleted_at IS NULL`,
         [id, uid],
       );
       if (!ownership.length) throw new ServiceError('Forbidden', 403);
     }
 
-    const { rows } = await db.query(
+    const { rows } = await queryDb.query(
       `SELECT by_name, by_role, label, at FROM request_history WHERE req_id=$1 ORDER BY at`, [id],
     );
     return rows.map(formatRequestHistoryRow);

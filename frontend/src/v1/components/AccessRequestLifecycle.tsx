@@ -8,8 +8,10 @@ import type {
   AccessIncident,
   AccessRequest,
   Pass,
+  PropertyType,
   VisitLog,
 } from '../api/types';
+import { getPropertyLabels } from '../lib/propertyLabels';
 import { Badge, Card, EmptyState, Inline, Stack, uiClasses } from './ui';
 import { PassCard } from './PassCard';
 import {
@@ -26,6 +28,7 @@ export interface AccessRequestLifecycleProps {
   pass: Pass | null;
   visits: VisitLog[];
   incidents: AccessIncident[];
+  propertyType?: PropertyType | null;
   onPassRevoked?: (pass: Pass) => void;
 }
 
@@ -35,8 +38,11 @@ export function AccessRequestLifecycle({
   pass,
   visits,
   incidents,
+  propertyType,
   onPassRevoked,
 }: AccessRequestLifecycleProps) {
+  const labels = getPropertyLabels(propertyType);
+
   return (
     <Stack>
       <Card title="Параметры заявки">
@@ -71,7 +77,7 @@ export function AccessRequestLifecycle({
           ) : null}
           {request.target_unit_id ? (
             <li className={uiClasses.metaItem}>
-              Квартира:{' '}
+              {labels.unit}:{' '}
               <strong className={uiClasses.textMono}>
                 {request.target_unit_id.slice(0, 8)}…
               </strong>

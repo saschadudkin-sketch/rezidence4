@@ -26,6 +26,10 @@ const {
   isVisitServiceError,
   verifyVisit,
 } = require('../services/visitService');
+const {
+  isAccessTopologyServiceError,
+  validateAccessPoint,
+} = require('../services/accessTopologyService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -49,6 +53,13 @@ function sendServiceError(res, err) {
   return true;
 }
 
+function sendKnownError(res, err) {
+  if (sendServiceError(res, err)) return true;
+  if (!isAccessTopologyServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
 // ─── POST /api/v1/visits/verify ──────────────────────────────────────────────
 // Главный endpoint guard-console.  Возвращает 200 OK { allowed } вне
 // зависимости от verdict'а — deny это валидный бизнес-ответ.
@@ -57,9 +68,21 @@ router.post('/verify', async (req, res, next) => {
     if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const { property_id, mode, token = null, plate = null, occurred_at = null } = req.body || {};
+    const {
+      property_id,
+      mode,
+      token = null,
+      plate = null,
+      access_point_id = null,
+      direction = 'entry',
+      occurred_at = null,
+    } = req.body || {};
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (access_point_id !== null && !isValidUuid(access_point_id)) {
+      return res.status(400).json({ error: 'access_point_id must be UUID or null' });
+    }
     if (!['qr', 'plate'].includes(mode)) return res.status(400).json({ error: "mode must be 'qr' or 'plate'" });
+    if (!['entry', 'exit'].includes(direction)) return res.status(400).json({ error: "direction must be 'entry' or 'exit'" });
     if (mode === 'qr' && (typeof token !== 'string' || token.length < 16)) {
       return res.status(400).json({ error: 'token required for mode=qr' });
     }
@@ -69,22 +92,25 @@ router.post('/verify', async (req, res, next) => {
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
     }
+    await validateAccessPoint(getDb(req), { propertyId: property_id, accessPointId: access_point_id });
     const { result, pass } = await verifyVisit({
       queryable: getDb(req),
       verifyDb: req.db || null,
       user: req.user,
-      input: { property_id, mode, token, plate, occurred_at },
+      input: { property_id, mode, token, plate, access_point_id, direction, occurred_at },
     });
 
     res.json({
       allowed: result.verdict.allowed,
       reason: result.verdict.reason,
+      policy_decision: result.verdict.policy_decision || null,
+      direction,
       visit_log_id: result.visit_log_id,
       incident_id: result.incident_id,
       pass,
     });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     logger.error({ err }, '[v1/visits] verify failed');
     next(err);
   }
@@ -99,7 +125,7 @@ router.post('/', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const {
-      property_id, pass_id = null, event_type, event_source,
+      property_id, pass_id = null, access_point_id = null, event_type, event_source,
       person_label = null, vehicle_plate = null,
       provider_event_id = null, provider_payload = null,
       occurred_at = null,
@@ -109,7 +135,11 @@ router.post('/', async (req, res, next) => {
     if (!EVENT_TYPES.has(event_type)) return res.status(400).json({ error: 'Invalid event_type' });
     if (!EVENT_SOURCES.has(event_source)) return res.status(400).json({ error: 'Invalid event_source' });
     if (pass_id && !isValidUuid(pass_id)) return res.status(400).json({ error: 'pass_id must be UUID or null' });
+    if (access_point_id !== null && !isValidUuid(access_point_id)) {
+      return res.status(400).json({ error: 'access_point_id must be UUID or null' });
+    }
     if (occurred_at && !isValidIso(occurred_at)) return res.status(400).json({ error: 'occurred_at must be ISO-8601' });
+    await validateAccessPoint(getDb(req), { propertyId: property_id, accessPointId: access_point_id });
 
     const result = await createVisitLog({
       queryable: getDb(req),
@@ -117,6 +147,7 @@ router.post('/', async (req, res, next) => {
       input: {
         property_id,
         pass_id,
+        access_point_id,
         event_type,
         event_source,
         person_label,
@@ -128,7 +159,7 @@ router.post('/', async (req, res, next) => {
     });
     res.status(201).json({ visit_log: result.visit_log });
   } catch (err) {
-    if (sendServiceError(res, err)) return;
+    if (sendKnownError(res, err)) return;
     if (err && err.code === '23505') {
       // provider_event_id unique conflict — идемпотентный вебхук, вернуть существующую строку
       if (req.body?.provider_event_id) {

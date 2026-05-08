@@ -125,13 +125,14 @@ async function createPass({ queryable, user, input }) {
     `INSERT INTO passes
        (property_id, access_request_id, pass_type, subject_type,
         subject_resident_id, subject_staff_id, subject_contractor_user_id, subject_vehicle_id,
-        valid_from, valid_until, approved_by_staff_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        zone_id, point_id, valid_from, valid_until, approved_by_staff_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING ${PASS_COLS}`,
     [
       input.property_id, input.access_request_id, input.pass_type, input.subject_type,
       input.subject_resident_id, input.subject_staff_id,
       input.subject_contractor_user_id, input.subject_vehicle_id,
+      input.zone_id || null, input.point_id || null,
       input.valid_from, input.valid_until, staffId,
     ],
   );

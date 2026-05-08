@@ -114,6 +114,39 @@ function getReplyName(message: ChatViewMessage, viewer: AppUser): string {
   return message.name;
 }
 
+function toChatSendPayload(message: ChatViewMessage): Partial<ChatMessage> {
+  return {
+    id: message.id,
+    text: message.text,
+    photo: message.photo ?? null,
+    replyTo: message.replyTo ?? null,
+  };
+}
+
+function isPersistedChatMessage(value: unknown): value is ChatViewMessage {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<ChatViewMessage>;
+  return typeof candidate.id === 'string'
+    && typeof candidate.uid === 'string'
+    && typeof candidate.name === 'string'
+    && typeof candidate.text === 'string';
+}
+
+function isReactionMap(value: unknown): value is Record<string, string[]> {
+  return Boolean(value)
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.values(value as Record<string, unknown>).every((uids) =>
+      Array.isArray(uids) && uids.every((uid) => typeof uid === 'string'),
+    );
+}
+
+function getPersistedReactions(value: unknown): Record<string, string[]> | null {
+  if (!value || typeof value !== 'object') return null;
+  const reactions = (value as { reactions?: unknown }).reactions;
+  return isReactionMap(reactions) ? reactions : null;
+}
+
 export function ChatView({ user }: { user: AppUser }) {
   const { chat, chatLastSeen } = useChat();
   const { sendMessage, updateMessage, deleteMessage, setAllMessages } = useActions();
@@ -259,21 +292,27 @@ export function ChatView({ user }: { user: AppUser }) {
     const message = (chat as ChatViewMessage[]).find((entry) => entry.id === msgId);
     if (!message) return;
     const prev = message.reactions || {};
-    const uids = prev[emoji] || [];
+    const uids = Array.isArray(prev[emoji]) ? prev[emoji] : [];
     const already = uids.includes(user.uid);
     const newUids = already ? uids.filter((uid) => uid !== user.uid) : [...uids, user.uid];
     const nextReactions: Record<string, string[]> = { ...prev, [emoji]: newUids };
     Object.keys(nextReactions).forEach((key) => {
       if (!nextReactions[key].length) delete nextReactions[key];
     });
+    let appliedReactions = nextReactions;
     if (isLiveMode()) {
       try {
-        await services.chat.updateMessage(msgId, { reactions: nextReactions });
+        const saved = await services.chat.updateMessage(msgId, { reactions: { [emoji]: already ? [] : [user.uid] } });
+        const persistedReactions = getPersistedReactions(saved);
+        if (persistedReactions) {
+          appliedReactions = persistedReactions;
+        }
       } catch {
-        // fallback to local update
+        toast('Не удалось обновить реакцию', 'error');
+        return;
       }
     }
-    updateMessage(msgId, { reactions: nextReactions });
+    updateMessage(msgId, { reactions: appliedReactions });
   }, [chat, user.uid, updateMessage]);
 
   const handleDeleteMsg = useCallback(async (id: string) => {
@@ -313,6 +352,16 @@ export function ChatView({ user }: { user: AppUser }) {
     });
     setTimeout(focusComposer, 50);
   }, [focusComposer, setReplyTo, user]);
+
+  const sendMessageEverywhere = useCallback(async (message: ChatViewMessage) => {
+    const payload = toChatSendPayload(message);
+    if (isLiveMode()) {
+      const saved = await services.chat.sendMessage(payload);
+      sendMessage(isPersistedChatMessage(saved) ? saved : message);
+      return;
+    }
+    await services.chat.sendMessage({ ...payload, localMessage: message, sendLocal: sendMessage });
+  }, [sendMessage]);
 
   const onTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>, message: ChatViewMessage) => {
     const touch = event.touches[0];
@@ -372,17 +421,15 @@ export function ChatView({ user }: { user: AppUser }) {
       at: new Date(),
     };
     try {
-      await services.chat.sendMessage({
-        remotePayload: { uid: user.uid, name: user.name, role: user.role, text: text.trim(), replyTo: replyTo || null },
-        localMessage: message,
-        sendLocal: sendMessage,
-      });
-    } finally {
-      setText('');
-      setReplyTo(null);
-      focusComposer();
+      await sendMessageEverywhere(message);
+    } catch {
+      toast('Не удалось отправить сообщение', 'error');
+      return;
     }
-  }, [focusComposer, replyTo, sendMessage, setReplyTo, setText, text, user]);
+    setText('');
+    setReplyTo(null);
+    focusComposer();
+  }, [focusComposer, replyTo, sendMessageEverywhere, setReplyTo, setText, text, user]);
 
   const onPhotoClick = useCallback(() => {
     fileRef.current?.click();
@@ -424,18 +471,31 @@ export function ChatView({ user }: { user: AppUser }) {
         img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;
       });
-      const message = { id: genId('m'), uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed, at: new Date() };
-      await services.chat.sendMessage({
-        remotePayload: { uid: user.uid, name: user.name, role: user.role, text: '', photo: compressed },
-        localMessage: message,
-        sendLocal: sendMessage,
-      });
+      const messageId = genId('m');
+      let photoUrl = compressed;
+      if (isLiveMode()) {
+        const [uploadedUrl] = await services.requests.resolvePhotos(messageId, [compressed]);
+        if (!uploadedUrl) throw new Error('photo upload failed');
+        photoUrl = uploadedUrl;
+      }
+      const message = {
+        id: messageId,
+        uid: user.uid,
+        name: user.name,
+        role: user.role,
+        text: '',
+        photo: photoUrl,
+        replyTo: replyTo || null,
+        at: new Date(),
+      };
+      await sendMessageEverywhere(message);
+      setReplyTo(null);
     } catch {
       toast('Не удалось загрузить фото', 'error');
     } finally {
       setPhotoSending(false);
     }
-  }, [user, sendMessage]);
+  }, [replyTo, sendMessageEverywhere, setReplyTo, user]);
 
   return (
     <div className="chat-wrap">
@@ -494,7 +554,13 @@ export function ChatView({ user }: { user: AppUser }) {
               >
                 {msgMenu === message.id && (
                   <>
-                    <div className="msg-menu-backdrop" onClick={() => setMsgMenu(null)}/>
+                    <div
+                      className="msg-menu-backdrop"
+                      onClick={() => setMsgMenu(null)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') setMsgMenu(null);
+                      }}
+                    />
                     <div
                       className="msg-menu-popup"
                       ref={menuPopupRef}

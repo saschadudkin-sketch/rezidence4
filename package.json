@@ -2,7 +2,9 @@
   "name": "rezidence4",
   "private": true,
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@axe-core/playwright": "^4.11.3",
+    "@playwright/test": "^1.59.1",
+    "openapi-typescript": "^7.13.0"
   },
   "scripts": {
     "bootstrap": "node scripts/bootstrap.cjs",
@@ -21,9 +23,62 @@
     "frontend:build": "node scripts/run-frontend-script.cjs build",
     "verify": "node scripts/run-checks.cjs verify",
     "verify:strict": "node scripts/run-strict-verify.cjs",
-    "e2e": "node scripts/playwright-preflight.cjs && playwright test",
+    "e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
-    "test:e2e": "node scripts/playwright-preflight.cjs && playwright test",
-    "test:e2e:visual": "playwright test e2e/visual-states.spec.js"
-  }
+    "test:e2e": "node scripts/run-playwright-tests.cjs",
+    "test:e2e:visual": "node ./node_modules/@playwright/test/cli.js test e2e/visual-states.spec.js",
+    "openapi:types": "openapi-typescript docs/openapi.json -o frontend/src/api/generated/openapi.d.ts",
+    "security:gitleaks": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-gitleaks.ps1",
+    "security:semgrep": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-semgrep.ps1",
+    "security:scan": "npm run security:gitleaks && npm run security:semgrep"
+  },
+  "version": "1.0.0",
+  "description": "Multi-tenant residential complex management platform. Each complex gets its own PostgreSQL database; a central Registry DB maps subdomains to connection strings.",
+  "main": "playwright.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "dependencies": {
+    "@21st-sdk/agent": "^0.0.16",
+    "core-util-is": "^1.0.3",
+    "detect-libc": "^2.1.2",
+    "https": "^1.0.0",
+    "image-size": "^1.2.1",
+    "immediate": "^3.0.6",
+    "inherits": "^2.0.4",
+    "isarray": "^1.0.0",
+    "jszip": "^3.10.1",
+    "lie": "^3.3.0",
+    "pako": "^1.0.11",
+    "playwright": "^1.59.1",
+    "playwright-core": "^1.59.1",
+    "pptxgenjs": "^4.0.1",
+    "process-nextick-args": "^2.0.1",
+    "queue": "^6.0.2",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-icons": "^5.6.0",
+    "readable-stream": "^2.3.8",
+    "safe-buffer": "^5.1.2",
+    "scheduler": "^0.27.0",
+    "semver": "^7.7.4",
+    "setimmediate": "^1.0.5",
+    "sharp": "^0.34.5",
+    "string_decoder": "^1.1.1",
+    "undici-types": "^6.21.0",
+    "util-deprecate": "^1.0.2",
+    "zod": "^4.3.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saschadudkin-sketch/rezidence4.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/saschadudkin-sketch/rezidence4/issues"
+  },
+  "homepage": "https://github.com/saschadudkin-sketch/rezidence4#readme"
 }

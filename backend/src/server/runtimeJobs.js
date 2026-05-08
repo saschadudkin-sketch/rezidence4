@@ -5,6 +5,7 @@ const fs = require('fs');
 const logger = require('../logger');
 const { broadcastRequestUpdate } = require('../sse');
 const { dispatch: notifyDispatch } = require('../services/notificationService');
+const { RequestSlaService } = require('../services/requests/RequestSlaService');
 const webhookService = require('../services/webhookService');
 
 // ─── photoRetentionSweep (ФЗ-152) ─────────────────────────────────────────────
@@ -123,40 +124,22 @@ async function sendMeterReminders(db, property) {
 }
 
 // ─── checkSlaOverdue ─────────────────────────────────────────────────────────
-// Finds requests that have exceeded their SLA and notifies staff/admin once.
-// Inserts a 'sla_overdue_notified' marker into request_history to prevent
-// repeated notifications.
+// Finds requests that have exceeded their v1 SLA due timestamps and persists
+// idempotent request_sla_events before notifying staff/admin once per event.
 async function checkSlaOverdue(db, property) {
   try {
-    const { rows } = await db.query(`
-      SELECT r.id, r.type, r.created_by_uid, r.created_at, s.sla_hours
-      FROM requests r
-      JOIN request_sla_config s ON s.request_type = r.type AND s.is_active = true
-      WHERE r.status IN ('pending', 'approved')
-        AND r.deleted_at IS NULL
-        AND r.created_at + (s.sla_hours || ' hours')::INTERVAL < NOW()
-        AND NOT EXISTS (
-          SELECT 1 FROM request_history h
-          WHERE h.req_id = r.id AND h.label = 'sla_overdue_notified'
-        )
-      LIMIT 50
-    `);
+    const events = await RequestSlaService.escalateOverdueRequests(db, { limit: 50 });
+    if (events.length === 0) return;
+    logger.info({ count: events.length, property: property?.slug }, '[sla-overdue] processing overdue requests');
 
-    if (rows.length === 0) return;
-    logger.info({ count: rows.length, property: property?.slug }, '[sla-overdue] processing overdue requests');
-
-    for (const req of rows) {
-      // Insert history marker so we don't re-notify
-      await db.query(
-        `INSERT INTO request_history (req_id, by_name, by_role, label)
-         VALUES ($1, 'system', 'system', 'sla_overdue_notified')`,
-        [req.id],
-      ).catch(() => {});
-
+    for (const event of events) {
       notifyDispatch('request.sla_overdue', {
-        requestId:   req.id,
-        requestType: req.type,
-        slaHours:    req.sla_hours,
+        requestId:   event.requestId,
+        requestType: event.requestType,
+        eventType:   event.eventType,
+        severity:    event.severity,
+        slaProfile:  event.slaProfile,
+        dueAt:       event.dueAt,
       }, db, property).catch(() => {});
     }
   } catch (err) {

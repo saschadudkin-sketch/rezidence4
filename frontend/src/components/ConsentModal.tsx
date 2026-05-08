@@ -102,7 +102,7 @@ export default function ConsentModal({ enabled }: Props) {
           Версия политики: <code>{status.currentVersion}</code>
         </p>
         {error ? (
-          <div style={{ color: '#b91c1c', marginBottom: 12, fontSize: 13 }} role="alert">{error}</div>
+          <div style={{ color: '#b91c1c', marginBottom: 12, fontSize: 13 }} role="alert" aria-live="assertive">{error}</div>
         ) : null}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <a

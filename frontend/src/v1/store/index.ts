@@ -22,5 +22,6 @@ export {
   invalidateDocument,
   invalidatePackage,
   invalidatePass,
+  invalidateStaffWorkspaceRequest,
   invalidateVehicle,
 } from './queryKeys';

@@ -1,9 +1,7 @@
 const base = require('@playwright/test');
 
 const test = base.test.extend({
-  page: async ({ page, context }, use) => {
-    await context.clearCookies();
-    await context.setOffline(false);
+  page: async ({ page }, use) => {
     await use(page);
   },
 });

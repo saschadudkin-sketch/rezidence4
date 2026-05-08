@@ -32,9 +32,11 @@ import type {
   Package,
   PackageSize,
   PackageStatus,
+  PropertyType,
   UUID,
 } from '../api';
 import { normalizeUserRole, useV1Session, qk, invalidatePackage } from '../store';
+import { getPropertyLabels } from '../lib/propertyLabels';
 import {
   Alert,
   Badge,
@@ -147,6 +149,7 @@ export function PackagesAdminPage() {
         {formOpen ? (
           <CreatePackageForm
             propertyId={propertyId}
+            propertyType={user.property_type ?? null}
             onCreated={() => setFormOpen(false)}
           />
         ) : null}
@@ -527,10 +530,12 @@ function LostForm({ onCancel, onSubmit, pending }: LostFormProps) {
 
 interface CreateFormProps {
   propertyId: UUID;
+  propertyType?: PropertyType | null;
   onCreated: () => void;
 }
 
-function CreatePackageForm({ propertyId, onCreated }: CreateFormProps) {
+function CreatePackageForm({ propertyId, propertyType, onCreated }: CreateFormProps) {
+  const labels = useMemo(() => getPropertyLabels(propertyType), [propertyType]);
   const qc = useQueryClient();
   const [unitId, setUnitId] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -564,7 +569,7 @@ function CreatePackageForm({ propertyId, onCreated }: CreateFormProps) {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!unitId.trim()) {
-      setError('Укажите unit_id (UUID квартиры)');
+      setError(`Укажите unit_id (${labels.unitLower})`);
       return;
     }
     create.mutate({
@@ -585,7 +590,7 @@ function CreatePackageForm({ propertyId, onCreated }: CreateFormProps) {
       <form onSubmit={onSubmit}>
         <Stack>
           <Inline>
-            <Field id="pkg-unit" label="Квартира (unit_id)">
+            <Field id="pkg-unit" label={`${labels.unitField} (unit_id)`}>
               <Input
                 id="pkg-unit"
                 value={unitId}

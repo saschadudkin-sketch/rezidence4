@@ -374,7 +374,9 @@ export function ScanQRModal({ user, onClose }: ScanQRModalProps) {
                   </div>
                 ) : (
                   <>
-                    <video ref={videoRef} className="qr-scanner-video" playsInline muted />
+                    <video ref={videoRef} className="qr-scanner-video" playsInline muted aria-label="Предпросмотр камеры для сканирования QR">
+                      <track kind="captions" src="" srcLang="ru" label="Без звука" />
+                    </video>
                     {!camReady && (
                       <div className="qr-cam-loading">
                         <div className="qr-cam-spinner" />
@@ -390,6 +392,7 @@ export function ScanQRModal({ user, onClose }: ScanQRModalProps) {
                 <div className="u-flex u-gap8">
                   <input
                     className="field-inp u-grow u-mb0"
+                    aria-label="Ручной поиск заявки"
                     placeholder="Имя, авто, апарт. или ID"
                     value={manualId}
                     onChange={(event) => setManualId(event.target.value)}

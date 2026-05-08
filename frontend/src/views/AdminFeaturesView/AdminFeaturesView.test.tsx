@@ -12,6 +12,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { AdminFeaturesView } from './AdminFeaturesView';
 import { FeatureFlagsProvider } from '../../contexts/FeatureFlagsContext';
+import { apiClient } from '../../services/providers/apiClient';
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 
 // Mock the useAuth hook to return admin user
@@ -37,6 +38,7 @@ const SCHEMA_RESPONSE = {
     { key: 'webhooks',         label: 'Webhook-интеграции',     description: 'Интеграция с внешними системами через webhook', category: 'integrations',   default: false, locked: false },
     { key: 'skud_integration', label: 'СКУД-интеграция',        description: 'Автоматическое управление СКУД при пропусках', category: 'integrations',   default: false, locked: false },
     { key: 'analytics',        label: 'Аналитика',              description: 'Статистика посещений, заявок и работы объекта', category: 'admin',          default: false, locked: false },
+    { key: 'legacy_utilities_enabled', label: 'Устаревшие модули (legacy)', description: 'Разморозить показания, биллинг, бронирования и чат (временно, до пост-релиза)', category: 'admin', default: false, locked: false },
   ],
   categories: [
     { key: 'core',           label: 'Основные',          order: 1 },
@@ -109,5 +111,23 @@ describe('AdminFeaturesView', () => {
     // Backend label = 'Чат' (категория 'Основные'); описание полностью совпадает с registry.
     await screen.findByText('Чат');
     expect(screen.getByText('Чат жильцов с управляющей компанией и охраной')).toBeInTheDocument();
+  });
+
+  test('switches have accessible names from backend labels', async () => {
+    renderWithProvider(<AdminFeaturesView />);
+
+    expect(await screen.findByRole('switch', { name: 'QR-пропуска' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('switch', { name: 'Чат' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('shows load error instead of fallback technical flag keys', async () => {
+    vi.mocked(apiClient.get).mockRejectedValueOnce(new Error('offline'));
+
+    renderWithProvider(<AdminFeaturesView />);
+
+    expect(await screen.findByText('Не удалось загрузить настройки')).toBeInTheDocument();
+    expect(screen.getByText('Проверьте соединение с сервером')).toBeInTheDocument();
+    expect(screen.queryByText('legacy_utilities_enabled')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });

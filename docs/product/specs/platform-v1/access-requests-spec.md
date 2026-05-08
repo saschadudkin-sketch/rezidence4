@@ -41,8 +41,8 @@ access_requests
   visitor_name                    TEXT NULL
   visitor_phone                   TEXT NULL
   vehicle_id                      UUID NULL → vehicles
-  target_zone_id                  UUID NULL    (Фаза пост-релиз)
-  target_point_id                 UUID NULL    (Фаза пост-релиз)
+  target_zone_id                  UUID NULL → access_zones
+  target_point_id                 UUID NULL → access_points
   target_unit_id                  UUID NULL → units
   reason                          TEXT NULL
   starts_at                       TIMESTAMPTZ NOT NULL
@@ -90,7 +90,7 @@ access_approvals
 
 Инварианты:
 - `approved` без записи в `access_approvals` разрешён только если `approval_required=false`
-- Nullable `target_zone_id/target_point_id` в v1; в пост-релизе зона/точка становятся обязательными для `vehicle_access`/`contractor_access`
+- Nullable `target_zone_id/target_point_id` в v1; если переданы, backend валидирует активные `access_zones`/`access_points` в том же property и pass наследует эти значения
 - Cancel по истечении `ends_at` запрещён — переход в `expired` делает batch job
 
 ---
@@ -135,6 +135,7 @@ access_approvals
 - [ ] Фильтры в `GET /access-requests` покрыты integration-тестами
 - [ ] Попытка mutation на terminal state (`rejected/cancelled/expired`) возвращает `409 Conflict`
 - [ ] Одобрение требует `access_approvals` row или явного `approval_required=false` (enforce в сервисе)
+- [ ] `target_zone_id` / `target_point_id` валидируются через DH-06 topology и переносятся в созданный pass
 
 ---
 

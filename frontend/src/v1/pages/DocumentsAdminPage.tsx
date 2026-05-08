@@ -138,24 +138,27 @@ export function DocumentsAdminPage() {
                 <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
               ))}
             </Select>
-            <label className={uiClasses.label}>
-              <input
-                type="checkbox"
-                checked={includeDraft}
-                onChange={(e) => setIncludeDraft(e.target.checked)}
-              />{' '}
-              с черновиками
-            </label>
-            {isAdmin ? (
+            <fieldset className={uiClasses.checkboxGroup}>
+              <legend className={uiClasses.checkboxLegend}>Фильтры документов</legend>
               <label className={uiClasses.label}>
                 <input
                   type="checkbox"
-                  checked={includeDeleted}
-                  onChange={(e) => setIncludeDeleted(e.target.checked)}
+                  checked={includeDraft}
+                  onChange={(e) => setIncludeDraft(e.target.checked)}
                 />{' '}
-                с удалёнными
+                с черновиками
               </label>
-            ) : null}
+              {isAdmin ? (
+                <label className={uiClasses.label}>
+                  <input
+                    type="checkbox"
+                    checked={includeDeleted}
+                    onChange={(e) => setIncludeDeleted(e.target.checked)}
+                  />{' '}
+                  с удалёнными
+                </label>
+              ) : null}
+            </fieldset>
           </Inline>
           <Button variant="primary" onClick={() => setFormOpen((v) => !v)}>
             {formOpen ? 'Скрыть форму' : '+ Новый документ'}

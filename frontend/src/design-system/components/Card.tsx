@@ -22,7 +22,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
   }, ref) => {
     const baseStyles = {
       borderRadius: 'var(--radius-lg)',
-      transition: 'all var(--transition-base)',
+      transition: 'background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base)',
       position: 'relative' as const,
     };
 
@@ -50,9 +50,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
         border: '1px solid var(--color-border-strong)',
       },
       accent: {
-        background: 'var(--color-bg-surface)',
-        border: '1px solid var(--color-border)',
-        borderLeft: '4px solid var(--color-accent-gold)',
+        background: 'color-mix(in srgb, var(--color-bg-surface) 90%, var(--color-accent-gold) 10%)',
+        border: '1px solid color-mix(in srgb, var(--color-accent-gold) 45%, var(--color-border))',
+        boxShadow: '0 0 0 1px color-mix(in srgb, var(--color-accent-gold) 10%, transparent)',
       },
     };
 

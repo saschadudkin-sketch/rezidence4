@@ -43,7 +43,7 @@ function warnRedisThrottled(scope, payload, message) {
   logger.warn(payload, message);
 }
 
-async function isTokenRevoked(jti) {
+async function isTokenRevoked(jti, queryDb = db) {
   const _redis = getRedis();
   // ── Redis path ──
   if (_redis) {
@@ -56,13 +56,13 @@ async function isTokenRevoked(jti) {
     }
   }
   // ── DB fallback ──
-  const { rows } = await db.query(
+  const { rows } = await queryDb.query(
     'SELECT 1 FROM token_revocations WHERE jti=$1', [jti]
   );
   return rows.length > 0;
 }
 
-async function isUserActive(uid) {
+async function isUserActive(uid, queryDb = db) {
   const now = Date.now();
   const fallbackCached = userActiveFallbackCache.get(uid);
   if (fallbackCached && fallbackCached.expiresAt > now) {
@@ -88,7 +88,7 @@ async function isUserActive(uid) {
     }
   }
 
-  const { rows } = await db.query(
+  const { rows } = await queryDb.query(
     'SELECT 1 FROM users WHERE uid=$1 AND deleted_at IS NULL',
     [uid],
   );
@@ -123,7 +123,7 @@ async function invalidateUserActiveCache(uid) {
  * Вызывается из routes/auth.js при logout.
  * ttlSeconds = оставшееся время жизни JWT (exp - now).
  */
-async function markTokenRevoked(jti, expUnixSec) {
+async function markTokenRevoked(jti, expUnixSec, queryDb = db) {
   const ttl    = Math.max(1, expUnixSec - Math.floor(Date.now() / 1000));
   const _redis = getRedis();
   if (_redis) {
@@ -134,7 +134,7 @@ async function markTokenRevoked(jti, expUnixSec) {
     }
   }
   // Всегда пишем в DB как источник истины при рестарте Redis
-  await db.query(
+  await queryDb.query(
     `INSERT INTO token_revocations(jti, expires_at)
      VALUES($1, to_timestamp($2)) ON CONFLICT DO NOTHING`,
     [jti, expUnixSec],
@@ -155,8 +155,9 @@ module.exports = async function requireAuth(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     // FIX [PERF]: проверка через Redis-кеш (O(1)) вместо DB-запроса на каждый request
+    const queryDb = req.db || db;
     if (payload.jti) {
-      const revoked = await isTokenRevoked(payload.jti);
+      const revoked = await isTokenRevoked(payload.jti, queryDb);
       if (revoked) return res.status(401).json({ error: 'Token revoked' });
     }
 
@@ -165,7 +166,7 @@ module.exports = async function requireAuth(req, res, next) {
     // По умолчанию (включая test) проверка включена.
     const shouldCheckActiveUser = process.env.AUTH_SKIP_ACTIVE_CHECK !== '1';
     if (shouldCheckActiveUser) {
-      const activeUser = await isUserActive(payload.uid);
+      const activeUser = await isUserActive(payload.uid, queryDb);
       if (!activeUser) {
         return res.status(401).json({ error: 'User not found or deleted' });
       }

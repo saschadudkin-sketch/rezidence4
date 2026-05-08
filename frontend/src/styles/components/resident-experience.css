@@ -358,6 +358,37 @@ html.theme-light .resident-quick-icon {
   font-size: var(--fs-sm);
 }
 
+@media (min-width: 721px) and (max-width: 1024px) {
+  .resident-pass-home {
+    gap: 12px;
+  }
+
+  .resident-pass-hero {
+    gap: 8px;
+    padding: 18px 20px;
+    border-radius: 16px;
+  }
+
+  .resident-pass-hero-copy {
+    gap: 6px;
+  }
+
+  .resident-pass-hero h2 {
+    font-size: clamp(30px, 4.2vw, 36px);
+    line-height: 1.02;
+  }
+
+  .resident-pass-hero p {
+    max-width: 44ch;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .resident-status-strip {
+    padding: 16px 18px;
+  }
+}
+
 @media (--bp-md-up) {
   .passes-tab--resident .search-wrap,
   .passes-tab--resident .pass-filter-pills,

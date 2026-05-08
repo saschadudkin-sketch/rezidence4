@@ -16,10 +16,9 @@ import s from './styles.module.css';
  * Admin SPA root.
  *
  * Routing contract: everything except /login requires authentication.
- * While the initial /stats probe is in flight we render a bare loading
- * placeholder — on a reload with a valid token this is a single round-trip;
- * on a reload with an expired token api.ts wipes storage and we land on
- * /login within the same render cycle.
+ * While AuthProvider resolves in-tab auth state we render a bare loading
+ * placeholder. Platform tokens are not persisted across reloads, so a full
+ * page reload lands on /login.
  */
 export function App() {
   return (

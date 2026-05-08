@@ -7,7 +7,7 @@
 Связанные спеки:
 - [access-requests-spec.md](./access-requests-spec.md)
 - [passes-spec.md](./passes-spec.md)
-- [qr-verification-spec.md](./qr-verification-spec.md) — **prod-mount = `/api/v1/visits/verify`** (спека говорит `/api/v1/passes/verify`; импл и Фаза 4 UI идут по actual mount)
+- [qr-verification-spec.md](./qr-verification-spec.md) — **prod-mount = `/api/v1/visits/verify`**
 - [vehicles-spec.md](./vehicles-spec.md)
 - [access-incidents-spec.md](./access-incidents-spec.md)
 - [units-spec.md](./units-spec.md)
@@ -28,6 +28,9 @@
 2. **Guard console.**
    - Сканирование QR (текстовый ввод токена в MVP; камера — отдельный опц. модуль, не блокер) → POST `/api/v1/visits/verify` → показать verdict (`allowed/reason`) + карточку pass'а, если найден
    - Сканирование номера авто (введённый plate) по тому же endpoint
+   - Выбор КПП / точки доступа из `/api/v1/access-points?property_id=&is_active=true`; выбранный `access_point_id` отправляется в `/api/v1/visits/verify`
+   - Выбор направления `entry|exit`; выбранный `direction` отправляется в `/api/v1/visits/verify`
+   - Ручное решение охраны: `manual_admit|manual_deny` через `/api/v1/security-workspace/manual-decision`, с reason, optional plate/person label и degraded metadata
    - Список активных пропусков объекта (filter: `status=active`), с кнопкой `revoke` (POST `/api/v1/passes/:id/revoke`)
    - Поиск авто по номеру: GET `/api/v1/vehicles/by-plate/:plate` — показать состояние whitelisted/blacklisted
 3. **Concierge detail.**
@@ -68,6 +71,7 @@ frontend/src/v1/
 │   ├── passes.ts
 │   ├── vehicles.ts
 │   ├── visits.ts
+│   ├── securityWorkspace.ts
 │   ├── accessIncidents.ts
 │   ├── units.ts              # только read-by-id для формы резидента
 │   ├── residents.ts          # только /me → self-info
@@ -82,13 +86,14 @@ frontend/src/v1/
 │   ├── PassCard.tsx
 │   ├── VehicleCard.tsx
 │   ├── VerifyResultCard.tsx          # результат /visits/verify
-│   ├── ScanPanel.tsx                 # QR / plate input
+│   ├── ScanPanel.tsx                 # QR / plate verify + manual decision input
 │   ├── RoleGate.tsx                  # клиентский guard вокруг страниц
 │   ├── ErrorBoundary.tsx
 │   └── ui/                           # минимальные примитивы (Button, Input, Select, Badge, Spinner, EmptyState, FieldError)
 ├── pages/
 │   ├── ResidentAccessPage.tsx
 │   ├── GuardConsolePage.tsx
+│   ├── AccessAdminPage.tsx
 │   └── ConciergeRequestDetailPage.tsx
 ├── router.tsx                 # массив RouteObject для /v1/*
 └── index.ts                   # экспорт router + AppV1Provider
@@ -180,7 +185,9 @@ export const v1Client = {
 | `accessRequests.ts` | `list(params)`, `getById(id)`, `create(body)`, `submit(id)`, `approve(id, comment?)`, `reject(id, reason)`, `cancel(id, reason?)`, `escalate(id, reason)` | `/api/v1/access-requests/*` |
 | `passes.ts` | `list(params)`, `getById(id)`, `getQr(id)`, `regenerateQr(id)`, `revoke(id, reason)`, `block(id, reason)`, `unblock(id)` | `/api/v1/passes/*` |
 | `vehicles.ts` | `list(params)`, `getByPlate(plate)`, `getById(id)`, `create(body)`, `update(id, body)`, `whitelist(id)`, `blacklist(id, reason)`, `clearFlags(id)` | `/api/v1/vehicles/*` |
+| `accessTopology.ts` | `listZones(params)`, `listPoints(params)` | `/api/v1/access-zones`, `/api/v1/access-points` |
 | `visits.ts` | `verify(body)`, `list(params)` | `/api/v1/visits/*` |
+| `securityWorkspace.ts` | `manualDecision(body)` | `/api/v1/security-workspace/manual-decision` |
 | `accessIncidents.ts` | `list(params)`, `getById(id)` | `/api/v1/access-incidents/*` (read-only в Фазе 4) |
 | `units.ts` | `list(params)` | `/api/v1/units` |
 | `residents.ts` | `listMyHousehold()` — MVP: `GET /api/v1/residents?owner_uid=self` (если backend не поддерживает — UI вытягивает из `/api/v1/auth/me` и показывает единственный unit текущего резидента) | `/api/v1/residents/*` |
@@ -253,16 +260,42 @@ Layout: шапка с приветствием, кнопка «Новая зая
 Layout: две колонки (или стеком на узких экранах).
 
 **Левая — Scan panel**:
+- Select: КПП / точка доступа. Options загружаются из `accessTopology.listPoints({ property_id, is_active: true })`; если topology ещё не заведена, scan остаётся доступным с `access_point_id=null`, но пилотный запуск должен иметь точки.
+- Segmented control: `entry` / `exit`.
 - Radio: режим QR / plate
 - Input: token (QR) или plate-number (plate)
 - Submit → POST `/api/v1/visits/verify` → VerifyResultCard показывает:
   - allowed=true: зелёный, `event_type=entry_allowed`, сам pass (type, subject, window), CTA «Открыть карточку заявки»
   - allowed=false: красный, `reason` в читаемом виде, severity badge, ссылка на incident (если incident_id)
+- Manual decision form: admit/deny, person label, plate, reason, degraded mode and lookup state → POST `/api/v1/security-workspace/manual-decision`.
 - История последних 20 сканов — из локального React-state (не сервера; это UX-шпаргалка для охранника смены)
 
 **Правая — Passes & Vehicles**:
 - Таб «Активные пропуска»: `GET /api/v1/passes?status=active&limit=100` с поиском (plate | visitor | pass_id-суффикс). Каждая строка — PassCard: type, subject, окно, кнопка «Отозвать» (POST `/api/v1/passes/:id/revoke` с inline-reason input'ом)
 - Таб «Авто»: поиск по номеру → GET `/api/v1/vehicles/by-plate/:plate` → VehicleCard с флагами whitelist/blacklist; CTA «Внести в ЧС» (POST `/api/v1/vehicles/:id/blacklist`) и «В белый список» / «Сбросить флаги»
+
+### 5.2a AccessAdminPage (`/v1/admin/access`)
+
+Property-admin baseline for DH-19:
+- Tabs: topology, policies, vehicle flags, incidents.
+- Topology: create active access zones and points; deactivate access points.
+- Policies: create active access policies scoped to property/zone/point; deactivate policies.
+- Vehicles: lookup by plate and reuse `VehicleCard` whitelist/blacklist controls.
+- Incidents: read scoped access incidents by status for admin review.
+
+Out of current baseline:
+- Full edit/detail drawers.
+- Policy dry-run UI.
+- Hardware device map and provider controls.
+
+### 5.2b DH-20 Smoke E2E
+
+`e2e/v1-access-production.spec.js` includes a backend-backed cottage-community smoke that runs when `E2E_PROPERTY_TYPE=cottage_community`:
+- property admin opens `/v1/onboarding`;
+- CSV import provisions a planned checkpoint into real `access_zones` / `access_points`;
+- admin creates a point-scoped vehicle policy;
+- security opens `/v1/guard`, selects the provisioned КПП, verifies a vehicle plate with `access_point_id`, `direction` and `policy_decision`;
+- security records a manual admit through `/security-workspace/manual-decision`.
 
 Все мутации инвалидируют соответствующий react-query-list.
 
@@ -312,7 +345,7 @@ Vitest + Testing Library; без DOM-snapshot'ов (они хрупкие), то
 | `api/__tests__/accessRequests.test.ts` | Все методы строят корректный URL и тело (моки на client) |
 | `api/__tests__/visits.test.ts` | verify: QR-режим отправляет token, plate-режим отправляет plate; normalise plate → UPPER без пробелов |
 | `components/__tests__/AccessRequestForm.test.tsx` | Валидация: vehicle_access без vehicle_id → ошибка; ends_at ≤ starts_at → ошибка; успешный submit вызывает client.create; 422 ответ маппится на field-error |
-| `components/__tests__/ScanPanel.test.tsx` | Смена режима QR↔plate; submit вызывает visits.verify с правильным телом; отображение allowed и deny ветвей |
+| `components/__tests__/ScanPanel.test.tsx` | Смена режима QR↔plate; direction в verify body; manual decision вызывает securityWorkspace.manualDecision; отображение allowed и deny ветвей |
 | `components/__tests__/AccessRequestLifecycle.test.tsx` | Рендерит approvals/pass/visit-logs/incidents из props; показывает "нет" когда пусто |
 | `store/__tests__/session.test.tsx` | useV1Session кидает, если нет Provider; useV1SessionOpt возвращает null |
 | `router.test.tsx` | Роль-гейт: security попадает на /v1/guard, owner — редиректится |

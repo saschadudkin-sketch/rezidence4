@@ -23,7 +23,7 @@ process.env.AUTH_SKIP_ACTIVE_CHECK = '1';
 
 const requestsRouter = require('../routes/requests');
 
-function buildApp() {
+function buildApp({ property } = {}) {
   const app = express();
   app.use(express.json());
   app.use(cookieParser());
@@ -31,7 +31,14 @@ function buildApp() {
   // В тестах подменяем mocked singleton, чтобы endpoint'ы, использующие
   // `req.db.query()` (GET /, POST /:id/rate), могли отрабатывать через
   // jest.mock('../db').
-  app.use((req, _res, next) => { req.db = db; next(); });
+  app.use((req, _res, next) => {
+    req.db = db;
+    if (property) {
+      req.property = property;
+      req.propertySlug = property.slug;
+    }
+    next();
+  });
   app.use('/api/requests', requestsRouter);
   return app;
 }
@@ -71,6 +78,14 @@ function makeReqRow(overrides = {}) {
     visitor_name: 'Гость', visitor_phone: null, car_plate: null,
     comment: '', pass_duration: 'once', valid_until: null,
     scheduled_for: null, arrived_at: null, photos: [],
+    request_category_id: null, target_type: null, target_id: null,
+    priority: 'normal', sla_profile: 'standard',
+    first_response_due_at: null, resolution_due_at: null,
+    emergency_metadata: {},
+    assigned_to_uid: null, assigned_to_name: null, assigned_to_role: null,
+    assigned_at: null, first_response_at: null, resolved_at: null, completed_at: null,
+    sla_state: 'on_track', escalation_level: 0,
+    escalated_at: null, escalation_reason: null, last_sla_check_at: null,
     created_at: new Date(), updated_at: new Date(),
     ...overrides,
   };
@@ -326,6 +341,331 @@ describe('POST /api/requests', () => {
     const insertParams = db.query.mock.calls[0][1];
     expect(typeof insertParams[0]).toBe('string');
     expect(insertParams[0].length).toBeGreaterThan(0);
+  });
+
+  it('201 territory request can target common territory without apartment fields', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
+    db.query.mockResolvedValueOnce({
+      rows: [makeReqRow({
+        id: 'territory-req',
+        type: 'territory',
+        category: 'roads',
+        target_type: 'common_territory',
+      })],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests')
+      .set('Cookie', `token=${token}`)
+      .send({
+        type: 'territory',
+        category: 'roads',
+        targetType: 'common_territory',
+        comment: 'Яма на дороге у КПП',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe('territory');
+    expect(res.body.targetType).toBe('common_territory');
+    const insertParams = db.query.mock.calls[0][1];
+    expect(insertParams[7]).toBeNull();
+    expect(insertParams[17]).toBe('common_territory');
+    expect(insertParams[19]).toBe('normal');
+    expect(insertParams[20]).toBe('standard');
+  });
+
+  it('201 emergency request gets emergency priority and SLA due dates', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
+    db.query.mockResolvedValueOnce({
+      rows: [makeReqRow({
+        id: 'emergency-req',
+        type: 'emergency',
+        category: 'emergency_fire_smoke',
+        priority: 'emergency',
+        sla_profile: 'emergency',
+      })],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests')
+      .set('Cookie', `token=${token}`)
+      .send({
+        type: 'emergency',
+        category: 'emergency_fire_smoke',
+        comment: 'Дым в подъезде',
+      });
+
+    expect(res.status).toBe(201);
+    const insertParams = db.query.mock.calls[0][1];
+    expect(insertParams[19]).toBe('emergency');
+    expect(insertParams[20]).toBe('emergency');
+    expect(insertParams[21]).toBeInstanceOf(Date);
+    expect(insertParams[22]).toBeInstanceOf(Date);
+    expect(insertParams[23]).toEqual(expect.objectContaining({ category: 'emergency_fire_smoke' }));
+  });
+});
+
+describe('GET/PUT /api/requests/categories', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
+
+  it('GET returns built-in territory and emergency category defaults', async () => {
+    const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
+
+    const res = await supertest(app)
+      .get('/api/requests/categories')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    const codes = res.body.data.map((category) => category.code);
+    expect(codes).toContain('checkpoint_access');
+    expect(codes).toContain('roads');
+    expect(codes).toContain('emergency_fire_smoke');
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('PUT lets admin configure a property-specific category', async () => {
+    const propertyApp = buildApp({
+      property: {
+        id: '11111111-1111-4111-8111-111111111111',
+        slug: 'lesnaya-rezidenciya',
+      },
+    });
+    const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Адм' });
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: '22222222-2222-4222-8222-222222222222',
+        code: 'roads',
+        name: 'Дороги поселка',
+        domain: 'territory',
+        target_scope: 'road',
+        priority: 'high',
+        sla_profile: 'urgent',
+        first_response_minutes: 60,
+        resolution_minutes: 1440,
+        is_emergency: false,
+        metadata: {},
+      }],
+    });
+
+    const res = await supertest(propertyApp)
+      .put('/api/requests/categories/roads')
+      .set('Cookie', `token=${token}`)
+      .send({
+        name: 'Дороги поселка',
+        domain: 'territory',
+        targetScope: 'road',
+        priority: 'high',
+        slaProfile: 'urgent',
+        firstResponseMinutes: 60,
+        resolutionMinutes: 1440,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe('roads');
+    expect(res.body.priority).toBe('high');
+    expect(db.query.mock.calls[0][0]).toMatch(/INSERT INTO service_request_categories/);
+    expect(db.query.mock.calls[0][1][0]).toBe('11111111-1111-4111-8111-111111111111');
+  });
+});
+
+describe('DH-23 request attachments and resident updates', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    process.env.BACKEND_URL = 'http://backend.test';
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
+
+  it('POST /:id/attachments links an owned local upload to a request', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query
+      .mockResolvedValueOnce({ rows: [makeReqRow()] })
+      .mockResolvedValueOnce({ rows: [{ owner_uid: 'user-A' }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: '11111111-1111-4111-8111-111111111111',
+          request_id: 'req-123',
+          uploaded_by_uid: 'user-A',
+          file_url: '/uploads/request_photo.webp',
+          file_kind: 'photo',
+          visibility: 'resident',
+          metadata: { size: 'thumb' },
+          created_at: new Date('2026-05-08T08:00:00Z'),
+        }],
+      });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/attachments')
+      .set('Cookie', `token=${token}`)
+      .send({
+        fileUrl: 'http://backend.test/uploads/request_photo.webp',
+        fileKind: 'photo',
+        metadata: { size: 'thumb' },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.fileUrl).toBe('/uploads/request_photo.webp');
+    expect(res.body.visibility).toBe('resident');
+    expect(db.query.mock.calls[1][0]).toMatch(/FROM upload_objects/);
+    expect(db.query.mock.calls[2][0]).toMatch(/INSERT INTO request_attachments/);
+  });
+
+  it('POST /:id/attachments rejects external upload URLs', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query.mockResolvedValueOnce({ rows: [makeReqRow()] });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/attachments')
+      .set('Cookie', `token=${token}`)
+      .send({ fileUrl: 'https://cdn.example.com/request_photo.webp' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('External upload URLs are not allowed');
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('GET /:id/updates filters resident-visible rows for residents', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+    db.query
+      .mockResolvedValueOnce({ rows: [makeReqRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          request_id: 'req-123',
+          actor_uid: 'guard-1',
+          actor_name: 'Guard',
+          actor_role: 'security',
+          body: 'Работы запланированы',
+          visibility: 'resident',
+          attachment_ids: [],
+          created_at: new Date('2026-05-08T09:00:00Z'),
+        }],
+      });
+
+    const res = await supertest(app)
+      .get('/api/requests/req-123/updates')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].visibility).toBe('resident');
+    expect(db.query.mock.calls[1][0]).toMatch(/AND visibility=\$2/);
+    expect(db.query.mock.calls[1][1]).toEqual(['req-123', 'resident']);
+  });
+
+  it('POST /:id/updates creates a resident-visible comment', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+    db.query
+      .mockResolvedValueOnce({ rows: [makeReqRow()] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: '33333333-3333-4333-8333-333333333333',
+          request_id: 'req-123',
+          actor_uid: 'guard-1',
+          actor_name: 'Охранник',
+          actor_role: 'security',
+          body: 'Передали заявку технику',
+          visibility: 'resident',
+          attachment_ids: [],
+          created_at: new Date('2026-05-08T10:00:00Z'),
+        }],
+      });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/updates')
+      .set('Cookie', `token=${token}`)
+      .send({ comment: 'Передали заявку технику' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.body).toBe('Передали заявку технику');
+    expect(res.body.visibility).toBe('resident');
+    expect(db.query.mock.calls[1][0]).toMatch(/INSERT INTO request_updates/);
+  });
+
+  it('POST /:id/updates rejects internal visibility in DH-23 resident layer', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+    db.query.mockResolvedValueOnce({ rows: [makeReqRow()] });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/updates')
+      .set('Cookie', `token=${token}`)
+      .send({ body: 'internal note', visibility: 'internal' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Only resident-visible request communication is supported');
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DH-24 request assignment and SLA timestamps', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
+
+  it('POST /:id/assign assigns a request and moves pending work to accepted', async () => {
+    const token = makeToken({ uid: 'admin-1', role: 'admin', name: 'Адм' });
+    db.query
+      .mockResolvedValueOnce({ rows: [makeReqRow()] })
+      .mockResolvedValueOnce({
+        rows: [makeReqRow({
+          status: 'accepted',
+          assigned_to_uid: 'tech-1',
+          assigned_to_name: 'Техник',
+          assigned_to_role: 'technician',
+          assigned_at: new Date('2026-05-08T11:00:00Z'),
+        })],
+      });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/assign')
+      .set('Cookie', `token=${token}`)
+      .send({ assigneeUid: 'tech-1', assigneeName: 'Техник', assigneeRole: 'technician' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('accepted');
+    expect(res.body.assignedToUid).toBe('tech-1');
+    expect(db.query.mock.calls[1][0]).toMatch(/assigned_to_uid=\$1/);
+  });
+
+  it('POST /:id/assign rejects residents', async () => {
+    const token = makeToken({ uid: 'user-A', role: 'owner', name: 'Иванов' });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/assign')
+      .set('Cookie', `token=${token}`)
+      .send({ assigneeUid: 'tech-1', assigneeRole: 'technician' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('Forbidden');
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('POST /:id/first-response stores first response timestamp once', async () => {
+    const firstResponseAt = new Date('2026-05-08T12:00:00Z');
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+    db.query
+      .mockResolvedValueOnce({ rows: [makeReqRow()] })
+      .mockResolvedValueOnce({
+        rows: [makeReqRow({
+          first_response_at: firstResponseAt,
+          sla_state: 'responded',
+        })],
+      });
+
+    const res = await supertest(app)
+      .post('/api/requests/req-123/first-response')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.firstResponseAt).toBe(firstResponseAt.toISOString());
+    expect(res.body.slaState).toBe('responded');
+    expect(db.query.mock.calls[1][0]).toMatch(/first_response_at=COALESCE/);
   });
 });
 

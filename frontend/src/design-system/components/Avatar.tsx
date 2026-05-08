@@ -3,7 +3,7 @@
  * User avatar with initials, deterministic colors, and gold ring variant
  */
 
-import { HTMLAttributes } from 'react';
+import { HTMLAttributes, useEffect, useState } from 'react';
 
 export interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
   name: string;
@@ -21,6 +21,12 @@ export function Avatar({
   style,
   ...rest
 }: AvatarProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [src]);
+
   // Size configurations
   const sizeConfig = {
     sm: { size: 32, fontSize: 14 },
@@ -79,7 +85,9 @@ export function Avatar({
     boxShadow: 'var(--shadow-gold)',
   } : {};
 
-  if (src) {
+  const backgroundColor = generateColorFromName(name);
+
+  if (src && !imageFailed) {
     return (
       <div
         className={`avatar avatar-${size} avatar-${variant} ${className}`}
@@ -98,27 +106,11 @@ export function Avatar({
             height: '100%',
             objectFit: 'cover',
           }}
-          onError={(e) => {
-            // Fallback to initials if image fails to load
-            const target = e.target as HTMLImageElement;
-            const parent = target.parentElement;
-            if (parent) {
-              parent.innerHTML = getInitials(name);
-              Object.assign(parent.style, {
-                backgroundColor: generateColorFromName(name),
-                color: 'white',
-                fontSize: `${fontSize}px`,
-                fontWeight: 'var(--font-semibold)',
-                fontFamily: 'var(--font-sans)',
-              });
-            }
-          }}
+          onError={() => setImageFailed(true)}
         />
       </div>
     );
   }
-
-  const backgroundColor = generateColorFromName(name);
 
   return (
     <div

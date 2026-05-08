@@ -80,7 +80,7 @@ describe('Toasts component', () => {
     expect(el.className).toContain('info');
   });
 
-  test('имеет role="status" для доступности', async () => {
+  test('имеет role="status" и aria-live="polite" для доступности', async () => {
     render(<Toasts />);
     await emitToast('A11y');
     expect(screen.getByRole('status')).toBeInTheDocument();

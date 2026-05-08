@@ -39,9 +39,11 @@ import type {
   AnnouncementChannel,
   AnnouncementStatus,
   CreateAnnouncementBody,
+  PropertyType,
   UUID,
 } from '../api';
 import { normalizeUserRole, useV1Session, qk, invalidateAnnouncement } from '../store';
+import { getPropertyLabels } from '../lib/propertyLabels';
 import {
   Alert,
   Badge,
@@ -103,12 +105,15 @@ const CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
   marketing:   'маркетинг',
 };
 
-const AUDIENCE_LABELS: Record<AnnouncementAudienceType, string> = {
-  all:       'все',
-  building:  'корпус',
-  entrance:  'подъезд',
-  unit_type: 'тип жильца',
-};
+function audienceLabelsFor(propertyType?: PropertyType | null): Record<AnnouncementAudienceType, string> {
+  const labels = getPropertyLabels(propertyType);
+  return {
+    all: 'все',
+    building: labels.building.toLowerCase(),
+    entrance: labels.entrance.toLowerCase(),
+    unit_type: 'тип жильца',
+  };
+}
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -117,6 +122,10 @@ export function AnnouncementsAdminPage() {
   // above this route ensures status === 'ready' before we render).
   const user = useV1Session();
   const propertyId = user.property_id ?? null;
+  const audienceLabels = useMemo(
+    () => audienceLabelsFor(user.property_type ?? null),
+    [user.property_type],
+  );
   const isAdmin = [
     'property_admin',
     'management_company_admin',
@@ -174,6 +183,7 @@ export function AnnouncementsAdminPage() {
         {formOpen ? (
           <CreateAnnouncementForm
             propertyId={propertyId}
+            propertyType={user.property_type ?? null}
             onCreated={() => setFormOpen(false)}
           />
         ) : null}
@@ -182,6 +192,7 @@ export function AnnouncementsAdminPage() {
           propertyId={propertyId}
           status={statusFilter}
           isAdmin={isAdmin}
+          audienceLabels={audienceLabels}
         />
       </Stack>
     </div>
@@ -194,9 +205,10 @@ interface AnnouncementsListProps {
   propertyId: UUID;
   status: AnnouncementStatus | 'all';
   isAdmin: boolean;
+  audienceLabels: Record<AnnouncementAudienceType, string>;
 }
 
-function AnnouncementsList({ propertyId, status, isAdmin }: AnnouncementsListProps) {
+function AnnouncementsList({ propertyId, status, isAdmin, audienceLabels }: AnnouncementsListProps) {
   const params = useMemo(
     () => ({ property_id: propertyId, status: status === 'all' ? undefined : status }),
     [propertyId, status],
@@ -228,7 +240,7 @@ function AnnouncementsList({ propertyId, status, isAdmin }: AnnouncementsListPro
   return (
     <Stack>
       {items.map((a) => (
-        <AnnouncementRow key={a.id} row={a} isAdmin={isAdmin} />
+        <AnnouncementRow key={a.id} row={a} isAdmin={isAdmin} audienceLabels={audienceLabels} />
       ))}
     </Stack>
   );
@@ -239,9 +251,10 @@ function AnnouncementsList({ propertyId, status, isAdmin }: AnnouncementsListPro
 interface AnnouncementRowProps {
   row: Announcement;
   isAdmin: boolean;
+  audienceLabels: Record<AnnouncementAudienceType, string>;
 }
 
-function AnnouncementRow({ row, isAdmin }: AnnouncementRowProps) {
+function AnnouncementRow({ row, isAdmin, audienceLabels }: AnnouncementRowProps) {
   const qc = useQueryClient();
   const derivedStatus = deriveAnnouncementStatus(row);
   const meta = STATUS_LABELS[derivedStatus];
@@ -281,8 +294,8 @@ function AnnouncementRow({ row, isAdmin }: AnnouncementRowProps) {
 
   const audienceText =
     row.audience_type === 'unit_type' && row.audience_unit_type
-      ? `${AUDIENCE_LABELS[row.audience_type]}: ${row.audience_unit_type}`
-      : AUDIENCE_LABELS[row.audience_type];
+      ? `${audienceLabels[row.audience_type]}: ${row.audience_unit_type}`
+      : audienceLabels[row.audience_type];
 
   return (
     <Card
@@ -353,11 +366,13 @@ function AnnouncementRow({ row, isAdmin }: AnnouncementRowProps) {
 
 interface CreateFormProps {
   propertyId: UUID;
+  propertyType?: PropertyType | null;
   onCreated: () => void;
 }
 
-function CreateAnnouncementForm({ propertyId, onCreated }: CreateFormProps) {
+function CreateAnnouncementForm({ propertyId, propertyType, onCreated }: CreateFormProps) {
   const qc = useQueryClient();
+  const audienceLabels = useMemo(() => audienceLabelsFor(propertyType), [propertyType]);
   const [title, setTitle] = useState('');
   const [bodyMd, setBodyMd] = useState('');
   const [category, setCategory] = useState<AnnouncementCategory>('general');
@@ -458,7 +473,7 @@ function CreateAnnouncementForm({ propertyId, onCreated }: CreateFormProps) {
                 onChange={(e) => setAudienceType(e.target.value as AnnouncementAudienceType)}
               >
                 {AUDIENCE_TYPES.map((a) => (
-                  <option key={a} value={a}>{AUDIENCE_LABELS[a]}</option>
+                  <option key={a} value={a}>{audienceLabels[a]}</option>
                 ))}
               </Select>
             </Field>
@@ -466,7 +481,7 @@ function CreateAnnouncementForm({ propertyId, onCreated }: CreateFormProps) {
 
           {audienceType !== 'all' ? (
             <Alert tone="info">
-              Для аудиторий «корпус / подъезд / тип жильца» нужна расширенная форма
+              Для аудиторий «{audienceLabels.building} / {audienceLabels.entrance} / тип жильца» нужна расширенная форма
               (она планируется следующей итерацией). Сейчас создаётся объявление
               с audience_type=«{audienceType}», но без привязки — на бэкенде
               это вызовет 400. Выберите «все» для MVP.
@@ -474,7 +489,8 @@ function CreateAnnouncementForm({ propertyId, onCreated }: CreateFormProps) {
           ) : null}
 
           <Field label="Уведомления (каналы)">
-            <Inline>
+            <fieldset className={uiClasses.checkboxGroup}>
+              <legend className={uiClasses.checkboxLegend}>Каналы уведомлений</legend>
               {CHANNELS.map((ch) => (
                 <label key={ch} className={uiClasses.label}>
                   <input
@@ -485,7 +501,7 @@ function CreateAnnouncementForm({ propertyId, onCreated }: CreateFormProps) {
                   {ch}
                 </label>
               ))}
-            </Inline>
+            </fieldset>
           </Field>
 
           <Inline>

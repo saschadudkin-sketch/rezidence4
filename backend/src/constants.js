@@ -12,6 +12,9 @@ const ROLES = Object.freeze({
   CONCIERGE:  'concierge',
   SECURITY:   'security',
   ADMIN:      'admin',
+  PROPERTY_ADMIN: 'property_admin',
+  MANAGEMENT_COMPANY_ADMIN: 'management_company_admin',
+  PLATFORM_ADMIN: 'platform_admin',
 });
 
 const STATUSES = Object.freeze({
@@ -26,7 +29,14 @@ const STATUSES = Object.freeze({
 });
 
 // Роли персонала, которые могут управлять заявками
-const STAFF_ROLES = new Set([ROLES.SECURITY, ROLES.CONCIERGE, ROLES.ADMIN]);
+const STAFF_ROLES = new Set([
+  ROLES.SECURITY,
+  ROLES.CONCIERGE,
+  ROLES.ADMIN,
+  ROLES.PROPERTY_ADMIN,
+  ROLES.MANAGEMENT_COMPANY_ADMIN,
+  ROLES.PLATFORM_ADMIN,
+]);
 
 // Роли жильцов — могут создавать заявки, видят только свои
 const RESIDENT_ROLES = new Set([ROLES.OWNER, ROLES.TENANT, ROLES.CONTRACTOR]);

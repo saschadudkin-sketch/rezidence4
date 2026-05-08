@@ -19,13 +19,14 @@ const BASE_STYLE = {
 
 export function AvatarCircle({ avData, role, name, size, fontSize }: AvatarCircleProps) {
   const sizeStyle = { width: size, height: size };
+  const alt = `Фото профиля: ${name}`;
 
   if (typeof avData === 'string' && avData) {
-    return <div style={{ ...BASE_STYLE, ...sizeStyle }}><img src={avData} alt="" className="u-cover" /></div>;
+    return <div style={{ ...BASE_STYLE, ...sizeStyle }}><img src={avData} alt={alt} className="u-cover" /></div>;
   }
 
   if (avData && typeof avData === 'object' && avData.type === 'photo' && avData.src)
-    return <div style={{ ...BASE_STYLE, ...sizeStyle }}><img src={avData.src} alt="" className="u-cover" /></div>;
+    return <div style={{ ...BASE_STYLE, ...sizeStyle }}><img src={avData.src} alt={alt} className="u-cover" /></div>;
 
   const bg = role ? ROLE_COLOR[role as keyof typeof ROLE_COLOR] : 'var(--g-bg)';
   const textColor = role ? '#fff' : 'var(--g2)';

@@ -139,11 +139,11 @@ export function PermsList({ user }: { user: AppUser }) {
               {editId === visitor.id ? (
                 <div className="perm-form">
                   <div className="perm-form-row">
-                    <input className="perm-form-inp" placeholder="ФИО *" value={vForm.name} onChange={(event) => setVForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" autoFocus />
-                    <input className="perm-form-inp" placeholder="Телефон" type="tel" value={vForm.phone} onChange={(event) => setVForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
+                    <input className="perm-form-inp" aria-label="ФИО посетителя" placeholder="ФИО *" value={vForm.name} onChange={(event) => setVForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" autoFocus />
+                    <input className="perm-form-inp" aria-label="Телефон посетителя" placeholder="Телефон" type="tel" value={vForm.phone} onChange={(event) => setVForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
                   </div>
                   <div className="perm-form-row">
-                    <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={(event) => setVForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
+                    <input className="perm-form-inp" aria-label="Авто посетителя" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={(event) => setVForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
                   </div>
                   <div className="perm-form-btns">
                     <button className="btn-outline" onClick={() => setEditId(null)}>Отмена</button>
@@ -165,11 +165,11 @@ export function PermsList({ user }: { user: AppUser }) {
           {addingV ? (
             <div className="perm-form">
               <div className="perm-form-row">
-                <input className="perm-form-inp" placeholder="ФИО *" value={vForm.name} onChange={(event) => setVForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" />
-                <input className="perm-form-inp" placeholder="Телефон" type="tel" value={vForm.phone} onChange={(event) => setVForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
+                <input className="perm-form-inp" aria-label="ФИО посетителя" placeholder="ФИО *" value={vForm.name} onChange={(event) => setVForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" />
+                <input className="perm-form-inp" aria-label="Телефон посетителя" placeholder="Телефон" type="tel" value={vForm.phone} onChange={(event) => setVForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
               </div>
               <div className="perm-form-row">
-                <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={(event) => setVForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
+                <input className="perm-form-inp" aria-label="Авто посетителя" placeholder="Авто (марка, номер)" value={vForm.carPlate} onChange={(event) => setVForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
               </div>
               <div className="perm-form-btns">
                 <button className="btn-outline" onClick={() => { setAddingV(false); setVForm(EMPTY_FORM); }}>Отмена</button>
@@ -189,11 +189,11 @@ export function PermsList({ user }: { user: AppUser }) {
             {editId === worker.id ? (
               <div className="perm-form">
                 <div className="perm-form-row">
-                  <input className="perm-form-inp" placeholder="ФИО *" value={wForm.name} onChange={(event) => setWForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" autoFocus />
-                  <input className="perm-form-inp" placeholder="Телефон" type="tel" value={wForm.phone} onChange={(event) => setWForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
+                  <input className="perm-form-inp" aria-label="ФИО рабочего" placeholder="ФИО *" value={wForm.name} onChange={(event) => setWForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" autoFocus />
+                  <input className="perm-form-inp" aria-label="Телефон рабочего" placeholder="Телефон" type="tel" value={wForm.phone} onChange={(event) => setWForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
                 </div>
                 <div className="perm-form-row">
-                  <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={wForm.carPlate} onChange={(event) => setWForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
+                  <input className="perm-form-inp" aria-label="Авто рабочего" placeholder="Авто (марка, номер)" value={wForm.carPlate} onChange={(event) => setWForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
                 </div>
                 <div className="perm-form-btns">
                   <button className="btn-outline" onClick={() => setEditId(null)}>Отмена</button>
@@ -215,11 +215,11 @@ export function PermsList({ user }: { user: AppUser }) {
         {addingW ? (
           <div className="perm-form">
             <div className="perm-form-row">
-              <input className="perm-form-inp" placeholder="ФИО *" value={wForm.name} onChange={(event) => setWForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" />
-              <input className="perm-form-inp" placeholder="Телефон" type="tel" value={wForm.phone} onChange={(event) => setWForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
+              <input className="perm-form-inp" aria-label="ФИО рабочего" placeholder="ФИО *" value={wForm.name} onChange={(event) => setWForm((form) => ({ ...form, name: event.target.value }))} autoCapitalize="words" />
+              <input className="perm-form-inp" aria-label="Телефон рабочего" placeholder="Телефон" type="tel" value={wForm.phone} onChange={(event) => setWForm((form) => ({ ...form, phone: event.target.value }))} inputMode="tel" />
             </div>
             <div className="perm-form-row">
-              <input className="perm-form-inp" placeholder="Авто (марка, номер)" value={wForm.carPlate} onChange={(event) => setWForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
+              <input className="perm-form-inp" aria-label="Авто рабочего" placeholder="Авто (марка, номер)" value={wForm.carPlate} onChange={(event) => setWForm((form) => ({ ...form, carPlate: event.target.value }))} autoCapitalize="characters" />
             </div>
             <div className="perm-form-btns">
               <button className="btn-outline" onClick={() => { setAddingW(false); setWForm(EMPTY_FORM); }}>Отмена</button>

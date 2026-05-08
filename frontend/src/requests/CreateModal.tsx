@@ -517,7 +517,7 @@ function PhotoSection({ photos, handlePhoto, removePhoto }: PhotoSectionProps) {
         <div className="photo-grid">
           {photos.map((src, i) => (
             <div key={i} className="photo-grid-item">
-              <img src={src} alt="" />
+              <img src={src} alt={`Фото к заявке ${i + 1}`} />
               <button type="button" className="photo-grid-del" onClick={() => removePhoto(i)} aria-label={`Удалить фото ${i + 1}`}>
                 <AppIcon name="close" size={12} />
               </button>
@@ -885,8 +885,7 @@ export function CreateModal({ user, type, initialCat, initialData, initialStep, 
   }, [form.cat, form.vName, form.vNames, form.carPlate, form.apartment]);
 
   useEffect(() => {
-    if (!vPhoneError) return;
-    setVPhoneError('');
+    setVPhoneError((current) => (current ? '' : current));
   }, [form.cat]);
 
   useLayoutEffect(() => {

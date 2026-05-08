@@ -116,7 +116,7 @@ export function StatusPill({
     <span
       className={`status-pill status-${status} status-${size} ${className}`}
       style={combinedStyles}
-      role="status"
+      role="status" aria-live="polite"
       aria-label={`Status: ${statusLabels[status]}`}
       {...rest}
     >

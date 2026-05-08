@@ -14,6 +14,7 @@ import type {
   ListAnnouncementsParams,
   ListDocumentsParams,
   ListIncidentsParams,
+  ListStaffWorkspaceInboxParams,
   ListMinePackagesParams,
   ListOverridesParams,
   ListPackagesParams,
@@ -59,6 +60,16 @@ export const qk = {
     byId: (id: UUID) => ['v1', 'access-incidents', 'byId', id] as const,
     overrides: (p?: ListOverridesParams) =>
       ['v1', 'access-overrides', 'list', p ?? null] as const,
+  },
+  staffWorkspace: {
+    all: ['v1', 'staff-workspace'] as const,
+    inbox: (p?: ListStaffWorkspaceInboxParams) =>
+      ['v1', 'staff-workspace', 'inbox', p ?? null] as const,
+    overdue: (p?: Omit<ListStaffWorkspaceInboxParams, 'queue'>) =>
+      ['v1', 'staff-workspace', 'overdue', p ?? null] as const,
+    request: (id: string) => ['v1', 'staff-workspace', 'request', id] as const,
+    residentQuickView: (id: string) =>
+      ['v1', 'staff-workspace', 'resident-quick-view', id] as const,
   },
   units: {
     all: ['v1', 'units'] as const,
@@ -126,6 +137,16 @@ export function invalidateVehicle(qc: QueryClient, id: UUID, plate?: string): Pr
     plate
       ? qc.invalidateQueries({ queryKey: qk.vehicles.byPlate(plate) } as { queryKey: KeyLike })
       : Promise.resolve(),
+  ]).then(() => undefined);
+}
+
+export function invalidateStaffWorkspaceRequest(
+  qc: QueryClient,
+  id: string,
+): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.request(id) }),
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
   ]).then(() => undefined);
 }
 

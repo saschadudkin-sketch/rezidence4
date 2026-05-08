@@ -9,6 +9,11 @@ const requireAuth = require('../middleware/auth');
 const { normalizePhone } = require('../constants');
 const appMetrics = require('../metrics');
 const { getRedis } = require('../lib/redisClient');
+const {
+  REFRESH_COOKIE_PATH,
+  clearAuthCookies,
+  deleteRefreshTokensForUser,
+} = require('../services/authSessionService');
 
 const { sendSms } = require('../services/smsService');
 
@@ -28,7 +33,6 @@ function makeCode() {
 const CRYPTO = require('crypto');
 const ACCESS_TOKEN_EXPIRES  = '15m';
 const REFRESH_TOKEN_EXPIRES = 30 * 24 * 60 * 60 * 1000; // 30 дней в мс
-const REFRESH_COOKIE_PATH   = '/api';
 // SEC: default=false — legacy raw-token fallback disabled unless explicitly opted in.
 // Опасный default: включённый fallback позволяет использовать raw refresh token
 // (если он попал в лог) для аутентификации в обход хэширования.
@@ -43,6 +47,10 @@ if (REFRESH_LEGACY_FALLBACK_ENABLED && !effectiveLegacyFallback) {
 
 function hashRefreshToken(rawToken) {
   return CRYPTO.createHash('sha256').update(String(rawToken)).digest('hex');
+}
+
+function getRequestDb(req) {
+  return req.db || db;
 }
 
 function setTokenCookie(res, user) {
@@ -68,12 +76,12 @@ function setTokenCookie(res, user) {
   return token;
 }
 
-async function setRefreshTokenCookie(res, uid) {
+async function setRefreshTokenCookie(res, uid, queryDb = db) {
   const refreshTokenRaw = CRYPTO.randomBytes(32).toString('hex');
   const refreshTokenHash = hashRefreshToken(refreshTokenRaw);
   const refreshRowId = uuid();
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES);
-  await db.query(
+  await queryDb.query(
     `INSERT INTO refresh_tokens(id, id_hash, uid, expires_at) VALUES($1, $2, $3, $4)`,
     [refreshRowId, refreshTokenHash, uid, expiresAt],
   );
@@ -87,30 +95,52 @@ async function setRefreshTokenCookie(res, uid) {
   return refreshTokenRaw;
 }
 
-async function attachPropertyId(user) {
-  if (!user || !user.property_slug || user.property_id) return user;
+async function attachPropertyId(user, queryDb = db) {
+  if (!user || !user.property_slug) return user;
+  if (user.property_id && user.property_type) return user;
 
   let propertyId = null;
+  let propertyType = null;
   try {
-    const { rows } = await db.query(
-      `SELECT id FROM properties WHERE slug = $1 LIMIT 1`,
+    const { rows } = await queryDb.query(
+      `SELECT id, property_type FROM properties WHERE slug = $1 LIMIT 1`,
       [user.property_slug],
     );
     propertyId = rows[0]?.id || null;
+    propertyType = rows[0]?.property_type || null;
   } catch (err) {
-    if (err?.code !== '42P01') throw err;
+    if (err?.code === '42703') {
+      const { rows } = await queryDb.query(
+        `SELECT id FROM properties WHERE slug = $1 LIMIT 1`,
+        [user.property_slug],
+      );
+      propertyId = rows[0]?.id || null;
+      propertyType = null;
+    } else if (err?.code !== '42P01') {
+      throw err;
+    }
     // Older legacy DBs do not have a local properties projection.  In
     // multi-tenant mode the platform registry is authoritative.
   }
 
-  if (!propertyId && process.env.PLATFORM_DB_URL && typeof db.getPlatformDb === 'function') {
+  if ((!propertyId || !propertyType) && process.env.PLATFORM_DB_URL && typeof db.getPlatformDb === 'function') {
     try {
       const platformDb = db.getPlatformDb();
-      const { rows } = await platformDb.query(
-        `SELECT id FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
-        [user.property_slug],
-      );
-      propertyId = rows[0]?.id || null;
+      let rows;
+      try {
+        ({ rows } = await platformDb.query(
+          `SELECT id, property_type FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
+          [user.property_slug],
+        ));
+      } catch (err) {
+        if (err?.code !== '42703') throw err;
+        ({ rows } = await platformDb.query(
+          `SELECT id FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
+          [user.property_slug],
+        ));
+      }
+      propertyId = propertyId || rows[0]?.id || null;
+      propertyType = propertyType || rows[0]?.property_type || null;
     } catch (err) {
       logger.warn(
         { err: err.message, property_slug: user.property_slug },
@@ -119,7 +149,11 @@ async function attachPropertyId(user) {
     }
   }
 
-  return { ...user, property_id: propertyId };
+  return {
+    ...user,
+    property_id: user.property_id || propertyId,
+    property_type: user.property_type || propertyType || 'residential_complex',
+  };
 }
 
 // normalizePhone — imported from '../constants' (единая реализация)
@@ -129,10 +163,11 @@ async function attachPropertyId(user) {
 
 router.post('/send-otp', async (req, res, next) => {
   try {
+    const queryDb = getRequestDb(req);
     const phone = normalizePhone(req.body.phone || '');
     if (phone.length < 12) return res.status(400).json({ error: 'Неверный номер телефона' });
 
-    const { rows } = await db.query(
+    const { rows } = await queryDb.query(
       'SELECT uid FROM users WHERE phone=$1 AND deleted_at IS NULL',
       [phone],
     );
@@ -165,11 +200,11 @@ router.post('/send-otp', async (req, res, next) => {
       } catch (redisErr) {
         logger.warn({ err: redisErr }, '[send-otp] redis rate-limit failed, falling back to DB counter');
         // Fallback: DB-based counter (single-instance safe)
-        await db.query(
+        await queryDb.query(
           `DELETE FROM otp_codes WHERE phone=$1 AND (expires_at < NOW() OR used=TRUE)`,
           [phone],
         );
-        const { rows: active } = await db.query(
+        const { rows: active } = await queryDb.query(
           `SELECT COUNT(*) FROM otp_codes WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
           [phone],
         );
@@ -180,11 +215,11 @@ router.post('/send-otp', async (req, res, next) => {
       }
     } else {
       // No Redis — DB-based counter
-      await db.query(
+      await queryDb.query(
         `DELETE FROM otp_codes WHERE phone=$1 AND (expires_at < NOW() OR used=TRUE)`,
         [phone],
       );
-      const { rows: active } = await db.query(
+      const { rows: active } = await queryDb.query(
         `SELECT COUNT(*) FROM otp_codes WHERE phone=$1 AND expires_at > NOW() AND used=FALSE`,
         [phone],
       );
@@ -211,7 +246,7 @@ router.post('/send-otp', async (req, res, next) => {
 
     const hash = await passwordHasher.hash(code);
 
-    await db.query(
+    await queryDb.query(
       `INSERT INTO otp_codes(phone, code, expires_at) VALUES($1,$2,$3)`,
       [phone, hash, expiresAt],
     );
@@ -224,6 +259,7 @@ router.post('/send-otp', async (req, res, next) => {
 
 router.post('/verify-otp', async (req, res, next) => {
   try {
+    const queryDb = getRequestDb(req);
     const phone = normalizePhone(req.body.phone || '');
     const code  = String(req.body.code || '').trim();
 
@@ -244,7 +280,7 @@ router.post('/verify-otp', async (req, res, next) => {
     // FIX [КРИТ-4]: счётчик попыток — brute-force защита для /verify-otp
     // FIX [КРИТ-5]: атомарный UPDATE RETURNING — защита от race condition TOCTOU
     //   Берём все активные НЕиспользованные коды, проверяем хэш, атомарно помечаем.
-    const { rows: candidates } = await db.query(
+    const { rows: candidates } = await queryDb.query(
       `SELECT id, code FROM otp_codes
        WHERE phone=$1 AND expires_at > NOW() AND used=FALSE AND attempts < 5
        ORDER BY id DESC LIMIT 3`,
@@ -262,7 +298,7 @@ router.post('/verify-otp', async (req, res, next) => {
       // Без него два параллельных запроса могли оба пройти SELECT (видели attempts=4),
       // оба не совпасть с кодом, и оба инкрементировать — итого attempts=6 вместо 5.
       // С условием в UPDATE: при attempts=5 строка уже не обновляется — безвредно.
-      await db.query(
+      await queryDb.query(
         `UPDATE otp_codes
          SET attempts = attempts + 1,
              used = CASE WHEN attempts + 1 >= 5 THEN TRUE ELSE used END
@@ -297,7 +333,7 @@ router.post('/verify-otp', async (req, res, next) => {
     }
 
     // Атомарная пометка используя CTE + FOR UPDATE — предотвращает двойной вход
-    const { rows: marked } = await db.query(
+    const { rows: marked } = await queryDb.query(
       `WITH target AS (
          SELECT id FROM otp_codes
          WHERE id=$1 AND used=FALSE
@@ -314,7 +350,7 @@ router.post('/verify-otp', async (req, res, next) => {
       return res.status(401).json({ error: 'Неверный или истёкший код' });
     }
 
-    const { rows: users } = await db.query(
+    const { rows: users } = await queryDb.query(
       `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE phone=$1 AND deleted_at IS NULL`,
@@ -322,11 +358,11 @@ router.post('/verify-otp', async (req, res, next) => {
     );
     if (!users.length) return res.status(404).json({ error: 'Пользователь не найден' });
 
-    const user = users[0];
+    const user = await attachPropertyId(users[0], queryDb);
 
     // FIX [S1]: access token + refresh token при логине
     setTokenCookie(res, user);
-    await setRefreshTokenCookie(res, user.uid);
+    await setRefreshTokenCookie(res, user.uid, queryDb);
     appMetrics.incrementCounter('otpVerifySuccess');
     appMetrics.incrementCounter('authLoginSuccess');
     res.json({ user });
@@ -340,11 +376,12 @@ router.post('/verify-otp', async (req, res, next) => {
 // refresh tokens этого пользователя — принудительный logout всех устройств.
 router.post('/logout', requireAuth, async (req, res) => {
   const { markTokenRevoked } = requireAuth;
+  const queryDb = getRequestDb(req);
   // FIX: req.user уже содержит верифицированный payload из requireAuth.
   // Убираем второй jwt.verify — он был лишним (2x криптографическая операция).
   const { jti, exp } = req.user;
   if (jti && exp) {
-    await markTokenRevoked(jti, exp).catch(() => {});
+    await markTokenRevoked(jti, exp, queryDb).catch(() => {});
   }
 
   const refreshId  = req.cookies?.refreshToken;
@@ -354,20 +391,14 @@ router.post('/logout', requireAuth, async (req, res) => {
   const uid = req.user.uid;
 
   if (allDevices) {
-    await db.query(`DELETE FROM refresh_tokens WHERE uid=$1`, [uid]).catch(() => {});
+    await deleteRefreshTokensForUser(queryDb, uid).catch(() => {});
   } else if (refreshId) {
-    await db.query(
+    await queryDb.query(
       `DELETE FROM refresh_tokens WHERE id=$1 OR id_hash=$2`,
       [refreshId, refreshHash],
     ).catch(() => {});
   }
-  res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
-  res.clearCookie('refreshToken', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: REFRESH_COOKIE_PATH,
-  });
+  clearAuthCookies(res);
   res.json({ ok: true });
 });
 
@@ -376,6 +407,7 @@ router.post('/logout', requireAuth, async (req, res) => {
 // при каждом использовании старый удаляется, выдаётся новый (rotation).
 router.post('/refresh', async (req, res, next) => {
   try {
+    const queryDb = getRequestDb(req);
     appMetrics.incrementCounter('authRefreshRequests');
     const refreshId = req.cookies?.refreshToken;
     if (!refreshId) {
@@ -385,14 +417,14 @@ router.post('/refresh', async (req, res, next) => {
     const refreshHash = hashRefreshToken(refreshId);
 
     // Основной путь: ищем только по hash (безопасно для новых токенов).
-    let { rows } = await db.query(
+    let { rows } = await queryDb.query(
       `DELETE FROM refresh_tokens WHERE id_hash=$1 AND expires_at > NOW() RETURNING uid`,
       [refreshHash],
     );
 
     // Backward-compat: legacy строки со старым id=rawToken
     if (!rows.length && effectiveLegacyFallback) {
-      const legacy = await db.query(
+      const legacy = await queryDb.query(
         `DELETE FROM refresh_tokens WHERE id=$1 AND expires_at > NOW() RETURNING uid`,
         [refreshId],
       );
@@ -415,16 +447,24 @@ router.post('/refresh', async (req, res, next) => {
     }
 
     const uid = rows[0].uid;
-    const { rows: users } = await db.query(
+    const { rows: users } = await queryDb.query(
       `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE uid = $1 AND deleted_at IS NULL`, [uid],
     );
-    if (!users.length) return res.status(404).json({ error: 'User not found' });
+    if (!users.length) {
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: REFRESH_COOKIE_PATH,
+      });
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    const user = await attachPropertyId(users[0]);
+    const user = await attachPropertyId(users[0], queryDb);
     setTokenCookie(res, user);
-    await setRefreshTokenCookie(res, user.uid); // ротация — новый refresh token
+    await setRefreshTokenCookie(res, user.uid, queryDb); // ротация — новый refresh token
     appMetrics.incrementCounter('authRefreshSuccess');
     res.json({ user });
   } catch (err) { next(err); }
@@ -441,14 +481,15 @@ router.post('/refresh', async (req, res, next) => {
 
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await db.query(
+    const queryDb = getRequestDb(req);
+    const { rows } = await queryDb.query(
       `SELECT uid, phone, name, role, apartment, avatar, property_slug
        FROM users
        WHERE uid = $1 AND deleted_at IS NULL`,
       [req.user.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
-    const user = await attachPropertyId(rows[0]);
+    const user = await attachPropertyId(rows[0], queryDb);
     res.json({ user });
   } catch (err) { next(err); }
 });

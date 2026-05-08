@@ -47,6 +47,8 @@ export function LoginPhoneStep({
   setPendingState,
   sendCode,
 }: LoginPhoneStepProps) {
+  const demoListId = 'login-demo-list';
+
   return (
     <>
       <div className="field">
@@ -68,7 +70,7 @@ export function LoginPhoneStep({
           aria-invalid={Boolean(phoneError)}
           aria-describedby={phoneError ? 'login-phone-err' : undefined}
         />
-        {phoneError && <div id="login-phone-err" className="field-err" role="alert">{phoneError}</div>}
+        {phoneError && <div id="login-phone-err" className="field-err" role="alert" aria-live="assertive">{phoneError}</div>}
       </div>
       <button className="btn-gold" onClick={() => { void sendCode(); }} disabled={loading}>
         <span>{loading ? 'Проверка...' : 'Получить SMS-код'}</span>
@@ -78,14 +80,16 @@ export function LoginPhoneStep({
         <button
           className={'demo-toggle' + (demoOpen ? ' open' : '')}
           onClick={() => setDemoOpen((open) => !open)}
+          aria-expanded={demoOpen}
+          aria-controls={demoListId}
         >
           <span>Демо-доступ</span>
-          <span className="demo-toggle-arrow">▾</span>
+          <span className="demo-toggle-arrow" aria-hidden="true">▾</span>
         </button>
       )}
 
       {demoMode && demoOpen && (
-        <div className="demo-list">
+        <div id={demoListId} className="demo-list">
           {hints.map(([demoPhone, roleLabel]) => (
             <button
               key={demoPhone}

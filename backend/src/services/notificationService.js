@@ -276,11 +276,16 @@ function buildMessages(event, data) {
         telegram: null,
       };
     case 'request.sla_overdue':
-      return {
-        push: { title: 'SLA нарушен', body: `Заявка #${String(data.requestId || '').slice(0, 8)} просрочена (${data.slaHours || '?'}ч)` },
-        sms: null,
-        telegram: `<b>SLA нарушен</b>\nТип: ${data.requestType || '?'}, SLA: ${data.slaHours || '?'}ч\nЗаявка: ${data.requestId || '?'}`,
-      };
+      {
+        const slaLabel = data.slaHours ? `${data.slaHours}ч` : (data.slaProfile || data.eventType || '?');
+        const dueLabel = data.dueAt ? `, срок: ${data.dueAt}` : '';
+        const severityLabel = data.severity ? `, severity: ${data.severity}` : '';
+        return {
+          push: { title: 'SLA нарушен', body: `Заявка #${String(data.requestId || '').slice(0, 8)} просрочена (${slaLabel})` },
+          sms: null,
+          telegram: `<b>SLA нарушен</b>\nТип: ${data.requestType || '?'}, SLA: ${slaLabel}${severityLabel}${dueLabel}\nЗаявка: ${data.requestId || '?'}`,
+        };
+      }
     case 'package.reminder':
       return {
         push: { title: 'Посылка ждёт', body: 'Ваша посылка уже 2+ дня ожидает на ресепшн' },

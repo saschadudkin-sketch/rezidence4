@@ -52,11 +52,14 @@ export function DemoBanner({ onClose }: DemoBannerProps) {
         </span>
       </span>
       <div className="demo-welcome-actions">
-        <label className="demo-private-toggle">
-          <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
-          <span className="demo-private-toggle-long">Приватная демо-сессия</span>
-          <span className="demo-private-toggle-short">Приватно</span>
-        </label>
+        <fieldset className="demo-private-toggle">
+          <legend>Настройки демо-сессии</legend>
+          <label>
+            <input type="checkbox" checked={privateSession} onChange={togglePrivateSession} />
+            <span className="demo-private-toggle-long">Приватная демо-сессия</span>
+            <span className="demo-private-toggle-short">Приватно</span>
+          </label>
+        </fieldset>
         <button className="btn-outline demo-welcome-reset" onClick={wipeDemoData}>
           <span className="demo-welcome-reset-long">Очистить демо-данные</span>
           <span className="demo-welcome-reset-short">Очистить</span>
