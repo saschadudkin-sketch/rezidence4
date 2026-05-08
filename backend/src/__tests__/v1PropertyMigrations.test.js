@@ -31,8 +31,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-03 role/scope membership foundation
     // + 1 DH-06 access topology foundation + 1 DH-13/DH-14 policy layer
     // + 1 DH-22 service request core + 1 DH-23 attachments/updates
-    // + 1 DH-24 assignment/SLA/escalation = 31
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(31);
+    // + 1 DH-24 assignment/SLA/escalation + 1 DH-27 technician workflow
+    // + 1 DH-29 contractor workflow = 33
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(33);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1337,5 +1338,79 @@ describe('v1_031_request_assignment_sla', () => {
     expect(tbl).toContain('CONSTRAINT request_sla_events_key_unique UNIQUE (request_id, event_key)');
     expect(sqls.find((s) => s.includes('idx_request_sla_events_type')))
       .toContain('event_type, severity, detected_at DESC');
+  });
+});
+
+describe('v1_032_technician_workflow', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('extends requests with technician execution output fields', async () => {
+    await byId('v1_032_technician_workflow').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE requests') && s.includes('started_at'));
+
+    expect(alter).toContain('started_at TIMESTAMPTZ');
+    expect(alter).toContain('resolution_note TEXT');
+    expect(alter).toContain('requires_follow_up BOOLEAN NOT NULL DEFAULT false');
+    expect(sqls.find((s) => s.includes('idx_requests_technician_queue')))
+      .toContain('assigned_to_role, assigned_to_uid, status, created_at DESC');
+  });
+
+  test('creates technician KPI event stream with lifecycle enum and indexes', async () => {
+    await byId('v1_032_technician_workflow').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_technician_events'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id      TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain('technician_uid  TEXT REFERENCES users(uid) ON DELETE SET NULL');
+    expect(tbl).toContain('actor_uid       TEXT NOT NULL REFERENCES users(uid) ON DELETE RESTRICT');
+    expect(tbl).toContain('claimed');
+    expect(tbl).toContain('waiting_resident');
+    expect(tbl).toContain('waiting_parts');
+    expect(tbl).toContain('resolved');
+    expect(sqls.find((s) => s.includes('idx_request_technician_events_technician')))
+      .toContain('technician_uid, event_type, created_at DESC');
+  });
+});
+
+describe('v1_033_contractor_workflow', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('extends requests with contractor assignment binding fields', async () => {
+    await byId('v1_033_contractor_workflow').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE requests') && s.includes('assigned_contractor_user_id'));
+
+    expect(alter).toContain('assigned_contractor_user_id UUID');
+    expect(alter).toContain('REFERENCES contractor_users(id) ON DELETE SET NULL');
+    expect(alter).toContain('assigned_contractor_company_id UUID');
+    expect(alter).toContain('REFERENCES contractor_companies(id) ON DELETE SET NULL');
+    expect(sqls.find((s) => s.includes('idx_requests_contractor_queue')))
+      .toContain('assigned_to_role');
+    expect(sqls.find((s) => s.includes('idx_requests_contractor_queue')))
+      .toContain('assigned_contractor_user_id');
+  });
+
+  test('creates contractor KPI event stream with assignment and completion enum', async () => {
+    await byId('v1_033_contractor_workflow').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_contractor_events'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id                     TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain('contractor_user_id             UUID REFERENCES contractor_users(id) ON DELETE SET NULL');
+    expect(tbl).toContain('contractor_company_id          UUID REFERENCES contractor_companies(id) ON DELETE SET NULL');
+    expect(tbl).toContain('contractor_uid                 TEXT REFERENCES users(uid) ON DELETE SET NULL');
+    expect(tbl).toContain('assigned');
+    expect(tbl).toContain('started');
+    expect(tbl).toContain('waiting_parts');
+    expect(tbl).toContain('resolved');
+    expect(sqls.find((s) => s.includes('idx_request_contractor_events_contractor')))
+      .toContain('contractor_user_id, event_type, created_at DESC');
+    expect(sqls.find((s) => s.includes('idx_request_contractor_events_company')))
+      .toContain('contractor_company_id, event_type, created_at DESC');
   });
 });

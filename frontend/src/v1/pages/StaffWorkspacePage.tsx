@@ -68,9 +68,16 @@ const QUEUE_LABELS: Record<StaffWorkspaceQueue, string> = {
 
 const STATUS_FILTERS: ReadonlyArray<StaffRequestStatus | 'all'> = [
   'all',
+  'new',
+  'triaged',
   'pending',
   'scheduled',
+  'assigned',
   'accepted',
+  'in_progress',
+  'waiting_resident',
+  'waiting_parts',
+  'resolved',
   'approved',
   'arrived',
   'completed',
@@ -80,9 +87,17 @@ const STATUS_FILTERS: ReadonlyArray<StaffRequestStatus | 'all'> = [
 ];
 
 const STATUS_LABELS: Record<StaffRequestStatus, string> = {
+  new: 'Новая',
+  triaged: 'Разобрана',
+  assigned: 'Назначена',
   pending: 'Ожидает',
   scheduled: 'Запланирована',
   accepted: 'В работе',
+  in_progress: 'Выполняется',
+  waiting_resident: 'Ждём жителя',
+  waiting_parts: 'Ждём материалы',
+  waiting_contractor: 'Ждём подрядчика',
+  resolved: 'Решена',
   approved: 'Одобрена',
   arrived: 'Прибыл',
   completed: 'Завершена',
@@ -117,8 +132,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function requestStatusTone(status: StaffRequestStatus) {
   if (status === 'completed' || status === 'approved') return 'success';
+  if (status === 'resolved') return 'success';
   if (status === 'rejected' || status === 'cancelled' || status === 'expired') return 'error';
-  if (status === 'accepted' || status === 'scheduled') return 'warning';
+  if (status === 'accepted' || status === 'scheduled' || status === 'assigned' || status === 'in_progress') return 'warning';
+  if (status === 'waiting_resident' || status === 'waiting_parts' || status === 'waiting_contractor') return 'info';
   if (status === 'arrived') return 'info';
   return 'neutral';
 }

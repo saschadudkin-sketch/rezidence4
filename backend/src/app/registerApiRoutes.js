@@ -85,6 +85,8 @@ const v1AccessTopologyRouter    = require('../v1/routes/accessTopology');
 const v1AccessPoliciesRouter    = require('../v1/routes/accessPolicies');
 const v1SecurityWorkspaceRouter = require('../v1/routes/securityWorkspace');
 const v1StaffWorkspaceRouter    = require('../v1/routes/staffWorkspace');
+const v1TechnicianWorkspaceRouter = require('../v1/routes/technicianWorkspace');
+const v1ContractorWorkspaceRouter = require('../v1/routes/contractorWorkspace');
 const v1AccessRequestsRouter    = require('../v1/routes/accessRequests');
 const v1PassesRouter            = require('../v1/routes/passes');
 const v1VisitsRouter            = require('../v1/routes/visits');
@@ -291,6 +293,8 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1', v1AccessPoliciesRouter);
   app.use('/api/v1/security-workspace', v1SecurityWorkspaceRouter);
   app.use('/api/v1/staff-workspace', v1StaffWorkspaceRouter);
+  app.use('/api/v1/technician-workspace', v1TechnicianWorkspaceRouter);
+  app.use('/api/v1/contractor-workspace', v1ContractorWorkspaceRouter);
   app.use('/api/v1/access-requests', v1AccessRequestsRouter);
   app.use('/api/v1/passes', v1PassesRouter);
   app.use('/api/v1/visits', v1VisitsRouter);

@@ -55,6 +55,9 @@
 |---|---|
 | [service-requests](./service-requests-spec.md) | Draft (DH-22 categories + territory/emergency bridge; DH-23 resident-visible attachments/updates; DH-24 assignment/SLA/escalation on `/api/v1/requests`) |
 | [staff-workspace](./staff-workspace-spec.md) | Draft (DH-25 unified staff inbox, overdue queue, request detail, resident quick view and internal comments API) |
+| [technician-workspace](./technician-workspace-spec.md) | Draft (DH-27 technician queue, start/wait/resolve transitions, resolution output and KPI events API) |
+| [technician-workspace-ui](./technician-workspace-ui-spec.md) | Draft (DH-28 technician execution UI over the technician workspace API) |
+| [contractor-workspace](./contractor-workspace-spec.md) | Draft (DH-29 contractor assignment, restricted queue/detail and completion API) |
 | [notification-templates-v2](./notification-templates-v2-spec.md) | Draft (централизованное хранилище текстов уведомлений + mustache-lite rendering; P3 в Phase 6) |
 | [legacy-utilities-freeze](./legacy-utilities-freeze-spec.md) | Draft (platform-level freeze-gate для meters/billing/bookings/chat до пост-релиза; P4 в Phase 6) |
 

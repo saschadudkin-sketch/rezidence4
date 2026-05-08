@@ -120,6 +120,17 @@ describe('can(user, capability)', () => {
     expect(can({ role: 'security', can_assign_requests: true }, 'requests:assign')).toBe(true);
     expect(can({ role: 'security' }, 'requests:assign')).toBe(false);
     expect(can({ role: 'concierge' }, 'requests:assign')).toBe(true); // via roles
+    expect(can({ role: 'security', can_assign_requests: true }, 'requests:contractor_assign')).toBe(true);
+    expect(can({ role: 'security' }, 'requests:contractor_assign')).toBe(false);
+  });
+
+  test('contractor workflow capabilities stay role-scoped', () => {
+    expect(can({ role: 'contractor' }, 'requests:contractor_read')).toBe(true);
+    expect(can({ role: 'contractor' }, 'requests:contractor_work')).toBe(true);
+    expect(can({ role: 'contractor' }, 'requests:contractor_assign')).toBe(false);
+    expect(can({ role: 'concierge' }, 'requests:contractor_read')).toBe(true);
+    expect(can({ role: 'concierge' }, 'requests:contractor_work')).toBe(false);
+    expect(can({ role: 'technician' }, 'requests:contractor_read')).toBe(false);
   });
 
   test('resident never gets staff caps from leaked staff flags', () => {
@@ -293,7 +304,8 @@ describe('Catalog introspection', () => {
       'notification-log:read',
       'residents:read', 'residents:write', 'residents:read_phone',
       'requests:read', 'requests:write', 'requests:approve', 'requests:escalate',
-      'requests:assign',
+      'requests:assign', 'requests:technician_read', 'requests:technician_work',
+      'requests:contractor_read', 'requests:contractor_work', 'requests:contractor_assign',
       'passes:read', 'passes:manage', 'passes:block',
       'visits:verify', 'visits:read',
       'incidents:read', 'incidents:write', 'incidents:override',

@@ -504,8 +504,16 @@ export type StaffWorkspaceQueue =
 
 export type StaffRequestStatus =
   | 'pending'
+  | 'new'
+  | 'triaged'
+  | 'assigned'
   | 'approved'
   | 'accepted'
+  | 'in_progress'
+  | 'waiting_resident'
+  | 'waiting_parts'
+  | 'waiting_contractor'
+  | 'resolved'
   | 'arrived'
   | 'cancelled'
   | 'scheduled'
@@ -567,9 +575,12 @@ export interface StaffWorkspaceRequest {
   assignedToName: string | null;
   assignedToRole: string | null;
   assignedAt: IsoDateTime | null;
+  startedAt: IsoDateTime | null;
   firstResponseAt: IsoDateTime | null;
   resolvedAt: IsoDateTime | null;
   completedAt: IsoDateTime | null;
+  resolutionNote: string | null;
+  requiresFollowUp: boolean;
   slaState: StaffSlaState;
   escalationLevel: number;
   escalatedAt: IsoDateTime | null;
@@ -601,6 +612,32 @@ export interface StaffWorkspaceRequest {
     residentUpdates: number;
     internalComments: number;
     slaEvents: number;
+  };
+}
+
+// ─── Technician Workspace ─────────────────────────────────────────────────
+
+export type TechnicianWorkspaceQueue =
+  | 'active'
+  | 'mine'
+  | 'available'
+  | 'in_progress'
+  | 'waiting'
+  | 'resolved'
+  | 'all';
+
+export interface TechnicianWorkflowState {
+  canClaim: boolean;
+  canStart: boolean;
+  canResume: boolean;
+  canWait: boolean;
+  canResolve: boolean;
+}
+
+export interface TechnicianWorkspaceRequest extends Omit<StaffWorkspaceRequest, 'counters'> {
+  workflow: TechnicianWorkflowState;
+  counters: StaffWorkspaceRequest['counters'] & {
+    technicianEvents: number;
   };
 }
 
@@ -651,6 +688,29 @@ export interface StaffWorkspaceRequestDetail {
   residentUpdates: StaffWorkspaceUpdate[];
   internalComments: StaffWorkspaceUpdate[];
   slaEvents: StaffWorkspaceSlaEvent[];
+}
+
+export interface TechnicianWorkspaceEvent {
+  id: UUID;
+  requestId: string;
+  technicianUid: string | null;
+  actorUid: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  eventType: string;
+  fromStatus: StaffRequestStatus | string | null;
+  toStatus: StaffRequestStatus | string;
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime;
+}
+
+export interface TechnicianWorkspaceRequestDetail {
+  request: TechnicianWorkspaceRequest;
+  attachments: StaffWorkspaceAttachment[];
+  residentUpdates: StaffWorkspaceUpdate[];
+  internalComments: StaffWorkspaceUpdate[];
+  slaEvents: StaffWorkspaceSlaEvent[];
+  technicianEvents: TechnicianWorkspaceEvent[];
 }
 
 export interface StaffResidentQuickView {

@@ -5,7 +5,9 @@ const { formatRequestRow } = require('../../services/requests/RequestFormatter')
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'rejected', 'expired']);
 const VALID_STATUSES = new Set([
   'pending', 'approved', 'accepted', 'arrived', 'cancelled', 'scheduled',
-  'expired', 'completed', 'rejected',
+  'expired', 'completed', 'rejected', 'new', 'triaged', 'assigned',
+  'in_progress', 'waiting_resident', 'waiting_parts', 'waiting_contractor',
+  'resolved',
 ]);
 const VALID_QUEUES = new Set(['active', 'unassigned', 'assigned', 'mine', 'overdue', 'emergency', 'all']);
 const VALID_PRIORITIES = new Set(['low', 'normal', 'high', 'emergency']);

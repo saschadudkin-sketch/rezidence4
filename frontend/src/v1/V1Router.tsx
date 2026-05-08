@@ -5,7 +5,8 @@
  *   - wraps everything in <V1SessionProvider> so pages/RoleGate can use
  *     `useV1Session()` / `useV1SessionState()`;
  *   - provides role-based redirects at the /v1 index (residents → /v1/access,
- *     security → /v1/guard, staff/admin → /v1/staff-workspace);
+ *     security → /v1/guard, technician → /v1/technician-workspace,
+ *     staff/admin → /v1/staff-workspace);
  *   - bridges URL params into page props so the pages themselves stay
  *     router-agnostic (the pages accept `requestId` / `onBack` props rather
  *     than calling `useParams()` internally).
@@ -45,6 +46,7 @@ import { ResidentDocumentsPage } from './pages/ResidentDocumentsPage';
 import { GuardConsolePage } from './pages/GuardConsolePage';
 import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
 import { StaffWorkspacePage } from './pages/StaffWorkspacePage';
+import { TechnicianWorkspacePage } from './pages/TechnicianWorkspacePage';
 import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
 import { PackagesAdminPage } from './pages/PackagesAdminPage';
 import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
@@ -69,6 +71,13 @@ const STAFF_WORKSPACE_ALLOW = [
   'concierge',
   'security',
   'staff',
+  'admin',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+] as const;
+const TECHNICIAN_WORKSPACE_ALLOW = [
+  'technician',
   'admin',
   'property_admin',
   'management_company_admin',
@@ -157,6 +166,14 @@ export function V1Router() {
           }
         />
         <Route
+          path="technician-workspace"
+          element={
+            <RoleGate allow={TECHNICIAN_WORKSPACE_ALLOW}>
+              <TechnicianWorkspacePage />
+            </RoleGate>
+          }
+        />
+        <Route
           path="announcements"
           element={
             <RoleGate allow={CONCIERGE_ALLOW}>
@@ -194,7 +211,8 @@ export function V1Router() {
 // Why not a static <Navigate>? Because `/v1` means different things per role:
 //   - resident  → their request list is the natural home
 //   - security  → duty station
-//   - staff     → DH-26 operations workspace
+//   - technician → DH-28 execution workspace
+//   - staff      → DH-26 operations workspace
 //
 // We intentionally do NOT redirect to /login here — RoleGate handles 401 via
 // window.location.  Loading state is rendered in place so the URL does not
@@ -227,6 +245,9 @@ function V1IndexRedirect() {
   // Security lands on the duty station. Admin/concierge roles land on the
   // DH-26 operations workspace but can still open /v1/guard directly.
   if (normalizeUserRole(user.role) === 'security') return <Navigate to="/v1/guard" replace />;
+  if (normalizeUserRole(user.role) === 'technician') {
+    return <Navigate to="/v1/technician-workspace" replace />;
+  }
   if (isResidentRole(user.role)) return <Navigate to="/v1/access" replace />;
 
   if (isConciergeRole(user.role) || isStaffRole(user.role)) {

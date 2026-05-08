@@ -58,6 +58,10 @@ vi.mock('./api', () => {
         getRequestDetail: neverResolves,
         getResidentQuickView: neverResolves,
       },
+      technicianWorkspace: {
+        listQueue: neverResolves,
+        getRequestDetail: neverResolves,
+      },
       residents: { getById: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
@@ -200,6 +204,14 @@ describe('V1Router role redirects (from /v1 index)', () => {
       await screen.findByRole('heading', { name: /рабочее место staff/i }),
     ).toBeInTheDocument();
   });
+
+  test('technician → technician workspace', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('technician'));
+    renderAt('/v1');
+    expect(
+      await screen.findByRole('heading', { name: /рабочее место техника/i }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('V1Router direct deep-links gate by role', () => {
@@ -252,6 +264,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/staff-workspace');
     expect(
       await screen.findByRole('heading', { name: /рабочее место staff/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('technician deep-linked to /v1/technician-workspace reaches technician workspace', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('technician'));
+    renderAt('/v1/technician-workspace');
+    expect(
+      await screen.findByRole('heading', { name: /рабочее место техника/i }),
     ).toBeInTheDocument();
   });
 

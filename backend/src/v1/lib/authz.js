@@ -342,6 +342,13 @@ const CAPABILITIES = Object.freeze({
   'requests:assign': spec(roles(FINAL_ROLES.CONCIERGE, admin), {
     staffFlag: 'can_assign_requests',
   }),
+  'requests:technician_read': spec(roles(FINAL_ROLES.TECHNICIAN, admin)),
+  'requests:technician_work': spec(roles(FINAL_ROLES.TECHNICIAN, admin)),
+  'requests:contractor_read': spec(roles(FINAL_ROLES.CONTRACTOR, FINAL_ROLES.CONCIERGE, admin)),
+  'requests:contractor_work': spec(roles(FINAL_ROLES.CONTRACTOR, admin)),
+  'requests:contractor_assign': spec(roles(FINAL_ROLES.CONCIERGE, admin), {
+    staffFlag: 'can_assign_requests',
+  }),
 
   'passes:read': spec(accessStaff),
   'passes:manage': spec(admin),

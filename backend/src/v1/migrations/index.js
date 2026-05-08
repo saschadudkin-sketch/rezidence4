@@ -54,6 +54,10 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./030_request_attachments_updates'),
   // DH-24 request assignment, SLA state and escalation events
   require('./031_request_assignment_sla'),
+  // DH-27 technician execution workflow fields and KPI event stream
+  require('./032_technician_workflow'),
+  // DH-29 contractor assignment binding and KPI event stream
+  require('./033_contractor_workflow'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

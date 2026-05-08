@@ -15,6 +15,7 @@ import type {
   ListDocumentsParams,
   ListIncidentsParams,
   ListStaffWorkspaceInboxParams,
+  ListTechnicianWorkspaceQueueParams,
   ListMinePackagesParams,
   ListOverridesParams,
   ListPackagesParams,
@@ -70,6 +71,12 @@ export const qk = {
     request: (id: string) => ['v1', 'staff-workspace', 'request', id] as const,
     residentQuickView: (id: string) =>
       ['v1', 'staff-workspace', 'resident-quick-view', id] as const,
+  },
+  technicianWorkspace: {
+    all: ['v1', 'technician-workspace'] as const,
+    queue: (p?: ListTechnicianWorkspaceQueueParams) =>
+      ['v1', 'technician-workspace', 'queue', p ?? null] as const,
+    request: (id: string) => ['v1', 'technician-workspace', 'request', id] as const,
   },
   units: {
     all: ['v1', 'units'] as const,
@@ -146,6 +153,17 @@ export function invalidateStaffWorkspaceRequest(
 ): Promise<void> {
   return Promise.all([
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.request(id) }),
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
+  ]).then(() => undefined);
+}
+
+export function invalidateTechnicianWorkspaceRequest(
+  qc: QueryClient,
+  id: string,
+): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.technicianWorkspace.request(id) }),
+    qc.invalidateQueries({ queryKey: qk.technicianWorkspace.all }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
   ]).then(() => undefined);
 }
