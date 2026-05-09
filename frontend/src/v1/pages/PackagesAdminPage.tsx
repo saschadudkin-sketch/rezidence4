@@ -19,8 +19,9 @@
  *   - Metrics dashboard (есть endpoint getMetrics, UI вынесем в общий dashboard).
  *
  * RBAC:
- *   Роут защищён RoleGate(CONCIERGE_ALLOW) в V1Router — сюда попадают
- *   concierge / admin / staff.  mark-lost скрыт у non-admin.
+ *   Роут защищён package-specific RoleGate в V1Router.
+ *   security видит приём/выдачу; concierge/admin дополнительно видят
+ *   return/remind; mark-lost скрыт у non-admin.
  */
 
 import { useMemo, useState } from 'react';
@@ -92,11 +93,13 @@ const SIZE_LABELS: Record<PackageSize, string> = {
 export function PackagesAdminPage() {
   const user = useV1Session();
   const propertyId = user.property_id ?? null;
+  const role = normalizeUserRole(user.role);
   const isAdmin = [
     'property_admin',
     'management_company_admin',
     'platform_admin',
-  ].includes(normalizeUserRole(user.role));
+  ].includes(role);
+  const canReturnOrRemind = role === 'concierge' || isAdmin;
 
   const [statusFilter, setStatusFilter] = useState<PackageStatus | 'all'>('awaiting_pickup');
   const [formOpen, setFormOpen] = useState(false);
@@ -157,6 +160,7 @@ export function PackagesAdminPage() {
         <PackagesList
           status={statusFilter}
           isAdmin={isAdmin}
+          canReturnOrRemind={canReturnOrRemind}
         />
       </Stack>
     </div>
@@ -168,9 +172,10 @@ export function PackagesAdminPage() {
 interface PackagesListProps {
   status: PackageStatus | 'all';
   isAdmin: boolean;
+  canReturnOrRemind: boolean;
 }
 
-function PackagesList({ status, isAdmin }: PackagesListProps) {
+function PackagesList({ status, isAdmin, canReturnOrRemind }: PackagesListProps) {
   const params = useMemo(
     () => (status === 'all' ? undefined : { status }),
     [status],
@@ -202,7 +207,12 @@ function PackagesList({ status, isAdmin }: PackagesListProps) {
   return (
     <Stack>
       {items.map((p) => (
-        <PackageRow key={p.id} row={p} isAdmin={isAdmin} />
+        <PackageRow
+          key={p.id}
+          row={p}
+          isAdmin={isAdmin}
+          canReturnOrRemind={canReturnOrRemind}
+        />
       ))}
     </Stack>
   );
@@ -213,9 +223,10 @@ function PackagesList({ status, isAdmin }: PackagesListProps) {
 interface PackageRowProps {
   row: Package;
   isAdmin: boolean;
+  canReturnOrRemind: boolean;
 }
 
-function PackageRow({ row, isAdmin }: PackageRowProps) {
+function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
   const qc = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionOk, setActionOk] = useState<string | null>(null);
@@ -309,21 +320,25 @@ function PackageRow({ row, isAdmin }: PackageRowProps) {
               >
                 Выдать
               </Button>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => setMode(mode === 'return' ? 'none' : 'return')}
-              >
-                Возврат
-              </Button>
-              <Button
-                variant="ghost"
-                loading={remind.isPending}
-                disabled={busy}
-                onClick={() => remind.mutate()}
-              >
-                Напомнить
-              </Button>
+              {canReturnOrRemind ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => setMode(mode === 'return' ? 'none' : 'return')}
+                  >
+                    Возврат
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    loading={remind.isPending}
+                    disabled={busy}
+                    onClick={() => remind.mutate()}
+                  >
+                    Напомнить
+                  </Button>
+                </>
+              ) : null}
               {isAdmin ? (
                 <Button
                   variant="danger"

@@ -492,6 +492,21 @@ describe('PackagesAdminPage', () => {
     expect(screen.queryByRole('button', { name: 'Утеряна' })).not.toBeInTheDocument();
   });
 
+  test('awaiting_pickup + security → только «Выдать» из staff-actions', async () => {
+    listPackagesMock.mockResolvedValue({
+      ok: true,
+      count: 1,
+      packages: [makePackage({ status: 'awaiting_pickup' })],
+    });
+
+    renderWithProviders(<PackagesAdminPage />, makeUser({ role: 'security' }));
+
+    expect(await screen.findByRole('button', { name: 'Выдать' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Возврат' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Напомнить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Утеряна' })).not.toBeInTheDocument();
+  });
+
   test('picked_up → action-ряд пустой, бейдж «выдана»', async () => {
     listPackagesMock.mockResolvedValue({
       ok: true,

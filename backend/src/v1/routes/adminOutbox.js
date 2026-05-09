@@ -112,8 +112,8 @@ router.get('/metrics', requireOutboxRead, async (req, res) => {
 
 // ─── GET /sla ────────────────────────────────────────────────────────────────
 // Registered BEFORE /:id so 'sla' doesn't match UUID guard (which would 400).
-// Шесть gauge'ей по packages_v2 + outbox: queue size, overdue-for-reminder,
-// overdue-for-return, auto-returns 24h, reminders 24h, received 24h.
+// Gauge'и по packages_v2 + outbox: queue size, 7/14/30-day SLA buckets,
+// reminders/follow-ups/admin-alerts за 24h и received за 24h.
 // Content negotiation тот же, что и /metrics: ?format=prometheus → text/plain.
 router.get('/sla', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;

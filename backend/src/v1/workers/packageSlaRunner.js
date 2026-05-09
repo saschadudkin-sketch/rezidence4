@@ -2,49 +2,44 @@
 
 // platform-v1 package SLA runner — Spec: packages-v2-spec.md §5 (SLA + reminders).
 //
-// Два independent sub-job'а в одном tick'е, чтобы не плодить setInterval'ов:
+// The SLA policy is notification-only. It never auto-transitions a package to
+// `returned`; return remains a manual staff/admin operation.
 //
-//   1. AUTO-RETURN (14 дней).  Посылки со status='awaiting_pickup' и
-//      received_at старше AUTO_RETURN_DAYS возвращаются отправителю автоматом.
-//      Один UPDATE с RETURNING — батч-операция, без outbox (резидент уже
-//      проигнорировал напоминания).  Счётчик логируем для admin-наблюдения.
+// One tick runs three idempotent sub-jobs:
+//   1. Resident pickup reminder after 7 days.
+//   2. Concierge follow-up after 14 days.
+//   3. Property-admin alert after 30 days.
 //
-//   2. REMINDER (7 дней).  Для пачки awaiting_pickup, у которых received_at
-//      старше REMINDER_AFTER_DAYS И ещё не было outbox rows с event_type
-//      'package.pickup_reminder', вызываем existing remindPackage(pool, id) —
-//      он откроет транзакцию и enqueue'нет push+sms по спецификации §5.1.
-//
-// Порядок важен:
-//   AUTO-RETURN идёт ПЕРВЫМ, чтобы посылки > 14 дней перешли в terminal и
-//   reminder-джоб не тратил на них tick.  Обратный порядок привёл бы к
-//   пуш-нотификации прямо перед авто-возвратом, что выглядит странно.
-//
-// Идемпотентность:
-//   AUTO-RETURN: state machine enforce'ит single-transition (WHERE status =
-//     'awaiting_pickup' → один update может сработать только один раз).
-//   REMINDER: защищён через NOT EXISTS (outbox row с этим correlation_id +
-//     event_type).  Таким образом мы НИКОГДА не пошлём reminder повторно,
-//     даже если tick'и пересекутся (повторить можно только через ручной
-//     POST /:id/remind — limiter за это отвечает).
-//
-// Multi-tenant pattern идентичен outboxRunner/scheduledFanoutRunner: gate
-// по NOTIFICATIONS_OUTBOX_ENABLED (reminder без outbox'а не доедет),
-// platformDb+getPool или fallbackDb, per-tenant try/catch, setInterval с
-// .unref(), экспорт helper'ов для тестов.
+// Each sub-job is protected by notifications_outbox correlation_id + event_type.
+// Multi-tenant lifecycle mirrors the other runners: feature flag, platformDb +
+// getPool or single-tenant fallbackDb, per-tenant try/catch, unref interval.
 
 const defaultLogger = require('../../logger');
-const { isOutboxEnabled } = require('../services/notificationOutbox');
+const {
+  enqueueNotificationBatch,
+  isOutboxEnabled,
+} = require('../services/notificationOutbox');
 const packagesService = require('../services/packages');
 
-const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;     // 1 hour — не горящая задача
-const DEFAULT_BATCH_SIZE = 50;                  // max rows per sub-job per tick
+const DEFAULT_INTERVAL_MS = 60 * 60 * 1000;
+const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_REMINDER_AFTER_DAYS = 7;
-const DEFAULT_AUTO_RETURN_AFTER_DAYS = 14;
+const DEFAULT_FOLLOWUP_AFTER_DAYS = 14;
+const DEFAULT_ADMIN_ALERT_AFTER_DAYS = 30;
 const DEFAULT_PROPERTY_ID = 'default';
 
-const AUTO_RETURN_REASON = 'Автоматически возвращено: посылка не востребована';
+const PICKUP_REMINDER_EVENT_TYPE = 'package.pickup_reminder';
+const FOLLOWUP_EVENT_TYPE = 'package.followup_required';
+const ADMIN_ALERT_EVENT_TYPE = 'package.overdue_alert';
 
-// ─── registry ─────────────────────────────────────────────────────────────────
+const CONCIERGE_FOLLOWUP_ROLES = Object.freeze(['concierge']);
+const ADMIN_ALERT_ROLES = Object.freeze(['property_admin']);
+
+// Backward-compatible alias for older callers/tests that passed returnDays.
+// It now means "follow-up threshold", not automatic return.
+const DEFAULT_AUTO_RETURN_AFTER_DAYS = DEFAULT_FOLLOWUP_AFTER_DAYS;
+
+// ─── registry ───────────────────────────────────────────────────────────────
 
 async function listActiveProperties(platformDb) {
   if (!platformDb || typeof platformDb.query !== 'function') {
@@ -59,72 +54,26 @@ async function listActiveProperties(platformDb) {
   return rows;
 }
 
-// ─── sub-job: auto-return (14 days) ──────────────────────────────────────────
-
-/**
- * autoReturnOverdue — один UPDATE ... RETURNING на все посылки old enough.
- *
- * NB: Не используем packagesService.returnPackage() — он берёт один id за
- * раз и делает SELECT перед UPDATE.  Для батч-операции это лишние round-trip'ы;
- * single UPDATE atomic + state machine check в WHERE сам запретит повторный
- * переход (status уже не 'awaiting_pickup').
- */
-async function autoReturnOverdue(db, opts = {}) {
-  const days = opts.days ?? DEFAULT_AUTO_RETURN_AFTER_DAYS;
-  const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
-
-  if (!Number.isFinite(days) || days <= 0) {
-    throw new Error('autoReturnOverdue: days must be positive number');
-  }
-
-  const reason = `${AUTO_RETURN_REASON} ${days} дней`;
-
-  // Одна atomic UPDATE с subquery для LIMIT (postgres не поддерживает LIMIT
-  // в DELETE/UPDATE напрямую).  FOR UPDATE SKIP LOCKED не нужен — параллельный
-  // tick не сможет вторично обновить ту же строку (она уже не
-  // 'awaiting_pickup'), а lock per-row pg держит сам.
-  const { rows } = await db.query(
-    `UPDATE packages_v2
-        SET status = 'returned',
-            returned_at = NOW(),
-            returned_reason = $1,
-            updated_at = NOW()
-      WHERE id IN (
-        SELECT id FROM packages_v2
-         WHERE status = 'awaiting_pickup'
-           AND received_at < NOW() - ($2 || ' days')::INTERVAL
-         LIMIT $3
-      )
-      RETURNING id, property_id, unit_id`,
-    [reason, String(days), batchSize],
-  );
-  return rows;
+function resolveFollowupDays(opts = {}) {
+  return opts.followupDays ?? opts.returnDays ?? DEFAULT_FOLLOWUP_AFTER_DAYS;
 }
 
-// ─── sub-job: 7-day reminder ─────────────────────────────────────────────────
+function validatePositive(name, value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${name} must be positive number`);
+  }
+}
 
-/**
- * findRemindCandidates — посылки, которым пора отправить reminder.  Окно
- * между REMINDER_AFTER_DAYS и AUTO_RETURN_AFTER_DAYS, чтобы не слать push
- * прямо перед авто-возвратом (auto-return идёт раньше в tick'е, но между
- * tick'ами тоже возможно попадание).
- *
- * Идемпотентность: NOT EXISTS по outbox.correlation_id + event_type
- * 'package.pickup_reminder' (неважно какой status — даже dead row считает
- * как «уже пытались», consistent с ручным POST /:id/remind).
- */
+// ─── sub-job: 7-day resident reminder ───────────────────────────────────────
+
 async function findRemindCandidates(db, opts = {}) {
   const remindDays = opts.remindDays ?? DEFAULT_REMINDER_AFTER_DAYS;
-  const returnDays = opts.returnDays ?? DEFAULT_AUTO_RETURN_AFTER_DAYS;
+  const followupDays = resolveFollowupDays(opts);
   const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
 
-  if (!Number.isFinite(remindDays) || remindDays <= 0) {
-    throw new Error('findRemindCandidates: remindDays must be positive number');
-  }
-  if (!Number.isFinite(returnDays) || returnDays <= remindDays) {
-    throw new Error(
-      'findRemindCandidates: returnDays must be > remindDays',
-    );
+  validatePositive('findRemindCandidates: remindDays', remindDays);
+  if (!Number.isFinite(followupDays) || followupDays <= remindDays) {
+    throw new Error('findRemindCandidates: followupDays must be > remindDays');
   }
 
   const { rows } = await db.query(
@@ -136,20 +85,15 @@ async function findRemindCandidates(db, opts = {}) {
         AND NOT EXISTS (
           SELECT 1 FROM notifications_outbox o
            WHERE o.correlation_id = p.id
-             AND o.event_type = 'package.pickup_reminder'
+             AND o.event_type = $4
         )
       ORDER BY p.received_at ASC
       LIMIT $3`,
-    [String(remindDays), String(returnDays), batchSize],
+    [String(remindDays), String(followupDays), batchSize, PICKUP_REMINDER_EVENT_TYPE],
   );
   return rows;
 }
 
-/**
- * sendReminders — итерирует кандидатов и вызывает remindPackage (сам
- * открывает транзакцию, enqueue'ит outbox rows).  Per-package try/catch:
- * одна плохая посылка не должна ронять batch.
- */
 async function sendReminders(pool, candidates, opts = {}) {
   const {
     logger = defaultLogger,
@@ -179,56 +123,241 @@ async function sendReminders(pool, candidates, opts = {}) {
   return { sent, skipped, failed };
 }
 
-// ─── tick ────────────────────────────────────────────────────────────────────
+// ─── sub-jobs: 14-day follow-up, 30-day admin alert ─────────────────────────
 
-/**
- * tickSingleTenant — обработка одного pool'а.  Экспортирован отдельно, чтобы
- * тесты подменяли только этот кусок и не трогали интервал.
- *
- * Возвращает сводку { autoReturned, reminded, skipped, failed } — полезно
- * в логах и для admin-API «sla health».
- */
-async function tickSingleTenant(pool, opts = {}) {
-  const {
-    remindDays = DEFAULT_REMINDER_AFTER_DAYS,
-    returnDays = DEFAULT_AUTO_RETURN_AFTER_DAYS,
-    batchSize = DEFAULT_BATCH_SIZE,
-    logger = defaultLogger,
-    autoReturnFn = autoReturnOverdue,
-    findRemindFn = findRemindCandidates,
-    sendRemindersFn = sendReminders,
-  } = opts;
+function packageSelectSql(windowPredicate) {
+  return `SELECT p.id,
+                 p.property_id,
+                 p.unit_id,
+                 p.received_at,
+                 p.recipient_name_snapshot,
+                 p.carrier,
+                 p.tracking_number,
+                 p.storage_location
+            FROM packages_v2 p
+           WHERE p.status = 'awaiting_pickup'
+             ${windowPredicate}
+             AND NOT EXISTS (
+               SELECT 1 FROM notifications_outbox o
+                WHERE o.correlation_id = p.id
+                  AND o.event_type = $4
+             )
+           ORDER BY p.received_at ASC
+           LIMIT $3`;
+}
 
-  // 1. Auto-return первым — убираем из awaiting перед reminder-ом.
-  const autoReturned = await autoReturnFn(pool, { days: returnDays, batchSize });
+async function findFollowupCandidates(db, opts = {}) {
+  const followupDays = resolveFollowupDays(opts);
+  const adminAlertDays = opts.adminAlertDays ?? DEFAULT_ADMIN_ALERT_AFTER_DAYS;
+  const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
 
-  // 2. Reminder по оставшимся.
-  const candidates = await findRemindFn(pool, { remindDays, returnDays, batchSize });
-  const reminderStats = await sendRemindersFn(pool, candidates, { logger });
+  validatePositive('findFollowupCandidates: followupDays', followupDays);
+  if (!Number.isFinite(adminAlertDays) || adminAlertDays <= followupDays) {
+    throw new Error('findFollowupCandidates: adminAlertDays must be > followupDays');
+  }
+
+  const { rows } = await db.query(
+    packageSelectSql(
+      `AND p.received_at < NOW() - ($1 || ' days')::INTERVAL
+       AND p.received_at >= NOW() - ($2 || ' days')::INTERVAL`,
+    ),
+    [String(followupDays), String(adminAlertDays), batchSize, FOLLOWUP_EVENT_TYPE],
+  );
+  return rows;
+}
+
+async function findAdminAlertCandidates(db, opts = {}) {
+  const adminAlertDays = opts.adminAlertDays ?? DEFAULT_ADMIN_ALERT_AFTER_DAYS;
+  const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
+
+  validatePositive('findAdminAlertCandidates: adminAlertDays', adminAlertDays);
+
+  const { rows } = await db.query(
+    packageSelectSql(
+      `AND p.received_at < NOW() - ($1 || ' days')::INTERVAL
+       AND $2::text IS NOT NULL`,
+    ),
+    [String(adminAlertDays), 'admin_alert', batchSize, ADMIN_ALERT_EVENT_TYPE],
+  );
+  return rows;
+}
+
+function buildEscalationPayload(pkg, opts) {
+  const receivedAt = pkg.received_at ? new Date(pkg.received_at) : null;
+  const daysWaiting = receivedAt && Number.isFinite(receivedAt.getTime())
+    ? Math.floor((Date.now() - receivedAt.getTime()) / (24 * 60 * 60 * 1000))
+    : null;
 
   return {
-    autoReturned: autoReturned.length,
-    reminded: reminderStats.sent,
-    skipped: reminderStats.skipped,
-    failed: reminderStats.failed,
+    title: opts.title,
+    body: opts.body,
+    url: opts.url || '/v1/packages',
+    package_id: pkg.id,
+    unit_id: pkg.unit_id,
+    received_at: pkg.received_at,
+    days_waiting: daysWaiting,
+    recipient_name: pkg.recipient_name_snapshot || null,
+    carrier: pkg.carrier || null,
+    tracking_number: pkg.tracking_number || null,
+    storage_location: pkg.storage_location || null,
   };
 }
 
-/**
- * tickAllProperties — обход всех active tenants.  Per-tenant try/catch.
- */
+async function sendStaffEscalations(pool, candidates, opts = {}) {
+  const {
+    eventType,
+    roles,
+    title,
+    body,
+    url,
+    logger = defaultLogger,
+    enqueueBatchFn = enqueueNotificationBatch,
+  } = opts;
+
+  if (!eventType) throw new Error('sendStaffEscalations: eventType required');
+  if (!Array.isArray(roles) || roles.length === 0) {
+    throw new Error('sendStaffEscalations: roles must be non-empty array');
+  }
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const pkg of candidates) {
+    let client = null;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+      const { rows: staffRows } = await client.query(
+        `SELECT id, role
+           FROM staff_users
+          WHERE property_id = $1
+            AND is_active = true
+            AND role = ANY($2::text[])
+          ORDER BY role, id`,
+        [pkg.property_id, roles],
+      );
+
+      if (staffRows.length === 0) {
+        await client.query('COMMIT');
+        skipped += 1;
+        continue;
+      }
+
+      const basePayload = buildEscalationPayload(pkg, { title, body, url });
+      const outboxRows = await enqueueBatchFn(
+        client,
+        staffRows.map((staff) => ({
+          propertyId: pkg.property_id,
+          eventType,
+          channel: 'web_push',
+          recipientType: 'staff',
+          recipientId: staff.id,
+          payload: {
+            ...basePayload,
+            recipient_role: staff.role,
+          },
+          correlationId: pkg.id,
+        })),
+      );
+      await client.query('COMMIT');
+      sent += outboxRows.length > 0 ? 1 : 0;
+      skipped += outboxRows.length > 0 ? 0 : 1;
+    } catch (err) {
+      if (client) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (_) {
+          // Ignore rollback failure; original error is more useful.
+        }
+      }
+      failed += 1;
+      logger.warn(
+        { err: err.message, packageId: pkg.id, eventType },
+        '[package-sla] staff escalation failed for package',
+      );
+    } finally {
+      if (client && typeof client.release === 'function') client.release();
+    }
+  }
+
+  return { sent, skipped, failed };
+}
+
+function combineSkipped(...stats) {
+  return stats.reduce((sum, stat) => sum + (stat.skipped || 0), 0);
+}
+
+function combineFailed(...stats) {
+  return stats.reduce((sum, stat) => sum + (stat.failed || 0), 0);
+}
+
+// ─── tick ───────────────────────────────────────────────────────────────────
+
+async function tickSingleTenant(pool, opts = {}) {
+  const {
+    remindDays = DEFAULT_REMINDER_AFTER_DAYS,
+    adminAlertDays = DEFAULT_ADMIN_ALERT_AFTER_DAYS,
+    batchSize = DEFAULT_BATCH_SIZE,
+    logger = defaultLogger,
+    findRemindFn = findRemindCandidates,
+    sendRemindersFn = sendReminders,
+    findFollowupFn = findFollowupCandidates,
+    findAdminAlertFn = findAdminAlertCandidates,
+    sendStaffEscalationsFn = sendStaffEscalations,
+  } = opts;
+  const followupDays = resolveFollowupDays(opts);
+
+  const reminderCandidates = await findRemindFn(pool, { remindDays, followupDays, batchSize });
+  const reminderStats = await sendRemindersFn(pool, reminderCandidates, { logger });
+
+  const followupCandidates = await findFollowupFn(pool, {
+    followupDays,
+    adminAlertDays,
+    batchSize,
+  });
+  const followupStats = await sendStaffEscalationsFn(pool, followupCandidates, {
+    eventType: FOLLOWUP_EVENT_TYPE,
+    roles: CONCIERGE_FOLLOWUP_ROLES,
+    title: 'Просроченная посылка',
+    body: `Посылка ожидает выдачи больше ${followupDays} дней. Свяжитесь с получателем или оформите ручной возврат.`,
+    logger,
+  });
+
+  const adminAlertCandidates = await findAdminAlertFn(pool, { adminAlertDays, batchSize });
+  const adminAlertStats = await sendStaffEscalationsFn(pool, adminAlertCandidates, {
+    eventType: ADMIN_ALERT_EVENT_TYPE,
+    roles: ADMIN_ALERT_ROLES,
+    title: 'Критически просроченные посылки',
+    body: `Посылка ожидает выдачи больше ${adminAlertDays} дней. Проверьте работу ресепшн-команды.`,
+    logger,
+  });
+
+  return {
+    autoReturned: 0,
+    reminded: reminderStats.sent,
+    followups: followupStats.sent,
+    adminAlerts: adminAlertStats.sent,
+    skipped: combineSkipped(reminderStats, followupStats, adminAlertStats),
+    failed: combineFailed(reminderStats, followupStats, adminAlertStats),
+  };
+}
+
 async function tickAllProperties(args) {
   const {
     platformDb,
     getPool,
     remindDays = DEFAULT_REMINDER_AFTER_DAYS,
-    returnDays = DEFAULT_AUTO_RETURN_AFTER_DAYS,
+    adminAlertDays = DEFAULT_ADMIN_ALERT_AFTER_DAYS,
     batchSize = DEFAULT_BATCH_SIZE,
     logger = defaultLogger,
-    autoReturnFn,
     findRemindFn,
     sendRemindersFn,
+    findFollowupFn,
+    findAdminAlertFn,
+    sendStaffEscalationsFn,
   } = args || {};
+  const followupDays = resolveFollowupDays(args || {});
 
   if (typeof getPool !== 'function') {
     throw new Error('tickAllProperties: getPool(property) function required');
@@ -242,14 +371,17 @@ async function tickAllProperties(args) {
       const pool = getPool(p);
       const stats = await tickSingleTenant(pool, {
         remindDays,
-        returnDays,
+        followupDays,
+        adminAlertDays,
         batchSize,
         logger,
-        autoReturnFn,
         findRemindFn,
         sendRemindersFn,
+        findFollowupFn,
+        findAdminAlertFn,
+        sendStaffEscalationsFn,
       });
-      if (stats.autoReturned > 0 || stats.reminded > 0) {
+      if (stats.reminded > 0 || stats.followups > 0 || stats.adminAlerts > 0) {
         logger.info(
           { slug: p.slug, ...stats },
           '[package-sla] tick processed',
@@ -267,22 +399,8 @@ async function tickAllProperties(args) {
   return results;
 }
 
-// ─── runner lifecycle ─────────────────────────────────────────────────────────
+// ─── runner lifecycle ───────────────────────────────────────────────────────
 
-/**
- * startPackageSlaRunner — единственная публичная точка запуска.
- *
- * @param {object} opts
- * @param {?object}   opts.platformDb     pg pool для platform registry
- * @param {?Function} opts.getPool        (property) → pg pool; нужен если platformDb
- * @param {?object}   opts.fallbackDb     pg pool tenant'а (single-tenant dev)
- * @param {?number}   opts.intervalMs     tick period (default 1h)
- * @param {?number}   opts.remindDays     дни до reminder (default 7)
- * @param {?number}   opts.returnDays     дни до auto-return (default 14)
- * @param {?number}   opts.batchSize      max rows per sub-job (default 50)
- * @param {?object}   opts.logger         DI
- * @returns {{ stop(): void, started: boolean, mode: string, reason?: string }}
- */
 function startPackageSlaRunner(opts = {}) {
   const {
     platformDb = null,
@@ -290,15 +408,17 @@ function startPackageSlaRunner(opts = {}) {
     fallbackDb = null,
     intervalMs = DEFAULT_INTERVAL_MS,
     remindDays = DEFAULT_REMINDER_AFTER_DAYS,
-    returnDays = DEFAULT_AUTO_RETURN_AFTER_DAYS,
+    adminAlertDays = DEFAULT_ADMIN_ALERT_AFTER_DAYS,
     batchSize = DEFAULT_BATCH_SIZE,
     logger = defaultLogger,
-    autoReturnFn,
     findRemindFn,
     sendRemindersFn,
+    findFollowupFn,
+    findAdminAlertFn,
+    sendStaffEscalationsFn,
   } = opts;
+  const followupDays = resolveFollowupDays(opts);
 
-  // gate #1: outbox выключен → reminder не доедет, смысла крутить цикл нет
   if (!isOutboxEnabled()) {
     logger.info(
       '[package-sla] NOTIFICATIONS_OUTBOX_ENABLED=false — runner not started',
@@ -311,7 +431,6 @@ function startPackageSlaRunner(opts = {}) {
     };
   }
 
-  // gate #2: хоть какой-то источник БД
   const hasMultiTenant = Boolean(platformDb && typeof getPool === 'function');
   const hasSingleTenant = Boolean(fallbackDb);
   if (!hasMultiTenant && !hasSingleTenant) {
@@ -326,20 +445,22 @@ function startPackageSlaRunner(opts = {}) {
     };
   }
 
-  // ── single-tenant (dev) ────────────────────────────────────────────────
   if (!hasMultiTenant) {
     const tick = async () => {
       try {
         const stats = await tickSingleTenant(fallbackDb, {
           remindDays,
-          returnDays,
+          followupDays,
+          adminAlertDays,
           batchSize,
           logger,
-          autoReturnFn,
           findRemindFn,
           sendRemindersFn,
+          findFollowupFn,
+          findAdminAlertFn,
+          sendStaffEscalationsFn,
         });
-        if (stats.autoReturned > 0 || stats.reminded > 0) {
+        if (stats.reminded > 0 || stats.followups > 0 || stats.adminAlerts > 0) {
           logger.info(
             { property: DEFAULT_PROPERTY_ID, ...stats },
             '[package-sla] single-tenant tick processed',
@@ -356,7 +477,14 @@ function startPackageSlaRunner(opts = {}) {
     if (typeof tickTimer.unref === 'function') tickTimer.unref();
 
     logger.info(
-      { mode: 'single-tenant', intervalMs, remindDays, returnDays, batchSize },
+      {
+        mode: 'single-tenant',
+        intervalMs,
+        remindDays,
+        followupDays,
+        adminAlertDays,
+        batchSize,
+      },
       '[package-sla] started',
     );
     return {
@@ -366,19 +494,21 @@ function startPackageSlaRunner(opts = {}) {
     };
   }
 
-  // ── multi-tenant (prod) ────────────────────────────────────────────────
   const tick = async () => {
     try {
       await tickAllProperties({
         platformDb,
         getPool,
         remindDays,
-        returnDays,
+        followupDays,
+        adminAlertDays,
         batchSize,
         logger,
-        autoReturnFn,
         findRemindFn,
         sendRemindersFn,
+        findFollowupFn,
+        findAdminAlertFn,
+        sendStaffEscalationsFn,
       });
     } catch (err) {
       logger.error(
@@ -391,7 +521,14 @@ function startPackageSlaRunner(opts = {}) {
   if (typeof tickTimer.unref === 'function') tickTimer.unref();
 
   logger.info(
-    { mode: 'multi-tenant', intervalMs, remindDays, returnDays, batchSize },
+    {
+      mode: 'multi-tenant',
+      intervalMs,
+      remindDays,
+      followupDays,
+      adminAlertDays,
+      batchSize,
+    },
     '[package-sla] started',
   );
   return {
@@ -403,17 +540,25 @@ function startPackageSlaRunner(opts = {}) {
 
 module.exports = {
   startPackageSlaRunner,
-  // exported for tests + admin introspection:
   listActiveProperties,
-  autoReturnOverdue,
   findRemindCandidates,
   sendReminders,
+  findFollowupCandidates,
+  findAdminAlertCandidates,
+  buildEscalationPayload,
+  sendStaffEscalations,
   tickSingleTenant,
   tickAllProperties,
   DEFAULT_INTERVAL_MS,
   DEFAULT_BATCH_SIZE,
   DEFAULT_REMINDER_AFTER_DAYS,
+  DEFAULT_FOLLOWUP_AFTER_DAYS,
+  DEFAULT_ADMIN_ALERT_AFTER_DAYS,
   DEFAULT_AUTO_RETURN_AFTER_DAYS,
   DEFAULT_PROPERTY_ID,
-  AUTO_RETURN_REASON,
+  PICKUP_REMINDER_EVENT_TYPE,
+  FOLLOWUP_EVENT_TYPE,
+  ADMIN_ALERT_EVENT_TYPE,
+  CONCIERGE_FOLLOWUP_ROLES,
+  ADMIN_ALERT_ROLES,
 };

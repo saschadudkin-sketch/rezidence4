@@ -63,9 +63,9 @@ async function startServer({ app, db, config }) {
     // но отдельный таймер — чтобы шейпать частоту независимо.
     scheduledFanoutRunner = startScheduledFanoutRunner(runnerDb);
 
-    // SLA-воркер посылок: каждый час auto-return (14 дней) + reminder
-    // (7 дней).  Reminder идёт через тот же outbox → outbox-runner уже
-    // запущен выше, цепочка замкнута.
+    // SLA-воркер посылок: каждый час отправляет reminder (7 дней),
+    // concierge follow-up (14 дней) и admin alert (30 дней) через outbox.
+    // Авто-возврата нет: return остаётся ручной операцией.
     packageSlaRunner = startPackageSlaRunner(runnerDb);
   }
 

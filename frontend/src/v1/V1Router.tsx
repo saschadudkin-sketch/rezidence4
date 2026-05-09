@@ -69,6 +69,14 @@ const ADMIN_ALLOW = ['admin', 'property_admin', 'management_company_admin', 'pla
 // concierge-detail is gated to staff because the approvals UI is a staff-only
 // view of the lifecycle; residents have their own (read-only) request cards.
 const CONCIERGE_ALLOW = ['concierge', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
+const PACKAGES_WORKSPACE_ALLOW = [
+  'security',
+  'concierge',
+  'admin',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+] as const;
 const STAFF_WORKSPACE_ALLOW = [
   'concierge',
   'security',
@@ -201,7 +209,7 @@ export function V1Router() {
         <Route
           path="packages"
           element={
-            <RoleGate allow={CONCIERGE_ALLOW}>
+            <RoleGate allow={PACKAGES_WORKSPACE_ALLOW}>
               <PackagesAdminPage />
             </RoleGate>
           }

@@ -3,7 +3,7 @@
 **Фаза:** 5 (Content + Notifications)
 **Статус:** Draft
 **Схема-база:** мастер-спека `domhub-access-data-model-spec.md` packages не описывает явно — эта спека закрывает пробел. Используем паттерны access-core §5.3 (FK-стиль, property_id, state machine).
-**Миграция:** `backend/src/v1/migrations/018_packages_v2.js` (номер уточняется при старте Phase 5)
+**Миграция:** `backend/src/v1/migrations/019_packages_v2.js`
 **Существующий код:** `backend/src/routes/packages.js` + legacy table `packages` (`dbMigrations.js` lines 658–677)
 
 ---
@@ -17,7 +17,8 @@
                                           → уведомление резиденту (SMS + push)
                                           → резидент пришёл за посылкой → "picked_up"
                                           → [если не пришёл 7 дней] напоминание
-                                          → [если не пришёл 14 дней] "returned" (уехало обратно)
+                                          → [если не пришёл 14 дней] follow-up консьержу
+                                          → [если не пришёл 30 дней] alert администратору
 ```
 
 **Legacy-модель (`packages`) проблемы:**
@@ -125,8 +126,11 @@ packages_v2
 
 **SLA-автоматика** (отдельный scheduled job, раз в сутки):
 - Посылка в `awaiting_pickup` дольше 7 дней → `enqueueNotification` с event_type `package.pickup_reminder`
-- Посылка в `awaiting_pickup` дольше 14 дней → создаётся задача consierge («связаться с резидентом, уточнить»); не автоматический return — возврат курьеру требует человеческого решения
+- Посылка в `awaiting_pickup` дольше 14 дней → создаётся задача concierge («связаться с резидентом, уточнить»); не автоматический return — возврат курьеру требует человеческого решения
 - Посылка в `awaiting_pickup` дольше 30 дней → alert property_admin
+- До выделенного task-queue 14/30-дневные действия фиксируются в `notifications_outbox` как staff web-push события:
+  - `package.followup_required` → активным `staff_users.role='concierge'`
+  - `package.overdue_alert` → активным `staff_users.role='property_admin'`
 
 **Без автоматического перевода в `returned`** — этот переход всегда ручной (кто-то должен физически вынести посылку курьеру).
 
@@ -138,10 +142,10 @@ packages_v2
 |---|---|---|---|
 | `GET` | `/api/v1/packages?status=&unit_id=&recipient_resident_id=&carrier=&since=&until=` | `security`, `concierge`, `property_admin` | List с фильтрами |
 | `GET` | `/api/v1/packages/mine` | `resident` | Свои посылки (active + за 90 дней); `recipient_resident_id = subject.id OR (recipient_resident_id IS NULL AND unit_id IN subject.units)` |
-| `GET` | `/api/v1/packages/:id` | `resident` (своя), `staff` | Детали |
-| `POST` | `/api/v1/packages` | `security`, `concierge` | Приём посылки; triggers `enqueueNotification` `package.received` → резиденту |
+| `GET` | `/api/v1/packages/:id` | `resident` (своя), `security`, `concierge`, `property_admin` | Детали |
+| `POST` | `/api/v1/packages` | `security`, `concierge`, `property_admin` | Приём посылки; triggers `enqueueNotification` `package.received` → резиденту |
 | `PATCH` | `/api/v1/packages/:id` | `concierge`, `property_admin` | Правки метаданных (carrier, notes, storage_location, photo); **не** меняет status |
-| `POST` | `/api/v1/packages/:id/pickup` | `security`, `concierge` | Выдача; body: `{ picked_up_by_resident_id? OR picked_up_by_name, document_ref? }` |
+| `POST` | `/api/v1/packages/:id/pickup` | `security`, `concierge`, `property_admin` | Выдача; body: `{ picked_up_by_resident_id? OR picked_up_by_name, document_ref? }` |
 | `POST` | `/api/v1/packages/:id/return` | `concierge`, `property_admin` | Возврат курьеру; body: `{ reason }` |
 | `POST` | `/api/v1/packages/:id/mark-lost` | `property_admin` | Отметка потери; body: `{ reason }`; требует двойное подтверждение (явный флаг `confirm: true`) |
 | `POST` | `/api/v1/packages/:id/remind` | `concierge`, `property_admin` | Ручное напоминание (дополнительно к SLA-автоматике) — enqueue notification |
@@ -169,10 +173,12 @@ packages_v2
 |---|---|---|---|---|
 | POST /packages (новая посылка) | `package.received` | sms + web_push (по настройкам резидента) | `recipient_resident_id` (или все active residents unit если NULL) | `{ sender_name, carrier, tracking_number, photo_url, storage_location }` |
 | SLA 7 дней | `package.pickup_reminder` | sms + web_push | same | `{ days_waiting: 7, received_at }` |
+| SLA 14 дней | `package.followup_required` | web_push | `concierge` staff | `{ package_id, days_waiting, received_at, unit_id, carrier, tracking_number }` |
+| SLA 30 дней | `package.overdue_alert` | web_push | `property_admin` staff | `{ package_id, days_waiting, received_at, unit_id, carrier, tracking_number }` |
 | POST /packages/:id/remind | `package.pickup_reminder` (manual) | sms + web_push | same | same + `{ manual: true }` |
 | POST /packages/:id/pickup | `package.picked_up_confirmation` | web_push | `picked_up_by_resident_id` | `{ picked_up_at, picked_up_by_name? }` |
 
-Всё через `enqueueNotification(tx, {...})` в той же транзакции, что и UPDATE статуса — см. `notifications-outbox-spec.md §2`.
+Mutation-triggered events are enqueued in the same transaction as the status update. SLA 7/14/30 events are idempotent scheduled outbox inserts keyed by `(correlation_id, event_type)` — см. `notifications-outbox-spec.md §2`.
 
 ### 5.2 Access-core (опциональная связка)
 

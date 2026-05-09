@@ -3,28 +3,25 @@
 // platform-v1 packages_v2 HTTP router — Spec: packages-v2-spec.md §4.
 //
 // Endpoints:
-//   GET    /api/v1/packages                      (staff, admin)         list
+//   GET    /api/v1/packages                      (security, concierge, admin) list
 //   GET    /api/v1/packages/mine                 (resident)             own
 //   GET    /api/v1/packages/metrics              (admin)                agg
-//   GET    /api/v1/packages/:id                  (resident own | staff) row
-//   POST   /api/v1/packages                      (staff, admin)         create
-//   PATCH  /api/v1/packages/:id                  (staff, admin)         metadata
-//   POST   /api/v1/packages/:id/pickup           (staff, admin)         state→picked_up
-//   POST   /api/v1/packages/:id/return           (staff, admin)         state→returned
+//   GET    /api/v1/packages/:id                  (resident own | package staff) row
+//   POST   /api/v1/packages                      (security, concierge, admin) create
+//   PATCH  /api/v1/packages/:id                  (concierge, admin)     metadata
+//   POST   /api/v1/packages/:id/pickup           (security, concierge, admin) state→picked_up
+//   POST   /api/v1/packages/:id/return           (concierge, admin)     state→returned
 //   POST   /api/v1/packages/:id/mark-lost        (admin)                state→lost (confirm+reason)
-//   POST   /api/v1/packages/:id/remind           (staff, admin)         manual reminder
+//   POST   /api/v1/packages/:id/remind           (concierge, admin)     manual reminder
 //
 // Порядок маршрутов: специфичные (/mine, /metrics) ПЕРЕД параметрическим /:id
 // (иначе express поймает 'mine' как id → 404/400 при UUID-валидации).
 //
-// Auth mapping (в v1 до Phase-7):
-//   - legacy 'admin'            ≙ v1 property_admin (все mutations)
-//   - isStaff(role)             ≙ v1 staff (concierge, security, manager) —
-//                                  POST + pickup + return + remind + PATCH
-//   - legacy 'resident'         ≙ v1 resident (видит только свои)
-// Capability-matrix spec §4:
-//   mark-lost  — только property_admin
-//   всё остальное mutation — staff + admin
+// Auth mapping follows the packages-v2 role matrix, not generic staff:
+//   - security: list/detail, receive, pickup
+//   - concierge: security actions + patch, return, remind
+//   - property/management/platform admin: all operations
+//   - resident: /mine and own /:id only
 
 const express = require('express');
 // express-rate-limit v6/v7: default export = function; v8: named export.
@@ -37,9 +34,10 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const {
+  FINAL_ROLES,
   isAdmin,
-  isStaffOrAdmin,
   isResidentUser,
+  normalizeRole,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -65,6 +63,26 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // Shim: legacy callsites ожидают `isResident(req)`.
 const isResident = isResidentUser;
+
+function packageRole(req) {
+  return normalizeRole(req.user?.role);
+}
+
+function isPackageReader(req) {
+  const role = packageRole(req);
+  return role === FINAL_ROLES.SECURITY
+    || role === FINAL_ROLES.CONCIERGE
+    || isAdmin(req);
+}
+
+function isPackageIntake(req) {
+  return isPackageReader(req);
+}
+
+function isPackageOperator(req) {
+  const role = packageRole(req);
+  return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
 
 // ─── Rate limiters (spec §4) ─────────────────────────────────────────────────
 // Защищены от спама: POST /packages 30/min, POST /:id/remind 1/hour per-package.
@@ -146,9 +164,9 @@ router.get('/metrics',
   }
 });
 
-// ─── GET /api/v1/packages (staff, admin) ─────────────────────────────────────
+// ─── GET /api/v1/packages (security, concierge, admin) ───────────────────────
 router.get('/', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageReader(req)) return res.status(403).json({ error: 'Package staff or admin required' });
   const pool = req.db || db.pool;
   try {
     const result = await listForTenant(pool, {
@@ -177,7 +195,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ─── GET /api/v1/packages/:id (resident own | staff) ─────────────────────────
+// ─── GET /api/v1/packages/:id (resident own | package staff) ─────────────────
 router.get('/:id', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
@@ -187,7 +205,8 @@ router.get('/:id', async (req, res) => {
 
     // Visibility: staff — всё; резидент — только свои (по recipient_resident_id
     // или unit_id принадлежит резиденту).
-    if (!isStaffOrAdmin(req)) {
+    if (!isPackageReader(req)) {
+      if (!isResident(req)) return res.status(403).json({ error: 'Forbidden' });
       const myResidentId = await resolveResidentByUid(pool, req.user.uid);
       if (!myResidentId) return res.status(403).json({ error: 'Forbidden' });
       const matchesRecipient = pkg.recipient_resident_id === myResidentId;
@@ -206,11 +225,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ─── POST /api/v1/packages (staff, admin) ────────────────────────────────────
+// ─── POST /api/v1/packages (security, concierge, admin) ──────────────────────
 // Idempotency: optional Idempotency-Key — защита от double-tap при создании
 // записи о посылке из reception-консоли.
 router.post('/', createLimiter, idempotency, async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageIntake(req)) return res.status(403).json({ error: 'Package intake role required' });
   const b = req.body || {};
   if (!isValidUuid(b.property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
   if (!isValidUuid(b.unit_id)) return res.status(400).json({ error: 'unit_id must be UUID' });
@@ -255,9 +274,9 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/v1/packages/:id (staff, admin) ───────────────────────────────
+// ─── PATCH /api/v1/packages/:id (concierge, admin) ───────────────────────────
 router.patch('/:id', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageOperator(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -276,7 +295,7 @@ router.patch('/:id', async (req, res) => {
 
 // ─── POST /api/v1/packages/:id/pickup ────────────────────────────────────────
 router.post('/:id/pickup', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageIntake(req)) return res.status(403).json({ error: 'Package intake role required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const b = req.body || {};
   const pool = req.db || db.pool;
@@ -311,7 +330,7 @@ router.post('/:id/pickup', async (req, res) => {
 
 // ─── POST /api/v1/packages/:id/return ────────────────────────────────────────
 router.post('/:id/return', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageOperator(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -356,7 +375,7 @@ router.post('/:id/mark-lost',
 
 // ─── POST /api/v1/packages/:id/remind ────────────────────────────────────────
 router.post('/:id/remind', remindLimiter, async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isPackageOperator(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {

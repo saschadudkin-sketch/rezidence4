@@ -1,75 +1,53 @@
 'use strict';
 
 // platform-v1 package-SLA observability service.
-// Spec: packages-v2-spec.md §5 (SLA reminders + auto-return).
+// Spec: packages-v2-spec.md §5 (SLA reminders + manual follow-up/alerts).
 //
-// Этот модуль — per-property read-side observability над `packages_v2` +
-// `notifications_outbox`.  Пишущая сторона — packageSlaRunner.js.
-//
-// Что отвечает:
-//   • getPackageSlaSnapshot(db)        — JSON snapshot для admin UI
-//   • renderSlaAsPrometheus(snap, opt) — text/plain exposition для scraper'а
-//
-// Это DB-level gauges, не process-level counters.  Пережёвывать
-// `package_sla_ticks_total` внутри runner-памяти смысла мало: process
-// рестартится, и дашборды кривятся.  Gauge по базе переживает рестарт
-// и показывает истинное состояние «здоровья» SLA (overdue посылки, кол-во
-// отправленных reminders за 24h и т.д.).
-//
-// Gauges возвращают:
-//   awaiting_pickup_total        — всего status='awaiting_pickup'
-//   awaiting_pickup_over_7d      — подпадают под reminder (≥7 и <14 дней)
-//   awaiting_pickup_over_14d     — ДОЛЖНЫ быть 0, если runner здоров;
-//                                   не-ноль = воркер сломался или env отключил
-//   auto_returned_24h            — сработавших автоматом за последние 24h
-//   reminders_sent_24h           — package.pickup_reminder rows в outbox за 24h
-//   received_24h                 — новые посылки за 24h (базовая активность)
-//
-// Форма snapshot'а — shape-compatible с renderSlaAsPrometheus, не
-// изменяй ключи без синхронной правки Prometheus helper'а.
+// Read-side gauges over `packages_v2` and `notifications_outbox`. The write
+// side is packageSlaRunner.js. The policy intentionally has no auto-return:
+// returned/lost are manual terminal transitions only.
 
-// ─── Константы ───────────────────────────────────────────────────────────────
+const DEFAULT_REMINDER_AFTER_DAYS = 7;
+const DEFAULT_FOLLOWUP_AFTER_DAYS = 14;
+const DEFAULT_ADMIN_ALERT_AFTER_DAYS = 30;
 
-const DEFAULT_REMINDER_AFTER_DAYS    = 7;
-const DEFAULT_AUTO_RETURN_AFTER_DAYS = 14;
+const PICKUP_REMINDER_EVENT_TYPE = 'package.pickup_reminder';
+const FOLLOWUP_EVENT_TYPE = 'package.followup_required';
+const ADMIN_ALERT_EVENT_TYPE = 'package.overdue_alert';
 
-// Совпадает с AUTO_RETURN_REASON в packageSlaRunner.js — мы ищем в
-// returned_reason ILIKE 'Автоматически возвращено%'.  Держим свой
-// паттерн, чтобы не зависеть от экспорта константы.
-const AUTO_RETURN_REASON_PATTERN = 'Автоматически возвращено%';
+// Backward-compatible alias for older callers using returnDays.
+const DEFAULT_AUTO_RETURN_AFTER_DAYS = DEFAULT_FOLLOWUP_AFTER_DAYS;
 
-// ─── getPackageSlaSnapshot ───────────────────────────────────────────────────
+function resolveThresholds(opts = {}) {
+  const remindDays = Number.isFinite(opts.remindDays)
+    ? opts.remindDays
+    : DEFAULT_REMINDER_AFTER_DAYS;
+  const followupDays = Number.isFinite(opts.followupDays)
+    ? opts.followupDays
+    : (Number.isFinite(opts.returnDays) ? opts.returnDays : DEFAULT_FOLLOWUP_AFTER_DAYS);
+  const adminAlertDays = Number.isFinite(opts.adminAlertDays)
+    ? opts.adminAlertDays
+    : DEFAULT_ADMIN_ALERT_AFTER_DAYS;
 
-/**
- * getPackageSlaSnapshot — одним запросом (многоколоночный COUNT+FILTER)
- * собирает все gauge'и.  Один раунд-трип в БД — дёшево даже при частом
- * scrape.
- *
- * Параметризация дней — через аргументы, чтобы тесты могли варьировать
- * пороги без подмены DEFAULT'ов.
- */
+  if (remindDays <= 0) {
+    throw new Error('getPackageSlaSnapshot: remindDays > 0 required');
+  }
+  if (followupDays <= remindDays) {
+    throw new Error('getPackageSlaSnapshot: followupDays > remindDays required');
+  }
+  if (adminAlertDays <= followupDays) {
+    throw new Error('getPackageSlaSnapshot: adminAlertDays > followupDays required');
+  }
+  return { remindDays, followupDays, adminAlertDays };
+}
+
 async function getPackageSlaSnapshot(db, opts = {}) {
   if (!db || typeof db.query !== 'function') {
     throw new Error('getPackageSlaSnapshot: db with .query required');
   }
-  const remindDays = Number.isFinite(opts.remindDays)
-    ? opts.remindDays : DEFAULT_REMINDER_AFTER_DAYS;
-  const returnDays = Number.isFinite(opts.returnDays)
-    ? opts.returnDays : DEFAULT_AUTO_RETURN_AFTER_DAYS;
-
-  if (remindDays <= 0 || returnDays <= remindDays) {
-    throw new Error('getPackageSlaSnapshot: remindDays > 0 && returnDays > remindDays');
-  }
-
+  const { remindDays, followupDays, adminAlertDays } = resolveThresholds(opts);
   const generatedAt = new Date().toISOString();
 
-  // Один SQL — FILTER aggregate'ы.  Без CTE, чтобы planner был максимально
-  // прямолинеен; индексы по status/received_at и status/returned_at
-  // существуют (см. миграция packages_v2).
-  //
-  // NB: COUNT(*) без строк всё равно вернёт одну row (ноль в каждом
-  // aggregate).  Но в юнит-тестах мокаем `rows: []`, поэтому защита
-  // `|| {}` обязательна — не полагаемся на destructure default.
   const { rows: aggRows } = await db.query(
     `
     SELECT
@@ -80,41 +58,57 @@ async function getPackageSlaSnapshot(db, opts = {}) {
                          AND received_at >= NOW() - ($2 || ' days')::INTERVAL)
         AS awaiting_pickup_over_remind,
       COUNT(*) FILTER (WHERE status = 'awaiting_pickup'
-                         AND received_at < NOW() - ($2 || ' days')::INTERVAL)
-        AS awaiting_pickup_over_return,
-      COUNT(*) FILTER (WHERE status = 'returned'
-                         AND returned_reason ILIKE $3
-                         AND returned_at >= NOW() - INTERVAL '24 hours')
-        AS auto_returned_24h,
+                         AND received_at < NOW() - ($2 || ' days')::INTERVAL
+                         AND received_at >= NOW() - ($3 || ' days')::INTERVAL)
+        AS awaiting_pickup_over_followup,
+      COUNT(*) FILTER (WHERE status = 'awaiting_pickup'
+                         AND received_at < NOW() - ($3 || ' days')::INTERVAL)
+        AS awaiting_pickup_over_admin_alert,
       COUNT(*) FILTER (WHERE received_at >= NOW() - INTERVAL '24 hours')
         AS received_24h
       FROM packages_v2
     `,
-    [String(remindDays), String(returnDays), AUTO_RETURN_REASON_PATTERN],
+    [String(remindDays), String(followupDays), String(adminAlertDays)],
   );
   const agg = aggRows[0] || {};
 
-  // Reminders живут в outbox — отдельный запрос, таблица другая.
-  const { rows: remindRows } = await db.query(
+  const eventTypes = [
+    PICKUP_REMINDER_EVENT_TYPE,
+    FOLLOWUP_EVENT_TYPE,
+    ADMIN_ALERT_EVENT_TYPE,
+  ];
+  const { rows: outboxRows } = await db.query(
     `
-    SELECT COUNT(*)::bigint AS reminders_sent_24h
+    SELECT
+      COUNT(*) FILTER (WHERE event_type = $1) AS reminders_sent_24h,
+      COUNT(*) FILTER (WHERE event_type = $2) AS followups_sent_24h,
+      COUNT(*) FILTER (WHERE event_type = $3) AS admin_alerts_sent_24h
       FROM notifications_outbox
-     WHERE event_type = 'package.pickup_reminder'
+     WHERE event_type = ANY($4::text[])
        AND created_at >= NOW() - INTERVAL '24 hours'
     `,
+    [
+      PICKUP_REMINDER_EVENT_TYPE,
+      FOLLOWUP_EVENT_TYPE,
+      ADMIN_ALERT_EVENT_TYPE,
+      eventTypes,
+    ],
   );
-  const remindAgg = remindRows[0] || {};
+  const outboxAgg = outboxRows[0] || {};
 
   return {
-    awaiting_pickup_total:        toInt(agg.awaiting_pickup_total),
-    awaiting_pickup_over_7d:      toInt(agg.awaiting_pickup_over_remind),
-    awaiting_pickup_over_14d:     toInt(agg.awaiting_pickup_over_return),
-    auto_returned_24h:            toInt(agg.auto_returned_24h),
-    reminders_sent_24h:           toInt(remindAgg.reminders_sent_24h),
-    received_24h:                 toInt(agg.received_24h),
+    awaiting_pickup_total: toInt(agg.awaiting_pickup_total),
+    awaiting_pickup_over_7d: toInt(agg.awaiting_pickup_over_remind),
+    awaiting_pickup_over_14d: toInt(agg.awaiting_pickup_over_followup),
+    awaiting_pickup_over_30d: toInt(agg.awaiting_pickup_over_admin_alert),
+    reminders_sent_24h: toInt(outboxAgg.reminders_sent_24h),
+    followups_sent_24h: toInt(outboxAgg.followups_sent_24h),
+    admin_alerts_sent_24h: toInt(outboxAgg.admin_alerts_sent_24h),
+    received_24h: toInt(agg.received_24h),
     thresholds: {
       remind_days: remindDays,
-      return_days: returnDays,
+      followup_days: followupDays,
+      admin_alert_days: adminAlertDays,
     },
     generated_at: generatedAt,
   };
@@ -125,26 +119,6 @@ function toInt(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-// ─── renderSlaAsPrometheus ───────────────────────────────────────────────────
-
-/**
- * renderSlaAsPrometheus — snapshot → Prometheus text-exposition.
- *
- * Генерирует 6 gauge'ей:
- *
- *   package_sla_awaiting_pickup{property="..."}          — current queue size
- *   package_sla_awaiting_pickup_over_7d{property="..."}  — due for reminder
- *   package_sla_awaiting_pickup_over_14d{property="..."} — overdue for return
- *   package_sla_auto_returned_24h{property="..."}
- *   package_sla_reminders_sent_24h{property="..."}
- *   package_sla_received_24h{property="..."}
- *
- * ALERT rules (suggested):
- *   - package_sla_awaiting_pickup_over_14d > 0 for 30m → paging
- *     («SLA runner stuck» — 14-дневные посылки не авто-возвращаются)
- *   - package_sla_reminders_sent_24h == 0 AND package_sla_awaiting_pickup_over_7d > 0
- *     → warning («reminders не уходят»)
- */
 function renderSlaAsPrometheus(snapshot, opts = {}) {
   const propertyLabel = typeof opts.propertySlug === 'string' && opts.propertySlug
     ? `{property="${escapeLabel(opts.propertySlug)}"}`
@@ -165,23 +139,33 @@ function renderSlaAsPrometheus(snapshot, opts = {}) {
   );
   emit(
     'package_sla_awaiting_pickup_over_7d',
-    'Packages due for reminder (>=7 and <14 days since received_at)',
+    'Packages due for resident pickup reminder',
     snapshot.awaiting_pickup_over_7d,
   );
   emit(
     'package_sla_awaiting_pickup_over_14d',
-    'Packages overdue for auto-return (>=14 days); should be 0 if runner is healthy',
+    'Packages due for concierge follow-up',
     snapshot.awaiting_pickup_over_14d,
   );
   emit(
-    'package_sla_auto_returned_24h',
-    'Packages auto-returned in the last 24 hours',
-    snapshot.auto_returned_24h,
+    'package_sla_awaiting_pickup_over_30d',
+    'Packages due for property-admin alert',
+    snapshot.awaiting_pickup_over_30d,
   );
   emit(
     'package_sla_reminders_sent_24h',
     'package.pickup_reminder outbox rows created in the last 24 hours',
     snapshot.reminders_sent_24h,
+  );
+  emit(
+    'package_sla_followups_sent_24h',
+    'package.followup_required outbox rows created in the last 24 hours',
+    snapshot.followups_sent_24h,
+  );
+  emit(
+    'package_sla_admin_alerts_sent_24h',
+    'package.overdue_alert outbox rows created in the last 24 hours',
+    snapshot.admin_alerts_sent_24h,
   );
   emit(
     'package_sla_received_24h',
@@ -204,6 +188,10 @@ module.exports = {
   renderSlaAsPrometheus,
   escapeLabel,
   DEFAULT_REMINDER_AFTER_DAYS,
+  DEFAULT_FOLLOWUP_AFTER_DAYS,
+  DEFAULT_ADMIN_ALERT_AFTER_DAYS,
   DEFAULT_AUTO_RETURN_AFTER_DAYS,
-  AUTO_RETURN_REASON_PATTERN,
+  PICKUP_REMINDER_EVENT_TYPE,
+  FOLLOWUP_EVENT_TYPE,
+  ADMIN_ALERT_EVENT_TYPE,
 };

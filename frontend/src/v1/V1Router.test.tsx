@@ -66,6 +66,7 @@ vi.mock('./api', () => {
         listQueue: neverResolves,
         getRequestDetail: neverResolves,
       },
+      packages: { list: neverResolves },
       residents: { getById: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
@@ -276,6 +277,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/staff-workspace');
     expect(
       await screen.findByRole('heading', { name: /рабочее место staff/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('security deep-linked to /v1/packages reaches package intake page', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('security'));
+    renderAt('/v1/packages');
+    expect(
+      await screen.findByRole('heading', { name: /посылки/i }),
     ).toBeInTheDocument();
   });
 

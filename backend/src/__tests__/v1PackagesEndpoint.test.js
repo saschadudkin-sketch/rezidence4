@@ -121,6 +121,37 @@ describe('authorization', () => {
     expect(res.status).toBe(403);
   });
 
+  test('GET / rejects technician because packages are security/concierge/admin only', async () => {
+    mockCurrentUser = { uid: 't1', role: 'technician' };
+    const res = await supertest(buildApp()).get('/api/v1/packages');
+    expect(res.status).toBe(403);
+  });
+
+  test('security can list, create, and pickup but cannot operate return/remind/patch', async () => {
+    mockCurrentUser = { uid: 'guard-1', role: 'security' };
+    dispatch([
+      [/FROM packages_v2/, () => ({ rows: [] })],
+    ]);
+
+    const list = await supertest(buildApp()).get('/api/v1/packages');
+    expect(list.status).toBe(200);
+
+    const create = await supertest(buildApp()).post('/api/v1/packages').send({});
+    expect(create.status).toBe(400);
+    expect(create.body.error).toMatch(/property_id/);
+
+    const pickup = await supertest(buildApp()).post('/api/v1/packages/not-a-uuid/pickup').send({});
+    expect(pickup.status).toBe(400);
+    expect(pickup.body.error).toMatch(/Invalid id/);
+
+    const patch = await supertest(buildApp()).patch(`/api/v1/packages/${UUID}`).send({});
+    expect(patch.status).toBe(403);
+    const ret = await supertest(buildApp()).post(`/api/v1/packages/${UUID}/return`).send({});
+    expect(ret.status).toBe(403);
+    const remind = await supertest(buildApp()).post(`/api/v1/packages/${UUID}/remind`).send({});
+    expect(remind.status).toBe(403);
+  });
+
   test('GET /mine rejects staff', async () => {
     mockCurrentUser = { uid: 's1', role: 'concierge' };
     const res = await supertest(buildApp()).get('/api/v1/packages/mine');

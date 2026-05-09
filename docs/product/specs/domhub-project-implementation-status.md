@@ -1,6 +1,6 @@
 # DomHub Project Implementation Status
 
-Date: 2026-05-08
+Date: 2026-05-10
 Status: audit snapshot
 
 This file records what is visible in the current `rezidence4` working tree against the `DH-01` through `DH-61` project backlog. It is not a roadmap and does not override `domhub-final-product-plan.md`, `domhub-master-jira-backlog.md`, or the supporting specs.
@@ -80,7 +80,7 @@ The largest gaps are still structural:
 | `DH-28` | Technician Workflow UI | Improved, frontend baseline added | `/v1/technician-workspace` now provides technician queue filters, task detail, claim/start/resume/waiting/resolve actions, resolution notes, follow-up flag, attachment ids and technician event timelines. |
 | `DH-29` | Contractor Workflow Backend | Improved, backend baseline added | `/api/v1/contractor-workspace` now exposes contractor queue/detail plus concierge/admin assignment and contractor start/resume/waiting/resolve actions. `v1_033_contractor_workflow` adds contractor assignment bindings and contractor KPI events with active/expiry/company checks. |
 | `DH-30` | Contractor Portal UI | Improved, frontend baseline added | `/v1/contractor-workspace` now provides a restricted contractor queue/detail portal with start/resume, waiting-for-parts and result submission actions over `/api/v1/contractor-workspace`. |
-| `DH-31` | Packages Domain | Implemented baseline | `packages_v2`, package SLA/reminder services and admin/resident pages exist. |
+| `DH-31` | Packages Domain | Rechecked, guard/SLA hardening added | `packages_v2`, resident/admin package pages, role-aligned package guards and SLA 7/14/30 outbox reminders/follow-ups/admin-alerts exist; auto-return is intentionally absent. |
 | `DH-32` | Announcements And Documents Backend | Implemented baseline | `announcements_v2`, `documents_v2`, versions, public/admin routes and services exist. |
 | `DH-33` | Resident Communications UI | Implemented baseline | Resident announcements and documents pages exist. |
 | `DH-34` | Notification Orchestration | Partial | Outbox, log, worker, templates and adapters exist; channel production configuration/reliability still needs validation. |
@@ -147,11 +147,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-28` | Improved, frontend baseline added | `TechnicianWorkspacePage`, `technicianWorkspaceApi`, `/v1/technician-workspace` routing and page/router tests now cover queue/detail loading, filters, claim/start, waiting and resolve with result fields. | Continue with `DH-29` Contractor Workflow Backend. |
 | `DH-29` | Improved, backend baseline added | `contractorWorkspaceService.js`, `contractorWorkspace.js`, `/contractor-workspace/queue`, `/requests/:id`, `/assign`, `/start`, `/resume`, `/waiting`, `/resolve`, migration `v1_033_contractor_workflow` and route/migration/authz tests now cover active/expiry profile checks, company status, limited payloads, assignment and completion events. | Continue with `DH-30` Contractor Portal UI. |
 | `DH-30` | Improved, frontend baseline added | `ContractorWorkspacePage`, `contractorWorkspaceApi`, `/v1/contractor-workspace` routing, restricted detail rendering and page/router tests now cover contractor queue/detail loading, filters, start/resume, waiting, resolve and local non-contractor denial. | Recheck `DH-31` Packages Domain and confirm no remaining package gaps. |
+| `DH-31` | Rechecked, guard/SLA hardening added | Package backend guards now match the role matrix (`security` intake/pickup only, `concierge` operations, admin all); `/v1/packages` admits security while hiding return/remind/lost; package SLA runner now sends 7-day resident reminders, 14-day concierge follow-ups and 30-day admin alerts without changing package status. | Continue with `DH-32` Announcements And Documents Backend recheck. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Recheck `DH-31` Packages Domain and confirm no remaining package gaps before moving deeper into operations-ready hardening.
+2. Recheck `DH-32` Announcements And Documents Backend before moving deeper into operations-ready hardening.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 
@@ -197,8 +198,11 @@ Focused backend/frontend checks were executed for the latest `DH-03`/`DH-06`/`DH
 - `npx jest --runInBand --runTestsByPath src/__tests__/requests.test.js src/__tests__/requestSlaService.test.js src/__tests__/runtimeJobs.test.js src/__tests__/v1PropertyMigrations.test.js`
 - `npx jest --runInBand --runTestsByPath src/__tests__/v1StaffWorkspaceRoutes.test.js`
 - `npm --prefix backend run test:coverage:critical`
+- `npm --prefix backend test -- --runInBand --runTestsByPath src/__tests__/v1PackagesEndpoint.test.js src/__tests__/v1PackageSlaMetrics.test.js src/v1/workers/__tests__/packageSlaRunner.test.js`
+- `npm --prefix backend test -- --runInBand --runTestsByPath src/v1/workers/__tests__/packageSlaRunner.integration.test.js src/v1/services/__tests__/packageSla.integration.test.js`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
+- `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`
 - `node --check e2e/v1-access-production.spec.js`
 - `node --check backend/src/e2e/seedV1Access.js`
 - `node --check scripts/run-strict-verify.cjs`

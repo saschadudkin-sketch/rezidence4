@@ -1,15 +1,7 @@
 'use strict';
 
 // Phase 5 — packageSlaRunner unit tests.
-// Spec: packages-v2-spec.md §5 (SLA reminders + auto-return).
-//
-// Scope:
-//   • autoReturnOverdue — UPDATE shape, reason text, arg binding
-//   • findRemindCandidates — SELECT shape (window, NOT EXISTS outbox)
-//   • sendReminders — per-package isolation, conflict vs success counting
-//   • tickSingleTenant — auto-return BEFORE reminder (order), summary
-//   • tickAllProperties — per-tenant isolation (bad tenant ≠ killed tick)
-//   • startPackageSlaRunner — feature-flag + no-db gates
+// Spec: packages-v2-spec.md §5 (SLA reminders + manual follow-up/alerts).
 
 const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
 
@@ -31,61 +23,28 @@ function loadRunner() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// autoReturnOverdue
-// ══════════════════════════════════════════════════════════════════════════════
-
-describe('autoReturnOverdue', () => {
-  test('throws for non-positive days', async () => {
-    const { autoReturnOverdue } = loadRunner();
-    await expect(autoReturnOverdue({ query: jest.fn() }, { days: 0 })).rejects.toThrow(/days/);
-    await expect(autoReturnOverdue({ query: jest.fn() }, { days: -1 })).rejects.toThrow(/days/);
-  });
-
-  test('fires UPDATE with days + batchSize, returns RETURNING rows', async () => {
-    const { autoReturnOverdue, AUTO_RETURN_REASON } = loadRunner();
-    const returned = [{ id: 'p1', property_id: 'prop', unit_id: 'u1' }];
-    const query = jest.fn().mockResolvedValue({ rows: returned });
-
-    const result = await autoReturnOverdue({ query }, { days: 14, batchSize: 25 });
-
-    expect(result).toEqual(returned);
-    const [sql, args] = query.mock.calls[0];
-    expect(sql).toMatch(/UPDATE packages_v2/);
-    expect(sql).toMatch(/status = 'returned'/);
-    expect(sql).toMatch(/status = 'awaiting_pickup'/);
-    expect(sql).toMatch(/RETURNING/);
-    // [reason, days, batchSize]
-    expect(args).toHaveLength(3);
-    expect(args[0]).toContain(AUTO_RETURN_REASON);
-    expect(args[0]).toContain('14');
-    expect(args[1]).toBe('14');
-    expect(args[2]).toBe(25);
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// findRemindCandidates
+// candidate queries
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('findRemindCandidates', () => {
-  test('throws if returnDays <= remindDays (guard against infinite reminder)', async () => {
+  test('throws if followupDays <= remindDays', async () => {
     const { findRemindCandidates } = loadRunner();
     await expect(
-      findRemindCandidates({ query: jest.fn() }, { remindDays: 7, returnDays: 7 }),
-    ).rejects.toThrow(/returnDays must be/);
+      findRemindCandidates({ query: jest.fn() }, { remindDays: 7, followupDays: 7 }),
+    ).rejects.toThrow(/followupDays must be/);
     await expect(
-      findRemindCandidates({ query: jest.fn() }, { remindDays: 14, returnDays: 7 }),
-    ).rejects.toThrow(/returnDays must be/);
+      findRemindCandidates({ query: jest.fn() }, { remindDays: 14, followupDays: 7 }),
+    ).rejects.toThrow(/followupDays must be/);
   });
 
-  test('selects awaiting_pickup in window, excludes already-reminded', async () => {
-    const { findRemindCandidates } = loadRunner();
+  test('selects awaiting_pickup in reminder window and excludes already-reminded', async () => {
+    const { findRemindCandidates, PICKUP_REMINDER_EVENT_TYPE } = loadRunner();
     const rows = [{ id: 'p1', property_id: 'prop' }];
     const query = jest.fn().mockResolvedValue({ rows });
 
     const result = await findRemindCandidates(
       { query },
-      { remindDays: 7, returnDays: 14, batchSize: 50 },
+      { remindDays: 7, followupDays: 14, batchSize: 50 },
     );
 
     expect(result).toEqual(rows);
@@ -94,13 +53,57 @@ describe('findRemindCandidates', () => {
     expect(sql).toMatch(/status = 'awaiting_pickup'/);
     expect(sql).toMatch(/NOT EXISTS/);
     expect(sql).toMatch(/notifications_outbox/);
-    expect(sql).toMatch(/event_type = 'package.pickup_reminder'/);
-    expect(args).toEqual(['7', '14', 50]);
+    expect(sql).toMatch(/event_type = \$4/);
+    expect(args).toEqual(['7', '14', 50, PICKUP_REMINDER_EVENT_TYPE]);
+  });
+});
+
+describe('follow-up and admin-alert candidates', () => {
+  test('findFollowupCandidates selects 14-30 day packages', async () => {
+    const { findFollowupCandidates, FOLLOWUP_EVENT_TYPE } = loadRunner();
+    const rows = [{ id: 'p2', property_id: 'prop' }];
+    const query = jest.fn().mockResolvedValue({ rows });
+
+    const result = await findFollowupCandidates(
+      { query },
+      { followupDays: 14, adminAlertDays: 30, batchSize: 25 },
+    );
+
+    expect(result).toEqual(rows);
+    const [sql, args] = query.mock.calls[0];
+    expect(sql).toMatch(/received_at < NOW\(\) - \(\$1 \|\| ' days'\)::INTERVAL/);
+    expect(sql).toMatch(/received_at >= NOW\(\) - \(\$2 \|\| ' days'\)::INTERVAL/);
+    expect(sql).toMatch(/event_type = \$4/);
+    expect(args).toEqual(['14', '30', 25, FOLLOWUP_EVENT_TYPE]);
+  });
+
+  test('findFollowupCandidates rejects inverted alert threshold', async () => {
+    const { findFollowupCandidates } = loadRunner();
+    await expect(
+      findFollowupCandidates({ query: jest.fn() }, { followupDays: 14, adminAlertDays: 14 }),
+    ).rejects.toThrow(/adminAlertDays must be/);
+  });
+
+  test('findAdminAlertCandidates selects packages older than adminAlertDays', async () => {
+    const { findAdminAlertCandidates, ADMIN_ALERT_EVENT_TYPE } = loadRunner();
+    const rows = [{ id: 'p3', property_id: 'prop' }];
+    const query = jest.fn().mockResolvedValue({ rows });
+
+    const result = await findAdminAlertCandidates(
+      { query },
+      { adminAlertDays: 30, batchSize: 10 },
+    );
+
+    expect(result).toEqual(rows);
+    const [sql, args] = query.mock.calls[0];
+    expect(sql).toMatch(/received_at < NOW\(\) - \(\$1 \|\| ' days'\)::INTERVAL/);
+    expect(sql).toMatch(/event_type = \$4/);
+    expect(args).toEqual(['30', 'admin_alert', 10, ADMIN_ALERT_EVENT_TYPE]);
   });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// sendReminders
+// producers
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('sendReminders', () => {
@@ -117,7 +120,7 @@ describe('sendReminders', () => {
     expect(remindFn).toHaveBeenCalledTimes(3);
   });
 
-  test('swallows per-package errors — one bad call does not abort batch', async () => {
+  test('swallows per-package errors', async () => {
     const { sendReminders } = loadRunner();
     const remindFn = jest.fn()
       .mockResolvedValueOnce({ conflict: null, outboxRows: [{ id: 'o1' }] })
@@ -131,41 +134,146 @@ describe('sendReminders', () => {
   });
 });
 
+describe('sendStaffEscalations', () => {
+  function makeClient(staffRows = [{ id: 's1', role: 'concierge' }]) {
+    return {
+      release: jest.fn(),
+      query: jest.fn((sql) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return Promise.resolve({ rows: [] });
+        }
+        if (/FROM staff_users/.test(sql)) return Promise.resolve({ rows: staffRows });
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+  }
+
+  test('enqueues one staff web_push batch per package', async () => {
+    const { sendStaffEscalations, FOLLOWUP_EVENT_TYPE } = loadRunner();
+    const client = makeClient();
+    const pool = { connect: jest.fn(async () => client) };
+    const enqueueBatchFn = jest.fn(async () => [{ id: 'o1' }]);
+
+    const stats = await sendStaffEscalations(
+      pool,
+      [{
+        id: 'pkg-1',
+        property_id: 'prop-1',
+        unit_id: 'unit-1',
+        received_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+        carrier: 'CDEK',
+      }],
+      {
+        eventType: FOLLOWUP_EVENT_TYPE,
+        roles: ['concierge'],
+        title: 'T',
+        body: 'B',
+        enqueueBatchFn,
+      },
+    );
+
+    expect(stats).toEqual({ sent: 1, skipped: 0, failed: 0 });
+    expect(pool.connect).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledWith('BEGIN');
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    const params = enqueueBatchFn.mock.calls[0][1];
+    expect(params[0]).toMatchObject({
+      propertyId: 'prop-1',
+      eventType: FOLLOWUP_EVENT_TYPE,
+      channel: 'web_push',
+      recipientType: 'staff',
+      recipientId: 's1',
+      correlationId: 'pkg-1',
+    });
+    expect(params[0].payload).toMatchObject({
+      title: 'T',
+      body: 'B',
+      package_id: 'pkg-1',
+      carrier: 'CDEK',
+      recipient_role: 'concierge',
+    });
+  });
+
+  test('skips package when no active staff recipients exist', async () => {
+    const { sendStaffEscalations, ADMIN_ALERT_EVENT_TYPE } = loadRunner();
+    const client = makeClient([]);
+    const pool = { connect: jest.fn(async () => client) };
+    const enqueueBatchFn = jest.fn(async () => [{ id: 'o1' }]);
+
+    const stats = await sendStaffEscalations(
+      pool,
+      [{ id: 'pkg-2', property_id: 'prop-1' }],
+      {
+        eventType: ADMIN_ALERT_EVENT_TYPE,
+        roles: ['property_admin'],
+        title: 'T',
+        body: 'B',
+        enqueueBatchFn,
+      },
+    );
+
+    expect(stats).toEqual({ sent: 0, skipped: 1, failed: 0 });
+    expect(enqueueBatchFn).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+  });
+});
+
 // ══════════════════════════════════════════════════════════════════════════════
-// tickSingleTenant — integration between sub-jobs
+// tick orchestration
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('tickSingleTenant', () => {
-  test('auto-return runs BEFORE reminder query (order matters)', async () => {
-    const { tickSingleTenant } = loadRunner();
+  test('runs reminder, follow-up, and admin alert without auto-return', async () => {
+    const { tickSingleTenant, FOLLOWUP_EVENT_TYPE, ADMIN_ALERT_EVENT_TYPE } = loadRunner();
 
     const calls = [];
-    const autoReturnFn = jest.fn(async () => {
-      calls.push('autoReturn');
-      return [{ id: 'x1' }, { id: 'x2' }];
-    });
     const findRemindFn = jest.fn(async () => {
       calls.push('findRemind');
       return [{ id: 'r1' }];
     });
-    const sendRemindersFn = jest.fn(async () => ({ sent: 1, skipped: 0, failed: 0 }));
+    const sendRemindersFn = jest.fn(async () => {
+      calls.push('sendReminders');
+      return { sent: 1, skipped: 0, failed: 0 };
+    });
+    const findFollowupFn = jest.fn(async () => {
+      calls.push('findFollowup');
+      return [{ id: 'f1' }];
+    });
+    const findAdminAlertFn = jest.fn(async () => {
+      calls.push('findAdminAlert');
+      return [{ id: 'a1' }];
+    });
+    const sendStaffEscalationsFn = jest.fn(async (_pool, candidates, opts) => {
+      calls.push(opts.eventType);
+      return { sent: candidates.length, skipped: 0, failed: 0 };
+    });
 
     const stats = await tickSingleTenant({}, {
-      autoReturnFn, findRemindFn, sendRemindersFn,
+      findRemindFn,
+      sendRemindersFn,
+      findFollowupFn,
+      findAdminAlertFn,
+      sendStaffEscalationsFn,
     });
-    expect(calls).toEqual(['autoReturn', 'findRemind']);
+
+    expect(calls).toEqual([
+      'findRemind',
+      'sendReminders',
+      'findFollowup',
+      FOLLOWUP_EVENT_TYPE,
+      'findAdminAlert',
+      ADMIN_ALERT_EVENT_TYPE,
+    ]);
     expect(stats).toEqual({
-      autoReturned: 2,
+      autoReturned: 0,
       reminded: 1,
+      followups: 1,
+      adminAlerts: 1,
       skipped: 0,
       failed: 0,
     });
   });
 });
-
-// ══════════════════════════════════════════════════════════════════════════════
-// tickAllProperties — per-tenant isolation
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('tickAllProperties', () => {
   test('isolates per-tenant errors', async () => {
@@ -180,28 +288,34 @@ describe('tickAllProperties', () => {
       }),
     };
     const getPool = jest.fn((p) => ({ _slug: p.slug }));
-    const autoReturnFn = jest.fn(async (pool) => {
+    const findRemindFn = jest.fn(async (pool) => {
       if (pool._slug === 'broken') throw new Error('schema drift');
       return [];
     });
-    const findRemindFn = jest.fn(async () => []);
     const sendRemindersFn = jest.fn(async () => ({ sent: 0, skipped: 0, failed: 0 }));
+    const findFollowupFn = jest.fn(async () => []);
+    const findAdminAlertFn = jest.fn(async () => []);
+    const sendStaffEscalationsFn = jest.fn(async () => ({ sent: 0, skipped: 0, failed: 0 }));
 
     const results = await tickAllProperties({
-      platformDb, getPool,
-      autoReturnFn, findRemindFn, sendRemindersFn,
+      platformDb,
+      getPool,
+      findRemindFn,
+      sendRemindersFn,
+      findFollowupFn,
+      findAdminAlertFn,
+      sendStaffEscalationsFn,
     });
 
     expect(results).toHaveLength(3);
     expect(results[1]).toMatchObject({ slug: 'broken', error: 'schema drift' });
-    expect(results[2]).toMatchObject({ slug: 'gamma', autoReturned: 0 });
-    // gamma must have run after broken threw → autoReturnFn called thrice.
-    expect(autoReturnFn).toHaveBeenCalledTimes(3);
+    expect(results[2]).toMatchObject({ slug: 'gamma', autoReturned: 0, followups: 0 });
+    expect(findRemindFn).toHaveBeenCalledTimes(3);
   });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// startPackageSlaRunner — lifecycle gates
+// startPackageSlaRunner
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('startPackageSlaRunner', () => {
@@ -227,9 +341,11 @@ describe('startPackageSlaRunner', () => {
     const { startPackageSlaRunner } = loadRunner();
     const handle = startPackageSlaRunner({
       fallbackDb: { query: jest.fn() },
-      autoReturnFn: jest.fn().mockResolvedValue([]),
       findRemindFn: jest.fn().mockResolvedValue([]),
       sendRemindersFn: jest.fn().mockResolvedValue({ sent: 0, skipped: 0, failed: 0 }),
+      findFollowupFn: jest.fn().mockResolvedValue([]),
+      findAdminAlertFn: jest.fn().mockResolvedValue([]),
+      sendStaffEscalationsFn: jest.fn().mockResolvedValue({ sent: 0, skipped: 0, failed: 0 }),
     });
     try {
       expect(handle.started).toBe(true);
@@ -245,9 +361,11 @@ describe('startPackageSlaRunner', () => {
     const handle = startPackageSlaRunner({
       platformDb: { query: jest.fn().mockResolvedValue({ rows: [] }) },
       getPool: jest.fn(),
-      autoReturnFn: jest.fn().mockResolvedValue([]),
       findRemindFn: jest.fn().mockResolvedValue([]),
       sendRemindersFn: jest.fn().mockResolvedValue({ sent: 0, skipped: 0, failed: 0 }),
+      findFollowupFn: jest.fn().mockResolvedValue([]),
+      findAdminAlertFn: jest.fn().mockResolvedValue([]),
+      sendStaffEscalationsFn: jest.fn().mockResolvedValue({ sent: 0, skipped: 0, failed: 0 }),
     });
     try {
       expect(handle.started).toBe(true);

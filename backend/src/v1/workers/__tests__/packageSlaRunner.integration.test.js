@@ -1,29 +1,29 @@
 'use strict';
 
 // platform-v1 integration e2e — packageSlaRunner SLA tick.
-// Spec: packages-v2-spec.md §5 (SLA reminders + auto-return) +
+// Spec: packages-v2-spec.md §5 (SLA reminders + manual follow-up/alerts) +
 // workers/packageSlaRunner.js header comment.
 //
 // Что проверяем end-to-end (real PostgreSQL, real packagesService.remindPackage,
-// real autoReturnOverdue UPDATE):
+// real outbox escalation writes):
 //
 //   1. Свежая посылка (received_at = NOW()) — tickSingleTenant ничего не
-//      делает: { autoReturned: 0, reminded: 0 }.
-//   2. Backdated 8 days (между REMIND_AFTER_DAYS=7 и AUTO_RETURN_DAYS=14):
+//      делает.
+//   2. Backdated 8 days (между REMIND_AFTER_DAYS=7 и FOLLOWUP_DAYS=14):
 //      tick шлёт reminder — outbox получает N residents × M channels rows
 //      с event_type='package.pickup_reminder', status='pending',
 //      correlation_id=package.id.  Status пакета остаётся awaiting_pickup.
 //   3. Idempotency: повторный tick не задвоит reminder (NOT EXISTS guard в
 //      findRemindCandidates).
-//   4. Backdated 15 days (старше AUTO_RETURN_DAYS=14): tick auto-return'ит —
-//      package.status='returned', returned_reason содержит '14 дней',
-//      reminder НЕ шлётся (auto-return в tick'е выполняется ПЕРВЫМ и убирает
-//      строку из awaiting_pickup до reminder-запроса).
+//   4. Backdated 15 days: tick создаёт concierge follow-up, но статус остаётся
+//      awaiting_pickup. Авто-возврата нет.
+//   5. Backdated 31 days: tick создаёт property_admin alert, но статус остаётся
+//      awaiting_pickup. Возврат по-прежнему ручной.
 //
 // Почему integration:
 //   Unit-тесты packageSlaRunner.test.js покрывают control-flow с mock'ами
-//   autoReturnFn/findRemindFn/sendRemindersFn.  Здесь же проверяем, что
-//   реальный SQL (UPDATE с WHERE LIMIT subquery, SELECT с NOT EXISTS на
+//   findRemindFn/sendRemindersFn/findFollowupFn.  Здесь же проверяем, что
+//   реальный SQL (SELECT с NOT EXISTS на
 //   outbox) корректно отрабатывает все четыре сценария на живой схеме v019.
 //
 // Prerequisite — TEST_DATABASE_URL + pgcrypto, как остальные e2e-тесты.
@@ -39,9 +39,11 @@ const { Pool } = require('pg');
 const { createPackage, REMIND_CHANNELS } = require('../../services/packages');
 const {
   tickSingleTenant,
-  AUTO_RETURN_REASON,
   DEFAULT_REMINDER_AFTER_DAYS,
-  DEFAULT_AUTO_RETURN_AFTER_DAYS,
+  DEFAULT_FOLLOWUP_AFTER_DAYS,
+  DEFAULT_ADMIN_ALERT_AFTER_DAYS,
+  FOLLOWUP_EVENT_TYPE,
+  ADMIN_ALERT_EVENT_TYPE,
 } = require('../packageSlaRunner');
 const { applyV1Migrations, seedFixture, cleanupFixture } = require('../../services/__tests__/_fixtures');
 
@@ -95,7 +97,14 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
       });
       // У свежей посылки received_at = NOW(); tick не должен её трогать.
       const stats = await tickSingleTenant(pool, {});
-      expect(stats).toEqual({ autoReturned: 0, reminded: 0, skipped: 0, failed: 0 });
+      expect(stats).toEqual({
+        autoReturned: 0,
+        reminded: 0,
+        followups: 0,
+        adminAlerts: 0,
+        skipped: 0,
+        failed: 0,
+      });
 
       // Status не изменился.
       const { rows: [pkgAfter] } = await pool.query(
@@ -137,11 +146,13 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
       expect(stats).toEqual({
         autoReturned: 0,
         reminded: 1,
+        followups: 0,
+        adminAlerts: 0,
         skipped: 0,
         failed: 0,
       });
 
-      // Status НЕ менялся — auto-return не сработал (8 < 14).
+      // Status НЕ менялся — 8 дней это только reminder-window.
       const { rows: [pkgAfter] } = await pool.query(
         `SELECT status, returned_at FROM packages_v2 WHERE id = $1`, [pkg.id],
       );
@@ -185,7 +196,14 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
       expect(stats1.reminded).toBe(1);
       const stats2 = await tickSingleTenant(pool, {});
       // findRemindCandidates: NOT EXISTS поймает уже отправленный reminder.
-      expect(stats2).toEqual({ autoReturned: 0, reminded: 0, skipped: 0, failed: 0 });
+      expect(stats2).toEqual({
+        autoReturned: 0,
+        reminded: 0,
+        followups: 0,
+        adminAlerts: 0,
+        skipped: 0,
+        failed: 0,
+      });
 
       // Outbox count = ровно REMIND_CHANNELS, не задвоился.
       const { rows: count } = await pool.query(
@@ -199,9 +217,9 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
     }
   }, 30_000);
 
-  test('посылка 15 дней — tick auto-return\'ит, reminder НЕ шлётся', async () => {
+  test('посылка 15 дней — tick создаёт concierge follow-up без auto-return', async () => {
     if (!dbReady) return;
-    const fixture = await seedFixture(pool, { residentCount: 1 });
+    const fixture = await seedFixture(pool, { residentCount: 1, staffRole: 'concierge' });
     const { propertyId, staffId, unitId, residentIds } = fixture;
 
     try {
@@ -215,38 +233,100 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
       await backdateReceivedAt(pkg.id, 15);
 
       const stats = await tickSingleTenant(pool, {});
-      // auto-return = 1, reminder не запускается на возвращённую (status уже
-      // 'returned' — findRemindCandidates фильтрует по awaiting_pickup).
       expect(stats).toEqual({
-        autoReturned: 1,
+        autoReturned: 0,
         reminded: 0,
+        followups: 1,
+        adminAlerts: 0,
         skipped: 0,
         failed: 0,
       });
 
-      // Status='returned', returned_reason ссылается на дни (см. AUTO_RETURN_REASON).
+      // Статус не меняется: возврат всегда ручной.
       const { rows: [pkgAfter] } = await pool.query(
         `SELECT status, returned_at, returned_reason FROM packages_v2 WHERE id = $1`,
         [pkg.id],
       );
-      expect(pkgAfter.status).toBe('returned');
-      expect(pkgAfter.returned_at).not.toBeNull();
-      expect(pkgAfter.returned_reason).toContain(AUTO_RETURN_REASON);
-      expect(pkgAfter.returned_reason).toContain(String(DEFAULT_AUTO_RETURN_AFTER_DAYS));
+      expect(pkgAfter.status).toBe('awaiting_pickup');
+      expect(pkgAfter.returned_at).toBeNull();
+      expect(pkgAfter.returned_reason).toBeNull();
 
-      // Reminder outbox row отсутствует.
+      // Reminder отсутствует, follow-up ушёл staff-получателю.
       const { rows: rem } = await pool.query(
         `SELECT id FROM notifications_outbox
           WHERE correlation_id = $1 AND event_type = 'package.pickup_reminder'`,
         [pkg.id],
       );
       expect(rem).toHaveLength(0);
+      const { rows: followups } = await pool.query(
+        `SELECT status, channel, recipient_type, event_type
+           FROM notifications_outbox
+          WHERE correlation_id = $1 AND event_type = $2`,
+        [pkg.id, FOLLOWUP_EVENT_TYPE],
+      );
+      expect(followups).toHaveLength(1);
+      expect(followups[0]).toMatchObject({
+        status: 'pending',
+        channel: 'web_push',
+        recipient_type: 'staff',
+        event_type: FOLLOWUP_EVENT_TYPE,
+      });
     } finally {
       await cleanupFixture(pool, propertyId);
     }
   }, 30_000);
 
-  test('пограничный случай: reminder=7 / auto-return=14 — посылка 7 дней пропускается обоими', async () => {
+  test('посылка 31 день — tick создаёт property_admin alert без auto-return', async () => {
+    if (!dbReady) return;
+    const fixture = await seedFixture(pool, { residentCount: 1, staffRole: 'property_admin' });
+    const { propertyId, staffId, unitId, residentIds } = fixture;
+
+    try {
+      const { package: pkg } = await createPackage(pool, {
+        propertyId, unitId,
+        recipientResidentId: residentIds[0],
+        recipientNameSnapshot: 'Critical Recipient',
+        senderName: 'Test sender',
+        receivedByStaffId: staffId,
+      });
+      await backdateReceivedAt(pkg.id, 31);
+
+      const stats = await tickSingleTenant(pool, {});
+      expect(stats).toEqual({
+        autoReturned: 0,
+        reminded: 0,
+        followups: 0,
+        adminAlerts: 1,
+        skipped: 0,
+        failed: 0,
+      });
+
+      const { rows: [pkgAfter] } = await pool.query(
+        `SELECT status, returned_at FROM packages_v2 WHERE id = $1`,
+        [pkg.id],
+      );
+      expect(pkgAfter.status).toBe('awaiting_pickup');
+      expect(pkgAfter.returned_at).toBeNull();
+
+      const { rows: alerts } = await pool.query(
+        `SELECT status, channel, recipient_type, event_type
+           FROM notifications_outbox
+          WHERE correlation_id = $1 AND event_type = $2`,
+        [pkg.id, ADMIN_ALERT_EVENT_TYPE],
+      );
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]).toMatchObject({
+        status: 'pending',
+        channel: 'web_push',
+        recipient_type: 'staff',
+        event_type: ADMIN_ALERT_EVENT_TYPE,
+      });
+    } finally {
+      await cleanupFixture(pool, propertyId);
+    }
+  }, 30_000);
+
+  test('пограничный случай: reminder=7 / follow-up=14 — посылка 6 дней пропускается всеми', async () => {
     if (!dbReady) return;
     const fixture = await seedFixture(pool, { residentCount: 1 });
     const { propertyId, staffId, unitId, residentIds } = fixture;
@@ -264,9 +344,17 @@ describeIfPg('platform-v1 integration: packageSlaRunner real DB', () => {
 
       const stats = await tickSingleTenant(pool, {
         remindDays: DEFAULT_REMINDER_AFTER_DAYS,
-        returnDays: DEFAULT_AUTO_RETURN_AFTER_DAYS,
+        followupDays: DEFAULT_FOLLOWUP_AFTER_DAYS,
+        adminAlertDays: DEFAULT_ADMIN_ALERT_AFTER_DAYS,
       });
-      expect(stats).toEqual({ autoReturned: 0, reminded: 0, skipped: 0, failed: 0 });
+      expect(stats).toEqual({
+        autoReturned: 0,
+        reminded: 0,
+        followups: 0,
+        adminAlerts: 0,
+        skipped: 0,
+        failed: 0,
+      });
     } finally {
       await cleanupFixture(pool, propertyId);
     }
