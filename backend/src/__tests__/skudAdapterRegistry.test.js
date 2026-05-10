@@ -7,6 +7,7 @@ const {
 } = require('../services/skud');
 const { BolidAdapter } = require('../services/skud/BolidAdapter');
 const { SkudAdapter } = require('../services/skud/SkudAdapter');
+const { PercoAdapter, SigurAdapter } = require('../services/skud/TemplateSkudAdapter');
 
 describe('SKUD adapter registry', () => {
   const originalEnv = { ...process.env };
@@ -19,7 +20,17 @@ describe('SKUD adapter registry', () => {
   });
 
   test('lists built-in provider adapters', () => {
-    expect(getRegisteredSkudProviders()).toEqual(expect.arrayContaining(['bolid', 'hikvision']));
+    expect(getRegisteredSkudProviders()).toEqual([
+      'bolid',
+      'generic',
+      'hikvision',
+      'ironlogic',
+      'parsec',
+      'perco',
+      'rusguard',
+      'sigur',
+      'trassir_access',
+    ]);
   });
 
   test('creates adapter from tenant provider config before env fallback', () => {
@@ -47,17 +58,36 @@ describe('SKUD adapter registry', () => {
     expect(adapter.supports('provision_access')).toBe(true);
   });
 
+  test('creates first-wave Russia provider adapters from tenant provider config', () => {
+    for (const provider of ['sigur', 'parsec', 'perco', 'rusguard', 'ironlogic', 'trassir_access', 'generic']) {
+      const adapter = createSkudAdapter({
+        provider,
+        base_url: `https://${provider}.example`,
+        config_json: {
+          endpoints: {
+            provisionAccess: '/api/access/grant',
+            revokeAccess: '/api/access/revoke/{passId}',
+          },
+        },
+      });
+
+      expect(adapter.provider).toBe(provider);
+      expect(adapter.supports('inbound_events')).toBe(true);
+      expect(adapter.supports('provision_access')).toBe(true);
+    }
+  });
+
   test('allows registering a bounded custom adapter for future providers', () => {
-    class SigurAdapter extends SkudAdapter {
+    class DemoAdapter extends SkudAdapter {
       constructor(config) {
-        super({ provider: 'sigur', capabilities: ['inbound_events'], config });
+        super({ provider: 'demo_provider', capabilities: ['inbound_events'], config });
       }
     }
 
-    registerSkudAdapter('sigur', SigurAdapter);
-    const adapter = createSkudAdapter({ provider: 'sigur', config_json: { endpoint: 'x' } });
+    registerSkudAdapter('demo_provider', DemoAdapter);
+    const adapter = createSkudAdapter({ provider: 'demo_provider', config_json: { endpoint: 'x' } });
 
-    expect(adapter.provider).toBe('sigur');
+    expect(adapter.provider).toBe('demo_provider');
     expect(adapter.supports('inbound_events')).toBe(true);
     expect(adapter.config.endpoint).toBe('x');
   });
@@ -136,6 +166,80 @@ describe('SKUD adapter registry', () => {
       vehiclePlate: 'A001AA',
       personLabel: 'Guest One',
       occurredAt: '2026-05-10T10:00:00.000Z',
+    });
+  });
+
+  test('template SKUD adapter sends configured REST provisioning request', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ success: true, result: { externalId: 'person-1' } }),
+    });
+    const adapter = new PercoAdapter({
+      apiUrl: 'https://perco.example',
+      authToken: 'token-1',
+      endpoints: { provisionAccess: '/api/persons/{passId}/access' },
+      templates: {
+        provisionAccess: {
+          name: '{name}',
+          card: '{cardNumber}',
+          valid_until: '{validUntil}',
+        },
+      },
+      requestTimeoutMs: 1000,
+    });
+
+    await expect(adapter.addAccess('pass-1', {
+      name: 'Guest One',
+      validUntil: '2026-05-10T18:00:00.000Z',
+      raw: { cardNumber: '000123' },
+    })).resolves.toEqual({ externalId: 'person-1' });
+
+    const [url, request] = global.fetch.mock.calls[0];
+    expect(url).toBe('https://perco.example/api/persons/pass-1/access');
+    expect(request.headers.Authorization).toBe('Bearer token-1');
+    expect(JSON.parse(request.body)).toEqual({
+      name: 'Guest One',
+      card: '000123',
+      valid_until: '2026-05-10T18:00:00.000Z',
+    });
+  });
+
+  test('template SKUD adapters normalize common Russia vendor access events', () => {
+    const sigur = new SigurAdapter({});
+    const perco = new PercoAdapter({});
+
+    expect(sigur.normalizeInboundEvent({
+      data: {
+        eventId: 'sigur-1',
+        readerId: 'reader-1',
+        eventType: 'Проход разрешен',
+        direction: 'entry',
+        fullName: 'Guest One',
+        timestamp: '2026-05-10T12:00:00.000Z',
+      },
+    })).toMatchObject({
+      provider: 'sigur',
+      eventType: 'entry_allowed',
+      externalEventId: 'sigur-1',
+      externalDeviceId: 'reader-1',
+      personLabel: 'Guest One',
+    });
+
+    expect(perco.normalizeInboundEvent({
+      event: {
+        id: 'perco-1',
+        door_id: 'door-1',
+        description: 'Отказ доступа',
+        direction: 'выход',
+        person_name: 'Guest Two',
+      },
+    })).toMatchObject({
+      provider: 'perco',
+      eventType: 'exit_denied',
+      externalEventId: 'perco-1',
+      externalDeviceId: 'door-1',
+      personLabel: 'Guest Two',
     });
   });
 });

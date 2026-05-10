@@ -2,10 +2,26 @@
 
 const { HikvisionAdapter } = require('./HikvisionAdapter');
 const { BolidAdapter }     = require('./BolidAdapter');
+const {
+  GenericSkudAdapter,
+  IronLogicAdapter,
+  ParsecAdapter,
+  PercoAdapter,
+  RusGuardAdapter,
+  SigurAdapter,
+  TrassirAccessAdapter,
+} = require('./TemplateSkudAdapter');
 
 const ADAPTER_REGISTRY = new Map([
   ['hikvision', HikvisionAdapter],
   ['bolid', BolidAdapter],
+  ['sigur', SigurAdapter],
+  ['parsec', ParsecAdapter],
+  ['perco', PercoAdapter],
+  ['rusguard', RusGuardAdapter],
+  ['ironlogic', IronLogicAdapter],
+  ['trassir_access', TrassirAccessAdapter],
+  ['generic', GenericSkudAdapter],
 ]);
 
 function normalizeAdapterType(value) {

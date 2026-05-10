@@ -86,7 +86,28 @@ DomHub не должен начинать интеграционный roadmap �
 - заметный классический СКУД-сценарий на рынке;
 - релевантен для зрелых access integrations.
 
+### PERCo
+
+Почему приоритетный:
+- распространённые турникеты, контроллеры и PERCo-Web installations;
+- важен для объектов с классической бюро-пропускной моделью;
+- хорошо ложится на HTTP/JSON integration layer.
+
 ## 4.2 Wave 2 — следующий слой
+
+### RusGuard
+
+Почему приоритетный:
+- российский СКУД-игрок с собственным ПО и контроллерами;
+- встречается на коммерческих объектах, стройках и гос/корпоративных площадках;
+- нужен как типовой adapter для российских контроллерных инсталляций.
+
+### IronLogic
+
+Почему приоритетный:
+- массовый класс автономных и сетевых контроллеров / Guard SaaS сценариев;
+- важен для бюджетных КПП, калиток и малых объектов;
+- поддержка должна начинаться с event/import/template integration, не с глубокого device management.
 
 ### Домофонные/IP-панельные экосистемы
 
@@ -154,6 +175,9 @@ DomHub не должен начинать интеграционный roadmap �
 | Sigur | Нет | Basic/Operational | Advanced |
 | Bolid / Орион | Нет | Basic | Operational/Advanced |
 | Parsec | Нет | Basic | Operational/Advanced |
+| PERCo | Нет | Basic | Operational/Advanced |
+| RusGuard | Нет | Basic | Operational/Advanced |
+| IronLogic | Нет | Basic | Operational/Advanced |
 | Домофонные системы | Нет | Basic | Operational/Advanced |
 | TRASSIR-linked video layer | Нет | Partial | Operational/Advanced |
 | ANPR ecosystems | Нет | Нет | Operational/Advanced |

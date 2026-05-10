@@ -1,10 +1,27 @@
 'use strict';
 
 const crypto = require('crypto');
-const { SkudAdapter } = require('../../services/skud/SkudAdapter');
-const { createSkudAdapter } = require('../../services/skud');
+const { createSkudAdapter, getRegisteredSkudProviders } = require('../../services/skud');
 
-const PROVIDERS = Object.freeze(['hikvision', 'bolid', 'sigur', 'parsec', 'generic']);
+const PROVIDERS = Object.freeze(getRegisteredSkudProviders());
+const PROVIDER_ALIASES = Object.freeze({
+  bolid_orion: 'bolid',
+  orion: 'bolid',
+  orion_pro: 'bolid',
+  parsecnet: 'parsec',
+  parsecnet3: 'parsec',
+  perco_web: 'perco',
+  perco_web2: 'perco',
+  'perco-web': 'perco',
+  'perco-web2': 'perco',
+  trassir: 'trassir_access',
+  trassir_access_control: 'trassir_access',
+  'trassir-access': 'trassir_access',
+  iron_logic: 'ironlogic',
+  'iron-logic': 'ironlogic',
+  rus_guard: 'rusguard',
+  rus_guard_soft: 'rusguard',
+});
 const SYNC_MODES = Object.freeze(['push', 'pull', 'hybrid', 'manual']);
 const PROVIDER_STATUSES = Object.freeze(['active', 'disabled', 'degraded']);
 const HEALTH_STATUSES = Object.freeze(['unknown', 'healthy', 'degraded', 'down']);
@@ -110,6 +127,15 @@ function normalizeEnum(value, allowed, field, fallback = null) {
   return raw;
 }
 
+function normalizeProvider(value) {
+  const raw = normalizeEnum(value, PROVIDERS.concat(Object.keys(PROVIDER_ALIASES)), 'provider');
+  const canonical = PROVIDER_ALIASES[raw] || raw;
+  if (!PROVIDERS.includes(canonical)) {
+    throw serviceError(400, `provider must be one of: ${PROVIDERS.join(', ')}`);
+  }
+  return canonical;
+}
+
 function normalizeJsonObject(value, field) {
   if (value === undefined || value === null) return {};
   if (!isPlainObject(value)) throw serviceError(400, `${field} must be an object`);
@@ -165,9 +191,6 @@ function createAdapterForProvider(providerConfig, adapter = null) {
   if (adapter) return adapter;
   const registered = createSkudAdapter(providerConfig);
   if (registered) return registered;
-  if (providerConfig?.provider === 'generic') {
-    return new SkudAdapter({ provider: 'generic', capabilities: ['inbound_events'] });
-  }
   throw serviceError(422, `No SKUD adapter registered for provider '${providerConfig?.provider || 'unknown'}'`);
 }
 
@@ -233,7 +256,7 @@ async function ensureAccessPoint(queryable, { propertyId, accessPointId }) {
 
 async function createProviderConfig(queryable, input) {
   const propertyId = normalizeText(input.propertyId || input.property_id, 'property_id', 80);
-  const provider = normalizeEnum(input.provider, PROVIDERS, 'provider');
+  const provider = normalizeProvider(input.provider);
   const displayName = normalizeText(input.displayName || input.display_name, 'display_name', 120);
   const status = normalizeEnum(input.status, PROVIDER_STATUSES, 'status', 'active');
   const syncMode = normalizeEnum(input.syncMode || input.sync_mode, SYNC_MODES, 'sync_mode', 'hybrid');

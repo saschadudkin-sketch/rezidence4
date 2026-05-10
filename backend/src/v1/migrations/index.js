@@ -64,6 +64,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./035_video_evidence_baseline'),
   // DH-43 VMS/NVR provider configs and camera mappings
   require('./036_video_provider_configs'),
+  // DH-42 common Russia SKUD provider adapter expansion
+  require('./037_skud_russia_provider_wave'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

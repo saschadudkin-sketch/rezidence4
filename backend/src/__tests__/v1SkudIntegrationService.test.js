@@ -45,6 +45,30 @@ describe('SkudIntegrationService', () => {
     expect(params[8]).toBe(JSON.stringify(['inbound_events']));
   });
 
+  test('normalizes common Russia SKUD provider aliases on config creation', async () => {
+    const queryable = makeQueryable((sql, params) => Promise.resolve({
+      rows: [{ id: PROVIDER_ID, property_id: PROPERTY_ID, provider: params[1] }],
+    }));
+
+    await expect(createProviderConfig(queryable, {
+      propertyId: PROPERTY_ID,
+      provider: 'PERCo-Web',
+      displayName: 'PERCo КПП',
+    })).resolves.toMatchObject({ provider: 'perco' });
+    await expect(createProviderConfig(queryable, {
+      propertyId: PROPERTY_ID,
+      provider: 'ParsecNET3',
+      displayName: 'Parsec КПП',
+    })).resolves.toMatchObject({ provider: 'parsec' });
+    await expect(createProviderConfig(queryable, {
+      propertyId: PROPERTY_ID,
+      provider: 'Orion',
+      displayName: 'Орион КПП',
+    })).resolves.toMatchObject({ provider: 'bolid' });
+
+    expect(queryable.query.mock.calls.map(([, params]) => params[1])).toEqual(['perco', 'parsec', 'bolid']);
+  });
+
   test('rejects unsupported provider names before writing', async () => {
     const queryable = makeQueryable(() => Promise.resolve({ rows: [] }));
 

@@ -299,6 +299,12 @@ The first vendor wave exercises Hikvision- and Bolid/Orion-compatible flows thro
 
 This baseline is enough to exercise a first-wave provider path without claiming full vendor coverage. Deeper device quirks, reconciliation and production rollout are follow-up work.
 
+The common Russia SKUD provider wave extends the same neutral adapter framework:
+- built-in providers now include Hikvision, Bolid/Orion, Sigur, Parsec, PERCo, RusGuard, IronLogic, TRASSIR Access and generic adapters;
+- Sigur/PERCo/Parsec/RusGuard/IronLogic/TRASSIR Access use a configurable REST/template adapter baseline for provisioning/revocation/status while normalizing common inbound allow/deny events;
+- provider aliases such as `Orion`, `ParsecNET3` and `PERCo-Web` are normalized into canonical provider keys;
+- this remains Level A/B baseline support, not full vendor-specific SDK parity.
+
 ### 11.6 DH-43 video evidence link baseline
 
 The first video evidence layer remains link-only and does not turn DomHub into a VMS:
