@@ -26,6 +26,7 @@ export function normalizePlate(plate: string): string {
 }
 
 export interface ListVehiclesParams extends PaginationParams {
+  property_id?: UUID;
   plate?: string;
   owner_type?: VehicleOwnerType;
   owner_resident_id?: UUID;

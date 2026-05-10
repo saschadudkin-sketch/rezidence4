@@ -29,6 +29,7 @@ const UUID_VISIT_LOG = '66666666-6666-4666-8666-666666666666';
 const UUID_INCIDENT = '77777777-7777-4777-8777-777777777777';
 const UUID_OVERRIDE = '88888888-8888-4888-8888-888888888888';
 const UUID_PASS = '99999999-9999-4999-8999-999999999999';
+const UUID_REPLAY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 function buildApp() {
   const app = express();
@@ -244,5 +245,100 @@ describe('security workspace routes', () => {
 
     expect(res.status).toBe(422);
     expect(db.pool.connect).not.toHaveBeenCalled();
+  });
+
+  test('POST /offline-replay links replay ledger to manual visit log', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+    const txClient = {
+      query: jest.fn((sql) => {
+        if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
+        if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('INSERT INTO visit_logs_v2')) {
+          return Promise.resolve({
+            rows: [{
+              id: UUID_VISIT_LOG,
+              property_id: UUID_PROPERTY,
+              access_point_id: UUID_POINT,
+              event_type: 'manual_admit',
+              event_source: 'guard_console',
+              offline_replay_event_id: UUID_REPLAY,
+            }],
+          });
+        }
+        if (sql.includes('INSERT INTO access_incidents')) {
+          return Promise.resolve({
+            rows: [{
+              id: UUID_INCIDENT,
+              property_id: UUID_PROPERTY,
+              related_visit_log_id: UUID_VISIT_LOG,
+              incident_type: 'manual_override',
+              severity: 'low',
+              status: 'resolved',
+            }],
+          });
+        }
+        if (sql.includes('INSERT INTO access_overrides')) {
+          return Promise.resolve({
+            rows: [{
+              id: UUID_OVERRIDE,
+              property_id: UUID_PROPERTY,
+              incident_id: UUID_INCIDENT,
+              performed_by_staff_id: UUID_STAFF,
+              override_type: 'manual_admit',
+              reason: 'offline queue sync',
+            }],
+          });
+        }
+        if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected tx SQL: ${sql}`);
+      }),
+      release: jest.fn(),
+    };
+    db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM security_offline_replay_events')) return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO security_offline_replay_events')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_REPLAY,
+            property_id: UUID_PROPERTY,
+            client_event_id: 'queue-1',
+            event_type: 'manual_admit',
+            replay_status: 'accepted',
+            occurred_at: '2026-05-05T10:00:00.000Z',
+            payload: {},
+            processed_at: '2026-05-05T10:01:00.000Z',
+            created_at: '2026-05-05T10:01:00.000Z',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/security-workspace/offline-replay')
+      .send({
+        property_id: UUID_PROPERTY,
+        events: [{
+          client_event_id: 'queue-1',
+          event_type: 'manual_admit',
+          access_point_id: UUID_POINT,
+          direction: 'entry',
+          person_label: 'Offline guest',
+          vehicle_plate: 'a001aa77',
+          reason: 'offline queue sync',
+          occurred_at: '2026-05-05T10:00:00.000Z',
+        }],
+      });
+
+    expect(res.status).toBe(202);
+    expect(res.body.results[0].replay_event.id).toBe(UUID_REPLAY);
+    expect(res.body.results[0].result.visit_log.offline_replay_event_id).toBe(UUID_REPLAY);
+
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    expect(visitCall[0]).toContain('offline_replay_event_id');
+    expect(visitCall[1][8]).toBe(UUID_REPLAY);
   });
 });

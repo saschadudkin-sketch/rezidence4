@@ -24,6 +24,14 @@ const {
   isResourceScopeServiceError,
   loadResourcePropertyId,
 } = require('../services/resourceScope');
+const {
+  provisionResidentMembership,
+  suspendMembershipsForSubject,
+} = require('../services/roleScopeMembershipService');
+const {
+  recordResidentConsentHistory,
+  recordResidentLifecycleEvent,
+} = require('../services/residentLifecycleService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -204,6 +212,17 @@ router.post('/', idempotency, async (req, res, next) => {
       resourceId: rows[0].id,
       changes: { unit_id, resident_type, has_email: !!email },
     });
+    const createdResident = { ...rows[0], property_id: rows[0].property_id || property_id };
+    await provisionResidentMembership({ queryable: getDb(req), resident: createdResident, provisionedFrom: 'api' });
+    await recordResidentLifecycleEvent({
+      queryable: getDb(req),
+      propertyId: createdResident.property_id,
+      residentId: rows[0].id,
+      eventType: 'created',
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      metadata: { unit_id, resident_type },
+    });
     res.status(201).json({ resident: formatResident(rows[0], true) });
   } catch (err) {
     if (err && err.code === '23505') return res.status(409).json({ error: 'external_uid already exists' });
@@ -274,6 +293,15 @@ router.patch('/:id', async (req, res, next) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.updated', resourceId: rows[0].id, changes });
+    await recordResidentLifecycleEvent({
+      queryable: getDb(req),
+      propertyId: rows[0].property_id,
+      residentId: rows[0].id,
+      eventType: changes.unit_id ? 'unit_changed' : 'updated',
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      metadata: changes,
+    });
     res.json({ resident: formatResident(rows[0], canViewPhone(req) || self) });
   } catch (err) {
     if (sendScopeError(res, err)) return;
@@ -288,11 +316,26 @@ router.post('/:id/deactivate', async (req, res, next) => {
     const propertyId = await requirePropertyAdminForResource(req, res, 'resident', req.params.id, 'Resident not found');
     if (!propertyId) return;
     const { rows } = await getDb(req).query(
-      `UPDATE residents SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
+      `UPDATE residents SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id, property_id`,
       [req.params.id],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.deactivated', resourceId: rows[0].id, changes: null });
+    await suspendMembershipsForSubject({
+      queryable: getDb(req),
+      subjectType: 'resident',
+      subjectId: rows[0].id,
+      reason: 'resident deactivated',
+    });
+    await recordResidentLifecycleEvent({
+      queryable: getDb(req),
+      propertyId: rows[0].property_id || propertyId,
+      residentId: rows[0].id,
+      eventType: 'deactivated',
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      metadata: {},
+    });
     res.status(204).end();
   } catch (err) {
     if (sendScopeError(res, err)) return;
@@ -313,11 +356,31 @@ router.post('/:id/consent', async (req, res, next) => {
       `UPDATE residents
           SET consent_given_at = NOW(), consent_version = $1, updated_at = NOW()
         WHERE id = $2
-        RETURNING id, consent_given_at, consent_version`,
+        RETURNING id, property_id, consent_given_at, consent_version`,
       [consent_version, req.params.id],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.consent_given', resourceId: rows[0].id, changes: { consent_version } });
+    await recordResidentConsentHistory({
+      queryable: getDb(req),
+      propertyId: rows[0].property_id,
+      residentId: rows[0].id,
+      consentVersion: consent_version,
+      decision: 'accepted',
+      actorUid: req.user?.uid || null,
+      ipAddress: req.ip || null,
+      userAgent: req.get('user-agent') || null,
+      evidence: { route: '/api/v1/residents/:id/consent' },
+    });
+    await recordResidentLifecycleEvent({
+      queryable: getDb(req),
+      propertyId: rows[0].property_id,
+      residentId: rows[0].id,
+      eventType: 'consent_given',
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      metadata: { consent_version },
+    });
     res.json({ resident: rows[0] });
   } catch (err) { next(err); }
 });

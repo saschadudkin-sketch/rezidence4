@@ -70,6 +70,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./038_erp_exchange_baseline'),
   // DH-45 materialized KPI snapshots for analytics/reporting
   require('./039_analytics_aggregation_snapshots'),
+  // DH-03/DH-08/DH-17..21 persisted memberships, reviews and lifecycle ledger
+  require('./040_membership_review_lifecycle'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

@@ -22,8 +22,12 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { can, isAdmin } = require('../lib/authz');
+const { can, canInPropertyScope, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 const {
   resolveResidentIdByUid,
   resolveContractorUserIdByUid,
@@ -60,8 +64,86 @@ const REQUEST_TYPES = new Set([
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // Shim под legacy callsite: isPropertyAdmin → isAdmin из authz.
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'requests:write', propertyId);
+}
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.body?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function loadAccessRequestProperty(req, accessRequestId) {
+  return loadResourcePropertyId(getDb(req), 'access_request', accessRequestId, {
+    notFoundMessage: 'Access request not found',
+  });
+}
+
+async function validateVehicleForRequest(req, res, { vehicleId, propertyId }) {
+  if (!vehicleId) return true;
+  const { rows } = await getDb(req).query(
+    `SELECT id, property_id, owner_resident_id, owner_contractor_user_id
+       FROM vehicles
+      WHERE id = $1`,
+    [vehicleId],
+  );
+  if (!rows[0]) {
+    res.status(404).json({ error: 'Vehicle not found' });
+    return false;
+  }
+  if (rows[0].property_id !== propertyId) {
+    res.status(403).json({ error: 'Vehicle belongs to another property' });
+    return false;
+  }
+  if (can(req.user, 'requests:read')) return true;
+
+  if (isContractorRole(req.user.role)) {
+    const contractorUserId = await requireContractorUserId(req, res);
+    if (!contractorUserId) return false;
+    if (rows[0].owner_contractor_user_id !== contractorUserId) {
+      res.status(403).json({ error: 'Vehicle does not belong to contractor' });
+      return false;
+    }
+    return true;
+  }
+
+  const residentId = await requireResidentId(req, res);
+  if (!residentId) return false;
+  if (rows[0].owner_resident_id !== residentId) {
+    res.status(403).json({ error: 'Vehicle does not belong to resident' });
+    return false;
+  }
+  return true;
+}
+
+function canReadRequests(req, propertyId) {
+  return canInPropertyScope(req, 'requests:read', propertyId);
+}
+
+function canApproveRequest(req, propertyId) {
+  return canInPropertyScope(req, 'access.request.approve', propertyId);
+}
+
+function canRejectRequest(req, propertyId) {
+  return canInPropertyScope(req, 'access.request.reject', propertyId);
+}
+
+function canEscalateRequest(req, propertyId) {
+  return canInPropertyScope(req, 'requests:escalate', propertyId);
+}
 
 async function requireResidentId(req, res) {
   const residentId = await resolveResidentIdByUid(getDb(req), req.user?.uid);
@@ -129,8 +211,14 @@ router.get('/', async (req, res, next) => {
     const filters = [];
     const params = [];
 
-    // Резиденты/contractors видят только свои; access staff — все в property.
-    if (!can(req.user, 'requests:read')) {
+    // Резиденты/contractors видят только свои; access staff — только property scope.
+    if (can(req.user, 'requests:read')) {
+      const propertyId = resolvePropertyId(req);
+      if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+      if (!canReadRequests(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+      params.push(propertyId);
+      filters.push(`property_id = $${params.length}`);
+    } else {
       if (isContractorRole(req.user.role)) {
         const contractorUserId = await requireContractorUserId(req, res);
         if (!contractorUserId) return;
@@ -195,7 +283,9 @@ router.get('/:id', async (req, res, next) => {
     const ar = rows[0];
 
     // Visibility: access staff — всё; resident/contractor — только своё.
-    if (!can(req.user, 'requests:read')) {
+    if (can(req.user, 'requests:read')) {
+      if (!canReadRequests(req, ar.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    } else {
       if (isContractorRole(req.user.role)) {
         const contractorUserId = await requireContractorUserId(req, res);
         if (!contractorUserId) return;
@@ -249,6 +339,7 @@ router.post('/', idempotency, async (req, res, next) => {
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canInPropertyScope(req, 'access.request.create', property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!REQUEST_TYPES.has(request_type)) return res.status(400).json({ error: 'Invalid request_type' });
     if (!isValidIso(starts_at) || !isValidIso(ends_at)) {
       return res.status(400).json({ error: 'starts_at and ends_at must be ISO-8601 strings' });
@@ -271,6 +362,9 @@ router.post('/', idempotency, async (req, res, next) => {
     // vehicle_access: vehicle_id обязателен.
     if (request_type === 'vehicle_access' && !vehicle_id) {
       return res.status(400).json({ error: 'vehicle_access requires vehicle_id' });
+    }
+    if (!(await validateVehicleForRequest(req, res, { vehicleId: vehicle_id, propertyId: property_id }))) {
+      return;
     }
     // guest_access/courier_access: visitor_name рекомендуется (не enforce сейчас).
     if (visitor_name !== null && typeof visitor_name !== 'string') return res.status(400).json({ error: 'visitor_name must be string or null' });
@@ -324,11 +418,15 @@ router.post('/:id/submit', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows: curRows } = await getDb(req).query(
-      `SELECT status, created_by_resident_id FROM access_requests WHERE id = $1`,
+      `SELECT status, property_id, created_by_resident_id FROM access_requests WHERE id = $1`,
       [req.params.id],
     );
     if (!curRows[0]) return res.status(404).json({ error: 'Access request not found' });
-    if (!can(req.user, 'requests:write')) {
+    if (can(req.user, 'requests:write')) {
+      if (!canInPropertyScope(req, 'requests:write', curRows[0].property_id)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } else {
       const residentId = await requireResidentId(req, res);
       if (!residentId) return;
       if (curRows[0].created_by_resident_id !== residentId) {
@@ -361,6 +459,8 @@ router.post('/:id/approve', async (req, res, next) => {
 
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
   try {
+    const propertyId = await loadAccessRequestProperty(req, req.params.id);
+    if (!canApproveRequest(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const result = await approveAccessRequest({
       txPool: getTxPool(req),
       user: req.user,
@@ -375,6 +475,7 @@ router.post('/:id/approve', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request, pass: result.pass });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendKnownError(res, err)) return;
     if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
     if (err && err.code === '23514') return res.status(400).json({ error: 'constraint violation during approve' });
@@ -390,6 +491,8 @@ router.post('/:id/reject', async (req, res, next) => {
   if (!comment) return res.status(400).json({ error: 'reason is required' });
 
   try {
+    const propertyId = await loadAccessRequestProperty(req, req.params.id);
+    if (!canRejectRequest(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const result = await rejectAccessRequest({
       txPool: getTxPool(req),
       user: req.user,
@@ -404,6 +507,7 @@ router.post('/:id/reject', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendKnownError(res, err)) return;
     next(err);
   }
@@ -419,11 +523,12 @@ router.post('/:id/reject', async (req, res, next) => {
 router.post('/:id/cancel', async (req, res, next) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   try {
+    const propertyId = await loadAccessRequestProperty(req, req.params.id);
     const result = await cancelAccessRequest({
       txPool: getTxPool(req),
       user: req.user,
       accessRequestId: req.params.id,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: isPropertyAdmin(req, propertyId),
     });
     auditLog(req, {
       action: 'access_request.cancelled',
@@ -433,6 +538,7 @@ router.post('/:id/cancel', async (req, res, next) => {
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendKnownError(res, err)) return;
     next(err);
   }
@@ -446,6 +552,8 @@ router.post('/:id/escalate', async (req, res, next) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
   try {
+    const propertyId = await loadAccessRequestProperty(req, req.params.id);
+    if (!canEscalateRequest(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const result = await escalateAccessRequest({
       txPool: getTxPool(req),
       user: req.user,
@@ -460,6 +568,7 @@ router.post('/:id/escalate', async (req, res, next) => {
     });
     res.json({ ok: true, access_request_id: req.params.id, access_request: result.access_request });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendKnownError(res, err)) return;
     next(err);
   }

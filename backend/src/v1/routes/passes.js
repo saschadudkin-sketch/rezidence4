@@ -21,8 +21,12 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { can } = require('../lib/authz');
+const { can, canInPropertyScope } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 const {
   PASS_COLS,
   blockPass,
@@ -56,6 +60,42 @@ const SUBJECT_TYPES = new Set([
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.body?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function loadPassProperty(req, passId) {
+  return loadResourcePropertyId(getDb(req), 'pass', passId, { notFoundMessage: 'Pass not found' });
+}
+
+function canReadPassScope(req, propertyId) {
+  return canInPropertyScope(req, 'access.pass.read', propertyId);
+}
+
+function canManagePassScope(req, propertyId) {
+  return canInPropertyScope(req, 'passes:manage', propertyId);
+}
+
+function canRevokePassScope(req, propertyId) {
+  return canInPropertyScope(req, 'access.pass.revoke', propertyId);
+}
+
+function canBlockPassScope(req, propertyId) {
+  return canInPropertyScope(req, 'access.pass.block', propertyId);
+}
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
   getDb(req).query(
@@ -119,6 +159,9 @@ function validateSubject({ subject_type, subject_resident_id, subject_staff_id,
 router.get('/', async (req, res, next) => {
   try {
     if (!can(req.user, 'passes:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -127,8 +170,8 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.status) {
       params.push(String(req.query.status));
       filters.push(`status = $${params.length}`);
@@ -173,6 +216,9 @@ router.get('/:id', async (req, res, next) => {
     const { rows } = await getDb(req).query(`SELECT ${PASS_COLS} FROM passes WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = rows[0];
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, pass.property_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     // Visibility: staff — all; resident — own subject or request-created pass.
     if (!(await canReadPass({
@@ -198,6 +244,10 @@ router.get('/:id', async (req, res, next) => {
 router.get('/:id/qr', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     const result = await getOrCreateQr({
       queryable: getDb(req),
@@ -207,6 +257,7 @@ router.get('/:id/qr', async (req, res, next) => {
     });
     res.json({ qr: result.qr });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -220,6 +271,10 @@ router.get('/:id/qr', async (req, res, next) => {
 router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const result = await regenerateQr({
       queryable: getDb(req),
       user: req.user,
@@ -234,6 +289,7 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
     });
     res.json({ qr: result.qr });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -258,6 +314,7 @@ router.post('/', idempotency, async (req, res, next) => {
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canManagePassScope(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!PASS_TYPES.has(pass_type)) return res.status(400).json({ error: 'Invalid pass_type' });
     if (!SUBJECT_TYPES.has(subject_type)) return res.status(400).json({ error: 'Invalid subject_type' });
     if (!isValidIso(valid_from) || !isValidIso(valid_until)) {
@@ -327,6 +384,8 @@ router.post('/:id/revoke', async (req, res, next) => {
   try {
     if (!can(req.user, 'access.pass.revoke')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (!canRevokePassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
 
@@ -344,6 +403,7 @@ router.post('/:id/revoke', async (req, res, next) => {
     });
     res.json({ pass: result.pass });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     if (err && err.code === '23514') return res.status(400).json({ error: 'constraint violation on revoke' });
     next(err);
@@ -357,6 +417,8 @@ router.post('/:id/block', async (req, res, next) => {
   try {
     if (!can(req.user, 'access.pass.block')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (!canBlockPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     const result = await blockPass({ queryable: getDb(req), passId: req.params.id });
     auditLog(req, {
@@ -367,6 +429,7 @@ router.post('/:id/block', async (req, res, next) => {
     });
     res.json({ pass: result.pass });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -377,6 +440,8 @@ router.post('/:id/unblock', async (req, res, next) => {
   try {
     if (!can(req.user, 'access.pass.block')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (!canBlockPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const result = await unblockPass({ queryable: getDb(req), passId: req.params.id });
     auditLog(req, {
@@ -387,6 +452,7 @@ router.post('/:id/unblock', async (req, res, next) => {
     });
     res.json({ pass: result.pass });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }

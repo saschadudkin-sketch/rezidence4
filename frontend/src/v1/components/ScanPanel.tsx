@@ -6,14 +6,16 @@
  * for invalidations — revoked passes, etc.).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { accessTopologyApi } from '../api/accessTopology';
 import { securityWorkspaceApi } from '../api/securityWorkspace';
 import { visitsApi } from '../api/visits';
 import type {
   AccessPoint,
   ManualDecision,
+  ManualDecisionDegradedReason,
   ManualDecisionLookupState,
+  SecurityOfflineReplayEvent,
   UUID,
   VerifyDirection,
   VerifyMode,
@@ -56,6 +58,52 @@ const ACTION_LABELS: Record<GuardActionMode, string> = {
   manual_deny: 'Manual deny',
 };
 
+const OFFLINE_QUEUE_PREFIX = 'rz:v1:security-offline:';
+
+function offlineQueueKey(propertyId: UUID): string {
+  return `${OFFLINE_QUEUE_PREFIX}${propertyId}`;
+}
+
+function readOfflineQueue(propertyId: UUID): SecurityOfflineReplayEvent[] {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(offlineQueueKey(propertyId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is SecurityOfflineReplayEvent =>
+      Boolean(item && typeof item === 'object' && typeof item.client_event_id === 'string'),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeOfflineQueue(propertyId: UUID, events: SecurityOfflineReplayEvent[]) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(offlineQueueKey(propertyId), JSON.stringify(events.slice(0, 100)));
+  } catch {
+    // Storage may be unavailable in private mode. Keep in-memory queue alive.
+  }
+}
+
+function newClientEventId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `offline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isBrowserOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function shouldQueueOffline(err: unknown): boolean {
+  return isBrowserOffline()
+    || (isV1ApiError(err) && (err.kind === 'network' || err.kind === 'timeout'));
+}
+
 export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
   const [mode, setMode] = useState<VerifyMode>('qr');
   const [direction, setDirection] = useState<VerifyDirection>('entry');
@@ -76,6 +124,36 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
   const [manualLookupState, setManualLookupState] = useState<ManualDecisionLookupState>('online');
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+  const [offlineQueue, setOfflineQueue] = useState<SecurityOfflineReplayEvent[]>([]);
+  const [offlineSyncing, setOfflineSyncing] = useState(false);
+  const [offlineError, setOfflineError] = useState<string | null>(null);
+
+  const persistOfflineQueue = useCallback((events: SecurityOfflineReplayEvent[]) => {
+    setOfflineQueue(events);
+    writeOfflineQueue(propertyId, events);
+  }, [propertyId]);
+
+  const pushOfflineEvent = useCallback((event: SecurityOfflineReplayEvent) => {
+    persistOfflineQueue([event, ...offlineQueue].slice(0, 100));
+  }, [offlineQueue, persistOfflineQueue]);
+
+  const syncOfflineQueue = useCallback(async () => {
+    if (offlineQueue.length === 0 || offlineSyncing || isBrowserOffline()) return;
+    setOfflineSyncing(true);
+    setOfflineError(null);
+    try {
+      const res = await securityWorkspaceApi.offlineReplay({
+        property_id: propertyId,
+        events: offlineQueue,
+      });
+      const acceptedIds = new Set(res.results.map((item) => item.replay_event.client_event_id));
+      persistOfflineQueue(offlineQueue.filter((event) => !acceptedIds.has(event.client_event_id)));
+    } catch (err) {
+      setOfflineError(isV1ApiError(err) ? err.message : 'Не удалось синхронизировать offline-очередь');
+    } finally {
+      setOfflineSyncing(false);
+    }
+  }, [offlineQueue, offlineSyncing, persistOfflineQueue, propertyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +188,19 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
       cancelled = true;
     };
   }, [propertyId]);
+
+  useEffect(() => {
+    persistOfflineQueue(readOfflineQueue(propertyId));
+  }, [persistOfflineQueue, propertyId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onOnline = () => {
+      void syncOfflineQueue();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [syncOfflineQueue]);
 
   const selectedPoint = useMemo(
     () => points.find((point) => point.id === selectedPointId) ?? null,
@@ -186,8 +277,10 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
 
     setManualSubmitting(true);
     setManualError(null);
+    setOfflineError(null);
     try {
-      const res = await securityWorkspaceApi.manualDecision({
+      const occurredAt = new Date().toISOString();
+      const body = {
         property_id: propertyId,
         access_point_id: selectedPointId || null,
         decision: manualDecision,
@@ -198,7 +291,57 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
         degraded_mode: manualDegraded,
         degraded_reason: manualDegraded ? manualDecision : null,
         lookup_state: manualLookupState,
+        occurred_at: occurredAt,
+      };
+      const buildOfflineEvent = (
+        degradedReason: ManualDecisionDegradedReason,
+      ): SecurityOfflineReplayEvent => ({
+        ...body,
+        client_event_id: newClientEventId(),
+        event_type: manualDecision,
+        degraded_mode: true,
+        degraded_reason: degradedReason,
+        lookup_state: manualLookupState === 'online' ? 'not_checked' : manualLookupState,
+        occurred_at: occurredAt,
       });
+      const rememberQueuedDecision = (event: SecurityOfflineReplayEvent) => {
+        const syntheticResult: VerifyResult = {
+          allowed: manualDecision === 'manual_admit',
+          reason: manualDecision === 'manual_deny' ? 'manual_deny' : undefined,
+          direction,
+          visit_log_id: null,
+          incident_id: null,
+          pass: null,
+        };
+        setResult(syntheticResult);
+        setHistory((prev) =>
+          [
+            {
+              at: occurredAt,
+              mode: manualDecision,
+              value: subjectLabel,
+              pointName: selectedPoint?.name,
+              direction,
+              allowed: manualDecision === 'manual_admit',
+              reason: `${reason} · offline ${event.client_event_id.slice(0, 8)}`,
+            },
+            ...prev,
+          ].slice(0, 20),
+        );
+        setOfflineError('Связь недоступна: решение сохранено локально и будет отправлено при восстановлении.');
+        setManualPersonLabel('');
+        setManualPlate('');
+        setManualReason('');
+      };
+
+      if (isBrowserOffline()) {
+        const event = buildOfflineEvent('connectivity_loss');
+        pushOfflineEvent(event);
+        rememberQueuedDecision(event);
+        return;
+      }
+
+      const res = await securityWorkspaceApi.manualDecision(body);
       const syntheticResult: VerifyResult = {
         allowed: manualDecision === 'manual_admit',
         reason: manualDecision === 'manual_deny' ? 'manual_deny' : undefined,
@@ -232,6 +375,52 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
       setManualPlate('');
       setManualReason('');
     } catch (err) {
+      if (shouldQueueOffline(err)) {
+        const event: SecurityOfflineReplayEvent = {
+          property_id: propertyId,
+          access_point_id: selectedPointId || null,
+          decision: manualDecision,
+          direction,
+          reason,
+          person_label: personLabel || null,
+          vehicle_plate: plate || null,
+          degraded_mode: true,
+          degraded_reason: 'connectivity_loss',
+          lookup_state: manualLookupState === 'online' ? 'unavailable' : manualLookupState,
+          occurred_at: new Date().toISOString(),
+          client_event_id: newClientEventId(),
+          event_type: manualDecision,
+        };
+        pushOfflineEvent(event);
+        const syntheticResult: VerifyResult = {
+          allowed: manualDecision === 'manual_admit',
+          reason: manualDecision === 'manual_deny' ? 'manual_deny' : undefined,
+          direction,
+          visit_log_id: null,
+          incident_id: null,
+          pass: null,
+        };
+        setResult(syntheticResult);
+        setHistory((prev) =>
+          [
+            {
+              at: event.occurred_at,
+              mode: manualDecision,
+              value: subjectLabel,
+              pointName: selectedPoint?.name,
+              direction,
+              allowed: manualDecision === 'manual_admit',
+              reason: `${reason} · offline ${event.client_event_id.slice(0, 8)}`,
+            },
+            ...prev,
+          ].slice(0, 20),
+        );
+        setOfflineError('Решение сохранено в offline-очередь после сетевой ошибки.');
+        setManualPersonLabel('');
+        setManualPlate('');
+        setManualReason('');
+        return;
+      }
       setManualError(isV1ApiError(err) ? err.message : 'Не удалось записать ручное решение');
       setResult(null);
     } finally {
@@ -241,6 +430,27 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
 
   return (
     <Stack>
+      {offlineQueue.length > 0 || offlineError ? (
+        <Alert tone={offlineError ? 'warning' : 'info'}>
+          <Inline>
+            <span>
+              Offline-очередь: {offlineQueue.length}
+              {offlineError ? ` · ${offlineError}` : ''}
+            </span>
+            {offlineQueue.length > 0 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                loading={offlineSyncing}
+                disabled={offlineSyncing || isBrowserOffline()}
+                onClick={() => void syncOfflineQueue()}
+              >
+                Синхронизировать
+              </Button>
+            ) : null}
+          </Inline>
+        </Alert>
+      ) : null}
       <Card title="Сканирование">
         <form onSubmit={submit}>
           <Field

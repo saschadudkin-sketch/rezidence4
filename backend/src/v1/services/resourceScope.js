@@ -34,6 +34,42 @@ const RESOURCE_PROPERTY_QUERIES = Object.freeze({
   access_point: {
     sql: `SELECT property_id FROM access_points WHERE id = $1`,
   },
+  access_policy: {
+    sql: `SELECT property_id FROM access_policies WHERE id = $1`,
+  },
+  access_request: {
+    sql: `SELECT property_id FROM access_requests WHERE id = $1`,
+  },
+  pass: {
+    sql: `SELECT property_id FROM passes WHERE id = $1`,
+  },
+  visit_log: {
+    sql: `SELECT property_id FROM visit_logs_v2 WHERE id = $1`,
+  },
+  access_incident: {
+    sql: `SELECT property_id FROM access_incidents WHERE id = $1`,
+  },
+  access_override: {
+    sql: `SELECT property_id FROM access_overrides WHERE id = $1`,
+  },
+  package: {
+    sql: `SELECT property_id FROM packages_v2 WHERE id = $1`,
+  },
+  announcement: {
+    sql: `SELECT property_id FROM announcements_v2 WHERE id = $1`,
+  },
+  document: {
+    sql: `SELECT property_id FROM documents_v2 WHERE id = $1`,
+  },
+  video_evidence: {
+    sql: `SELECT property_id FROM video_evidence_references WHERE id = $1`,
+  },
+  erp_provider_config: {
+    sql: `SELECT property_id FROM erp_provider_configs WHERE id = $1`,
+  },
+  skud_provider_config: {
+    sql: `SELECT property_id FROM skud_provider_configs WHERE id = $1`,
+  },
 });
 
 class ResourceScopeServiceError extends Error {

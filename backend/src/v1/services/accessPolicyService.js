@@ -38,7 +38,7 @@ const DEFAULT_POLICY_TEMPLATES = Object.freeze([
     is_recurring: true,
     schedule_json: null,
     duration_minutes: null,
-    metadata: { template: true, use_case: 'resident_vehicle' },
+    metadata: { template: true, use_case: 'resident_vehicle', owner_type: 'resident' },
   }),
   Object.freeze({
     key: 'guest_vehicle',
@@ -51,7 +51,7 @@ const DEFAULT_POLICY_TEMPLATES = Object.freeze([
     is_recurring: false,
     schedule_json: null,
     duration_minutes: 1440,
-    metadata: { template: true, use_case: 'guest_vehicle' },
+    metadata: { template: true, use_case: 'guest_vehicle', owner_type: 'guest' },
   }),
   Object.freeze({
     key: 'courier',
@@ -461,6 +461,40 @@ function policyScopeMatches(policy, { pointId, zoneId }) {
   return true;
 }
 
+function policyVehicleContextMatches(policy, { vehicle, pass }) {
+  if (policy.subject_type !== 'vehicle') return true;
+  const metadata = parseJsonValue(policy.metadata, {}) || {};
+  if (!metadata || !Object.keys(metadata).length) return true;
+
+  const ownerTypes = Array.isArray(metadata.allowed_owner_types)
+    ? metadata.allowed_owner_types
+    : Array.isArray(metadata.owner_types)
+      ? metadata.owner_types
+      : metadata.owner_type
+        ? [metadata.owner_type]
+        : [];
+  if (ownerTypes.length > 0 && !ownerTypes.includes(vehicle?.owner_type || null)) return false;
+
+  const vehicleTypes = Array.isArray(metadata.vehicle_types)
+    ? metadata.vehicle_types
+    : metadata.vehicle_type
+      ? [metadata.vehicle_type]
+      : [];
+  if (vehicleTypes.length > 0 && !vehicleTypes.includes(vehicle?.vehicle_type || null)) return false;
+
+  if ((metadata.requires_whitelist === true || metadata.whitelist_required === true) && !vehicle?.is_whitelisted) {
+    return false;
+  }
+  if ((metadata.requires_registered_vehicle === true || metadata.registered_vehicle_required === true) && !vehicle?.id) {
+    return false;
+  }
+  if ((metadata.requires_pass === true || metadata.pass_required === true) && !pass?.id) {
+    return false;
+  }
+
+  return true;
+}
+
 function decisionFromPolicy(policy) {
   if (policy.effect !== 'allow') return policy.effect;
   if (policy.approval_mode === 'auto') return 'allow';
@@ -582,6 +616,10 @@ async function evaluateAccessPolicy({
       trace.push({ ...policyTrace, result: 'scope_mismatch' });
       continue;
     }
+    if (!policyVehicleContextMatches(policy, { vehicle, pass })) {
+      trace.push({ ...policyTrace, result: 'vehicle_context_mismatch' });
+      continue;
+    }
 
     const schedule = scheduleMatches(policy.schedule_json, now);
     if (!schedule.ok) {
@@ -643,6 +681,7 @@ module.exports = {
   isAccessPolicyServiceError,
   listPolicies,
   normalizePolicyInput,
+  policyVehicleContextMatches,
   scheduleMatches,
   updatePolicy,
 };

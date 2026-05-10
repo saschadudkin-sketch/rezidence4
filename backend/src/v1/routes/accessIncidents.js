@@ -20,8 +20,12 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { can, isAdmin } = require('../lib/authz');
+const { can, canInPropertyScope, isAdmin } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 const {
   INCIDENT_COLS,
   OVERRIDE_COLS,
@@ -54,9 +58,52 @@ const OVERRIDE_TYPES = new Set([
 ]);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
-const isPropertyAdmin = isAdmin;
+function isPropertyAdmin(req, propertyId = null) {
+  if (!propertyId) return isAdmin(req);
+  return canInPropertyScope(req, 'incidents:override', propertyId);
+}
 function isNonEmptyString(v, maxLen) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= (maxLen || 500);
+}
+
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.body?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+async function loadOwnedProperty(req, resourceType, resourceId, notFoundMessage) {
+  return loadResourcePropertyId(getDb(req), resourceType, resourceId, { notFoundMessage });
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+function canReadIncidents(req, propertyId) {
+  return canInPropertyScope(req, 'incidents:read', propertyId);
+}
+
+function canWriteIncidents(req, propertyId) {
+  return canInPropertyScope(req, 'incidents:write', propertyId);
+}
+
+function canCreateIncident(req, propertyId) {
+  return canInPropertyScope(req, 'access.incident.create', propertyId);
+}
+
+function canResolveIncident(req, propertyId) {
+  return canInPropertyScope(req, 'access.incident.resolve', propertyId);
+}
+
+function canCreateOverride(req, propertyId) {
+  return canInPropertyScope(req, 'access.override.create', propertyId);
 }
 
 function auditLog(req, { propertyId = null, action, resourceType, resourceId, changes }) {
@@ -92,6 +139,9 @@ function sendServiceError(res, err) {
 router.get('/access-incidents', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -100,8 +150,8 @@ router.get('/access-incidents', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
 
     if (req.query.status) {
       if (!INCIDENT_STATUSES.has(req.query.status)) return res.status(400).json({ error: 'Invalid status' });
@@ -146,6 +196,8 @@ router.get('/access-incidents/:id', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows } = await getDb(req).query(
       `SELECT ${INCIDENT_COLS} FROM access_incidents WHERE id = $1`,
       [req.params.id],
@@ -158,7 +210,10 @@ router.get('/access-incidents/:id', async (req, res, next) => {
       [req.params.id],
     );
     res.json({ incident: rows[0], overrides: ovRows });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── POST /api/v1/access-incidents ───────────────────────────────────────────
@@ -168,7 +223,6 @@ router.get('/access-incidents/:id', async (req, res, next) => {
 // инцидента из guard-console.
 router.post('/access-incidents', idempotency, async (req, res, next) => {
   try {
-    if (!can(req.user, 'access.incident.create')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, incident_type,
       severity = 'medium',
@@ -177,6 +231,7 @@ router.post('/access-incidents', idempotency, async (req, res, next) => {
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canCreateIncident(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (!INCIDENT_TYPES.has(incident_type)) return res.status(400).json({ error: 'Invalid incident_type' });
     if (!SEVERITIES.has(severity)) return res.status(400).json({ error: 'Invalid severity' });
     if (!isNonEmptyString(title, 500)) return res.status(400).json({ error: 'title is required' });
@@ -229,6 +284,8 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:write')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!canWriteIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const assignee = req.body?.assigned_to_staff_id;
     if (!isValidUuid(assignee)) return res.status(400).json({ error: 'assigned_to_staff_id must be UUID' });
 
@@ -246,6 +303,7 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
     });
     res.json({ incident: result.incident });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -256,12 +314,20 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
 router.post('/access-incidents/:id/resolve', async (req, res, next) => {
   if (!can(req.user, 'access.incident.resolve')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  let propertyId;
+  try {
+    propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    return next(err);
+  }
+  if (!canResolveIncident(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
   const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
   if (!reason) return res.status(400).json({ error: 'reason is required' });
 
   const overrideInput = req.body?.create_override || null;
   if (overrideInput) {
-    if (!can(req.user, 'access.override.create')) return res.status(403).json({ error: 'Forbidden' });
+    if (!canCreateOverride(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     if (!OVERRIDE_TYPES.has(overrideInput.override_type)) {
       return res.status(400).json({ error: 'Invalid override_type' });
     }
@@ -277,7 +343,7 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
       incidentId: req.params.id,
       reason,
       overrideInput,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: isPropertyAdmin(req, propertyId),
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -299,6 +365,8 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
   try {
     if (!can(req.user, 'access.incident.resolve')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!canResolveIncident(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     if (!reason) return res.status(400).json({ error: 'reason is required' });
 
@@ -307,7 +375,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
       user: req.user,
       incidentId: req.params.id,
       reason,
-      isPropertyAdmin: isPropertyAdmin(req),
+      isPropertyAdmin: isPropertyAdmin(req, propertyId),
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -318,6 +386,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
     });
     res.json({ incident: result.incident });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -330,6 +399,8 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:write')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!canWriteIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const changes = {};
     if (req.body.severity !== undefined) {
@@ -356,6 +427,7 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
     });
     res.json({ incident: result.incident });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;
     next(err);
   }
@@ -370,6 +442,9 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
 router.get('/access-overrides', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -378,8 +453,8 @@ router.get('/access-overrides', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.pass_id) {
       if (!isValidUuid(req.query.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
       params.push(req.query.pass_id); filters.push(`pass_id = $${params.length}`);
@@ -413,7 +488,10 @@ router.get('/access-overrides', async (req, res, next) => {
       overrides: rows,
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── GET /api/v1/access-overrides/:id ────────────────────────────────────────
@@ -421,10 +499,15 @@ router.get('/access-overrides/:id', async (req, res, next) => {
   try {
     if (!can(req.user, 'incidents:read')) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_override', req.params.id, 'Override not found');
+    if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows } = await getDb(req).query(`SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Override not found' });
     res.json({ override: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── POST /api/v1/access-overrides ───────────────────────────────────────────
@@ -432,13 +515,13 @@ router.get('/access-overrides/:id', async (req, res, next) => {
 // но допускается напрямую для temp-whitelist/temp-block.
 router.post('/access-overrides', async (req, res, next) => {
   try {
-    if (!can(req.user, 'access.override.create')) return res.status(403).json({ error: 'Forbidden' });
     const {
       property_id, incident_id = null, pass_id = null,
       override_type, reason,
     } = req.body || {};
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canCreateOverride(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (incident_id !== null && !isValidUuid(incident_id)) return res.status(400).json({ error: 'Invalid incident_id' });
     if (pass_id !== null && !isValidUuid(pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
     if (!incident_id && !pass_id) {

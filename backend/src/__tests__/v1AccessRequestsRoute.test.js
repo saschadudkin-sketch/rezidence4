@@ -28,6 +28,7 @@ const UUID_CONTRACTOR = '55555555-5555-4555-8555-555555555555';
 const UUID_PASS = '66666666-6666-4666-8666-666666666666';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
+const UUID_VEHICLE = '99999999-9999-4999-8999-999999999999';
 
 function buildApp({ featureFlags = null } = {}) {
   const app = express();
@@ -243,6 +244,51 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(passCall[1][7]).toBe(UUID_POINT);
   });
 
+  test('resident vehicle_access can only use a vehicle owned by that resident', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
+    const row = accessRequestRow({
+      request_type: 'vehicle_access',
+      vehicle_id: UUID_VEHICLE,
+      status: 'pending_approval',
+      approval_required: true,
+    });
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('INSERT INTO passes')) throw new Error('vehicle request should wait for approval');
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM vehicles')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VEHICLE,
+            property_id: UUID_PROPERTY,
+            owner_resident_id: UUID_RESIDENT,
+            owner_contractor_user_id: null,
+          }],
+        });
+      }
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      return Promise.resolve({ rows: [] });
+    });
+    db.pool.connect.mockResolvedValue(txClient);
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-requests')
+      .send(validCreatePayload({
+        request_type: 'vehicle_access',
+        vehicle_id: UUID_VEHICLE,
+        visitor_name: null,
+      }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.access_request.vehicle_id).toBe(UUID_VEHICLE);
+    expect(res.body.access_request.status).toBe('pending_approval');
+    expect(res.body.pass).toBeNull();
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+  });
+
   test('manual approval setting keeps non-contractor request pending and does not issue pass', async () => {
     mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
     const row = accessRequestRow({ status: 'pending_approval', approval_required: true });
@@ -343,6 +389,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       return Promise.resolve({ rows: [] });
     });
     db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockResolvedValue({ rows: [{ property_id: UUID_PROPERTY }] });
 
     const res = await supertest(buildApp())
       .post(`/api/v1/access-requests/${UUID_REQUEST}/approve`)
@@ -379,6 +426,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       throw new Error(`unexpected SQL: ${sql}`);
     });
     db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockResolvedValue({ rows: [{ property_id: UUID_PROPERTY }] });
 
     const res = await supertest(buildApp())
       .post(`/api/v1/access-requests/${UUID_REQUEST}/approve`)
@@ -400,6 +448,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       throw new Error(`unexpected SQL: ${sql}`);
     });
     db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockResolvedValue({ rows: [{ property_id: UUID_PROPERTY }] });
 
     const res = await supertest(buildApp())
       .post(`/api/v1/access-requests/${UUID_REQUEST}/approve`)
@@ -423,6 +472,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       return Promise.resolve({ rows: [] });
     });
     db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockResolvedValue({ rows: [{ property_id: UUID_PROPERTY }] });
 
     const res = await supertest(buildApp())
       .post(`/api/v1/access-requests/${UUID_REQUEST}/reject`)
@@ -452,6 +502,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       return Promise.resolve({ rows: [] });
     });
     db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockResolvedValue({ rows: [{ property_id: UUID_PROPERTY }] });
 
     const res = await supertest(buildApp())
       .post(`/api/v1/access-requests/${UUID_REQUEST}/escalate`)

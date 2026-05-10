@@ -469,8 +469,10 @@ function resolveMembershipPropertyId(userOrReq, targetPropertyId = null) {
     || req?.property?.id
     || req?.property?.property_id
     // Direct route unit tests mount v1 routers without propertyDbMiddleware.
-    // Keep that path compatible while production remains tenant-scoped.
-    || (!req?.property ? targetPropertyId : null)
+    // Keep that path compatible while production remains tenant-scoped. Some
+    // direct tests attach req.property with only feature_flags, so fall back
+    // when the object has no tenant id.
+    || (!req?.property?.id && !req?.property?.property_id ? targetPropertyId : null)
     || null;
 }
 
@@ -483,6 +485,38 @@ function canInPropertyScope(userOrReq, capability, propertyId = null, options = 
     { scope_level: 'property', property_id: targetPropertyId },
     { ...options, property_id: membershipPropertyId },
   );
+}
+
+async function canInPropertyScopePersisted(userOrReq, capability, propertyId = null, options = {}) {
+  const { queryable, allowDerivedFallback = true } = options;
+  if (!queryable) {
+    if (!allowDerivedFallback) return false;
+    return canInPropertyScope(userOrReq, capability, propertyId, options);
+  }
+
+  const targetPropertyId = resolvePropertyScopeTarget(userOrReq, propertyId);
+  const user = userFrom(userOrReq);
+  const { listActiveMembershipsForUser } = require('../services/roleScopeMembershipService');
+  const memberships = await listActiveMembershipsForUser({
+    queryable,
+    user,
+    propertyId: targetPropertyId,
+  });
+
+  for (const membership of memberships) {
+    const scopedUser = { ...user, role: membership.role };
+    if (!can(scopedUser, capability)) continue;
+    if (hasScope(
+      scopedUser,
+      { scope_level: 'property', property_id: targetPropertyId },
+      { membership, property_id: membership.property_id },
+    )) {
+      return true;
+    }
+  }
+
+  if (!allowDerivedFallback) return false;
+  return canInPropertyScope(userOrReq, capability, propertyId, options);
 }
 
 function requireCapabilityInPropertyScope(capability, propertyResolver, options = {}) {
@@ -565,6 +599,7 @@ module.exports = {
   can,
   canInScope,
   canInPropertyScope,
+  canInPropertyScopePersisted,
   hasScope,
   isAdmin,
   isKnownScopeLevel,

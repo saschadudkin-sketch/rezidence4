@@ -161,6 +161,56 @@ describe('AccessPolicyService', () => {
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('FROM access_points'))).toBe(true);
   });
 
+  test('matches vehicle policies by owner metadata', async () => {
+    const queryable = queryableWithPolicies([
+      policy({
+        subject_type: 'vehicle',
+        access_method: 'plate',
+        approval_mode: 'auto',
+        effect: 'allow',
+        metadata: { owner_type: 'resident' },
+      }),
+    ]);
+
+    const result = await evaluateAccessPolicy({
+      queryable,
+      propertyId: UUID_PROPERTY,
+      subjectType: 'vehicle',
+      accessMethod: 'plate',
+      vehicle: { id: 'vehicle-1', owner_type: 'resident', vehicle_type: 'car', is_whitelisted: false },
+      now: NOW,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe('policy_allowed');
+    expect(result.trace[0]).toMatchObject({ result: 'matched' });
+  });
+
+  test('skips vehicle policy when owner metadata does not match', async () => {
+    const queryable = queryableWithPolicies([
+      policy({
+        subject_type: 'vehicle',
+        access_method: 'plate',
+        approval_mode: 'auto',
+        effect: 'allow',
+        metadata: { owner_type: 'resident' },
+      }),
+    ]);
+
+    const result = await evaluateAccessPolicy({
+      queryable,
+      propertyId: UUID_PROPERTY,
+      subjectType: 'vehicle',
+      accessMethod: 'plate',
+      vehicle: { id: 'vehicle-1', owner_type: 'guest', vehicle_type: 'car', is_whitelisted: false },
+      now: NOW,
+    });
+
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe('no_matching_policy');
+    expect(result.trace[0]).toMatchObject({ result: 'vehicle_context_mismatch' });
+  });
+
   test('evaluates Europe/Moscow schedule windows predictably', () => {
     expect(scheduleMatches({
       timezone: 'Europe/Moscow',

@@ -18,6 +18,8 @@ const db = require('../db');
 const auditReviewsRouter = require('../v1/routes/auditReviews');
 
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
+const UUID_AUDIT = '22222222-2222-4222-8222-222222222222';
+const UUID_STAFF = '33333333-3333-4333-8333-333333333333';
 
 function buildApp() {
   const app = express();
@@ -140,5 +142,60 @@ describe('v1 audit review route', () => {
     expect(res.status).toBe(200);
     expect(res.body.categories).toEqual(expect.arrayContaining(['manual_override', 'permission_change']));
     expect(res.body.actions).toEqual(expect.arrayContaining(['override.created', 'staff.updated']));
+  });
+
+  test('property admin can attest a sensitive action review', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'property_admin' };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM property_audit_log')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_AUDIT,
+            property_id: UUID_PROPERTY,
+            actor_uid: 'guard-1',
+            actor_role: 'security',
+            actor_type: 'staff',
+            action: 'override.created',
+            resource_type: 'access_override',
+            resource_id: 'override-1',
+            entity_type: null,
+            entity_id: null,
+            changes: {},
+            ip_address: '127.0.0.1',
+            created_at: '2026-05-05T10:00:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO sensitive_action_reviews')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'review-1',
+            audit_log_id: UUID_AUDIT,
+            review_status: 'approved',
+            reviewer_staff_id: UUID_STAFF,
+            comment: 'checked',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/audit/sensitive-actions/${UUID_AUDIT}/review`)
+      .send({ decision: 'approved', comment: 'checked' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.review.review_status).toBe('approved');
+    const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO sensitive_action_reviews'));
+    expect(insertCall[1]).toEqual(expect.arrayContaining([
+      UUID_AUDIT,
+      UUID_PROPERTY,
+      'manual_override',
+      'override.created',
+      'access_override',
+      'override-1',
+      'approved',
+    ]));
   });
 });

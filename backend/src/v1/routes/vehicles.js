@@ -22,9 +22,10 @@ const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
-const { canInPropertyScope, isStaff, isAdmin } = require('../lib/authz');
+const { canInPropertyScope, isStaff, isAdmin, isResident } = require('../lib/authz');
 const { normalizePlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
+const { resolveResidentIdByUid } = require('../services/accessActorResolver');
 const {
   isResourceScopeServiceError,
   loadResourcePropertyId,
@@ -59,6 +60,20 @@ function isPropertyAdmin(req, propertyId = null) {
   return canInPropertyScope(req, 'vehicles:manage', propertyId);
 }
 
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.body?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+function canReadVehicles(req, propertyId) {
+  return canInPropertyScope(req, 'vehicles:read', propertyId);
+}
+
 function canSecurityManageVehicleFlag(req, propertyId) {
   return canInPropertyScope(req, 'access.plate.verify', propertyId);
 }
@@ -71,6 +86,27 @@ function sendScopeError(res, err) {
 
 async function loadVehicleProperty(req, vehicleId) {
   return loadResourcePropertyId(getDb(req), 'vehicle', vehicleId, { notFoundMessage: 'Vehicle not found' });
+}
+
+async function requireResidentVehicleOwner(req, res, vehicleId) {
+  const residentId = await resolveResidentIdByUid(getDb(req), req.user?.uid);
+  if (!residentId) {
+    res.status(403).json({ error: 'Resident identity is not mapped to v1' });
+    return null;
+  }
+  const { rows } = await getDb(req).query(
+    `SELECT property_id, owner_resident_id FROM vehicles WHERE id = $1`,
+    [vehicleId],
+  );
+  if (!rows[0]) {
+    res.status(404).json({ error: 'Vehicle not found' });
+    return null;
+  }
+  if (rows[0].owner_resident_id !== residentId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return { propertyId: rows[0].property_id, residentId };
 }
 
 function auditLog(req, { action, resourceType, resourceId, changes }) {
@@ -102,7 +138,23 @@ function sendServiceError(res, err) {
 // Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    let residentOwnerId = null;
+    if (isStaff(req.user.role)) {
+      if (!canReadVehicles(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    } else if (isResident(req.user.role)) {
+      if (!canInPropertyScope(req, 'access.request.create', propertyId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      residentOwnerId = await resolveResidentIdByUid(getDb(req), req.user?.uid);
+      if (!residentOwnerId) return res.status(403).json({ error: 'Resident identity is not mapped to v1' });
+      if (req.query.owner_resident_id && req.query.owner_resident_id !== residentOwnerId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     let pagination;
     try {
@@ -111,13 +163,16 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.plate) {
       params.push(normalizePlate(String(req.query.plate)));
       filters.push(`plate_number = $${params.length}`);
     }
-    if (req.query.owner_resident_id) {
+    if (residentOwnerId) {
+      params.push(residentOwnerId);
+      filters.push(`owner_resident_id = $${params.length}`);
+    } else if (req.query.owner_resident_id) {
       if (!isValidUuid(req.query.owner_resident_id)) {
         return res.status(400).json({ error: 'Invalid owner_resident_id' });
       }
@@ -155,11 +210,14 @@ router.get('/', async (req, res, next) => {
 router.get('/by-plate/:plate', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadVehicles(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const normalized = normalizePlate(req.params.plate);
     if (!normalized) return res.status(400).json({ error: 'Invalid plate' });
     const { rows } = await getDb(req).query(
-      `SELECT ${VEHICLE_COLS} FROM vehicles WHERE plate_number = $1`,
-      [normalized],
+      `SELECT ${VEHICLE_COLS} FROM vehicles WHERE property_id = $1 AND plate_number = $2`,
+      [propertyId, normalized],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Vehicle not found', plate: normalized });
     res.json({ vehicle: rows[0] });
@@ -169,8 +227,19 @@ router.get('/by-plate/:plate', async (req, res, next) => {
 // ─── GET /api/v1/vehicles/:id ────────────────────────────────────────────────
 router.get('/:id', async (req, res, next) => {
   try {
-    if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    if (isStaff(req.user.role)) {
+      const propertyId = await loadVehicleProperty(req, req.params.id);
+      if (!canReadVehicles(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    } else if (isResident(req.user.role)) {
+      const owner = await requireResidentVehicleOwner(req, res, req.params.id);
+      if (!owner) return;
+      if (!canInPropertyScope(req, 'access.request.create', owner.propertyId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const { rows } = await getDb(req).query(
       `SELECT ${VEHICLE_COLS} FROM vehicles WHERE id = $1`,
       [req.params.id],
@@ -231,6 +300,10 @@ router.post('/', idempotency, async (req, res, next) => {
     if (brand !== null && !isNonEmptyString(brand, 60)) return res.status(400).json({ error: 'brand: 1–60 chars or null' });
     if (model !== null && !isNonEmptyString(model, 60)) return res.status(400).json({ error: 'model: 1–60 chars or null' });
     if (notes !== null && typeof notes !== 'string') return res.status(400).json({ error: 'notes must be string or null' });
+
+    if (!isPropertyAdmin(req, property_id) && !canInPropertyScope(req, 'access.request.create', property_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     const result = await createVehicle({
       queryable: getDb(req),

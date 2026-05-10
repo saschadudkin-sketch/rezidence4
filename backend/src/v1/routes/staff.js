@@ -26,6 +26,10 @@ const {
   isOnboardingImportError,
   previewStaffImport,
 } = require('../services/onboardingImportService');
+const {
+  provisionStaffMembership,
+  suspendMembershipsForSubject,
+} = require('../services/roleScopeMembershipService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -264,6 +268,11 @@ router.post('/', async (req, res, next) => {
         can_assign_requests: effectiveAssign,
       },
     });
+    await provisionStaffMembership({
+      queryable: getDb(req),
+      staff: { ...rows[0], property_id: rows[0].property_id || property_id, role: rows[0].role || role },
+      provisionedFrom: 'api',
+    });
     res.status(201).json({ staff: rows[0] });
   } catch (err) {
     if (err && err.code === '23505') return res.status(409).json({ error: 'email already exists for this property' });
@@ -335,6 +344,23 @@ router.patch('/:id', async (req, res, next) => {
       params,
     );
     auditLog(req, { action: 'staff.updated', resourceId: rows[0].id, changes });
+    if (changes.role) {
+      await suspendMembershipsForSubject({
+        queryable: getDb(req),
+        subjectType: 'staff',
+        subjectId: rows[0].id,
+        reason: `staff role changed from ${changes.role.from} to ${changes.role.to}`,
+      });
+      await provisionStaffMembership({
+        queryable: getDb(req),
+        staff: {
+          ...rows[0],
+          property_id: rows[0].property_id || before.property_id,
+          role: rows[0].role || changes.role.to,
+        },
+        provisionedFrom: 'api',
+      });
+    }
     res.json({ staff: rows[0] });
   } catch (err) {
     if (err && err.code === '23505') return res.status(409).json({ error: 'email already exists for this property' });
@@ -354,6 +380,12 @@ router.post('/:id/deactivate', async (req, res, next) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
     auditLog(req, { action: 'staff.deactivated', resourceId: rows[0].id, changes: null });
+    await suspendMembershipsForSubject({
+      queryable: getDb(req),
+      subjectType: 'staff',
+      subjectId: rows[0].id,
+      reason: 'staff deactivated',
+    });
     res.status(204).end();
   } catch (err) {
     if (sendScopeError(res, err)) return;

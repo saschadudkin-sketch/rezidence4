@@ -145,6 +145,37 @@ test.describe('platform-v1 access production e2e', () => {
       const token = (await resident.page.getByTestId('v1-qr-token').textContent()).trim();
       expect(token).toMatch(/^[a-f0-9]{32}$/);
 
+      const residentPlate = uniquePlate(Date.now() + 17);
+      await resident.page.getByRole('button', { name: 'Добавить авто' }).click();
+      await resident.page.getByLabel('Госномер').fill(residentPlate);
+      await resident.page.getByLabel('Марка').fill('Lada');
+      await resident.page.getByLabel('Модель').fill('Vesta');
+      const vehicleResponse = resident.page.waitForResponse((response) =>
+        response.url().includes('/api/v1/vehicles') &&
+        response.request().method() === 'POST' &&
+        response.status() === 201,
+      );
+      await resident.page.getByRole('button', { name: 'Сохранить авто' }).click();
+      const vehicleBody = await (await vehicleResponse).json();
+      expect(vehicleBody.vehicle.plate_number).toBe(residentPlate);
+      await expect(resident.page.getByText(residentPlate)).toBeVisible();
+
+      await resident.page.getByRole('button', { name: 'Создать заявку' }).click();
+      await resident.page.getByLabel('Тип заявки').selectOption('vehicle_access');
+      await resident.page.getByLabel('Авто').selectOption(vehicleBody.vehicle.id);
+      await resident.page.getByLabel('Комментарий (необязательно)').fill('Resident vehicle access e2e');
+      await resident.page.getByLabel('Начало').fill(toLocalInput(new Date(Date.now() - 5 * 60_000)));
+      await resident.page.getByLabel('Окончание').fill(toLocalInput(new Date(Date.now() + 4 * 60 * 60_000)));
+      const vehicleAccessResponse = resident.page.waitForResponse((response) =>
+        response.url().includes('/api/v1/access-requests') &&
+        response.request().method() === 'POST' &&
+        response.status() === 201,
+      );
+      await resident.page.getByRole('button', { name: 'Создать заявку' }).click();
+      const vehicleAccessBody = await (await vehicleAccessResponse).json();
+      expect(vehicleAccessBody.access_request.request_type).toBe('vehicle_access');
+      expect(vehicleAccessBody.access_request.vehicle_id).toBe(vehicleBody.vehicle.id);
+
       const security = await newAuthedPage(browser, baseURL, USERS.security);
       contexts.push(security.context);
       await security.page.goto('/v1/guard');

@@ -10,15 +10,11 @@
  *   - Opens <AccessRequestForm> inline on "Create" click and refreshes the
  *     list after a successful create.
  *
- * Known backend gaps — handled explicitly rather than silently:
- *   - Residents cannot list /units or /vehicles:
+ * Known backend gap — handled explicitly rather than silently:
+ *   - Residents cannot list /units:
  *       · units — we synthesise a single-item list from resident.unit_id
  *         labelled with session.apartment (which is also what the user sees
  *         in the top bar of the legacy UI).
- *       · vehicles — empty array; we also hide `vehicle_access` from the
- *         request-type picker since there is no inline-create-vehicle flow
- *         yet.  Residents who need to register a new car still go through
- *         the concierge.
  *   - If the resident row has no unit_id, the form can't be submitted (the
  *     backend would 400 on missing target_unit_id); we show a guidance
  *     alert instead of rendering the form.
@@ -32,7 +28,15 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AccessRequest, PropertyType, QrToken, RequestType, UUID } from '../api/types';
+import type {
+  AccessRequest,
+  PropertyType,
+  QrToken,
+  RequestType,
+  UUID,
+  Vehicle,
+  VehicleKind,
+} from '../api/types';
 import { api, isV1ApiError } from '../api';
 import type { ResidentWithUnit } from '../api/residents';
 import { useV1Session } from '../store';
@@ -44,8 +48,12 @@ import { formatUnitLabel, getPropertyLabels } from '../lib/propertyLabels';
 import {
   Alert,
   Button,
+  Card,
   EmptyState,
+  Field,
   Inline,
+  Input,
+  Select,
   Spinner,
   Stack,
   Toolbar,
@@ -60,11 +68,13 @@ const RESIDENT_REQUEST_TYPES: ReadonlyArray<RequestType> = [
   'guest_access',
   'courier_access',
   'service_access',
+  'vehicle_access',
 ];
 
 interface LoadedState {
   resident: ResidentWithUnit;
   requests: AccessRequest[];
+  vehicles: Vehicle[];
 }
 
 type PageState =
@@ -88,9 +98,16 @@ export function ResidentAccessPage() {
         created_by_resident_id: resident.id,
         limit: 20,
       });
+      const vehiclesRes = resident.property_id
+        ? await api.vehicles.list({
+          property_id: resident.property_id,
+          owner_resident_id: resident.id,
+          limit: 50,
+        })
+        : { vehicles: [] };
       setState({
         kind: 'ready',
-        data: { resident, requests: listRes.access_requests },
+        data: { resident, requests: listRes.access_requests, vehicles: vehiclesRes.vehicles },
       });
     } catch (err) {
       const message = isV1ApiError(err)
@@ -126,6 +143,19 @@ export function ResidentAccessPage() {
     setRefreshToken((t) => t + 1);
   }, []);
 
+  const handleVehicleCreated = useCallback((vehicle: Vehicle) => {
+    setState((prev) => {
+      if (prev.kind !== 'ready') return prev;
+      return {
+        kind: 'ready',
+        data: {
+          ...prev.data,
+          vehicles: [vehicle, ...prev.data.vehicles.filter((item) => item.id !== vehicle.id)],
+        },
+      };
+    });
+  }, []);
+
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
@@ -157,12 +187,14 @@ export function ResidentAccessPage() {
         <ResidentAccessReady
           resident={state.data.resident}
           requests={state.data.requests}
+          vehicles={state.data.vehicles}
           apartmentLabel={session.apartment ?? null}
           propertyType={session.property_type ?? null}
           formOpen={formOpen}
           onOpenForm={() => setFormOpen(true)}
           onCancelForm={() => setFormOpen(false)}
           onCreated={handleCreated}
+          onVehicleCreated={handleVehicleCreated}
         />
       )}
     </div>
@@ -172,23 +204,27 @@ export function ResidentAccessPage() {
 interface ReadyProps {
   resident: ResidentWithUnit;
   requests: readonly AccessRequest[];
+  vehicles: readonly Vehicle[];
   apartmentLabel: string | null;
   propertyType: PropertyType | null;
   formOpen: boolean;
   onOpenForm: () => void;
   onCancelForm: () => void;
   onCreated: (request: AccessRequest) => void;
+  onVehicleCreated: (vehicle: Vehicle) => void;
 }
 
 function ResidentAccessReady({
   resident,
   requests,
+  vehicles,
   apartmentLabel,
   propertyType,
   formOpen,
   onOpenForm,
   onCancelForm,
   onCreated,
+  onVehicleCreated,
 }: ReadyProps) {
   // Must have a unit_id AND a property_id to submit a request — otherwise
   // the form 400s on the backend and the UX is worse.
@@ -229,12 +265,21 @@ function ResidentAccessReady({
         </Alert>
       ) : null}
 
+      {canCreate && resident.property_id ? (
+        <ResidentVehiclesPanel
+          propertyId={resident.property_id}
+          residentId={resident.id}
+          vehicles={vehicles}
+          onCreated={onVehicleCreated}
+        />
+      ) : null}
+
       {formOpen && canCreate && resident.property_id ? (
         <AccessRequestForm
           propertyId={resident.property_id}
           propertyType={propertyType}
           units={units}
-          vehicles={[]}
+          vehicles={vehicles}
           allowedRequestTypes={RESIDENT_REQUEST_TYPES}
           onCreated={onCreated}
           onCancel={onCancelForm}
@@ -255,6 +300,158 @@ function ResidentAccessReady({
         </Stack>
       )}
     </Stack>
+  );
+}
+
+function ResidentVehiclesPanel({
+  propertyId,
+  residentId,
+  vehicles,
+  onCreated,
+}: {
+  propertyId: UUID;
+  residentId: UUID;
+  vehicles: readonly Vehicle[];
+  onCreated: (vehicle: Vehicle) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [plate, setPlate] = useState('');
+  const [vehicleType, setVehicleType] = useState<VehicleKind>('car');
+  const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
+  const [color, setColor] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const normalizedPlate = plate.trim();
+    if (!normalizedPlate) {
+      setError('Укажите госномер');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await api.vehicles.create({
+        property_id: propertyId,
+        owner_type: 'resident',
+        owner_resident_id: residentId,
+        plate_number: normalizedPlate,
+        vehicle_type: vehicleType,
+        brand: brand.trim() || null,
+        model: model.trim() || null,
+        color: color.trim() || null,
+      });
+      onCreated(res.vehicle);
+      setPlate('');
+      setBrand('');
+      setModel('');
+      setColor('');
+      setVehicleType('car');
+      setOpen(false);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось добавить авто');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Мои авто"
+      actions={
+        <Button type="button" variant="secondary" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Скрыть' : 'Добавить авто'}
+        </Button>
+      }
+    >
+      <Stack>
+        {vehicles.length === 0 ? (
+          <EmptyState>Добавьте авто, чтобы оформить заявку на въезд.</EmptyState>
+        ) : (
+          <Stack>
+            {vehicles.map((vehicle) => (
+              <Inline key={vehicle.id}>
+                <strong>{vehicle.plate_number}</strong>
+                {vehicle.brand || vehicle.model ? (
+                  <span className={uiClasses.textMuted}>
+                    {[vehicle.brand, vehicle.model].filter(Boolean).join(' ')}
+                  </span>
+                ) : null}
+                {vehicle.is_whitelisted ? <span className={uiClasses.textMuted}>Белый список</span> : null}
+                {vehicle.is_blacklisted ? <span className={uiClasses.textMuted}>Чёрный список</span> : null}
+              </Inline>
+            ))}
+          </Stack>
+        )}
+
+        {open ? (
+          <form onSubmit={submit}>
+            <Stack>
+              {error ? <Alert tone="error">{error}</Alert> : null}
+              <Field label="Госномер" id="v1-resident-vehicle-plate">
+                <Input
+                  id="v1-resident-vehicle-plate"
+                  value={plate}
+                  onChange={(e) => setPlate(e.target.value)}
+                  placeholder="A001AA77"
+                  disabled={submitting}
+                />
+              </Field>
+              <Field label="Тип" id="v1-resident-vehicle-type">
+                <Select
+                  id="v1-resident-vehicle-type"
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value as VehicleKind)}
+                  disabled={submitting}
+                >
+                  <option value="car">Легковой автомобиль</option>
+                  <option value="motorcycle">Мотоцикл</option>
+                  <option value="truck">Грузовой</option>
+                  <option value="service_vehicle">Сервисный</option>
+                </Select>
+              </Field>
+              <Inline>
+                <Field label="Марка" id="v1-resident-vehicle-brand">
+                  <Input
+                    id="v1-resident-vehicle-brand"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Модель" id="v1-resident-vehicle-model">
+                  <Input
+                    id="v1-resident-vehicle-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Цвет" id="v1-resident-vehicle-color">
+                  <Input
+                    id="v1-resident-vehicle-color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
+              </Inline>
+              <Inline>
+                <Button type="submit" loading={submitting}>
+                  Сохранить авто
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
+                  Отмена
+                </Button>
+              </Inline>
+            </Stack>
+          </form>
+        ) : null}
+      </Stack>
+    </Card>
   );
 }
 

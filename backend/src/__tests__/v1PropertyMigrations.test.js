@@ -36,8 +36,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-43 video evidence baseline + 1 DH-43 VMS/NVR configs
     // + 1 DH-42 common Russia SKUD provider expansion
     // + 1 DH-44 ERP/1C exchange baseline
-    // + 1 DH-45 analytics aggregation snapshots = 39
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(39);
+    // + 1 DH-45 analytics aggregation snapshots
+    // + 1 DH-03/DH-08/DH-17..21 membership/review/lifecycle ledger = 40
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(40);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1485,6 +1486,55 @@ describe('v1_039_analytics_aggregation_snapshots', () => {
       .toContain('property_id, metric_group, period, generated_at DESC');
     expect(sqls.find((s) => s.includes('idx_analytics_kpi_snapshots_window')))
       .toContain('property_id, period, window_ended_at DESC');
+  });
+});
+
+describe('v1_040_membership_review_lifecycle', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('extends role_scope_memberships for external platform/company subjects', async () => {
+    await byId('v1_040_membership_review_lifecycle').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('ALTER TABLE role_scope_memberships') && s.includes('external_subject_type')))
+      .toContain('management_company_id UUID');
+    const scopeCheck = sqls.find((s) => s.includes('ADD CONSTRAINT role_scope_memberships_scope_level_check'));
+    expect(scopeCheck)
+      .toContain("'platform'");
+    expect(scopeCheck)
+      .toContain("'management_company'");
+    expect(sqls.find((s) => s.includes('idx_role_scope_memberships_external')))
+      .toContain('external_subject_type, external_subject_id, status');
+  });
+
+  test('creates sensitive action review attestation table', async () => {
+    await byId('v1_040_membership_review_lifecycle').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS sensitive_action_reviews'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('audit_log_id            UUID NOT NULL REFERENCES property_audit_log(id)');
+    for (const status of ['pending', 'approved', 'needs_followup', 'dismissed']) {
+      expect(tbl).toContain(`'${status}'`);
+    }
+    expect(tbl).toContain('classification_snapshot JSONB NOT NULL DEFAULT');
+    expect(sqls.find((s) => s.includes('idx_sensitive_action_reviews_property_status')))
+      .toContain('property_id, review_status');
+  });
+
+  test('creates resident lifecycle, consent history and offline replay ledgers', async () => {
+    await byId('v1_040_membership_review_lifecycle').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS resident_lifecycle_events')))
+      .toContain('consent_given');
+    expect(sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS resident_consent_history')))
+      .toContain("CHECK (decision IN ('accepted','revoked'))");
+    expect(sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS security_offline_replay_events')))
+      .toContain('client_event_id        TEXT NOT NULL');
+    expect(sqls.find((s) => s.includes('ALTER TABLE visit_logs_v2')))
+      .toContain('offline_replay_event_id UUID');
   });
 });
 

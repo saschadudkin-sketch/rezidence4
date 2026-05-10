@@ -26,6 +26,10 @@ const {
   isOnboardingImportError,
   previewContractorImport,
 } = require('../services/onboardingImportService');
+const {
+  provisionContractorMembership,
+  suspendMembershipsForSubject,
+} = require('../services/roleScopeMembershipService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -393,6 +397,11 @@ router.post('/contractor-users', async (req, res, next) => {
       resourceId: rows[0].id,
       changes: { contractor_company_id, access_expires_at: expiresAt },
     });
+    await provisionContractorMembership({
+      queryable: getDb(req),
+      contractorUser: { ...rows[0], property_id: rows[0].property_id || property_id },
+      provisionedFrom: 'api',
+    });
     res.status(201).json({ user: rows[0] });
   } catch (err) {
     if (err && err.code === '23505') return res.status(409).json({ error: 'contractor user external_uid already exists' });
@@ -458,6 +467,19 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     auditLog(req, { action: 'contractor_user.updated', resourceType: 'contractor_user', resourceId: rows[0].id, changes });
+    if (changes.access_expires_at !== undefined) {
+      await suspendMembershipsForSubject({
+        queryable: getDb(req),
+        subjectType: 'contractor',
+        subjectId: rows[0].id,
+        reason: 'contractor access window changed',
+      });
+      await provisionContractorMembership({
+        queryable: getDb(req),
+        contractorUser: { ...rows[0], property_id: rows[0].property_id || propertyId },
+        provisionedFrom: 'api',
+      });
+    }
     res.json({ user: rows[0] });
   } catch (err) {
     if (sendScopeError(res, err)) return;
@@ -484,6 +506,12 @@ router.post('/contractor-users/:id/deactivate', async (req, res, next) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     auditLog(req, { action: 'contractor_user.deactivated', resourceType: 'contractor_user', resourceId: rows[0].id, changes: null });
+    await suspendMembershipsForSubject({
+      queryable: getDb(req),
+      subjectType: 'contractor',
+      subjectId: rows[0].id,
+      reason: 'contractor user deactivated',
+    });
     res.status(204).end();
   } catch (err) {
     if (sendScopeError(res, err)) return;

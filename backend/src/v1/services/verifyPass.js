@@ -157,7 +157,8 @@ async function verifyPass({
     pass = rows[0] || null;
     if (pass?.subject_vehicle_id) {
       const { rows: vRows } = await db.query(
-        `SELECT id, plate_number, is_whitelisted, is_blacklisted
+        `SELECT id, plate_number, owner_type, vehicle_type,
+                is_whitelisted, is_blacklisted
            FROM vehicles WHERE id = $1`,
         [pass.subject_vehicle_id],
       );
@@ -175,7 +176,8 @@ async function verifyPass({
       };
     }
     const { rows: vRows } = await db.query(
-      `SELECT id, plate_number, is_whitelisted, is_blacklisted
+      `SELECT id, plate_number, owner_type, vehicle_type,
+              is_whitelisted, is_blacklisted
          FROM vehicles
         WHERE property_id = $1 AND plate_number = $2`,
       [property_id, normalizedPlate],
@@ -223,12 +225,19 @@ async function verifyPass({
   // ─── Step 3: verdict cascade ────────────────────────────────────────────
   const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction });
   const verdict = { ...baseVerdict };
+  const requiresVehiclePolicyDecision = mode === 'plate'
+    && vehicle
+    && !pass
+    && !vehicle.is_whitelisted
+    && !vehicle.is_blacklisted;
 
   // ─── Step 3b: configurable access policy evaluation ─────────────────────
-  // Hard denials above keep precedence. Policies add object-specific
-  // subject/method/scope/schedule decisions only when base verification allows.
+  // Hard denials above keep precedence. Registered-but-unlisted vehicles are
+  // the exception: a vehicle policy may explicitly allow/deny/review by owner
+  // type, vehicle type, checkpoint and schedule. Without a matching policy the
+  // legacy whitelist rule still denies.
   let policyDecision = null;
-  if (verdict.allowed && ['qr', 'plate'].includes(mode)) {
+  if ((verdict.allowed || requiresVehiclePolicyDecision) && ['qr', 'plate'].includes(mode)) {
     policyDecision = await evaluateAccessPolicy({
       queryable: db,
       propertyId: property_id,
@@ -241,7 +250,23 @@ async function verifyPass({
       now,
     });
     verdict.policy_decision = policyDecision;
-    if (!policyDecision.allowed) {
+    if (requiresVehiclePolicyDecision) {
+      if (policyDecision.allowed && policyDecision.matched_policy_id) {
+        verdict.allowed = true;
+        verdict.reason = null;
+        verdict.event_type = eventTypeFor(direction, true);
+        verdict.incident_type = null;
+        verdict.severity = null;
+      } else {
+        verdict.allowed = false;
+        verdict.reason = policyDecision.reason === 'no_matching_policy' || policyDecision.reason === 'no_active_policies'
+          ? 'unauthorized_vehicle'
+          : policyDecision.reason;
+        verdict.event_type = eventTypeFor(direction, false);
+        verdict.incident_type = policyDecision.incident_type || 'unauthorized_vehicle';
+        verdict.severity = policyDecision.severity || 'medium';
+      }
+    } else if (!policyDecision.allowed) {
       verdict.allowed = false;
       verdict.reason = policyDecision.reason;
       verdict.event_type = eventTypeFor(direction, false);

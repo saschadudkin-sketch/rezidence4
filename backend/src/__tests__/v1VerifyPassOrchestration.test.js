@@ -406,6 +406,54 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     expect(incidentCall[1][3]).toBe(UUID_VEHICLE);
   });
 
+  test('vehicle owner policy can allow registered non-whitelisted resident vehicle', async () => {
+    const txClient = installTxClient();
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM vehicles') && sql.includes('plate_number')) {
+        return Promise.resolve({ rows: [makeVehicle({ owner_type: 'resident', vehicle_type: 'car', is_whitelisted: false })] });
+      }
+      if (sql.includes('FROM passes p')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({
+          rows: [{
+            id: '88888888-8888-4888-8888-888888888888',
+            property_id: UUID_PROPERTY,
+            name: 'Resident registered vehicles',
+            subject_type: 'vehicle',
+            subject_role: null,
+            zone_id: null,
+            point_id: null,
+            access_method: 'plate',
+            approval_mode: 'auto',
+            effect: 'allow',
+            priority: 10,
+            schedule_json: null,
+            duration_minutes: null,
+            is_recurring: true,
+            is_active: true,
+            created_by: null,
+            metadata: { owner_type: 'resident' },
+            created_at: '2026-05-05T08:00:00.000Z',
+            updated_at: '2026-05-05T08:00:00.000Z',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'plate',
+      plate: 'A001AA77',
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(true);
+    expect(result.verdict.policy_decision.matched_policy_name).toBe('Resident registered vehicles');
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_incidents'))).toBe(false);
+  });
+
   test('plate input is normalized before vehicle lookup and visit log write', async () => {
     const txClient = installTxClient();
     mockPlateQueries({ vehicle: makeVehicle({ is_whitelisted: true }), pass: null });

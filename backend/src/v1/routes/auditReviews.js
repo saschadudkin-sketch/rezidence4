@@ -3,9 +3,8 @@
 // platform-v1 audit review route.
 // Spec: docs/product/specs/domhub-event-taxonomy-spec.md §8.
 //
-// This is a read-only reporting layer over property_audit_log. It intentionally
-// does not mutate audit rows: review workflows belong to DH-60, while DH-08
-// needs a stable sensitive-action taxonomy and query surface.
+// Review workflow over immutable property_audit_log rows. Audit rows remain
+// append-only; attestations are written to sensitive_action_reviews.
 
 const express = require('express');
 const db = require('../../db');
@@ -13,11 +12,16 @@ const requireAuth = require('../../middleware/auth');
 const { can } = require('../lib/authz');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
-  classifyAuditRow,
   isKnownSensitiveCategory,
   listSensitiveAuditActions,
   listSensitiveCategories,
 } = require('../services/auditEventCatalog');
+const {
+  REVIEW_STATUSES,
+  attestSensitiveAction,
+  isAuditReviewServiceError,
+  listSensitiveActionReviews,
+} = require('../services/auditReviewService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -41,11 +45,18 @@ function firstQueryValue(v) {
   return Array.isArray(v) ? v[0] : v;
 }
 
+function sendServiceError(res, err) {
+  if (!isAuditReviewServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
 router.get('/sensitive-actions/_meta', (req, res) => {
   if (!can(req.user, 'audit.read')) return res.status(403).json({ error: 'Forbidden' });
   res.json({
     categories: listSensitiveCategories(),
     actions: listSensitiveAuditActions(),
+    review_statuses: [...REVIEW_STATUSES],
   });
 });
 
@@ -69,65 +80,72 @@ router.get('/sensitive-actions', async (req, res, next) => {
       });
     }
 
-    const actions = listSensitiveAuditActions({ category });
-    const filters = [];
-    const params = [];
-
-    params.push(actions);
-    filters.push(`action = ANY($${params.length}::text[])`);
+    const filters = { category };
 
     const propertyId = firstQueryValue(req.query.property_id);
     if (propertyId) {
       if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'Invalid property_id' });
-      params.push(propertyId);
-      filters.push(`property_id = $${params.length}`);
+      filters.property_id = propertyId;
+    }
+    const reviewStatus = firstQueryValue(req.query.review_status);
+    if (reviewStatus) {
+      if (!REVIEW_STATUSES.has(reviewStatus)) return res.status(400).json({ error: 'Invalid review_status' });
+      filters.review_status = reviewStatus;
     }
     const actorUid = firstQueryValue(req.query.actor_uid);
     if (actorUid) {
       if (!isSafeFilterValue(actorUid, 128)) return res.status(400).json({ error: 'Invalid actor_uid' });
-      params.push(String(actorUid).trim());
-      filters.push(`actor_uid = $${params.length}`);
+      filters.actor_uid = String(actorUid).trim();
     }
     const resourceType = firstQueryValue(req.query.resource_type);
     if (resourceType) {
       if (!isSafeFilterValue(resourceType, 50)) return res.status(400).json({ error: 'Invalid resource_type' });
-      params.push(String(resourceType).trim());
-      filters.push(`resource_type = $${params.length}`);
+      filters.resource_type = String(resourceType).trim();
     }
     const from = firstQueryValue(req.query.from);
     if (from) {
       if (!isValidIso(from)) return res.status(400).json({ error: 'Invalid from' });
-      params.push(String(from));
-      filters.push(`created_at >= $${params.length}`);
+      filters.from = String(from);
     }
     const to = firstQueryValue(req.query.to);
     if (to) {
       if (!isValidIso(to)) return res.status(400).json({ error: 'Invalid to' });
-      params.push(String(to));
-      filters.push(`created_at <= $${params.length}`);
+      filters.to = String(to);
     }
 
-    params.push(pagination.limit);
-    const limitIdx = params.length;
-    params.push(pagination.offset);
-    const offsetIdx = params.length;
-
-    const { rows } = await getDb(req).query(
-      `SELECT id, property_id, actor_uid, actor_role, actor_type,
-              action, resource_type, resource_id, entity_type, entity_id,
-              changes, ip_address, created_at
-         FROM property_audit_log
-        WHERE ${filters.join(' AND ')}
-        ORDER BY created_at DESC
-        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      params,
-    );
+    const actions = await listSensitiveActionReviews({
+      queryable: getDb(req),
+      filters,
+      pagination,
+    });
 
     res.json({
-      actions: rows.map(classifyAuditRow),
-      page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
+      actions,
+      page: buildPageMeta({ ...pagination, returnedCount: actions.length }),
     });
   } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/sensitive-actions/:id/review', async (req, res, next) => {
+  try {
+    if (!can(req.user, 'audit.read')) return res.status(403).json({ error: 'Forbidden' });
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid audit action id' });
+    const decision = firstQueryValue(req.body?.decision);
+    const comment = req.body?.comment === undefined ? null : req.body.comment;
+    const review = await attestSensitiveAction({
+      queryable: getDb(req),
+      user: req.user,
+      auditLogId: req.params.id,
+      decision,
+      comment,
+    });
+    res.json({ review });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    if (err && err.code === '23503') return res.status(400).json({ error: 'reviewer or audit row does not exist' });
+    if (err && err.code === '23514') return res.status(400).json({ error: 'review constraint violation' });
     next(err);
   }
 });

@@ -71,6 +71,7 @@ const v1StructureRouter   = require('../v1/routes/structure');
 const v1ResidentsRouter   = require('../v1/routes/residents');
 const v1StaffRouter       = require('../v1/routes/staff');
 const v1ContractorsRouter = require('../v1/routes/contractors');
+const v1MembershipsRouter = require('../v1/routes/memberships');
 
 // Phase 3 (D-lite) — Access-core layer.  Spec: docs/product/specs/platform-v1/*
 // vehicles            — first-class сущность авто с white/blacklist
@@ -293,6 +294,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1', v1StructureRouter);
   app.use('/api/v1/residents', v1ResidentsRouter);
   app.use('/api/v1/staff', v1StaffRouter);
+  app.use('/api/v1/memberships', v1MembershipsRouter);
   app.use('/api/v1', v1ContractorsRouter);
 
   // Phase 3 (D-lite) — Access-core layer under /api/v1/*.

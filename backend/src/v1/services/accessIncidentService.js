@@ -20,7 +20,7 @@ const OVERRIDE_COLS = `
 const VISIT_LOG_COLS = `
   id, property_id, pass_id, access_point_id, event_type, event_source,
   person_label, vehicle_plate, performed_by_staff_id,
-  provider_event_id, provider_payload, occurred_at, created_at
+  provider_event_id, provider_payload, offline_replay_event_id, occurred_at, created_at
 `;
 
 class AccessIncidentServiceError extends Error {
@@ -240,8 +240,8 @@ async function createManualSecurityDecision({ txPool, user, input }) {
       `INSERT INTO visit_logs_v2
          (property_id, pass_id, access_point_id, event_type, event_source,
           person_label, vehicle_plate, performed_by_staff_id,
-          provider_event_id, provider_payload, occurred_at)
-       VALUES ($1,$2,$3,$4,'guard_console',$5,$6,$7,NULL,$8,$9)
+          provider_event_id, provider_payload, offline_replay_event_id, occurred_at)
+       VALUES ($1,$2,$3,$4,'guard_console',$5,$6,$7,NULL,$8,$9,$10)
        RETURNING ${VISIT_LOG_COLS}`,
       [
         input.property_id,
@@ -252,6 +252,7 @@ async function createManualSecurityDecision({ txPool, user, input }) {
         normalizedPlate,
         staffId,
         JSON.stringify(providerPayload),
+        input.offline_replay_event_id || null,
         occurredAtIso,
       ],
     );

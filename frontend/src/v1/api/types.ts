@@ -524,6 +524,7 @@ export interface VisitLog {
   performed_by_staff_id: UUID | null;
   provider_event_id: string | null;
   provider_payload: Record<string, unknown> | null;
+  offline_replay_event_id?: UUID | null;
   occurred_at: IsoDateTime;
   created_at: IsoDateTime;
 }
@@ -644,6 +645,37 @@ export interface ManualSecurityDecisionResponse {
   visit_log: VisitLog;
   incident: AccessIncident;
   override: AccessOverride;
+}
+
+export type SecurityOfflineReplayEventType =
+  | 'manual_admit'
+  | 'manual_deny'
+  | 'lookup_snapshot'
+  | 'sync_error';
+
+export interface SecurityOfflineReplayEvent extends Partial<ManualSecurityDecisionRequest> {
+  client_event_id: string;
+  event_type: SecurityOfflineReplayEventType;
+  occurred_at: IsoDateTime;
+}
+
+export interface SecurityOfflineReplayRecord {
+  id: UUID;
+  property_id: UUID;
+  client_event_id: string;
+  event_type: SecurityOfflineReplayEventType;
+  replay_status: 'accepted' | 'duplicate' | 'rejected';
+  occurred_at: IsoDateTime;
+  payload: Record<string, unknown>;
+  processed_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+}
+
+export interface SecurityOfflineReplayResponse {
+  results: Array<{
+    replay_event: SecurityOfflineReplayRecord;
+    result: ManualSecurityDecisionResponse | null;
+  }>;
 }
 
 // ─── Staff Workspace / Service Requests ────────────────────────────────────

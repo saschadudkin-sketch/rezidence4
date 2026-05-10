@@ -23,6 +23,10 @@ const {
   isAccessTopologyServiceError,
   validateAccessPoint,
 } = require('../services/accessTopologyService');
+const {
+  isSecurityOfflineReplayServiceError,
+  replaySecurityOfflineEvents,
+} = require('../services/securityOfflineReplayService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -79,6 +83,10 @@ function sendKnownError(res, err) {
     return true;
   }
   if (isAccessIncidentServiceError(err)) {
+    res.status(err.status).json({ error: err.message });
+    return true;
+  }
+  if (isSecurityOfflineReplayServiceError(err)) {
     res.status(err.status).json({ error: err.message });
     return true;
   }
@@ -295,6 +303,41 @@ router.post('/manual-decision', async (req, res, next) => {
     if (sendKnownError(res, err)) return;
     if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
     if (err && err.code === '23514') return res.status(400).json({ error: 'manual decision constraint violation' });
+    next(err);
+  }
+});
+
+router.post('/offline-replay', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canCreateManualDecision(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const events = req.body?.events;
+    if (!Array.isArray(events) || events.length === 0) {
+      return res.status(400).json({ error: 'events must be a non-empty array' });
+    }
+
+    for (const event of events) {
+      if (event?.access_point_id !== undefined && event.access_point_id !== null && !isValidUuid(event.access_point_id)) {
+        return res.status(400).json({ error: 'access_point_id must be UUID or null' });
+      }
+      if (event?.access_point_id) {
+        await validateAccessPoint(getDb(req), { propertyId, accessPointId: event.access_point_id });
+      }
+    }
+
+    const results = await replaySecurityOfflineEvents({
+      queryable: getDb(req),
+      txPool: getTxPool(req),
+      user: req.user,
+      propertyId,
+      events,
+    });
+    res.status(202).json({ results });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    if (err && err.code === '23505') return res.status(409).json({ error: 'offline replay event already exists' });
     next(err);
   }
 });
