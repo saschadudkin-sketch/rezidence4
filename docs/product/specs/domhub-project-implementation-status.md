@@ -83,7 +83,7 @@ The largest gaps are still structural:
 | `DH-31` | Packages Domain | Rechecked, guard/SLA hardening added | `packages_v2`, resident/admin package pages, role-aligned package guards and SLA 7/14/30 outbox reminders/follow-ups/admin-alerts exist; auto-return is intentionally absent. |
 | `DH-32` | Announcements And Documents Backend | Rechecked, guard/public routing hardening added | `announcements_v2`, `documents_v2`, versions, public/admin routes and services exist; communications route guards now exclude technician, keep security read-only, limit writes/admin consoles to concierge/admin, and public content slug routes resolve tenant context through middleware. |
 | `DH-33` | Resident Communications UI | Rechecked, resident UI hardening added | Resident announcements/documents pages exist; announcements now surface urgent items in a dedicated resident banner and documents exercise both list and row visibility through a resident detail panel. |
-| `DH-34` | Notification Orchestration | Partial | Outbox, log, worker, templates and adapters exist; channel production configuration/reliability still needs validation. |
+| `DH-34` | Notification Orchestration | Rechecked, delivery correlation hardening added | Outbox, log, worker, templates, push/SMS/Telegram/webhook adapters, retry/DLQ and admin health/retry surfaces exist; worker now passes `correlation_id` into channel adapters so webhook delivery headers preserve event correlation. Email remains a deferred stub. |
 | `DH-35` | Property Admin Operational Dashboard | Partial | Admin/config surfaces exist, but no complete object-level operations dashboard with review workflows. |
 | `DH-36` | Management Company Portfolio API | Partial | Management-company platform routes and platform analytics exist; portfolio KPIs/governance are not complete. |
 | `DH-37` | Management Company Portfolio UI | Partial | Platform admin management-company pages exist; full MC admin portfolio workspace is not complete. |
@@ -150,11 +150,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-31` | Rechecked, guard/SLA hardening added | Package backend guards now match the role matrix (`security` intake/pickup only, `concierge` operations, admin all); `/v1/packages` admits security while hiding return/remind/lost; package SLA runner now sends 7-day resident reminders, 14-day concierge follow-ups and 30-day admin alerts without changing package status. | Continue with `DH-32` Announcements And Documents Backend recheck. |
 | `DH-32` | Rechecked, guard/public routing hardening added | Announcements/documents routes now use communications-specific reader/writer guards; security remains read-only, technician is excluded from communications endpoints, write/admin flows are concierge/admin, and `/public/:slug/(documents|announcements)` can resolve tenant context before route handling. | Continue with `DH-33` Resident Communications UI recheck. |
 | `DH-33` | Rechecked, resident UI hardening added | Resident announcements now include a dedicated urgent banner while preserving pinned/urgent/newest ordering; resident documents now open a detail panel backed by `GET /documents/:id` and tests cover the row endpoint path. | Continue with `DH-34` Notification Orchestration recheck. |
+| `DH-34` | Rechecked, delivery correlation hardening added | Notification outbox/worker/adapters were rechecked against the DH-34 scope; the worker now forwards `correlation_id` to channel adapters so webhook deliveries keep stable event correlation in headers. Focused tests cover worker state-machine, adapter contracts, dispatcher routing, producer validation and runner lifecycle. | Continue with `DH-35` Property Admin Operational Dashboard. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Recheck `DH-34` Notification Orchestration before moving deeper into operations-ready hardening.
+2. Continue with `DH-35` Property Admin Operational Dashboard and add an object-level operational snapshot that includes notification health.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 
@@ -167,7 +168,7 @@ This audit used source inspection and read-only commands:
 - route/migration searches for v1 endpoints, schema entities, access topology, policy, emergency, ПДн and hardware terms;
 - Jira CSV/backlog inspection for `DH-01` through `DH-61`.
 
-Focused backend/frontend checks were executed for the latest `DH-03`/`DH-06`/`DH-08`/`DH-09`/`DH-18`/`DH-20`/`DH-21`/`DH-22`/`DH-23`/`DH-24`/`DH-25` updates:
+Focused backend/frontend checks were executed for recent implementation updates:
 
 - `authz.test.js`
 - `v1Routes.test.js`
@@ -210,6 +211,11 @@ Focused backend/frontend checks were executed for the latest `DH-03`/`DH-06`/`DH
 - `npm --prefix frontend run typecheck:compile`
 - `.\node_modules\.bin\eslint.cmd src/v1/pages/ResidentAnnouncementsFeedPage.tsx src/v1/pages/ResidentDocumentsPage.tsx src/v1/pages/ResidentPages.smoke.test.tsx` from `frontend/`
 - Browser/dev-server smoke opened `http://127.0.0.1:5173/v1/my/announcements` and `http://127.0.0.1:5173/v1/my/documents`
+- `npm test -- v1OutboxWorker.test.js --runInBand` from `backend/`
+- `npm test -- v1NotificationChannels.test.js --runInBand` from `backend/`
+- `npm test -- v1NotificationDispatcher.test.js --runInBand` from `backend/`
+- `npm test -- v1NotificationOutbox.test.js --runInBand` from `backend/`
+- `npm test -- v1OutboxRunner.test.js --runInBand` from `backend/`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
 - `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`

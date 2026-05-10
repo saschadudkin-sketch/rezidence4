@@ -181,6 +181,7 @@ async function processRow(tx, row, tenant = null) {
       recipientId:      row.recipient_id,
       payload:          row.payload,
       eventType:        row.event_type,
+      correlationId:    row.correlation_id,
       tenant,
       row,
     });

@@ -159,6 +159,19 @@ describe('processRow — success path', () => {
     expect(typeof payloadParam).toBe('string');
     expect(JSON.parse(payloadParam)).toEqual({ title: 't', body: 'b' });
   });
+
+  test('passes correlation_id through to channel adapter', async () => {
+    channels.dispatch.mockResolvedValue({ ok: true });
+    const tx = makeTx();
+    const row = makeRow({ channel: 'webhook', correlation_id: 'corr-uuid-1' });
+
+    await worker.processRow(tx, row, null);
+
+    expect(channels.dispatch).toHaveBeenCalledWith('webhook', expect.objectContaining({
+      correlationId: 'corr-uuid-1',
+      row,
+    }));
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
