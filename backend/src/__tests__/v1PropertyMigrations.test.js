@@ -35,8 +35,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework
     // + 1 DH-43 video evidence baseline + 1 DH-43 VMS/NVR configs
     // + 1 DH-42 common Russia SKUD provider expansion
-    // + 1 DH-44 ERP/1C exchange baseline = 38
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(38);
+    // + 1 DH-44 ERP/1C exchange baseline
+    // + 1 DH-45 analytics aggregation snapshots = 39
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(39);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1455,6 +1456,35 @@ describe('v1_038_erp_exchange_baseline', () => {
     expect(records).toContain('validation_errors      JSONB NOT NULL DEFAULT');
     expect(records).toContain('CONSTRAINT erp_sync_records_validation_errors_array');
     expect(sqls.find((s) => s.includes('idx_erp_sync_records_job_status'))).toContain('sync_job_id, status, row_index');
+  });
+});
+
+describe('v1_039_analytics_aggregation_snapshots', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates property-scoped KPI snapshot table', async () => {
+    await byId('v1_039_analytics_aggregation_snapshots').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS analytics_kpi_snapshots'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain("CHECK (metric_group IN ('operations_dashboard'))");
+    expect(tbl).toContain("CHECK (period IN ('24h','7d','30d'))");
+    expect(tbl).toContain("CHECK (generated_by IN ('job','manual','system'))");
+    expect(tbl).toContain('CONSTRAINT analytics_kpi_snapshots_window_check');
+    expect(tbl).toContain('CONSTRAINT analytics_kpi_snapshots_payload_object');
+    expect(tbl).toContain('CONSTRAINT analytics_kpi_snapshots_flat_rows_array');
+  });
+
+  test('adds latest and window lookup indexes', async () => {
+    await byId('v1_039_analytics_aggregation_snapshots').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_analytics_kpi_snapshots_latest')))
+      .toContain('property_id, metric_group, period, generated_at DESC');
+    expect(sqls.find((s) => s.includes('idx_analytics_kpi_snapshots_window')))
+      .toContain('property_id, period, window_ended_at DESC');
   });
 });
 

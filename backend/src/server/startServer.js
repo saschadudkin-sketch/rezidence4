@@ -7,6 +7,10 @@ const { startTelegramBot, stopBot: stopTelegramBot } = require('../services/tele
 const { startOutboxRunner } = require('../v1/workers/outboxRunner');
 const { startScheduledFanoutRunner } = require('../v1/workers/scheduledFanoutRunner');
 const { startPackageSlaRunner } = require('../v1/workers/packageSlaRunner');
+const {
+  isAnalyticsAggregationEnabled,
+  startAnalyticsAggregationRunner,
+} = require('../v1/workers/analyticsAggregationRunner');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { getPropertyPool, closeAllPools } = require('../middleware/propertyDb');
 
@@ -40,6 +44,7 @@ async function startServer({ app, db, config }) {
   let outboxRunner = { stop() {}, started: false };
   let scheduledFanoutRunner = { stop() {}, started: false };
   let packageSlaRunner = { stop() {}, started: false };
+  let analyticsAggregationRunner = { stop() {}, started: false };
   if (isOutboxEnabled()) {
     let platformDb = null;
     try {
@@ -69,6 +74,22 @@ async function startServer({ app, db, config }) {
     packageSlaRunner = startPackageSlaRunner(runnerDb);
   }
 
+  // DH-45 analytics aggregation runner.  Independent from outbox so reporting
+  // snapshots can run in environments where notification dispatch is disabled.
+  if (isAnalyticsAggregationEnabled()) {
+    let platformDb = null;
+    try {
+      platformDb = process.env.PLATFORM_DB_URL ? db.getPlatformDb() : null;
+    } catch (err) {
+      logger.warn({ err: err.message }, '[server] platform DB unavailable for analytics aggregation runner');
+    }
+    analyticsAggregationRunner = startAnalyticsAggregationRunner({
+      platformDb,
+      getPool: platformDb ? getPropertyPool : null,
+      fallbackDb: db.pool,
+    });
+  }
+
   const shutdownTimeout = 10_000;
   let shuttingDown = false;
 
@@ -86,6 +107,9 @@ async function startServer({ app, db, config }) {
     }
     try { packageSlaRunner.stop(); } catch (err) {
       logger.warn({ err: err.message }, '[server] package-sla runner stop failed');
+    }
+    try { analyticsAggregationRunner.stop(); } catch (err) {
+      logger.warn({ err: err.message }, '[server] analytics aggregation runner stop failed');
     }
     stopTelegramBot();
     sseRedis.shutdown();
@@ -125,6 +149,7 @@ async function startServer({ app, db, config }) {
     outboxRunner,
     scheduledFanoutRunner,
     packageSlaRunner,
+    analyticsAggregationRunner,
   };
 }
 

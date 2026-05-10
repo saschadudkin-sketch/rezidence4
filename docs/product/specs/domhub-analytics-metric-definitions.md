@@ -260,6 +260,21 @@ CSV exports should support:
 - vehicle traffic
 - notification health
 
+## 10.1 DH-45 materialized KPI snapshots
+
+Backend baseline:
+- `analytics_kpi_snapshots` stores per-property `operations_dashboard` snapshots for `24h`, `7d`, and `30d` windows.
+- `payload` contains the same formula output used by the DH-35 operational dashboard.
+- `flat_rows` contains CSV/export-ready metric rows with `metric_group`, `metric_key`, `value`, `unit`, and JSON `dimensions`.
+- `/api/v1/analytics/snapshots` materializes snapshots manually for admins.
+- `/api/v1/analytics/snapshots/latest?format=csv` exports the latest materialized rows.
+- `ANALYTICS_AGGREGATION_ENABLED=true` starts the periodic runner; in multi-tenant mode it only processes active properties whose package and feature flags resolve `analytics=true`.
+
+Open later work:
+- canonical event-sourced rollups beyond the current DH-35 formula source;
+- advanced BI/query builder tooling;
+- staff/contractor performance analytics beyond the current KPI set.
+
 ---
 
 ## 11. Metric quality rules

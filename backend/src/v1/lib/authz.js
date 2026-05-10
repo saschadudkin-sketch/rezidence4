@@ -319,6 +319,8 @@ const CAPABILITIES = Object.freeze({
   'erp.exchange.write': spec(admin),
   'erp.exchange.import': spec(admin),
   'erp.exchange.export': spec(admin),
+  'analytics.read': spec(admin),
+  'analytics.write': spec(admin),
   'audit.read': spec(admin),
 
   // Existing v1 route capabilities. Keep these until route call-sites move to the dot catalog.

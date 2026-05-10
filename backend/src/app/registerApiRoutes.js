@@ -95,6 +95,7 @@ const v1AuditReviewsRouter      = require('../v1/routes/auditReviews');
 const v1SkudIntegrationsRouter  = require('../v1/routes/skudIntegrations');
 const v1VideoEvidenceRouter     = require('../v1/routes/videoEvidence');
 const v1ErpExchangeRouter       = require('../v1/routes/erpExchange');
+const v1AnalyticsAggregationRouter = require('../v1/routes/analyticsAggregation');
 
 // Phase 5 (platform-v1) — notification_log_v2 read API.  Spec:
 // docs/product/specs/platform-v1/notification-log-v2-spec.md §3.
@@ -254,7 +255,11 @@ function registerApiRoutes(app, { rateLimiters }) {
   // Phase 5 — Integrations (X-Integration-Secret header auth, no cookie auth)
   app.use('/api/v1/integrations', integrationsRouter);
 
-  // Phase 6 — Analytics (admin-only, auth enforced inside analyticsRouter)
+  // DH-45 — materialized analytics snapshots + CSV-ready flat rows.
+  // Mounted before legacy analytics so `/snapshots*` is v1-source-of-truth
+  // while old Phase 6 analytics endpoints remain compatibility fall-through.
+  app.use('/api/v1/analytics', requireFeature('analytics'), v1AnalyticsAggregationRouter);
+  // Phase 6 — legacy Analytics (admin-only, auth enforced inside analyticsRouter)
   app.use('/api/v1/analytics', requireFeature('analytics'), analyticsRouter);
 
   // Admin settings — feature flag management (admin role, property context required)
