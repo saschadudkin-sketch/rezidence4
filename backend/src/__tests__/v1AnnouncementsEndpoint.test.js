@@ -52,11 +52,17 @@ jest.mock('../db', () => mockDb);
 const announcementsRouter = require('../v1/routes/announcements');
 const { adminRouter, publicRouter } = announcementsRouter;
 
-function buildApp() {
+function buildApp(options = {}) {
   const app = express();
   app.use(express.json());
   app.use('/api/v1/announcements', announcementsRouter);
   app.use('/api/v1/admin/announcements', adminRouter);
+  if (options.property) {
+    app.use('/api/v1/public/:slug/announcements', (req, _res, next) => {
+      req.property = options.property;
+      next();
+    });
+  }
   app.use('/api/v1/public/:slug/announcements', publicRouter);
   return app;
 }
@@ -168,6 +174,12 @@ describe('GET /api/v1/announcements', () => {
     expect(res.body.hint).toMatch(/admin\/announcements/);
   });
 
+  test('403 for technician role', async () => {
+    mockCurrentUser = { uid: 't1', role: 'technician' };
+    const res = await supertest(buildApp()).get('/api/v1/announcements');
+    expect(res.status).toBe(403);
+  });
+
   test('503 when DB rejects', async () => {
     mockCurrentUser = { uid: 'r1', role: 'resident' };
     dispatch([[/FROM residents/, () => { throw new Error('db down'); }]]);
@@ -209,6 +221,15 @@ describe('GET /api/v1/announcements/:id', () => {
     const res = await supertest(buildApp()).get(`/api/v1/announcements/${UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.announcement.id).toBe(UUID);
+  });
+  test('403 for technician even when row exists', async () => {
+    mockCurrentUser = { uid: 't1', role: 'technician' };
+    dispatch([[/FROM announcements_v2/, () => ({ rows: [{
+      id: UUID, title: 'draft', deleted_at: null, published_at: null,
+      audience_type: 'all', starts_at: new Date().toISOString(),
+    }] })]]);
+    const res = await supertest(buildApp()).get(`/api/v1/announcements/${UUID}`);
+    expect(res.status).toBe(403);
   });
   test('resident 404 on unpublished', async () => {
     mockCurrentUser = { uid: 'r1', role: 'resident' };
@@ -300,6 +321,15 @@ describe('POST /api/v1/announcements', () => {
     expect(res.status).toBe(403);
   });
 
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).post('/api/v1/announcements').send({
+      property_id: UUID, title: 't', body_md: 'b',
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
+  });
+
   test('400 without property_id', async () => {
     const res = await supertest(buildApp()).post('/api/v1/announcements').send({
       title: 't', body_md: 'b',
@@ -381,6 +411,13 @@ describe('PATCH /api/v1/announcements/:id', () => {
     expect(res.status).toBe(403);
   });
 
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).patch(`/api/v1/announcements/${UUID}`).send({ title: 'x' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
+  });
+
   test('400 on noop (empty patch)', async () => {
     const res = await supertest(buildApp()).patch(`/api/v1/announcements/${UUID}`).send({});
     expect(res.status).toBe(400);
@@ -438,6 +475,13 @@ describe('POST /:id/publish', () => {
     mockCurrentUser = { uid: 'r1', role: 'resident' };
     const res = await supertest(buildApp()).post(`/api/v1/announcements/${UUID}/publish`).send({});
     expect(res.status).toBe(403);
+  });
+
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).post(`/api/v1/announcements/${UUID}/publish`).send({});
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
   });
 
   test('400 on bad id', async () => {
@@ -633,6 +677,12 @@ describe('GET /api/v1/admin/announcements', () => {
     const res = await supertest(buildApp()).get(`/api/v1/admin/announcements?property_id=${UUID}`);
     expect(res.status).toBe(403);
   });
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).get(`/api/v1/admin/announcements?property_id=${UUID}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
+  });
   test('400 without property_id', async () => {
     mockCurrentUser = { uid: 's1', role: 'concierge' };
     const res = await supertest(buildApp()).get('/api/v1/admin/announcements');
@@ -723,5 +773,17 @@ describe('GET /api/v1/public/:slug/announcements', () => {
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
     expect(res.body.announcements[0].category).toBe('maintenance');
+  });
+
+  test('uses tenant middleware property context before slug lookup', async () => {
+    dispatch([
+      [/FROM announcements_v2/, () => ({ rows: [
+        { id: UUID, title: 'Отключение воды', category: 'maintenance' },
+      ] })],
+    ]);
+    const res = await supertest(buildApp({ property: { id: UUID } }))
+      .get('/api/v1/public/zamosk/announcements');
+    expect(res.status).toBe(200);
+    expect(mockPool.query.mock.calls.some(([sql]) => String(sql).includes('FROM properties'))).toBe(false);
   });
 });

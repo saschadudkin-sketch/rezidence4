@@ -39,9 +39,10 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const {
+  FINAL_ROLES,
   isAdmin,
-  isStaffOrAdmin,
   isResidentUser,
+  normalizeRole,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -67,6 +68,27 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // Role предикаты — shim под legacy call-sites (name isResident → isResidentUser из authz).
 const isResident = isResidentUser;
+
+function announcementRole(req) {
+  return normalizeRole(req.user?.role);
+}
+
+function isAnnouncementReader(req) {
+  const role = announcementRole(req);
+  return role === FINAL_ROLES.SECURITY
+    || role === FINAL_ROLES.CONCIERGE
+    || isAdmin(req);
+}
+
+function isAnnouncementAdminReader(req) {
+  const role = announcementRole(req);
+  return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
+
+function isAnnouncementWriter(req) {
+  const role = announcementRole(req);
+  return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
 
 // ─── Rate limiters (§4) ──────────────────────────────────────────────────────
 const createLimiter = rateLimit({
@@ -135,7 +157,7 @@ router.get('/', async (req, res) => {
   // Staff тоже может читать feed — но мы отдаём admin feed в отдельной ручке;
   // для staff /announcements возвращает «как увидит обычный резидент его
   // объекта» — что не имеет смысла.  Поэтому 403 staff → пусть идут в /admin.
-  if (!isResident(req) && !isStaffOrAdmin(req)) {
+  if (!isResident(req) && !isAnnouncementReader(req)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const pool = req.db || db.pool;
@@ -178,7 +200,7 @@ router.get('/:id', async (req, res) => {
 
     // Staff видит всё.  Резидент — только опубликованное и попадающее в
     // audience (+ временное окно).
-    if (!isStaffOrAdmin(req)) {
+    if (!isAnnouncementReader(req)) {
       if (!isResident(req)) return res.status(403).json({ error: 'Forbidden' });
       if (!row.published_at) return res.status(404).json({ error: 'Not found' });
       const ctx = await resolveResidentContextByUid(pool, req.user.uid);
@@ -204,7 +226,7 @@ router.get('/:id', async (req, res) => {
 // Idempotency: optional Idempotency-Key — защита от double-tap при создании
 // объявления из admin UI.
 router.post('/', createLimiter, idempotency, async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isAnnouncementWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   const pool = req.db || db.pool;
   const b = req.body || {};
 
@@ -248,7 +270,7 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
 
 // ─── PATCH /api/v1/announcements/:id (drafts only) ──────────────────────────
 router.patch('/:id', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isAnnouncementWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   const b = req.body || {};
@@ -297,7 +319,7 @@ router.patch('/:id', async (req, res) => {
 // Поскольку в body приходит is_urgent и мы гейтим по нему, но body ещё не
 // прочитан к моменту проверки лимитов — применяем limiter'ы ветвями.
 router.post('/:id/publish', async (req, res, next) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isAnnouncementWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
   // Pre-read row, чтобы определить is_urgent и применить правильный RBAC.
@@ -407,7 +429,7 @@ const adminRouter = express.Router();
 adminRouter.use(requireAuth);
 
 adminRouter.get('/', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isAnnouncementAdminReader(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   const pool = req.db || db.pool;
   const propertyId = req.query.property_id;
   if (!propertyId || !isValidUuid(propertyId)) {
@@ -455,7 +477,7 @@ publicRouter.get('/', publicLimiter, async (req, res) => {
   }
   const pool = req.db || db.pool;
   try {
-    const propertyId = await resolvePropertyIdBySlug(pool, slug);
+    const propertyId = req.property?.id || req.property?.property_id || await resolvePropertyIdBySlug(pool, slug);
     if (!propertyId) return res.status(404).json({ error: 'Property not found' });
     const { rows, count } = await listPublic(pool, propertyId, { limit: req.query.limit });
     return res.json({ ok: true, announcements: rows, count });

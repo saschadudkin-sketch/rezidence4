@@ -37,9 +37,10 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const {
+  FINAL_ROLES,
   isAdmin,
-  isStaffOrAdmin,
   isResidentUser,
+  normalizeRole,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -65,6 +66,22 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 // Shim: legacy callsites ожидают `isResident(req)`; в authz переименован в isResidentUser.
 const isResident = isResidentUser;
+
+function documentRole(req) {
+  return normalizeRole(req.user?.role);
+}
+
+function isDocumentReader(req) {
+  const role = documentRole(req);
+  return role === FINAL_ROLES.SECURITY
+    || role === FINAL_ROLES.CONCIERGE
+    || isAdmin(req);
+}
+
+function isDocumentWriter(req) {
+  const role = documentRole(req);
+  return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
 
 // ─── Rate limiters ──────────────────────────────────────────────────────────
 
@@ -116,7 +133,7 @@ router.use(requireAuth);
 
 // ─── GET /api/v1/documents ──────────────────────────────────────────────────
 router.get('/', async (req, res) => {
-  if (!isResident(req) && !isStaffOrAdmin(req)) {
+  if (!isResident(req) && !isDocumentReader(req)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const pool = req.db || db.pool;
@@ -165,7 +182,7 @@ router.get('/:id', async (req, res) => {
     if (row.deleted_at) return res.status(404).json({ error: 'Not found' });
 
     // Staff видит всё (кроме soft-deleted).
-    if (isStaffOrAdmin(req)) {
+    if (isDocumentReader(req)) {
       return res.json({ ok: true, document: row });
     }
     // Resident — только published + в пределах своего property.
@@ -186,7 +203,7 @@ router.get('/:id', async (req, res) => {
 // Idempotency: optional Idempotency-Key — защита от double-tap при загрузке
 // документа из admin UI.
 router.post('/', createLimiter, idempotency, async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isDocumentWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   const pool = req.db || db.pool;
   const b = req.body || {};
   if (!b.property_id) return res.status(400).json({ error: 'property_id required' });
@@ -233,7 +250,7 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
 
 // ─── PATCH /api/v1/documents/:id ────────────────────────────────────────────
 router.patch('/:id', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isDocumentWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   const b = req.body || {};
@@ -278,7 +295,7 @@ router.patch('/:id', async (req, res) => {
 
 // ─── POST /api/v1/documents/:id/publish ─────────────────────────────────────
 router.post('/:id/publish', async (req, res) => {
-  if (!isStaffOrAdmin(req)) return res.status(403).json({ error: 'Staff or admin required' });
+  if (!isDocumentWriter(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
@@ -406,7 +423,7 @@ publicRouter.get('/', publicLimiter, async (req, res) => {
   }
   const pool = req.db || db.pool;
   try {
-    const propertyId = await resolvePropertyIdBySlug(pool, slug);
+    const propertyId = req.property?.id || req.property?.property_id || await resolvePropertyIdBySlug(pool, slug);
     if (!propertyId) return res.status(404).json({ error: 'Property not found' });
     const { rows, count } = await listPublic(pool, propertyId, { limit: req.query.limit });
     return res.json({ ok: true, documents: rows, count });

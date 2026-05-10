@@ -3,7 +3,7 @@
 **Фаза:** 5 (Content + Notifications)
 **Статус:** Draft
 **Схема-база:** `docs/product/specs/domhub-access-data-model-spec.md` §5.8
-**Миграция:** `backend/src/v1/migrations/017_documents_v2.js` (номер уточняется при старте Phase 5)
+**Миграция:** `backend/src/v1/migrations/018_documents_v2.js`
 **Существующий код:** `backend/src/routes/documents.js` + legacy table `documents` (`dbMigrations.js` lines 380–392)
 
 ---

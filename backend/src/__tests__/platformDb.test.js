@@ -7,6 +7,7 @@ const {
   extractPropertySlug,
   extractHostname,
   extractHeaderSlug,
+  extractPublicPathSlug,
   extractJwtSlug,
   getProperty,
   getPropertyByHostname,
@@ -112,6 +113,18 @@ describe('Property Database Middleware', () => {
     test('should handle invalid JWT gracefully', () => {
       mockReq.headers.authorization = 'Bearer invalid-token';
       expect(extractPropertySlug(mockReq)).toBeNull();
+    });
+  });
+
+  describe('extractPublicPathSlug', () => {
+    test('extracts slug for public documents and announcements paths', () => {
+      expect(extractPublicPathSlug({ path: '/public/zamoskv/documents' })).toBe('zamoskv');
+      expect(extractPublicPathSlug({ originalUrl: '/api/v1/public/arbat/announcements?limit=10' })).toBe('arbat');
+    });
+
+    test('returns null for unrelated public paths', () => {
+      expect(extractPublicPathSlug({ path: '/public/pass' })).toBeNull();
+      expect(extractPublicPathSlug({ path: '/documents' })).toBeNull();
     });
   });
 
@@ -411,6 +424,47 @@ describe('Property Database Middleware', () => {
       expect(ctx.property).toEqual(zamoskv);
     });
 
+    test('falls back to public content path slug before JWT claim', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname')) return Promise.resolve({ rows: [] });
+        if (params[0] === 'zamoskv') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = {
+        headers: { authorization: `Bearer ${token}` },
+        path: '/public/zamoskv/documents',
+      };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.resolvedBy).toBe('path');
+      expect(ctx.property).toEqual(zamoskv);
+    });
+
+    test('does not fall back to JWT when public content path slug is unknown', async () => {
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
+
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname')) return Promise.resolve({ rows: [] });
+        if (params[0] === 'zamoskv') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      const req = {
+        headers: { authorization: `Bearer ${token}` },
+        path: '/public/unknown/documents',
+      };
+      const ctx = await resolveProperty(req);
+
+      expect(ctx.error).toBeNull();
+      expect(ctx.resolvedBy).toBeNull();
+      expect(ctx.property).toBeNull();
+    });
+
     test('prefers hostname over header and JWT when all three are present', async () => {
       const jwt = require('jsonwebtoken');
       const token = jwt.sign({ uid: 'u1', property_slug: 'zamoskv' }, 'test-secret');
@@ -494,6 +548,21 @@ describe('Property Database Middleware', () => {
       expect(mockReq.propertySlug).toBe('zamoskv');
       expect(mockReq.propertyResolvedBy).toBe('hostname');
       expect(mockReq.property).toMatchObject({ slug: 'zamoskv' });
+      expect(mockNext).toHaveBeenCalled();
+    });
+
+    test('attaches property via public content path slug', async () => {
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname')) return Promise.resolve({ rows: [] });
+        if (params[0] === 'zamoskv') return Promise.resolve({ rows: [zamoskv] });
+        return Promise.resolve({ rows: [] });
+      });
+
+      mockReq.path = '/public/zamoskv/announcements';
+      await propertyDbMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockReq.propertySlug).toBe('zamoskv');
+      expect(mockReq.propertyResolvedBy).toBe('path');
       expect(mockNext).toHaveBeenCalled();
     });
 

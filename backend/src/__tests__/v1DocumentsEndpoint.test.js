@@ -55,11 +55,17 @@ jest.mock('../db', () => mockDb);
 const documentsRouter = require('../v1/routes/documents');
 const { adminRouter, publicRouter } = documentsRouter;
 
-function buildApp() {
+function buildApp(options = {}) {
   const app = express();
   app.use(express.json());
   app.use('/api/v1/documents', documentsRouter);
   app.use('/api/v1/admin/documents', adminRouter);
+  if (options.property) {
+    app.use('/api/v1/public/:slug/documents', (req, _res, next) => {
+      req.property = options.property;
+      next();
+    });
+  }
   app.use('/api/v1/public/:slug/documents', publicRouter);
   return app;
 }
@@ -132,6 +138,12 @@ describe('authorization', () => {
 describe('GET /api/v1/documents', () => {
   test('403 on unrecognized role', async () => {
     mockCurrentUser = { uid: 'x', role: 'bogus' };
+    const res = await supertest(buildApp()).get('/api/v1/documents');
+    expect(res.status).toBe(403);
+  });
+
+  test('403 for technician role', async () => {
+    mockCurrentUser = { uid: 't1', role: 'technician' };
     const res = await supertest(buildApp()).get('/api/v1/documents');
     expect(res.status).toBe(403);
   });
@@ -245,6 +257,15 @@ describe('GET /api/v1/documents/:id', () => {
     expect(res.body.document.id).toBe(UUID);
   });
 
+  test('403 for technician even when row exists', async () => {
+    mockCurrentUser = { uid: 't1', role: 'technician' };
+    dispatch([[/FROM documents_v2/, () => ({ rows: [{
+      id: UUID, title: 'draft', deleted_at: null, published_at: null,
+    }] })]]);
+    const res = await supertest(buildApp()).get(`/api/v1/documents/${UUID}`);
+    expect(res.status).toBe(403);
+  });
+
   test('resident 404 on unpublished', async () => {
     mockCurrentUser = { uid: 'r1', role: 'resident' };
     dispatch([[/FROM documents_v2/, () => ({ rows: [{
@@ -301,6 +322,15 @@ describe('POST /api/v1/documents', () => {
       property_id: UUID, title: 't', category: 'rules', body_md: 'b',
     });
     expect(res.status).toBe(403);
+  });
+
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).post('/api/v1/documents').send({
+      property_id: UUID, title: 't', category: 'contacts', body_md: 'b',
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
   });
 
   test('400 without property_id', async () => {
@@ -433,6 +463,13 @@ describe('PATCH /api/v1/documents/:id', () => {
     expect(res.status).toBe(403);
   });
 
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({ title: 'x' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
+  });
+
   test('400 on empty patch', async () => {
     dispatch([[/FROM staff_users/, () => ({ rows: [{ id: UUID2 }] })]], 'pool');
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({});
@@ -541,6 +578,13 @@ describe('POST /:id/publish', () => {
     mockCurrentUser = { uid: 'r1', role: 'resident' };
     const res = await supertest(buildApp()).post(`/api/v1/documents/${UUID}/publish`).send({});
     expect(res.status).toBe(403);
+  });
+
+  test.each(['security', 'technician'])('403 for %s', async (role) => {
+    mockCurrentUser = { uid: `${role}-1`, role };
+    const res = await supertest(buildApp()).post(`/api/v1/documents/${UUID}/publish`).send({});
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Concierge or admin/);
   });
 
   test('400 on bad id', async () => {
@@ -836,6 +880,21 @@ describe('public sub-router', () => {
     expect(res.body.count).toBe(1);
     // Верифицируем что PUBLIC_CATEGORIES передан как ANY($2::text[]).
     expect(listArgs[1]).toEqual(['rules', 'contacts', 'safety']);
+  });
+
+  test('uses tenant middleware property context before slug lookup', async () => {
+    let listArgs = null;
+    dispatch([
+      [/FROM documents_v2/, (_sql, args) => {
+        listArgs = args;
+        return { rows: [{ id: UUID2, category: 'rules', title: 'Rules' }] };
+      }],
+    ]);
+    const res = await supertest(buildApp({ property: { id: UUID } }))
+      .get('/api/v1/public/zamosk/documents');
+    expect(res.status).toBe(200);
+    expect(listArgs[0]).toBe(UUID);
+    expect(mockPool.query.mock.calls.some(([sql]) => String(sql).includes('FROM properties'))).toBe(false);
   });
 
   test('503 on DB error', async () => {

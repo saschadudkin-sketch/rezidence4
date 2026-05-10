@@ -23,7 +23,12 @@ const CACHE_TTL_MS = 60_000; // 60 seconds
 //   2. X-PROPERTY-SLUG header.  Used by local dev tooling, mobile clients
 //      before they know their subdomain, and service-to-service calls.
 //
-//   3. JWT property_slug claim.  Baked into the access token at login so
+//   3. Public content path slug.  Only for /public/:slug/(documents|announcements),
+//      so kiosk/read-only content can resolve its tenant before route matching.
+//      For those endpoints the path slug is authoritative: if it is unknown,
+//      we do not fall back to a browser JWT from another tenant.
+//
+//   4. JWT property_slug claim.  Baked into the access token at login so
 //      the tenant survives even when hostname/header are absent (CLI utils,
 //      background jobs reusing an API token).
 //
@@ -53,6 +58,20 @@ function extractHeaderSlug(req) {
   if (!h) return null;
   const s = String(h).trim().toLowerCase();
   return s || null;
+}
+
+/** Extract the path slug for public content endpoints mounted behind /api/v1. */
+function extractPublicPathSlug(req) {
+  const rawPath = String(req.path || req.url || req.originalUrl || '').split('?')[0];
+  const path = rawPath.replace(/^\/api\/v1(?=\/)/, '');
+  const match = path.match(/^\/public\/([^/]+)\/(?:announcements|documents)(?:\/|$)/);
+  if (!match) return null;
+  try {
+    const slug = decodeURIComponent(match[1]).trim().toLowerCase();
+    return slug || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -210,8 +229,9 @@ async function getPropertyByHostname(hostname) {
 async function resolveProperty(req) {
   const hostname = extractHostname(req);
   const headerSlug = extractHeaderSlug(req);
+  const pathSlug = extractPublicPathSlug(req);
   const jwtSlug = extractJwtSlug(req);
-  const sources = { hostname, headerSlug, jwtSlug };
+  const sources = { hostname, headerSlug, pathSlug, jwtSlug };
 
   let property = null;
   let resolvedBy = null;
@@ -230,6 +250,16 @@ async function resolveProperty(req) {
       property = bySlug;
       resolvedBy = 'header';
     }
+  }
+
+  if (pathSlug) {
+    if (property && property.slug !== pathSlug) {
+      return { property: null, resolvedBy: null, sources, error: 'cross_tenant' };
+    }
+    const bySlug = await getProperty(pathSlug);
+    if (!bySlug) return { property: null, resolvedBy: null, sources, error: null };
+    property = bySlug;
+    resolvedBy = 'path';
   }
 
   if (!property && jwtSlug) {
@@ -288,18 +318,18 @@ async function propertyDbMiddleware(req, res, next) {
     if (ctx.error === 'cross_tenant') {
       logger.warn(
         { sources: ctx.sources },
-        '[propertyDb] cross-tenant attempt: JWT slug does not match hostname/header',
+        '[propertyDb] cross-tenant attempt: tenant sources disagree',
       );
       return res.status(403).json({
         error: 'Cross-tenant access denied',
-        message: 'JWT property_slug does not match the resolved property',
+        message: 'Resolved tenant sources do not match',
       });
     }
 
     if (!ctx.property) {
       // Distinguish "request names a tenant we don't know" from "request
       // carries no tenant context at all" — ops visibility.
-      const slugCandidate = ctx.sources.headerSlug || ctx.sources.jwtSlug;
+      const slugCandidate = ctx.sources.headerSlug || ctx.sources.pathSlug || ctx.sources.jwtSlug;
       if (slugCandidate) {
         logger.warn({ slug: slugCandidate, hostname: ctx.sources.hostname }, '[propertyDb] property not found');
         return res.status(404).json({
@@ -384,6 +414,7 @@ module.exports = {
   extractPropertySlug,
   extractHostname,
   extractHeaderSlug,
+  extractPublicPathSlug,
   extractJwtSlug,
   getProperty,
   getPropertyByHostname,

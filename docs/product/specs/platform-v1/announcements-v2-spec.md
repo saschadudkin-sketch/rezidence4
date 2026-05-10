@@ -3,7 +3,7 @@
 **Фаза:** 5 (Content + Notifications)
 **Статус:** Draft
 **Схема-база:** `docs/product/specs/domhub-access-data-model-spec.md` §5.8
-**Миграция:** `backend/src/v1/migrations/019_announcements_v2.js` (номер уточняется при старте Phase 5)
+**Миграция:** `backend/src/v1/migrations/020_announcements_v2.js`
 **Существующий код:** `backend/src/routes/announcements.js` + legacy table `announcements` (`dbMigrations.js` lines 360–371)
 **Связано:** `notifications-outbox-spec.md` (fan-out при публикации), `documents-v2-spec.md` (link-to-document в body)
 
