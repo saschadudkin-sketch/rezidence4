@@ -31,7 +31,13 @@
 
 const express = require('express');
 const requireAuth = require('../middleware/auth');
-const { FEATURE_FLAGS, resolveFlags, getPublicSchema } = require('../config/featureFlags');
+const {
+  FEATURE_FLAGS,
+  resolveFlags,
+  getPublicSchema,
+  isFlagAllowedForPlan,
+  normalizePlan,
+} = require('../config/featureFlags');
 const { invalidatePropertyCache } = require('../middleware/propertyDb');
 const { getPlatformDb } = require('../db');
 const logger = require('../logger');
@@ -71,7 +77,7 @@ router.get('/feature-flags', async (req, res, next) => {
 
     const platformDb = getPlatformDb();
     const { rows } = await platformDb.query(
-      'SELECT id, slug, feature_flags FROM properties WHERE slug = $1',
+      'SELECT id, slug, plan, feature_flags FROM properties WHERE slug = $1',
       [slug],
     );
 
@@ -81,7 +87,7 @@ router.get('/feature-flags', async (req, res, next) => {
       });
     }
 
-    return res.json(resolveFlags(rows[0].feature_flags));
+    return res.json(resolveFlags(rows[0].feature_flags, rows[0].plan));
   } catch (err) {
     next(err);
   }
@@ -141,7 +147,7 @@ router.patch('/feature-flags', async (req, res, next) => {
 
     // Fetch current stored flags (raw JSONB, not resolved)
     const { rows } = await platformDb.query(
-      'SELECT id, feature_flags FROM properties WHERE slug = $1',
+      'SELECT id, plan, feature_flags FROM properties WHERE slug = $1',
       [slug],
     );
 
@@ -153,6 +159,21 @@ router.patch('/feature-flags', async (req, res, next) => {
 
     const current = rows[0].feature_flags || {};
     const propertyId = rows[0].id;
+    const plan = normalizePlan(rows[0].plan);
+
+    const packageBlocked = Object.entries(updates)
+      .filter(([, value]) => value === true)
+      .map(([key]) => key)
+      .filter((key) => !isFlagAllowedForPlan(key, plan));
+    if (packageBlocked.length) {
+      return res.status(422).json({
+        error: {
+          code: 'PACKAGE_GATE',
+          message: `Package '${plan}' does not include: ${packageBlocked.join(', ')}`,
+        },
+      });
+    }
+
     const newFlags = { ...current, ...updates };
 
     await platformDb.query(
@@ -184,7 +205,7 @@ router.patch('/feature-flags', async (req, res, next) => {
 
     logger.info({ slug, changes: updates }, '[adminSettings] feature flags updated');
 
-    return res.json(resolveFlags(newFlags));
+    return res.json(resolveFlags(newFlags, plan));
   } catch (err) {
     next(err);
   }

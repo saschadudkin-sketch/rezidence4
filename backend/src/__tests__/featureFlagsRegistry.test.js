@@ -14,9 +14,13 @@ const path = require('path');
 const {
   FEATURE_FLAGS,
   CATEGORIES,
+  PACKAGE_PLANS,
   resolveFlags,
   getPublicSchema,
   getFlagKeys,
+  getPlanKeys,
+  normalizePlan,
+  isFlagAllowedForPlan,
 } = require('../config/featureFlags');
 
 describe('feature flag registry', () => {
@@ -36,7 +40,7 @@ describe('feature flag registry', () => {
   });
 
   test('getPublicSchema returns every registered flag with stable shape', () => {
-    const { flags, categories } = getPublicSchema();
+    const { flags, categories, plans } = getPublicSchema();
     expect(flags).toHaveLength(getFlagKeys().length);
     for (const entry of flags) {
       expect(entry).toEqual(expect.objectContaining({
@@ -50,6 +54,15 @@ describe('feature flag registry', () => {
     }
     for (const cat of categories) {
       expect(cat).toEqual({ key: expect.any(String), label: expect.any(String), order: expect.any(Number) });
+    }
+    expect(plans).toHaveLength(getPlanKeys().length);
+    for (const plan of plans) {
+      expect(plan).toEqual(expect.objectContaining({
+        key: expect.any(String),
+        label: expect.any(String),
+        description: expect.any(String),
+        flags: expect.any(Array),
+      }));
     }
   });
 
@@ -80,6 +93,38 @@ describe('feature flag registry', () => {
     expect(resolveFlags(null).chat).toBe(true);
     expect(resolveFlags(undefined).chat).toBe(true);
     expect(resolveFlags('nope').chat).toBe(true);
+  });
+
+  test('package plan registry uses canonical packaging ids', () => {
+    expect(getPlanKeys()).toEqual(['core_access', 'operations', 'portfolio', 'enterprise']);
+    for (const key of getPlanKeys()) {
+      expect(PACKAGE_PLANS[key]).toEqual(expect.objectContaining({
+        label: expect.any(String),
+        description: expect.any(String),
+      }));
+    }
+  });
+
+  test('normalizePlan maps legacy tariff ids to canonical packages', () => {
+    expect(normalizePlan('standard')).toBe('core_access');
+    expect(normalizePlan('core')).toBe('core_access');
+    expect(normalizePlan('premium')).toBe('operations');
+    expect(normalizePlan('pro')).toBe('operations');
+    expect(normalizePlan('portfolio')).toBe('portfolio');
+  });
+
+  test('resolveFlags applies package constraints when a plan is supplied', () => {
+    expect(resolveFlags({ packages: true }, 'core_access').packages).toBe(false);
+    expect(resolveFlags({ packages: true }, 'operations').packages).toBe(true);
+    expect(resolveFlags({ webhooks: true }, 'operations').webhooks).toBe(false);
+    expect(resolveFlags({ webhooks: true }, 'enterprise').webhooks).toBe(true);
+  });
+
+  test('package constraints expose explicit flag allowance checks', () => {
+    expect(isFlagAllowedForPlan('packages', 'core_access')).toBe(false);
+    expect(isFlagAllowedForPlan('packages', 'portfolio')).toBe(true);
+    expect(isFlagAllowedForPlan('webhooks', 'portfolio')).toBe(false);
+    expect(isFlagAllowedForPlan('webhooks', 'enterprise')).toBe(true);
   });
 });
 

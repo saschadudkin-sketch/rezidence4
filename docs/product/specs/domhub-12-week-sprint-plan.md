@@ -487,7 +487,8 @@
 - import/export maturity;
 - contractor ecosystem depth;
 - advanced portfolio analytics;
-- support automation.
+- support automation;
+- legacy runtime removal after v1 cutover and replacement modules are proven.
 
 ### Wave 3
 

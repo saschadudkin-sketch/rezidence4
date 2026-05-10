@@ -93,7 +93,7 @@ describe('Platform Migrations', () => {
         'г. Москва, Замоскворецкий район',
         'postgresql://test:test@localhost/test_zamoskv',
         true,
-        'premium',
+        'operations',
         'test@example.com'
       ]);
     });
@@ -138,7 +138,8 @@ describe('Platform Migrations', () => {
       const propertiesTable = queryCall.find(call =>
         call[0].includes('CREATE TABLE IF NOT EXISTS properties')
       );
-      expect(propertiesTable[0]).toContain("CHECK (plan IN ('standard', 'premium', 'enterprise'))");
+      expect(propertiesTable[0]).toContain("DEFAULT 'core_access'");
+      expect(propertiesTable[0]).toContain("CHECK (plan IN ('core_access', 'operations', 'portfolio', 'enterprise'))");
 
       // Check for foreign key constraints
       const auditTable = queryCall.find(call =>
@@ -286,6 +287,35 @@ describe('Platform Migrations', () => {
         && q.includes("USING NULLIF(ip_address, '')::INET"),
       );
       expect(stmt).toBeDefined();
+    });
+  });
+
+  describe('Migration 007_property_packaging_model', () => {
+    test('normalizes legacy plan ids to canonical package ids', async () => {
+      const migration = PLATFORM_MIGRATIONS.find((m) => m.id === '007_property_packaging_model');
+      expect(migration).toBeDefined();
+
+      await migration.up(mockClient);
+      const queries = mockClient.query.mock.calls.map((c) => c[0]);
+
+      const updateStmt = queries.find((q) => q.includes('UPDATE properties') && q.includes('WHEN \'standard\''));
+      expect(updateStmt).toBeDefined();
+      expect(updateStmt).toContain("WHEN 'standard' THEN 'core_access'");
+      expect(updateStmt).toContain("WHEN 'premium' THEN 'operations'");
+      expect(updateStmt).toContain("WHEN 'pro' THEN 'operations'");
+    });
+
+    test('replaces plan CHECK with canonical packaging spec ids', async () => {
+      const migration = PLATFORM_MIGRATIONS.find((m) => m.id === '007_property_packaging_model');
+      await migration.up(mockClient);
+      const queries = mockClient.query.mock.calls.map((c) => c[0]);
+
+      expect(queries.some((q) => q.includes("ALTER COLUMN plan SET DEFAULT 'core_access'"))).toBe(true);
+      expect(queries.some((q) => q.includes('DROP CONSTRAINT IF EXISTS properties_plan_check'))).toBe(true);
+
+      const checkStmt = queries.find((q) => q.includes('ADD CONSTRAINT properties_plan_check'));
+      expect(checkStmt).toBeDefined();
+      expect(checkStmt).toContain("CHECK (plan IN ('core_access', 'operations', 'portfolio', 'enterprise'))");
     });
   });
 

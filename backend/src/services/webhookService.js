@@ -5,6 +5,23 @@ const logger = require('../logger');
 
 // Retry back-off delays in seconds: 1m, 5m, 30m
 const RETRY_DELAYS_SECONDS = [60, 300, 1800];
+const WEBHOOK_PAYLOAD_VERSION = 'v1';
+
+function buildWebhookEnvelope(delivery) {
+  const data = delivery.payload || {};
+  const correlationId = data && typeof data === 'object' ? data.correlationId || null : null;
+  const deliveryId = delivery.id || null;
+  return {
+    version: WEBHOOK_PAYLOAD_VERSION,
+    event: delivery.event_type || 'unknown',
+    eventId: deliveryId,
+    deliveryId,
+    correlationId,
+    attempt: Number.isInteger(delivery.attempt_count) ? delivery.attempt_count + 1 : null,
+    timestamp: new Date().toISOString(),
+    data,
+  };
+}
 
 /**
  * enqueueWebhookEvent — create a webhook_deliveries row for every active
@@ -64,12 +81,7 @@ async function processPendingDeliveries(db) {
  * @param {object} db
  */
 async function deliverOne(delivery, db) {
-  const payload = {
-    event:      delivery.event_type,
-    timestamp:  new Date().toISOString(),
-    deliveryId: delivery.id,
-    data:       delivery.payload,
-  };
+  const payload = buildWebhookEnvelope(delivery);
   const body = JSON.stringify(payload);
   const sig  = crypto
     .createHmac('sha256', delivery.secret)
@@ -85,7 +97,11 @@ async function deliverOne(delivery, db) {
         'Content-Type':        'application/json',
         'X-DomHub-Signature':  `sha256=${sig}`,
         'X-DomHub-Event':      delivery.event_type,
+        'X-DomHub-Event-Version': WEBHOOK_PAYLOAD_VERSION,
+        'X-DomHub-Event-Id':   delivery.id,
         'X-DomHub-Delivery':   delivery.id,
+        'X-DomHub-Correlation-Id': payload.correlationId || '',
+        'X-DomHub-Attempt': payload.attempt == null ? '' : String(payload.attempt),
       },
       body,
       signal: AbortSignal.timeout(10000),
@@ -161,4 +177,9 @@ async function deliverOne(delivery, db) {
   }
 }
 
-module.exports = { enqueueWebhookEvent, processPendingDeliveries };
+module.exports = {
+  enqueueWebhookEvent,
+  processPendingDeliveries,
+  buildWebhookEnvelope,
+  WEBHOOK_PAYLOAD_VERSION,
+};

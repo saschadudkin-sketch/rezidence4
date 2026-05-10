@@ -8,7 +8,7 @@ import s from '../styles.module.css';
 // See: platformMigrations 004, docs/product/specs/platform-v1/README.md.
 type PropertyType = 'residential_complex' | 'club_house' | 'cottage_community';
 type PropertyStatus = 'active' | 'suspended' | 'maintenance' | 'terminated';
-type PropertyPlan = 'core' | 'pro' | 'enterprise';
+type PropertyPlan = 'core_access' | 'operations' | 'portfolio' | 'enterprise';
 
 interface Property {
   id: string;
@@ -46,6 +46,19 @@ const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   maintenance: 'обслуживание',
   terminated: 'закрыт',
 };
+
+const PROPERTY_PLAN_LABELS: Record<PropertyPlan, string> = {
+  core_access: 'Core Access',
+  operations: 'Operations',
+  portfolio: 'Portfolio',
+  enterprise: 'Enterprise / Integrations',
+};
+
+function planLabel(plan: Property['plan']): string {
+  return plan in PROPERTY_PLAN_LABELS
+    ? PROPERTY_PLAN_LABELS[plan as PropertyPlan]
+    : String(plan);
+}
 
 function statusBadgeClass(status: PropertyStatus | undefined): string {
   // Only 'active' gets the green/ok badge.  Everything else reads as
@@ -117,7 +130,7 @@ export function PropertiesPage() {
                       : <span className={s.badge}>—</span>}
                   </td>
                   <td>{p.hostname || <span className={s.badge}>—</span>}</td>
-                  <td><span className={s.badge}>{p.plan}</span></td>
+                  <td><span className={s.badge}>{planLabel(p.plan)}</span></td>
                   <td>
                     <span className={statusBadgeClass(p.status)}>
                       {p.status ? PROPERTY_STATUS_LABELS[p.status] : (p.is_active ? 'активен' : 'отключён')}
@@ -135,14 +148,14 @@ export function PropertiesPage() {
 
 function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
   // Defaults match what the POST route assumes when a field is omitted
-  // (plan='core', property_type='residential_complex', status='active').
+  // (plan='core_access', property_type='residential_complex', status='active').
   // Keeping them here makes the form's intent obvious at a glance.
   const [form, setForm] = useState({
     slug: '',
     name: '',
     address: '',
     db_connection_url: '',
-    plan: 'core',
+    plan: 'core_access' as PropertyPlan,
     timezone: 'Europe/Moscow',
     contact_email: '',
     contact_phone: '',
@@ -245,9 +258,10 @@ function CreatePropertyForm({ onCreated }: { onCreated: () => void }) {
         <div className={s.formRow}>
           <label htmlFor="property-create-plan">Тариф</label>
           <select id="property-create-plan" className={s.select} value={form.plan} onChange={upd('plan')}>
-            <option value="core">core</option>
-            <option value="pro">pro</option>
-            <option value="enterprise">enterprise</option>
+            <option value="core_access">Core Access</option>
+            <option value="operations">Operations</option>
+            <option value="portfolio">Portfolio</option>
+            <option value="enterprise">Enterprise / Integrations</option>
           </select>
         </div>
         <div className={s.formRow}>

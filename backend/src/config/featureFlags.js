@@ -151,16 +151,98 @@ const CATEGORIES = {
   admin:         { label: 'Администрирование', order: 8 },
 };
 
+const PLAN_ALIASES = {
+  standard: 'core_access',
+  core: 'core_access',
+  premium: 'operations',
+  pro: 'operations',
+};
+
+const PLAN_FEATURES = {
+  core_access: new Set([
+    'chat',
+    'announcements',
+    'documents',
+    'kiosk_mode',
+    'qr_pass',
+    'manual_access_approval',
+  ]),
+  operations: new Set([
+    'chat',
+    'announcements',
+    'documents',
+    'kiosk_mode',
+    'qr_pass',
+    'manual_access_approval',
+    'packages',
+    'analytics',
+  ]),
+  portfolio: new Set([
+    'chat',
+    'announcements',
+    'documents',
+    'kiosk_mode',
+    'qr_pass',
+    'manual_access_approval',
+    'packages',
+    'analytics',
+  ]),
+  enterprise: new Set(Object.keys(FEATURE_FLAGS)),
+};
+
+const PACKAGE_PLANS = {
+  core_access: {
+    label: 'Core Access',
+    description: 'Access-first пилот: жильцы, пропуска, КПП, объявления и документы.',
+  },
+  operations: {
+    label: 'Operations',
+    description: 'Daily operations: заявки, SLA, посылки, исполнители и аналитика объекта.',
+  },
+  portfolio: {
+    label: 'Portfolio',
+    description: 'УК и multi-property operations поверх Operations.',
+  },
+  enterprise: {
+    label: 'Enterprise / Integrations',
+    description: 'Интеграции, webhooks, СКУД и growth-модули для сложных rollout.',
+  },
+};
+
+function normalizePlan(plan) {
+  if (typeof plan !== 'string' || !plan.trim()) return 'core_access';
+  const raw = plan.trim();
+  return PLAN_ALIASES[raw] || raw;
+}
+
+function getPlanKeys() {
+  return Object.keys(PACKAGE_PLANS);
+}
+
+function isFlagAllowedForPlan(flagName, plan) {
+  if (!(flagName in FEATURE_FLAGS)) return false;
+  const normalizedPlan = normalizePlan(plan);
+  const allowed = PLAN_FEATURES[normalizedPlan];
+  if (!allowed) return false;
+  return allowed.has(flagName);
+}
+
 /**
  * Merge stored JSONB flags (may be null/undefined/{}) with registry defaults.
  * Always returns a complete map of all known flags as booleans.  Locked flags
  * always resolve to their registry default regardless of stored value, so a
  * stale DB override cannot silently disable a core feature.
  *
+ * When `plan` is supplied, package constraints are applied as a second layer:
+ * a true JSON override cannot unlock a module that the property's commercial
+ * package does not include.  Omitting `plan` preserves the registry-only
+ * behaviour for tests and non-property callers.
+ *
  * @param {Object} stored - Raw feature_flags JSONB from platform DB row
+ * @param {string|null} plan - Optional property package id
  * @returns {Object} - { [flagName]: boolean }
  */
-function resolveFlags(stored = {}) {
+function resolveFlags(stored = {}, plan = null) {
   const safe = stored && typeof stored === 'object' ? stored : {};
   const resolved = {};
   for (const [key, meta] of Object.entries(FEATURE_FLAGS)) {
@@ -169,6 +251,13 @@ function resolveFlags(stored = {}) {
       continue;
     }
     resolved[key] = key in safe ? Boolean(safe[key]) : meta.default;
+  }
+  if (plan) {
+    for (const key of Object.keys(resolved)) {
+      if (!isFlagAllowedForPlan(key, plan)) {
+        resolved[key] = false;
+      }
+    }
   }
   return resolved;
 }
@@ -181,6 +270,7 @@ function resolveFlags(stored = {}) {
  * @returns {{
  *   flags: Array<{key, label, description, category, default, locked}>,
  *   categories: Array<{key, label, order}>,
+ *   plans: Array<{key, label, description, flags}>,
  * }}
  */
 function getPublicSchema() {
@@ -197,7 +287,14 @@ function getPublicSchema() {
     .map(([key, meta]) => ({ key, label: meta.label, order: meta.order }))
     .sort((a, b) => a.order - b.order);
 
-  return { flags, categories };
+  const plans = Object.entries(PACKAGE_PLANS).map(([key, meta]) => ({
+    key,
+    label: meta.label,
+    description: meta.description,
+    flags: getFlagKeys().filter((flagName) => isFlagAllowedForPlan(flagName, key)),
+  }));
+
+  return { flags, categories, plans };
 }
 
 /**
@@ -211,7 +308,11 @@ function getFlagKeys() {
 module.exports = {
   FEATURE_FLAGS,
   CATEGORIES,
+  PACKAGE_PLANS,
   resolveFlags,
   getPublicSchema,
   getFlagKeys,
+  getPlanKeys,
+  normalizePlan,
+  isFlagAllowedForPlan,
 };

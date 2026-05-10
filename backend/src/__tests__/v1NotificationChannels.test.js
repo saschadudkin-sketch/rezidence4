@@ -263,8 +263,9 @@ describe('webhookAdapter.send', () => {
     const r = await webhookAdapter.send({
       recipientAddress: 'https://partner.example/hook',
       recipientId: 'wh-uuid',
-      correlationId: 'outbox-id',
+      correlationId: 'request-uuid-1',
       payload: { event: 'request.approved', data: { requestId: 'r-1' } },
+      row: { id: 'outbox-id', event_type: 'request.approved', attempt_count: 1 },
       tenant: { db },
     });
     expect(r).toEqual({ ok: true });
@@ -273,7 +274,20 @@ describe('webhookAdapter.send', () => {
     expect(init.method).toBe('POST');
     expect(init.headers['X-DomHub-Signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
     expect(init.headers['X-DomHub-Event']).toBe('request.approved');
+    expect(init.headers['X-DomHub-Event-Version']).toBe('v1');
+    expect(init.headers['X-DomHub-Event-Id']).toBe('outbox-id');
     expect(init.headers['X-DomHub-Delivery']).toBe('outbox-id');
+    expect(init.headers['X-DomHub-Correlation-Id']).toBe('request-uuid-1');
+    expect(init.headers['X-DomHub-Attempt']).toBe('2');
+    expect(JSON.parse(init.body)).toEqual(expect.objectContaining({
+      version: 'v1',
+      event: 'request.approved',
+      eventId: 'outbox-id',
+      deliveryId: 'outbox-id',
+      correlationId: 'request-uuid-1',
+      attempt: 2,
+      data: { requestId: 'r-1' },
+    }));
     // Verify the signature actually matches the body.
     const crypto = require('crypto');
     const expected = crypto.createHmac('sha256', 'super-secret')
@@ -283,6 +297,39 @@ describe('webhookAdapter.send', () => {
     const updateCalls = db.query.mock.calls.filter(([sql]) => /UPDATE\s+webhooks/i.test(sql));
     expect(updateCalls.length).toBeGreaterThanOrEqual(1);
     expect(updateCalls[0][0]).toMatch(/last_success_at/);
+  });
+
+  test('retry attempts keep the same delivery id while attempt header changes', async () => {
+    const db = makeDb('super-secret');
+    global.fetch = jestApi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+    });
+
+    await webhookAdapter.send({
+      recipientAddress: 'https://partner.example/hook',
+      recipientId: 'wh-uuid',
+      correlationId: 'request-uuid-1',
+      payload: { event: 'request.approved', data: { requestId: 'r-1' } },
+      row: { id: 'outbox-id', event_type: 'request.approved', attempt_count: 0 },
+      tenant: { db },
+    });
+    await webhookAdapter.send({
+      recipientAddress: 'https://partner.example/hook',
+      recipientId: 'wh-uuid',
+      correlationId: 'request-uuid-1',
+      payload: { event: 'request.approved', data: { requestId: 'r-1' } },
+      row: { id: 'outbox-id', event_type: 'request.approved', attempt_count: 1 },
+      tenant: { db },
+    });
+
+    const firstHeaders = global.fetch.mock.calls[0][1].headers;
+    const secondHeaders = global.fetch.mock.calls[1][1].headers;
+    expect(firstHeaders['X-DomHub-Delivery']).toBe('outbox-id');
+    expect(secondHeaders['X-DomHub-Delivery']).toBe('outbox-id');
+    expect(firstHeaders['X-DomHub-Attempt']).toBe('1');
+    expect(secondHeaders['X-DomHub-Attempt']).toBe('2');
   });
 
   test('HTTP non-2xx → ok:false with HTTP_XXX error (not dead, worker retries)', async () => {
@@ -332,6 +379,28 @@ describe('webhookAdapter.signPayload', () => {
     const a = webhookAdapter.signPayload('same', 'secret-a');
     const b = webhookAdapter.signPayload('same', 'secret-b');
     expect(a).not.toBe(b);
+  });
+});
+
+describe('webhookAdapter.buildWebhookEnvelope', () => {
+  test('uses notifications_outbox.id as the idempotency key', () => {
+    const envelope = webhookAdapter.buildWebhookEnvelope({
+      payload: { event: 'package.picked_up', data: { packageId: 'pkg-1' } },
+      correlationId: 'pkg-1',
+      row: { id: 'outbox-123', attempt_count: 0 },
+      now: new Date('2026-05-10T01:02:03.000Z'),
+    });
+
+    expect(envelope).toEqual({
+      version: 'v1',
+      event: 'package.picked_up',
+      eventId: 'outbox-123',
+      deliveryId: 'outbox-123',
+      correlationId: 'pkg-1',
+      attempt: 1,
+      timestamp: '2026-05-10T01:02:03.000Z',
+      data: { packageId: 'pkg-1' },
+    });
   });
 });
 

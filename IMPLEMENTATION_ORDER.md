@@ -21,6 +21,7 @@ Implement DomHub in this order unless the user explicitly overrides it:
 13. Russia production readiness, GIS/OSS, and pilot runbooks
 14. Integrations and hardware adapter maturity
 15. Growth modules
+16. Legacy runtime removal after v1 cutover is proven
 
 ## Access-Specific Rule
 
@@ -72,6 +73,7 @@ Do not prioritize:
 - booking
 - AI modules
 - broad smart-home expansion
+- full legacy runtime removal
 
 before the operational access core is strong.
 

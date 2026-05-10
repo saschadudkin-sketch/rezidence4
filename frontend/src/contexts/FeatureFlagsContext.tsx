@@ -62,9 +62,17 @@ export interface CategorySchemaEntry {
   order: number;
 }
 
+export interface PackagePlanSchemaEntry {
+  key: string;
+  label: string;
+  description: string;
+  flags: FeatureFlagKey[];
+}
+
 export interface FeatureFlagsSchema {
   flags: FlagSchemaEntry[];
   categories: CategorySchemaEntry[];
+  plans?: PackagePlanSchemaEntry[];
 }
 
 /** Merged shape: schema entry + current resolved value. */

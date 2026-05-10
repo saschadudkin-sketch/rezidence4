@@ -1102,6 +1102,42 @@ Expand branding controls for customer-facing deployments.
 
 ---
 
+## Legacy Cutover
+
+### DH-62 Legacy Runtime Removal
+
+**Summary**
+Remove deprecated legacy runtime paths after the v1 platform has proven cutover coverage.
+
+**Scope**
+- Inventory all deprecated `/api/*` aliases, legacy route mounts, legacy UI links, fallback flags, and remaining runtime reads from legacy-shaped tables
+- Prove through release gates, tests, and rollout logs that no supported MVP or pilot flow still depends on deprecated aliases
+- Remove deprecated `/api/*` alias mounts and legacy UI/runtime entry points
+- Remove or retire fallback flags such as legacy utility gates once replacement modules are live
+- Migrate, archive, or explicitly drop remaining legacy dependencies for meters, billing, bookings, chat, requests, uploads, contracts, and webhook paths
+- Convert compatibility tests/docs to v1 assertions or archive-only references
+
+**Definition of Done**
+- Supported product flows use `/api/v1/*` contracts or platform control-plane contracts only
+- Deprecated `/api/*` compatibility aliases are removed from runtime registration
+- Legacy data needed for audit/history is archived or migrated, not served by active product code
+- Release/runbook documentation explains restore-from-archive boundaries instead of legacy runtime fallback
+
+**Dependencies**
+- `DH-48`
+- `DH-49`
+- `DH-50`
+- `DH-51`
+- `DH-52`
+- `DH-55`
+- `DH-56`
+
+**Out of Scope**
+- Building new expansion modules beyond the replacement work in `DH-50` to `DH-52`
+- Rewriting immutable historical audit records
+
+---
+
 ## Recommended Delivery Order
 
 1. `DH-21` to `DH-34`
@@ -1109,6 +1145,7 @@ Expand branding controls for customer-facing deployments.
 3. `DH-41` to `DH-49`
 4. `DH-55` to `DH-61`
 5. `DH-50` to `DH-54`
+6. `DH-62`
 
 ## Release Gate Mapping
 
@@ -1122,6 +1159,8 @@ Expand branding controls for customer-facing deployments.
   - `DH-55` to `DH-61`
 - `Expansion Layer`
   - `DH-50` to `DH-54`
+- `Legacy Cutover`
+  - `DH-62`
 
 ## Notes For Ticket Authors
 

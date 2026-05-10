@@ -574,6 +574,7 @@
 - Epic 15
 - Epic 16
 - Epic 19
+- Legacy runtime removal after v1 cutover and replacement modules are proven
 
 ### Волна 3
 

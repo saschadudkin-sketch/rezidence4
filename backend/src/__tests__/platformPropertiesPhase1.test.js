@@ -6,7 +6,7 @@
  * The original platform/properties route file predates this refactor; this
  * suite specifically covers the fields added in migrations 004/005:
  *   - property_type (enum)
- *   - status (enum + is_active mirror)
+ *   - status (enum + lifecycle action / is_active mirror)
  *   - logo_url (https URL)
  *   - primary_color (CSS color)
  *   - management_company_id (FK with existence + active check)
@@ -50,11 +50,11 @@ const VALID_POST = {
 beforeEach(() => jest.clearAllMocks());
 
 describe('POST /platform/api/v1/properties — Phase 1 field validation', () => {
-  test('accepts minimal valid payload and defaults plan to core', async () => {
+  test('accepts minimal valid payload and defaults plan to core_access', async () => {
     const db = makeDb();
     db.query
       .mockResolvedValueOnce({ rows: [] }) // slug uniqueness
-      .mockResolvedValueOnce({ rows: [{ id: 'p-1', slug: 'some-zk', plan: 'core', status: 'active' }] }) // insert
+      .mockResolvedValueOnce({ rows: [{ id: 'p-1', slug: 'some-zk', plan: 'core_access', status: 'active' }] }) // insert
       .mockResolvedValueOnce({ rows: [] }); // audit
     getPlatformDb.mockReturnValue(db);
 
@@ -66,10 +66,41 @@ describe('POST /platform/api/v1/properties — Phase 1 field validation', () => 
     );
     expect(insertCall).toBeDefined();
     // plan is the 5th positional, but safer to assert on the values array
-    // containing 'core' explicitly as the default.
-    expect(insertCall[1]).toContain('core');
+    // containing 'core_access' explicitly as the default.
+    expect(insertCall[1]).toContain('core_access');
     expect(insertCall[1]).toContain('residential_complex'); // default property_type
     expect(insertCall[1]).toContain('active'); // default status
+    expect(insertCall[1]).toContain(true); // default status mirrors is_active
+  });
+
+  test('rejects invalid plan ids', async () => {
+    getPlatformDb.mockReturnValue(makeDb());
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties')
+      .send({ ...VALID_POST, plan: 'gold' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/plan/);
+  });
+
+  test('mirrors non-active create status to is_active=false', async () => {
+    const db = makeDb();
+    db.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'p-1', slug: 'some-zk', status: 'maintenance', is_active: false }] })
+      .mockResolvedValueOnce({ rows: [] });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties')
+      .send({ ...VALID_POST, status: 'maintenance' });
+
+    expect(res.status).toBe(201);
+    const insertCall = db.query.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('INSERT INTO properties'),
+    );
+    expect(insertCall[1]).toContain('maintenance');
+    expect(insertCall[1]).toContain(false);
   });
 
   test('rejects invalid property_type', async () => {
@@ -189,29 +220,46 @@ describe('PATCH /platform/api/v1/properties/:slug — Phase 1 field validation',
     expect(res.status).toBe(400);
   });
 
-  test('status change mirrors is_active', async () => {
+  test('rejects direct status changes through generic PATCH', async () => {
     const db = makeDb();
-    // UPDATE query
-    db.query
-      .mockResolvedValueOnce({
-        rows: [{ id: 'p-1', slug: 'some-zk', status: 'maintenance', is_active: false }],
-      })
-      .mockResolvedValueOnce({ rows: [] }); // audit
     getPlatformDb.mockReturnValue(db);
 
     const res = await supertest(buildApp())
       .patch('/platform/api/v1/properties/some-zk')
       .send({ status: 'maintenance' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/lifecycle/);
+    expect(db.query).not.toHaveBeenCalled();
+  });
 
+  test('normalizes legacy plan aliases on PATCH', async () => {
+    const db = makeDb();
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 'p-1', plan: 'operations' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .patch('/platform/api/v1/properties/some-zk')
+      .send({ plan: 'pro' });
+
+    expect(res.status).toBe(200);
     const updateCall = db.query.mock.calls.find(
       (c) => typeof c[0] === 'string' && c[0].startsWith('UPDATE properties'),
     );
-    expect(updateCall).toBeDefined();
-    // Both status and is_active (set to false for non-active) should be in the values array
-    expect(updateCall[1]).toContain('maintenance');
-    expect(updateCall[1]).toContain(false);
+    expect(updateCall[1]).toContain('operations');
+  });
+
+  test('rejects invalid plan ids on PATCH', async () => {
+    getPlatformDb.mockReturnValue(makeDb());
+
+    const res = await supertest(buildApp())
+      .patch('/platform/api/v1/properties/some-zk')
+      .send({ plan: 'gold' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/plan/);
   });
 
   test('logo_url=empty string clears the field', async () => {
@@ -264,5 +312,102 @@ describe('PATCH /platform/api/v1/properties/:slug — Phase 1 field validation',
 
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/management_company_id/);
+  });
+});
+
+describe('POST /platform/api/v1/properties/:slug/lifecycle — lifecycle actions', () => {
+  test('rejects invalid lifecycle status', async () => {
+    const db = makeDb();
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties/some-zk/lifecycle')
+      .send({ status: 'pending', reason: 'operator requested hold' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/status/);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('requires an operator reason', async () => {
+    const db = makeDb();
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties/some-zk/lifecycle')
+      .send({ status: 'maintenance', reason: '  ' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/reason/);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('returns 404 when property does not exist', async () => {
+    const db = makeDb();
+    db.query.mockResolvedValueOnce({ rows: [] });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties/missing-zk/lifecycle')
+      .send({ status: 'maintenance', reason: 'planned maintenance window' });
+
+    expect(res.status).toBe(404);
+  });
+
+  test('rejects no-op lifecycle transitions', async () => {
+    const db = makeDb();
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 'p-1', slug: 'some-zk', status: 'suspended', is_active: false }],
+    });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties/some-zk/lifecycle')
+      .send({ status: 'suspended', reason: 'still waiting for contract update' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('LIFECYCLE_NOOP');
+
+    const updateCall = db.query.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].startsWith('UPDATE properties'),
+    );
+    expect(updateCall).toBeUndefined();
+  });
+
+  test('changes lifecycle status, mirrors is_active, and audits the reason', async () => {
+    const db = makeDb();
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 'p-1', slug: 'some-zk', status: 'active', is_active: true }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'p-1', slug: 'some-zk', status: 'maintenance', is_active: false }],
+      })
+      .mockResolvedValueOnce({ rows: [] }); // audit
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp())
+      .post('/platform/api/v1/properties/some-zk/lifecycle')
+      .send({ status: 'maintenance', reason: 'planned maintenance window' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.lifecycle).toEqual({
+      from_status: 'active',
+      to_status: 'maintenance',
+      from_is_active: true,
+      to_is_active: false,
+      reason: 'planned maintenance window',
+    });
+
+    const updateCall = db.query.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].startsWith('UPDATE properties'),
+    );
+    expect(updateCall[1]).toEqual(['some-zk', 'maintenance', false]);
+
+    const auditCall = db.query.mock.calls.find(
+      (c) => typeof c[0] === 'string' && c[0].includes('INSERT INTO platform_audit_log'),
+    );
+    expect(auditCall[1][1]).toBe('property.lifecycle_changed');
+    expect(JSON.parse(auditCall[1][3])).toEqual(res.body.lifecycle);
   });
 });

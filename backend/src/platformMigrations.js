@@ -13,7 +13,8 @@ const PLATFORM_MIGRATIONS = [
           address TEXT,
           db_connection_url TEXT NOT NULL,   -- points to this property's own PostgreSQL DB
           is_active BOOLEAN DEFAULT true,    -- false = property disabled, returns 503
-          plan VARCHAR(50) DEFAULT 'standard' CHECK (plan IN ('standard', 'premium', 'enterprise')),
+          plan VARCHAR(50) DEFAULT 'core_access'
+            CHECK (plan IN ('core_access', 'operations', 'portfolio', 'enterprise')),
           timezone VARCHAR(100) DEFAULT 'Europe/Moscow',
           contact_email VARCHAR(255),
           contact_phone VARCHAR(50),
@@ -72,7 +73,7 @@ const PLATFORM_MIGRATIONS = [
           'г. Москва, Замоскворецкий район',
           zamoskvDbUrl,
           true,
-          'premium',
+          'operations',
           process.env.CONTACT_EMAIL || 'admin@zamoskv.ru'
         ]);
       }
@@ -361,6 +362,44 @@ const PLATFORM_MIGRATIONS = [
               USING NULLIF(ip_address, '')::INET;
           END IF;
         END $$;
+      `);
+    },
+  },
+  {
+    // DH-39 — align persisted property packages with
+    // docs/product/specs/domhub-packaging-and-feature-gating-spec.md.
+    // Earlier builds used standard/premium/enterprise and the superadmin UI
+    // briefly emitted core/pro/enterprise.  Normalize those legacy names into
+    // the canonical package ids used by feature-gate resolution.
+    id: '007_property_packaging_model',
+    async up(client) {
+      await client.query(`
+        ALTER TABLE properties
+          DROP CONSTRAINT IF EXISTS properties_plan_check
+      `);
+
+      await client.query(`
+        UPDATE properties
+           SET plan = CASE plan
+             WHEN 'standard' THEN 'core_access'
+             WHEN 'core' THEN 'core_access'
+             WHEN 'premium' THEN 'operations'
+             WHEN 'pro' THEN 'operations'
+             ELSE COALESCE(plan, 'core_access')
+           END
+         WHERE plan IS NULL
+            OR plan IN ('standard', 'core', 'premium', 'pro')
+      `);
+
+      await client.query(`
+        ALTER TABLE properties
+          ALTER COLUMN plan SET DEFAULT 'core_access'
+      `);
+
+      await client.query(`
+        ALTER TABLE properties
+          ADD CONSTRAINT properties_plan_check
+          CHECK (plan IN ('core_access', 'operations', 'portfolio', 'enterprise'))
       `);
     },
   },

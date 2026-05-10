@@ -24,6 +24,7 @@ const logger = require('../../../logger');
 const { validateOutboundUrl } = require('../../../lib/urlSafety');
 
 const REQUEST_TIMEOUT_MS = 10_000;
+const WEBHOOK_PAYLOAD_VERSION = 'v1';
 
 /**
  * Загрузить webhook secret из БД (свежий, чтобы уважать ротацию).
@@ -50,17 +51,51 @@ function signPayload(body, secret) {
   return crypto.createHmac('sha256', secret).update(body).digest('hex');
 }
 
+function resolveDeliveryId({ row, correlationId }) {
+  return row?.id || correlationId || null;
+}
+
+function buildWebhookEnvelope({
+  payload,
+  correlationId,
+  row,
+  now = new Date(),
+}) {
+  const event = payload?.event || row?.event_type || 'unknown';
+  const deliveryId = resolveDeliveryId({ row, correlationId });
+  const attempt = Number.isInteger(row?.attempt_count) ? row.attempt_count + 1 : null;
+
+  return {
+    version: WEBHOOK_PAYLOAD_VERSION,
+    event,
+    eventId: deliveryId,
+    deliveryId,
+    correlationId: correlationId || null,
+    attempt,
+    timestamp: now.toISOString(),
+    data: payload?.data ?? payload ?? {},
+  };
+}
+
 /**
  * send — POST webhook payload с HMAC.
  *
  * @param {object} args
  * @param {string} args.recipientAddress URL (webhooks.url snapshot)
  * @param {?string} args.recipientId     webhooks.id (UUID)
- * @param {?string} args.correlationId   outbox.correlation_id (delivery-id header)
+ * @param {?string} args.correlationId   outbox.correlation_id (business entity trace)
  * @param {object} args.payload          { event, data, ... }
+ * @param {?object} args.row             notifications_outbox row (id is the stable delivery id)
  * @param {object} args.tenant           { db }
  */
-async function send({ recipientAddress, recipientId, correlationId, payload, tenant }) {
+async function send({
+  recipientAddress,
+  recipientId,
+  correlationId,
+  payload,
+  row,
+  tenant,
+}) {
   if (!recipientAddress) {
     return { ok: false, error: 'url_required' };
   }
@@ -88,14 +123,14 @@ async function send({ recipientAddress, recipientId, correlationId, payload, ten
     };
   }
 
-  // Совместимость с legacy контрактом: внешние подписчики привыкли к этой
-  // обёртке (event/timestamp/deliveryId/data).
-  const wireBody = JSON.stringify({
-    event:      payload?.event || 'unknown',
-    timestamp:  new Date().toISOString(),
-    deliveryId: correlationId || null,
-    data:       payload?.data ?? payload ?? {},
-  });
+  // Совместимость с legacy контрактом: внешние подписчики привыкли к
+  // event/timestamp/deliveryId/data.  DH-40 добавляет version/eventId/
+  // correlationId/attempt без удаления старых полей.  deliveryId/eventId =
+  // notifications_outbox.id, поэтому retry одной и той же строки имеет
+  // стабильный idempotency key у внешнего получателя.
+  const envelope = buildWebhookEnvelope({ payload, correlationId, row });
+  const deliveryId = envelope.deliveryId || '';
+  const wireBody = JSON.stringify(envelope);
   const sig = signPayload(wireBody, secret);
 
   try {
@@ -104,8 +139,12 @@ async function send({ recipientAddress, recipientId, correlationId, payload, ten
       headers: {
         'Content-Type':       'application/json',
         'X-DomHub-Signature': `sha256=${sig}`,
-        'X-DomHub-Event':     payload?.event || 'unknown',
-        'X-DomHub-Delivery':  correlationId || '',
+        'X-DomHub-Event':     envelope.event,
+        'X-DomHub-Event-Version': WEBHOOK_PAYLOAD_VERSION,
+        'X-DomHub-Event-Id':  deliveryId,
+        'X-DomHub-Delivery':  deliveryId,
+        'X-DomHub-Correlation-Id': envelope.correlationId || '',
+        'X-DomHub-Attempt': envelope.attempt == null ? '' : String(envelope.attempt),
       },
       body: wireBody,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -156,4 +195,11 @@ async function send({ recipientAddress, recipientId, correlationId, payload, ten
   }
 }
 
-module.exports = { send, signPayload, loadWebhookSecret };
+module.exports = {
+  send,
+  signPayload,
+  loadWebhookSecret,
+  buildWebhookEnvelope,
+  resolveDeliveryId,
+  WEBHOOK_PAYLOAD_VERSION,
+};

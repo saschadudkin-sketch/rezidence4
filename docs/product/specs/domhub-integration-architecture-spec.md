@@ -318,6 +318,15 @@ Use cases:
 - status visibility
 - dead-letter handling
 
+### Baseline outbound payload contract
+
+Every outbound webhook delivery MUST include:
+- JSON payload field `version` with current value `v1`;
+- JSON payload fields `event`, `eventId`, `deliveryId`, `correlationId`, `attempt`, `timestamp`, and `data`;
+- `eventId` and `deliveryId` set to the delivery/outbox row id, not the business correlation id;
+- stable `deliveryId` across retries so receivers can deduplicate idempotently;
+- headers `X-DomHub-Event`, `X-DomHub-Event-Version`, `X-DomHub-Event-Id`, `X-DomHub-Delivery`, `X-DomHub-Correlation-Id`, `X-DomHub-Attempt`, and `X-DomHub-Signature`.
+
 ### Inbound webhooks
 
 Must support:

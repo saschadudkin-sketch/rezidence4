@@ -5,13 +5,14 @@ import s from '../styles.module.css';
 
 type PropertyType = 'residential_complex' | 'club_house' | 'cottage_community';
 type PropertyStatus = 'active' | 'suspended' | 'maintenance' | 'terminated';
+type PropertyPlan = 'core_access' | 'operations' | 'portfolio' | 'enterprise';
 
 interface Property {
   id: string;
   slug: string;
   name: string;
   address: string | null;
-  plan: string;
+  plan: PropertyPlan | string;
   timezone: string;
   hostname: string | null;
   contact_email: string | null;
@@ -61,6 +62,19 @@ const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   terminated: 'закрыт',
 };
 
+const PROPERTY_PLAN_LABELS: Record<PropertyPlan, string> = {
+  core_access: 'Core Access',
+  operations: 'Operations',
+  portfolio: 'Portfolio',
+  enterprise: 'Enterprise / Integrations',
+};
+
+function planLabel(plan: Property['plan']): string {
+  return plan in PROPERTY_PLAN_LABELS
+    ? PROPERTY_PLAN_LABELS[plan as PropertyPlan]
+    : String(plan);
+}
+
 export function PropertyDetailPage() {
   const { slug = '' } = useParams();
   const [data, setData] = useState<Response | null>(null);
@@ -107,17 +121,39 @@ export function PropertyDetailPage() {
     }
   }
 
-  async function toggleActive() {
+  async function changeLifecycle(nextStatus: PropertyStatus) {
     if (!data) return;
+
+    const currentStatus = data.property.status || (data.property.is_active ? 'active' : 'suspended');
+    if (nextStatus === currentStatus) return;
+
+    const reason = window.prompt(`Причина изменения статуса на "${PROPERTY_STATUS_LABELS[nextStatus]}"`);
+    if (reason === null) return;
+
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      setError('Укажите причину изменения статуса');
+      return;
+    }
+
     try {
       setError(null);
-      const endpoint = data.property.is_active ? 'disable' : 'enable';
-      const { property } = await api.post<{ property: Property }>(`/properties/${slug}/${endpoint}`);
+      setMsg(null);
+      const { property } = await api.post<{ property: Property }>(
+        `/properties/${slug}/lifecycle`,
+        { status: nextStatus, reason: trimmedReason },
+      );
       setData((prev) => (prev ? { ...prev, property } : prev));
+      setMsg('Статус обновлён');
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err));
     }
+  }
+
+  async function toggleActive() {
+    if (!data) return;
+    await changeLifecycle(data.property.is_active ? 'suspended' : 'active');
   }
 
   if (error && !data) return <div className={s.error}>{error}</div>;
@@ -206,11 +242,11 @@ export function PropertyDetailPage() {
             { value: 'terminated', label: 'закрыт' },
           ]}
           hint="maintenance / suspended возвращают 503 для тенантного трафика"
-          onSave={(v) => patch({ status: v as PropertyStatus })}
+          onSave={(v) => changeLifecycle(v as PropertyStatus)}
         />
 
         <dl className={s.kv} style={{ marginTop: '1rem' }}>
-          <dt>Тариф</dt><dd>{p.plan}</dd>
+          <dt>Тариф</dt><dd>{planLabel(p.plan)}</dd>
           <dt>TZ</dt><dd>{p.timezone}</dd>
           <dt>Создан</dt><dd>{new Date(p.created_at).toLocaleString('ru-RU')}</dd>
           <dt>Обновлён</dt><dd>{new Date(p.updated_at).toLocaleString('ru-RU')}</dd>

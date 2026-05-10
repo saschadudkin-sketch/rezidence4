@@ -40,6 +40,16 @@
 
 ## 3. Базовые продуктовые пакеты
 
+Canonical package ids in platform DB/API:
+- `core_access`
+- `operations`
+- `portfolio`
+- `enterprise`
+
+Legacy ids must be normalized before persistence:
+- `standard` / `core` → `core_access`
+- `premium` / `pro` → `operations`
+
 ## 3.1 Core Access
 
 Подходит для:

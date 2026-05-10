@@ -3,7 +3,7 @@
 Date: 2026-05-10
 Status: audit snapshot
 
-This file records what is visible in the current `rezidence4` working tree against the `DH-01` through `DH-61` project backlog. It is not a roadmap and does not override `domhub-final-product-plan.md`, `domhub-master-jira-backlog.md`, or the supporting specs.
+This file records what is visible in the current `rezidence4` working tree against the `DH-01` through `DH-62` project backlog. It is not a roadmap and does not override `domhub-final-product-plan.md`, `domhub-master-jira-backlog.md`, or the supporting specs.
 
 Important limitation: the working tree contains many uncommitted and untracked changes. This status means "present in the current local codebase", not "merged, deployed, and production-validated".
 
@@ -32,6 +32,7 @@ The largest gaps are still structural:
 - access decisions are now backed by a deterministic policy engine baseline; manual КПП decisions now have a backend baseline, while full admin UI and offline policy/cache replay are still missing;
 - service-request v1, assignment, SLA and staff workspace are mostly legacy/partial;
 - Russia-readiness tickets `DH-55` through `DH-61` are mostly documented, not runtime-complete.
+- full legacy runtime removal is now explicit as `DH-62`, but it is intentionally post-cutover work.
 
 ## Status By Delivery Block
 
@@ -45,6 +46,7 @@ The largest gaps are still structural:
 | Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial/docs | Some SKUD prototypes, tests and ops docs exist; not a production hardening layer yet. |
 | Russia Production Readiness | `DH-55` to `DH-61` | Mostly docs/planned | Consent/delete baseline exists, but lifecycle/offboarding, emergency, GIS/OSS, hardware registry and reviews are not complete. |
 | Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
+| Legacy Cutover | `DH-62` | Docs/planned | Deprecated `/api/*` aliases, legacy UI/runtime paths and fallback flags still exist; removal must follow proven v1 cutover and replacement modules. |
 
 ## Ticket-Level Status
 
@@ -87,9 +89,9 @@ The largest gaps are still structural:
 | `DH-35` | Property Admin Operational Dashboard | Improved, operational snapshot added | `/api/v1/admin/operations-dashboard` and `/v1/admin/operations` now provide property-scoped request KPIs, access KPIs, incident summary and notification health for admins. Review-workflow depth remains under sensitive-action/audit follow-up scope. |
 | `DH-36` | Management Company Portfolio API | Improved, backend baseline added | `/api/v1/management-company/portfolio` now aggregates DH-35 property snapshots across only the current management company's properties, with period/property filters, weighted rollups, hotspot rankings and scope-isolation tests. |
 | `DH-37` | Management Company Portfolio UI | Improved, frontend baseline added | `/v1/portfolio` now gives management-company admins a multi-property overview with KPI rollups, problem-object rankings, cross-property filters and comparison rows over the DH-36 API. |
-| `DH-38` | Platform Admin Registry And Property Lifecycle | Implemented baseline | Platform properties/admins/stats/audit routes and lifecycle operations exist. |
-| `DH-39` | Packaging And Feature Gating Enforcement | Implemented baseline | Feature-flag registry, admin settings and legacy utility freeze gates exist. |
-| `DH-40` | Webhooks And Outbound Integration Baseline | Partial | Legacy webhooks/integrations and outbox foundations exist; not yet a full canonical integration layer. |
+| `DH-38` | Platform Admin Registry And Property Lifecycle | Rechecked, lifecycle hardening added | Platform property status changes now use audited `/platform/api/v1/properties/:slug/lifecycle` actions with required operator reason, direct `status` PATCH is blocked, create/transition flows mirror `is_active`, and the platform detail UI uses the lifecycle action for status/toggle changes. |
+| `DH-39` | Packaging And Feature Gating Enforcement | Rechecked, package-aware gates added | Feature flags now resolve through canonical package ids (`core_access`, `operations`, `portfolio`, `enterprise`), legacy plan ids are normalized by migration, platform property create/update validates package ids, and admin flag writes cannot enable modules outside the property's package. |
+| `DH-40` | Webhooks And Outbound Integration Baseline | Rechecked, outbound envelope baseline added | Legacy webhooks/integrations and outbox foundations exist; outbound webhook deliveries now carry versioned `v1` envelopes, stable delivery/outbox ids for idempotent receiver dedupe, correlation headers and retry attempt headers across both v1 outbox and legacy delivery paths. Full canonical integration layer remains future DH-41+ work. |
 | `DH-41` | SKUD Adapter Framework | Legacy/prototype | `services/skud` adapters exist, but not wired to v1 topology/policy/device registry. |
 | `DH-42` | SKUD Vendor Integration Wave 1 | Legacy/prototype | Bolid/Hikvision adapter code exists; production vendor rollout is not complete. |
 | `DH-43` | Video Evidence Integration | Docs/planned | No first-class video evidence link/review workflow found. |
@@ -111,6 +113,7 @@ The largest gaps are still structural:
 | `DH-59` | Hardware Device Registry And Manual-Control Boundaries | Docs/planned | SKUD prototypes exist, but no hardware device registry/manual-control boundary model. |
 | `DH-60` | Sensitive Action Audit And Anti-Abuse Reviews | Partial | Audit log exists; review reports/workflows for sensitive actions are not implemented. |
 | `DH-61` | Pilot Operations And Training Pack | Partial/docs | Runbook docs exist; not packaged as an operational product/training workflow. |
+| `DH-62` | Legacy Runtime Removal | Docs/planned | Deprecated `/api/*` aliases and legacy utility/runtime paths are still mounted. Removal is planned only after release gates prove supported flows use v1/platform contracts and legacy meters/billing/bookings replacements are live. |
 
 ## Sequential Verification Progress
 
@@ -154,13 +157,17 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-35` | Improved, operational snapshot added | Added property-admin operations dashboard API and UI covering request throughput/SLA, access approvals/traffic, incident load and notification delivery/queue health. Admin landing now opens the operations dashboard, with focused backend aggregation tests and frontend route/smoke coverage. | Continue with `DH-36` Management Company Portfolio API. |
 | `DH-36` | Improved, backend baseline added | Added management-company portfolio API over DH-35 snapshots, including current-company scope resolution, active-property default filtering, explicit property filter rejection outside the portfolio, weighted SLA/access/notification rollups, hotspot rankings and partial-tenant failure isolation. | Continue with `DH-37` Management Company Portfolio UI. |
 | `DH-37` | Improved, frontend baseline added | Added the management-company portfolio workspace, API client/types, route gate, role redirect for `management_company_admin`/`platform_admin`, cross-property filters, problem-object shortcuts and smoke/router coverage. | Continue with `DH-38` Platform Admin Registry And Property Lifecycle recheck. |
+| `DH-38` | Rechecked, lifecycle hardening added | Added the property lifecycle endpoint with reason-required audit details, blocked generic PATCH status changes, fixed create-time `status`/`is_active` mirroring, wired the platform property detail UI to lifecycle actions and added lifecycle validation/no-op/audit tests. | Continue with `DH-39` Packaging And Feature Gating Enforcement recheck. |
+| `DH-39` | Rechecked, package-aware gates added | Added canonical package ids to the packaging spec/config, normalized legacy `standard/core/premium/pro` plans via platform migration, validated property package ids in platform API/UI, resolved feature flags through package constraints, and blocked admin toggles that would enable a module outside the package. | Continue with `DH-40` Webhooks And Outbound Integration Baseline recheck. |
+| `DH-40` | Rechecked, outbound envelope baseline added | Added versioned outbound webhook payloads and headers (`v1`, delivery/event id, correlation id, retry attempt), switched v1 webhook idempotency from business `correlation_id` to stable `notifications_outbox.id`, mirrored the envelope in the legacy `webhook_deliveries` path, and documented the contract in the integration architecture spec. | Continue with `DH-41` SKUD Adapter Framework recheck. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Continue with `DH-38` Platform Admin Registry And Property Lifecycle recheck before moving deeper into feature gating and integrations.
+2. Continue with `DH-41` SKUD Adapter Framework recheck.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
+5. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths until v1 release gates and replacement modules prove no supported flow depends on them.
 
 ## Validation Performed
 
@@ -169,7 +176,7 @@ This audit used source inspection and read-only commands:
 - `platform-v1/README.md` and recent `git log --oneline -30`;
 - `rg --files backend/src/v1` and `rg --files frontend/src/v1`;
 - route/migration searches for v1 endpoints, schema entities, access topology, policy, emergency, ПДн and hardware terms;
-- Jira CSV/backlog inspection for `DH-01` through `DH-61`.
+- Jira CSV/backlog inspection for `DH-01` through `DH-62`.
 
 Focused backend/frontend checks were executed for recent implementation updates:
 
@@ -233,6 +240,18 @@ Focused backend/frontend checks were executed for recent implementation updates:
 - `npm test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/` covering `DH-37`
 - `npx tsc --noEmit -p tsconfig.strict.json --pretty false` from `frontend/`
 - `.\node_modules\.bin\eslint.cmd src/v1/V1Router.tsx src/v1/V1Router.test.tsx src/v1/api/index.ts src/v1/api/types.ts src/v1/api/managementCompanyPortfolio.ts src/v1/pages/ManagementCompanyPortfolioPage.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/`
+- `node --check src/routes/platform/properties.js` from `backend/`
+- `node .\node_modules\jest\bin\jest.js platformPropertiesPhase1.test.js --runInBand` from `backend/`
+- `npx tsc --noEmit -p tsconfig.strict.json --pretty false` from `frontend/`
+- `.\node_modules\.bin\eslint.cmd src/admin/pages/PropertyDetailPage.tsx` from `frontend/`
+- `node --check src/config/featureFlags.js; node --check src/routes/adminSettings.js; node --check src/routes/platform/properties.js; node --check src/middleware/propertyDb.js; node --check src/v1/services/accessRequestService.js; node --check src/platformMigrations.js` from `backend/`
+- `node .\node_modules\jest\bin\jest.js featureFlagsRegistry.test.js v1LegacyUtilitiesFrozen.test.js adminSettingsFeatureFlags.test.js platformPropertiesPhase1.test.js platformMigrations.test.js --runInBand` from `backend/`
+- `npx tsc --noEmit -p tsconfig.strict.json --pretty false` from `frontend/`
+- `.\node_modules\.bin\eslint.cmd src/contexts/FeatureFlagsContext.tsx src/admin/pages/PropertiesPage.tsx src/admin/pages/PropertyDetailPage.tsx` from `frontend/`
+- `npm test -- src/views/AdminFeaturesView/AdminFeaturesView.test.tsx` from `frontend/`
+- `node --check src/v1/services/channels/webhookAdapter.js` from `backend/`
+- `node --check src/services/webhookService.js` from `backend/`
+- `node .\node_modules\jest\bin\jest.js v1NotificationChannels.test.js v1OutboxWorker.test.js v1NotificationDispatcher.test.js webhookService.test.js --runInBand` from `backend/`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
 - `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`

@@ -354,7 +354,7 @@ async function propertyDbMiddleware(req, res, next) {
     // Attach property info and database pool to request
     req.propertySlug = ctx.property.slug;
     req.property = ctx.property;
-    req.property.resolvedFlags = resolveFlags(ctx.property.feature_flags);
+    req.property.resolvedFlags = resolveFlags(ctx.property.feature_flags, ctx.property.plan);
     req.propertyResolvedBy = ctx.resolvedBy;
     req.db = getPropertyPool(ctx.property);
 

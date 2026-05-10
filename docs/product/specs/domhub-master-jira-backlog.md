@@ -1,6 +1,6 @@
 # DomHub Master Jira Backlog
 
-This document is the unified execution backlog for DomHub from `DH-01` through `DH-61`.
+This document is the unified execution backlog for DomHub from `DH-01` through `DH-62`.
 
 ## Purpose
 
@@ -20,7 +20,7 @@ This document is the unified execution backlog for DomHub from `DH-01` through `
 
 - Use this file as the top-level backlog registry.
 - Use `domhub-access-jira-ready-backlog.md` for detailed ticket definitions for `DH-01` to `DH-20`.
-- Use `domhub-platform-jira-ready-backlog.md` for detailed ticket definitions for `DH-21` to `DH-61`.
+- Use `domhub-platform-jira-ready-backlog.md` for detailed ticket definitions for `DH-21` to `DH-62`.
 - When a ticket changes contracts, policies, state machines, metrics, or deployment behavior, update the corresponding source spec in the same PR.
 
 ## Release Gates
@@ -33,6 +33,7 @@ This document is the unified execution backlog for DomHub from `DH-01` through `
 - `Pilot-To-Production Hardening`: `DH-41` to `DH-49`
 - `Russia Production Readiness`: `DH-55` to `DH-61`
 - `Expansion Layer`: `DH-50` to `DH-54`
+- `Legacy Cutover`: `DH-62`
 
 ---
 
@@ -153,6 +154,14 @@ This document is the unified execution backlog for DomHub from `DH-01` through `
 
 ---
 
+## Section I — Legacy Cutover
+
+| ID | Title | Summary | Depends On | Gate |
+|---|---|---|---|---|
+| `DH-62` | Legacy Runtime Removal | Remove deprecated `/api/*` aliases, legacy UI/runtime paths, fallback flags, and unmigrated legacy data dependencies after v1 cutover and release gates prove no supported flow depends on them. | `DH-48`, `DH-49`, `DH-50`, `DH-51`, `DH-52`, `DH-55`, `DH-56` | Legacy Cutover |
+
+---
+
 ## Recommended Implementation Order
 
 1. `DH-01` to `DH-09`
@@ -163,6 +172,7 @@ This document is the unified execution backlog for DomHub from `DH-01` through `
 6. `DH-41` to `DH-49`
 7. `DH-55` to `DH-61`
 8. `DH-50` to `DH-54`
+9. `DH-62`
 
 ## Critical Path
 
@@ -173,6 +183,7 @@ This document is the unified execution backlog for DomHub from `DH-01` through `
 - `DH-55` → `DH-56` → `DH-61`
 - `DH-22` → `DH-24` → `DH-57`
 - `DH-41` → `DH-59`
+- `DH-48` → `DH-49` → `DH-62`
 
 ## Notes
 

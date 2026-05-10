@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { getPlatformDb } = require('../../db');
+const { getPlanKeys, normalizePlan } = require('../../config/featureFlags');
 const logger = require('../../logger');
 const platformAuth = require('../../middleware/platformAuth');
 
@@ -20,6 +21,7 @@ const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-
 // bad input with a 400 before it ever reaches a transaction.
 const PROPERTY_TYPES = new Set(['residential_complex', 'club_house', 'cottage_community']);
 const PROPERTY_STATUSES = new Set(['active', 'suspended', 'maintenance', 'terminated']);
+const PROPERTY_PLANS = new Set(getPlanKeys());
 
 // Accepts standard CSS color forms: #rgb, #rrggbb, #rrggbbaa, and a small
 // whitelist of named keywords we actually style against.  Values are stored
@@ -49,6 +51,30 @@ function auditLog({ adminId, action, propertyId = null, ipAddress, details = nul
       [adminId, action, propertyId, details ? JSON.stringify(details) : null, ipAddress],
     )
     .catch((err) => logger.warn({ err, action }, '[platform/properties] audit log write failed'));
+}
+
+function statusToIsActive(status) {
+  return status === 'active';
+}
+
+function currentLifecycleStatus(property) {
+  return property.status || (property.is_active ? 'active' : 'suspended');
+}
+
+function normalizeLifecycleReason(reason) {
+  if (typeof reason !== 'string') return null;
+  const trimmed = reason.trim();
+  if (trimmed.length < 3 || trimmed.length > 500) return null;
+  return trimmed;
+}
+
+function parsePropertyPlan(raw, { allowDefault = false } = {}) {
+  if (raw === undefined || raw === null || raw === '') {
+    return allowDefault ? 'core_access' : null;
+  }
+  if (typeof raw !== 'string') return null;
+  const normalized = normalizePlan(raw);
+  return PROPERTY_PLANS.has(normalized) ? normalized : null;
 }
 
 // GET /platform/api/v1/properties
@@ -151,6 +177,16 @@ router.post('/', async (req, res, next) => {
       });
     }
 
+    const normalizedPlan = parsePropertyPlan(plan, { allowDefault: true });
+    if (!normalizedPlan) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `plan must be one of: ${[...PROPERTY_PLANS].join(', ')}`,
+        },
+      });
+    }
+
     if (property_type !== undefined && !PROPERTY_TYPES.has(property_type)) {
       return res.status(400).json({
         error: {
@@ -216,24 +252,26 @@ router.post('/', async (req, res, next) => {
       }
     }
 
+    const initialStatus = status || 'active';
     const { rows } = await platformDb.query(
       `INSERT INTO properties
          (slug, name, address, db_connection_url, plan, timezone,
           contact_email, contact_phone,
-          property_type, status, logo_url, primary_color, management_company_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          property_type, status, is_active, logo_url, primary_color, management_company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         slug,
         name,
         address || null,
         db_connection_url,
-        plan || 'core',
+        normalizedPlan,
         timezone || 'Europe/Moscow',
         contact_email || null,
         contact_phone || null,
         property_type || 'residential_complex',
-        status || 'active',
+        initialStatus,
+        statusToIsActive(initialStatus),
         logo_url || null,
         primary_color || null,
         management_company_id || null,
@@ -263,11 +301,22 @@ router.patch('/:slug', async (req, res, next) => {
   try {
     const { slug } = req.params;
 
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'status')) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'status changes must use POST /platform/api/v1/properties/:slug/lifecycle',
+        },
+      });
+    }
+
     // Explicitly forbid changing slug or db_connection_url.  `hostname` is
     // updatable (that's how a new property gets its subdomain wired up) but
     // validated + uniqueness-checked below.  The Phase-1 fields
-    // (property_type / status / branding / management_company_id) are all
-    // editable post-creation from the superadmin SPA.
+    // (property_type / branding / management_company_id) are editable
+    // post-creation from the superadmin SPA. Status changes are lifecycle
+    // actions and go through the dedicated endpoint below so they carry an
+    // operator reason in audit.
     const allowed = [
       'name',
       'address',
@@ -277,7 +326,6 @@ router.patch('/:slug', async (req, res, next) => {
       'contact_phone',
       'hostname',
       'property_type',
-      'status',
       'logo_url',
       'primary_color',
       'management_company_id',
@@ -324,7 +372,7 @@ router.patch('/:slug', async (req, res, next) => {
     // Phase-1 field validation.  Mirrors the POST route rules.  Enum fields
     // are validated only when they are explicitly present in the patch body —
     // `undefined` means "leave it alone", `null` is rejected for non-null
-    // fields (property_type, status) and accepted for nullable branding
+    // fields (property_type) and accepted for nullable branding
     // fields (logo_url, primary_color, management_company_id).
     if (Object.prototype.hasOwnProperty.call(changes, 'property_type')) {
       if (!PROPERTY_TYPES.has(changes.property_type)) {
@@ -337,20 +385,17 @@ router.patch('/:slug', async (req, res, next) => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(changes, 'status')) {
-      if (!PROPERTY_STATUSES.has(changes.status)) {
+    if (Object.prototype.hasOwnProperty.call(changes, 'plan')) {
+      const normalizedPlan = parsePropertyPlan(changes.plan);
+      if (!normalizedPlan) {
         return res.status(400).json({
           error: {
             code: 'VALIDATION_ERROR',
-            message: `status must be one of: ${[...PROPERTY_STATUSES].join(', ')}`,
+            message: `plan must be one of: ${[...PROPERTY_PLANS].join(', ')}`,
           },
         });
       }
-      // Mirror to legacy is_active so old read paths still see the correct
-      // enabled/disabled bit.  Only 'active' counts as enabled; maintenance
-      // is considered disabled because the tenant router returns 503 for
-      // anything that isn't actively serving traffic.
-      changes.is_active = changes.status === 'active';
+      changes.plan = normalizedPlan;
     }
 
     if (Object.prototype.hasOwnProperty.call(changes, 'logo_url')) {
@@ -453,6 +498,99 @@ router.patch('/:slug', async (req, res, next) => {
   }
 });
 
+// POST /platform/api/v1/properties/:slug/lifecycle
+router.post('/:slug/lifecycle', async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const { status, reason } = req.body || {};
+
+    if (!PROPERTY_STATUSES.has(status)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `status must be one of: ${[...PROPERTY_STATUSES].join(', ')}`,
+        },
+      });
+    }
+
+    const normalizedReason = normalizeLifecycleReason(reason);
+    if (!normalizedReason) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'reason is required and must be 3-500 characters',
+        },
+      });
+    }
+
+    const platformDb = getPlatformDb();
+    const { rows: existingRows } = await platformDb.query(
+      'SELECT id, slug, status, is_active FROM properties WHERE slug = $1',
+      [slug],
+    );
+
+    if (!existingRows.length) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: `Property '${slug}' not found` },
+      });
+    }
+
+    const current = existingRows[0];
+    const fromStatus = currentLifecycleStatus(current);
+    if (fromStatus === status) {
+      return res.status(409).json({
+        error: {
+          code: 'LIFECYCLE_NOOP',
+          message: `Property '${slug}' is already '${status}'`,
+        },
+      });
+    }
+
+    const nextIsActive = statusToIsActive(status);
+    const { rows } = await platformDb.query(
+      `UPDATE properties
+          SET status = $2,
+              is_active = $3,
+              updated_at = NOW()
+        WHERE slug = $1
+        RETURNING *`,
+      [slug, status, nextIsActive],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        error: { code: 'NOT_FOUND', message: `Property '${slug}' not found` },
+      });
+    }
+
+    const property = rows[0];
+    const lifecycle = {
+      from_status: fromStatus,
+      to_status: status,
+      from_is_active: current.is_active,
+      to_is_active: nextIsActive,
+      reason: normalizedReason,
+    };
+
+    auditLog({
+      adminId: req.platformAdmin.id,
+      action: 'property.lifecycle_changed',
+      propertyId: property.id,
+      ipAddress: req.ip,
+      details: lifecycle,
+    });
+
+    logger.info(
+      { slug, fromStatus, toStatus: status },
+      '[platform/properties] property lifecycle changed',
+    );
+
+    return res.json({ property, lifecycle });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /platform/api/v1/properties/:slug/disable
 router.post('/:slug/disable', async (req, res, next) => {
   try {
@@ -461,7 +599,7 @@ router.post('/:slug/disable', async (req, res, next) => {
 
     // Keep legacy is_active in lockstep with the richer `status` lifecycle.
     // Disabling → 'suspended' (most common reason for a disable today); admins
-    // can later refine to 'maintenance' / 'terminated' via PATCH /status.
+    // can later refine to 'maintenance' / 'terminated' via /lifecycle.
     const { rows } = await platformDb.query(
       `UPDATE properties
           SET is_active = false,
@@ -503,7 +641,7 @@ router.post('/:slug/enable', async (req, res, next) => {
 
     // Re-enabling resets the lifecycle to 'active'.  If admins want a more
     // nuanced state (e.g. 'maintenance' while staff verifies), they should
-    // use PATCH /:slug { status: 'maintenance' } directly.
+    // use /lifecycle directly.
     const { rows } = await platformDb.query(
       `UPDATE properties
           SET is_active = true,

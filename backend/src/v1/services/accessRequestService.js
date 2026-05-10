@@ -50,7 +50,7 @@ function isAccessRequestServiceError(err) {
 }
 
 function getResolvedFeatureFlags(property) {
-  return property?.resolvedFlags || resolveFlags(property?.feature_flags);
+  return property?.resolvedFlags || resolveFlags(property?.feature_flags, property?.plan);
 }
 
 function shouldRequireManualApproval({ property, requestType, startsAt, endsAt }) {
