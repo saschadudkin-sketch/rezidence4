@@ -118,6 +118,12 @@ const FEATURE_FLAGS = {
     description: 'Привязка камер, клипов и снимков к событиям доступа и инцидентам',
     category: 'integrations',
   },
+  erp_exchange: {
+    default: false,
+    label: 'ERP / 1C обмен',
+    description: 'Операционный импорт справочников и экспорт сводок для ERP/1C/ЖКХ-систем',
+    category: 'integrations',
+  },
   analytics: {
     default: false,
     label: 'Аналитика',

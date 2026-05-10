@@ -213,6 +213,19 @@ ERP/1C integrations must have:
 - retry behavior for transient failures
 - reconciliation visibility for mismatched records
 
+### 11.1 DH-44 backend baseline
+
+The first backend slice is intentionally operational and conservative:
+- `erp_provider_configs` stores tenant-scoped ERP/1C/ЖКХ provider settings with credential references, not inline secrets;
+- `erp_external_mappings` stores explicit external IDs and conflict/unmapped state for property structure, residents, staff, contractors and vehicles;
+- `erp_sync_jobs` and `erp_sync_records` store dry-run/apply import attempts, export jobs, row-level validation errors and normalized payloads;
+- `/api/v1/erp/providers` manages provider configs behind `erp_exchange`;
+- `/api/v1/erp/providers/:id/import/preview` validates imports without writing mappings;
+- `/api/v1/erp/providers/:id/import/apply` writes external-ID mappings only and does not create DomHub access grants;
+- `/api/v1/erp/providers/:id/export` returns JSON operational summaries for access events, incidents and requests without financial payloads.
+
+This baseline does not claim certified GIS ЖКХ behavior, billing authority or bidirectional accounting sync.
+
 ---
 
 ## 12. Security and compliance rules

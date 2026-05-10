@@ -143,6 +143,9 @@ Payloads MUST avoid raw PII when an ID reference is enough.
 - `integration.sync.started`
 - `integration.sync.completed`
 - `integration.sync.failed`
+- `integration.erp.import.previewed`
+- `integration.erp.import.applied`
+- `integration.erp.export.generated`
 - `hardware.device.created`
 - `hardware.device.updated`
 - `hardware.device.health_changed`
@@ -185,8 +188,9 @@ Sensitive categories:
 | `hardware_boundary` | `access_point.created`, `access_point.deactivated` | changes physical checkpoint routing |
 | `personal_data` | `resident.updated`, `resident.deactivated`, `resident.consent_given` | touches PII/lifecycle controls |
 | `provider_settings` | `integration.provider.configured`, `integration.provider.disabled` | changes external source behavior |
+| `data_import` | `erp.import.previewed`, `erp.import.applied` | can expose or change external-ID mappings for resident/staff/property data |
 | `video_evidence` | `video.evidence.viewed`, `video.evidence.linked`, `video.provider.configured`, `video.camera_provider.linked` | privacy-sensitive evidence access and camera/provider mapping |
-| `export` | `audit.export.created` | can expose sensitive operational data |
+| `export` | `audit.export.created`, `erp.export.generated` | can expose sensitive operational data |
 
 Known legacy action strings MAY remain in `property_audit_log.action`; the catalog maps them to canonical event names for review/reporting without rewriting old rows.
 

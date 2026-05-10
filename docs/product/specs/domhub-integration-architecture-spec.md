@@ -321,6 +321,19 @@ The VMS/NVR provider layer keeps recorder integration explicit but still link-on
 - `/api/v1/video/providers`, `/api/v1/video/cameras/:cameraDeviceId/provider` and `/api/v1/access-incidents/:incidentId/video-evidence/fetch` manage provider config, camera mapping and incident evidence fetch references;
 - generated evidence stores URLs or external references only and strips inline credential/session parameters.
 
+### 11.7 DH-44 ERP/1C exchange baseline
+
+ERP/1C/ЖКХ exchange is modeled as an operational import/export layer, not as DomHub billing authority:
+- `erp_provider_configs` stores tenant-scoped provider config, sync mode, capabilities, health and `auth_ref`;
+- `erp_external_mappings` keeps explicit external IDs plus `mapped`/`unmapped`/`conflict` visibility;
+- `erp_sync_jobs` and `erp_sync_records` provide import/export observability with row-level validation errors;
+- imports support property structure, resident, staff, contractor and vehicle registry payloads in preview/apply modes;
+- apply mode writes mappings only and records `access_grants_created=0`;
+- exports support JSON summaries for `access_events_summary`, `incident_summary` and `request_summary`;
+- routes live under `/api/v1/erp` and are gated by `erp_exchange` plus admin-only `erp.exchange.*` capabilities.
+
+No certified GIS ЖКХ submission, billing-led access restriction or bidirectional financial sync is included in this baseline.
+
 ---
 
 ## 12. Notification integration specifics

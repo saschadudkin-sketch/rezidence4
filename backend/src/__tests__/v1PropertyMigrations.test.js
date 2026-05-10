@@ -34,8 +34,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-24 assignment/SLA/escalation + 1 DH-27 technician workflow
     // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework
     // + 1 DH-43 video evidence baseline + 1 DH-43 VMS/NVR configs
-    // + 1 DH-42 common Russia SKUD provider expansion = 37
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(37);
+    // + 1 DH-42 common Russia SKUD provider expansion
+    // + 1 DH-44 ERP/1C exchange baseline = 38
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(38);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1398,6 +1399,62 @@ describe('v1_037_skud_russia_provider_wave', () => {
       expect(check).toContain(`'${provider}'`);
     }
     expect(sqls.find((s) => s.includes('idx_skud_provider_configs_provider_health'))).toContain('provider, health_status');
+  });
+});
+
+describe('v1_038_erp_exchange_baseline', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates tenant-scoped ERP provider configs for 1C and generic exchange', async () => {
+    await byId('v1_038_erp_exchange_baseline').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS erp_provider_configs'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT erp_provider_configs_property_id_unique UNIQUE (property_id, id)');
+    for (const provider of [
+      'one_c',
+      'one_c_zhkh',
+      'housing_erp',
+      'generic_csv',
+      'generic_rest',
+      'generic_webhook',
+    ]) {
+      expect(tbl).toContain(`'${provider}'`);
+    }
+    expect(tbl).toContain("CHECK (sync_mode IN ('import_only','export_only','hybrid','manual'))");
+    expect(sqls.find((s) => s.includes('idx_erp_provider_configs_property'))).toContain('property_id, status, provider');
+    expect(sqls.find((s) => s.includes('uq_erp_provider_configs_property_name_active'))).toContain('status <>');
+  });
+
+  test('creates external mapping table with explicit conflict visibility', async () => {
+    await byId('v1_038_erp_exchange_baseline').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS erp_external_mappings'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('REFERENCES erp_provider_configs(property_id, id)');
+    expect(tbl).toContain("conflict_status        VARCHAR(20) NOT NULL DEFAULT 'unmapped'");
+    expect(tbl).toContain("CHECK (conflict_status IN ('mapped','unmapped','conflict','ignored'))");
+    expect(sqls.find((s) => s.includes('uq_erp_external_mappings_external')))
+      .toContain('external_entity_type, external_id');
+    expect(sqls.find((s) => s.includes('idx_erp_external_mappings_conflicts')))
+      .toContain('conflict_status, updated_at DESC');
+  });
+
+  test('creates sync jobs and row-level validation records', async () => {
+    await byId('v1_038_erp_exchange_baseline').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const jobs = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS erp_sync_jobs'));
+    const records = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS erp_sync_records'));
+
+    expect(jobs).toContain("CHECK (direction IN ('import','export'))");
+    expect(jobs).toContain('access_events_summary');
+    expect(jobs).toContain("CHECK (mode IN ('dry_run','apply'))");
+    expect(records).toContain('validation_errors      JSONB NOT NULL DEFAULT');
+    expect(records).toContain('CONSTRAINT erp_sync_records_validation_errors_array');
+    expect(sqls.find((s) => s.includes('idx_erp_sync_records_job_status'))).toContain('sync_job_id, status, row_index');
   });
 });
 

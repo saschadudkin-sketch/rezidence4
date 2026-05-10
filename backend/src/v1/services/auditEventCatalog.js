@@ -180,6 +180,24 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     category: 'provider_settings',
     reviewReason: 'provider disablement changes access/integration behavior',
   }),
+  'erp.import.previewed': entry({
+    canonicalEventType: 'integration.erp.import.previewed',
+    category: 'data_import',
+    sensitivity: 'restricted',
+    reviewReason: 'ERP import previews can expose resident and staff registry data',
+  }),
+  'erp.import.applied': entry({
+    canonicalEventType: 'integration.erp.import.applied',
+    category: 'data_import',
+    sensitivity: 'restricted',
+    reviewReason: 'ERP import apply changes external-ID mappings for people and property structure',
+  }),
+  'erp.export.generated': entry({
+    canonicalEventType: 'integration.erp.export.generated',
+    category: 'export',
+    sensitivity: 'restricted',
+    reviewReason: 'ERP exports can expose operational access, incident, and request data',
+  }),
   'video.evidence.viewed': entry({
     canonicalEventType: 'video.evidence.viewed',
     category: 'video_evidence',

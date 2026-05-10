@@ -66,6 +66,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./036_video_provider_configs'),
   // DH-42 common Russia SKUD provider adapter expansion
   require('./037_skud_russia_provider_wave'),
+  // DH-44 ERP/1C/ZhKH operational exchange baseline
+  require('./038_erp_exchange_baseline'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

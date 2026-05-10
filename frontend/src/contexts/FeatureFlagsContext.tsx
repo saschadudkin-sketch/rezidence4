@@ -40,6 +40,7 @@ export const FEATURE_KEYS = [
   'webhooks',
   'skud_integration',
   'video_evidence',
+  'erp_exchange',
   'analytics',
   'legacy_utilities_enabled',
 ] as const;

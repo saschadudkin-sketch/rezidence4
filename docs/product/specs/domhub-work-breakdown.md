@@ -790,6 +790,7 @@
 - integration config tables;
 - provider secret references.
 - hardware device registry for SKUD, barriers/gates, intercoms, LPR and cameras where needed;
+- ERP provider configs, external mappings, sync jobs and sync records for 1C/ЖКХ exchange;
 - GIS ЖКХ / ОСС export job metadata where needed.
 
 ### Backend/API
@@ -800,6 +801,7 @@
 - integration settings endpoints;
 - provider adapter interfaces.
 - hardware integration adapter interfaces;
+- ERP/1C import preview/apply and operational JSON export endpoints;
 - GIS ЖКХ / ОСС export helpers.
 
 ### Frontend/UI
@@ -817,6 +819,7 @@
 - provider adapter tests;
 - integration failure handling tests.
 - hardware fallback boundary tests.
+- ERP import validation, duplicate/conflict handling and export payload tests.
 
 ### Docs
 

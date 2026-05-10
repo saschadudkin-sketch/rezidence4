@@ -207,6 +207,8 @@ Flags should support:
 - `telegram_notifications`
 - `webhooks`
 - `skud_adapter`
+- `video_evidence`
+- `erp_exchange`
 - `billing_sync`
 
 ### Growth flags
