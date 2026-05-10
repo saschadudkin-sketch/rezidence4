@@ -23,6 +23,7 @@ import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type {
   Announcement,
+  OperationsDashboardSnapshot,
   Package,
   UserMe,
   V1Document,
@@ -39,11 +40,13 @@ const {
   listAdminAnnouncementsMock,
   listDocumentsMock,
   listPackagesMock,
+  getOperationsDashboardMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listAdminAnnouncementsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
   listPackagesMock: vi.fn(),
+  getOperationsDashboardMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -88,6 +91,9 @@ vi.mock('../api', async () => {
         markLost: neverResolves,
         remind: neverResolves,
       },
+      operationsDashboard: {
+        get: getOperationsDashboardMock,
+      },
       // Unused by admin pages; kept for barrel-shape safety.
       accessRequests: { list: neverResolves, getById: neverResolves },
       passes: { list: neverResolves, getById: neverResolves },
@@ -108,6 +114,7 @@ vi.mock('../api', async () => {
 import { AnnouncementsAdminPage } from './AnnouncementsAdminPage';
 import { DocumentsAdminPage } from './DocumentsAdminPage';
 import { PackagesAdminPage } from './PackagesAdminPage';
+import { OperationsDashboardPage } from './OperationsDashboardPage';
 import { V1SessionProvider } from '../store';
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
@@ -200,6 +207,59 @@ function makePackage(overrides: Partial<Package> = {}): Package {
     notes: null,
     created_at: '2026-04-20T10:00:00Z',
     updated_at: null,
+    ...overrides,
+  };
+}
+
+function makeOperationsDashboard(
+  overrides: Partial<OperationsDashboardSnapshot> = {},
+): OperationsDashboardSnapshot {
+  return {
+    generated_at: '2026-05-10T00:00:00.000Z',
+    property_id: '00000000-0000-0000-0000-000000000bbb',
+    period: { key: '7d', hours: 168 },
+    requests: {
+      created: 12,
+      completed: 7,
+      open: 5,
+      overdue_backlog: 2,
+      sla_compliance_rate: 0.75,
+      first_response_median_minutes: 18,
+      resolution_median_minutes: 240,
+      by_status: [{ status: 'pending', total: 5 }],
+      by_priority: [{ priority: 'emergency', total: 1 }],
+    },
+    access: {
+      requests_created: 10,
+      requests_approved: 6,
+      requests_rejected: 2,
+      approval_rate: 0.75,
+      pending: 3,
+      expired: 1,
+      allow_count: 31,
+      denial_count: 4,
+      vehicle_traffic_count: 18,
+      active_passes: 22,
+      used_passes: 9,
+    },
+    incidents: {
+      open: 3,
+      investigating: 2,
+      closed: 8,
+      high_priority_open: 1,
+      blacklist_hits: 2,
+      suspicious_attempts: 5,
+      resolution_median_minutes: 42,
+      by_type: [{ incident_type: 'blacklist_hit', total: 2 }],
+    },
+    notifications: {
+      sent: 90,
+      failed: 10,
+      success_rate: 0.9,
+      queue: { pending: 4, in_flight: 1, sent: 80, failed: 3, dead: 2 },
+      oldest_pending_age_seconds: 75,
+      per_channel: [{ channel: 'web_push', sent: 80, failed: 5, success_rate: 0.94 }],
+    },
     ...overrides,
   };
 }
@@ -532,5 +592,40 @@ describe('PackagesAdminPage', () => {
     expect(screen.queryByRole('button', { name: 'Возврат' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Напомнить' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Утеряна' })).not.toBeInTheDocument();
+  });
+});
+
+// ─── OperationsDashboardPage ───────────────────────────────────────────────
+
+describe('OperationsDashboardPage', () => {
+  beforeEach(() => {
+    getOperationsDashboardMock.mockReset();
+  });
+
+  test('property_id=null → предупреждение без запроса', () => {
+    renderWithProviders(<OperationsDashboardPage />, makeUser({ property_id: null }));
+    expect(screen.getByText(/не привязан к объекту/i)).toBeInTheDocument();
+    expect(getOperationsDashboardMock).not.toHaveBeenCalled();
+  });
+
+  test('renders object-level KPIs from dashboard snapshot', async () => {
+    getOperationsDashboardMock.mockResolvedValue({
+      ok: true,
+      dashboard: makeOperationsDashboard(),
+    });
+
+    renderWithProviders(<OperationsDashboardPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByRole('heading', { name: /операционный обзор/i }))
+      .toBeInTheDocument();
+    expect(await screen.findByText('Открыто заявок')).toBeInTheDocument();
+    expect(screen.getByText('Просроченный backlog')).toBeInTheDocument();
+    expect(screen.getByText('Проходы и въезды')).toBeInTheDocument();
+    expect(screen.getByText('Доставка уведомлений')).toBeInTheDocument();
+    expect(screen.getByText('web_push')).toBeInTheDocument();
+    expect(getOperationsDashboardMock).toHaveBeenCalledWith(
+      { period: '7d' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 });

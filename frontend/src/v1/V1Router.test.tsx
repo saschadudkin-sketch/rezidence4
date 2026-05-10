@@ -67,6 +67,7 @@ vi.mock('./api', () => {
         getRequestDetail: neverResolves,
       },
       packages: { list: neverResolves },
+      operationsDashboard: { get: neverResolves },
       residents: { getById: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
@@ -196,10 +197,10 @@ describe('V1Router role redirects (from /v1 index)', () => {
     expect(screen.getByText(/Vehicle-first режим/i)).toBeInTheDocument();
   });
 
-  test('admin → staff workspace', async () => {
+  test('admin → operations dashboard', async () => {
     sessionMeMock.mockResolvedValue(baseUser('admin'));
     renderAt('/v1');
-    expect(await screen.findByRole('heading', { name: /рабочее место staff/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /операционный обзор/i })).toBeInTheDocument();
   });
 
   test('concierge → staff workspace', async () => {
@@ -270,6 +271,14 @@ describe('V1Router direct deep-links gate by role', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  test('admin deep-linked to /v1/admin/operations reaches operations dashboard', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/operations');
+    expect(
+      await screen.findByRole('heading', { name: /операционный обзор/i }),
+    ).toBeInTheDocument();
   });
 
   test('security deep-linked to /v1/staff-workspace reaches staff workspace', async () => {

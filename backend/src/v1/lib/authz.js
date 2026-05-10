@@ -313,6 +313,7 @@ const CAPABILITIES = Object.freeze({
   'outbox:read': spec(admin),
   'outbox:requeue': spec(admin),
   'outbox:cancel': spec(admin),
+  'operations.dashboard.read': spec(admin),
 
   'announcements:read': spec(accessStaff),
   'announcements:publish': spec(admin),

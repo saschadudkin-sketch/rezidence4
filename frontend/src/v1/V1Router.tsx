@@ -54,6 +54,7 @@ import { PackagesAdminPage } from './pages/PackagesAdminPage';
 import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
 import { OnboardingAdminPage } from './pages/OnboardingAdminPage';
 import { AccessAdminPage } from './pages/AccessAdminPage';
+import { OperationsDashboardPage } from './pages/OperationsDashboardPage';
 import {
   Alert,
   Inline,
@@ -155,6 +156,14 @@ export function V1Router() {
           element={
             <RoleGate allow={ADMIN_ALLOW}>
               <OnboardingAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/operations"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <OperationsDashboardPage />
             </RoleGate>
           }
         />
@@ -278,6 +287,14 @@ function V1IndexRedirect() {
     return <Navigate to="/v1/contractor-workspace" replace />;
   }
   if (isResidentRole(user.role)) return <Navigate to="/v1/access" replace />;
+
+  if ([
+    'property_admin',
+    'management_company_admin',
+    'platform_admin',
+  ].includes(normalizeUserRole(user.role))) {
+    return <Navigate to="/v1/admin/operations" replace />;
+  }
 
   if (isConciergeRole(user.role) || isStaffRole(user.role)) {
     return <Navigate to="/v1/staff-workspace" replace />;

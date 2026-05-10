@@ -105,6 +105,7 @@ const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
 // Counterpart платформенного /platform/api/v1/notifications/outbox/* — тот
 // agreagate'ит по всем tenants, этот — под конкретный req.db.
 const v1AdminOutboxRouter       = require('../v1/routes/adminOutbox');
+const v1OperationsDashboardRouter = require('../v1/routes/operationsDashboard');
 
 // Phase 5 (platform-v1) — packages_v2 content module.  Spec:
 // docs/product/specs/platform-v1/packages-v2-spec.md §4.
@@ -319,6 +320,11 @@ function registerApiRoutes(app, { rateLimiters }) {
   // middleware-chain (requireAuth + requireAdmin), но fall-through на no-match
   // корректный — наш более специфичный path /admin/outbox matchнется первым.
   app.use('/api/v1/admin/outbox', v1AdminOutboxRouter);
+
+  // DH-35 — object-level operational dashboard for property admins:
+  // request/access/incident KPIs plus notification health in one per-property
+  // snapshot.  Route is admin-only and uses req.db tenant context.
+  app.use('/api/v1/admin/operations-dashboard', v1OperationsDashboardRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);

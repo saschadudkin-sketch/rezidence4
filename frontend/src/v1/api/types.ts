@@ -34,6 +34,8 @@ export interface PaginationParams {
   offset?: number;
 }
 
+export type OperationsDashboardPeriod = '24h' | '7d' | '30d';
+
 // ─── Session ────────────────────────────────────────────────────────────────
 
 export type UserRole =
@@ -78,6 +80,77 @@ export interface UserMe {
   property_id?: UUID | null;
   /** Resolved from the platform/local property registry; drives address labels. */
   property_type?: PropertyType | null;
+}
+
+// ─── Property Admin Operations Dashboard ───────────────────────────────────
+
+export type OperationsBreakdownItem<K extends string> = { total: number } & Record<K, string>;
+
+export interface OperationsDashboardSnapshot {
+  generated_at: IsoDateTime;
+  property_id: UUID;
+  period: {
+    key: OperationsDashboardPeriod;
+    hours: number;
+  };
+  requests: {
+    created: number;
+    completed: number;
+    open: number;
+    overdue_backlog: number;
+    sla_compliance_rate: number | null;
+    first_response_median_minutes: number | null;
+    resolution_median_minutes: number | null;
+    by_status: Array<OperationsBreakdownItem<'status'>>;
+    by_priority: Array<OperationsBreakdownItem<'priority'>>;
+  };
+  access: {
+    requests_created: number;
+    requests_approved: number;
+    requests_rejected: number;
+    approval_rate: number | null;
+    pending: number;
+    expired: number;
+    allow_count: number;
+    denial_count: number;
+    vehicle_traffic_count: number;
+    active_passes: number;
+    used_passes: number;
+  };
+  incidents: {
+    open: number;
+    investigating: number;
+    closed: number;
+    high_priority_open: number;
+    blacklist_hits: number;
+    suspicious_attempts: number;
+    resolution_median_minutes: number | null;
+    by_type: Array<OperationsBreakdownItem<'incident_type'>>;
+  };
+  notifications: {
+    sent: number;
+    failed: number;
+    success_rate: number | null;
+    queue: {
+      pending: number;
+      in_flight: number;
+      sent: number;
+      failed: number;
+      dead: number;
+    };
+    oldest_pending_age_seconds: number | null;
+    per_channel: Array<{
+      channel: string;
+      sent: number;
+      failed: number;
+      success_rate: number | null;
+    }>;
+  };
+}
+
+export interface OperationsDashboardResponse {
+  ok: true;
+  dashboard: OperationsDashboardSnapshot;
 }
 
 // ─── Access Requests ────────────────────────────────────────────────────────

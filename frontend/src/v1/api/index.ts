@@ -29,6 +29,7 @@ import { sessionApi } from './session';
 import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './announcements';
 import { packagesApi, packageStatusTone } from './packages';
 import { documentsApi, deriveDocumentStatus } from './documents';
+import { operationsDashboardApi } from './operationsDashboard';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -48,6 +49,7 @@ export const api = {
   announcements: announcementsApi,
   packages: packagesApi,
   documents: documentsApi,
+  operationsDashboard: operationsDashboardApi,
 };
 
 export { normalizePlate };
@@ -117,3 +119,4 @@ export type {
   CreateDocumentBody,
   UpdateDocumentBody,
 } from './documents';
+export type { GetOperationsDashboardParams } from './operationsDashboard';
