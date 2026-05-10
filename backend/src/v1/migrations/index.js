@@ -60,6 +60,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./033_contractor_workflow'),
   // DH-41 SKUD provider config, hardware mapping and integration event logs
   require('./034_skud_adapter_framework'),
+  // DH-43 video evidence references linked to access events/incidents
+  require('./035_video_evidence_baseline'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

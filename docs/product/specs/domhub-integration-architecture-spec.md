@@ -299,6 +299,15 @@ The first vendor wave exercises Hikvision- and Bolid/Orion-compatible flows thro
 
 This baseline is enough to exercise a first-wave provider path without claiming full vendor coverage. Deeper device quirks, reconciliation and production rollout are follow-up work.
 
+### 11.6 DH-43 video evidence link baseline
+
+The first video evidence layer remains link-only and does not turn DomHub into a VMS:
+- `video_evidence_references` stores property-scoped clip, snapshot, external event and camera-context references linked to `access_incidents`, `visit_logs_v2` or `skud_integration_events`;
+- camera mapping reuses `skud_hardware_devices` with `device_class='camera'`, preserving provider/config ownership and access-point context;
+- `/api/v1/access-incidents/:incidentId/video-evidence` attaches or lists incident evidence, while `/api/v1/video-evidence/:id` returns a single reference and records `video.evidence.viewed`;
+- evidence link/view actions write sensitive audit events through `property_audit_log`;
+- the schema and service validation explicitly reject biometric identity matching for this scope.
+
 ---
 
 ## 12. Notification integration specifics

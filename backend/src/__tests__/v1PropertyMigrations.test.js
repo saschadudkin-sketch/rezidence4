@@ -32,8 +32,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-06 access topology foundation + 1 DH-13/DH-14 policy layer
     // + 1 DH-22 service request core + 1 DH-23 attachments/updates
     // + 1 DH-24 assignment/SLA/escalation + 1 DH-27 technician workflow
-    // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework = 34
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(34);
+    // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework
+    // + 1 DH-43 video evidence baseline = 35
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(35);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1285,6 +1286,47 @@ describe('v1_034_skud_adapter_framework', () => {
     expect(tbl).toContain('normalized_payload     JSONB');
     expect(sqls.find((s) => s.includes('uq_skud_integration_events_external'))).toContain('external_event_id');
     expect(sqls.find((s) => s.includes('idx_skud_integration_events_status'))).toContain('status, next_retry_at');
+  });
+});
+
+describe('v1_035_video_evidence_baseline', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates video evidence references linked to incidents, events and cameras', async () => {
+    await byId('v1_035_video_evidence_baseline').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS video_evidence_references'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('access_incident_id          UUID REFERENCES access_incidents(id)');
+    expect(tbl).toContain('visit_log_id                UUID REFERENCES visit_logs_v2(id)');
+    expect(tbl).toContain('skud_integration_event_id   UUID REFERENCES skud_integration_events(id)');
+    expect(tbl).toContain('camera_device_id            UUID REFERENCES skud_hardware_devices(id)');
+    for (const value of ['clip', 'snapshot', 'event_reference', 'camera_context', 'unavailable']) {
+      expect(tbl).toContain(`'${value}'`);
+    }
+    expect(tbl).toContain('CONSTRAINT video_evidence_has_target');
+    expect(tbl).toContain('CONSTRAINT video_evidence_has_reference');
+  });
+
+  test('locks video evidence out of biometric identity matching', async () => {
+    await byId('v1_035_video_evidence_baseline').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS video_evidence_references'));
+
+    expect(tbl).toContain('biometric_identity_matching BOOLEAN NOT NULL DEFAULT FALSE');
+    expect(tbl).toContain('CHECK (biometric_identity_matching = FALSE)');
+  });
+
+  test('adds lookup indexes for incident, visit, camera and provider event review', async () => {
+    await byId('v1_035_video_evidence_baseline').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_video_evidence_incident'))).toContain('access_incident_id');
+    expect(sqls.find((s) => s.includes('idx_video_evidence_visit'))).toContain('visit_log_id');
+    expect(sqls.find((s) => s.includes('idx_video_evidence_camera_time'))).toContain('camera_device_id');
+    expect(sqls.find((s) => s.includes('uq_video_evidence_provider_event'))).toContain('video_provider_event_id');
   });
 });
 

@@ -311,6 +311,8 @@ const CAPABILITIES = Object.freeze({
   'access.policy.read': spec(accessStaff),
   'access.policy.write': spec(admin),
   'access.security.workspace.read': spec(accessOperators),
+  'video.evidence.read': spec(accessOperators),
+  'video.evidence.write': spec(accessOperators),
   'audit.read': spec(admin),
 
   // Existing v1 route capabilities. Keep these until route call-sites move to the dot catalog.

@@ -319,7 +319,8 @@ describe('Catalog introspection', () => {
       'access.incident.create', 'access.incident.resolve',
       'access.override.create', 'access.topology.read',
       'access.topology.write', 'access.policy.read', 'access.policy.write',
-      'access.security.workspace.read', 'audit.read', 'portfolio.dashboard.read',
+      'access.security.workspace.read', 'video.evidence.read', 'video.evidence.write',
+      'audit.read', 'portfolio.dashboard.read',
     ];
     for (const cap of required) {
       expect(CAPABILITIES[cap]).toBeDefined();

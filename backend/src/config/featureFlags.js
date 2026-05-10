@@ -112,6 +112,12 @@ const FEATURE_FLAGS = {
     description: 'Автоматическое управление СКУД при пропусках',
     category: 'integrations',
   },
+  video_evidence: {
+    default: false,
+    label: 'Видео-доказательства',
+    description: 'Привязка камер, клипов и снимков к событиям доступа и инцидентам',
+    category: 'integrations',
+  },
   analytics: {
     default: false,
     label: 'Аналитика',

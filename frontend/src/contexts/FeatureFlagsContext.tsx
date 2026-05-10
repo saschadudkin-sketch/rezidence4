@@ -39,6 +39,7 @@ export const FEATURE_KEYS = [
   'telegram_bot',
   'webhooks',
   'skud_integration',
+  'video_evidence',
   'analytics',
   'legacy_utilities_enabled',
 ] as const;

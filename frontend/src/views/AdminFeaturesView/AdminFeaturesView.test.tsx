@@ -37,6 +37,7 @@ const SCHEMA_RESPONSE = {
     { key: 'telegram_bot',     label: 'Telegram-уведомления',   description: 'Уведомления жильцам и охране в Telegram',       category: 'notifications',  default: false, locked: false },
     { key: 'webhooks',         label: 'Webhook-интеграции',     description: 'Интеграция с внешними системами через webhook', category: 'integrations',   default: false, locked: false },
     { key: 'skud_integration', label: 'СКУД-интеграция',        description: 'Автоматическое управление СКУД при пропусках', category: 'integrations',   default: false, locked: false },
+    { key: 'video_evidence',   label: 'Видео-доказательства',   description: 'Привязка камер, клипов и снимков к событиям доступа и инцидентам', category: 'integrations', default: false, locked: false },
     { key: 'analytics',        label: 'Аналитика',              description: 'Статистика посещений, заявок и работы объекта', category: 'admin',          default: false, locked: false },
     { key: 'legacy_utilities_enabled', label: 'Устаревшие модули (legacy)', description: 'Разморозить показания, биллинг, бронирования и чат (временно, до пост-релиза)', category: 'admin', default: false, locked: false },
   ],
