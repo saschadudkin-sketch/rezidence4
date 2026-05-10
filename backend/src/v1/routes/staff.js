@@ -20,9 +20,19 @@ const {
   isResourceScopeServiceError,
   loadResourcePropertyId,
 } = require('../services/resourceScope');
+const {
+  applyStaffImport,
+  buildStaffImportTemplate,
+  isOnboardingImportError,
+  previewStaffImport,
+} = require('../services/onboardingImportService');
 
 const router = express.Router();
 router.use(requireAuth);
+const importCsvParser = express.text({
+  type: ['text/csv', 'text/plain', 'application/csv'],
+  limit: '1mb',
+});
 
 // SEC [AUDIT #1] — per-tenant pool, см. комментарий в structure.js.
 const getDb = (req) => req.db || db;
@@ -71,6 +81,32 @@ function auditLog(req, { action, resourceId, changes }) {
   ).catch((err) => logger.warn({ err, action }, '[v1/staff] audit write failed'));
 }
 
+function auditImportLog(req, { action, propertyId, changes }) {
+  getDb(req).query(
+    `INSERT INTO property_audit_log(actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, 'onboarding_import', $4, $5, $6)`,
+    [req.user?.uid || null, req.user?.role || null, action, propertyId, changes ? JSON.stringify(changes) : null, req.ip || null],
+  ).catch((err) => logger.warn({ err, action }, '[v1/staff] import audit write failed'));
+}
+
+function resolveImportPropertyId(req) {
+  const body = req.body;
+  return (body && typeof body === 'object' && !Array.isArray(body) ? body.property_id || body.propertyId : null)
+    || req.query.property_id
+    || req.query.propertyId
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+function sendImportError(res, err) {
+  if (!isOnboardingImportError(err)) return false;
+  const body = { error: err.message };
+  if (err.details) body.details = err.details;
+  res.status(err.status).json(body);
+  return true;
+}
+
 // GET /api/v1/staff?role=&is_active=&q=&limit=&offset=
 router.get('/', async (req, res, next) => {
   try {
@@ -112,6 +148,59 @@ router.get('/', async (req, res, next) => {
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
     });
   } catch (err) { next(err); }
+});
+
+// GET /api/v1/staff/import/template
+router.get('/import/template', async (req, res, next) => {
+  try {
+    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const template = buildStaffImportTemplate();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${template.filename}"`);
+    res.send(template.content);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/staff/import/preview
+router.post('/import/preview', importCsvParser, async (req, res, next) => {
+  try {
+    const propertyId = resolveImportPropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const preview = previewStaffImport({ body: req.body || {} });
+    res.json(preview);
+  } catch (err) {
+    if (sendImportError(res, err)) return;
+    next(err);
+  }
+});
+
+// POST /api/v1/staff/import/apply
+router.post('/import/apply', importCsvParser, async (req, res, next) => {
+  try {
+    const propertyId = resolveImportPropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const result = await applyStaffImport({
+      queryable: getDb(req),
+      propertyId,
+      body: req.body || {},
+    });
+    auditImportLog(req, {
+      action: 'staff.imported',
+      propertyId,
+      changes: {
+        imported: result.imported,
+        skipped: result.skipped,
+        checklist: result.checklist,
+      },
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    if (sendImportError(res, err)) return;
+    if (err && err.code === '23505') return res.status(409).json({ error: 'staff import duplicate conflict' });
+    next(err);
+  }
 });
 
 // GET /api/v1/staff/:id

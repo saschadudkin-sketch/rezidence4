@@ -69,8 +69,16 @@ Enum `specialization` (nullable): `plumbing`, `electric`, `cleaning`, `general` 
 | `POST` | `/api/v1/staff` | `property_admin` | Создать (при найме) |
 | `PATCH` | `/api/v1/staff/:id` | `property_admin` | Обновить роль/capability/поля |
 | `POST` | `/api/v1/staff/:id/deactivate` | `property_admin` | Soft-delete при увольнении |
+| `GET` | `/api/v1/staff/import/template` | `property_admin` | CSV-шаблон onboarding-импорта |
+| `POST` | `/api/v1/staff/import/preview` | `property_admin` | Валидация staff rows без записи |
+| `POST` | `/api/v1/staff/import/apply` | `property_admin` | Idempotent staff import с `checklist` summary |
 
 Все mutations пишут в `property_audit_log` с `entity_type='staff_user'`. Смена `role` или capability-флагов обязательно логируется с old/new значениями в `details`.
+
+Import columns:
+`full_name`, `email`, `role`, `phone`, `specialization`, `external_uid`, `can_view_resident_phone`, `can_assign_requests`.
+`role` is required and must be one of `security`, `concierge`, `technician`, `property_admin`.
+Capability columns are optional; omitted values use the same role defaults as `POST /staff`.
 
 ---
 
@@ -97,6 +105,8 @@ Enum `specialization` (nullable): `plumbing`, `electric`, `cleaning`, `general` 
 - [ ] POST выставляет default capability-флаги согласно роли
 - [ ] PATCH логирует смену role/capability в audit с old/new
 - [ ] Deactivate — soft-delete; hard-delete запрещён через API
+- [ ] Import preview catches malformed rows before apply
+- [ ] Import apply is idempotent by `(property_id, email)` and `external_uid`
 
 ---
 

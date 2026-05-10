@@ -93,8 +93,17 @@ Enum `status` (на `contractor_companies`): `active`, `suspended`, `terminated`
 | `POST` | `/api/v1/contractor-users` | `property_admin` | Добавить сотрудника в компанию |
 | `PATCH` | `/api/v1/contractor-users/:id` | `property_admin` | Обновить expires_at, specialization |
 | `POST` | `/api/v1/contractor-users/:id/deactivate` | `property_admin` | Soft-delete |
+| `GET` | `/api/v1/contractors/import/template` | `property_admin` | CSV-шаблон onboarding-импорта компаний и пользователей |
+| `POST` | `/api/v1/contractors/import/preview` | `property_admin` | Валидация contractor rows без записи |
+| `POST` | `/api/v1/contractors/import/apply` | `property_admin` | Idempotent company/user import с `checklist` summary |
 
 Все mutations логируются. Создание `contractor_user` для `company.status!='active'` → 409.
+
+Import columns:
+`company_name`, `company_contact_name`, `company_contact_phone`, `company_contact_email`,
+`user_full_name`, `user_phone`, `user_email`, `specialization`, `external_uid`, `access_expires_at`.
+Rows with only company fields create or reuse a contractor company.
+Rows with any user field require `user_full_name`; duplicate users are skipped by `external_uid`, email within company, or full name within company when no stronger key exists.
 
 ---
 
@@ -117,6 +126,8 @@ Enum `status` (на `contractor_companies`): `active`, `suspended`, `terminated`
 - [ ] `access_expires_at` валидируется (> NOW() при создании)
 - [ ] Soft-delete компании не удаляет users, но они становятся "frozen" (проверяется при выдаче пасса)
 - [ ] Audit-log на все mutations
+- [ ] Import preview catches malformed company/user rows before apply
+- [ ] Import apply is idempotent by company name and contractor user identity keys
 
 ---
 
