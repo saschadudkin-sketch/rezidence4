@@ -6,7 +6,8 @@
  * hint that also drops not-yet-started scheduled posts (starts_at > now).
  *
  * Read-only: residents cannot interact beyond reading.  We pin urgent +
- * is_pinned posts on top and render `body_md` as plain preformatted text.
+ * is_pinned posts on top, surface urgent items in a banner, and render
+ * `body_md` as plain preformatted text.
  * Rendering markdown properly is a separate feature (needs a sanitizer on
  * the frontend, mirrored from backend's markdownSanitizer) — for now,
  * preformatted `<pre>` keeps line breaks intact without XSS risk.
@@ -75,13 +76,18 @@ export function ResidentAnnouncementsFeedPage() {
     });
   }, [query.data]);
 
+  const urgentRows = useMemo(
+    () => sorted.filter((row) => row.is_urgent),
+    [sorted],
+  );
+
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
         <ResidentNav />
         <h1 className={uiClasses.pageTitle}>Объявления</h1>
         <p className={uiClasses.pageSubtitle}>
-          Уведомления от управляющей компании и концьерж-службы.
+          Уведомления от управляющей компании и консьерж-службы.
         </p>
       </header>
 
@@ -104,6 +110,32 @@ export function ResidentAnnouncementsFeedPage() {
 
         {query.isSuccess && sorted.length === 0 && (
           <EmptyState>Пока нет активных объявлений.</EmptyState>
+        )}
+
+        {urgentRows.length > 0 && (
+          <section
+            role="region"
+            className={`${uiClasses.alert} ${uiClasses.alertWarning}`}
+            aria-labelledby="resident-urgent-announcements"
+          >
+            <h2 id="resident-urgent-announcements" className={uiClasses.sectionHeading}>
+              Срочные объявления
+            </h2>
+            <ul className={`${uiClasses.resourceList} ${uiClasses.marginTop3}`}>
+              {urgentRows.map((row) => (
+                <li key={row.id} className={uiClasses.resourceRow}>
+                  <div className={uiClasses.resourceRowMain}>
+                    <p className={uiClasses.resourceTitle}>{row.title}</p>
+                    <p className={uiClasses.resourceMeta}>
+                      {CATEGORY_LABELS[row.category] ?? row.category}
+                      {' · '}
+                      {formatDate(row.published_at ?? row.starts_at)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {sorted.map((row) => (

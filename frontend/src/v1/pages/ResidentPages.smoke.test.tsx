@@ -16,7 +16,7 @@
  * для него отдельных тестов нет, проверяется inline (aria-label навигации).
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
@@ -33,11 +33,13 @@ const {
   listMineMock,
   listAnnouncementsMock,
   listDocumentsMock,
+  getDocumentByIdMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listMineMock: vi.fn(),
   listAnnouncementsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
+  getDocumentByIdMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -54,7 +56,7 @@ vi.mock('../api', () => {
     api: {
       packages: { listMine: listMineMock },
       announcements: { list: listAnnouncementsMock },
-      documents: { list: listDocumentsMock },
+      documents: { list: listDocumentsMock, getById: getDocumentByIdMock },
       // Unused by these pages; kept as shims so accidental touches don't crash.
       accessRequests: { list: neverResolves, getById: neverResolves },
       passes: { list: neverResolves, getById: neverResolves },
@@ -281,9 +283,18 @@ describe('ResidentAnnouncementsFeedPage', () => {
 
     renderWithProviders(<ResidentAnnouncementsFeedPage />);
 
-    const pinned = await screen.findByText('Закреплённое сверху');
-    const urgent = await screen.findByText('Срочное внимание');
-    const normal = await screen.findByText('Обычное объявление');
+    const pinned = await screen.findByRole('heading', {
+      level: 3,
+      name: 'Закреплённое сверху',
+    });
+    const urgent = await screen.findByRole('heading', {
+      level: 3,
+      name: 'Срочное внимание',
+    });
+    const normal = await screen.findByRole('heading', {
+      level: 3,
+      name: 'Обычное объявление',
+    });
 
     // Pinned должен быть первым в DOM.
     expect(
@@ -296,6 +307,10 @@ describe('ResidentAnnouncementsFeedPage', () => {
     // Бейджи отрисовались.
     expect(screen.getByText('Закреплено')).toBeInTheDocument();
     expect(screen.getByText('Срочно')).toBeInTheDocument();
+
+    const urgentBanner = screen.getByRole('region', { name: /Срочные объявления/i });
+    expect(within(urgentBanner).getByText('Срочное внимание')).toBeInTheDocument();
+    expect(within(urgentBanner).queryByText('Обычное объявление')).not.toBeInTheDocument();
   });
 
   test('empty state — когда активных объявлений нет', async () => {
@@ -341,6 +356,7 @@ describe('ResidentAnnouncementsFeedPage', () => {
 describe('ResidentDocumentsPage', () => {
   beforeEach(() => {
     listDocumentsMock.mockReset();
+    getDocumentByIdMock.mockReset();
   });
 
   test('группирует по категории в правильном порядке', async () => {
@@ -434,6 +450,45 @@ describe('ResidentDocumentsPage', () => {
     expect(screen.getByText('Публичный')).toBeInTheDocument();
     // Размер файла форматируется в КБ (500 КБ).
     expect(screen.getByText(/500\s*КБ/)).toBeInTheDocument();
+  });
+
+  test('открывает документ через detail endpoint', async () => {
+    const docId = '00000000-0000-0000-0000-000000000777';
+    listDocumentsMock.mockResolvedValue({
+      ok: true,
+      count: 1,
+      documents: [
+        makeDocument({
+          id: docId,
+          title: 'Памятка жильца',
+          category: 'instructions',
+          body_md: null,
+          file_url: null,
+        }),
+      ],
+    });
+    getDocumentByIdMock.mockResolvedValue({
+      ok: true,
+      document: makeDocument({
+        id: docId,
+        title: 'Памятка жильца',
+        category: 'instructions',
+        body_md: 'Полный текст памятки',
+        file_url: '/uploads/memo.pdf',
+        file_size_bytes: 1024,
+      }),
+    });
+
+    renderWithProviders(<ResidentDocumentsPage />);
+
+    fireEvent.click(await screen.findByRole('button', {
+      name: 'Открыть документ: Памятка жильца',
+    }));
+
+    expect(getDocumentByIdMock).toHaveBeenCalledWith(docId);
+    expect(await screen.findByText('Полный текст памятки')).toBeInTheDocument();
+    const fileLinks = screen.getAllByRole('link', { name: /Открыть файл/i });
+    expect(fileLinks[fileLinks.length - 1]).toHaveAttribute('href', '/uploads/memo.pdf');
   });
 
   test('empty state — когда документы не опубликованы', async () => {

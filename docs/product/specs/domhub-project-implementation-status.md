@@ -82,7 +82,7 @@ The largest gaps are still structural:
 | `DH-30` | Contractor Portal UI | Improved, frontend baseline added | `/v1/contractor-workspace` now provides a restricted contractor queue/detail portal with start/resume, waiting-for-parts and result submission actions over `/api/v1/contractor-workspace`. |
 | `DH-31` | Packages Domain | Rechecked, guard/SLA hardening added | `packages_v2`, resident/admin package pages, role-aligned package guards and SLA 7/14/30 outbox reminders/follow-ups/admin-alerts exist; auto-return is intentionally absent. |
 | `DH-32` | Announcements And Documents Backend | Rechecked, guard/public routing hardening added | `announcements_v2`, `documents_v2`, versions, public/admin routes and services exist; communications route guards now exclude technician, keep security read-only, limit writes/admin consoles to concierge/admin, and public content slug routes resolve tenant context through middleware. |
-| `DH-33` | Resident Communications UI | Implemented baseline | Resident announcements and documents pages exist. |
+| `DH-33` | Resident Communications UI | Rechecked, resident UI hardening added | Resident announcements/documents pages exist; announcements now surface urgent items in a dedicated resident banner and documents exercise both list and row visibility through a resident detail panel. |
 | `DH-34` | Notification Orchestration | Partial | Outbox, log, worker, templates and adapters exist; channel production configuration/reliability still needs validation. |
 | `DH-35` | Property Admin Operational Dashboard | Partial | Admin/config surfaces exist, but no complete object-level operations dashboard with review workflows. |
 | `DH-36` | Management Company Portfolio API | Partial | Management-company platform routes and platform analytics exist; portfolio KPIs/governance are not complete. |
@@ -149,11 +149,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-30` | Improved, frontend baseline added | `ContractorWorkspacePage`, `contractorWorkspaceApi`, `/v1/contractor-workspace` routing, restricted detail rendering and page/router tests now cover contractor queue/detail loading, filters, start/resume, waiting, resolve and local non-contractor denial. | Recheck `DH-31` Packages Domain and confirm no remaining package gaps. |
 | `DH-31` | Rechecked, guard/SLA hardening added | Package backend guards now match the role matrix (`security` intake/pickup only, `concierge` operations, admin all); `/v1/packages` admits security while hiding return/remind/lost; package SLA runner now sends 7-day resident reminders, 14-day concierge follow-ups and 30-day admin alerts without changing package status. | Continue with `DH-32` Announcements And Documents Backend recheck. |
 | `DH-32` | Rechecked, guard/public routing hardening added | Announcements/documents routes now use communications-specific reader/writer guards; security remains read-only, technician is excluded from communications endpoints, write/admin flows are concierge/admin, and `/public/:slug/(documents|announcements)` can resolve tenant context before route handling. | Continue with `DH-33` Resident Communications UI recheck. |
+| `DH-33` | Rechecked, resident UI hardening added | Resident announcements now include a dedicated urgent banner while preserving pinned/urgent/newest ordering; resident documents now open a detail panel backed by `GET /documents/:id` and tests cover the row endpoint path. | Continue with `DH-34` Notification Orchestration recheck. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Recheck `DH-33` Resident Communications UI before moving deeper into operations-ready hardening.
+2. Recheck `DH-34` Notification Orchestration before moving deeper into operations-ready hardening.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 
@@ -205,6 +206,10 @@ Focused backend/frontend checks were executed for the latest `DH-03`/`DH-06`/`DH
 - `node --check backend/src/v1/routes/announcements.js`
 - `node --check backend/src/v1/routes/documents.js`
 - `npm --prefix backend test -- --runInBand --runTestsByPath src/__tests__/platformDb.test.js src/__tests__/v1AnnouncementsEndpoint.test.js src/__tests__/v1DocumentsEndpoint.test.js src/__tests__/v1AnnouncementsService.test.js src/__tests__/v1DocumentsService.test.js`
+- `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/ResidentPages.smoke.test.tsx`
+- `npm --prefix frontend run typecheck:compile`
+- `.\node_modules\.bin\eslint.cmd src/v1/pages/ResidentAnnouncementsFeedPage.tsx src/v1/pages/ResidentDocumentsPage.tsx src/v1/pages/ResidentPages.smoke.test.tsx` from `frontend/`
+- Browser/dev-server smoke opened `http://127.0.0.1:5173/v1/my/announcements` and `http://127.0.0.1:5173/v1/my/documents`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
 - `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`

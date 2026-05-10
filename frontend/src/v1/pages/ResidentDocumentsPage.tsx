@@ -12,18 +12,21 @@
  * the resident has a contractual relationship and can see the contract.
  *
  * Read-only.  File downloads use the `/uploads/…` URL as-is; the backend
- * gates access when the signed upload path expires.
+ * gates access when the signed upload path expires.  The list opens a
+ * dedicated detail panel via GET /documents/:id so resident visibility rules
+ * are exercised by both list and row endpoints.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
-import type { DocumentCategory, V1Document } from '../api/types';
+import type { DocumentCategory, UUID, V1Document } from '../api/types';
 import { qk } from '../store';
 import { ResidentNav } from '../components/ResidentNav';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   EmptyState,
   Inline,
@@ -54,6 +57,8 @@ const CATEGORY_LABELS: Record<DocumentCategory, string> = {
   other: 'Прочее',
 };
 
+const EMPTY_DOCUMENTS: V1Document[] = [];
+
 function formatBytes(bytes: number | null): string | null {
   if (bytes == null) return null;
   if (bytes < 1024) return `${bytes} Б`;
@@ -62,16 +67,19 @@ function formatBytes(bytes: number | null): string | null {
 }
 
 export function ResidentDocumentsPage() {
+  const [selectedId, setSelectedId] = useState<UUID | null>(null);
+
   const query = useQuery({
     queryKey: qk.documents.list(),
     queryFn: () => api.documents.list(),
     staleTime: 5 * 60_000,
   });
 
+  const documents = query.data?.documents ?? EMPTY_DOCUMENTS;
+
   const grouped = useMemo(() => {
-    const rows = query.data?.documents ?? [];
     const map = new Map<DocumentCategory, V1Document[]>();
-    for (const r of rows) {
+    for (const r of documents) {
       const list = map.get(r.category) ?? [];
       list.push(r);
       map.set(r.category, list);
@@ -86,7 +94,21 @@ export function ResidentDocumentsPage() {
     return CATEGORY_ORDER.filter((c) => map.has(c)).map(
       (c) => [c, map.get(c)!] as const,
     );
-  }, [query.data]);
+  }, [documents]);
+
+  const selectedSummary = useMemo(
+    () => documents.find((row) => row.id === selectedId) ?? null,
+    [documents, selectedId],
+  );
+
+  const detailQuery = useQuery({
+    queryKey: qk.documents.byId(selectedId as UUID),
+    queryFn: () => api.documents.getById(selectedId as UUID),
+    enabled: Boolean(selectedId),
+    staleTime: 5 * 60_000,
+  });
+
+  const selectedDocument = detailQuery.data?.document ?? selectedSummary;
 
   return (
     <div className={uiClasses.pageShell}>
@@ -129,22 +151,56 @@ export function ResidentDocumentsPage() {
               {CATEGORY_LABELS[category]}
             </h2>
             {rows.map((row) => (
-              <DocumentCard key={row.id} row={row} />
+              <DocumentCard
+                key={row.id}
+                row={row}
+                selected={row.id === selectedId}
+                onOpen={() => setSelectedId(row.id)}
+              />
             ))}
           </section>
         ))}
+
+        {selectedId && (
+          <DocumentDetailPanel
+            row={selectedDocument}
+            isFetching={detailQuery.isFetching}
+            error={detailQuery.error}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
       </Stack>
     </div>
   );
 }
 
-function DocumentCard({ row }: { row: V1Document }) {
+function DocumentCard({
+  row,
+  selected,
+  onOpen,
+}: {
+  row: V1Document;
+  selected: boolean;
+  onOpen: () => void;
+}) {
   const size = formatBytes(row.file_size_bytes);
   return (
     <Card
       title={row.title}
       subtitle={row.tag || undefined}
-      actions={row.is_public ? <Badge tone="info">Публичный</Badge> : null}
+      actions={(
+        <Inline>
+          {row.is_public ? <Badge tone="info">Публичный</Badge> : null}
+          <Button
+            variant={selected ? 'primary' : 'secondary'}
+            onClick={onOpen}
+            aria-pressed={selected}
+            aria-label={`Открыть документ: ${row.title}`}
+          >
+            {selected ? 'Открыт' : 'Открыть'}
+          </Button>
+        </Inline>
+      )}
     >
       <Stack>
         {row.body_md && (
@@ -161,6 +217,72 @@ function DocumentCard({ row }: { row: V1Document }) {
             ) : null}
           </p>
         )}
+      </Stack>
+    </Card>
+  );
+}
+
+function DocumentDetailPanel({
+  row,
+  isFetching,
+  error,
+  onClose,
+}: {
+  row: V1Document | null;
+  isFetching: boolean;
+  error: unknown;
+  onClose: () => void;
+}) {
+  const size = formatBytes(row?.file_size_bytes ?? null);
+
+  if (!row) {
+    return (
+      <Card
+        title="Документ"
+        actions={<Button variant="ghost" onClick={onClose}>Закрыть</Button>}
+      >
+        <Inline>
+          <Spinner />
+          <span className={uiClasses.textMuted}>Открываем документ…</span>
+        </Inline>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title={row.title}
+      subtitle={CATEGORY_LABELS[row.category]}
+      actions={<Button variant="ghost" onClick={onClose}>Закрыть</Button>}
+      elevated
+    >
+      <Stack>
+        {isFetching && (
+          <Inline>
+            <Spinner />
+            <span className={uiClasses.textMuted}>Обновляем документ…</span>
+          </Inline>
+        )}
+        {error ? (
+          <Alert tone="warning">
+            Не удалось обновить документ:{' '}
+            {isV1ApiError(error) ? error.message : 'показана версия из списка'}
+          </Alert>
+        ) : null}
+        {row.body_md ? (
+          <pre className={uiClasses.preWrap}>{row.body_md}</pre>
+        ) : null}
+        {row.file_url ? (
+          <p>
+            <a href={row.file_url} target="_blank" rel="noopener noreferrer">
+              Открыть файл
+            </a>
+            {size ? <span className={uiClasses.textMuted}> · {size}</span> : null}
+            {row.file_mime ? (
+              <span className={uiClasses.textMuted}> · {row.file_mime}</span>
+            ) : null}
+          </p>
+        ) : null}
       </Stack>
     </Card>
   );
