@@ -62,6 +62,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./034_skud_adapter_framework'),
   // DH-43 video evidence references linked to access events/incidents
   require('./035_video_evidence_baseline'),
+  // DH-43 VMS/NVR provider configs and camera mappings
+  require('./036_video_provider_configs'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

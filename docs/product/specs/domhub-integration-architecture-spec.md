@@ -308,6 +308,13 @@ The first video evidence layer remains link-only and does not turn DomHub into a
 - evidence link/view actions write sensitive audit events through `property_audit_log`;
 - the schema and service validation explicitly reject biometric identity matching for this scope.
 
+The VMS/NVR provider layer keeps recorder integration explicit but still link-only:
+- `video_provider_configs` stores property-scoped VMS/NVR adapter configs separately from SKUD provider configs;
+- cameras can be mapped to a VMS/NVR through `skud_hardware_devices.video_provider_config_id` and provider-specific camera metadata;
+- first-wave adapters cover TRASSIR, Macroscop, Hikvision NVR, Dahua NVR, Axxon Next, DevLine Line and generic link templates;
+- `/api/v1/video/providers`, `/api/v1/video/cameras/:cameraDeviceId/provider` and `/api/v1/access-incidents/:incidentId/video-evidence/fetch` manage provider config, camera mapping and incident evidence fetch references;
+- generated evidence stores URLs or external references only and strips inline credential/session parameters.
+
 ---
 
 ## 12. Notification integration specifics

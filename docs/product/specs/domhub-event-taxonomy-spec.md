@@ -148,6 +148,8 @@ Payloads MUST avoid raw PII when an ID reference is enough.
 - `hardware.device.health_changed`
 - `video.evidence.linked`
 - `video.evidence.viewed`
+- `video.provider.configured`
+- `video.camera_provider.linked`
 
 ### Audit And Review
 
@@ -183,7 +185,7 @@ Sensitive categories:
 | `hardware_boundary` | `access_point.created`, `access_point.deactivated` | changes physical checkpoint routing |
 | `personal_data` | `resident.updated`, `resident.deactivated`, `resident.consent_given` | touches PII/lifecycle controls |
 | `provider_settings` | `integration.provider.configured`, `integration.provider.disabled` | changes external source behavior |
-| `video_evidence` | `video.evidence.viewed`, `video.evidence.linked` | privacy-sensitive evidence access |
+| `video_evidence` | `video.evidence.viewed`, `video.evidence.linked`, `video.provider.configured`, `video.camera_provider.linked` | privacy-sensitive evidence access and camera/provider mapping |
 | `export` | `audit.export.created` | can expose sensitive operational data |
 
 Known legacy action strings MAY remain in `property_audit_log.action`; the catalog maps them to canonical event names for review/reporting without rewriting old rows.

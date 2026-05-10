@@ -5,10 +5,14 @@ const db = require('../../db');
 const requireAuth = require('../../middleware/auth');
 const { canInPropertyScope } = require('../lib/authz');
 const {
+  createVideoProviderConfig,
   createVideoEvidenceReference,
+  fetchAndAttachProviderEvidence,
   getVideoEvidenceReference,
   isVideoEvidenceServiceError,
+  linkCameraVideoProvider,
   listAccessPointCameras,
+  listVideoProviderConfigs,
   listIncidentVideoEvidence,
 } = require('../services/videoEvidenceService');
 
@@ -58,6 +62,55 @@ router.get('/video-evidence/cameras', async (req, res, next) => {
   }
 });
 
+router.get('/video/providers', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!requireVideoScope(req, res, 'video.provider.read', propertyId)) return;
+    const providers = await listVideoProviderConfigs(getDb(req), {
+      propertyId,
+      status: req.query.status || null,
+    });
+    res.json({ providers });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/video/providers', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!requireVideoScope(req, res, 'video.provider.write', propertyId)) return;
+    const provider = await createVideoProviderConfig(getDb(req), {
+      propertyId,
+      input: req.body || {},
+      user: req.user,
+    });
+    res.status(201).json({ provider });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+router.patch('/video/cameras/:cameraDeviceId/provider', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!requireVideoScope(req, res, 'video.provider.write', propertyId)) return;
+    const result = await linkCameraVideoProvider(getDb(req), {
+      propertyId,
+      cameraDeviceId: req.params.cameraDeviceId,
+      input: req.body || {},
+      user: req.user,
+      ipAddress: req.ip || null,
+    });
+    res.json(result);
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
 router.get('/access-incidents/:incidentId/video-evidence', async (req, res, next) => {
   try {
     const propertyId = resolvePropertyId(req);
@@ -67,6 +120,24 @@ router.get('/access-incidents/:incidentId/video-evidence', async (req, res, next
       incidentId: req.params.incidentId,
     });
     res.json({ evidence });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/access-incidents/:incidentId/video-evidence/fetch', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!requireVideoScope(req, res, 'video.evidence.write', propertyId)) return;
+    const result = await fetchAndAttachProviderEvidence(getDb(req), {
+      propertyId,
+      incidentId: req.params.incidentId,
+      input: req.body || {},
+      user: req.user,
+      ipAddress: req.ip || null,
+    });
+    res.status(201).json({ evidence: result.evidence });
   } catch (err) {
     if (sendServiceError(res, err)) return;
     next(err);

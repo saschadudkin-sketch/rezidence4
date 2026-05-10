@@ -320,6 +320,7 @@ describe('Catalog introspection', () => {
       'access.override.create', 'access.topology.read',
       'access.topology.write', 'access.policy.read', 'access.policy.write',
       'access.security.workspace.read', 'video.evidence.read', 'video.evidence.write',
+      'video.provider.read', 'video.provider.write',
       'audit.read', 'portfolio.dashboard.read',
     ];
     for (const cap of required) {

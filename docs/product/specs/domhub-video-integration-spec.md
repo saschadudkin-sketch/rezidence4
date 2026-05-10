@@ -129,6 +129,7 @@ Video integration не является обязательной частью MV
 
 Минимальная video integration должна включать:
 - возможность привязать access point к camera context;
+- возможность привязать camera context к внешней VMS/NVR provider config;
 - возможность хранить `clip_url` / `snapshot_url`;
 - возможность показывать ссылку на видео из incident/event view;
 - сохранение внешнего provider event ID.
@@ -255,6 +256,8 @@ Must test:
 Для РФ video integration should first align with:
 - Hikvision-class ecosystems
 - TRASSIR-linked scenarios
+- Macroscop / Axxon / DevLine VMS deployments
+- Dahua-class NVR deployments
 - mixed SKUD + VMS event linking
 
 Но документ intentionally не фиксирует vendor SDK details.  

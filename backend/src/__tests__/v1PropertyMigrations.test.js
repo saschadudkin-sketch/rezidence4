@@ -33,8 +33,8 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-22 service request core + 1 DH-23 attachments/updates
     // + 1 DH-24 assignment/SLA/escalation + 1 DH-27 technician workflow
     // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework
-    // + 1 DH-43 video evidence baseline = 35
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(35);
+    // + 1 DH-43 video evidence baseline + 1 DH-43 VMS/NVR configs = 36
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(36);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1327,6 +1327,49 @@ describe('v1_035_video_evidence_baseline', () => {
     expect(sqls.find((s) => s.includes('idx_video_evidence_visit'))).toContain('visit_log_id');
     expect(sqls.find((s) => s.includes('idx_video_evidence_camera_time'))).toContain('camera_device_id');
     expect(sqls.find((s) => s.includes('uq_video_evidence_provider_event'))).toContain('video_provider_event_id');
+  });
+});
+
+describe('v1_036_video_provider_configs', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates tenant-scoped video provider configs for common Russia VMS/NVR systems', async () => {
+    await byId('v1_036_video_provider_configs').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS video_provider_configs'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT video_provider_configs_property_id_unique UNIQUE (property_id, id)');
+    for (const provider of [
+      'trassir',
+      'macroscop',
+      'hikvision_nvr',
+      'dahua_nvr',
+      'axxon_next',
+      'devline_line',
+      'generic_link',
+    ]) {
+      expect(tbl).toContain(`'${provider}'`);
+    }
+    for (const status of ['active', 'disabled', 'degraded']) {
+      expect(tbl).toContain(`'${status}'`);
+    }
+    expect(sqls.find((s) => s.includes('idx_video_provider_configs_property'))).toContain('property_id, status, provider');
+    expect(sqls.find((s) => s.includes('uq_video_provider_configs_property_name_active'))).toContain('status <>');
+  });
+
+  test('links cameras and evidence references to video provider configs', async () => {
+    await byId('v1_036_video_provider_configs').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('ALTER TABLE skud_hardware_devices'))).toContain('video_provider_config_id UUID');
+    expect(sqls.find((s) => s.includes('skud_hardware_devices_video_provider_property_fk'))).toContain('REFERENCES video_provider_configs(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_skud_hardware_devices_video_provider'))).toContain('video_provider_config_id');
+    expect(sqls.find((s) => s.includes('ALTER TABLE video_evidence_references'))).toContain('video_provider_config_id UUID');
+    expect(sqls.find((s) => s.includes('video_evidence_video_provider_fk'))).toContain('REFERENCES video_provider_configs(id)');
+    expect(sqls.find((s) => s.includes('idx_video_evidence_video_provider'))).toContain('created_at DESC');
+    expect(sqls.find((s) => s.includes('uq_video_evidence_video_provider_event'))).toContain('video_provider_event_id');
   });
 });
 
