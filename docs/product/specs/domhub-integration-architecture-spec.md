@@ -288,6 +288,17 @@ The first production-facing SKUD framework slice is vendor-neutral and uses:
 
 Vendor-specific end-to-end integrations remain `DH-42+`.
 
+### 11.5 DH-42 vendor wave 1 baseline
+
+The first vendor wave exercises Hikvision- and Bolid/Orion-compatible flows through the neutral framework:
+- `POST /api/v1/skud/providers/:providerConfigId/events` accepts inbound provider access events with `X-SKUD-Secret` / `X-Integration-Secret`, normalizes the vendor payload, resolves mapped hardware device/access point, writes `skud_integration_events`, and appends `visit_logs_v2` with `event_source='skud'`;
+- `POST /api/v1/skud/providers/:providerConfigId/sync-pass` lets a scoped property admin provision or revoke a pass through the configured provider adapter and records the outbound command in `skud_integration_events`;
+- `HikvisionAdapter.normalizeInboundEvent()` maps common Hikvision event payload fields into DomHub `entry_allowed`, `entry_denied`, `exit_allowed`, or `exit_denied` events;
+- `BolidAdapter` implements the Orion Pro integration-module JSON-RPC baseline with configurable method names, Basic Auth/token params, visit provisioning/revocation, service health and Orion-style event normalization;
+- repeated provider event IDs are idempotent and do not create duplicate visit logs.
+
+This baseline is enough to exercise a first-wave provider path without claiming full vendor coverage. Deeper device quirks, reconciliation and production rollout are follow-up work.
+
 ---
 
 ## 12. Notification integration specifics

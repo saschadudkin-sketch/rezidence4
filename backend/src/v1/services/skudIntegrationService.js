@@ -1,5 +1,9 @@
 'use strict';
 
+const crypto = require('crypto');
+const { SkudAdapter } = require('../../services/skud/SkudAdapter');
+const { createSkudAdapter } = require('../../services/skud');
+
 const PROVIDERS = Object.freeze(['hikvision', 'bolid', 'sigur', 'parsec', 'generic']);
 const SYNC_MODES = Object.freeze(['push', 'pull', 'hybrid', 'manual']);
 const PROVIDER_STATUSES = Object.freeze(['active', 'disabled', 'degraded']);
@@ -34,6 +38,12 @@ const EVENT_STATUSES = Object.freeze([
   'retrying',
   'dead_lettered',
   'ignored',
+]);
+const VISIT_EVENT_TYPES = Object.freeze([
+  'entry_allowed',
+  'entry_denied',
+  'exit_allowed',
+  'exit_denied',
 ]);
 
 const PROVIDER_COLS = `
@@ -112,6 +122,71 @@ function normalizeJsonArray(value, field) {
   return value;
 }
 
+function parseJsonObject(value) {
+  if (!value) return {};
+  if (isPlainObject(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return isPlainObject(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function getInboundSecret(providerConfig) {
+  const config = parseJsonObject(providerConfig?.config_json);
+  return config.inbound_secret
+    || config.inboundSecret
+    || process.env.SKUD_INBOUND_SECRET
+    || null;
+}
+
+function assertInboundSecret(providerConfig, providedSecret, { requireSecret = false } = {}) {
+  const expected = getInboundSecret(providerConfig);
+  if (!expected && !requireSecret) return;
+  if (!expected) throw serviceError(500, 'SKUD inbound secret is not configured');
+  if (!constantTimeEqual(String(providedSecret || ''), String(expected))) {
+    throw serviceError(401, 'Invalid SKUD inbound secret');
+  }
+}
+
+function createAdapterForProvider(providerConfig, adapter = null) {
+  if (adapter) return adapter;
+  const registered = createSkudAdapter(providerConfig);
+  if (registered) return registered;
+  if (providerConfig?.provider === 'generic') {
+    return new SkudAdapter({ provider: 'generic', capabilities: ['inbound_events'] });
+  }
+  throw serviceError(422, `No SKUD adapter registered for provider '${providerConfig?.provider || 'unknown'}'`);
+}
+
+function normalizeVisitEventType(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!VISIT_EVENT_TYPES.includes(raw)) {
+    throw serviceError(400, `event_type must be one of: ${VISIT_EVENT_TYPES.join(', ')}`);
+  }
+  return raw;
+}
+
+function resolvePassLabel(pass) {
+  if (!pass) return null;
+  return pass.visitor_name
+    || pass.vehicle_plate
+    || pass.subject_label
+    || `${pass.subject_type}:${pass.id}`;
+}
+
 async function ensureProviderConfig(queryable, { propertyId, providerConfigId, requireActive = false }) {
   const { rows } = await queryable.query(
     `SELECT id, property_id, provider, status, sync_mode, base_url, auth_ref,
@@ -127,6 +202,20 @@ async function ensureProviderConfig(queryable, { propertyId, providerConfigId, r
     throw serviceError(409, 'SKUD provider config is not active');
   }
   return row;
+}
+
+async function findHardwareDeviceByExternalId(queryable, { propertyId, providerConfigId, externalDeviceId }) {
+  if (!externalDeviceId) return null;
+  const { rows } = await queryable.query(
+    `SELECT ${DEVICE_COLS}
+       FROM skud_hardware_devices
+      WHERE property_id = $1
+        AND provider_config_id = $2
+        AND external_device_id = $3
+      LIMIT 1`,
+    [propertyId, providerConfigId, externalDeviceId],
+  );
+  return rows[0] || null;
 }
 
 async function ensureAccessPoint(queryable, { propertyId, accessPointId }) {
@@ -359,6 +448,237 @@ async function markIntegrationEventStatus(queryable, {
   return rows[0];
 }
 
+async function recordProviderVisitLog(queryable, {
+  propertyId,
+  accessPointId = null,
+  eventType,
+  externalEventId = null,
+  personLabel = null,
+  vehiclePlate = null,
+  providerPayload = {},
+  occurredAt = null,
+}) {
+  if (externalEventId) {
+    const { rows } = await queryable.query(
+      `SELECT id, property_id, pass_id, access_point_id, event_type, event_source,
+              person_label, vehicle_plate, performed_by_staff_id,
+              provider_event_id, provider_payload, occurred_at, created_at
+         FROM visit_logs_v2
+        WHERE event_source = 'skud' AND provider_event_id = $1
+        LIMIT 1`,
+      [externalEventId],
+    );
+    if (rows[0]) return { visitLog: rows[0], idempotent: true };
+  }
+
+  const { rows } = await queryable.query(
+    `INSERT INTO visit_logs_v2
+       (property_id, pass_id, access_point_id, event_type, event_source,
+        person_label, vehicle_plate, performed_by_staff_id,
+        provider_event_id, provider_payload, occurred_at)
+     VALUES ($1,NULL,$2,$3,'skud',$4,$5,NULL,$6,$7::jsonb,$8)
+     RETURNING id, property_id, pass_id, access_point_id, event_type, event_source,
+               person_label, vehicle_plate, performed_by_staff_id,
+               provider_event_id, provider_payload, occurred_at, created_at`,
+    [
+      propertyId,
+      accessPointId || null,
+      eventType,
+      personLabel || null,
+      vehiclePlate || null,
+      externalEventId || null,
+      JSON.stringify(providerPayload || {}),
+      occurredAt || new Date().toISOString(),
+    ],
+  );
+  return { visitLog: rows[0], idempotent: false };
+}
+
+async function ingestProviderAccessEvent(queryable, {
+  propertyId,
+  providerConfigId,
+  rawEvent,
+  providedSecret = null,
+  requireSecret = false,
+  adapter = null,
+}) {
+  const providerConfig = await ensureProviderConfig(queryable, {
+    propertyId,
+    providerConfigId,
+    requireActive: true,
+  });
+  assertInboundSecret(providerConfig, providedSecret, { requireSecret });
+
+  const selectedAdapter = createAdapterForProvider(providerConfig, adapter);
+  const normalized = selectedAdapter.normalizeInboundEvent(rawEvent || {});
+  const eventType = normalizeVisitEventType(normalized.eventType);
+  const device = await findHardwareDeviceByExternalId(queryable, {
+    propertyId,
+    providerConfigId,
+    externalDeviceId: normalized.externalDeviceId,
+  });
+  const accessPointId = normalized.accessPointId || device?.access_point_id || null;
+  const externalEventId = normalized.externalEventId || null;
+
+  const integrationEvent = await recordIntegrationEvent(queryable, {
+    propertyId,
+    providerConfigId,
+    hardwareDeviceId: device?.id || null,
+    accessPointId,
+    direction: 'inbound',
+    eventType,
+    externalEventId,
+    status: 'processing',
+    payload: rawEvent || {},
+    normalizedPayload: {
+      event_type: eventType,
+      access_point_id: accessPointId,
+      external_device_id: normalized.externalDeviceId || null,
+      vehicle_plate: normalized.vehiclePlate || null,
+      person_label: normalized.personLabel || null,
+    },
+    occurredAt: normalized.occurredAt || null,
+  });
+
+  const { visitLog, idempotent } = await recordProviderVisitLog(queryable, {
+    propertyId,
+    accessPointId,
+    eventType,
+    externalEventId,
+    personLabel: normalized.personLabel || null,
+    vehiclePlate: normalized.vehiclePlate || null,
+    providerPayload: rawEvent || {},
+    occurredAt: normalized.occurredAt || null,
+  });
+
+  const terminalStatus = idempotent ? 'ignored' : 'succeeded';
+  const updatedEvent = await markIntegrationEventStatus(queryable, {
+    propertyId,
+    eventId: integrationEvent.id,
+    status: terminalStatus,
+  });
+  await updateProviderHealth(queryable, {
+    propertyId,
+    providerConfigId,
+    healthStatus: 'healthy',
+    lastError: null,
+  });
+
+  return {
+    provider_config: providerConfig,
+    hardware_device: device,
+    normalized_event: normalized,
+    integration_event: updatedEvent,
+    visit_log: visitLog,
+    idempotent,
+  };
+}
+
+async function loadPassForSync(queryable, { propertyId, passId }) {
+  const { rows } = await queryable.query(
+    `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
+            p.valid_from, p.valid_until, p.zone_id, p.point_id,
+            ar.visitor_name, v.plate_number AS vehicle_plate
+       FROM passes p
+       LEFT JOIN access_requests ar ON ar.id = p.access_request_id
+       LEFT JOIN vehicles v ON v.id = p.subject_vehicle_id
+      WHERE p.id = $1 AND p.property_id = $2
+      LIMIT 1`,
+    [passId, propertyId],
+  );
+  if (!rows[0]) throw serviceError(404, 'Pass not found');
+  return rows[0];
+}
+
+async function syncPassAccess(queryable, {
+  propertyId,
+  providerConfigId,
+  passId,
+  action = 'provision',
+  adapter = null,
+}) {
+  const normalizedAction = normalizeEnum(action, ['provision', 'revoke'], 'action');
+  const providerConfig = await ensureProviderConfig(queryable, {
+    propertyId,
+    providerConfigId,
+    requireActive: true,
+  });
+  const pass = await loadPassForSync(queryable, { propertyId, passId });
+  if (normalizedAction === 'provision' && pass.status !== 'active') {
+    throw serviceError(409, 'Only active passes can be provisioned to SKUD');
+  }
+
+  const selectedAdapter = createAdapterForProvider(providerConfig, adapter);
+  const integrationEvent = await recordIntegrationEvent(queryable, {
+    propertyId,
+    providerConfigId,
+    hardwareDeviceId: null,
+    accessPointId: pass.point_id || null,
+    direction: 'outbound',
+    eventType: `pass.${normalizedAction}`,
+    externalEventId: `pass:${normalizedAction}:${pass.id}`,
+    status: 'processing',
+    domhubEntityType: 'pass',
+    domhubEntityId: pass.id,
+    payload: {
+      pass_id: pass.id,
+      pass_type: pass.pass_type,
+      subject_type: pass.subject_type,
+      valid_from: pass.valid_from,
+      valid_until: pass.valid_until,
+      action: normalizedAction,
+    },
+  });
+
+  try {
+    const command = {
+      passId: pass.id,
+      pass_id: pass.id,
+      name: resolvePassLabel(pass),
+      personName: resolvePassLabel(pass),
+      validFrom: pass.valid_from,
+      validUntil: pass.valid_until,
+      zoneId: pass.zone_id,
+      pointId: pass.point_id,
+      vehiclePlate: pass.vehicle_plate,
+    };
+    const adapterResult = normalizedAction === 'provision'
+      ? await selectedAdapter.provisionAccess(command)
+      : await selectedAdapter.revokeAccess(command);
+    const updatedEvent = await markIntegrationEventStatus(queryable, {
+      propertyId,
+      eventId: integrationEvent.id,
+      status: 'succeeded',
+    });
+    await updateProviderHealth(queryable, {
+      propertyId,
+      providerConfigId,
+      healthStatus: 'healthy',
+      lastError: null,
+    });
+    return {
+      provider_config: providerConfig,
+      pass,
+      integration_event: updatedEvent,
+      adapter_result: adapterResult || null,
+    };
+  } catch (err) {
+    await markIntegrationEventStatus(queryable, {
+      propertyId,
+      eventId: integrationEvent.id,
+      status: 'failed',
+      errorMessage: err.message,
+    });
+    await updateProviderHealth(queryable, {
+      propertyId,
+      providerConfigId,
+      healthStatus: 'down',
+      lastError: err.message,
+    });
+    throw serviceError(502, `SKUD ${normalizedAction} failed: ${err.message}`);
+  }
+}
+
 module.exports = {
   DEVICE_CLASSES,
   DEVICE_DIRECTIONS,
@@ -372,11 +692,14 @@ module.exports = {
   SYNC_MODES,
   SkudIntegrationServiceError,
   createProviderConfig,
+  ingestProviderAccessEvent,
+  loadPassForSync,
   isSkudIntegrationServiceError,
   listHardwareDevices,
   listProviderConfigs,
   markIntegrationEventStatus,
   recordIntegrationEvent,
   registerHardwareDevice,
+  syncPassAccess,
   updateProviderHealth,
 };

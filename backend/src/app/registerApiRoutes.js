@@ -92,6 +92,7 @@ const v1PassesRouter            = require('../v1/routes/passes');
 const v1VisitsRouter            = require('../v1/routes/visits');
 const v1AccessIncidentsRouter   = require('../v1/routes/accessIncidents');
 const v1AuditReviewsRouter      = require('../v1/routes/auditReviews');
+const v1SkudIntegrationsRouter  = require('../v1/routes/skudIntegrations');
 
 // Phase 5 (platform-v1) — notification_log_v2 read API.  Spec:
 // docs/product/specs/platform-v1/notification-log-v2-spec.md §3.
@@ -302,6 +303,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/visits', v1VisitsRouter);
   app.use('/api/v1', v1AccessIncidentsRouter);
   app.use('/api/v1/audit', v1AuditReviewsRouter);
+  app.use('/api/v1/skud', requireFeature('skud_integration'), v1SkudIntegrationsRouter);
 
   // Phase 5 — notification_log_v2 read API.  Exposes:
   //   GET  /api/v1/admin/notification-log             (list)

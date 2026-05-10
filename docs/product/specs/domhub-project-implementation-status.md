@@ -43,7 +43,7 @@ The largest gaps are still structural:
 | Pilot-Capable Access Product | `DH-17` to `DH-20` | Partial | Resident/guard/onboarding UI exists; checkpoint selector, entry/exit control, manual decision UI, property access admin baseline, planned-checkpoint conversion baseline and DH-20 production smoke E2E exist; offline replay and full release-gate validation remain. |
 | Operations-Ready v2 | `DH-21` to `DH-34` | Mixed | Content, packages and notifications are advanced; service requests, SLA, staff/technician/contractor workflows are incomplete. |
 | Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives, portfolio API and portfolio UI baseline exist; integrations need hardening. |
-| Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial | SKUD provider config, hardware mapping and integration event foundations now exist; vendor-specific rollout, E2E gates and ops tooling remain. |
+| Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial | SKUD provider config, hardware mapping, integration event foundations and first Hikvision + Bolid/Orion-compatible event/sync paths now exist; deeper vendor rollout, E2E gates and ops tooling remain. |
 | Russia Production Readiness | `DH-55` to `DH-61` | Mostly docs/planned | Consent/delete baseline exists, but lifecycle/offboarding, emergency, GIS/OSS, hardware registry and reviews are not complete. |
 | Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
 | Legacy Cutover | `DH-62` | Docs/planned | Deprecated `/api/*` aliases, legacy UI/runtime paths and fallback flags still exist; removal must follow proven v1 cutover and replacement modules. |
@@ -93,7 +93,7 @@ The largest gaps are still structural:
 | `DH-39` | Packaging And Feature Gating Enforcement | Rechecked, package-aware gates added | Feature flags now resolve through canonical package ids (`core_access`, `operations`, `portfolio`, `enterprise`), legacy plan ids are normalized by migration, platform property create/update validates package ids, and admin flag writes cannot enable modules outside the property's package. |
 | `DH-40` | Webhooks And Outbound Integration Baseline | Rechecked, outbound envelope baseline added | Legacy webhooks/integrations and outbox foundations exist; outbound webhook deliveries now carry versioned `v1` envelopes, stable delivery/outbox ids for idempotent receiver dedupe, correlation headers and retry attempt headers across both v1 outbox and legacy delivery paths. Full canonical integration layer remains future DH-41+ work. |
 | `DH-41` | SKUD Adapter Framework | Improved, backend framework baseline added | `v1_034_skud_adapter_framework` adds tenant-scoped provider configs, hardware device mappings with source-of-truth/fallback rules, and idempotent integration event logs; `skudIntegrationService` and the adapter registry can host multiple providers without leaking vendor models into access-domain code. |
-| `DH-42` | SKUD Vendor Integration Wave 1 | Legacy/prototype | Bolid/Hikvision adapter code is now hosted by the registry, but no vendor is wired end-to-end for provider config, pass sync and inbound event processing yet. |
+| `DH-42` | SKUD Vendor Integration Wave 1 | Improved, Hikvision + Bolid/Orion-compatible baseline added | `/api/v1/skud/providers/:id/events` ingests provider events into `skud_integration_events` and `visit_logs_v2`, `/sync-pass` exercises outbound pass provision/revoke through the adapter registry, `HikvisionAdapter` normalizes common access events, and `BolidAdapter` now covers Orion Pro JSON-RPC visit provisioning/revocation, health and inbound event normalization. Full vendor-specific edge cases, reconciliation and field rollout remain future work. |
 | `DH-43` | Video Evidence Integration | Docs/planned | No first-class video evidence link/review workflow found. |
 | `DH-44` | ERP / 1C / ЖКХ Exchange Baseline | Partial/prototype | Generic integrations exist; no complete ERP/1C/ЖКХ exchange layer. |
 | `DH-45` | Analytics Aggregation Jobs | Partial | Some analytics endpoints and outbox/package metrics exist; canonical event-based aggregation is incomplete. |
@@ -161,11 +161,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-39` | Rechecked, package-aware gates added | Added canonical package ids to the packaging spec/config, normalized legacy `standard/core/premium/pro` plans via platform migration, validated property package ids in platform API/UI, resolved feature flags through package constraints, and blocked admin toggles that would enable a module outside the package. | Continue with `DH-40` Webhooks And Outbound Integration Baseline recheck. |
 | `DH-40` | Rechecked, outbound envelope baseline added | Added versioned outbound webhook payloads and headers (`v1`, delivery/event id, correlation id, retry attempt), switched v1 webhook idempotency from business `correlation_id` to stable `notifications_outbox.id`, mirrored the envelope in the legacy `webhook_deliveries` path, and documented the contract in the integration architecture spec. | Continue with `DH-41` SKUD Adapter Framework recheck. |
 | `DH-41` | Improved, backend framework baseline added | Added the SKUD framework migration, provider/device/event service, adapter registry contract and focused tests for migration shape, adapter registration and provider/device/event behavior. | Continue with `DH-42` SKUD Vendor Integration Wave 1 recheck. |
+| `DH-42` | Improved, Hikvision + Bolid/Orion-compatible baseline added | Added SKUD routes for inbound provider events and admin pass sync, wired event ingestion to provider/device/event service, normalized common Hikvision and Bolid/Orion payloads, added Orion Pro JSON-RPC visit provisioning/revocation/health baseline, recorded provider events in `visit_logs_v2`, and covered service/route/adapter behavior with focused tests. | Continue with `DH-43` Video Evidence Integration recheck. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Continue with `DH-42` SKUD Vendor Integration Wave 1 recheck.
+2. Continue with `DH-43` Video Evidence Integration recheck.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 5. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths until v1 release gates and replacement modules prove no supported flow depends on them.
@@ -260,6 +261,9 @@ Focused backend/frontend checks were executed for recent implementation updates:
 - `node --check src/services/skud/HikvisionAdapter.js` from `backend/`
 - `node --check src/services/skud/index.js` from `backend/`
 - `node .\node_modules\jest\bin\jest.js skudAdapterRegistry.test.js v1SkudIntegrationService.test.js v1PropertyMigrations.test.js --runInBand` from `backend/`
+- `node --check src/v1/routes/skudIntegrations.js` from `backend/`
+- `node --check src/app/registerApiRoutes.js` from `backend/`
+- `node .\node_modules\jest\bin\jest.js skudAdapterRegistry.test.js v1SkudIntegrationService.test.js v1SkudIntegrationsRoute.test.js v1PropertyMigrations.test.js --runInBand` from `backend/`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
 - `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`

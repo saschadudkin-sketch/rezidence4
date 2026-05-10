@@ -32,10 +32,16 @@ class SkudAdapter {
   }
 
   normalizeInboundEvent(rawEvent) {
+    const eventType = rawEvent?.eventType || rawEvent?.event_type || 'unknown';
     return {
       provider: this.provider,
-      eventType: rawEvent?.eventType || rawEvent?.event_type || 'unknown',
+      eventType,
       externalEventId: rawEvent?.id || rawEvent?.event_id || rawEvent?.external_event_id || null,
+      externalDeviceId: rawEvent?.device_id || rawEvent?.external_device_id || null,
+      accessPointId: rawEvent?.access_point_id || null,
+      vehiclePlate: rawEvent?.vehicle_plate || rawEvent?.plate || null,
+      personLabel: rawEvent?.person_label || rawEvent?.name || null,
+      occurredAt: rawEvent?.occurred_at || rawEvent?.timestamp || null,
       payload: rawEvent || {},
     };
   }
