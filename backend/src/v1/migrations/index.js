@@ -58,6 +58,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./032_technician_workflow'),
   // DH-29 contractor assignment binding and KPI event stream
   require('./033_contractor_workflow'),
+  // DH-41 SKUD provider config, hardware mapping and integration event logs
+  require('./034_skud_adapter_framework'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

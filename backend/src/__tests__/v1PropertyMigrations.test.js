@@ -32,8 +32,8 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-06 access topology foundation + 1 DH-13/DH-14 policy layer
     // + 1 DH-22 service request core + 1 DH-23 attachments/updates
     // + 1 DH-24 assignment/SLA/escalation + 1 DH-27 technician workflow
-    // + 1 DH-29 contractor workflow = 33
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(33);
+    // + 1 DH-29 contractor workflow + 1 DH-41 SKUD framework = 34
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(34);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1228,6 +1228,63 @@ describe('v1_028_access_policies', () => {
     expect(constraint).toBeDefined();
     expect(constraint).toContain('policy_denied');
     expect(constraint).toContain('policy_security_review_required');
+  });
+});
+
+describe('v1_034_skud_adapter_framework', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates tenant-scoped SKUD provider configs with provider and health enums', async () => {
+    await byId('v1_034_skud_adapter_framework').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS skud_provider_configs'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('CONSTRAINT skud_provider_configs_property_id_unique UNIQUE (property_id, id)');
+    for (const provider of ['hikvision', 'bolid', 'sigur', 'parsec', 'generic']) {
+      expect(tbl).toContain(`'${provider}'`);
+    }
+    for (const status of ['unknown', 'healthy', 'degraded', 'down']) {
+      expect(tbl).toContain(`'${status}'`);
+    }
+    expect(sqls.find((s) => s.includes('idx_skud_provider_configs_property'))).toContain('property_id, status, provider');
+    expect(sqls.find((s) => s.includes('uq_skud_provider_configs_property_name_active'))).toContain('status <>');
+  });
+
+  test('creates hardware devices mapped to provider configs and access points', async () => {
+    await byId('v1_034_skud_adapter_framework').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS skud_hardware_devices'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('FOREIGN KEY (property_id, provider_config_id)');
+    expect(tbl).toContain('REFERENCES skud_provider_configs(property_id, id)');
+    expect(tbl).toContain('FOREIGN KEY (property_id, access_point_id)');
+    expect(tbl).toContain('REFERENCES access_points(property_id, id)');
+    for (const deviceClass of ['barrier', 'gate', 'intercom', 'lpr', 'camera', 'reader']) {
+      expect(tbl).toContain(`'${deviceClass}'`);
+    }
+    for (const fallbackRule of ['manual_guard', 'offline_queue', 'deny_until_restored']) {
+      expect(tbl).toContain(`'${fallbackRule}'`);
+    }
+    expect(sqls.find((s) => s.includes('uq_skud_hardware_devices_external'))).toContain('external_device_id');
+  });
+
+  test('creates idempotent integration event log for inbound and outbound SKUD events', async () => {
+    await byId('v1_034_skud_adapter_framework').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS skud_integration_events'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain("CHECK (direction IN ('inbound','outbound'))");
+    for (const status of ['pending', 'processing', 'succeeded', 'failed', 'retrying', 'dead_lettered']) {
+      expect(tbl).toContain(`'${status}'`);
+    }
+    expect(tbl).toContain('payload                JSONB NOT NULL');
+    expect(tbl).toContain('normalized_payload     JSONB');
+    expect(sqls.find((s) => s.includes('uq_skud_integration_events_external'))).toContain('external_event_id');
+    expect(sqls.find((s) => s.includes('idx_skud_integration_events_status'))).toContain('status, next_retry_at');
   });
 });
 

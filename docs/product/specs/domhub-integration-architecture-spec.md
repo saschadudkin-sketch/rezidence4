@@ -278,6 +278,16 @@ DomHub должен уметь маппить:
 - face enrollment hooks
 - ANPR feeds
 
+### 11.4 DH-41 SKUD framework baseline
+
+The first production-facing SKUD framework slice is vendor-neutral and uses:
+- `skud_provider_configs` for per-property provider configuration, sync mode, capabilities, health and credential reference metadata;
+- `skud_hardware_devices` for mapping provider devices to DomHub `access_points`, including `source_of_truth` and `fallback_rule` for every configured hardware class;
+- `skud_integration_events` for inbound/outbound event logs with status, retry/dead-letter fields, normalized payloads and idempotency by `(property_id, provider_config_id, external_event_id)`;
+- adapter registry under `backend/src/services/skud` so vendor-specific adapters can be plugged in without changing access-domain models.
+
+Vendor-specific end-to-end integrations remain `DH-42+`.
+
 ---
 
 ## 12. Notification integration specifics

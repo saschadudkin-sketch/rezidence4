@@ -1,13 +1,45 @@
 'use strict';
 
-/**
- * SkudAdapter — abstract base class for access-control system integrations.
- *
- * Concrete implementations (HikvisionAdapter, BolidAdapter) extend this class
- * and override all three methods.  The factory in index.js returns the correct
- * concrete instance based on property feature_flags or the SKUD_ADAPTER env var.
- */
 class SkudAdapter {
+  constructor({ provider = 'generic', capabilities = [], config = {} } = {}) {
+    this.provider = provider;
+    this.capabilities = new Set(capabilities);
+    this.config = config;
+  }
+
+  getCapabilities() {
+    return Array.from(this.capabilities);
+  }
+
+  supports(capability) {
+    return this.capabilities.has(capability);
+  }
+
+  async provisionAccess(command) {
+    return this.addAccess(command.passId || command.pass_id, {
+      name: command.name || command.personName || command.person_name,
+      validUntil: command.validUntil || command.valid_until,
+      raw: command,
+    });
+  }
+
+  async revokeAccess(command) {
+    return this.removeAccess(command.passId || command.pass_id);
+  }
+
+  async getHealth() {
+    return { provider: this.provider, status: 'unknown' };
+  }
+
+  normalizeInboundEvent(rawEvent) {
+    return {
+      provider: this.provider,
+      eventType: rawEvent?.eventType || rawEvent?.event_type || 'unknown',
+      externalEventId: rawEvent?.id || rawEvent?.event_id || rawEvent?.external_event_id || null,
+      payload: rawEvent || {},
+    };
+  }
+
   /**
    * addAccess — provision a person in the access-control system.
    * @param {string} passId      — unique identifier for the pass/visitor (typically request id)

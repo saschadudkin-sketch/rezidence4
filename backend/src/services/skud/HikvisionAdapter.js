@@ -10,8 +10,12 @@ const { SkudAdapter } = require('./SkudAdapter');
  * basic auth (username / password).
  */
 class HikvisionAdapter extends SkudAdapter {
-  constructor({ apiUrl, username, password }) {
-    super();
+  constructor({ apiUrl, username, password, ...config } = {}) {
+    super({
+      provider: 'hikvision',
+      capabilities: ['provision_access', 'revoke_access', 'inbound_events', 'status'],
+      config: { apiUrl, username, ...config },
+    });
     this.baseUrl = apiUrl;
     this.auth    = Buffer.from(`${username}:${password}`).toString('base64');
   }

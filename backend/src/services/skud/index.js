@@ -3,39 +3,77 @@
 const { HikvisionAdapter } = require('./HikvisionAdapter');
 const { BolidAdapter }     = require('./BolidAdapter');
 
-/**
- * createSkudAdapter — factory that returns the correct adapter instance for
- * a given property, or null if SKUD integration is not configured.
- *
- * Resolution order:
- *   1. property.feature_flags.skud_adapter  (per-property override)
- *   2. SKUD_ADAPTER env var                 (global default)
- *   3. null                                  (SKUD disabled)
- *
- * Required env vars when adapter is active:
- *   SKUD_API_URL, SKUD_API_USER, SKUD_API_PASSWORD
- *
- * @param {object|null} property — property row, may include feature_flags JSONB
- * @returns {SkudAdapter|null}
- */
-function createSkudAdapter(property) {
-  const adapterType =
-    property?.feature_flags?.skud_adapter ||
-    process.env.SKUD_ADAPTER ||
-    null;
+const ADAPTER_REGISTRY = new Map([
+  ['hikvision', HikvisionAdapter],
+  ['bolid', BolidAdapter],
+]);
 
-  if (!adapterType) return null;
-
-  const cfg = {
-    apiUrl:   process.env.SKUD_API_URL      || '',
-    username: process.env.SKUD_API_USER     || '',
-    password: process.env.SKUD_API_PASSWORD || '',
-  };
-
-  if (adapterType === 'hikvision') return new HikvisionAdapter(cfg);
-  if (adapterType === 'bolid')     return new BolidAdapter(cfg);
-
-  return null;
+function normalizeAdapterType(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  return value.trim().toLowerCase();
 }
 
-module.exports = { createSkudAdapter };
+function getRegisteredSkudProviders() {
+  return Array.from(ADAPTER_REGISTRY.keys()).sort();
+}
+
+function registerSkudAdapter(type, AdapterClass) {
+  const normalized = normalizeAdapterType(type);
+  if (!normalized) throw new Error('SKUD adapter type is required');
+  if (typeof AdapterClass !== 'function') throw new Error('SKUD AdapterClass must be a constructor');
+  ADAPTER_REGISTRY.set(normalized, AdapterClass);
+}
+
+function resolveAdapterType(configOrProperty) {
+  return normalizeAdapterType(
+    configOrProperty?.provider
+    || configOrProperty?.type
+    || configOrProperty?.feature_flags?.skud_adapter
+    || process.env.SKUD_ADAPTER,
+  );
+}
+
+function resolveAdapterConfig(configOrProperty = {}) {
+  const configJson = configOrProperty.config_json || configOrProperty.config || {};
+  return {
+    ...configJson,
+    apiUrl: (
+      configOrProperty.base_url
+      || configOrProperty.apiUrl
+      || configJson.apiUrl
+      || process.env.SKUD_API_URL
+      || ''
+    ),
+    username: (
+      configOrProperty.username
+      || configJson.username
+      || process.env.SKUD_API_USER
+      || ''
+    ),
+    password: (
+      configOrProperty.password
+      || configJson.password
+      || process.env.SKUD_API_PASSWORD
+      || ''
+    ),
+    authRef: configOrProperty.auth_ref || configOrProperty.authRef || configJson.authRef || null,
+    providerConfigId: configOrProperty.id || configOrProperty.provider_config_id || null,
+    propertyId: configOrProperty.property_id || configOrProperty.propertyId || null,
+  };
+}
+
+function createSkudAdapter(configOrProperty = null) {
+  const adapterType = resolveAdapterType(configOrProperty || {});
+
+  if (!adapterType) return null;
+  const AdapterClass = ADAPTER_REGISTRY.get(adapterType);
+  if (!AdapterClass) return null;
+
+  return new AdapterClass(resolveAdapterConfig(configOrProperty || {}));
+}
+
+module.exports = {
+  createSkudAdapter,
+  getRegisteredSkudProviders,
+  registerSkudAdapter,
+};

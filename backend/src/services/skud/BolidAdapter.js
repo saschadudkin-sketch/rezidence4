@@ -10,8 +10,12 @@ const { SkudAdapter } = require('./SkudAdapter');
  * SKUD_ADAPTER=bolid (or property.feature_flags.skud_adapter='bolid').
  */
 class BolidAdapter extends SkudAdapter {
-  constructor({ apiUrl, username, password }) {
-    super();
+  constructor({ apiUrl, username, password, ...config } = {}) {
+    super({
+      provider: 'bolid',
+      capabilities: ['provision_access', 'revoke_access', 'status'],
+      config: { apiUrl, username, ...config },
+    });
     this.baseUrl  = apiUrl;
     this.username = username;
     this.password = password;
