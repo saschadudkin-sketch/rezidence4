@@ -279,6 +279,10 @@ function spec(roleList, options = {}) {
 }
 
 const admin = roles(ADMIN_ROLE_LIST);
+const portfolioAdmins = roles(
+  FINAL_ROLES.MANAGEMENT_COMPANY_ADMIN,
+  FINAL_ROLES.PLATFORM_ADMIN,
+);
 const accessStaff = roles(FINAL_ROLES.SECURITY, FINAL_ROLES.CONCIERGE, ADMIN_ROLE_LIST);
 const accessOperators = roles(FINAL_ROLES.SECURITY, ADMIN_ROLE_LIST);
 const requestCreators = roles(
@@ -314,6 +318,7 @@ const CAPABILITIES = Object.freeze({
   'outbox:requeue': spec(admin),
   'outbox:cancel': spec(admin),
   'operations.dashboard.read': spec(admin),
+  'portfolio.dashboard.read': spec(portfolioAdmins),
 
   'announcements:read': spec(accessStaff),
   'announcements:publish': spec(admin),

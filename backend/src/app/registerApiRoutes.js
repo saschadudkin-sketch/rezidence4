@@ -106,6 +106,7 @@ const v1NotificationLogRouter   = require('../v1/routes/notificationLog');
 // agreagate'ит по всем tenants, этот — под конкретный req.db.
 const v1AdminOutboxRouter       = require('../v1/routes/adminOutbox');
 const v1OperationsDashboardRouter = require('../v1/routes/operationsDashboard');
+const v1ManagementCompanyPortfolioRouter = require('../v1/routes/managementCompanyPortfolio');
 
 // Phase 5 (platform-v1) — packages_v2 content module.  Spec:
 // docs/product/specs/platform-v1/packages-v2-spec.md §4.
@@ -325,6 +326,11 @@ function registerApiRoutes(app, { rateLimiters }) {
   // request/access/incident KPIs plus notification health in one per-property
   // snapshot.  Route is admin-only and uses req.db tenant context.
   app.use('/api/v1/admin/operations-dashboard', v1OperationsDashboardRouter);
+
+  // DH-36 — management-company portfolio API.  Uses the current tenant's
+  // management_company_id as the company boundary, then fans out through the
+  // platform registry to aggregate DH-35 snapshots for that portfolio only.
+  app.use('/api/v1/management-company/portfolio', v1ManagementCompanyPortfolioRouter);
 
   app.use('/api/auth', deprecate, authLimiter, authRouter);
   app.use('/api/requests', deprecate, requestsRouter);

@@ -127,6 +127,8 @@ async function getRequestKpis(db, period) {
     completed: toInt(agg.completed),
     open: toInt(agg.open),
     overdue_backlog: toInt(agg.overdue_backlog),
+    resolved_within_sla: toInt(agg.resolved_within_sla),
+    resolved_with_sla: toInt(agg.resolved_with_sla),
     sla_compliance_rate: ratio(agg.resolved_within_sla, agg.resolved_with_sla),
     first_response_median_minutes: toNullableNumber(agg.first_response_median_minutes),
     resolution_median_minutes: toNullableNumber(agg.resolution_median_minutes),
