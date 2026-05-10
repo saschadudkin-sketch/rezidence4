@@ -98,6 +98,8 @@ export interface OperationsDashboardSnapshot {
     completed: number;
     open: number;
     overdue_backlog: number;
+    resolved_within_sla?: number;
+    resolved_with_sla?: number;
     sla_compliance_rate: number | null;
     first_response_median_minutes: number | null;
     resolution_median_minutes: number | null;
@@ -151,6 +153,86 @@ export interface OperationsDashboardSnapshot {
 export interface OperationsDashboardResponse {
   ok: true;
   dashboard: OperationsDashboardSnapshot;
+}
+
+// ─── Management Company Portfolio ──────────────────────────────────────────
+
+export interface ManagementCompanyPortfolioProperty {
+  id: UUID;
+  slug: string;
+  name: string;
+  status: string | null;
+  is_active: boolean;
+  health: 'ok' | 'error';
+  generated_at?: IsoDateTime;
+  error?: string;
+  hotspots: string[];
+  requests?: OperationsDashboardSnapshot['requests'];
+  access?: OperationsDashboardSnapshot['access'];
+  incidents?: OperationsDashboardSnapshot['incidents'];
+  notifications?: OperationsDashboardSnapshot['notifications'];
+}
+
+export interface ManagementCompanyPortfolioRanking {
+  property_id: UUID;
+  property_slug: string;
+  property_name: string;
+  value: number;
+}
+
+export interface ManagementCompanyPortfolioSnapshot {
+  generated_at: IsoDateTime;
+  management_company_id: UUID;
+  period: {
+    key: OperationsDashboardPeriod;
+    hours: number | null;
+  };
+  filters: {
+    property_slugs: string[];
+    include_inactive: boolean;
+  };
+  rollup: {
+    properties_total: number;
+    properties_healthy: number;
+    properties_error: number;
+    hotspot_property_count: number;
+    requests: Required<Pick<
+      OperationsDashboardSnapshot['requests'],
+      | 'created'
+      | 'completed'
+      | 'open'
+      | 'overdue_backlog'
+      | 'resolved_within_sla'
+      | 'resolved_with_sla'
+    >> & Pick<
+      OperationsDashboardSnapshot['requests'],
+      'sla_compliance_rate' | 'by_status' | 'by_priority'
+    >;
+    access: OperationsDashboardSnapshot['access'];
+    incidents: Omit<OperationsDashboardSnapshot['incidents'], 'resolution_median_minutes'>;
+    notifications: OperationsDashboardSnapshot['notifications'];
+  };
+  rankings: {
+    overdue_backlog: ManagementCompanyPortfolioRanking[];
+    incident_load: ManagementCompanyPortfolioRanking[];
+    notification_failures: ManagementCompanyPortfolioRanking[];
+  };
+  properties: ManagementCompanyPortfolioProperty[];
+  errors: Array<{
+    property_id: UUID;
+    property_slug: string;
+    error: string;
+  }>;
+  formula_notes: {
+    request_sla_compliance_rate: string;
+    notification_success_rate: string;
+    hotspot_property_count: string;
+  };
+}
+
+export interface ManagementCompanyPortfolioResponse {
+  ok: true;
+  portfolio: ManagementCompanyPortfolioSnapshot;
 }
 
 // ─── Access Requests ────────────────────────────────────────────────────────

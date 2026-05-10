@@ -68,6 +68,7 @@ vi.mock('./api', () => {
       },
       packages: { list: neverResolves },
       operationsDashboard: { get: neverResolves },
+      managementCompanyPortfolio: { get: neverResolves },
       residents: { getById: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
@@ -203,6 +204,12 @@ describe('V1Router role redirects (from /v1 index)', () => {
     expect(await screen.findByRole('heading', { name: /операционный обзор/i })).toBeInTheDocument();
   });
 
+  test('management company admin → portfolio dashboard', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('management_company_admin'));
+    renderAt('/v1');
+    expect(await screen.findByRole('heading', { name: /портфель ук/i })).toBeInTheDocument();
+  });
+
   test('concierge → staff workspace', async () => {
     sessionMeMock.mockResolvedValue(baseUser('concierge'));
     renderAt('/v1');
@@ -279,6 +286,21 @@ describe('V1Router direct deep-links gate by role', () => {
     expect(
       await screen.findByRole('heading', { name: /операционный обзор/i }),
     ).toBeInTheDocument();
+  });
+
+  test('management company admin deep-linked to /v1/portfolio reaches portfolio dashboard', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('management_company_admin'));
+    renderAt('/v1/portfolio');
+    expect(
+      await screen.findByRole('heading', { name: /портфель ук/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('resident deep-linked to /v1/portfolio gets kicked home', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('owner'));
+    renderAt('/v1/portfolio');
+    expect(await screen.findByTestId('legacy-home')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /портфель ук/i })).toBeNull();
   });
 
   test('security deep-linked to /v1/staff-workspace reaches staff workspace', async () => {

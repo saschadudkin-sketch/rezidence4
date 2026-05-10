@@ -41,7 +41,7 @@ The largest gaps are still structural:
 | Operational Access Backend | `DH-10` to `DH-16` | Implemented backend baseline, with hardening gaps | Requests, passes, vehicles, verification, incidents, policy CRUD/engine, security workspace and manual point-scoped actions exist; offline client replay and broader E2E remain. |
 | Pilot-Capable Access Product | `DH-17` to `DH-20` | Partial | Resident/guard/onboarding UI exists; checkpoint selector, entry/exit control, manual decision UI, property access admin baseline, planned-checkpoint conversion baseline and DH-20 production smoke E2E exist; offline replay and full release-gate validation remain. |
 | Operations-Ready v2 | `DH-21` to `DH-34` | Mixed | Content, packages and notifications are advanced; service requests, SLA, staff/technician/contractor workflows are incomplete. |
-| Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives and portfolio API baseline exist; portfolio UI and integrations need hardening. |
+| Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives, portfolio API and portfolio UI baseline exist; integrations need hardening. |
 | Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial/docs | Some SKUD prototypes, tests and ops docs exist; not a production hardening layer yet. |
 | Russia Production Readiness | `DH-55` to `DH-61` | Mostly docs/planned | Consent/delete baseline exists, but lifecycle/offboarding, emergency, GIS/OSS, hardware registry and reviews are not complete. |
 | Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
@@ -86,7 +86,7 @@ The largest gaps are still structural:
 | `DH-34` | Notification Orchestration | Rechecked, delivery correlation hardening added | Outbox, log, worker, templates, push/SMS/Telegram/webhook adapters, retry/DLQ and admin health/retry surfaces exist; worker now passes `correlation_id` into channel adapters so webhook delivery headers preserve event correlation. Email remains a deferred stub. |
 | `DH-35` | Property Admin Operational Dashboard | Improved, operational snapshot added | `/api/v1/admin/operations-dashboard` and `/v1/admin/operations` now provide property-scoped request KPIs, access KPIs, incident summary and notification health for admins. Review-workflow depth remains under sensitive-action/audit follow-up scope. |
 | `DH-36` | Management Company Portfolio API | Improved, backend baseline added | `/api/v1/management-company/portfolio` now aggregates DH-35 property snapshots across only the current management company's properties, with period/property filters, weighted rollups, hotspot rankings and scope-isolation tests. |
-| `DH-37` | Management Company Portfolio UI | Partial | Platform admin management-company pages exist; full MC admin portfolio workspace is not complete. |
+| `DH-37` | Management Company Portfolio UI | Improved, frontend baseline added | `/v1/portfolio` now gives management-company admins a multi-property overview with KPI rollups, problem-object rankings, cross-property filters and comparison rows over the DH-36 API. |
 | `DH-38` | Platform Admin Registry And Property Lifecycle | Implemented baseline | Platform properties/admins/stats/audit routes and lifecycle operations exist. |
 | `DH-39` | Packaging And Feature Gating Enforcement | Implemented baseline | Feature-flag registry, admin settings and legacy utility freeze gates exist. |
 | `DH-40` | Webhooks And Outbound Integration Baseline | Partial | Legacy webhooks/integrations and outbox foundations exist; not yet a full canonical integration layer. |
@@ -153,11 +153,12 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-34` | Rechecked, delivery correlation hardening added | Notification outbox/worker/adapters were rechecked against the DH-34 scope; the worker now forwards `correlation_id` to channel adapters so webhook deliveries keep stable event correlation in headers. Focused tests cover worker state-machine, adapter contracts, dispatcher routing, producer validation and runner lifecycle. | Continue with `DH-35` Property Admin Operational Dashboard. |
 | `DH-35` | Improved, operational snapshot added | Added property-admin operations dashboard API and UI covering request throughput/SLA, access approvals/traffic, incident load and notification delivery/queue health. Admin landing now opens the operations dashboard, with focused backend aggregation tests and frontend route/smoke coverage. | Continue with `DH-36` Management Company Portfolio API. |
 | `DH-36` | Improved, backend baseline added | Added management-company portfolio API over DH-35 snapshots, including current-company scope resolution, active-property default filtering, explicit property filter rejection outside the portfolio, weighted SLA/access/notification rollups, hotspot rankings and partial-tenant failure isolation. | Continue with `DH-37` Management Company Portfolio UI. |
+| `DH-37` | Improved, frontend baseline added | Added the management-company portfolio workspace, API client/types, route gate, role redirect for `management_company_admin`/`platform_admin`, cross-property filters, problem-object shortcuts and smoke/router coverage. | Continue with `DH-38` Platform Admin Registry And Property Lifecycle recheck. |
 
 ## Current Critical Path
 
 1. Run full strict E2E against live local/staging DB and add local offline replay before calling the access product pilot-ready for cottage communities.
-2. Continue with `DH-37` Management Company Portfolio UI using `/api/v1/management-company/portfolio`.
+2. Continue with `DH-38` Platform Admin Registry And Property Lifecycle recheck before moving deeper into feature gating and integrations.
 3. Implement full sensitive-action review assignment/attestation under `DH-60`.
 4. Implement Russia-readiness runtime items only after the access topology and policy layer are real.
 
@@ -229,6 +230,9 @@ Focused backend/frontend checks were executed for recent implementation updates:
 - `npm test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/`
 - `npx tsc --noEmit -p tsconfig.strict.json --pretty false` from `frontend/`
 - `.\node_modules\.bin\eslint.cmd src/v1/V1Router.tsx src/v1/V1Router.test.tsx src/v1/api/index.ts src/v1/api/types.ts src/v1/api/operationsDashboard.ts src/v1/pages/OperationsDashboardPage.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/`
+- `npm test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/` covering `DH-37`
+- `npx tsc --noEmit -p tsconfig.strict.json --pretty false` from `frontend/`
+- `.\node_modules\.bin\eslint.cmd src/v1/V1Router.tsx src/v1/V1Router.test.tsx src/v1/api/index.ts src/v1/api/types.ts src/v1/api/managementCompanyPortfolio.ts src/v1/pages/ManagementCompanyPortfolioPage.tsx src/v1/pages/AdminPages.smoke.test.tsx` from `frontend/`
 - `node src/migrate.js` from `backend/` applied `v1_030_request_attachments_updates` and `v1_031_request_assignment_sla`
 - `npm --prefix frontend run typecheck:compile`
 - `npm --prefix frontend test -- src/v1/V1Router.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`

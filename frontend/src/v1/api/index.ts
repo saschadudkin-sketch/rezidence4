@@ -30,6 +30,7 @@ import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './an
 import { packagesApi, packageStatusTone } from './packages';
 import { documentsApi, deriveDocumentStatus } from './documents';
 import { operationsDashboardApi } from './operationsDashboard';
+import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -50,6 +51,7 @@ export const api = {
   packages: packagesApi,
   documents: documentsApi,
   operationsDashboard: operationsDashboardApi,
+  managementCompanyPortfolio: managementCompanyPortfolioApi,
 };
 
 export { normalizePlate };
@@ -120,3 +122,4 @@ export type {
   UpdateDocumentBody,
 } from './documents';
 export type { GetOperationsDashboardParams } from './operationsDashboard';
+export type { GetManagementCompanyPortfolioParams } from './managementCompanyPortfolio';

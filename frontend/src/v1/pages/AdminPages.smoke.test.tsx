@@ -24,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type {
   Announcement,
   OperationsDashboardSnapshot,
+  ManagementCompanyPortfolioSnapshot,
   Package,
   UserMe,
   V1Document,
@@ -41,12 +42,14 @@ const {
   listDocumentsMock,
   listPackagesMock,
   getOperationsDashboardMock,
+  getManagementCompanyPortfolioMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listAdminAnnouncementsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
   listPackagesMock: vi.fn(),
   getOperationsDashboardMock: vi.fn(),
+  getManagementCompanyPortfolioMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -94,6 +97,9 @@ vi.mock('../api', async () => {
       operationsDashboard: {
         get: getOperationsDashboardMock,
       },
+      managementCompanyPortfolio: {
+        get: getManagementCompanyPortfolioMock,
+      },
       // Unused by admin pages; kept for barrel-shape safety.
       accessRequests: { list: neverResolves, getById: neverResolves },
       passes: { list: neverResolves, getById: neverResolves },
@@ -115,6 +121,7 @@ import { AnnouncementsAdminPage } from './AnnouncementsAdminPage';
 import { DocumentsAdminPage } from './DocumentsAdminPage';
 import { PackagesAdminPage } from './PackagesAdminPage';
 import { OperationsDashboardPage } from './OperationsDashboardPage';
+import { ManagementCompanyPortfolioPage } from './ManagementCompanyPortfolioPage';
 import { V1SessionProvider } from '../store';
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
@@ -223,6 +230,8 @@ function makeOperationsDashboard(
       completed: 7,
       open: 5,
       overdue_backlog: 2,
+      resolved_within_sla: 6,
+      resolved_with_sla: 8,
       sla_compliance_rate: 0.75,
       first_response_median_minutes: 18,
       resolution_median_minutes: 240,
@@ -259,6 +268,146 @@ function makeOperationsDashboard(
       queue: { pending: 4, in_flight: 1, sent: 80, failed: 3, dead: 2 },
       oldest_pending_age_seconds: 75,
       per_channel: [{ channel: 'web_push', sent: 80, failed: 5, success_rate: 0.94 }],
+    },
+    ...overrides,
+  };
+}
+
+function makeManagementCompanyPortfolio(
+  overrides: Partial<ManagementCompanyPortfolioSnapshot> = {},
+): ManagementCompanyPortfolioSnapshot {
+  const propertyRequests: OperationsDashboardSnapshot['requests'] = {
+    created: 12,
+    completed: 7,
+    open: 5,
+    overdue_backlog: 2,
+    resolved_within_sla: 6,
+    resolved_with_sla: 8,
+    sla_compliance_rate: 0.75,
+    first_response_median_minutes: 18,
+    resolution_median_minutes: 240,
+    by_status: [{ status: 'pending', total: 5 }],
+    by_priority: [{ priority: 'emergency', total: 1 }],
+  };
+  const propertyAccess: OperationsDashboardSnapshot['access'] = {
+    requests_created: 10,
+    requests_approved: 6,
+    requests_rejected: 2,
+    approval_rate: 0.75,
+    pending: 3,
+    expired: 1,
+    allow_count: 31,
+    denial_count: 4,
+    vehicle_traffic_count: 18,
+    active_passes: 22,
+    used_passes: 9,
+  };
+  const propertyIncidents: OperationsDashboardSnapshot['incidents'] = {
+    open: 3,
+    investigating: 2,
+    closed: 8,
+    high_priority_open: 1,
+    blacklist_hits: 2,
+    suspicious_attempts: 5,
+    resolution_median_minutes: 42,
+    by_type: [{ incident_type: 'blacklist_hit', total: 2 }],
+  };
+  const propertyNotifications: OperationsDashboardSnapshot['notifications'] = {
+    sent: 90,
+    failed: 10,
+    success_rate: 0.9,
+    queue: { pending: 4, in_flight: 1, sent: 80, failed: 3, dead: 2 },
+    oldest_pending_age_seconds: 75,
+    per_channel: [{ channel: 'web_push', sent: 80, failed: 5, success_rate: 0.94 }],
+  };
+
+  return {
+    generated_at: '2026-05-10T00:00:00.000Z',
+    management_company_id: '00000000-0000-0000-0000-00000000f001',
+    period: { key: '7d', hours: 168 },
+    filters: { property_slugs: [], include_inactive: false },
+    rollup: {
+      properties_total: 2,
+      properties_healthy: 2,
+      properties_error: 0,
+      hotspot_property_count: 1,
+      requests: {
+        created: 12,
+        completed: 7,
+        open: 5,
+        overdue_backlog: 2,
+        resolved_within_sla: 6,
+        resolved_with_sla: 8,
+        sla_compliance_rate: 0.75,
+        by_status: [{ status: 'pending', total: 5 }],
+        by_priority: [{ priority: 'emergency', total: 1 }],
+      },
+      access: propertyAccess,
+      incidents: {
+        open: 3,
+        investigating: 2,
+        closed: 8,
+        high_priority_open: 1,
+        blacklist_hits: 2,
+        suspicious_attempts: 5,
+        by_type: [{ incident_type: 'blacklist_hit', total: 2 }],
+      },
+      notifications: propertyNotifications,
+    },
+    rankings: {
+      overdue_backlog: [
+        {
+          property_id: '00000000-0000-0000-0000-00000000a001',
+          property_slug: 'alpha',
+          property_name: 'Alpha Residence',
+          value: 2,
+        },
+      ],
+      incident_load: [
+        {
+          property_id: '00000000-0000-0000-0000-00000000a001',
+          property_slug: 'alpha',
+          property_name: 'Alpha Residence',
+          value: 5,
+        },
+      ],
+      notification_failures: [],
+    },
+    properties: [
+      {
+        id: '00000000-0000-0000-0000-00000000a001',
+        slug: 'alpha',
+        name: 'Alpha Residence',
+        status: 'active',
+        is_active: true,
+        health: 'ok',
+        generated_at: '2026-05-10T00:00:00.000Z',
+        hotspots: ['overdue_backlog', 'high_priority_incidents'],
+        requests: propertyRequests,
+        access: propertyAccess,
+        incidents: propertyIncidents,
+        notifications: propertyNotifications,
+      },
+      {
+        id: '00000000-0000-0000-0000-00000000b001',
+        slug: 'beta',
+        name: 'Beta Village',
+        status: 'active',
+        is_active: true,
+        health: 'ok',
+        generated_at: '2026-05-10T00:00:00.000Z',
+        hotspots: [],
+        requests: { ...propertyRequests, open: 0, overdue_backlog: 0 },
+        access: propertyAccess,
+        incidents: { ...propertyIncidents, open: 0, investigating: 0, high_priority_open: 0 },
+        notifications: { ...propertyNotifications, success_rate: 0.99 },
+      },
+    ],
+    errors: [],
+    formula_notes: {
+      request_sla_compliance_rate: 'Weighted by resolved_with_sla counts from DH-35 property snapshots.',
+      notification_success_rate: 'Weighted by sent and failed notification log counts across included properties.',
+      hotspot_property_count: 'Counts properties with overdue backlog, high incident load, or notification delivery/queue risk.',
     },
     ...overrides,
   };
@@ -625,6 +774,48 @@ describe('OperationsDashboardPage', () => {
     expect(screen.getByText('web_push')).toBeInTheDocument();
     expect(getOperationsDashboardMock).toHaveBeenCalledWith(
       { period: '7d' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+});
+
+// ─── ManagementCompanyPortfolioPage ────────────────────────────────────────
+
+describe('ManagementCompanyPortfolioPage', () => {
+  beforeEach(() => {
+    getManagementCompanyPortfolioMock.mockReset();
+  });
+
+  test('property context missing → warning without request', () => {
+    renderWithProviders(
+      <ManagementCompanyPortfolioPage />,
+      makeUser({ role: 'management_company_admin', property_id: null, property_slug: null }),
+    );
+
+    expect(screen.getByText(/не привязана к объекту ук/i)).toBeInTheDocument();
+    expect(getManagementCompanyPortfolioMock).not.toHaveBeenCalled();
+  });
+
+  test('renders portfolio KPIs, rankings and property comparison rows', async () => {
+    getManagementCompanyPortfolioMock.mockResolvedValue({
+      ok: true,
+      portfolio: makeManagementCompanyPortfolio(),
+    });
+
+    renderWithProviders(
+      <ManagementCompanyPortfolioPage />,
+      makeUser({ role: 'management_company_admin' }),
+    );
+
+    expect(await screen.findByRole('heading', { name: /портфель ук/i }))
+      .toBeInTheDocument();
+    expect(await screen.findByText('Проблемные объекты')).toBeInTheDocument();
+    expect(screen.getByText('Просроченный backlog')).toBeInTheDocument();
+    expect(screen.getAllByText('Alpha Residence').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Beta Village')).toBeInTheDocument();
+    expect(screen.getAllByText('SLA backlog').length).toBeGreaterThanOrEqual(1);
+    expect(getManagementCompanyPortfolioMock).toHaveBeenCalledWith(
+      { period: '7d', propertySlugs: [], includeInactive: false },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

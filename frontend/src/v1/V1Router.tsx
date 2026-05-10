@@ -55,6 +55,7 @@ import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
 import { OnboardingAdminPage } from './pages/OnboardingAdminPage';
 import { AccessAdminPage } from './pages/AccessAdminPage';
 import { OperationsDashboardPage } from './pages/OperationsDashboardPage';
+import { ManagementCompanyPortfolioPage } from './pages/ManagementCompanyPortfolioPage';
 import {
   Alert,
   Inline,
@@ -67,6 +68,7 @@ import {
 const RESIDENT_ALLOW = ['resident', 'owner', 'tenant'] as const;
 const GUARD_ALLOW = ['security', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
 const ADMIN_ALLOW = ['admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
+const PORTFOLIO_ALLOW = ['management_company_admin', 'platform_admin'] as const;
 // concierge-detail is gated to staff because the approvals UI is a staff-only
 // view of the lifecycle; residents have their own (read-only) request cards.
 const CONCIERGE_ALLOW = ['concierge', 'admin', 'property_admin', 'management_company_admin', 'platform_admin'] as const;
@@ -164,6 +166,14 @@ export function V1Router() {
           element={
             <RoleGate allow={ADMIN_ALLOW}>
               <OperationsDashboardPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="portfolio"
+          element={
+            <RoleGate allow={PORTFOLIO_ALLOW}>
+              <ManagementCompanyPortfolioPage />
             </RoleGate>
           }
         />
@@ -289,9 +299,14 @@ function V1IndexRedirect() {
   if (isResidentRole(user.role)) return <Navigate to="/v1/access" replace />;
 
   if ([
-    'property_admin',
     'management_company_admin',
     'platform_admin',
+  ].includes(normalizeUserRole(user.role))) {
+    return <Navigate to="/v1/portfolio" replace />;
+  }
+
+  if ([
+    'property_admin',
   ].includes(normalizeUserRole(user.role))) {
     return <Navigate to="/v1/admin/operations" replace />;
   }
