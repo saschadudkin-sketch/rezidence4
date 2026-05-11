@@ -39,8 +39,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-45 analytics aggregation snapshots
     // + 1 DH-03/DH-08/DH-17..21 membership/review/lifecycle ledger
     // + 1 DH-60 sensitive review assignment/SLA operations
-    // + 1 DH-55 resident offboarding cascade = 42
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(42);
+    // + 1 DH-55 resident offboarding cascade
+    // + 1 DH-57 emergency dispatch mode = 43
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(43);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1610,6 +1611,39 @@ describe('v1_042_resident_offboarding_cascade', () => {
     expect(alter).toContain('offboarding_reason TEXT');
     expect(sqls.find((s) => s.includes('idx_vehicles_resident_review')))
       .toContain('owner_resident_id, review_required');
+  });
+});
+
+describe('v1_043_emergency_dispatch_mode', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates emergency profiles with severity, dispatch status and notification status', async () => {
+    await byId('v1_043_emergency_dispatch_mode').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS emergency_request_profiles'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('request_id            TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(tbl).toContain("dispatch_status       VARCHAR(30) NOT NULL DEFAULT 'new'");
+    expect(tbl).toContain("notification_status   VARCHAR(30) NOT NULL DEFAULT 'pending'");
+    expect(tbl).toContain('CONSTRAINT emergency_request_profiles_request_unique UNIQUE (request_id)');
+    expect(sqls.find((s) => s.includes('emergency_request_profiles_type_check')))
+      .toContain('fire_smoke');
+    expect(sqls.find((s) => s.includes('emergency_request_profiles_severity_check')))
+      .toContain("'P0','P1','P2'");
+  });
+
+  test('backfills existing emergency requests and indexes dispatch queues', async () => {
+    await byId('v1_043_emergency_dispatch_mode').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('INSERT INTO emergency_request_profiles')))
+      .toContain("r.priority = 'emergency' OR r.sla_profile = 'emergency'");
+    expect(sqls.find((s) => s.includes('idx_emergency_profiles_queue')))
+      .toContain("dispatch_status NOT IN ('resolved','cancelled')");
+    expect(sqls.find((s) => s.includes('idx_emergency_profiles_property')))
+      .toContain('property_id, dispatch_status, severity');
   });
 });
 

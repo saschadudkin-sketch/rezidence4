@@ -31,6 +31,9 @@ const {
   computeDueDate,
   normalizeRequestTarget,
 } = require('./requests/RequestCategories');
+const {
+  createEmergencyProfileForRequest,
+} = require('./requests/EmergencyDispatchService');
 const { ServiceError, ConflictError } = require('./requests/RequestErrors');
 
 // ─── Transaction helper ───────────────────────────────────────────────────────
@@ -187,7 +190,19 @@ class RequestsService {
       ],
     );
 
-    return formatRequestRow(rows[0]);
+    const createdRow = rows[0];
+    const emergencyProfile = await createEmergencyProfileForRequest(queryDb, {
+      request: createdRow,
+      categoryProfile,
+      body,
+      user,
+      propertyId,
+    });
+
+    return {
+      ...formatRequestRow(createdRow),
+      emergencyProfile,
+    };
   }
 
   /**

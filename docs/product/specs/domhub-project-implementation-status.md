@@ -31,7 +31,7 @@ The largest gaps are still structural:
 - guard verification now accepts and stores optional `access_point_id` and `direction`; guard UI can select active access points, choose entry/exit, and record manual admit/deny decisions;
 - access decisions are now backed by a deterministic policy engine baseline; manual КПП decisions now have a backend baseline, while full admin UI and offline policy/cache replay are still missing;
 - service-request v1, assignment, SLA and staff workspace are mostly legacy/partial;
-- Russia-readiness tickets `DH-55` through `DH-61` are mixed: resident offboarding and sensitive review now have backend baselines; emergency, GIS/OSS and hardware registry are still runtime gaps.
+- Russia-readiness tickets `DH-55` through `DH-61` are mixed: resident offboarding, emergency dispatch and sensitive review now have backend baselines; GIS/OSS and hardware registry are still runtime gaps.
 - full legacy runtime removal is now explicit as `DH-62`, but it is intentionally post-cutover work.
 
 ## Status By Delivery Block
@@ -44,7 +44,7 @@ The largest gaps are still structural:
 | Operations-Ready v2 | `DH-21` to `DH-34` | Mixed | Content, packages and notifications are advanced; service requests, SLA, staff/technician/contractor workflows are incomplete. |
 | Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives, portfolio API and portfolio UI baseline exist; integrations need hardening. |
 | Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial | SKUD provider config, hardware mapping, integration event foundations, first Hikvision + Bolid/Orion-compatible event/sync paths, video evidence reference baseline and ERP/1C exchange baseline now exist; deeper vendor rollout, E2E gates and ops tooling remain. |
-| Russia Production Readiness | `DH-55` to `DH-61` | Partial, compliance ledgers added | Consent/delete baseline plus resident lifecycle/offboarding cascades, consent history and sensitive-action review assignment/SLA/sampling/escalation/analytics exist; emergency, GIS/OSS and hardware registry remain incomplete. |
+| Russia Production Readiness | `DH-55` to `DH-61` | Partial, compliance ledgers added | Consent/delete baseline plus resident lifecycle/offboarding cascades, emergency dispatch profiles/queue/actions, consent history and sensitive-action review assignment/SLA/sampling/escalation/analytics exist; GIS/OSS and hardware registry remain incomplete. |
 | Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
 | Legacy Cutover | `DH-62` | Docs/planned | Deprecated `/api/*` aliases, legacy UI/runtime paths and fallback flags still exist; removal must follow proven v1 cutover and replacement modules. |
 
@@ -108,7 +108,7 @@ The largest gaps are still structural:
 | `DH-54` | White-Label And Branding Expansion | Partial | Some styling/runtime surfaces exist; full customer branding module is not complete. |
 | `DH-55` | Resident Lifecycle And Ownership Changes | Improved backend baseline | Resident create/update/consent writes lifecycle events and membership provisioning; `v1_042_resident_offboarding_cascade` adds `resident_unit_links`, vehicle offboarding review markers, and `/api/v1/residents/:id/deactivate` now deactivates resident scope, unit links, active resident/vehicle passes, pending access requests and vehicle whitelist access with lifecycle/audit summary. Remaining work: ownership-transfer workflow, notification preference cascade and admin UI/report evidence. |
 | `DH-56` | RU Personal Data Compliance Controls | Improved partial | Consent and account deletion/anonymization baseline exists; consent history plus sensitive-action assignment/SLA/sampling/escalation/attestations now exist. DSAR workflow, retention automation, localization controls and legal exports remain incomplete. |
-| `DH-57` | Emergency Dispatch Mode | Docs/planned | Emergency categories exist in docs/content, but no dedicated emergency request runtime/SLA mode. |
+| `DH-57` | Emergency Dispatch Mode | Improved backend baseline | Emergency categories now create `emergency_request_profiles` via `v1_043_emergency_dispatch_mode`, with severity, escalation target, dispatch status, SLA due timestamps, `/api/v1/requests/emergency/queue`, `/api/v1/requests/:id/emergency-dispatch` actions and distinct `request.emergency_created` notification routing. Remaining work: UI surfaces, on-call rosters and real provider notification evidence. |
 | `DH-58` | GIS ЖКХ And OSS Readiness | Docs/planned | Documents/announcements can store content; no GIS/OSS export/readiness workflow. |
 | `DH-59` | Hardware Device Registry And Manual-Control Boundaries | Docs/planned | SKUD prototypes exist, but no hardware device registry/manual-control boundary model. |
 | `DH-60` | Sensitive Action Audit And Anti-Abuse Reviews | Improved backend baseline | Sensitive-action review listing, queue summary, reviewer assignment, due date/priority metadata, attestation persistence, sampled review materialization, overdue/escalation maintenance runner and actor/category anti-abuse analytics exist over immutable audit rows. Remaining work: UI/report evidence, notification fanout for escalations and richer anomaly rules. |
@@ -171,13 +171,14 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-48` | Improved, executable matrix added | Added `scripts/release-gate-matrix.cjs`, `release:gate:matrix`, `release:gate:check`, focused tests, and strict-gate integration so release-blocking scripts/specs/docs cannot silently drift from the gate checklist. | Continue with clean CI/staging strict-gate evidence, then `DH-49` pilot rollout tooling/runbooks. |
 | `DH-49` | Improved, readiness gate added | Added `docs/runbooks/pilot-rollout.md`, linked it from the operational runbook index, added `scripts/pilot-readiness-check.cjs`, `pilot:readiness`, tests, and release-gate-matrix coverage. | Continue with Russia readiness gaps, especially the remaining DH-55/DH-57..DH-59 runtime gaps. |
 | `DH-55` | Improved backend baseline | Added `v1_042_resident_offboarding_cascade`, `resident_unit_links`, vehicle offboarding review markers, `residentOffboardingService`, and deactivation route cascade across memberships, household/unit links, active passes, resident-created access requests and resident vehicles. | Continue with ownership-transfer workflow, notification preference cascade and admin UI/report evidence after core Russia runtime gaps. |
+| `DH-57` | Improved backend baseline | Added `v1_043_emergency_dispatch_mode`, emergency request profiles, emergency queue listing, dispatch/acknowledge/escalate/resolve actions and `request.emergency_created` notification routing for emergency service requests. | Continue with UI surfaces, on-call roster/provider evidence after `DH-59` and `DH-58` core runtime gaps. |
 | `DH-60` | Improved backend baseline | Added `v1_041_sensitive_review_ops`, assignment/SLA fields on `sensitive_action_reviews`, `/api/v1/audit/sensitive-actions/_summary`, `_sample`, `_escalate`, `_anti-abuse`, assigned/overdue queue filters, `/api/v1/audit/sensitive-actions/:id/assign`, and `SENSITIVE_REVIEW_RUNNER_ENABLED` runner for sampled review materialization plus overdue/escalation maintenance. | Continue with UI/report evidence, notification fanout for escalations and richer anomaly rules after core Russia runtime gaps. |
 
 ## Current Critical Path
 
 1. Stabilize one-command `npm run verify:strict` on Windows or run the same strict gate in CI/staging; local focused components now pass, but the full wrapper still needs one clean uninterrupted run.
 2. Collect full staging restore evidence for `DH-47` with real backup files.
-3. Continue with Russia readiness runtime gaps beyond the now-baselined degraded КПП replay, DH-55 offboarding cascade and DH-60 backend workflow: `DH-57` emergency mode, `DH-58` GIS/OSS readiness and `DH-59` hardware registry/manual-control boundaries.
+3. Continue with Russia readiness runtime gaps beyond the now-baselined degraded КПП replay, DH-55 offboarding cascade, DH-57 emergency dispatch and DH-60 backend workflow: `DH-59` hardware registry/manual-control boundaries and `DH-58` GIS/OSS readiness.
 4. Later DH-60 depth: add UI/report evidence, escalation notification fanout and richer anomaly rules after the core runtime gaps.
 5. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths until v1 release gates and replacement modules prove no supported flow depends on them.
 
@@ -217,6 +218,7 @@ Focused backend/frontend checks were executed for recent implementation updates:
 - `privacy.test.js`
 - `requests.test.js`
 - `requestSlaService.test.js`
+- `emergencyDispatchService.test.js`
 - `runtimeJobs.test.js`
 - `uploadAccess.test.js`
 - `requests_service_validation.test.js`
@@ -289,5 +291,6 @@ Focused backend/frontend checks were executed for recent implementation updates:
   `E2E_PROPERTY_TYPE=cottage_community`: 2 tests passed, including DH-20
   onboarding/import/checkpoint/policy/manual-decision smoke
 - `node .\node_modules\jest\bin\jest.js --runTestsByPath src\__tests__\v1Routes.test.js src\__tests__\v1ResidentOffboardingService.test.js src\__tests__\v1PropertyMigrations.test.js src\__tests__\v1AuditReviewsRoute.test.js src\__tests__\v1AuditReviewService.test.js src\__tests__\v1SensitiveReviewRunner.test.js --runInBand` from `backend/`: 6 suites, 219 tests passed
+- `node .\node_modules\jest\bin\jest.js --runTestsByPath src\__tests__\requests.test.js src\__tests__\requestSlaService.test.js src\__tests__\emergencyDispatchService.test.js src\__tests__\v1PropertyMigrations.test.js --runInBand` from `backend/`: 4 suites, 210 tests passed
 
 No full runtime test suite was executed for this snapshot.

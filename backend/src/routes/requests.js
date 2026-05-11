@@ -14,6 +14,10 @@ const idempotency = require('../middleware/idempotency');
 const db = require('../db');
 const { broadcastRequestUpdate } = require('../sse');
 const { RequestsService, ServiceError, ConflictError } = require('../services/RequestsService');
+const {
+  listEmergencyQueue,
+  recordEmergencyDispatchAction,
+} = require('../services/requests/EmergencyDispatchService');
 const { RequestSlaService } = require('../services/requests/RequestSlaService');
 const { RequestUpdatesService } = require('../services/requests/RequestUpdatesService');
 const { dispatch: notifyDispatch } = require('../services/notificationService');
@@ -136,6 +140,21 @@ router.post('/:id/first-response', validateId, async (req, res, next) => {
   } catch (err) { handleServiceError(err, res, next); }
 });
 
+// ─── GET /api/requests/emergency/queue ───────────────────────────────────────
+router.get('/emergency/queue', async (req, res, next) => {
+  try {
+    res.json(await listEmergencyQueue(req.user, getDb(req), req.query));
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/:id/emergency-dispatch ───────────────────────────────
+router.post('/:id/emergency-dispatch', validateId, async (req, res, next) => {
+  try {
+    const profile = await recordEmergencyDispatchAction(req.user, req.params.id, req.body, getDb(req));
+    res.json({ emergencyProfile: profile });
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
 // ─── GET /api/requests/:id ────────────────────────────────────────────────────
 // Ownership check внутри RequestsService.getOne:
 //   - Жилец получает 404 если заявка чужая (а не 403, чтобы не раскрывать факт существования)
@@ -165,6 +184,24 @@ router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
     });
     broadcastRequestUpdate(created);
     res.status(201).json(created);
+    if (created.emergencyProfile) {
+      setImmediate(() => {
+        Promise.resolve(notifyDispatch(
+          'request.emergency_created',
+          {
+            requestId: created.id,
+            requestType: created.type,
+            category: created.category,
+            emergencyType: created.emergencyProfile.emergencyType,
+            severity: created.emergencyProfile.severity,
+            escalationTarget: created.emergencyProfile.escalationTarget,
+            dueAt: created.emergencyProfile.firstResponseDueAt,
+          },
+          getDb(req),
+          req.property || null,
+        )).catch(() => {});
+      });
+    }
   } catch (err) { handleServiceError(err, res, next); }
 });
 

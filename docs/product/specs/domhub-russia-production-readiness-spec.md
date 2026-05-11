@@ -106,6 +106,8 @@ DomHub MUST support emergency operational scenarios:
 
 Emergency requests MUST have priority, SLA, escalation and notification behavior distinct from normal requests.
 
+Current backend baseline: emergency service categories create `emergency_request_profiles` with severity, escalation target, dispatch status, first-response/resolution due timestamps, emergency queue listing, dispatch actions and `request.emergency_created` notification routing. UI/on-call roster/provider evidence remains follow-up DH-57 work.
+
 ### FR-7 Checkpoint Degraded Mode
 
 For checkpoint/guard workflows, DomHub MUST support degraded operation:

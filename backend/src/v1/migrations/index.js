@@ -76,6 +76,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./041_sensitive_review_ops'),
   // DH-55 resident offboarding cascade and household/unit links
   require('./042_resident_offboarding_cascade'),
+  // DH-57 emergency dispatch runtime profiles
+  require('./043_emergency_dispatch_mode'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

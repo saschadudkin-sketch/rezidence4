@@ -275,6 +275,16 @@ function buildMessages(event, data) {
         sms: null,
         telegram: null,
       };
+    case 'request.emergency_created':
+      {
+        const label = data.category || data.emergencyType || 'emergency';
+        const dueLabel = data.dueAt ? `, первый ответ: ${data.dueAt}` : '';
+        return {
+          push: { title: 'Аварийная заявка', body: `${label}: ${data.severity || 'P1'}${dueLabel}` },
+          sms: `DomHub ALERT: аварийная заявка ${label} (${data.severity || 'P1'}).`,
+          telegram: `<b>Аварийная заявка</b>\nТип: ${label}\nПриоритет: ${data.severity || 'P1'}${dueLabel}\nЗаявка: ${data.requestId || '?'}`,
+        };
+      }
     case 'request.sla_overdue':
       {
         const slaLabel = data.slaHours ? `${data.slaHours}ч` : (data.slaProfile || data.eventType || '?');
@@ -314,6 +324,7 @@ const EVENT_CHANNELS = {
   'meter.reminder':         { push: true, sms: false, telegram: false },
   'billing.overdue':        { push: true, sms: true,  telegram: false },
   'request.completed':      { push: true, sms: false, telegram: false },
+  'request.emergency_created': { push: true, sms: true, telegram: true },
   'request.sla_overdue':    { push: true, sms: false, telegram: true  },
   'package.reminder':       { push: true, sms: true,  telegram: false },
 };
@@ -427,6 +438,8 @@ function getBroadcastRoles(event) {
       return ['owner', 'tenant'];
     case 'blacklist.attempt':
       return ['security', 'admin'];
+    case 'request.emergency_created':
+      return ['security', 'concierge', 'admin'];
     case 'request.sla_overdue':
       return ['concierge', 'admin'];
     default:

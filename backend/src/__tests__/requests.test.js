@@ -11,6 +11,9 @@ jest.mock('../db');
 jest.mock('../sse', () => ({
   broadcastRequestUpdate: jest.fn(),
 }));
+jest.mock('../services/notificationService', () => ({
+  dispatch: jest.fn(() => Promise.resolve()),
+}));
 
 const db           = require('../db');
 const express      = require('express');
@@ -87,6 +90,32 @@ function makeReqRow(overrides = {}) {
     sla_state: 'on_track', escalation_level: 0,
     escalated_at: null, escalation_reason: null, last_sla_check_at: null,
     created_at: new Date(), updated_at: new Date(),
+    ...overrides,
+  };
+}
+
+function makeEmergencyProfileRow(overrides = {}) {
+  return {
+    id: '44444444-4444-4444-8444-444444444444',
+    property_id: null,
+    request_id: 'emergency-req',
+    emergency_type: 'fire_smoke',
+    severity: 'P0',
+    dispatch_status: 'new',
+    escalation_target: 'security',
+    first_response_due_at: new Date('2026-05-08T08:05:00Z'),
+    resolution_due_at: new Date('2026-05-08T09:00:00Z'),
+    acknowledged_at: null,
+    acknowledged_by_uid: null,
+    dispatched_at: null,
+    dispatched_by_uid: null,
+    escalated_at: null,
+    escalated_by_uid: null,
+    resolved_at: null,
+    notification_status: 'pending',
+    metadata: { category: 'emergency_fire_smoke' },
+    created_at: new Date('2026-05-08T08:00:00Z'),
+    updated_at: new Date('2026-05-08T08:00:00Z'),
     ...overrides,
   };
 }
@@ -376,15 +405,19 @@ describe('POST /api/requests', () => {
 
   it('201 emergency request gets emergency priority and SLA due dates', async () => {
     const token = makeToken({ uid: 'u1', role: 'owner', name: 'Test' });
-    db.query.mockResolvedValueOnce({
-      rows: [makeReqRow({
-        id: 'emergency-req',
-        type: 'emergency',
-        category: 'emergency_fire_smoke',
-        priority: 'emergency',
-        sla_profile: 'emergency',
-      })],
-    });
+    db.query
+      .mockResolvedValueOnce({
+        rows: [makeReqRow({
+          id: 'emergency-req',
+          type: 'emergency',
+          category: 'emergency_fire_smoke',
+          priority: 'emergency',
+          sla_profile: 'emergency',
+          first_response_due_at: new Date('2026-05-08T08:05:00Z'),
+          resolution_due_at: new Date('2026-05-08T09:00:00Z'),
+        })],
+      })
+      .mockResolvedValueOnce({ rows: [makeEmergencyProfileRow()] });
 
     const res = await supertest(app)
       .post('/api/requests')
@@ -402,6 +435,73 @@ describe('POST /api/requests', () => {
     expect(insertParams[21]).toBeInstanceOf(Date);
     expect(insertParams[22]).toBeInstanceOf(Date);
     expect(insertParams[23]).toEqual(expect.objectContaining({ category: 'emergency_fire_smoke' }));
+    expect(res.body.emergencyProfile).toMatchObject({
+      emergencyType: 'fire_smoke',
+      severity: 'P0',
+      dispatchStatus: 'new',
+      escalationTarget: 'security',
+    });
+    expect(db.query.mock.calls[1][0]).toMatch(/INSERT INTO emergency_request_profiles/);
+  });
+});
+
+describe('DH-57 emergency dispatch mode', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    const authMw = require('../middleware/auth');
+    authMw.__clearUserActiveFallbackCache?.();
+  });
+
+  it('GET /emergency/queue returns emergency profiles for staff', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        ...makeEmergencyProfileRow(),
+        request_type: 'emergency',
+        request_category: 'emergency_fire_smoke',
+        request_status: 'pending',
+        created_by_uid: 'u1',
+        created_by_name: 'Resident',
+        created_by_role: 'owner',
+        comment: 'Дым',
+      }],
+    });
+
+    const res = await supertest(app)
+      .get('/api/requests/emergency/queue')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      emergencyType: 'fire_smoke',
+      severity: 'P0',
+      request: { category: 'emergency_fire_smoke' },
+    });
+    expect(db.query.mock.calls[0][0]).toMatch(/FROM emergency_request_profiles/);
+  });
+
+  it('POST /:id/emergency-dispatch acknowledges emergency and marks first response', async () => {
+    const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
+    db.query
+      .mockResolvedValueOnce({
+        rows: [makeEmergencyProfileRow({
+          dispatch_status: 'acknowledged',
+          acknowledged_at: new Date('2026-05-08T08:03:00Z'),
+          acknowledged_by_uid: 'guard-1',
+        })],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await supertest(app)
+      .post('/api/requests/emergency-req/emergency-dispatch')
+      .set('Cookie', `token=${token}`)
+      .send({ action: 'acknowledge' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.emergencyProfile.dispatchStatus).toBe('acknowledged');
+    expect(db.query.mock.calls[0][0]).toMatch(/UPDATE emergency_request_profiles/);
+    expect(db.query.mock.calls[1][0]).toMatch(/first_response_at=COALESCE/);
   });
 });
 
