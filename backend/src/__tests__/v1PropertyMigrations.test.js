@@ -1265,6 +1265,7 @@ describe('v1_034_skud_adapter_framework', () => {
     expect(tbl).toBeDefined();
     expect(tbl).toContain('FOREIGN KEY (property_id, provider_config_id)');
     expect(tbl).toContain('REFERENCES skud_provider_configs(property_id, id)');
+    expect(tbl).toContain('CONSTRAINT skud_hardware_devices_property_id_unique UNIQUE (property_id, id)');
     expect(tbl).toContain('FOREIGN KEY (property_id, access_point_id)');
     expect(tbl).toContain('REFERENCES access_points(property_id, id)');
     for (const deviceClass of ['barrier', 'gate', 'intercom', 'lpr', 'camera', 'reader']) {

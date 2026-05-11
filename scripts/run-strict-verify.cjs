@@ -17,6 +17,9 @@ function run(args, env = process.env) {
 let status = run([path.join(repoRoot, 'scripts', 'run-checks.cjs'), 'verify']);
 if (status !== 0) process.exit(status);
 
+status = run([path.join(repoRoot, 'scripts', 'release-gate-matrix.cjs')]);
+if (status !== 0) process.exit(status);
+
 const e2eEnv = buildE2EEnv({
   ...process.env,
   E2E_BACKEND_MODE: '1',
@@ -28,13 +31,18 @@ const e2eEnv = buildE2EEnv({
 });
 
 status = run([
+  path.join(repoRoot, 'scripts', 'tenant-ops-preflight.cjs'),
+  '--e2e-access',
+], e2eEnv);
+if (status !== 0) process.exit(status);
+
+status = run([
   path.join(repoRoot, 'scripts', 'playwright-preflight.cjs'),
 ], e2eEnv);
 if (status !== 0) process.exit(status);
 
 status = run([
-  path.join(repoRoot, 'node_modules', '@playwright', 'test', 'cli.js'),
-  'test',
+  path.join(repoRoot, 'scripts', 'run-playwright-tests.cjs'),
   'e2e/v1-access-production.spec.js',
   '--project=chromium',
 ], e2eEnv);

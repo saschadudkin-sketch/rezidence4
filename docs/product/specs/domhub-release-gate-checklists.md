@@ -26,6 +26,9 @@ Release gates нужны, чтобы не выпускать визуально 
 - Waiver MUST include reason, risk, owner and follow-up ticket.
 - A gate item is done only when implementation, docs and test evidence exist.
 - Expansion modules MUST NOT block core release unless enabled for the target tenant.
+- The executable matrix is checked with `npm run release:gate:check`; adding,
+  removing or renaming release-blocking commands/specs/docs must update
+  `scripts/release-gate-matrix.cjs`.
 
 ---
 
@@ -98,6 +101,19 @@ Required:
 - ERP/1C/ЖКХ exchange boundaries are documented.
 - Onboarding/import wizard can prepare units/homes, residents, staff, vehicles and topology.
 - Tenant provisioning, migrations and rollback are documented.
+- New tenants can be created through `npm run tenant:provision` without manual
+  platform SQL; controlled property migration batches run through
+  `npm run tenant:migrate`.
+- Restore drill preflight runs through `npm run tenant:restore-drill:preflight`
+  and staging/prod-candidate release notes include a full
+  `npm run tenant:restore-drill` result against real backups.
+- Backend-backed access E2E runs `npm run tenant:preflight:e2e` before
+  seeding tenants; failures must identify the missing/unreachable global,
+  platform or tenant DB without leaking credentials. Post-migration staging
+  gates run `npm run tenant:preflight:current` and must fail when
+  platform/property migrations are missing or pending.
+- Pilot rollout evidence runs through `npm run pilot:readiness` and links the
+  first-week support, checkpoint, emergency, correction and rollback procedures.
 - Release-blocking E2E covers resident, guard/security, staff, admin and company flows.
 - Pilot rollout runbooks exist.
 

@@ -83,6 +83,7 @@ module.exports = {
           FOREIGN KEY (property_id, provider_config_id)
           REFERENCES skud_provider_configs(property_id, id)
           ON DELETE CASCADE,
+        CONSTRAINT skud_hardware_devices_property_id_unique UNIQUE (property_id, id),
         CONSTRAINT skud_hardware_devices_access_point_property_fk
           FOREIGN KEY (property_id, access_point_id)
           REFERENCES access_points(property_id, id)

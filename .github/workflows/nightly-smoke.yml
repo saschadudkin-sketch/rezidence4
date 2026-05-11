@@ -6,6 +6,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  restore-drill-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install root deps
+        run: npm ci
+      - name: Build synthetic latest backup set
+        run: |
+          mkdir -p /tmp/domhub-restore-drill-preflight
+          for db in residenze platform zamoskv; do
+            printf -- '-- synthetic pg_dump marker for %s\n' "$db" \
+              | gzip > "/tmp/domhub-restore-drill-preflight/${db}_latest.sql.gz"
+          done
+      - name: Validate restore drill preflight gate
+        env:
+          BACKUP_DIR: /tmp/domhub-restore-drill-preflight
+        run: npm run tenant:restore-drill:preflight -- --skip-docker --min-bytes 1 --max-age-hours 24
+
   playwright-nightly-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20

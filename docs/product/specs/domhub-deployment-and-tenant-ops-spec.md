@@ -255,6 +255,11 @@ Must be able to:
 - restore full environment if needed
 - understand restore ordering between platform and property layers
 
+Restore validation must have two layers:
+- a fast preflight that fails on missing, stale, tiny or non-gzip latest backup files;
+- a full pristine Postgres restore drill that proves dumps can actually be restored
+  and checks platform/property invariants.
+
 ## 8.4 Deletion and restore interplay
 
 If tenant data is deleted or anonymized:
@@ -358,6 +363,82 @@ Before tenant activation:
 - access configuration baseline loaded
 - notifications configured
 - smoke tests passed
+
+### 12.1a Automated local/staging preflight
+
+`DH-47` tenant-ops automation now includes a repo-root preflight command:
+
+```bash
+npm run tenant:preflight:e2e
+```
+
+It resolves the same environment as backend-backed access E2E, redacts DB
+credentials in output, and validates:
+- `DATABASE_URL` for the global DB;
+- `PLATFORM_DB_URL` for the registry/platform DB, including
+  `platform_schema_migrations` state;
+- `ZAMOSKV_DB_URL` or `E2E_TENANT_DB_URL` for the target property DB,
+  including the full property `schema_migrations` chain (legacy baseline plus
+  v1 migrations).
+
+`npm run verify:strict` and the Playwright webServer bootstrap run this
+preflight before `seedV1Access`, so missing or unreachable databases fail with
+an explicit tenant-ops error instead of an opaque seed/webServer crash. If the
+database is reachable but migrations are missing or pending, the preflight
+prints the first pending migration IDs without blocking cold-tenant seed flows.
+Use `npm run tenant:preflight:current` or
+`TENANT_OPS_PREFLIGHT_REQUIRE_CURRENT_MIGRATIONS=1` for post-migration staging
+gates that must fail on pending migrations.
+
+### 12.1b Automated tenant provisioning and batch migrations
+
+`DH-47` now includes executable tenant-ops commands for repeatable staging and
+production runbooks:
+
+```bash
+npm run tenant:provision -- \
+  --slug lesnoy-park \
+  --name "Lesnoy Park" \
+  --db-url postgresql://user:password@host:5432/lesnoy_park \
+  --plan operations \
+  --property-type cottage_community \
+  --hostname lesnoy.domhub.local
+
+npm run tenant:migrate -- --batch-size 10
+```
+
+`tenant:provision` validates the property contract, can create the target
+database with `--create-database`, applies platform migrations and the full
+property migration chain, upserts `platform.properties`, writes a platform audit
+event, and can seed the initial property admin when `--admin-phone`,
+`--admin-name` and `--admin-email` are supplied. It is idempotent, but changing
+an existing tenant `db_connection_url` requires `--allow-db-url-change`.
+
+`tenant:migrate` reads active tenants from `platform.properties`, applies
+property migrations in deterministic slug order and limits each run with
+`--batch-size` so production rollout can be paced. Operators can scope a run via
+`--slug`, include suspended/maintenance tenants via `--include-inactive`, run a
+non-mutating migration plan with `--dry-run`, or keep processing later tenants
+with `--continue-on-error`.
+
+### 12.1c Restore drill preflight and staging gate
+
+`DH-47` backup/restore automation now includes:
+
+```bash
+npm run tenant:restore-drill:preflight
+npm run tenant:restore-drill
+```
+
+The preflight checks every expected `*_latest.sql.gz` file before a restore
+drill starts: file presence, minimum size, gzip header and max age. It also
+checks Docker availability unless `--skip-docker` is used for synthetic CI
+gates. The full command runs the preflight and then delegates to the existing
+pristine Postgres restore drill.
+
+Nightly CI validates the preflight gate with a synthetic backup set. Staging
+must still run the full `tenant:restore-drill` against real backup files before
+go-live and after backup/Postgres changes.
 
 ## 12.2 First-week support mode
 

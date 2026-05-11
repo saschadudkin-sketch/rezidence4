@@ -28,9 +28,11 @@ const env = { ...process.env };
 delete env.npm_execpath;
 
 const RETRYABLE_INFRA_EXIT_CODES = new Set([3221225477]);
+const RETRYABLE_INFRA_ERROR_CODES = new Set(['EBUSY', 'EAGAIN', 'EPERM']);
 
 function shouldRetryInfraFailure(result, attempt) {
   if (attempt > 1) return false;
+  if (result.error && RETRYABLE_INFRA_ERROR_CODES.has(result.error.code)) return true;
   const status = result.status ?? 1;
   return RETRYABLE_INFRA_EXIT_CODES.has(status);
 }
@@ -47,8 +49,11 @@ for (const { label, cwd, args } of steps) {
       shell: false,
     });
 
-    if (!result.error && (result.status ?? 1) !== 0 && shouldRetryInfraFailure(result, attempt)) {
-      console.warn(`[run-checks] ${label} hit retryable infra exit code ${result.status}; retrying once`);
+    if (shouldRetryInfraFailure(result, attempt)) {
+      const reason = result.error
+        ? `retryable infra error ${result.error.code}: ${result.error.message}`
+        : `retryable infra exit code ${result.status}`;
+      console.warn(`[run-checks] ${label} hit ${reason}; retrying once`);
       continue;
     }
 

@@ -30,20 +30,20 @@ DomHub должен быть внедряемым продуктом, а не н
 
 ## 3. Required Runbooks For Production Pilot
 
-| Runbook | Status | Primary owner | Trigger |
-|---|---|---|---|
-| Property launch | Required | Ops And Enablement | New property onboarding |
-| Tenant provisioning and migration | Required | Data And Infra | New tenant or migration |
-| Resident import and activation | Required | Ops And Enablement | Before resident rollout |
-| Resident lifecycle/offboarding | Required | Property Admin / Support | Move-out, sale, lease end, correction |
-| Guard/checkpoint training | Required | Ops And Enablement | Before КПП go-live |
-| КПП degraded mode | Required | Security Lead / Support | Connectivity loss or provider outage |
-| Emergency dispatch | Required | Property Admin / Concierge Lead | P0/P1 emergency request |
-| Data correction | Required | Support / Property Admin | Wrong unit, resident, vehicle or membership data |
-| PDn/DSAR handling | Required | Legal/Ops / Support | Export/delete/correct/restrict request |
-| Incident escalation | Required | Support / Engineering | Security, access, data or platform incident |
-| Backup/restore and rollback | Required | Data And Infra | Failed deployment, migration or tenant issue |
-| First-week pilot support | Required | Ops And Enablement | First live property week |
+| Runbook | Status | Primary owner | Trigger | Linked evidence |
+|---|---|---|---|---|
+| Property launch | Required | Ops And Enablement | New property onboarding | `docs/runbooks/pilot-rollout.md` |
+| Tenant provisioning and migration | Required | Data And Infra | New tenant or migration | `domhub-deployment-and-tenant-ops-spec.md`, `docs/runbooks/pilot-rollout.md` |
+| Resident import and activation | Required | Ops And Enablement | Before resident rollout | `docs/runbooks/pilot-rollout.md` |
+| Resident lifecycle/offboarding | Required | Property Admin / Support | Move-out, sale, lease end, correction | `docs/runbooks/pilot-rollout.md` |
+| Guard/checkpoint training | Required | Ops And Enablement | Before КПП go-live | `docs/runbooks/pilot-rollout.md` |
+| КПП degraded mode | Required | Security Lead / Support | Connectivity loss or provider outage | `docs/runbooks/pilot-rollout.md` |
+| Emergency dispatch | Required | Property Admin / Concierge Lead | P0/P1 emergency request | `docs/runbooks/pilot-rollout.md` |
+| Data correction | Required | Support / Property Admin | Wrong unit, resident, vehicle or membership data | `docs/runbooks/pilot-rollout.md` |
+| PDn/DSAR handling | Required | Legal/Ops / Support | Export/delete/correct/restrict request | `domhub-russia-production-readiness-spec.md` |
+| Incident escalation | Required | Support / Engineering | Security, access, data or platform incident | `docs/runbooks/pilot-rollout.md` |
+| Backup/restore and rollback | Required | Data And Infra | Failed deployment, migration or tenant issue | `docs/runbooks/restore-drill.md`, `docs/runbooks/pilot-rollout.md` |
+| First-week pilot support | Required | Ops And Enablement | First live property week | `docs/runbooks/pilot-rollout.md` |
 
 ---
 
@@ -102,6 +102,8 @@ Each runbook SHOULD include:
 ## 8. Current Linked Runbooks
 
 - `platform-v1/go-live-zamoskv-runbook.md` — first production tenant go-live reference.
+- `docs/runbooks/pilot-rollout.md` — pilot go/no-go, first-week support,
+  checkpoint, incident, correction and rollback wrapper.
 - `domhub-deployment-and-tenant-ops-spec.md` — tenant provisioning, migrations, rollback and operational model.
 - `domhub-russia-production-readiness-spec.md` — required runbook topics for Russia readiness.
 

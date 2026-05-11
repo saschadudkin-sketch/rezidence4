@@ -6,6 +6,7 @@ const { buildE2EEnv } = require(path.resolve(__dirname, '..', '..', '..', 'scrip
 Object.assign(process.env, buildE2EEnv(process.env));
 
 const { Pool } = require('pg');
+const { MIGRATIONS } = require('../dbMigrations');
 const { PLATFORM_MIGRATIONS } = require('../platformMigrations');
 const { V1_PROPERTY_MIGRATIONS } = require('../v1/migrations');
 
@@ -96,11 +97,12 @@ async function runMigrations(pool, tableName, migrations) {
 async function upsertPlatformProperty(platformPool, tenantDbUrl) {
   const { rows } = await platformPool.query(
     `INSERT INTO properties (slug, name, address, db_connection_url, is_active, plan, contact_email, property_type)
-     VALUES ($1, $2, $3, $4, true, 'premium', 'e2e@domhub.local', $5)
+     VALUES ($1, $2, $3, $4, true, 'operations', 'e2e@domhub.local', $5)
      ON CONFLICT (slug) DO UPDATE SET
        name = EXCLUDED.name,
        db_connection_url = EXCLUDED.db_connection_url,
        is_active = true,
+       plan = EXCLUDED.plan,
        property_type = EXCLUDED.property_type,
        updated_at = NOW()
      RETURNING id, slug, db_connection_url, property_type`,
@@ -115,9 +117,9 @@ async function upsertPlatformProperty(platformPool, tenantDbUrl) {
   return rows[0];
 }
 
-async function upsertLegacyUsers(globalPool) {
+async function upsertLegacyUsers(pool) {
   for (const user of Object.values(USERS)) {
-    await globalPool.query(
+    await pool.query(
       `INSERT INTO users (uid, phone, name, role, apartment, property_slug)
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (uid) DO UPDATE SET
@@ -314,8 +316,9 @@ async function main() {
   try {
     await runMigrations(platformPool, 'platform_schema_migrations', PLATFORM_MIGRATIONS);
     const property = await upsertPlatformProperty(platformPool, tenantDbUrl);
-    await runMigrations(tenantPool, 'schema_migrations', V1_PROPERTY_MIGRATIONS);
+    await runMigrations(tenantPool, 'schema_migrations', [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS]);
     await upsertLegacyUsers(globalPool);
+    await upsertLegacyUsers(tenantPool);
     const seeded = await seedTenant(tenantPool, property.id);
 
     // eslint-disable-next-line no-console

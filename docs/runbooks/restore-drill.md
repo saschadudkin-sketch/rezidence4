@@ -1,9 +1,9 @@
 # Restore Drill Runbook (DATA-1)
 
 **BACKLOG:** `DATA-1` (P0 — обязательно до go-live Замоскворечья)
-**Скрипт:** [`scripts/restore-drill.sh`](../../scripts/restore-drill.sh)
+**Скрипты:** [`scripts/restore-drill-preflight.cjs`](../../scripts/restore-drill-preflight.cjs), [`scripts/restore-drill.sh`](../../scripts/restore-drill.sh)
 **Связанный runbook:** [`go-live-zamoskv-runbook.md §6 Rollback`](../product/specs/platform-v1/go-live-zamoskv-runbook.md)
-**Backup script:** [`backup.sh`](../../backup.sh) (расписание — `0 3 * * *` UTC внутри backup-контейнера)
+**Backup script:** [`backend/backup.sh`](../../backend/backup.sh) (расписание — `0 3 * * *` UTC внутри backup-контейнера)
 
 ---
 
@@ -33,13 +33,37 @@
 
 ## Запуск
 
+### Preflight
+
+```bash
+npm run tenant:restore-drill:preflight
+```
+
+Проверяет до запуска pristine Postgres:
+- наличие `residenze_latest.sql.gz`, `platform_latest.sql.gz`, `zamoskv_latest.sql.gz`;
+- что файлы не пустые, имеют gzip header и свежее `48h`;
+- что Docker daemon доступен.
+
+Custom limits:
+
+```bash
+BACKUP_DIR=/tmp/staging-backups \
+npm run tenant:restore-drill:preflight -- --max-age-hours 24 --min-bytes 1024
+```
+
+В CI без реальных backup'ов разрешён только synthetic gate с
+`--skip-docker`; реальный staging/prod-candidate drill должен запускать полный
+restore.
+
 ### Базовый (defaults)
 
 ```bash
-bash scripts/restore-drill.sh
+npm run tenant:restore-drill
 ```
 
-Проверяет три БД (`residenze`, `platform`, `zamoskv`), последние snapshots, на pristine `postgres:16-alpine`, port `15432`.
+Команда сначала выполняет preflight, затем проверяет три БД (`residenze`,
+`platform`, `zamoskv`), последние snapshots, на pristine `postgres:16-alpine`,
+port `15432`.
 
 ### Customisation
 

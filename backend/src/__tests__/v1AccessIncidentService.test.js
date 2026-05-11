@@ -222,6 +222,7 @@ describe('AccessIncidentService', () => {
       'A001AA77',
       UUID_STAFF,
       expect.any(String),
+      null,
       '2026-05-05T10:00:00.000Z',
     ]);
     expect(JSON.parse(visitCall[1][7])).toMatchObject({
