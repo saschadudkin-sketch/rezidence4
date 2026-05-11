@@ -37,8 +37,10 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-42 common Russia SKUD provider expansion
     // + 1 DH-44 ERP/1C exchange baseline
     // + 1 DH-45 analytics aggregation snapshots
-    // + 1 DH-03/DH-08/DH-17..21 membership/review/lifecycle ledger = 40
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(40);
+    // + 1 DH-03/DH-08/DH-17..21 membership/review/lifecycle ledger
+    // + 1 DH-60 sensitive review assignment/SLA operations
+    // + 1 DH-55 resident offboarding cascade = 42
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(42);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1536,6 +1538,78 @@ describe('v1_040_membership_review_lifecycle', () => {
       .toContain('client_event_id        TEXT NOT NULL');
     expect(sqls.find((s) => s.includes('ALTER TABLE visit_logs_v2')))
       .toContain('offline_replay_event_id UUID');
+  });
+});
+
+describe('v1_041_sensitive_review_ops', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds assignment, due date, priority and escalation columns', async () => {
+    await byId('v1_041_sensitive_review_ops').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    const alter = sqls.find((s) => s.includes('ALTER TABLE sensitive_action_reviews')
+      && s.includes('assigned_reviewer_staff_id'));
+    expect(alter).toBeDefined();
+    expect(alter).toContain('assigned_by_staff_id');
+    expect(alter).toContain('due_at');
+    expect(alter).toContain("priority                   VARCHAR(20) NOT NULL DEFAULT 'normal'");
+    expect(alter).toContain("escalation_status          VARCHAR(30) NOT NULL DEFAULT 'none'");
+  });
+
+  test('constrains review priority/escalation and indexes review queues', async () => {
+    await byId('v1_041_sensitive_review_ops').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    const priorityCheck = sqls.find((s) => s.includes('sensitive_action_reviews_priority_check')
+      && s.includes('CHECK'));
+    expect(priorityCheck).toContain("'low','normal','high','urgent'");
+
+    const escalationCheck = sqls.find((s) => s.includes('sensitive_action_reviews_escalation_status_check')
+      && s.includes('CHECK'));
+    expect(escalationCheck).toContain("'none','overdue','escalated'");
+
+    expect(sqls.find((s) => s.includes('idx_sensitive_action_reviews_assignment')))
+      .toContain('assigned_reviewer_staff_id');
+    expect(sqls.find((s) => s.includes('idx_sensitive_action_reviews_due')))
+      .toContain("WHERE review_status = 'pending'");
+    expect(sqls.find((s) => s.includes('idx_sensitive_action_reviews_priority')))
+      .toContain('priority');
+    expect(sqls.find((s) => s.includes('idx_property_audit_log_sensitive_review_window')))
+      .toContain('property_id, action, created_at DESC');
+  });
+});
+
+describe('v1_042_resident_offboarding_cascade', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates resident unit links with active membership indexes', async () => {
+    await byId('v1_042_resident_offboarding_cascade').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS resident_unit_links'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain("relationship_type   VARCHAR(30) NOT NULL DEFAULT 'resident'");
+    expect(tbl).toContain("'owner','tenant','resident','family_member','representative'");
+    expect(tbl).toContain('CONSTRAINT resident_unit_links_window');
+    expect(sqls.find((s) => s.includes('INSERT INTO resident_unit_links'))).toContain('FROM residents r');
+    expect(sqls.find((s) => s.includes('uq_resident_unit_links_active'))).toContain('WHERE is_active = true');
+    expect(sqls.find((s) => s.includes('idx_resident_unit_links_unit'))).toContain('property_id, unit_id, is_active');
+  });
+
+  test('adds vehicle offboarding review markers', async () => {
+    await byId('v1_042_resident_offboarding_cascade').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE vehicles')
+      && s.includes('review_required'));
+
+    expect(alter).toContain('review_required    BOOLEAN NOT NULL DEFAULT false');
+    expect(alter).toContain('offboarded_at      TIMESTAMPTZ');
+    expect(alter).toContain('offboarding_reason TEXT');
+    expect(sqls.find((s) => s.includes('idx_vehicles_resident_review')))
+      .toContain('owner_resident_id, review_required');
   });
 });
 

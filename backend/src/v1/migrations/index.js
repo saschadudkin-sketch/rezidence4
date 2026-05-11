@@ -72,6 +72,10 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./039_analytics_aggregation_snapshots'),
   // DH-03/DH-08/DH-17..21 persisted memberships, reviews and lifecycle ledger
   require('./040_membership_review_lifecycle'),
+  // DH-60 sensitive-action assignment, SLA and review queue operations
+  require('./041_sensitive_review_ops'),
+  // DH-55 resident offboarding cascade and household/unit links
+  require('./042_resident_offboarding_cascade'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

@@ -11,6 +11,10 @@ const {
   isAnalyticsAggregationEnabled,
   startAnalyticsAggregationRunner,
 } = require('../v1/workers/analyticsAggregationRunner');
+const {
+  isSensitiveReviewRunnerEnabled,
+  startSensitiveReviewRunner,
+} = require('../v1/workers/sensitiveReviewRunner');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { getPropertyPool, closeAllPools } = require('../middleware/propertyDb');
 
@@ -45,6 +49,7 @@ async function startServer({ app, db, config }) {
   let scheduledFanoutRunner = { stop() {}, started: false };
   let packageSlaRunner = { stop() {}, started: false };
   let analyticsAggregationRunner = { stop() {}, started: false };
+  let sensitiveReviewRunner = { stop() {}, started: false };
   if (isOutboxEnabled()) {
     let platformDb = null;
     try {
@@ -90,6 +95,23 @@ async function startServer({ app, db, config }) {
     });
   }
 
+  // DH-60 sensitive-action review runner.  It materializes sampled review
+  // rows and escalates overdue attestations independently from analytics and
+  // notification dispatch.
+  if (isSensitiveReviewRunnerEnabled()) {
+    let platformDb = null;
+    try {
+      platformDb = process.env.PLATFORM_DB_URL ? db.getPlatformDb() : null;
+    } catch (err) {
+      logger.warn({ err: err.message }, '[server] platform DB unavailable for sensitive review runner');
+    }
+    sensitiveReviewRunner = startSensitiveReviewRunner({
+      platformDb,
+      getPool: platformDb ? getPropertyPool : null,
+      fallbackDb: db.pool,
+    });
+  }
+
   const shutdownTimeout = 10_000;
   let shuttingDown = false;
 
@@ -110,6 +132,9 @@ async function startServer({ app, db, config }) {
     }
     try { analyticsAggregationRunner.stop(); } catch (err) {
       logger.warn({ err: err.message }, '[server] analytics aggregation runner stop failed');
+    }
+    try { sensitiveReviewRunner.stop(); } catch (err) {
+      logger.warn({ err: err.message }, '[server] sensitive review runner stop failed');
     }
     stopTelegramBot();
     sseRedis.shutdown();
@@ -150,6 +175,7 @@ async function startServer({ app, db, config }) {
     scheduledFanoutRunner,
     packageSlaRunner,
     analyticsAggregationRunner,
+    sensitiveReviewRunner,
   };
 }
 

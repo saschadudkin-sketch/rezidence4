@@ -165,11 +165,17 @@ Payloads MUST avoid raw PII when an ID reference is enough.
 
 ## 5. Sensitive Action Taxonomy
 
-Sensitive-action review is the DH-08/DH-60 bridge: DH-08 defines which audit actions are reviewable from persisted data; DH-60 later adds full anti-abuse review workflows.
+Sensitive-action review is the DH-08/DH-60 bridge: DH-08 defines which audit actions are reviewable from persisted data; DH-60 adds assignment, SLA metadata, sampling, escalation, attestation and anti-abuse review workflows.
 
 Backend baseline:
 - catalog: `backend/src/v1/services/auditEventCatalog.js`;
 - report API: `GET /api/v1/audit/sensitive-actions`;
+- summary API: `GET /api/v1/audit/sensitive-actions/_summary`;
+- anti-abuse API: `GET /api/v1/audit/sensitive-actions/_anti-abuse`;
+- sampling API: `POST /api/v1/audit/sensitive-actions/_sample`;
+- escalation API: `POST /api/v1/audit/sensitive-actions/_escalate`;
+- assignment API: `POST /api/v1/audit/sensitive-actions/:id/assign`;
+- attestation API: `POST /api/v1/audit/sensitive-actions/:id/review`;
 - metadata API: `GET /api/v1/audit/sensitive-actions/_meta`.
 
 Sensitive categories:
@@ -207,6 +213,12 @@ Query parameters:
 - `property_id` optional UUID filter for mixed/property-aware stores;
 - `actor_uid` optional actor filter;
 - `resource_type` optional resource filter;
+- `review_status` optional review state filter;
+- `priority` optional queue priority filter;
+- `escalation_status` optional escalation state filter;
+- `assigned_reviewer_staff_id` optional reviewer filter;
+- `assigned_to_me=true` resolves the caller's staff identity and filters assigned items;
+- `overdue=true` returns pending items with a due date before now;
 - `from`, `to` optional ISO timestamps;
 - `limit`, `offset` pagination.
 
@@ -233,14 +245,76 @@ type SensitiveActionReviewResponse = {
     changes: object | null;
     ip_address: string | null;
     created_at: string;
+    review: {
+      status: 'pending' | 'approved' | 'needs_followup' | 'dismissed';
+      review_id: string | null;
+      reviewer_staff_id: string | null;
+      reviewed_at: string | null;
+      comment: string | null;
+      assignment: {
+        assigned_reviewer_staff_id: string | null;
+        assigned_by_staff_id: string | null;
+        assigned_at: string | null;
+        due_at: string | null;
+        priority: 'low' | 'normal' | 'high' | 'urgent';
+        assignment_reason: string | null;
+        escalation_status: 'none' | 'overdue' | 'escalated';
+        escalation_note: string | null;
+        last_escalated_at: string | null;
+        overdue: boolean;
+      };
+    };
   }>;
   page: { limit: number; offset: number; returned: number; hasMore: boolean };
 };
 ```
 
+`GET /api/v1/audit/sensitive-actions/_summary`
+
+Returns grouped queue totals by review status and priority, plus overdue counts.
+
+`GET /api/v1/audit/sensitive-actions/_anti-abuse`
+
+Returns actor/category hotspots for a property or category window, including high-risk action count, pending/overdue review count, off-hours count, distinct touched resources, risk flags and a sortable risk score.
+
+`POST /api/v1/audit/sensitive-actions/_sample`
+
+Materializes pending `sensitive_action_reviews` rows for recent sensitive audit rows. High/urgent categories are always sampled within the window; normal/low categories use the configured sample percentage. The `SENSITIVE_REVIEW_RUNNER_ENABLED` worker calls the same service periodically.
+
+Body fields:
+- `property_id` optional property UUID;
+- `category` optional sensitive category from `_meta`;
+- `window_hours` review lookback, default `168`;
+- `sample_percent` sample rate for lower-risk categories, default `10`;
+- `due_hours` due date offset for sampled rows, default `72`;
+- `limit` maximum rows to create, default `100`.
+
+`POST /api/v1/audit/sensitive-actions/_escalate`
+
+Marks pending reviews with breached `due_at` as `overdue`, and moves still-pending overdue rows to `escalated` after the configured grace window. The `SENSITIVE_REVIEW_RUNNER_ENABLED` worker calls the same service periodically.
+
+Body fields:
+- `property_id` optional property UUID;
+- `limit` maximum rows to update, default `100`;
+- `escalate_after_hours` grace window from first overdue mark to hard escalation, default `24`.
+
+`POST /api/v1/audit/sensitive-actions/:id/assign`
+
+Body fields:
+- `assigned_reviewer_staff_id` optional staff UUID; defaults to the caller's mapped staff id;
+- `due_at` optional ISO timestamp;
+- `priority` one of `low`, `normal`, `high`, `urgent`;
+- `reason` optional assignment note.
+
+The endpoint only assigns sensitive/reviewable audit rows, checks the reviewer is active and prevents cross-property assignment.
+
+`POST /api/v1/audit/sensitive-actions/:id/review`
+
+Persists the final attestation decision for a sensitive action.
+
 `GET /api/v1/audit/sensitive-actions/_meta`
 
-Returns available `categories` and source audit `actions`.
+Returns available `categories`, source audit `actions`, `review_statuses`, queue `priorities` and `escalation_statuses`.
 
 ---
 
@@ -279,4 +353,4 @@ Older platform-v1 notification specs mention event-like names. New code SHOULD e
 - Vendor-specific event vocabularies.
 - BI warehouse schema.
 - Module-specific expansion events until the module is enabled.
-- Full DH-60 review assignment/attestation workflow.
+- Notification fanout for DH-60 escalations and richer anomaly rules.

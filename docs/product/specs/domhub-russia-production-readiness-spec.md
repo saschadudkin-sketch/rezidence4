@@ -37,6 +37,8 @@ DomHub MUST support a formal resident/access lifecycle:
 
 Lifecycle change MUST cascade to passes, vehicles, household members, notification preferences and visible resident scope according to policy.
 
+Current backend baseline: resident deactivation cascades to role-scope memberships, resident-unit links, active resident/vehicle passes, pending access requests and vehicle whitelist review markers with lifecycle/audit evidence. Ownership-transfer workflow and notification preference cascade remain follow-up DH-55 work.
+
 ### FR-2 Ownership And Household Model
 
 DomHub MUST distinguish at least:
@@ -148,6 +150,8 @@ DomHub MUST audit and review sensitive actions:
 - sensitive data is exported;
 - video evidence is attached or viewed;
 - integration secrets or provider settings are changed.
+
+Review workflow MUST support assignment to an active staff reviewer, priority, due date/SLA metadata, sampling of recent sensitive events, overdue/escalated queue states, anti-abuse hotspot reporting and summary reporting before attestation.
 
 DomHub SHOULD provide periodic access reviews and unusual activity reports for property admins and management company admins.
 

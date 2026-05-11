@@ -508,6 +508,75 @@ describe('POST /api/v1/residents/:id/consent', () => {
   });
 });
 
+describe('POST /api/v1/residents/:id/deactivate', () => {
+  test('property admin offboards resident and returns cascade summary', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('SELECT property_id FROM residents WHERE id = $1')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_A }] });
+      }
+      if (sql.includes('FROM residents') && sql.includes('external_uid')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_B,
+            property_id: UUID_A,
+            unit_id: UUID_C,
+            external_uid: 'r1',
+            is_active: true,
+          }],
+        });
+      }
+      if (sql.includes('FROM staff_users') && sql.includes('external_uid')) {
+        return Promise.resolve({ rows: [{ id: UUID_D }] });
+      }
+      if (sql.includes('UPDATE residents')) {
+        return Promise.resolve({ rows: [{ id: UUID_B, property_id: UUID_A, unit_id: UUID_C, is_active: false }] });
+      }
+      if (sql.includes('UPDATE role_scope_memberships')) {
+        return Promise.resolve({ rows: [{ id: 'membership-1' }] });
+      }
+      if (sql.includes('UPDATE resident_unit_links')) {
+        return Promise.resolve({ rows: [{ id: 'unit-link-1', unit_id: UUID_C }] });
+      }
+      if (sql.includes('UPDATE passes')) {
+        return Promise.resolve({ rows: [{ id: 'pass-1' }] });
+      }
+      if (sql.includes('UPDATE access_requests')) {
+        return Promise.resolve({ rows: [{ id: 'request-1' }] });
+      }
+      if (sql.includes('UPDATE vehicles')) {
+        return Promise.resolve({ rows: [{ id: 'vehicle-1', review_required: true }] });
+      }
+      if (sql.includes('INSERT INTO resident_lifecycle_events')) {
+        return Promise.resolve({ rows: [] });
+      }
+      if (sql.includes('INSERT INTO property_audit_log')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/residents/${UUID_B}/deactivate`)
+      .send({ reason: 'ownership transfer' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.offboarding.summary).toEqual({
+      suspended_memberships: 1,
+      revoked_passes: 1,
+      deactivated_unit_links: 1,
+      vehicles_marked_for_review: 1,
+      cancelled_access_requests: 1,
+    });
+    const passUpdate = db.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE passes'));
+    expect(passUpdate[0]).toContain('p.subject_vehicle_id IN');
+    expect(passUpdate[1][2]).toBe('resident offboarded: ownership transfer');
+
+    const vehicleUpdate = db.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE vehicles'));
+    expect(vehicleUpdate[0]).toContain('review_required = true');
+  });
+});
+
 // ─── Staff ───────────────────────────────────────────────────────────────────
 
 describe('POST /api/v1/staff — capability defaults and override', () => {

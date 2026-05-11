@@ -31,7 +31,7 @@ The largest gaps are still structural:
 - guard verification now accepts and stores optional `access_point_id` and `direction`; guard UI can select active access points, choose entry/exit, and record manual admit/deny decisions;
 - access decisions are now backed by a deterministic policy engine baseline; manual КПП decisions now have a backend baseline, while full admin UI and offline policy/cache replay are still missing;
 - service-request v1, assignment, SLA and staff workspace are mostly legacy/partial;
-- Russia-readiness tickets `DH-55` through `DH-61` are mostly documented, not runtime-complete.
+- Russia-readiness tickets `DH-55` through `DH-61` are mixed: resident offboarding and sensitive review now have backend baselines; emergency, GIS/OSS and hardware registry are still runtime gaps.
 - full legacy runtime removal is now explicit as `DH-62`, but it is intentionally post-cutover work.
 
 ## Status By Delivery Block
@@ -44,7 +44,7 @@ The largest gaps are still structural:
 | Operations-Ready v2 | `DH-21` to `DH-34` | Mixed | Content, packages and notifications are advanced; service requests, SLA, staff/technician/contractor workflows are incomplete. |
 | Portfolio-Ready v2+ | `DH-35` to `DH-40` | Partial | Platform admin, feature flags, management-company primitives, portfolio API and portfolio UI baseline exist; integrations need hardening. |
 | Pilot-To-Production Hardening | `DH-41` to `DH-49` | Partial | SKUD provider config, hardware mapping, integration event foundations, first Hikvision + Bolid/Orion-compatible event/sync paths, video evidence reference baseline and ERP/1C exchange baseline now exist; deeper vendor rollout, E2E gates and ops tooling remain. |
-| Russia Production Readiness | `DH-55` to `DH-61` | Partial, compliance ledgers added | Consent/delete baseline plus resident lifecycle/consent history and sensitive-action review attestations exist; offboarding, emergency, GIS/OSS and hardware registry remain incomplete. |
+| Russia Production Readiness | `DH-55` to `DH-61` | Partial, compliance ledgers added | Consent/delete baseline plus resident lifecycle/offboarding cascades, consent history and sensitive-action review assignment/SLA/sampling/escalation/analytics exist; emergency, GIS/OSS and hardware registry remain incomplete. |
 | Expansion Layer | `DH-50` to `DH-54` | Legacy/prototype | Some legacy meters/billing/bookings/branding surfaces exist and are feature-gated; not current priority. |
 | Legacy Cutover | `DH-62` | Docs/planned | Deprecated `/api/*` aliases, legacy UI/runtime paths and fallback flags still exist; removal must follow proven v1 cutover and replacement modules. |
 
@@ -59,7 +59,7 @@ The largest gaps are still structural:
 | `DH-05` | Vehicle Model | Implemented baseline | `vehicles` migration/routes/service, normalization, whitelist/blacklist and ownership checks exist. |
 | `DH-06` | Access Zones And Points | Implemented backend baseline | `access_zones` / `access_points` migration, FK-ready constraints, CRUD routes, validation helper, import provisioning and guard verify wiring exist. |
 | `DH-07` | Access Request And Pass Schema | Implemented baseline | `access_requests`, `access_approvals`, `passes`, `qr_passes_v2`, `visit_logs_v2` migrations exist and now carry optional topology references through runtime flows. |
-| `DH-08` | Access Incident And Audit Schema | Improved backend review workflow | `access_incidents`, `access_overrides`, `property_audit_log`, audit event catalog, sensitive-action review listing and `/api/v1/audit/sensitive-actions/:id/review` attestation now exist. Remaining DH-60 work: assignment queues, SLA and anti-abuse analytics. |
+| `DH-08` | Access Incident And Audit Schema | Improved backend review workflow | `access_incidents`, `access_overrides`, `property_audit_log`, audit event catalog, sensitive-action review listing, assignment/SLA queue metadata, sampling/escalation operations, anti-abuse analytics and `/api/v1/audit/sensitive-actions/:id/review` attestation now exist. Remaining DH-60 depth is UI/report evidence and richer anomaly rules. |
 | `DH-09` | Permission Middleware | Improved backend guard baseline | Shared capability middleware, persisted membership lookup helper, expanded `resourceScope` ownership lookups and route guards now cover structure/residents/staff/contractors/vehicles/access-requests/passes/access-incidents/overrides. Remaining work: content/admin long-tail and replacing all derived fallbacks post-cutover. |
 | `DH-10` | Access Request Service | Implemented baseline | `accessRequestService.js`, lifecycle routes and transition guards exist; optional topology target validation and pass inheritance are wired. |
 | `DH-11` | Pass Issuance And QR Flow | Implemented baseline | `passService.js`, pass routes, QR fetch/regenerate/revoke/block flows exist; direct passes can carry validated `zone_id` / `point_id`. |
@@ -106,12 +106,12 @@ The largest gaps are still structural:
 | `DH-52` | Space Booking Module | Legacy/prototype | Legacy spaces/bookings are present and feature-gated; not final expansion work. |
 | `DH-53` | OCR And Smart Capture | Docs/planned | No OCR product implementation found. |
 | `DH-54` | White-Label And Branding Expansion | Partial | Some styling/runtime surfaces exist; full customer branding module is not complete. |
-| `DH-55` | Resident Lifecycle And Ownership Changes | Partial, ledger baseline added | Resident create/update/deactivate/consent now writes lifecycle events and membership provisioning/suspension. Ownership transfer, household lifecycle and offboarding cascades remain incomplete. |
-| `DH-56` | RU Personal Data Compliance Controls | Improved partial | Consent and account deletion/anonymization baseline exists; consent history and sensitive-action attestations now exist. DSAR workflow, retention automation, localization controls and legal exports remain incomplete. |
+| `DH-55` | Resident Lifecycle And Ownership Changes | Improved backend baseline | Resident create/update/consent writes lifecycle events and membership provisioning; `v1_042_resident_offboarding_cascade` adds `resident_unit_links`, vehicle offboarding review markers, and `/api/v1/residents/:id/deactivate` now deactivates resident scope, unit links, active resident/vehicle passes, pending access requests and vehicle whitelist access with lifecycle/audit summary. Remaining work: ownership-transfer workflow, notification preference cascade and admin UI/report evidence. |
+| `DH-56` | RU Personal Data Compliance Controls | Improved partial | Consent and account deletion/anonymization baseline exists; consent history plus sensitive-action assignment/SLA/sampling/escalation/attestations now exist. DSAR workflow, retention automation, localization controls and legal exports remain incomplete. |
 | `DH-57` | Emergency Dispatch Mode | Docs/planned | Emergency categories exist in docs/content, but no dedicated emergency request runtime/SLA mode. |
 | `DH-58` | GIS ЖКХ And OSS Readiness | Docs/planned | Documents/announcements can store content; no GIS/OSS export/readiness workflow. |
 | `DH-59` | Hardware Device Registry And Manual-Control Boundaries | Docs/planned | SKUD prototypes exist, but no hardware device registry/manual-control boundary model. |
-| `DH-60` | Sensitive Action Audit And Anti-Abuse Reviews | Partial, attestation baseline added | Sensitive-action review listing and attestation persistence exist over immutable audit rows. Assignment, escalation, sampling rules and anti-abuse analytics remain incomplete. |
+| `DH-60` | Sensitive Action Audit And Anti-Abuse Reviews | Improved backend baseline | Sensitive-action review listing, queue summary, reviewer assignment, due date/priority metadata, attestation persistence, sampled review materialization, overdue/escalation maintenance runner and actor/category anti-abuse analytics exist over immutable audit rows. Remaining work: UI/report evidence, notification fanout for escalations and richer anomaly rules. |
 | `DH-61` | Pilot Operations And Training Pack | Partial/docs | Runbook docs exist; not packaged as an operational product/training workflow. |
 | `DH-62` | Legacy Runtime Removal | Docs/planned | Deprecated `/api/*` aliases and legacy utility/runtime paths are still mounted. Removal is planned only after release gates prove supported flows use v1/platform contracts and legacy meters/billing/bookings replacements are live. |
 
@@ -141,7 +141,7 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-18` | Improved offline baseline | `ScanPanel` loads `/access-points`, lets guard select КПП, sends `access_point_id` and `direction` to `/visits/verify`, records manual admit/deny, persists local offline manual decisions, and replays them through `/security-workspace/offline-replay`. | Add richer server recent-event panel integration. |
 | `DH-19` | Improved, baseline added | `AccessAdminPage`, `accessPoliciesApi`, topology mutation helpers and `/v1/admin/access` route now exist for topology, policies, vehicle flags and incident review. | Add edit/details flows, policy dry-run UI and richer admin analytics. |
 | `DH-20` | Improved, smoke E2E added | `units/import` converts `planned_access_points` into `access_topology` zones/points; onboarding UI shows provisioned КПП; `v1-access-production.spec.js` now covers resident guest QR, resident vehicle access, cottage import → policy → guard КПП selector → plate verify/manual admit. | Run full strict E2E against live local/staging DB before marking pilot-ready. |
-| `DH-21` | Improved, still partial | `auth.js`, `middleware/auth.js`, `privacy.js`, `users.js`, `authSessionService.js`, consent history and resident lifecycle hooks now align sessions and consent with tenant context. | Continue with full resident subject split and offboarding cascades in `DH-55`/`DH-56`. |
+| `DH-21` | Improved, still partial | `auth.js`, `middleware/auth.js`, `privacy.js`, `users.js`, `authSessionService.js`, consent history and resident lifecycle hooks now align sessions and consent with tenant context. | Continue with final v1 subject split and DSAR/retention depth in `DH-56`. |
 | `DH-22` | Improved, backend baseline added | `service_request_categories`, request target/priority/SLA columns, `/requests/categories` endpoints, territory/emergency defaults and tests now exist. `/api/v1/requests` remains the compatibility bridge instead of a final dedicated table split. | Continue with attachments/resident updates in `DH-23`, then assignment/SLA automation in `DH-24`. |
 | `DH-23` | Improved, backend baseline added | `v1_030_request_attachments_updates`, `RequestUpdatesService`, `/requests/:id/attachments`, `/requests/:id/updates`, upload ACL integration and focused tests now exist. | Continue with assignment/SLA automation in `DH-24`; later add internal staff notes UI/API and richer media gallery only if product scope requires it. |
 | `DH-24` | Improved, backend baseline added | `RequestSlaService`, `v1_031_request_assignment_sla`, `/requests/:id/assign`, `/requests/:id/first-response`, request lifecycle timestamps and `request_sla_events` now exist; runtime SLA job uses idempotent events instead of only legacy history markers. | Continue with `DH-25` staff workspace API: inbox filters, overdue queues and request detail aggregation over the new assignment/SLA fields. |
@@ -169,14 +169,16 @@ Started after `DH-03` implementation pass on 2026-05-05.
 | `DH-46` | Improved, import baseline expanded | Added staff and contractor onboarding import services/routes with CSV templates, preview/apply validation, idempotent duplicate skips and checklist summaries while preserving the existing cottage `units/import` path. | Continue with `DH-47` Deployment And Tenant Ops Automation. |
 | `DH-47` | Improved, restore gate added | Added `scripts/tenant-ops-preflight.cjs`, root `tenant:preflight*` commands, strict/webServer integration, migration-state reporting and tests. Local DB/Redis preflight now reaches global/platform/tenant DBs, reports the full tenant migration chain as current, seeds E2E access data after applying tenant migrations, and the release-blocking `v1-access-production.spec.js` slice passes through the Playwright retry wrapper. Added `tenant:provision`, `tenant:migrate`, `tenant:restore-drill:preflight` and `tenant:restore-drill` for repeatable tenant creation, controlled migrations and backup-restore gating. One clean end-to-end `npm run verify:strict` run is still needed because the local Windows run hit tool timeout/process instability. | Continue with `DH-48` release-gate matrix and capture full staging restore evidence. |
 | `DH-48` | Improved, executable matrix added | Added `scripts/release-gate-matrix.cjs`, `release:gate:matrix`, `release:gate:check`, focused tests, and strict-gate integration so release-blocking scripts/specs/docs cannot silently drift from the gate checklist. | Continue with clean CI/staging strict-gate evidence, then `DH-49` pilot rollout tooling/runbooks. |
-| `DH-49` | Improved, readiness gate added | Added `docs/runbooks/pilot-rollout.md`, linked it from the operational runbook index, added `scripts/pilot-readiness-check.cjs`, `pilot:readiness`, tests, and release-gate-matrix coverage. | Continue with Russia readiness gaps, especially full degraded КПП offline replay and sensitive-action attestation. |
+| `DH-49` | Improved, readiness gate added | Added `docs/runbooks/pilot-rollout.md`, linked it from the operational runbook index, added `scripts/pilot-readiness-check.cjs`, `pilot:readiness`, tests, and release-gate-matrix coverage. | Continue with Russia readiness gaps, especially the remaining DH-55/DH-57..DH-59 runtime gaps. |
+| `DH-55` | Improved backend baseline | Added `v1_042_resident_offboarding_cascade`, `resident_unit_links`, vehicle offboarding review markers, `residentOffboardingService`, and deactivation route cascade across memberships, household/unit links, active passes, resident-created access requests and resident vehicles. | Continue with ownership-transfer workflow, notification preference cascade and admin UI/report evidence after core Russia runtime gaps. |
+| `DH-60` | Improved backend baseline | Added `v1_041_sensitive_review_ops`, assignment/SLA fields on `sensitive_action_reviews`, `/api/v1/audit/sensitive-actions/_summary`, `_sample`, `_escalate`, `_anti-abuse`, assigned/overdue queue filters, `/api/v1/audit/sensitive-actions/:id/assign`, and `SENSITIVE_REVIEW_RUNNER_ENABLED` runner for sampled review materialization plus overdue/escalation maintenance. | Continue with UI/report evidence, notification fanout for escalations and richer anomaly rules after core Russia runtime gaps. |
 
 ## Current Critical Path
 
 1. Stabilize one-command `npm run verify:strict` on Windows or run the same strict gate in CI/staging; local focused components now pass, but the full wrapper still needs one clean uninterrupted run.
 2. Collect full staging restore evidence for `DH-47` with real backup files.
-3. Continue with Russia readiness gaps, especially full degraded КПП offline replay and sensitive-action attestation.
-4. Implement full sensitive-action review assignment/attestation under `DH-60`.
+3. Continue with Russia readiness runtime gaps beyond the now-baselined degraded КПП replay, DH-55 offboarding cascade and DH-60 backend workflow: `DH-57` emergency mode, `DH-58` GIS/OSS readiness and `DH-59` hardware registry/manual-control boundaries.
+4. Later DH-60 depth: add UI/report evidence, escalation notification fanout and richer anomaly rules after the core runtime gaps.
 5. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths until v1 release gates and replacement modules prove no supported flow depends on them.
 
 ## Validation Performed
@@ -205,6 +207,9 @@ Focused backend/frontend checks were executed for recent implementation updates:
 - `v1VehiclesRoute.test.js`
 - `v1AuditEventCatalog.test.js`
 - `v1AuditReviewsRoute.test.js`
+- `v1AuditReviewService.test.js`
+- `v1SensitiveReviewRunner.test.js`
+- `v1ResidentOffboardingService.test.js`
 - `auth.test.js`
 - `auth.coverage.test.js`
 - `auth_redis_revocation.test.js`
@@ -283,5 +288,6 @@ Focused backend/frontend checks were executed for recent implementation updates:
   `E2E_BACKEND_MODE=1`, `E2E_V1_ACCESS=1`, and
   `E2E_PROPERTY_TYPE=cottage_community`: 2 tests passed, including DH-20
   onboarding/import/checkpoint/policy/manual-decision smoke
+- `node .\node_modules\jest\bin\jest.js --runTestsByPath src\__tests__\v1Routes.test.js src\__tests__\v1ResidentOffboardingService.test.js src\__tests__\v1PropertyMigrations.test.js src\__tests__\v1AuditReviewsRoute.test.js src\__tests__\v1AuditReviewService.test.js src\__tests__\v1SensitiveReviewRunner.test.js --runInBand` from `backend/`: 6 suites, 219 tests passed
 
 No full runtime test suite was executed for this snapshot.

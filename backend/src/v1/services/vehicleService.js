@@ -5,7 +5,8 @@ const { resolveResidentIdByUid } = require('./accessActorResolver');
 const VEHICLE_COLS = `
   id, property_id, owner_type, owner_resident_id, owner_staff_id, owner_contractor_user_id,
   plate_number, vehicle_type, color, brand, model,
-  is_whitelisted, is_blacklisted, notes, created_at, updated_at
+  is_whitelisted, is_blacklisted, review_required, offboarded_at, offboarding_reason,
+  notes, created_at, updated_at
 `;
 
 class VehicleServiceError extends Error {

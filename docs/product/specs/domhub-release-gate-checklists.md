@@ -130,13 +130,13 @@ Backlog coverage: `DH-55` through `DH-61`.
 
 Required:
 - Resident lifecycle handles owner, resident, tenant, representative and legal-entity owner scenarios.
-- Offboarding cascades to passes, vehicles, household links and scopes according to policy.
+- Offboarding cascades to passes, vehicles, household links, access requests and scopes according to policy, with lifecycle/audit evidence and vehicle review markers.
 - Consent history, sensitive data classification, DSAR flow and retention/deletion procedures exist.
 - Data localization and ИСПДн readiness assumptions are documented.
 - Emergency dispatch mode has priority, SLA, escalation and notification behavior.
 - GIS ЖКХ / ОСС readiness is export/readiness only and does not claim legal authority.
 - Hardware device registry covers SKUD, barriers/gates, intercoms, LPR and cameras with fallback boundaries.
-- Sensitive-action audit/review covers grants, policy changes, overrides, exports, evidence access and provider settings.
+- Sensitive-action audit/review covers grants, policy changes, overrides, exports, evidence access and provider settings, with assignment, due dates, priority, queue summary, sampling, overdue escalation and anti-abuse hotspot reporting.
 - Pilot training pack covers guard/checkpoint, first-week support, emergency drill and PDn escalation.
 - No-biometrics-by-default rule is documented and test/release checked.
 

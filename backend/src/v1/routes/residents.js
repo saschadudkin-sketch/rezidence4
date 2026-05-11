@@ -26,12 +26,15 @@ const {
 } = require('../services/resourceScope');
 const {
   provisionResidentMembership,
-  suspendMembershipsForSubject,
 } = require('../services/roleScopeMembershipService');
 const {
   recordResidentConsentHistory,
   recordResidentLifecycleEvent,
 } = require('../services/residentLifecycleService');
+const {
+  isResidentOffboardingServiceError,
+  offboardResident,
+} = require('../services/residentOffboardingService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -60,6 +63,43 @@ function sendScopeError(res, err) {
   if (!isResourceScopeServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
   return true;
+}
+
+function sendOffboardingError(res, err) {
+  if (!isResidentOffboardingServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
+
+async function runOffboarding(req, residentId) {
+  const queryable = getDb(req);
+  const pool = typeof queryable.connect === 'function'
+    ? queryable
+    : (queryable.pool && typeof queryable.pool.connect === 'function' ? queryable.pool : null);
+  const payload = {
+    residentId,
+    actor: {
+      uid: req.user?.uid || null,
+      role: req.user?.role || null,
+      ipAddress: req.ip || null,
+    },
+    reason: req.body?.reason || 'resident deactivated',
+  };
+
+  if (!pool) return offboardResident({ queryable, ...payload });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await offboardResident({ queryable: client, ...payload });
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* keep original error */ }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function requirePropertyAdminForResource(req, res, resourceType, resourceId, notFoundMessage) {
@@ -315,29 +355,10 @@ router.post('/:id/deactivate', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid resident id' });
     const propertyId = await requirePropertyAdminForResource(req, res, 'resident', req.params.id, 'Resident not found');
     if (!propertyId) return;
-    const { rows } = await getDb(req).query(
-      `UPDATE residents SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id, property_id`,
-      [req.params.id],
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
-    auditLog(req, { action: 'resident.deactivated', resourceId: rows[0].id, changes: null });
-    await suspendMembershipsForSubject({
-      queryable: getDb(req),
-      subjectType: 'resident',
-      subjectId: rows[0].id,
-      reason: 'resident deactivated',
-    });
-    await recordResidentLifecycleEvent({
-      queryable: getDb(req),
-      propertyId: rows[0].property_id || propertyId,
-      residentId: rows[0].id,
-      eventType: 'deactivated',
-      actorUid: req.user?.uid || null,
-      actorRole: req.user?.role || null,
-      metadata: {},
-    });
-    res.status(204).end();
+    const offboarding = await runOffboarding(req, req.params.id);
+    res.json({ offboarding });
   } catch (err) {
+    if (sendOffboardingError(res, err)) return;
     if (sendScopeError(res, err)) return;
     next(err);
   }
