@@ -164,6 +164,18 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     sensitivity: 'restricted',
     reviewReason: 'resident deactivation affects household access and PII lifecycle',
   }),
+  'resident.ownership_transferred': entry({
+    canonicalEventType: 'resident.ownership.transferred',
+    category: 'personal_data',
+    sensitivity: 'restricted',
+    reviewReason: 'ownership transfer changes resident-to-unit access and notification scope',
+  }),
+  'resident.notification_preferences_cascaded': entry({
+    canonicalEventType: 'resident.notification_preferences.cascaded',
+    category: 'personal_data',
+    sensitivity: 'restricted',
+    reviewReason: 'notification preference cascade can expose or suppress resident contact channels',
+  }),
   'resident.consent_given': entry({
     canonicalEventType: 'identity.consent.accepted',
     category: 'personal_data',
@@ -198,6 +210,12 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     sensitivity: 'restricted',
     reviewReason: 'ERP exports can expose operational access, incident, and request data',
   }),
+  'gis_oss.export_package.generated': entry({
+    canonicalEventType: 'integration.gis_oss.export_package.generated',
+    category: 'export',
+    sensitivity: 'restricted',
+    reviewReason: 'GIS/OSS readiness packages can expose property operational and resident notice materials',
+  }),
   'video.evidence.viewed': entry({
     canonicalEventType: 'video.evidence.viewed',
     category: 'video_evidence',
@@ -209,6 +227,11 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     category: 'video_evidence',
     sensitivity: 'restricted',
     reviewReason: 'video evidence links affect incident investigation context',
+  }),
+  'hardware.manual_control.executed': entry({
+    canonicalEventType: 'hardware.manual_control.executed',
+    category: 'hardware_boundary',
+    reviewReason: 'manual hardware operation can bypass normal provider or policy behavior',
   }),
   'audit.export.created': entry({
     canonicalEventType: 'audit.export.created',

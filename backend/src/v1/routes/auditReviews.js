@@ -18,6 +18,8 @@ const {
 } = require('../services/auditEventCatalog');
 const {
   ESCALATION_STATUSES,
+  REPORT_EVIDENCE_STATUSES,
+  REPORT_EVIDENCE_TYPES,
   REVIEW_PRIORITIES,
   REVIEW_STATUSES,
   assignSensitiveActionReview,
@@ -26,7 +28,9 @@ const {
   getSensitiveActionAntiAbuseAnalytics,
   isAuditReviewServiceError,
   listSensitiveActionReviews,
+  listSensitiveActionReportEvidence,
   materializeSensitiveActionReviewSamples,
+  recordSensitiveActionReportEvidence,
   summarizeSensitiveActionReviews,
 } = require('../services/auditReviewService');
 const { resolveStaffIdByUid } = require('../services/accessActorResolver');
@@ -104,6 +108,8 @@ router.get('/sensitive-actions/_meta', (req, res) => {
     review_statuses: [...REVIEW_STATUSES],
     priorities: [...REVIEW_PRIORITIES],
     escalation_statuses: [...ESCALATION_STATUSES],
+    report_evidence_types: [...REPORT_EVIDENCE_TYPES],
+    report_evidence_statuses: [...REPORT_EVIDENCE_STATUSES],
   });
 });
 
@@ -161,6 +167,63 @@ router.get('/sensitive-actions/_anti-abuse', async (req, res, next) => {
     });
     res.json({ analytics });
   } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/sensitive-actions/_report-evidence', async (req, res, next) => {
+  try {
+    if (!can(req.user, 'audit.read')) return res.status(403).json({ error: 'Forbidden' });
+
+    const filters = {};
+    if (!applyPropertyFilter(req, res, filters)) return;
+    const reportType = firstQueryValue(req.query.report_type);
+    if (reportType) {
+      if (!REPORT_EVIDENCE_TYPES.has(reportType)) return res.status(400).json({ error: 'Invalid report_type' });
+      filters.report_type = reportType;
+    }
+    const status = firstQueryValue(req.query.status);
+    if (status) {
+      if (!REPORT_EVIDENCE_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid status' });
+      filters.status = status;
+    }
+    const limit = parseIntegerOption(req.query.limit, 25, 1, 100);
+    if (limit === null) return res.status(400).json({ error: 'Invalid numeric option' });
+
+    const evidence = await listSensitiveActionReportEvidence({
+      queryable: getDb(req),
+      filters,
+      limit,
+    });
+    res.json({ evidence });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/sensitive-actions/_report-evidence', async (req, res, next) => {
+  try {
+    if (!can(req.user, 'audit.read')) return res.status(403).json({ error: 'Forbidden' });
+    if (!req.body?.property_id && !req.body?.propertyId && !req.user?.property_id && !req.user?.propertyId) {
+      return res.status(400).json({ error: 'property_id is required' });
+    }
+    if (req.body?.property_id && !isValidUuid(req.body.property_id)) {
+      return res.status(400).json({ error: 'Invalid property_id' });
+    }
+    if (req.body?.propertyId && !isValidUuid(req.body.propertyId)) {
+      return res.status(400).json({ error: 'Invalid property_id' });
+    }
+
+    const evidence = await recordSensitiveActionReportEvidence({
+      queryable: getDb(req),
+      user: req.user,
+      body: req.body || {},
+    });
+    res.status(201).json({ evidence });
+  } catch (err) {
+    if (sendServiceError(res, err)) return;
+    if (err && err.code === '23514') return res.status(400).json({ error: 'report evidence constraint violation' });
     next(err);
   }
 });

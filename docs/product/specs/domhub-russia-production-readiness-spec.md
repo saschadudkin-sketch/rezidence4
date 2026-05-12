@@ -37,7 +37,7 @@ DomHub MUST support a formal resident/access lifecycle:
 
 Lifecycle change MUST cascade to passes, vehicles, household members, notification preferences and visible resident scope according to policy.
 
-Current backend baseline: resident deactivation cascades to role-scope memberships, resident-unit links, active resident/vehicle passes, pending access requests and vehicle whitelist review markers with lifecycle/audit evidence. Ownership-transfer workflow and notification preference cascade remain follow-up DH-55 work.
+Current backend baseline: resident deactivation cascades to role-scope memberships, resident-unit links, active resident/vehicle passes, pending access requests, vehicle whitelist review markers and notification preferences with lifecycle/audit evidence. Ownership transfer is now a formal workflow over `resident_ownership_transfers`: it offboards the previous owner, activates the new owner link, cascades notification preferences and writes lifecycle/audit evidence.
 
 ### FR-2 Ownership And Household Model
 
@@ -106,7 +106,7 @@ DomHub MUST support emergency operational scenarios:
 
 Emergency requests MUST have priority, SLA, escalation and notification behavior distinct from normal requests.
 
-Current backend baseline: emergency service categories create `emergency_request_profiles` with severity, escalation target, dispatch status, first-response/resolution due timestamps, emergency queue listing, dispatch actions and `request.emergency_created` notification routing. UI/on-call roster/provider evidence remains follow-up DH-57 work.
+Current baseline: emergency service categories create `emergency_request_profiles` with severity, escalation target, dispatch status, first-response/resolution due timestamps, emergency queue listing, dispatch actions and `request.emergency_created` notification routing. `/api/v1/requests/emergency/readiness`, `/api/v1/requests/emergency/drills`, `/api/v1/requests/emergency/provider-delivery-evidence` and `/v1/admin/emergency-dispatch` add readiness evidence over active queue, on-call roster, provider notification logs, drill records and live provider delivery observations.
 
 ### FR-7 Checkpoint Degraded Mode
 
@@ -156,6 +156,8 @@ DomHub MUST audit and review sensitive actions:
 Review workflow MUST support assignment to an active staff reviewer, priority, due date/SLA metadata, sampling of recent sensitive events, overdue/escalated queue states, anti-abuse hotspot reporting and summary reporting before attestation.
 
 DomHub SHOULD provide periodic access reviews and unusual activity reports for property admins and management company admins.
+
+Current baseline: sensitive review assignment/SLA/sampling/escalation and anti-abuse analytics exist. `sensitive_action_report_evidence` records real summary, anti-abuse, escalation, attestation and rollout report evidence for DH-60 validation.
 
 ### FR-11 Pilot Operations Runbooks
 

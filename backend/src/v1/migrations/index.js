@@ -78,6 +78,14 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./042_resident_offboarding_cascade'),
   // DH-57 emergency dispatch runtime profiles
   require('./043_emergency_dispatch_mode'),
+  // DH-59 hardware registry manual-control boundaries
+  require('./044_hardware_manual_control_boundaries'),
+  // DH-58 GIS ZhKH / OSS readiness export packages
+  require('./045_gis_oss_readiness_exports'),
+  // DH-57 emergency dispatch readiness evidence and drill records
+  require('./046_emergency_readiness_evidence'),
+  // DH-55/DH-57/DH-59/DH-60 live readiness evidence and ownership transfers
+  require('./047_readiness_live_evidence_and_transfers'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

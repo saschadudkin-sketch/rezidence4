@@ -16,21 +16,34 @@ jest.mock('../middleware/auth', () => (req, res, next) => {
 });
 
 jest.mock('../v1/services/skudIntegrationService', () => ({
+  getProviderFailureDashboard: jest.fn(),
   ingestProviderAccessEvent: jest.fn(),
+  listHardwareDevices: jest.fn(),
+  listHardwareManualControlEvents: jest.fn(),
+  recordFieldRolloutEvidence: jest.fn(),
+  recordHardwareManualControl: jest.fn(),
   syncPassAccess: jest.fn(),
+  updateHardwareManualBoundary: jest.fn(),
   isSkudIntegrationServiceError: (err) => err?.name === 'SkudIntegrationServiceError',
 }));
 
 const db = require('../db');
 const {
+  getProviderFailureDashboard,
   ingestProviderAccessEvent,
+  listHardwareDevices,
+  listHardwareManualControlEvents,
+  recordFieldRolloutEvidence,
+  recordHardwareManualControl,
   syncPassAccess,
+  updateHardwareManualBoundary,
 } = require('../v1/services/skudIntegrationService');
 const skudRouter = require('../v1/routes/skudIntegrations');
 
 const PROPERTY_ID = '11111111-1111-4111-8111-111111111111';
 const PROVIDER_ID = '22222222-2222-4222-8222-222222222222';
 const PASS_ID = '33333333-3333-4333-8333-333333333333';
+const DEVICE_ID = '44444444-4444-4444-8444-444444444444';
 
 function buildApp() {
   const app = express();
@@ -109,5 +122,141 @@ describe('v1 SKUD integration routes', () => {
 
     expect(res.status).toBe(403);
     expect(syncPassAccess).not.toHaveBeenCalled();
+  });
+
+  test('GET /hardware-devices lists scoped devices for security', async () => {
+    mockCurrentUser = { uid: 'guard-1', role: 'security', property_id: PROPERTY_ID };
+    listHardwareDevices.mockResolvedValue([{ id: DEVICE_ID, manual_control_policy: 'guard_allowed' }]);
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/skud/hardware-devices?provider_config_id=${PROVIDER_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.hardware_devices).toHaveLength(1);
+    expect(listHardwareDevices).toHaveBeenCalledWith(db, {
+      propertyId: PROPERTY_ID,
+      providerConfigId: PROVIDER_ID,
+      accessPointId: null,
+    });
+  });
+
+  test('GET /provider-failures returns scoped failure dashboard for security', async () => {
+    mockCurrentUser = { uid: 'guard-1', role: 'security', property_id: PROPERTY_ID };
+    getProviderFailureDashboard.mockResolvedValue({
+      property_id: PROPERTY_ID,
+      window_hours: 24,
+      summary: { providers_needing_attention: 1 },
+      providers: [],
+      field_rollout_evidence: { real_failure_rows: 2 },
+    });
+
+    const res = await supertest(buildApp())
+      .get('/api/v1/skud/provider-failures?window_hours=24&limit=10');
+
+    expect(res.status).toBe(200);
+    expect(res.body.dashboard.summary.providers_needing_attention).toBe(1);
+    expect(getProviderFailureDashboard).toHaveBeenCalledWith(db, {
+      propertyId: PROPERTY_ID,
+      windowHours: '24',
+      limit: '10',
+    });
+  });
+
+  test('POST /field-rollout-evidence records scoped field evidence for admins', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: PROPERTY_ID };
+    recordFieldRolloutEvidence.mockResolvedValue({
+      id: 'rollout-1',
+      property_id: PROPERTY_ID,
+      evidence_type: 'field_drill',
+      status: 'passed',
+    });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/skud/field-rollout-evidence')
+      .send({
+        provider_config_id: PROVIDER_ID,
+        evidence_type: 'field_drill',
+        status: 'passed',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.evidence).toMatchObject({ evidence_type: 'field_drill', status: 'passed' });
+    expect(recordFieldRolloutEvidence).toHaveBeenCalledWith(db, expect.objectContaining({
+      propertyId: PROPERTY_ID,
+      provider_config_id: PROVIDER_ID,
+      evidence_type: 'field_drill',
+      actorUid: 'admin-1',
+    }));
+  });
+
+  test('PATCH /hardware-devices/:id/boundary requires admin and updates boundary policy', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: PROPERTY_ID };
+    updateHardwareManualBoundary.mockResolvedValue({
+      hardware_device: { id: DEVICE_ID, manual_control_policy: 'admin_only' },
+    });
+
+    const res = await supertest(buildApp())
+      .patch(`/api/v1/skud/hardware-devices/${DEVICE_ID}/boundary`)
+      .send({ manual_control_policy: 'admin_only' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.hardware_device.manual_control_policy).toBe('admin_only');
+    expect(updateHardwareManualBoundary).toHaveBeenCalledWith(db, expect.objectContaining({
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      manual_control_policy: 'admin_only',
+      actorUid: 'admin-1',
+      actorRole: 'admin',
+    }));
+  });
+
+  test('PATCH /hardware-devices/:id/boundary denies security', async () => {
+    mockCurrentUser = { uid: 'guard-1', role: 'security', property_id: PROPERTY_ID };
+
+    const res = await supertest(buildApp())
+      .patch(`/api/v1/skud/hardware-devices/${DEVICE_ID}/boundary`)
+      .send({ manual_control_policy: 'admin_only' });
+
+    expect(res.status).toBe(403);
+    expect(updateHardwareManualBoundary).not.toHaveBeenCalled();
+  });
+
+  test('POST /hardware-devices/:id/manual-control allows guard action', async () => {
+    mockCurrentUser = { uid: 'guard-1', role: 'security', property_id: PROPERTY_ID };
+    recordHardwareManualControl.mockResolvedValue({
+      hardware_device: { id: DEVICE_ID },
+      manual_control_event: { id: 'event-1', action: 'manual_open' },
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/skud/hardware-devices/${DEVICE_ID}/manual-control`)
+      .send({ action: 'manual_open', reason: 'verified manually' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.manual_control_event.action).toBe('manual_open');
+    expect(recordHardwareManualControl).toHaveBeenCalledWith(db, expect.objectContaining({
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      action: 'manual_open',
+      reason: 'verified manually',
+      actorUid: 'guard-1',
+      actorRole: 'security',
+    }));
+  });
+
+  test('GET /hardware-devices/:id/manual-control-events returns event evidence', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: PROPERTY_ID };
+    listHardwareManualControlEvents.mockResolvedValue([{ id: 'event-1' }]);
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/skud/hardware-devices/${DEVICE_ID}/manual-control-events?limit=20`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.manual_control_events).toEqual([{ id: 'event-1' }]);
+    expect(listHardwareManualControlEvents).toHaveBeenCalledWith(db, {
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      limit: '20',
+    });
   });
 });

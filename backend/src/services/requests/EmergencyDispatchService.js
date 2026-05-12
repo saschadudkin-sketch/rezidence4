@@ -25,6 +25,26 @@ const ESCALATION_TARGETS = new Set([
   'management_company_admin',
 ]);
 const DISPATCH_ACTIONS = new Set(['acknowledge', 'dispatch', 'escalate', 'resolve', 'cancel']);
+const DRILL_STATUSES = new Set(['planned', 'running', 'passed', 'failed', 'cancelled']);
+const PROVIDER_DELIVERY_CHANNELS = new Set([
+  'web_push',
+  'sms',
+  'telegram',
+  'email',
+  'phone',
+  'webhook',
+  'external_dispatch',
+  'contractor_company',
+  'internal_roster',
+]);
+const PROVIDER_DELIVERY_STATUSES = new Set([
+  'sent',
+  'delivered',
+  'acknowledged',
+  'failed',
+  'timed_out',
+  'not_required',
+]);
 const MANAGER_ROLES = new Set([
   'admin',
   'security',
@@ -67,6 +87,100 @@ function formatEmergencyProfileRow(row) {
   };
 }
 
+function parseJsonObject(value) {
+  if (typeof value === 'string') {
+    try {
+      return parseJsonObject(JSON.parse(value));
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+}
+
+function toInt(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeBoundedInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(value, 10);
+  const safe = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.min(max, Math.max(min, safe));
+}
+
+function normalizePropertyId(value) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return normalized || null;
+}
+
+function formatOnCallRosterRow(row) {
+  return {
+    id: row.id,
+    propertyId: row.property_id || null,
+    escalationTarget: row.escalation_target,
+    displayName: row.display_name,
+    provider: row.provider,
+    contactRef: row.contact_ref || null,
+    status: row.status,
+    startsAt: row.starts_at || null,
+    endsAt: row.ends_at || null,
+    priority: toInt(row.priority),
+    metadata: parseJsonObject(row.metadata),
+    updatedAt: row.updated_at || null,
+  };
+}
+
+function formatProviderEvidenceRow(row) {
+  return {
+    channel: row.channel || 'unknown',
+    status: row.status || 'unknown',
+    total: toInt(row.total),
+    failed: toInt(row.failed),
+    lastEventAt: row.last_event_at || null,
+  };
+}
+
+function formatProviderDeliveryEvidenceRow(row) {
+  return {
+    id: row.id,
+    propertyId: row.property_id || null,
+    requestId: row.request_id || null,
+    drillId: row.drill_id || null,
+    provider: row.provider,
+    channel: row.channel,
+    scenarioType: row.scenario_type,
+    status: row.status,
+    latencyMs: row.latency_ms === null || row.latency_ms === undefined ? null : toInt(row.latency_ms),
+    externalDeliveryId: row.external_delivery_id || null,
+    observedAt: row.observed_at || null,
+    recordedByUid: row.recorded_by_uid || null,
+    payload: parseJsonObject(row.payload),
+    createdAt: row.created_at || null,
+  };
+}
+
+function formatDrillRow(row) {
+  return {
+    id: row.id,
+    propertyId: row.property_id || null,
+    scenarioType: row.scenario_type,
+    severity: row.severity,
+    escalationTarget: row.escalation_target,
+    requestId: row.request_id || null,
+    status: row.status,
+    startedAt: row.started_at || null,
+    completedAt: row.completed_at || null,
+    createdByUid: row.created_by_uid || null,
+    summary: row.summary || null,
+    findings: parseJsonObject(row.findings),
+    notificationEvidence: parseJsonObject(row.notification_evidence),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+  };
+}
+
 function normalizeEnum(value, allowed, fallback, field) {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized) return fallback;
@@ -74,6 +188,15 @@ function normalizeEnum(value, allowed, fallback, field) {
     throw new ServiceError(`${field} must be one of: ${[...allowed].join(', ')}`, 400);
   }
   return normalized;
+}
+
+function normalizeNullableInt(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new ServiceError(`${field} must be a non-negative integer`, 400);
+  }
+  return parsed;
 }
 
 function deriveEmergencyType(code) {
@@ -186,6 +309,7 @@ async function listEmergencyQueue(user, queryDb, filters = {}) {
   assertCanManageEmergency(user);
   const params = [];
   const where = ['r.deleted_at IS NULL'];
+  const propertyId = normalizePropertyId(filters.property_id || filters.propertyId || user?.property_id || user?.propertyId);
 
   const status = typeof filters.status === 'string' ? filters.status.trim() : '';
   if (status) {
@@ -202,6 +326,11 @@ async function listEmergencyQueue(user, queryDb, filters = {}) {
     if (!SEVERITIES.has(severity)) throw new ServiceError('Invalid severity', 400);
     params.push(severity);
     where.push(`p.severity = $${params.length}`);
+  }
+
+  if (propertyId) {
+    params.push(propertyId);
+    where.push(`p.property_id::text = $${params.length}`);
   }
 
   params.push(parseLimit(filters.limit));
@@ -238,6 +367,168 @@ async function listEmergencyQueue(user, queryDb, filters = {}) {
         comment: row.comment || '',
       },
     })),
+  };
+}
+
+async function listEmergencyReadiness(user, queryDb, filters = {}) {
+  assertCanManageEmergency(user);
+  const propertyId = normalizePropertyId(filters.property_id || filters.propertyId || user?.property_id || user?.propertyId);
+  const windowHours = normalizeBoundedInt(filters.window_hours || filters.windowHours, 168, 1, 720);
+  const limit = normalizeBoundedInt(filters.limit, 25, 1, 100);
+  const generatedAt = new Date().toISOString();
+
+  const propertyParams = [propertyId];
+  const propertyWhere = '($1::text IS NULL OR p.property_id::text = $1::text)';
+  const rosterWhere = '($1::text IS NULL OR property_id::text = $1::text)';
+  const drillWhere = '($1::text IS NULL OR property_id::text = $1::text)';
+
+  const [summaryResult, queueResult, rosterResult, notificationResult, drillResult, deliveryEvidenceResult] = await Promise.all([
+    queryDb.query(
+      `SELECT
+          COUNT(*) FILTER (WHERE p.dispatch_status NOT IN ('resolved','cancelled'))::int AS active_emergencies,
+          COUNT(*) FILTER (
+            WHERE p.severity = 'P0'
+              AND p.dispatch_status NOT IN ('resolved','cancelled')
+          )::int AS p0_active,
+          COUNT(*) FILTER (
+            WHERE p.dispatch_status NOT IN ('resolved','cancelled')
+              AND p.acknowledged_at IS NULL
+              AND p.first_response_due_at < NOW()
+          )::int AS first_response_overdue,
+          COUNT(*) FILTER (
+            WHERE p.dispatch_status NOT IN ('resolved','cancelled')
+              AND p.resolved_at IS NULL
+              AND p.resolution_due_at < NOW()
+          )::int AS resolution_overdue,
+          COUNT(*) FILTER (WHERE p.notification_status = 'failed')::int AS notification_failed,
+          COUNT(*) FILTER (WHERE p.notification_status = 'sent')::int AS notification_sent
+         FROM emergency_request_profiles p
+        WHERE ${propertyWhere}`,
+      propertyParams,
+    ),
+    queryDb.query(
+      `SELECT p.*,
+              r.type AS request_type,
+              r.category AS request_category,
+              r.status AS request_status,
+              r.created_by_uid,
+              r.created_by_name,
+              r.created_by_role,
+              r.comment
+         FROM emergency_request_profiles p
+         JOIN requests r ON r.id = p.request_id
+        WHERE ${propertyWhere}
+          AND r.deleted_at IS NULL
+          AND p.dispatch_status NOT IN ('resolved','cancelled')
+        ORDER BY CASE p.severity WHEN 'P0' THEN 0 WHEN 'P1' THEN 1 ELSE 2 END,
+                 p.first_response_due_at ASC NULLS LAST,
+                 p.created_at ASC
+        LIMIT $2`,
+      [propertyId, limit],
+    ),
+    queryDb.query(
+      `SELECT id, property_id, escalation_target, display_name, provider,
+              contact_ref, status, starts_at, ends_at, priority, metadata,
+              created_at, updated_at
+         FROM emergency_on_call_rosters
+        WHERE ${rosterWhere}
+          AND status = 'active'
+          AND (starts_at IS NULL OR starts_at <= NOW())
+          AND (ends_at IS NULL OR ends_at >= NOW())
+        ORDER BY priority ASC, escalation_target ASC, display_name ASC
+        LIMIT $2`,
+      [propertyId, limit],
+    ),
+    queryDb.query(
+      `SELECT channel,
+              status,
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
+              MAX(created_at) AS last_event_at
+         FROM notification_log
+        WHERE event_type = 'request.emergency_created'
+          AND created_at >= NOW() - ($1::int * INTERVAL '1 hour')
+        GROUP BY channel, status
+        ORDER BY MAX(created_at) DESC NULLS LAST, channel ASC, status ASC`,
+      [windowHours],
+    ),
+    queryDb.query(
+      `SELECT id, property_id, scenario_type, severity, escalation_target,
+              request_id, status, started_at, completed_at, created_by_uid,
+              summary, findings, notification_evidence, created_at, updated_at
+         FROM emergency_dispatch_drills
+        WHERE ${drillWhere}
+        ORDER BY COALESCE(started_at, created_at) DESC
+        LIMIT $2`,
+      [propertyId, limit],
+    ),
+    queryDb.query(
+      `SELECT id, property_id, request_id, drill_id, provider, channel,
+              scenario_type, status, latency_ms, external_delivery_id,
+              observed_at, recorded_by_uid, payload, created_at
+         FROM emergency_provider_delivery_evidence
+        WHERE ${rosterWhere}
+          AND observed_at >= NOW() - ($2::int * INTERVAL '1 hour')
+        ORDER BY observed_at DESC, created_at DESC
+        LIMIT $3`,
+      [propertyId, windowHours, limit],
+    ),
+  ]);
+
+  const summaryRow = summaryResult.rows[0] || {};
+  const providerEvidence = notificationResult.rows.map(formatProviderEvidenceRow);
+  const drills = drillResult.rows.map(formatDrillRow);
+  const liveProviderDeliveryEvidence = deliveryEvidenceResult.rows.map(formatProviderDeliveryEvidenceRow);
+  const queue = queueResult.rows.map((row) => ({
+    ...formatEmergencyProfileRow(row),
+    request: {
+      type: row.request_type,
+      category: row.request_category,
+      status: row.request_status,
+      createdByUid: row.created_by_uid,
+      createdByName: row.created_by_name,
+      createdByRole: row.created_by_role,
+      comment: row.comment || '',
+    },
+  }));
+
+  return {
+    property_id: propertyId,
+    generated_at: generatedAt,
+    window_hours: windowHours,
+    summary: {
+      active_emergencies: toInt(summaryRow.active_emergencies),
+      p0_active: toInt(summaryRow.p0_active),
+      first_response_overdue: toInt(summaryRow.first_response_overdue),
+      resolution_overdue: toInt(summaryRow.resolution_overdue),
+      notification_sent: toInt(summaryRow.notification_sent),
+      notification_failed: toInt(summaryRow.notification_failed),
+      active_on_call_rows: rosterResult.rows.length,
+      drill_records: drills.length,
+      provider_delivery_evidence_rows: liveProviderDeliveryEvidence.length,
+    },
+    queue,
+    on_call_roster: rosterResult.rows.map(formatOnCallRosterRow),
+    provider_notification_evidence: providerEvidence,
+    drill_records: drills,
+    live_provider_delivery_evidence: liveProviderDeliveryEvidence,
+    evidence: {
+      source_tables: [
+        'emergency_request_profiles',
+        'requests',
+        'emergency_on_call_rosters',
+        'notification_log',
+        'emergency_dispatch_drills',
+        'emergency_provider_delivery_evidence',
+      ],
+      notification_event_type: 'request.emergency_created',
+      returned_queue_rows: queue.length,
+      returned_roster_rows: rosterResult.rows.length,
+      returned_notification_rows: providerEvidence.length,
+      returned_drill_rows: drills.length,
+      returned_provider_delivery_rows: liveProviderDeliveryEvidence.length,
+      generated_at: generatedAt,
+    },
   };
 }
 
@@ -351,10 +642,125 @@ async function recordEmergencyDispatchAction(user, requestId, body, queryDb) {
   return formatEmergencyProfileRow(rows[0]);
 }
 
+async function createEmergencyDrillRecord(user, queryDb, body = {}) {
+  assertCanManageEmergency(user);
+  const propertyId = normalizePropertyId(body.property_id || body.propertyId || user?.property_id || user?.propertyId);
+  if (!propertyId) throw new ServiceError('property_id is required', 400);
+
+  const scenarioType = normalizeEnum(
+    body.scenarioType || body.scenario_type,
+    EMERGENCY_TYPES,
+    'other',
+    'scenarioType',
+  );
+  const severity = normalizeEnum(body.severity, SEVERITIES, defaultSeverity(scenarioType), 'severity');
+  const escalationTarget = normalizeEnum(
+    body.escalationTarget || body.escalation_target,
+    ESCALATION_TARGETS,
+    defaultEscalationTarget(scenarioType),
+    'escalationTarget',
+  );
+  const status = normalizeEnum(body.status, DRILL_STATUSES, 'passed', 'status');
+  const startedAt = body.startedAt || body.started_at || null;
+  const completedAt = body.completedAt || body.completed_at || null;
+
+  const { rows } = await queryDb.query(
+    `INSERT INTO emergency_dispatch_drills
+       (property_id, scenario_type, severity, escalation_target, request_id,
+        status, started_at, completed_at, created_by_uid, summary, findings,
+        notification_evidence)
+     VALUES (
+       $1,$2,$3,$4,$5,$6,
+       COALESCE($7::timestamptz, NOW()),
+       COALESCE(
+         $8::timestamptz,
+         CASE WHEN $6 IN ('passed','failed','cancelled') THEN NOW() ELSE NULL END
+       ),
+       $9,$10,$11,$12
+     )
+     RETURNING *`,
+    [
+      propertyId,
+      scenarioType,
+      severity,
+      escalationTarget,
+      body.requestId || body.request_id || null,
+      status,
+      startedAt,
+      completedAt,
+      user?.uid || null,
+      body.summary || null,
+      parseJsonObject(body.findings),
+      parseJsonObject(body.notificationEvidence || body.notification_evidence),
+    ],
+  );
+  return formatDrillRow(rows[0]);
+}
+
+async function recordEmergencyProviderDeliveryEvidence(user, queryDb, body = {}) {
+  assertCanManageEmergency(user);
+  const propertyId = normalizePropertyId(body.property_id || body.propertyId || user?.property_id || user?.propertyId);
+  if (!propertyId) throw new ServiceError('property_id is required', 400);
+
+  const provider = String(body.provider || '').trim();
+  if (!provider || provider.length > 40) throw new ServiceError('provider is required', 400);
+  const channel = normalizeEnum(
+    body.channel,
+    PROVIDER_DELIVERY_CHANNELS,
+    null,
+    'channel',
+  );
+  const scenarioType = normalizeEnum(
+    body.scenarioType || body.scenario_type,
+    EMERGENCY_TYPES,
+    'other',
+    'scenarioType',
+  );
+  const status = normalizeEnum(
+    body.status,
+    PROVIDER_DELIVERY_STATUSES,
+    'sent',
+    'status',
+  );
+
+  const { rows } = await queryDb.query(
+    `INSERT INTO emergency_provider_delivery_evidence
+       (property_id, request_id, drill_id, provider, channel, scenario_type,
+        status, latency_ms, external_delivery_id, observed_at, recorded_by_uid,
+        payload)
+     VALUES (
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,
+       COALESCE($10::timestamptz, NOW()),$11,$12::jsonb
+     )
+     RETURNING id, property_id, request_id, drill_id, provider, channel,
+               scenario_type, status, latency_ms, external_delivery_id,
+               observed_at, recorded_by_uid, payload, created_at`,
+    [
+      propertyId,
+      body.requestId || body.request_id || null,
+      body.drillId || body.drill_id || null,
+      provider,
+      channel,
+      scenarioType,
+      status,
+      normalizeNullableInt(body.latencyMs ?? body.latency_ms, 'latencyMs'),
+      body.externalDeliveryId || body.external_delivery_id || null,
+      body.observedAt || body.observed_at || null,
+      user?.uid || null,
+      JSON.stringify(parseJsonObject(body.payload)),
+    ],
+  );
+
+  return formatProviderDeliveryEvidenceRow(rows[0]);
+}
+
 module.exports = {
   buildEmergencyProfileInput,
+  createEmergencyDrillRecord,
   createEmergencyProfileForRequest,
+  listEmergencyReadiness,
   listEmergencyQueue,
+  recordEmergencyProviderDeliveryEvidence,
   recordEmergencyDispatchAction,
   formatEmergencyProfileRow,
 };

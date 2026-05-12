@@ -509,6 +509,50 @@ describe('POST /api/v1/residents/:id/consent', () => {
 });
 
 describe('POST /api/v1/residents/:id/deactivate', () => {
+  test('property admin can read offboarding report evidence', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('COUNT(*) FILTER')) {
+        return Promise.resolve({ rows: [{ offboarded_residents: 2, offboarded_last_30d: 1 }] });
+      }
+      if (sql.includes('FROM resident_lifecycle_events e')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'event-1',
+            property_id: UUID_A,
+            resident_id: UUID_B,
+            actor_uid: 'a1',
+            actor_role: 'admin',
+            metadata: { reason: 'ownership transfer', offboarding: { revoked_passes: 1 } },
+            created_at: '2026-05-11T08:00:00.000Z',
+            full_name: 'Resident One',
+            unit_id: UUID_C,
+            is_active: false,
+          }],
+        });
+      }
+      if (sql.includes('FROM vehicles')) {
+        return Promise.resolve({
+          rows: [{ id: 'vehicle-1', plate_number: 'A001AA77', review_required: true }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/residents/offboarding-report?property_id=${UUID_A}&limit=10`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.report.summary).toMatchObject({
+      offboarded_residents: 2,
+      vehicles_pending_review: 1,
+    });
+    expect(res.body.report.recent_offboardings[0]).toMatchObject({
+      resident_name: 'Resident One',
+      reason: 'ownership transfer',
+    });
+  });
+
   test('property admin offboards resident and returns cascade summary', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     db.query.mockImplementation((sql) => {
@@ -567,6 +611,7 @@ describe('POST /api/v1/residents/:id/deactivate', () => {
       deactivated_unit_links: 1,
       vehicles_marked_for_review: 1,
       cancelled_access_requests: 1,
+      notification_preferences_disabled: 0,
     });
     const passUpdate = db.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE passes'));
     expect(passUpdate[0]).toContain('p.subject_vehicle_id IN');

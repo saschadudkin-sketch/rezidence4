@@ -10,9 +10,15 @@ const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const { canInPropertyScope } = require('../lib/authz');
 const {
+  getProviderFailureDashboard,
   ingestProviderAccessEvent,
   isSkudIntegrationServiceError,
+  listHardwareDevices,
+  listHardwareManualControlEvents,
+  recordFieldRolloutEvidence,
+  recordHardwareManualControl,
   syncPassAccess,
+  updateHardwareManualBoundary,
 } = require('../services/skudIntegrationService');
 
 const router = express.Router();
@@ -25,7 +31,14 @@ function isValidUuid(value) {
 }
 
 function resolvePropertyId(req) {
-  return req.property?.id || req.property?.property_id || req.body?.property_id || null;
+  return req.property?.id
+    || req.property?.property_id
+    || req.body?.property_id
+    || req.query?.property_id
+    || req.query?.propertyId
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
 }
 
 function sendKnownError(res, err) {
@@ -64,6 +77,154 @@ router.post('/providers/:providerConfigId/events', async (req, res, next) => {
 });
 
 router.use(requireAuth);
+
+router.get('/provider-failures', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'hardware.device.read', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const dashboard = await getProviderFailureDashboard(getDb(req), {
+      propertyId,
+      windowHours: req.query.window_hours || req.query.windowHours || 24,
+      limit: req.query.limit || 20,
+    });
+    res.json({ dashboard });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] provider failure dashboard failed');
+    next(err);
+  }
+});
+
+router.post('/field-rollout-evidence', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'hardware.device.write', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const evidence = await recordFieldRolloutEvidence(getDb(req), {
+      ...req.body,
+      propertyId,
+      actorUid: req.user?.uid || null,
+    });
+    res.status(201).json({ evidence });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] field rollout evidence failed');
+    next(err);
+  }
+});
+
+router.get('/hardware-devices', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'hardware.device.read', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const providerConfigId = req.query.provider_config_id || null;
+    const accessPointId = req.query.access_point_id || null;
+    if (providerConfigId !== null && !isValidUuid(providerConfigId)) {
+      return res.status(400).json({ error: 'provider_config_id must be UUID' });
+    }
+    if (accessPointId !== null && !isValidUuid(accessPointId)) {
+      return res.status(400).json({ error: 'access_point_id must be UUID' });
+    }
+
+    const hardwareDevices = await listHardwareDevices(getDb(req), {
+      propertyId,
+      providerConfigId,
+      accessPointId,
+    });
+    res.json({ hardware_devices: hardwareDevices });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] list hardware devices failed');
+    next(err);
+  }
+});
+
+router.patch('/hardware-devices/:hardwareDeviceId/boundary', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    const { hardwareDeviceId } = req.params;
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!isValidUuid(hardwareDeviceId)) return res.status(400).json({ error: 'Invalid hardware device id' });
+    if (!canInPropertyScope(req, 'hardware.device.write', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = await updateHardwareManualBoundary(getDb(req), {
+      propertyId,
+      hardwareDeviceId,
+      ...req.body,
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      ipAddress: req.ip || null,
+    });
+    res.json(result);
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] update hardware boundary failed');
+    next(err);
+  }
+});
+
+router.post('/hardware-devices/:hardwareDeviceId/manual-control', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    const { hardwareDeviceId } = req.params;
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!isValidUuid(hardwareDeviceId)) return res.status(400).json({ error: 'Invalid hardware device id' });
+    if (!canInPropertyScope(req, 'hardware.manual_control.execute', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = await recordHardwareManualControl(getDb(req), {
+      propertyId,
+      hardwareDeviceId,
+      ...req.body,
+      user: req.user,
+      actorUid: req.user?.uid || null,
+      actorRole: req.user?.role || null,
+      ipAddress: req.ip || null,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] manual hardware control failed');
+    next(err);
+  }
+});
+
+router.get('/hardware-devices/:hardwareDeviceId/manual-control-events', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    const { hardwareDeviceId } = req.params;
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!isValidUuid(hardwareDeviceId)) return res.status(400).json({ error: 'Invalid hardware device id' });
+    if (!canInPropertyScope(req, 'hardware.device.read', propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const events = await listHardwareManualControlEvents(getDb(req), {
+      propertyId,
+      hardwareDeviceId,
+      limit: req.query.limit,
+    });
+    res.json({ manual_control_events: events });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    logger.error({ err }, '[v1/skud] list hardware manual control events failed');
+    next(err);
+  }
+});
 
 router.post('/providers/:providerConfigId/sync-pass', async (req, res, next) => {
   try {

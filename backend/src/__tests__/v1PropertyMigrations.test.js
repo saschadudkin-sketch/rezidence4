@@ -40,8 +40,12 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-03/DH-08/DH-17..21 membership/review/lifecycle ledger
     // + 1 DH-60 sensitive review assignment/SLA operations
     // + 1 DH-55 resident offboarding cascade
-    // + 1 DH-57 emergency dispatch mode = 43
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(43);
+    // + 1 DH-57 emergency dispatch mode
+    // + 1 DH-59 hardware manual-control boundaries
+    // + 1 DH-58 GIS/OSS readiness export packages
+    // + 1 DH-57 emergency readiness evidence
+    // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers = 47
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(47);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1644,6 +1648,154 @@ describe('v1_043_emergency_dispatch_mode', () => {
       .toContain("dispatch_status NOT IN ('resolved','cancelled')");
     expect(sqls.find((s) => s.includes('idx_emergency_profiles_property')))
       .toContain('property_id, dispatch_status, severity');
+  });
+});
+
+describe('v1_044_hardware_manual_control_boundaries', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('extends SKUD hardware devices with manual policy and fail-safe fields', async () => {
+    await byId('v1_044_hardware_manual_control_boundaries').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const alter = sqls.find((s) => s.includes('ALTER TABLE skud_hardware_devices')
+      && s.includes('manual_control_policy'));
+
+    expect(alter).toContain("manual_control_policy VARCHAR(30) NOT NULL DEFAULT 'guard_allowed'");
+    expect(alter).toContain('manual_action_requires_reason BOOLEAN NOT NULL DEFAULT true');
+    expect(alter).toContain('manual_action_requires_approval BOOLEAN NOT NULL DEFAULT false');
+    expect(alter).toContain("fail_safe_mode VARCHAR(30) NOT NULL DEFAULT 'fail_closed'");
+    expect(alter).toContain("maintenance_status VARCHAR(30) NOT NULL DEFAULT 'normal'");
+    expect(sqls.find((s) => s.includes('skud_hardware_devices_manual_policy_check')))
+      .toContain("'guard_allowed','admin_only','provider_only','prohibited'");
+    expect(sqls.find((s) => s.includes('skud_hardware_devices_fail_safe_check')))
+      .toContain("'fail_closed','fail_open_guarded','provider_default','manual_guard'");
+    expect(sqls.find((s) => s.includes('idx_skud_hardware_devices_manual_boundary')))
+      .toContain('manual_control_policy');
+  });
+
+  test('creates append-only hardware manual control events with reason and device FK', async () => {
+    await byId('v1_044_hardware_manual_control_boundaries').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS hardware_manual_control_events'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('hardware_device_id  UUID NOT NULL');
+    expect(tbl).toContain("'manual_open','manual_close','manual_block','manual_unblock'");
+    expect(tbl).toContain('hardware_manual_control_events_reason_not_blank');
+    expect(tbl).toContain('REFERENCES skud_hardware_devices(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_hardware_manual_events_device')))
+      .toContain('hardware_device_id, created_at DESC');
+  });
+});
+
+describe('v1_045_gis_oss_readiness_exports', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates export package registry with legal boundary flags locked false', async () => {
+    await byId('v1_045_gis_oss_readiness_exports').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS gis_oss_export_packages'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain("package_type               VARCHAR(30) NOT NULL DEFAULT 'oss_readiness'");
+    expect(tbl).toContain("'gis_zhkh','oss_readiness','resident_notice','protocol_archive'");
+    expect(tbl).toContain("status                     VARCHAR(20) NOT NULL DEFAULT 'generated'");
+    expect(tbl).toContain('document_ids               UUID[] NOT NULL DEFAULT');
+    expect(tbl).toContain('announcement_ids           UUID[] NOT NULL DEFAULT');
+    expect(tbl).toContain("protocol_files             JSONB NOT NULL DEFAULT '[]'::jsonb");
+    expect(tbl).toContain('boundary_notice            TEXT NOT NULL');
+    expect(tbl).toContain('legally_authoritative      BOOLEAN NOT NULL DEFAULT false');
+    expect(tbl).toContain('CHECK (legally_authoritative = false)');
+    expect(tbl).toContain('certified_submission       BOOLEAN NOT NULL DEFAULT false');
+    expect(tbl).toContain('CHECK (certified_submission = false)');
+    expect(tbl).toContain('CONSTRAINT gis_oss_export_period');
+  });
+
+  test('indexes property package history and status queues', async () => {
+    await byId('v1_045_gis_oss_readiness_exports').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_gis_oss_export_packages_property')))
+      .toContain('property_id, package_type, generated_at DESC');
+    expect(sqls.find((s) => s.includes('idx_gis_oss_export_packages_status')))
+      .toContain('property_id, status, updated_at DESC');
+  });
+});
+
+describe('v1_046_emergency_readiness_evidence', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates on-call roster and drill evidence tables', async () => {
+    await byId('v1_046_emergency_readiness_evidence').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const roster = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS emergency_on_call_rosters'));
+    const drills = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS emergency_dispatch_drills'));
+
+    expect(roster).toBeDefined();
+    expect(roster).toContain('escalation_target  VARCHAR(40) NOT NULL');
+    expect(roster).toContain("provider           VARCHAR(40) NOT NULL DEFAULT 'internal_roster'");
+    expect(roster).toContain("status             VARCHAR(20) NOT NULL DEFAULT 'active'");
+    expect(drills).toBeDefined();
+    expect(drills).toContain('scenario_type          VARCHAR(40) NOT NULL');
+    expect(drills).toContain('notification_evidence  JSONB NOT NULL DEFAULT');
+    expect(sqls.find((s) => s.includes('emergency_dispatch_drills_type_check')))
+      .toContain('fire_smoke');
+  });
+
+  test('indexes active rosters and drill history', async () => {
+    await byId('v1_046_emergency_readiness_evidence').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_emergency_on_call_rosters_active')))
+      .toContain("WHERE status = 'active'");
+    expect(sqls.find((s) => s.includes('idx_emergency_dispatch_drills_property')))
+      .toContain('(COALESCE(started_at, created_at)) DESC');
+    expect(sqls.find((s) => s.includes('idx_emergency_dispatch_drills_status')))
+      .toContain('property_id, status, severity');
+  });
+});
+
+describe('v1_047_readiness_live_evidence_and_transfers', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates ownership transfer and notification preference cascade tables', async () => {
+    await byId('v1_047_readiness_live_evidence_and_transfers').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const prefs = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS resident_notification_preferences'));
+    const transfers = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS resident_ownership_transfers'));
+
+    expect(prefs).toBeDefined();
+    expect(prefs).toContain("'web_push','sms','telegram','email'");
+    expect(prefs).toContain("'ownership_transfer','offboarding'");
+    expect(transfers).toBeDefined();
+    expect(transfers).toContain('from_resident_id  UUID NOT NULL REFERENCES residents(id)');
+    expect(transfers).toContain('to_resident_id    UUID NOT NULL REFERENCES residents(id)');
+    expect(sqls.find((s) => s.includes('resident_lifecycle_events_event_type_check')
+      && s.includes('ownership_transferred')))
+      .toContain('ownership_transferred');
+  });
+
+  test('creates live readiness evidence tables for emergency, SKUD and sensitive reports', async () => {
+    await byId('v1_047_readiness_live_evidence_and_transfers').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const emergency = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS emergency_provider_delivery_evidence'));
+    const rollout = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS skud_field_rollout_evidence'));
+    const report = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS sensitive_action_report_evidence'));
+
+    expect(emergency).toBeDefined();
+    expect(emergency).toContain('latency_ms           INTEGER');
+    expect(sqls.find((s) => s.includes('emergency_provider_delivery_status_check')))
+      .toContain('acknowledged');
+    expect(rollout).toBeDefined();
+    expect(sqls.find((s) => s.includes('skud_field_rollout_type_check')))
+      .toContain('vendor_health_probe');
+    expect(report).toBeDefined();
+    expect(sqls.find((s) => s.includes('sensitive_action_report_type_check')))
+      .toContain('live_rollout');
   });
 });
 

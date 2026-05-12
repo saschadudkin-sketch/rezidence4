@@ -481,6 +481,175 @@ describe('DH-57 emergency dispatch mode', () => {
     expect(db.query.mock.calls[0][0]).toMatch(/FROM emergency_request_profiles/);
   });
 
+  it('GET /emergency/readiness returns provider and drill evidence for staff', async () => {
+    const token = makeToken({
+      uid: 'admin-1',
+      role: 'admin',
+      name: 'Admin',
+      property_id: '11111111-1111-4111-8111-111111111111',
+    });
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          active_emergencies: 1,
+          p0_active: 1,
+          first_response_overdue: 0,
+          resolution_overdue: 0,
+          notification_failed: 0,
+          notification_sent: 2,
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          ...makeEmergencyProfileRow({ property_id: '11111111-1111-4111-8111-111111111111' }),
+          request_type: 'emergency',
+          request_category: 'emergency_fire_smoke',
+          request_status: 'pending',
+          created_by_uid: 'u1',
+          created_by_name: 'Resident',
+          created_by_role: 'owner',
+          comment: 'Дым',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'roster-1',
+          property_id: '11111111-1111-4111-8111-111111111111',
+          escalation_target: 'security',
+          display_name: 'Security on-call',
+          provider: 'telegram',
+          contact_ref: 'telegram:on-call',
+          status: 'active',
+          priority: 10,
+          metadata: {},
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ channel: 'telegram', status: 'sent', total: 2, failed: 0, last_event_at: new Date() }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'drill-1',
+          property_id: '11111111-1111-4111-8111-111111111111',
+          scenario_type: 'fire_smoke',
+          severity: 'P0',
+          escalation_target: 'security',
+          status: 'passed',
+          created_by_uid: 'admin-1',
+          findings: {},
+          notification_evidence: {},
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'delivery-1',
+          property_id: '11111111-1111-4111-8111-111111111111',
+          request_id: 'req-emergency',
+          provider: 'telegram',
+          channel: 'telegram',
+          scenario_type: 'fire_smoke',
+          status: 'delivered',
+          latency_ms: 800,
+          payload: {},
+        }],
+      });
+
+    const res = await supertest(app)
+      .get('/api/requests/emergency/readiness?window_hours=72&limit=10')
+      .set('Cookie', `token=${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.summary.active_emergencies).toBe(1);
+    expect(res.body.on_call_roster[0]).toMatchObject({ escalationTarget: 'security' });
+    expect(res.body.provider_notification_evidence[0]).toMatchObject({ channel: 'telegram' });
+    expect(res.body.drill_records[0]).toMatchObject({ scenarioType: 'fire_smoke' });
+    expect(res.body.live_provider_delivery_evidence[0]).toMatchObject({ provider: 'telegram' });
+    expect(db.query.mock.calls[2][0]).toMatch(/FROM emergency_on_call_rosters/);
+    expect(db.query.mock.calls[4][0]).toMatch(/FROM emergency_dispatch_drills/);
+    expect(db.query.mock.calls[5][0]).toMatch(/FROM emergency_provider_delivery_evidence/);
+  });
+
+  it('POST /emergency/drills records an operational drill', async () => {
+    const token = makeToken({
+      uid: 'admin-1',
+      role: 'admin',
+      name: 'Admin',
+      property_id: '11111111-1111-4111-8111-111111111111',
+    });
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: 'drill-1',
+        property_id: '11111111-1111-4111-8111-111111111111',
+        scenario_type: 'access_control',
+        severity: 'P1',
+        escalation_target: 'security',
+        status: 'passed',
+        summary: 'Barrier drill',
+        created_by_uid: 'admin-1',
+        findings: { fallback: 'manual_guard' },
+        notification_evidence: { push: 'sent' },
+      }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/emergency/drills')
+      .set('Cookie', `token=${token}`)
+      .send({
+        scenarioType: 'access_control',
+        severity: 'P1',
+        escalationTarget: 'security',
+        status: 'passed',
+        summary: 'Barrier drill',
+        findings: { fallback: 'manual_guard' },
+        notificationEvidence: { push: 'sent' },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.drill).toMatchObject({ scenarioType: 'access_control', status: 'passed' });
+    expect(db.query.mock.calls[0][0]).toMatch(/INSERT INTO emergency_dispatch_drills/);
+  });
+
+  it('POST /emergency/provider-delivery-evidence records live provider evidence', async () => {
+    const token = makeToken({
+      uid: 'admin-1',
+      role: 'admin',
+      name: 'Admin',
+      property_id: '11111111-1111-4111-8111-111111111111',
+    });
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: 'delivery-1',
+        property_id: '11111111-1111-4111-8111-111111111111',
+        request_id: 'req-emergency',
+        provider: 'telegram',
+        channel: 'telegram',
+        scenario_type: 'fire_smoke',
+        status: 'delivered',
+        latency_ms: 800,
+        external_delivery_id: 'tg-1',
+        payload: { status: 'ok' },
+      }],
+    });
+
+    const res = await supertest(app)
+      .post('/api/requests/emergency/provider-delivery-evidence')
+      .set('Cookie', `token=${token}`)
+      .send({
+        requestId: 'req-emergency',
+        provider: 'telegram',
+        channel: 'telegram',
+        scenarioType: 'fire_smoke',
+        status: 'delivered',
+        latencyMs: 800,
+        externalDeliveryId: 'tg-1',
+        payload: { status: 'ok' },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.evidence).toMatchObject({ provider: 'telegram', status: 'delivered' });
+    expect(db.query.mock.calls[0][0]).toMatch(/INSERT INTO emergency_provider_delivery_evidence/);
+  });
+
   it('POST /:id/emergency-dispatch acknowledges emergency and marks first response', async () => {
     const token = makeToken({ uid: 'guard-1', role: 'security', name: 'Охранник' });
     db.query

@@ -144,6 +144,7 @@ describe('v1 audit review route', () => {
     expect(res.body.actions).toEqual(expect.arrayContaining(['override.created', 'staff.updated']));
     expect(res.body.priorities).toEqual(expect.arrayContaining(['normal', 'urgent']));
     expect(res.body.escalation_statuses).toEqual(expect.arrayContaining(['none', 'overdue']));
+    expect(res.body.report_evidence_types).toEqual(expect.arrayContaining(['summary', 'live_rollout']));
   });
 
   test('summary endpoint returns sensitive review queue totals', async () => {
@@ -203,6 +204,48 @@ describe('v1 audit review route', () => {
     expect(params).toEqual(expect.arrayContaining(['72', 5, UUID_PROPERTY]));
   });
 
+  test('report evidence endpoints record and list live DH-60 report evidence', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'property_admin', property_id: UUID_PROPERTY };
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'report-1',
+          property_id: UUID_PROPERTY,
+          report_type: 'live_rollout',
+          status: 'generated',
+          summary: { reviewers: 2 },
+          generated_by_uid: 'admin-1',
+        }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'report-1',
+          property_id: UUID_PROPERTY,
+          report_type: 'live_rollout',
+          status: 'generated',
+          summary: { reviewers: 2 },
+          generated_by_uid: 'admin-1',
+        }],
+      });
+
+    const createRes = await supertest(buildApp())
+      .post('/api/v1/audit/sensitive-actions/_report-evidence')
+      .send({
+        property_id: UUID_PROPERTY,
+        report_type: 'live_rollout',
+        summary: { reviewers: 2 },
+      });
+    const listRes = await supertest(buildApp())
+      .get(`/api/v1/audit/sensitive-actions/_report-evidence?property_id=${UUID_PROPERTY}&report_type=live_rollout`);
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.evidence).toMatchObject({ report_type: 'live_rollout' });
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.evidence).toHaveLength(1);
+    expect(db.query.mock.calls[0][0]).toContain('INSERT INTO sensitive_action_report_evidence');
+    expect(db.query.mock.calls[1][0]).toContain('FROM sensitive_action_report_evidence');
+  });
+
   test('manual sample endpoint materializes review rows', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'property_admin' };
     db.query.mockResolvedValueOnce({
@@ -254,6 +297,8 @@ describe('v1 audit review route', () => {
     const [sql, params] = db.query.mock.calls[0];
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
     expect(sql).toContain("THEN 'escalated'");
+    expect(sql).toContain('INSERT INTO notifications_outbox');
+    expect(sql).toContain('audit.sensitive_review.escalated');
     expect(params).toEqual(['12', 10, UUID_PROPERTY]);
   });
 

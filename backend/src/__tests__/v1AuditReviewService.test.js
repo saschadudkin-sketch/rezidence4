@@ -3,7 +3,9 @@
 const {
   escalateOverdueSensitiveActionReviews,
   getSensitiveActionAntiAbuseAnalytics,
+  listSensitiveActionReportEvidence,
   materializeSensitiveActionReviewSamples,
+  recordSensitiveActionReportEvidence,
 } = require('../v1/services/auditReviewService');
 
 const PROPERTY_ID = '11111111-1111-4111-8111-111111111111';
@@ -55,6 +57,9 @@ describe('auditReviewService DH-60 operations', () => {
     expect(sql).toContain("r.escalation_status = 'none'");
     expect(sql).toContain("THEN 'escalated'");
     expect(sql).toContain('last_escalated_at = NOW()');
+    expect(sql).toContain('INSERT INTO notifications_outbox');
+    expect(sql).toContain('audit.sensitive_review.escalated');
+    expect(sql).toContain('escalation_notifications_enqueued');
     expect(params).toEqual(['12', 10, PROPERTY_ID]);
   });
 
@@ -100,5 +105,54 @@ describe('auditReviewService DH-60 operations', () => {
     expect(sql).toContain('off_hours_actions');
     expect(sql).toContain('overdue_reviews');
     expect(params).toEqual(expect.arrayContaining(['72', 5, 25, PROPERTY_ID]));
+  });
+
+  test('records and lists live sensitive report evidence', async () => {
+    const queryable = {
+      query: jest.fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'report-1',
+            property_id: PROPERTY_ID,
+            report_type: 'anti_abuse',
+            status: 'generated',
+            period_from: '2026-05-01T00:00:00.000Z',
+            period_to: '2026-05-11T00:00:00.000Z',
+            summary: { findings: 2 },
+            generated_by_uid: 'admin-1',
+            created_at: '2026-05-11T01:00:00.000Z',
+          }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'report-1',
+            property_id: PROPERTY_ID,
+            report_type: 'anti_abuse',
+            status: 'generated',
+            summary: { findings: 2 },
+          }],
+        }),
+    };
+
+    const recorded = await recordSensitiveActionReportEvidence({
+      queryable,
+      user: { uid: 'admin-1', role: 'admin', property_id: PROPERTY_ID },
+      body: {
+        report_type: 'anti_abuse',
+        period_from: '2026-05-01T00:00:00.000Z',
+        period_to: '2026-05-11T00:00:00.000Z',
+        summary: { findings: 2 },
+      },
+    });
+    const listed = await listSensitiveActionReportEvidence({
+      queryable,
+      filters: { property_id: PROPERTY_ID, report_type: 'anti_abuse' },
+      limit: 10,
+    });
+
+    expect(recorded).toMatchObject({ report_type: 'anti_abuse', summary: { findings: 2 } });
+    expect(listed).toHaveLength(1);
+    expect(queryable.query.mock.calls[0][0]).toContain('INSERT INTO sensitive_action_report_evidence');
+    expect(queryable.query.mock.calls[1][0]).toContain('FROM sensitive_action_report_evidence');
   });
 });

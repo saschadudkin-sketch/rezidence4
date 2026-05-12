@@ -305,6 +305,16 @@ The common Russia SKUD provider wave extends the same neutral adapter framework:
 - provider aliases such as `Orion`, `ParsecNET3` and `PERCo-Web` are normalized into canonical provider keys;
 - this remains Level A/B baseline support, not full vendor-specific SDK parity.
 
+### 11.5.1 DH-59 provider failure dashboard baseline
+
+The hardware/manual-control boundary slice now has an operational failure dashboard:
+- `GET /api/v1/skud/provider-failures` aggregates provider health, SKUD integration event status counts, top error codes, mapped device health/fallback state, manual-control events and field rollout evidence in a configurable evidence window;
+- `POST /api/v1/skud/field-rollout-evidence` records provider delivery, field drill, rollout report or vendor health probe evidence without calling vendor systems;
+- `/v1/admin/skud-provider-failures` exposes the same data to scoped property admins with KPI tiles, provider rows, top errors and field rollout evidence;
+- the evidence block explicitly names the source tables (`skud_provider_configs`, `skud_integration_events`, `skud_hardware_devices`, `hardware_manual_control_events`, `skud_field_rollout_evidence`) and counts real failure/manual/rollout rows.
+
+This is a DomHub evidence dashboard, not a vendor NOC or active polling subsystem. Active vendor polling and certified field rollout reports remain later hardening.
+
 ### 11.6 DH-43 video evidence link baseline
 
 The first video evidence layer remains link-only and does not turn DomHub into a VMS:

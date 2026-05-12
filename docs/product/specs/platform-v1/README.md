@@ -67,6 +67,12 @@
 | Документ | Статус |
 |---|---|
 | [go-live-zamoskv-runbook](./go-live-zamoskv-runbook.md) | Draft (preflight T-7, deploy T-1, seed УК, smoke-test, DNS cutover, rollback; P5a) |
+| [resident-offboarding-report](./resident-offboarding-report-spec.md) | Draft (DH-55 resident offboarding report evidence over lifecycle cascades and vehicle review queue) |
+| [resident-ownership-transfer](./resident-ownership-transfer-spec.md) | Draft (DH-55 ownership-transfer workflow and notification preference cascade) |
+| [emergency-dispatch-readiness](./emergency-dispatch-readiness-spec.md) | Draft (DH-57 emergency dispatch readiness UI, on-call roster evidence, notification evidence and drill records) |
+| [gis-oss-readiness](./gis-oss-readiness-spec.md) | Draft (DH-58 GIS ZhKH / OSS readiness export packages; not certified filing or legally significant e-voting) |
+| [skud-provider-failure-dashboard](./skud-provider-failure-dashboard-spec.md) | Draft (DH-59 provider failure dashboard and field rollout evidence over SKUD events/devices/manual control) |
+| [sensitive-actions-review-report](./sensitive-actions-review-report-spec.md) | Draft (DH-60 sensitive action review report UI and escalation notification fanout) |
 
 **Фаза 5 не покрытая спеками (rename, делается миграцией без отдельного spec-файла):**
 - `property_audit_log` — rename из legacy `audit_log` + `actor_type`/`entity_type`/`entity_id`. Миграция в `backend/src/v1/migrations/` при старте Phase 5, отдельный spec-файл не нужен.

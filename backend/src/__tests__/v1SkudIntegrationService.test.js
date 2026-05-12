@@ -2,13 +2,18 @@
 
 const {
   createProviderConfig,
+  getProviderFailureDashboard,
   ingestProviderAccessEvent,
+  listHardwareManualControlEvents,
   listHardwareDevices,
   listProviderConfigs,
   markIntegrationEventStatus,
+  recordFieldRolloutEvidence,
+  recordHardwareManualControl,
   recordIntegrationEvent,
   registerHardwareDevice,
   syncPassAccess,
+  updateHardwareManualBoundary,
   updateProviderHealth,
 } = require('../v1/services/skudIntegrationService');
 
@@ -199,6 +204,315 @@ describe('SkudIntegrationService', () => {
     expect(queryable.query.mock.calls[0][1]).toEqual([PROPERTY_ID, 'active']);
     expect(queryable.query.mock.calls[1][0]).toContain('FROM skud_hardware_devices');
     expect(queryable.query.mock.calls[1][1]).toEqual([PROPERTY_ID, PROVIDER_ID]);
+  });
+
+  test('builds provider failure dashboard from provider, event, device and manual evidence', async () => {
+    const provider = {
+      id: PROVIDER_ID,
+      property_id: PROPERTY_ID,
+      provider: 'hikvision',
+      display_name: 'Main gate Hikvision',
+      status: 'active',
+      sync_mode: 'hybrid',
+      health_status: 'down',
+      last_success_at: '2026-05-10T08:00:00.000Z',
+      last_failure_at: '2026-05-11T08:30:00.000Z',
+      last_error: 'timeout',
+    };
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM skud_provider_configs p')) {
+        return Promise.resolve({ rows: [provider] });
+      }
+      if (sql.includes('WITH ranked_errors')) {
+        return Promise.resolve({
+          rows: [{
+            provider_config_id: PROVIDER_ID,
+            error_code: 'provider_timeout',
+            sample_error_message: 'Controller did not respond',
+            total: '2',
+            last_seen_at: '2026-05-11T08:45:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('FROM skud_integration_events e')) {
+        return Promise.resolve({
+          rows: [{
+            provider_config_id: PROVIDER_ID,
+            total_events: '6',
+            succeeded_events: '2',
+            failed_events: '2',
+            retrying_events: '1',
+            dead_lettered_events: '1',
+            pending_events: '0',
+            ignored_events: '0',
+            last_event_at: '2026-05-11T08:45:00.000Z',
+            last_failure_event_at: '2026-05-11T08:45:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('FROM skud_hardware_devices d')) {
+        return Promise.resolve({
+          rows: [{
+            provider_config_id: PROVIDER_ID,
+            total_devices: '3',
+            degraded_devices: '2',
+            out_of_service_devices: '1',
+            manual_guard_devices: '1',
+            fail_closed_devices: '2',
+          }],
+        });
+      }
+      if (sql.includes('FROM hardware_manual_control_events e')) {
+        return Promise.resolve({
+          rows: [{
+            provider_config_id: PROVIDER_ID,
+            manual_control_events: '4',
+            last_manual_action_at: '2026-05-11T08:50:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('FROM skud_field_rollout_evidence e')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'rollout-1',
+            property_id: PROPERTY_ID,
+            provider_config_id: PROVIDER_ID,
+            hardware_device_id: DEVICE_ID,
+            provider: 'hikvision',
+            provider_display_name: 'Main gate Hikvision',
+            hardware_device_name: 'Main gate controller',
+            rollout_stage: 'pilot',
+            evidence_type: 'field_drill',
+            status: 'passed',
+            summary: 'Guard field drill passed',
+            metrics: { attempts: 3, failures: 0 },
+            observed_at: '2026-05-11T08:55:00.000Z',
+            recorded_by_uid: 'admin-1',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const dashboard = await getProviderFailureDashboard(queryable, {
+      propertyId: PROPERTY_ID,
+      windowHours: 24,
+      limit: 10,
+    });
+
+    expect(dashboard).toMatchObject({
+      property_id: PROPERTY_ID,
+      window_hours: 24,
+      summary: {
+        providers_total: 1,
+        providers_down: 1,
+        providers_needing_attention: 1,
+        failed_events: 2,
+        retrying_events: 1,
+        dead_lettered_events: 1,
+        manual_control_events: 4,
+        out_of_service_devices: 1,
+        field_rollout_records: 1,
+      },
+      field_rollout_evidence: {
+        source_tables: [
+          'skud_provider_configs',
+          'skud_integration_events',
+          'skud_hardware_devices',
+          'hardware_manual_control_events',
+          'skud_field_rollout_evidence',
+        ],
+        real_failure_rows: 4,
+        manual_control_event_rows: 4,
+        rollout_evidence_rows: 1,
+      },
+    });
+    expect(dashboard.field_rollout_records[0]).toMatchObject({
+      evidence_type: 'field_drill',
+      status: 'passed',
+    });
+    expect(dashboard.providers[0]).toMatchObject({
+      provider_config: { id: PROVIDER_ID, health_status: 'down' },
+      event_summary: { total_events: 6, failed_events: 2 },
+      device_summary: { total_devices: 3, out_of_service_devices: 1 },
+      manual_control_summary: { manual_control_events: 4 },
+      top_errors: [{ error_code: 'provider_timeout', total: 2 }],
+      needs_attention: true,
+      attention_reasons: expect.arrayContaining([
+        'provider_down',
+        'failed_events',
+        'retrying_events',
+        'dead_lettered_events',
+        'out_of_service_devices',
+        'manual_control_events',
+      ]),
+    });
+    expect(queryable.query.mock.calls[0][1]).toEqual([PROPERTY_ID, 10]);
+    expect(queryable.query.mock.calls[0][0]).not.toContain('config_json');
+    expect(queryable.query.mock.calls[0][0]).not.toContain('auth_ref');
+    expect(queryable.query.mock.calls[1][1]).toEqual([PROPERTY_ID, 24]);
+  });
+
+  test('records SKUD field rollout evidence after provider and device scope checks', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM skud_provider_configs')) return Promise.resolve({ rows: [{ id: PROVIDER_ID }] });
+      if (sql.includes('FROM skud_hardware_devices')) return Promise.resolve({ rows: [{ id: DEVICE_ID }] });
+      if (sql.includes('INSERT INTO skud_field_rollout_evidence')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'rollout-1',
+            property_id: PROPERTY_ID,
+            provider_config_id: PROVIDER_ID,
+            hardware_device_id: DEVICE_ID,
+            rollout_stage: 'pilot',
+            evidence_type: 'vendor_health_probe',
+            status: 'passed',
+            summary: 'Vendor probe passed',
+            metrics: { latency_ms: 120 },
+            recorded_by_uid: 'admin-1',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const evidence = await recordFieldRolloutEvidence(queryable, {
+      propertyId: PROPERTY_ID,
+      providerConfigId: PROVIDER_ID,
+      hardwareDeviceId: DEVICE_ID,
+      evidenceType: 'vendor_health_probe',
+      status: 'passed',
+      summary: 'Vendor probe passed',
+      metrics: { latency_ms: 120 },
+      actorUid: 'admin-1',
+    });
+
+    expect(evidence).toMatchObject({
+      evidence_type: 'vendor_health_probe',
+      status: 'passed',
+      metrics: { latency_ms: 120 },
+    });
+    expect(queryable.query.mock.calls[2][0]).toMatch(/INSERT INTO skud_field_rollout_evidence/);
+  });
+
+  test('updates hardware manual boundary and writes audit snapshot', async () => {
+    const existing = {
+      id: DEVICE_ID,
+      property_id: PROPERTY_ID,
+      manual_control_policy: 'guard_allowed',
+      manual_action_requires_reason: true,
+      manual_action_requires_approval: false,
+      fail_safe_mode: 'fail_closed',
+      maintenance_status: 'normal',
+    };
+    const updated = { ...existing, manual_control_policy: 'admin_only', fail_safe_mode: 'manual_guard' };
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('SELECT') && sql.includes('FROM skud_hardware_devices')) return Promise.resolve({ rows: [existing] });
+      if (sql.includes('UPDATE skud_hardware_devices')) return Promise.resolve({ rows: [updated] });
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(updateHardwareManualBoundary(queryable, {
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      manual_control_policy: 'admin_only',
+      fail_safe_mode: 'manual_guard',
+      actorUid: 'admin-1',
+      actorRole: 'admin',
+    })).resolves.toMatchObject({ hardware_device: updated });
+
+    const update = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE skud_hardware_devices'));
+    expect(update[0]).toContain('manual_control_policy = $1');
+    expect(update[0]).toContain('fail_safe_mode = $2');
+    const audit = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(audit[1][4]).toContain('"manual_control_policy":"guard_allowed"');
+  });
+
+  test('records allowed guard manual control event and updates device last action', async () => {
+    const device = {
+      id: DEVICE_ID,
+      property_id: PROPERTY_ID,
+      status: 'active',
+      manual_control_policy: 'guard_allowed',
+      manual_action_requires_reason: true,
+      manual_action_requires_approval: false,
+      fail_safe_mode: 'manual_guard',
+      maintenance_status: 'normal',
+    };
+    const eventRow = { id: EVENT_ID, action: 'manual_open' };
+    const updated = { ...device, last_manual_action_by_uid: 'guard-1' };
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('SELECT') && sql.includes('FROM skud_hardware_devices')) return Promise.resolve({ rows: [device] });
+      if (sql.includes('INSERT INTO hardware_manual_control_events')) return Promise.resolve({ rows: [eventRow] });
+      if (sql.includes('UPDATE skud_hardware_devices')) return Promise.resolve({ rows: [updated] });
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(recordHardwareManualControl(queryable, {
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      action: 'manual_open',
+      reason: 'Provider is degraded, guard verified resident manually',
+      user: { uid: 'guard-1', role: 'security' },
+    })).resolves.toMatchObject({
+      hardware_device: updated,
+      manual_control_event: eventRow,
+    });
+
+    const insert = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO hardware_manual_control_events'));
+    expect(insert[1][2]).toBe('manual_open');
+    expect(insert[1][3]).toBe('guard-1');
+    expect(insert[1][6]).toBe('guard');
+    const audit = queryable.query.mock.calls.find(([sql]) => sql.includes('hardware.manual_control.executed'));
+    expect(audit[1][4]).toContain('"action":"manual_open"');
+  });
+
+  test('blocks guard manual control when device policy is admin_only', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM skud_hardware_devices')) {
+        return Promise.resolve({
+          rows: [{
+            id: DEVICE_ID,
+            property_id: PROPERTY_ID,
+            status: 'active',
+            manual_control_policy: 'admin_only',
+            manual_action_requires_reason: true,
+            manual_action_requires_approval: false,
+            fail_safe_mode: 'fail_closed',
+            maintenance_status: 'normal',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(recordHardwareManualControl(queryable, {
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      action: 'manual_open',
+      reason: 'Need admin',
+      user: { uid: 'guard-1', role: 'security' },
+    })).rejects.toMatchObject({
+      status: 403,
+      message: 'Manual control requires property admin',
+    });
+  });
+
+  test('lists manual control events after confirming hardware device scope', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM skud_hardware_devices')) return Promise.resolve({ rows: [{ id: DEVICE_ID }] });
+      if (sql.includes('FROM hardware_manual_control_events')) return Promise.resolve({ rows: [{ id: EVENT_ID }] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(listHardwareManualControlEvents(queryable, {
+      propertyId: PROPERTY_ID,
+      hardwareDeviceId: DEVICE_ID,
+      limit: 10,
+    })).resolves.toEqual([{ id: EVENT_ID }]);
+    expect(queryable.query.mock.calls[1][1]).toEqual([PROPERTY_ID, DEVICE_ID, 10]);
   });
 
   test('ingests Hikvision-style inbound event into integration log and visit log', async () => {

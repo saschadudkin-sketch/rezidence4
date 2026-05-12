@@ -11,6 +11,8 @@ const {
 const REVIEW_STATUSES = new Set(['pending', 'approved', 'needs_followup', 'dismissed']);
 const REVIEW_PRIORITIES = new Set(['low', 'normal', 'high', 'urgent']);
 const ESCALATION_STATUSES = new Set(['none', 'overdue', 'escalated']);
+const REPORT_EVIDENCE_TYPES = new Set(['summary', 'anti_abuse', 'escalation', 'attestation', 'live_rollout']);
+const REPORT_EVIDENCE_STATUSES = new Set(['generated', 'reviewed', 'failed']);
 
 const CATEGORY_SAMPLE_PRIORITIES = Object.freeze({
   manual_override: 'urgent',
@@ -56,6 +58,49 @@ function clampInteger(value, { fallback, min, max }) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, parsed));
+}
+
+function parseJsonObject(value) {
+  if (typeof value === 'string') {
+    try {
+      return parseJsonObject(JSON.parse(value));
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value;
+}
+
+function normalizeEnum(value, allowed, fallback, field) {
+  const normalized = value === undefined || value === null || value === ''
+    ? fallback
+    : String(value).trim();
+  if (!normalized || !allowed.has(normalized)) {
+    throw serviceError(400, `${field} must be one of: ${[...allowed].join(', ')}`);
+  }
+  return normalized;
+}
+
+function normalizeIsoOrNull(value, field) {
+  if (value === undefined || value === null || value === '') return null;
+  const text = String(value);
+  if (Number.isNaN(Date.parse(text))) throw serviceError(400, `${field} must be ISO date`);
+  return text;
+}
+
+function mapReportEvidenceRow(row) {
+  return {
+    id: row.id,
+    property_id: row.property_id,
+    report_type: row.report_type,
+    status: row.status,
+    period_from: row.period_from || null,
+    period_to: row.period_to || null,
+    summary: parseJsonObject(row.summary),
+    generated_by_uid: row.generated_by_uid || null,
+    created_at: row.created_at || null,
+  };
 }
 
 function priorityForCatalogEntry(entry) {
@@ -401,7 +446,8 @@ async function escalateOverdueSensitiveActionReviews({
                  r.due_at ASC
         LIMIT $2
         FOR UPDATE SKIP LOCKED
-     )
+     ),
+     updated AS (
      UPDATE sensitive_action_reviews r
         SET escalation_status = CASE
               WHEN r.escalation_status = 'overdue' THEN 'escalated'
@@ -422,7 +468,44 @@ async function escalateOverdueSensitiveActionReviews({
                 r.classification_snapshot, r.assigned_reviewer_staff_id,
                 r.assigned_by_staff_id, r.assigned_at, r.due_at, r.priority,
                 r.assignment_reason, r.escalation_status, r.escalation_note,
-                r.last_escalated_at, r.created_at, r.updated_at`,
+                r.last_escalated_at, r.created_at, r.updated_at
+     ),
+     notified AS (
+       INSERT INTO notifications_outbox
+         (property_id, event_type, channel, recipient_type, recipient_id,
+          recipient_address, payload, max_attempts, correlation_id)
+       SELECT u.property_id,
+              'audit.sensitive_review.escalated',
+              'web_push',
+              'staff',
+              u.assigned_reviewer_staff_id,
+              NULL,
+              jsonb_build_object(
+                'title', 'Sensitive action review overdue',
+                'body', 'Sensitive audit review requires attention',
+                'review_id', u.id,
+                'audit_log_id', u.audit_log_id,
+                'category', u.category,
+                'action', u.action,
+                'priority', u.priority,
+                'escalation_status', u.escalation_status,
+                'due_at', u.due_at,
+                'url', '/v1/admin/sensitive-actions'
+              ),
+              6,
+              u.id
+         FROM updated u
+        WHERE u.property_id IS NOT NULL
+          AND u.assigned_reviewer_staff_id IS NOT NULL
+       RETURNING correlation_id
+     )
+     SELECT u.*,
+            COALESCE((
+              SELECT COUNT(*)::int
+                FROM notified n
+               WHERE n.correlation_id = u.id
+            ), 0)::int AS escalation_notifications_enqueued
+       FROM updated u`,
     params,
   );
   return rows;
@@ -689,6 +772,85 @@ async function assignSensitiveActionReview({
   return rows[0];
 }
 
+async function recordSensitiveActionReportEvidence({
+  queryable,
+  user,
+  body = {},
+}) {
+  const propertyId = body.property_id || body.propertyId || user?.property_id || user?.propertyId || null;
+  if (!propertyId) throw serviceError(400, 'property_id is required');
+  const reportType = normalizeEnum(
+    body.report_type || body.reportType,
+    REPORT_EVIDENCE_TYPES,
+    'summary',
+    'report_type',
+  );
+  const status = normalizeEnum(
+    body.status,
+    REPORT_EVIDENCE_STATUSES,
+    'generated',
+    'status',
+  );
+  const periodFrom = normalizeIsoOrNull(body.period_from || body.periodFrom, 'period_from');
+  const periodTo = normalizeIsoOrNull(body.period_to || body.periodTo, 'period_to');
+  const summary = parseJsonObject(body.summary);
+
+  const { rows } = await queryable.query(
+    `INSERT INTO sensitive_action_report_evidence
+       (property_id, report_type, status, period_from, period_to,
+        summary, generated_by_uid)
+     VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7)
+     RETURNING id, property_id, report_type, status, period_from, period_to,
+               summary, generated_by_uid, created_at`,
+    [
+      propertyId,
+      reportType,
+      status,
+      periodFrom,
+      periodTo,
+      JSON.stringify(summary),
+      user?.uid || null,
+    ],
+  );
+  return mapReportEvidenceRow(rows[0]);
+}
+
+async function listSensitiveActionReportEvidence({
+  queryable,
+  filters = {},
+  limit = 25,
+}) {
+  const safeLimit = clampInteger(limit, { fallback: 25, min: 1, max: 100 });
+  const clauses = [];
+  const params = [];
+
+  if (filters.property_id) {
+    params.push(filters.property_id);
+    clauses.push(`property_id = $${params.length}`);
+  }
+  if (filters.report_type) {
+    params.push(filters.report_type);
+    clauses.push(`report_type = $${params.length}`);
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    clauses.push(`status = $${params.length}`);
+  }
+
+  params.push(safeLimit);
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { rows } = await queryable.query(
+    `SELECT id, property_id, report_type, status, period_from, period_to,
+            summary, generated_by_uid, created_at
+       FROM sensitive_action_report_evidence
+       ${where}
+      ORDER BY created_at DESC
+      LIMIT $${params.length}`,
+    params,
+  );
+  return rows.map(mapReportEvidenceRow);
+}
+
 async function attestSensitiveAction({ queryable, user, auditLogId, decision, comment = null }) {
   if (!REVIEW_STATUSES.has(decision) || decision === 'pending') {
     throw serviceError(400, 'decision must be approved, needs_followup, or dismissed');
@@ -746,6 +908,8 @@ async function attestSensitiveAction({ queryable, user, auditLogId, decision, co
 module.exports = {
   AuditReviewServiceError,
   ESCALATION_STATUSES,
+  REPORT_EVIDENCE_STATUSES,
+  REPORT_EVIDENCE_TYPES,
   REVIEW_PRIORITIES,
   REVIEW_STATUSES,
   assignSensitiveActionReview,
@@ -754,6 +918,8 @@ module.exports = {
   getSensitiveActionAntiAbuseAnalytics,
   isAuditReviewServiceError,
   listSensitiveActionReviews,
+  listSensitiveActionReportEvidence,
   materializeSensitiveActionReviewSamples,
+  recordSensitiveActionReportEvidence,
   summarizeSensitiveActionReviews,
 };

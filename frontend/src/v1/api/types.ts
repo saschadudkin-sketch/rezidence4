@@ -155,6 +155,240 @@ export interface OperationsDashboardResponse {
   dashboard: OperationsDashboardSnapshot;
 }
 
+// ─── SKUD Provider Failure Dashboard ───────────────────────────────────────
+
+export type SkudProviderStatus = 'active' | 'disabled' | 'degraded';
+export type SkudHealthStatus = 'unknown' | 'healthy' | 'degraded' | 'down';
+export type SkudSyncMode = 'push' | 'pull' | 'hybrid' | 'manual';
+
+export interface SkudProviderConfigSnapshot {
+  id: UUID;
+  property_id: UUID;
+  provider: string;
+  display_name: string;
+  status: SkudProviderStatus;
+  sync_mode: SkudSyncMode;
+  capabilities?: unknown;
+  health_status: SkudHealthStatus;
+  last_success_at?: IsoDateTime | null;
+  last_failure_at?: IsoDateTime | null;
+  last_error?: string | null;
+  created_by?: string | null;
+  created_at?: IsoDateTime;
+  updated_at?: IsoDateTime;
+}
+
+export interface SkudProviderEventSummary {
+  total_events: number;
+  succeeded_events: number;
+  failed_events: number;
+  retrying_events: number;
+  dead_lettered_events: number;
+  pending_events: number;
+  ignored_events: number;
+  last_event_at: IsoDateTime | null;
+  last_failure_event_at: IsoDateTime | null;
+}
+
+export interface SkudProviderDeviceSummary {
+  total_devices: number;
+  degraded_devices: number;
+  out_of_service_devices: number;
+  manual_guard_devices: number;
+  fail_closed_devices: number;
+}
+
+export interface SkudManualControlSummary {
+  manual_control_events: number;
+  last_manual_action_at: IsoDateTime | null;
+}
+
+export interface SkudProviderTopError {
+  error_code: string;
+  error_message: string | null;
+  total: number;
+  last_seen_at: IsoDateTime | null;
+}
+
+export interface SkudProviderFailureRow {
+  provider_config: SkudProviderConfigSnapshot;
+  event_summary: SkudProviderEventSummary;
+  device_summary: SkudProviderDeviceSummary;
+  manual_control_summary: SkudManualControlSummary;
+  top_errors: SkudProviderTopError[];
+  needs_attention: boolean;
+  attention_reasons: string[];
+}
+
+export interface SkudFieldRolloutEvidenceRow {
+  id: UUID;
+  property_id: UUID;
+  provider_config_id: UUID | null;
+  hardware_device_id: UUID | null;
+  provider: string | null;
+  provider_display_name: string | null;
+  hardware_device_name: string | null;
+  rollout_stage: string;
+  evidence_type: string;
+  status: string;
+  summary: string | null;
+  metrics: Record<string, unknown>;
+  observed_at: IsoDateTime | null;
+  recorded_by_uid: string | null;
+  created_at: IsoDateTime | null;
+}
+
+export interface SkudProviderFailureDashboard {
+  property_id: UUID;
+  generated_at: IsoDateTime;
+  window_hours: number;
+  summary: {
+    providers_total: number;
+    providers_down: number;
+    providers_degraded: number;
+    providers_needing_attention: number;
+    failed_events: number;
+    retrying_events: number;
+    dead_lettered_events: number;
+    manual_control_events: number;
+    out_of_service_devices: number;
+    field_rollout_records?: number;
+  };
+  providers: SkudProviderFailureRow[];
+  field_rollout_records?: SkudFieldRolloutEvidenceRow[];
+  field_rollout_evidence: {
+    source_tables: string[];
+    evidence_window_hours: number;
+    returned_provider_configs: number;
+    active_provider_configs: number;
+    real_failure_rows: number;
+    manual_control_event_rows: number;
+    rollout_evidence_rows?: number;
+    generated_at: IsoDateTime;
+  };
+}
+
+export interface SkudProviderFailureDashboardResponse {
+  dashboard: SkudProviderFailureDashboard;
+}
+
+// ─── Sensitive Action Review Reports ───────────────────────────────────────
+
+export type AuditReviewStatus = 'pending' | 'approved' | 'needs_followup' | 'dismissed';
+export type AuditReviewPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type AuditEscalationStatus = 'none' | 'overdue' | 'escalated';
+
+export interface SensitiveActionReviewSummaryRow {
+  review_status: AuditReviewStatus;
+  priority: AuditReviewPriority;
+  total: number;
+  overdue: number;
+}
+
+export interface SensitiveActionReviewSummary {
+  rows: SensitiveActionReviewSummaryRow[];
+  totals: {
+    total: number;
+    overdue: number;
+    by_status: Partial<Record<AuditReviewStatus, number>>;
+    by_priority: Partial<Record<AuditReviewPriority, number>>;
+  };
+}
+
+export interface SensitiveActionAntiAbuseFinding {
+  actor_uid: string | null;
+  actor_role: string | null;
+  category: string;
+  total_actions: number;
+  high_risk_actions: number;
+  pending_reviews: number;
+  overdue_reviews: number;
+  off_hours_actions: number;
+  distinct_resources: number;
+  first_seen_at?: IsoDateTime | null;
+  last_seen_at?: IsoDateTime | null;
+  flags: string[];
+  risk_score: number;
+}
+
+export interface SensitiveActionAntiAbuseAnalytics {
+  findings: SensitiveActionAntiAbuseFinding[];
+  summary: {
+    total_findings: number;
+    actors: number;
+    high_risk_actions: number;
+    overdue_reviews: number;
+  };
+}
+
+export interface SensitiveActionReviewAssignment {
+  assigned_reviewer_staff_id: UUID | null;
+  assigned_by_staff_id: UUID | null;
+  assigned_at: IsoDateTime | null;
+  due_at: IsoDateTime | null;
+  priority: AuditReviewPriority;
+  assignment_reason: string | null;
+  escalation_status: AuditEscalationStatus;
+  escalation_note: string | null;
+  last_escalated_at: IsoDateTime | null;
+  overdue: boolean;
+}
+
+export interface SensitiveActionReviewState {
+  id: UUID | null;
+  status: AuditReviewStatus;
+  reviewer_staff_id: UUID | null;
+  reviewed_at: IsoDateTime | null;
+  comment: string | null;
+  assignment: SensitiveActionReviewAssignment;
+}
+
+export interface SensitiveActionAuditRow {
+  id: UUID;
+  property_id: UUID | null;
+  actor_uid: string | null;
+  actor_role: string | null;
+  actor_type: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  changes: unknown;
+  ip_address: string | null;
+  created_at: IsoDateTime;
+  canonical_event_type: string;
+  category: string;
+  sensitivity: string;
+  sensitive: boolean;
+  review_required: boolean;
+  review_reason: string | null;
+  review: SensitiveActionReviewState;
+}
+
+export interface SensitiveActionMetaResponse {
+  categories: string[];
+  actions: string[];
+  review_statuses: AuditReviewStatus[];
+  priorities: AuditReviewPriority[];
+  escalation_statuses: AuditEscalationStatus[];
+  report_evidence_types?: string[];
+  report_evidence_statuses?: string[];
+}
+
+export interface SensitiveActionSummaryResponse {
+  summary: SensitiveActionReviewSummary;
+}
+
+export interface SensitiveActionAntiAbuseResponse {
+  analytics: SensitiveActionAntiAbuseAnalytics;
+}
+
+export interface SensitiveActionListResponse {
+  actions: SensitiveActionAuditRow[];
+  page?: PageMeta;
+}
+
 // ─── Management Company Portfolio ──────────────────────────────────────────
 
 export interface ManagementCompanyPortfolioProperty {
@@ -804,6 +1038,165 @@ export interface StaffWorkspaceRequest {
   };
 }
 
+// ─── Emergency Dispatch Readiness ─────────────────────────────────────────
+
+export type EmergencyType =
+  | 'water'
+  | 'heating'
+  | 'electricity'
+  | 'fire_smoke'
+  | 'access_control'
+  | 'security'
+  | 'territory'
+  | 'contractor'
+  | 'other';
+
+export type EmergencySeverity = 'P0' | 'P1' | 'P2';
+export type EmergencyDispatchStatus =
+  | 'new'
+  | 'acknowledged'
+  | 'dispatched'
+  | 'escalated'
+  | 'resolved'
+  | 'cancelled';
+export type EmergencyEscalationTarget =
+  | 'security'
+  | 'concierge'
+  | 'technician'
+  | 'contractor'
+  | 'property_admin'
+  | 'management_company_admin';
+export type EmergencyNotificationStatus = 'pending' | 'sent' | 'failed' | 'not_required';
+export type EmergencyDrillStatus = 'planned' | 'running' | 'passed' | 'failed' | 'cancelled';
+
+export interface EmergencyDispatchProfile {
+  id: UUID;
+  propertyId: UUID | null;
+  requestId: string;
+  emergencyType: EmergencyType;
+  severity: EmergencySeverity;
+  dispatchStatus: EmergencyDispatchStatus;
+  escalationTarget: EmergencyEscalationTarget;
+  firstResponseDueAt: IsoDateTime | null;
+  resolutionDueAt: IsoDateTime | null;
+  acknowledgedAt: IsoDateTime | null;
+  acknowledgedByUid: string | null;
+  dispatchedAt: IsoDateTime | null;
+  dispatchedByUid: string | null;
+  escalatedAt: IsoDateTime | null;
+  escalatedByUid: string | null;
+  resolvedAt: IsoDateTime | null;
+  notificationStatus: EmergencyNotificationStatus;
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+  request?: {
+    type: string;
+    category: string;
+    status: string;
+    createdByUid: string | null;
+    createdByName: string | null;
+    createdByRole: string | null;
+    comment: string;
+  };
+}
+
+export interface EmergencyOnCallRosterRow {
+  id: UUID;
+  propertyId: UUID | null;
+  escalationTarget: EmergencyEscalationTarget;
+  displayName: string;
+  provider: 'internal_roster' | 'sms' | 'telegram' | 'web_push' | 'external_dispatch' | 'contractor_company';
+  contactRef: string | null;
+  status: 'active' | 'disabled' | 'archived';
+  startsAt: IsoDateTime | null;
+  endsAt: IsoDateTime | null;
+  priority: number;
+  metadata: Record<string, unknown>;
+  updatedAt: IsoDateTime | null;
+}
+
+export interface EmergencyProviderNotificationEvidence {
+  channel: string;
+  status: string;
+  total: number;
+  failed: number;
+  lastEventAt: IsoDateTime | null;
+}
+
+export interface EmergencyProviderDeliveryEvidence {
+  id: UUID;
+  propertyId: UUID | null;
+  requestId: string | null;
+  drillId: UUID | null;
+  provider: string;
+  channel: string;
+  scenarioType: EmergencyType;
+  status: string;
+  latencyMs: number | null;
+  externalDeliveryId: string | null;
+  observedAt: IsoDateTime | null;
+  recordedByUid: string | null;
+  payload: Record<string, unknown>;
+  createdAt: IsoDateTime | null;
+}
+
+export interface EmergencyDispatchDrillRecord {
+  id: UUID;
+  propertyId: UUID | null;
+  scenarioType: EmergencyType;
+  severity: EmergencySeverity;
+  escalationTarget: EmergencyEscalationTarget;
+  requestId: string | null;
+  status: EmergencyDrillStatus;
+  startedAt: IsoDateTime | null;
+  completedAt: IsoDateTime | null;
+  createdByUid: string | null;
+  summary: string | null;
+  findings: Record<string, unknown>;
+  notificationEvidence: Record<string, unknown>;
+  createdAt: IsoDateTime | null;
+  updatedAt: IsoDateTime | null;
+}
+
+export interface EmergencyDispatchReadiness {
+  property_id: UUID | null;
+  generated_at: IsoDateTime;
+  window_hours: number;
+  summary: {
+    active_emergencies: number;
+    p0_active: number;
+    first_response_overdue: number;
+    resolution_overdue: number;
+    notification_sent: number;
+    notification_failed: number;
+    active_on_call_rows: number;
+    drill_records: number;
+    provider_delivery_evidence_rows?: number;
+  };
+  queue: EmergencyDispatchProfile[];
+  on_call_roster: EmergencyOnCallRosterRow[];
+  provider_notification_evidence: EmergencyProviderNotificationEvidence[];
+  drill_records: EmergencyDispatchDrillRecord[];
+  live_provider_delivery_evidence?: EmergencyProviderDeliveryEvidence[];
+  evidence: {
+    source_tables: string[];
+    notification_event_type: 'request.emergency_created' | string;
+    returned_queue_rows: number;
+    returned_roster_rows: number;
+    returned_notification_rows: number;
+    returned_drill_rows: number;
+    returned_provider_delivery_rows?: number;
+    generated_at: IsoDateTime;
+  };
+}
+
+export type EmergencyDispatchReadinessResponse = EmergencyDispatchReadiness;
+
+export interface EmergencyDispatchDrillResponse {
+  drill: EmergencyDispatchDrillRecord;
+}
+
 // ─── Technician Workspace ─────────────────────────────────────────────────
 
 export type TechnicianWorkspaceQueue =
@@ -1046,6 +1439,56 @@ export interface Resident {
   updated_at?: IsoDateTime | null;
 }
 
+export interface ResidentOffboardingSummary {
+  offboarded_residents: number;
+  offboarded_last_30d: number;
+  vehicles_pending_review: number;
+  recent_offboarding_rows: number;
+}
+
+export interface ResidentOffboardingRecord {
+  id: UUID;
+  property_id: UUID;
+  resident_id: UUID;
+  resident_name: string | null;
+  unit_id: UUID | null;
+  resident_active: boolean;
+  actor_uid: string | null;
+  actor_role: string | null;
+  reason: string | null;
+  summary: Record<string, number>;
+  created_at: IsoDateTime;
+}
+
+export interface ResidentOffboardingVehicleReview {
+  id: UUID;
+  owner_resident_id: UUID | null;
+  plate_number: string;
+  is_whitelisted?: boolean;
+  is_blacklisted?: boolean;
+  review_required: boolean;
+  offboarded_at?: IsoDateTime | null;
+  offboarding_reason?: string | null;
+  updated_at?: IsoDateTime | null;
+}
+
+export interface ResidentOffboardingReport {
+  property_id: UUID;
+  generated_at: IsoDateTime;
+  summary: ResidentOffboardingSummary;
+  recent_offboardings: ResidentOffboardingRecord[];
+  vehicle_review_queue: ResidentOffboardingVehicleReview[];
+  evidence: {
+    source_tables: string[];
+    report_scope: 'resident_offboarding';
+    generated_at: IsoDateTime;
+  };
+}
+
+export interface ResidentOffboardingReportResponse {
+  report: ResidentOffboardingReport;
+}
+
 // ─── Announcements (announcements_v2) ──────────────────────────────────────
 // Source: backend/src/v1/routes/announcements.js + services/announcements.js.
 // Category/audience/channel values mirror the ALLOWED_* arrays in the service.
@@ -1228,6 +1671,101 @@ export interface DocumentVersion {
   changed_by_staff_id: UUID | null;
   reason: string | null;
   created_at: IsoDateTime;
+}
+
+// ─── GIS/OSS readiness ────────────────────────────────────────────────────
+// Source: backend/src/v1/routes/gisOssReadiness.js.
+// Spec:   docs/product/specs/platform-v1/gis-oss-readiness-spec.md.
+
+export type GisOssPackageType =
+  | 'gis_zhkh'
+  | 'oss_readiness'
+  | 'resident_notice'
+  | 'protocol_archive';
+
+export interface GisOssProtocolFile {
+  label: string;
+  file_url: string;
+  file_mime?: string | null;
+  signed_at?: IsoDateTime | string | null;
+}
+
+export interface GisOssOperationalRef {
+  type: string;
+  id: string;
+  note?: string | null;
+}
+
+export interface GisOssArtifactManifestFile {
+  path: string;
+  role: string;
+  content_type: string;
+  source_url?: string | null;
+  source_mime?: string | null;
+  byte_size: number;
+  sha256: string;
+}
+
+export interface GisOssArtifactManifest {
+  payload_path: string;
+  package_payload_sha256: string;
+  material_counts: {
+    documents: number;
+    announcements: number;
+    protocol_files: number;
+    operational_record_refs: number;
+  };
+  files: GisOssArtifactManifestFile[];
+}
+
+export interface GisOssExportPayload {
+  format_version: 'gis_oss_readiness.v1' | string;
+  packaging?: {
+    format_version: 'gis_oss_artifact_manifest.v1' | string;
+    artifact_filename: string;
+    artifact_content_type: string;
+    manifest: GisOssArtifactManifest;
+  };
+  operational_evidence?: {
+    generated_at: IsoDateTime;
+    source_validation: Record<string, boolean>;
+    immutable_storage: string;
+    operator_review_required: boolean;
+  };
+  integration_path?: {
+    current_mode: string;
+    certified_submission_supported: boolean;
+    future_certified_requirements?: string[];
+  };
+}
+
+export interface GisOssExportPackage {
+  id: UUID;
+  property_id: UUID;
+  package_type: GisOssPackageType;
+  title: string;
+  status: 'draft' | 'generated' | 'archived';
+  period_start: string | null;
+  period_end: string | null;
+  document_ids: UUID[];
+  announcement_ids: UUID[];
+  protocol_files: GisOssProtocolFile[];
+  operational_record_refs: GisOssOperationalRef[];
+  export_payload: GisOssExportPayload | Record<string, unknown>;
+  boundary_notice: string;
+  legally_authoritative: false;
+  certified_submission: false;
+  generated_by_uid: string | null;
+  generated_at: IsoDateTime;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+export interface GisOssBoundaryResponse {
+  legally_authoritative: false;
+  certified_submission: false;
+  notice: string;
+  out_of_scope: string[];
 }
 
 // ─── Composite response shapes (exactly what the backend returns) ──────────

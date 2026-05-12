@@ -15,7 +15,10 @@ const db = require('../db');
 const { broadcastRequestUpdate } = require('../sse');
 const { RequestsService, ServiceError, ConflictError } = require('../services/RequestsService');
 const {
+  createEmergencyDrillRecord,
+  listEmergencyReadiness,
   listEmergencyQueue,
+  recordEmergencyProviderDeliveryEvidence,
   recordEmergencyDispatchAction,
 } = require('../services/requests/EmergencyDispatchService');
 const { RequestSlaService } = require('../services/requests/RequestSlaService');
@@ -144,6 +147,29 @@ router.post('/:id/first-response', validateId, async (req, res, next) => {
 router.get('/emergency/queue', async (req, res, next) => {
   try {
     res.json(await listEmergencyQueue(req.user, getDb(req), req.query));
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── GET /api/requests/emergency/readiness ───────────────────────────────────
+router.get('/emergency/readiness', async (req, res, next) => {
+  try {
+    res.json(await listEmergencyReadiness(req.user, getDb(req), req.query));
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/emergency/drills ─────────────────────────────────────
+router.post('/emergency/drills', async (req, res, next) => {
+  try {
+    const drill = await createEmergencyDrillRecord(req.user, getDb(req), req.body);
+    res.status(201).json({ drill });
+  } catch (err) { handleServiceError(err, res, next); }
+});
+
+// ─── POST /api/requests/emergency/provider-delivery-evidence ────────────────
+router.post('/emergency/provider-delivery-evidence', async (req, res, next) => {
+  try {
+    const evidence = await recordEmergencyProviderDeliveryEvidence(req.user, getDb(req), req.body);
+    res.status(201).json({ evidence });
   } catch (err) { handleServiceError(err, res, next); }
 });
 

@@ -32,8 +32,10 @@ const {
   recordResidentLifecycleEvent,
 } = require('../services/residentLifecycleService');
 const {
+  getResidentOffboardingReport,
   isResidentOffboardingServiceError,
   offboardResident,
+  transferResidentOwnership,
 } = require('../services/residentOffboardingService');
 
 const router = express.Router();
@@ -92,6 +94,41 @@ async function runOffboarding(req, residentId) {
   try {
     await client.query('BEGIN');
     const result = await offboardResident({ queryable: client, ...payload });
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* keep original error */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function runOwnershipTransfer(req, fromResidentId) {
+  const queryable = getDb(req);
+  const pool = typeof queryable.connect === 'function'
+    ? queryable
+    : (queryable.pool && typeof queryable.pool.connect === 'function' ? queryable.pool : null);
+  const payload = {
+    fromResidentId,
+    toResidentId: req.body?.to_resident_id || req.body?.toResidentId || null,
+    actor: {
+      uid: req.user?.uid || null,
+      role: req.user?.role || null,
+      ipAddress: req.ip || null,
+    },
+    reason: req.body?.reason || 'ownership transfer',
+    effectiveAt: req.body?.effective_at || req.body?.effectiveAt || null,
+    cascadeNotificationPreferences: req.body?.cascade_notification_preferences !== false
+      && req.body?.cascadeNotificationPreferences !== false,
+  };
+
+  if (!pool) return transferResidentOwnership({ queryable, ...payload });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await transferResidentOwnership({ queryable: client, ...payload });
     await client.query('COMMIT');
     return result;
   } catch (err) {
@@ -184,6 +221,25 @@ router.get('/', async (req, res, next) => {
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
     });
   } catch (err) { next(err); }
+});
+
+// GET /api/v1/residents/offboarding-report?property_id=&limit=
+router.get('/offboarding-report', async (req, res, next) => {
+  try {
+    const propertyId = req.query.property_id || req.user?.property_id || req.user?.propertyId || null;
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const report = await getResidentOffboardingReport({
+      queryable: getDb(req),
+      propertyId,
+      limit: req.query.limit,
+    });
+    res.json({ report });
+  } catch (err) {
+    if (sendOffboardingError(res, err)) return;
+    next(err);
+  }
 });
 
 // GET /api/v1/residents/:id — self + staff
@@ -357,6 +413,24 @@ router.post('/:id/deactivate', async (req, res, next) => {
     if (!propertyId) return;
     const offboarding = await runOffboarding(req, req.params.id);
     res.json({ offboarding });
+  } catch (err) {
+    if (sendOffboardingError(res, err)) return;
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
+});
+
+// POST /api/v1/residents/:id/transfer-ownership
+router.post('/:id/transfer-ownership', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid resident id' });
+    const toResidentId = req.body?.to_resident_id || req.body?.toResidentId || null;
+    if (!isValidUuid(toResidentId)) return res.status(400).json({ error: 'to_resident_id must be UUID' });
+
+    const propertyId = await requirePropertyAdminForResource(req, res, 'resident', req.params.id, 'Resident not found');
+    if (!propertyId) return;
+    const ownershipTransfer = await runOwnershipTransfer(req, req.params.id);
+    res.json({ ownership_transfer: ownershipTransfer });
   } catch (err) {
     if (sendOffboardingError(res, err)) return;
     if (sendScopeError(res, err)) return;
