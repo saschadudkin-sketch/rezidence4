@@ -64,6 +64,12 @@ DomHub MUST have a compliance baseline for:
 - audit of access to sensitive personal data;
 - data localization assumptions for Russian residents.
 
+Current backend baseline: `/api/v1/privacy/data-subject-requests` records
+export/delete/correct/restrict DSAR workflow, `/api/v1/privacy/data-subject-export`
+builds a subject export snapshot, `/api/v1/privacy/compliance-evidence` records
+retention, localization, ИСПДн and no-biometrics release evidence, and
+`/api/v1/privacy/readiness` summarizes DH-56 controls for release review.
+
 ### FR-4 Sensitive Data Classification
 
 DomHub MUST classify at least these as sensitive operational data:

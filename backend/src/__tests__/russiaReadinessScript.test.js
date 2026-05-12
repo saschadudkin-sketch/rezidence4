@@ -18,6 +18,7 @@ describe('russia-readiness-check script', () => {
   test('readiness groups cover the critical DH-55 through DH-60 evidence set', () => {
     expect(READINESS_GROUPS.map((group) => group.id)).toEqual([
       'DH-55',
+      'DH-56',
       'DH-57',
       'DH-58',
       'DH-59',

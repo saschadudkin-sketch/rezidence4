@@ -23,6 +23,18 @@ const {
   deleteRefreshTokensForUser,
   invalidateUserSessionCache,
 } = require('../services/authSessionService');
+const { isAdmin } = require('../v1/lib/authz');
+const {
+  buildDataSubjectExport,
+  completeDataSubjectRequest,
+  createDataSubjectRequest,
+  getPrivacyReadinessSummary,
+  isPrivacyComplianceServiceError,
+  listComplianceEvidence,
+  listDataSubjectRequests,
+  recordComplianceEvidence,
+  resolvePropertyId,
+} = require('../services/privacyComplianceService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -33,6 +45,20 @@ const CURRENT_CONSENT_VERSION = process.env.PRIVACY_CONSENT_VERSION || '2026-04-
 
 const getDb = (req) => req.db || db;
 const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+
+function propertyIdFromReq(req, input = {}) {
+  return resolvePropertyId({
+    propertyId: req.property?.id || req.property?.property_id || null,
+    user: req.user,
+    input,
+  });
+}
+
+function sendPrivacyComplianceError(res, err) {
+  if (!isPrivacyComplianceServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
+}
 
 function hashPhone(phone) {
   if (!phone) return null;
@@ -81,6 +107,149 @@ router.post('/consent', express.json(), async (req, res, next) => {
     logger.info({ uid: req.user.uid, version }, '[privacy] consent accepted');
     res.json({ ok: true, version, acceptedAt: new Date().toISOString() });
   } catch (err) { next(err); }
+});
+
+// GET /api/v1/privacy/data-subject-export — self-service export snapshot.
+// Admin users may pass subject_resident_id; residents only export their own
+// legacy/v1-linked subject_uid data.
+router.get('/data-subject-export', async (req, res, next) => {
+  try {
+    const propertyId = propertyIdFromReq(req, req.query);
+    const subjectResidentId = isAdmin(req)
+      ? (req.query.subject_resident_id || req.query.subjectResidentId || null)
+      : null;
+    const exportPayload = await buildDataSubjectExport({
+      queryable: getDb(req),
+      user: req.user,
+      propertyId,
+      subjectResidentId,
+    });
+    res.json({ export: exportPayload });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+// GET /api/v1/privacy/data-subject-requests — resident sees own DSARs;
+// property admins see the property queue.
+router.get('/data-subject-requests', async (req, res, next) => {
+  try {
+    const propertyId = propertyIdFromReq(req, req.query);
+    const requests = await listDataSubjectRequests({
+      queryable: getDb(req),
+      propertyId,
+      user: req.user,
+      filters: req.query,
+      isAdmin: isAdmin(req),
+      limit: req.query.limit,
+    });
+    res.json({ requests });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+// POST /api/v1/privacy/data-subject-requests — DSAR intake for export/delete/
+// correct/restrict. Non-admin callers are always bound to their own uid.
+router.post('/data-subject-requests', express.json(), async (req, res, next) => {
+  try {
+    const admin = isAdmin(req);
+    if (!admin && req.body?.subject_uid && req.body.subject_uid !== req.user.uid) {
+      return res.status(403).json({ error: 'Cannot submit DSAR for another subject' });
+    }
+    const input = admin
+      ? req.body
+      : {
+        ...req.body,
+        subject_uid: req.user.uid,
+        subjectUid: req.user.uid,
+        subject_resident_id: null,
+        subjectResidentId: null,
+      };
+    const requestRecord = await createDataSubjectRequest({
+      queryable: getDb(req),
+      user: req.user,
+      propertyId: propertyIdFromReq(req, input),
+      input,
+    });
+    res.status(201).json({ request: requestRecord });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+// POST /api/v1/privacy/data-subject-requests/:id/complete — admin-only DSAR
+// resolution with export/retention decision evidence.
+router.post('/data-subject-requests/:id/complete', express.json(), async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const requestRecord = await completeDataSubjectRequest({
+      queryable: getDb(req),
+      requestId: req.params.id,
+      user: req.user,
+      input: req.body,
+    });
+    res.json({ request: requestRecord });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+// GET /api/v1/privacy/compliance-evidence — admin evidence history for DH-56
+// controls: retention, localization/ISPDn and no-biometrics release guard.
+router.get('/compliance-evidence', async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = propertyIdFromReq(req, req.query);
+    const evidence = await listComplianceEvidence({
+      queryable: getDb(req),
+      propertyId,
+      filters: req.query,
+      limit: req.query.limit,
+    });
+    res.json({ evidence });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/compliance-evidence', express.json(), async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = propertyIdFromReq(req, req.body);
+    const evidence = await recordComplianceEvidence({
+      queryable: getDb(req),
+      user: req.user,
+      propertyId,
+      input: req.body,
+    });
+    res.status(201).json({ evidence });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
+});
+
+// GET /api/v1/privacy/readiness — compact DH-56 readiness snapshot for release
+// gates and pilot evidence.
+router.get('/readiness', async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = propertyIdFromReq(req, req.query);
+    const readiness = await getPrivacyReadinessSummary({
+      queryable: getDb(req),
+      propertyId,
+    });
+    res.json({ readiness });
+  } catch (err) {
+    if (sendPrivacyComplianceError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/privacy/delete-account — GDPR / ФЗ-152 Art. 14 right-to-be-forgotten.

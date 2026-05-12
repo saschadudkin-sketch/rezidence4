@@ -24,6 +24,7 @@ const REQUIRED_EVIDENCE = [
   'docs/product/specs/domhub-deployment-and-tenant-ops-spec.md',
   'docs/product/specs/domhub-russia-production-readiness-spec.md',
   'docs/product/specs/platform-v1/go-live-zamoskv-runbook.md',
+  'docs/product/specs/platform-v1/privacy-compliance-controls-spec.md',
   'docs/runbooks/restore-drill.md',
   'docs/runbooks/pilot-rollout.md',
   'e2e/v1-access-production.spec.js',

@@ -34,6 +34,23 @@ const READINESS_GROUPS = [
     ],
   },
   {
+    id: 'DH-56',
+    title: 'Personal-data compliance controls',
+    evidence: [
+      'backend/src/v1/migrations/048_privacy_compliance_controls.js',
+      'backend/src/services/privacyComplianceService.js',
+      'backend/src/routes/privacy.js',
+      'backend/src/__tests__/privacyComplianceService.test.js',
+      'backend/src/__tests__/privacy.test.js',
+      'docs/product/specs/platform-v1/privacy-compliance-controls-spec.md',
+    ],
+    markers: [
+      ['backend/src/services/privacyComplianceService.js', 'privacy_data_subject_requests'],
+      ['backend/src/services/privacyComplianceService.js', 'no_biometrics_release_guard'],
+      ['backend/src/routes/privacy.js', 'data-subject-requests'],
+    ],
+  },
+  {
     id: 'DH-57',
     title: 'Emergency dispatch readiness evidence',
     evidence: [
@@ -126,6 +143,7 @@ const SHARED_EVIDENCE = [
 
 const LIVE_EVIDENCE_FILES = [
   'dh55-ownership-transfer.json',
+  'dh56-privacy-compliance.json',
   'dh57-provider-delivery.json',
   'dh58-gis-oss-package.json',
   'dh59-field-rollout.json',

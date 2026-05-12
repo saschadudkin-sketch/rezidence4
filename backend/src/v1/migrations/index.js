@@ -86,6 +86,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./046_emergency_readiness_evidence'),
   // DH-55/DH-57/DH-59/DH-60 live readiness evidence and ownership transfers
   require('./047_readiness_live_evidence_and_transfers'),
+  // DH-56 personal-data DSAR workflow and compliance evidence controls
+  require('./048_privacy_compliance_controls'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

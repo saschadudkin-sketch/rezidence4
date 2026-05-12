@@ -69,6 +69,7 @@
 | [go-live-zamoskv-runbook](./go-live-zamoskv-runbook.md) | Draft (preflight T-7, deploy T-1, seed УК, smoke-test, DNS cutover, rollback; P5a) |
 | [resident-offboarding-report](./resident-offboarding-report-spec.md) | Draft (DH-55 resident offboarding report evidence over lifecycle cascades and vehicle review queue) |
 | [resident-ownership-transfer](./resident-ownership-transfer-spec.md) | Draft (DH-55 ownership-transfer workflow and notification preference cascade) |
+| [privacy-compliance-controls](./privacy-compliance-controls-spec.md) | Draft (DH-56 DSAR workflow, retention/localization/ИСПДн evidence and no-biometrics release guard) |
 | [emergency-dispatch-readiness](./emergency-dispatch-readiness-spec.md) | Draft (DH-57 emergency dispatch readiness UI, on-call roster evidence, notification evidence and drill records) |
 | [gis-oss-readiness](./gis-oss-readiness-spec.md) | Draft (DH-58 GIS ZhKH / OSS readiness export packages; not certified filing or legally significant e-voting) |
 | [skud-provider-failure-dashboard](./skud-provider-failure-dashboard-spec.md) | Draft (DH-59 provider failure dashboard and field rollout evidence over SKUD events/devices/manual control) |

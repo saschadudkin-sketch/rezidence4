@@ -2,14 +2,15 @@
 
 jest.mock('../db');
 jest.mock('../sse', () => ({ broadcastUserDelete: jest.fn() }));
+let mockAuthUser = {
+  uid: 'u1',
+  phone: '+79001234567',
+  role: 'owner',
+  name: 'Resident',
+};
 jest.mock('../middleware/auth', () => {
   const mw = (req, res, next) => {
-    req.user = {
-      uid: 'u1',
-      phone: '+79001234567',
-      role: 'owner',
-      name: 'Resident',
-    };
+    req.user = mockAuthUser;
     next();
   };
   mw.invalidateUserActiveCache = jest.fn().mockResolvedValue(undefined);
@@ -42,6 +43,12 @@ function buildApp({ tenantDb } = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAuthUser = {
+    uid: 'u1',
+    phone: '+79001234567',
+    role: 'owner',
+    name: 'Resident',
+  };
   db._mockClient.query.mockReset();
   db._mockClient.release.mockReset();
   db.pool.connect.mockClear();
@@ -67,6 +74,145 @@ describe('GET /api/v1/privacy/consent', () => {
       ['u1'],
     );
     expect(db.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('DH-56 data subject request workflow', () => {
+  const propertyId = '11111111-1111-4111-8111-111111111111';
+
+  it('lets residents submit their own data subject request', async () => {
+    const tenantDb = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{
+          id: '33333333-3333-4333-8333-333333333333',
+          property_id: propertyId,
+          request_type: 'export',
+          status: 'pending',
+          subject_uid: 'u1',
+          subject_resident_id: null,
+          submitted_by_uid: 'u1',
+          submitted_by_role: 'owner',
+          request_payload: { details: 'copy', source: 'resident_ui' },
+          export_payload: {},
+          retention_decision: {},
+        }],
+      }),
+      connect: jest.fn(),
+    };
+    const app = buildApp({ tenantDb });
+
+    const res = await request(app)
+      .post('/api/v1/privacy/data-subject-requests')
+      .send({ property_id: propertyId, type: 'export', details: 'copy' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.request.request_type).toBe('export');
+    expect(tenantDb.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO privacy_data_subject_requests'),
+      expect.arrayContaining([propertyId, 'export', 'u1']),
+    );
+  });
+
+  it('prevents residents from submitting DSARs for another subject uid', async () => {
+    const tenantDb = { query: jest.fn(), connect: jest.fn() };
+    const app = buildApp({ tenantDb });
+
+    const res = await request(app)
+      .post('/api/v1/privacy/data-subject-requests')
+      .send({ property_id: propertyId, type: 'export', subject_uid: 'u2' });
+
+    expect(res.status).toBe(403);
+    expect(tenantDb.query).not.toHaveBeenCalled();
+  });
+
+  it('lets admins complete DSARs with retention evidence', async () => {
+    mockAuthUser = {
+      uid: 'admin-1',
+      phone: '+79001230000',
+      role: 'admin',
+      name: 'Admin',
+    };
+    const requestId = '33333333-3333-4333-8333-333333333333';
+    const tenantDb = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{
+          id: requestId,
+          property_id: propertyId,
+          request_type: 'delete',
+          status: 'completed',
+          subject_uid: 'u1',
+          request_payload: {},
+          export_payload: {},
+          retention_decision: { anonymized: true },
+          processed_by_uid: 'admin-1',
+          processed_at: '2026-05-13T12:00:00.000Z',
+        }],
+      }),
+      connect: jest.fn(),
+    };
+    const app = buildApp({ tenantDb });
+
+    const res = await request(app)
+      .post(`/api/v1/privacy/data-subject-requests/${requestId}/complete`)
+      .send({ status: 'completed', retention_decision: { anonymized: true } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.request.retention_decision.anonymized).toBe(true);
+    expect(tenantDb.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE privacy_data_subject_requests'),
+      expect.arrayContaining([requestId, 'completed', 'admin-1']),
+    );
+  });
+
+  it('records and summarizes admin compliance evidence', async () => {
+    mockAuthUser = {
+      uid: 'admin-1',
+      phone: '+79001230000',
+      role: 'admin',
+      name: 'Admin',
+    };
+    const evidenceRow = {
+      id: '44444444-4444-4444-8444-444444444444',
+      property_id: propertyId,
+      evidence_type: 'no_biometrics_release_guard',
+      status: 'reviewed',
+      summary: 'checked',
+      evidence: { checked: true },
+      recorded_by_uid: 'admin-1',
+    };
+    const tenantDb = {
+      query: jest.fn((sql) => {
+        if (sql.includes('INSERT INTO privacy_compliance_evidence')) {
+          return Promise.resolve({ rows: [evidenceRow] });
+        }
+        if (sql.includes('FROM privacy_data_subject_requests')) {
+          return Promise.resolve({ rows: [{ request_type: 'export', status: 'completed', count: 1 }] });
+        }
+        if (sql.includes('FROM privacy_compliance_evidence')) {
+          return Promise.resolve({ rows: [evidenceRow] });
+        }
+        return Promise.resolve({ rows: [] });
+      }),
+      connect: jest.fn(),
+    };
+    const app = buildApp({ tenantDb });
+
+    const evidenceRes = await request(app)
+      .post('/api/v1/privacy/compliance-evidence')
+      .send({
+        property_id: propertyId,
+        evidence_type: 'no_biometrics_release_guard',
+        status: 'reviewed',
+        summary: 'checked',
+        evidence: { checked: true },
+      });
+    const readinessRes = await request(app)
+      .get('/api/v1/privacy/readiness')
+      .query({ property_id: propertyId });
+
+    expect(evidenceRes.status).toBe(201);
+    expect(readinessRes.status).toBe(200);
+    expect(readinessRes.body.readiness.controls.no_biometrics_release_guard).toBe(true);
   });
 });
 

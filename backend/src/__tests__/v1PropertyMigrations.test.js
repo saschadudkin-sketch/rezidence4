@@ -44,8 +44,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-59 hardware manual-control boundaries
     // + 1 DH-58 GIS/OSS readiness export packages
     // + 1 DH-57 emergency readiness evidence
-    // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers = 47
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(47);
+    // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers
+    // + 1 DH-56 privacy compliance controls = 48
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(48);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -1796,6 +1797,44 @@ describe('v1_047_readiness_live_evidence_and_transfers', () => {
     expect(report).toBeDefined();
     expect(sqls.find((s) => s.includes('sensitive_action_report_type_check')))
       .toContain('live_rollout');
+  });
+});
+
+describe('v1_048_privacy_compliance_controls', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates data subject request workflow with DSAR types and statuses', async () => {
+    await byId('v1_048_privacy_compliance_controls').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS privacy_data_subject_requests'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('subject_resident_id UUID REFERENCES residents(id) ON DELETE SET NULL');
+    expect(tbl).toContain('retention_decision  JSONB NOT NULL DEFAULT');
+    expect(tbl).toContain('privacy_data_subject_requests_processed_state');
+    expect(sqls.find((s) => s.includes('privacy_data_subject_requests_type_check')))
+      .toContain("'export','delete','correct','restrict'");
+    expect(sqls.find((s) => s.includes('privacy_data_subject_requests_status_check')))
+      .toContain("'pending','in_progress','completed','rejected','cancelled'");
+    expect(sqls.find((s) => s.includes('idx_privacy_dsr_property_status')))
+      .toContain('property_id, status, due_at');
+  });
+
+  test('creates privacy compliance evidence ledger for retention, localization and no-biometrics guard', async () => {
+    await byId('v1_048_privacy_compliance_controls').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS privacy_compliance_evidence'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('evidence_type   VARCHAR(50) NOT NULL');
+    const typeCheck = sqls.find((s) => s.includes('privacy_compliance_evidence_type_check'));
+    expect(typeCheck).toContain('retention_sweep');
+    expect(typeCheck).toContain('data_localization');
+    expect(typeCheck).toContain('ispdn_readiness');
+    expect(typeCheck).toContain('no_biometrics_release_guard');
+    expect(sqls.find((s) => s.includes('idx_privacy_compliance_evidence_property')))
+      .toContain('property_id, evidence_type, created_at DESC');
   });
 });
 
