@@ -10,6 +10,7 @@ declare namespace JSX {
 
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
+  readonly VITE_PROPERTY_SLUG?: string;
   readonly VITE_RUNTIME_MODE?: string;
   readonly VITE_ENABLE_DEMO?: string;
   readonly VITE_MODE?: string;

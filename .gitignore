@@ -67,3 +67,7 @@ frontend/dev-server.log
 frontend/dev-server.err.log
 frontend/lint-current.log
 frontend/vite*.log
+tmp/
+sales-site/*.log
+restore-drill.local.log
+backups/

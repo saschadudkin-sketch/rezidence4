@@ -31,6 +31,28 @@ describe('auditEventCatalog', () => {
     ]));
   });
 
+  test('classifies hardware manual control as hardware boundary review', () => {
+    const result = normalizeAuditAction('hardware.manual_control.executed');
+
+    expect(result).toMatchObject({
+      canonical_event_type: 'hardware.manual_control.executed',
+      category: 'hardware_boundary',
+      sensitivity: 'sensitive',
+      review_required: true,
+    });
+  });
+
+  test('classifies GIS/OSS readiness package generation as restricted export', () => {
+    const result = normalizeAuditAction('gis_oss.export_package.generated');
+
+    expect(result).toMatchObject({
+      canonical_event_type: 'integration.gis_oss.export_package.generated',
+      category: 'export',
+      sensitivity: 'restricted',
+      review_required: true,
+    });
+  });
+
   test('unknown actions remain internal and do not require review', () => {
     expect(isSensitiveAuditAction('package.received')).toBe(false);
     expect(normalizeAuditAction('package.received')).toMatchObject({

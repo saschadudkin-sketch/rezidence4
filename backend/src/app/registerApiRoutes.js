@@ -97,6 +97,7 @@ const v1SkudIntegrationsRouter  = require('../v1/routes/skudIntegrations');
 const v1VideoEvidenceRouter     = require('../v1/routes/videoEvidence');
 const v1ErpExchangeRouter       = require('../v1/routes/erpExchange');
 const v1AnalyticsAggregationRouter = require('../v1/routes/analyticsAggregation');
+const v1GisOssReadinessRouter   = require('../v1/routes/gisOssReadiness');
 
 // Phase 5 (platform-v1) — notification_log_v2 read API.  Spec:
 // docs/product/specs/platform-v1/notification-log-v2-spec.md §3.
@@ -315,6 +316,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/skud', requireFeature('skud_integration'), v1SkudIntegrationsRouter);
   app.use('/api/v1', requireFeature('video_evidence'), v1VideoEvidenceRouter);
   app.use('/api/v1/erp', requireFeature('erp_exchange'), v1ErpExchangeRouter);
+  app.use('/api/v1/gis-oss', requireFeature('gis_oss_readiness'), v1GisOssReadinessRouter);
 
   // Phase 5 — notification_log_v2 read API.  Exposes:
   //   GET  /api/v1/admin/notification-log             (list)

@@ -24,6 +24,10 @@ const router = express.Router();
 const { randomInt } = require('crypto');
 
 function makeCode() {
+  const devFixedCode = process.env.NODE_ENV !== 'production'
+    ? String(process.env.DEV_FIXED_OTP_CODE || '').trim()
+    : '';
+  if (/^\d{6}$/.test(devFixedCode)) return devFixedCode;
   return String(randomInt(100000, 1000000)); // CSPRNG вместо Math.random
 }
 

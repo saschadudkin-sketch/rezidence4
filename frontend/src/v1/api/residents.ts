@@ -8,11 +8,22 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { PageMeta, PaginationParams, Resident, UUID } from './types';
+import type {
+  PageMeta,
+  PaginationParams,
+  Resident,
+  ResidentOffboardingReportResponse,
+  UUID,
+} from './types';
 
 export interface ListResidentsParams extends PaginationParams {
   unit_id?: UUID;
   is_active?: boolean;
+}
+
+export interface GetResidentOffboardingReportParams {
+  property_id: UUID;
+  limit?: number;
 }
 
 function toQuery(params: object | undefined): string {
@@ -51,5 +62,11 @@ export const residentsApi = {
   },
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ resident: ResidentWithUnit }>(`/residents/${id}`, opts);
+  },
+  offboardingReport(params: GetResidentOffboardingReportParams, opts?: RequestOpts) {
+    return v1Client.get<ResidentOffboardingReportResponse>(
+      `/residents/offboarding-report${toQuery(params)}`,
+      opts,
+    );
   },
 };

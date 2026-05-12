@@ -124,6 +124,12 @@ const FEATURE_FLAGS = {
     description: 'Операционный импорт справочников и экспорт сводок для ERP/1C/ЖКХ-систем',
     category: 'integrations',
   },
+  gis_oss_readiness: {
+    default: false,
+    label: 'GIS ЖКХ / ОСС readiness',
+    description: 'Подготовка экспортных пакетов для внешней работы с GIS ЖКХ и ОСС без юридически значимого голосования',
+    category: 'integrations',
+  },
   analytics: {
     default: false,
     label: 'Аналитика',

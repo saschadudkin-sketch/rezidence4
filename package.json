@@ -34,7 +34,7 @@
     "tenant:provision": "node scripts/tenant-ops-provision.cjs",
     "tenant:migrate": "node scripts/tenant-ops-migrate.cjs",
     "tenant:restore-drill:preflight": "node scripts/restore-drill-preflight.cjs",
-    "tenant:restore-drill": "node scripts/restore-drill-preflight.cjs && bash scripts/restore-drill.sh",
+    "tenant:restore-drill": "node scripts/restore-drill-preflight.cjs && node scripts/restore-drill.cjs",
     "test:e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:visual": "node ./node_modules/@playwright/test/cli.js test e2e/visual-states.spec.js",
     "openapi:types": "openapi-typescript docs/openapi.json -o frontend/src/api/generated/openapi.d.ts",

@@ -1,9 +1,10 @@
 /**
  * Centralized client logger.
  */
-const MODE = import.meta?.env?.MODE ?? process.env.NODE_ENV;
-const IS_DEV = import.meta?.env?.DEV === true || MODE === 'test' || MODE === 'development';
+const RUNTIME_ENV = import.meta.env;
 const PROCESS_ENV = typeof process !== 'undefined' ? process.env : {};
+const MODE = RUNTIME_ENV.MODE ?? PROCESS_ENV.NODE_ENV;
+const IS_DEV = RUNTIME_ENV.DEV === true || MODE === 'test' || MODE === 'development';
 const IS_TEST = MODE === 'test' || PROCESS_ENV.NODE_ENV === 'test' || Boolean(PROCESS_ENV.VITEST);
 
 function isConsoleEnabled(): boolean {
@@ -38,7 +39,7 @@ export function createLogger() {
     if (errorBuffer.length === 0) return;
 
     const batch = errorBuffer.splice(0, MAX_BUFFER);
-    const baseUrl = import.meta?.env?.VITE_API_URL || '';
+    const baseUrl = RUNTIME_ENV.VITE_API_URL || '';
     const url = `${baseUrl}/api/v1/client-logs`;
     const body = JSON.stringify({ errors: batch });
 

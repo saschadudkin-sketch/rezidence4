@@ -29,6 +29,10 @@ import { sessionApi } from './session';
 import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './announcements';
 import { packagesApi, packageStatusTone } from './packages';
 import { documentsApi, deriveDocumentStatus } from './documents';
+import { gisOssReadinessApi } from './gisOssReadiness';
+import { skudIntegrationsApi } from './skudIntegrations';
+import { auditReviewsApi } from './auditReviews';
+import { emergencyDispatchApi } from './emergencyDispatch';
 import { operationsDashboardApi } from './operationsDashboard';
 import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
 
@@ -50,6 +54,10 @@ export const api = {
   announcements: announcementsApi,
   packages: packagesApi,
   documents: documentsApi,
+  gisOssReadiness: gisOssReadinessApi,
+  skudIntegrations: skudIntegrationsApi,
+  auditReviews: auditReviewsApi,
+  emergencyDispatch: emergencyDispatchApi,
   operationsDashboard: operationsDashboardApi,
   managementCompanyPortfolio: managementCompanyPortfolioApi,
 };
@@ -96,7 +104,11 @@ export type {
   SetContractorWaitingBody,
 } from './contractorWorkspace';
 export type { ListUnitsParams } from './units';
-export type { ListResidentsParams, ResidentWithUnit } from './residents';
+export type {
+  GetResidentOffboardingReportParams,
+  ListResidentsParams,
+  ResidentWithUnit,
+} from './residents';
 export type {
   ListAnnouncementsParams,
   ListAdminAnnouncementsParams,
@@ -121,5 +133,19 @@ export type {
   CreateDocumentBody,
   UpdateDocumentBody,
 } from './documents';
+export type {
+  CreateGisOssExportPackageBody,
+  ListGisOssExportPackagesParams,
+} from './gisOssReadiness';
+export type { GetSkudProviderFailuresParams } from './skudIntegrations';
+export type {
+  SensitiveActionAntiAbuseParams,
+  SensitiveActionListParams,
+  SensitiveActionReportParams,
+} from './auditReviews';
+export type {
+  CreateEmergencyDrillBody,
+  GetEmergencyDispatchReadinessParams,
+} from './emergencyDispatch';
 export type { GetOperationsDashboardParams } from './operationsDashboard';
 export type { GetManagementCompanyPortfolioParams } from './managementCompanyPortfolio';

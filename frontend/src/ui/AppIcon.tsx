@@ -212,6 +212,7 @@ export const APP_ICON_NAMES = Object.freeze([
 ]);
 const warnedUnknownIcons = new Set();
 const MAX_UNKNOWN_ICON_WARN_CACHE = 200;
+const RUNTIME_ENV = import.meta.env;
 
 export type AppIconName = typeof APP_ICON_NAMES[number];
 
@@ -236,7 +237,7 @@ export function AppIcon({ name, size = 16, className = '', strokeWidth = 1.75 }:
   const path = PATHS[name as keyof typeof PATHS];
   const svg = path ? null : SVGS[name as keyof typeof SVGS];
   const resolvedPath = path || PATHS.list;
-  if (hasExplicitName && !svg && !path && !(import.meta?.env?.PROD === true) && !warnedUnknownIcons.has(name)) {
+  if (hasExplicitName && !svg && !path && !(RUNTIME_ENV.PROD === true) && !warnedUnknownIcons.has(name)) {
     warnedUnknownIcons.add(name);
     if (warnedUnknownIcons.size > MAX_UNKNOWN_ICON_WARN_CACHE) warnedUnknownIcons.clear();
     console.warn(`[AppIcon] Unknown icon name "${name}", fallback to "list".`);

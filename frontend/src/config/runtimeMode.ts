@@ -6,6 +6,7 @@ type NormalizedMode = '' | RuntimeMode;
 const ALLOWED_MODES = new Set<RuntimeMode>([LIVE_MODE, DEMO_MODE]);
 const TRUE_FLAG_VALUES = new Set<string>(['1', 'true', 'yes', 'on']);
 const FALSE_FLAG_VALUES = new Set<string>(['0', 'false', 'no', 'off']);
+const RUNTIME_ENV = import.meta.env;
 
 export function normalizeMode(mode: unknown): NormalizedMode {
   const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
@@ -19,7 +20,7 @@ export function normalizeBooleanFlag(value: unknown): boolean | null {
   return null;
 }
 
-export function isDemoEnabled(env: Partial<ImportMetaEnv> = (import.meta?.env ?? {})): boolean {
+export function isDemoEnabled(env: Partial<ImportMetaEnv> = RUNTIME_ENV): boolean {
   const explicitFlag = normalizeBooleanFlag(env.VITE_ENABLE_DEMO);
   if (explicitFlag !== null) return explicitFlag;
   return !env.PROD;
@@ -30,7 +31,7 @@ export function isDemoEnabled(env: Partial<ImportMetaEnv> = (import.meta?.env ??
 // Demo доступен только во внутреннем sandbox:
 //   - по умолчанию в dev
 //   - в production-like сборках только при VITE_ENABLE_DEMO=true
-export function resolveRuntimeMode(env: Partial<ImportMetaEnv> = (import.meta?.env ?? {})): RuntimeMode {
+export function resolveRuntimeMode(env: Partial<ImportMetaEnv> = RUNTIME_ENV): RuntimeMode {
   // Приоритет: VITE_RUNTIME_MODE → VITE_MODE → env-aware default
   const runtimeMode = normalizeMode(env.VITE_RUNTIME_MODE);
   if (runtimeMode) {

@@ -1,9 +1,9 @@
 # Restore Drill Runbook (DATA-1)
 
 **BACKLOG:** `DATA-1` (P0 — обязательно до go-live Замоскворечья)
-**Скрипты:** [`scripts/restore-drill-preflight.cjs`](../../scripts/restore-drill-preflight.cjs), [`scripts/restore-drill.sh`](../../scripts/restore-drill.sh)
+**Скрипты:** [`scripts/restore-drill-preflight.cjs`](../../scripts/restore-drill-preflight.cjs), [`scripts/restore-drill.cjs`](../../scripts/restore-drill.cjs), legacy shell drill [`scripts/restore-drill.sh`](../../scripts/restore-drill.sh)
 **Связанный runbook:** [`go-live-zamoskv-runbook.md §6 Rollback`](../product/specs/platform-v1/go-live-zamoskv-runbook.md)
-**Backup script:** [`backend/backup.sh`](../../backend/backup.sh) (расписание — `0 3 * * *` UTC внутри backup-контейнера)
+**Backup script:** [`backup.sh`](../../backup.sh) (расписание — `0 3 * * *` UTC внутри backup-контейнера)
 
 ---
 

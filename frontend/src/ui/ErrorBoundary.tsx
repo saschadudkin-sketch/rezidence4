@@ -2,6 +2,8 @@ import React, { Component } from 'react';
 import { AppIcon } from './AppIcon';
 import { logger } from '../services/logger';
 
+const RUNTIME_ENV = import.meta.env;
+
 /**
  * ErrorBoundary — перехватывает ошибки рендера в дочерних компонентах.
  * Без него ошибка в ChatView / ReqCard крэшит всё приложение.
@@ -47,7 +49,7 @@ export default class ErrorBoundary extends Component<EBProps, EBState> {
         <div className="eb-icon"><AppIcon name="alert" size={28} /></div>
         <div className="eb-title">{name} не смог загрузиться</div>
         <div className="eb-message">
-          {(import.meta?.env?.PROD === true)
+          {(RUNTIME_ENV.PROD === true)
             ? 'Что-то пошло не так. Попробуйте обновить страницу.'
             : (this.state.error?.message ?? 'Неизвестная ошибка')}
         </div>

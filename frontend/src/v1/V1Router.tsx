@@ -54,6 +54,11 @@ import { PackagesAdminPage } from './pages/PackagesAdminPage';
 import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
 import { OnboardingAdminPage } from './pages/OnboardingAdminPage';
 import { AccessAdminPage } from './pages/AccessAdminPage';
+import { GisOssReadinessPage } from './pages/GisOssReadinessPage';
+import { SkudProviderFailuresPage } from './pages/SkudProviderFailuresPage';
+import { SensitiveActionsReviewPage } from './pages/SensitiveActionsReviewPage';
+import { ResidentOffboardingReportPage } from './pages/ResidentOffboardingReportPage';
+import { EmergencyDispatchPage } from './pages/EmergencyDispatchPage';
 import { OperationsDashboardPage } from './pages/OperationsDashboardPage';
 import { ManagementCompanyPortfolioPage } from './pages/ManagementCompanyPortfolioPage';
 import {
@@ -182,6 +187,46 @@ export function V1Router() {
           element={
             <RoleGate allow={ADMIN_ALLOW}>
               <AccessAdminPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/gis-oss"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <GisOssReadinessPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/skud-provider-failures"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <SkudProviderFailuresPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/sensitive-actions"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <SensitiveActionsReviewPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/offboarding"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <ResidentOffboardingReportPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/emergency-dispatch"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <EmergencyDispatchPage />
             </RoleGate>
           }
         />

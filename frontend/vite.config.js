@@ -2,6 +2,10 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const APP_ROOT = dirname(fileURLToPath(import.meta.url));
 
 // DO-06: Derive release version from git — injected as VITE_APP_VERSION so
 // Sentry.init({ release }) gets the exact commit SHA linked to the deployed build.
@@ -25,10 +29,20 @@ function getGitVersion() {
 }
 
 export default defineConfig(({ mode }) => {
-  const viteEnv = loadEnv(mode, process.cwd(), 'VITE_');
+  const viteEnv = loadEnv(mode, APP_ROOT, 'VITE_');
   const isProdBuild = mode === 'production';
   const appVersion = viteEnv.VITE_APP_VERSION || getGitVersion();
   const devApiProxy = viteEnv.VITE_DEV_API_PROXY || viteEnv.VITE_API_URL || '';
+  const devApiOrigin = (() => {
+    if (!devApiProxy) return '';
+    try {
+      return new URL(devApiProxy).origin;
+    } catch {
+      return '';
+    }
+  })();
+  const devConnectSrc = ["'self'", 'ws:', 'wss:'];
+  if (devApiOrigin) devConnectSrc.push(devApiOrigin);
 
   if (isProdBuild && !viteEnv.VITE_API_URL) {
     throw new Error(
@@ -53,6 +67,8 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    root: APP_ROOT,
+    envDir: APP_ROOT,
     // DO-06: Expose the resolved version to the app bundle so Sentry release
     // tracking links error reports to the exact git commit that shipped them.
     define: {
@@ -103,6 +119,11 @@ export default defineConfig(({ mode }) => {
               changeOrigin: true,
               secure: false,
             },
+            '/platform': {
+              target: devApiProxy,
+              changeOrigin: true,
+              secure: false,
+            },
           }
         : undefined,
       headers: {
@@ -112,7 +133,7 @@ export default defineConfig(({ mode }) => {
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
           "font-src 'self' https://fonts.gstatic.com",
           "img-src 'self' data: blob:",
-          "connect-src 'self' ws: wss:",
+          `connect-src ${devConnectSrc.join(' ')}`,
           "worker-src 'self' blob:",
         ].join('; '),
       },

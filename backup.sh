@@ -49,8 +49,12 @@ for DB in $BACKUP_DATABASES; do
   if pg_dump -h "$DB_HOST" -U "$DB_USER" "$DB" 2>/tmp/pg_dump.err | gzip > "$FNAME"; then
     SIZE=$(du -sh "$FNAME" 2>/dev/null | cut -f1 || echo "?")
     echo "[backup] saved: $FNAME ($SIZE)"
-    # "latest" симлинк — runbook'и rollback-сценариев ссылаются на *_latest.dump.
-    ln -sf "${DB}_${DATE}.sql.gz" "${BACKUP_DIR}/${DB}_latest.sql.gz"
+    # "latest" файл — runbook'и rollback-сценариев ссылаются на *_latest.sql.gz.
+    # Делаем обычную gzip-копию, а не symlink: Windows bind-mount'ы Docker
+    # отдают Linux symlink'и как нулевые link-файлы для host-side preflight.
+    LATEST="${BACKUP_DIR}/${DB}_latest.sql.gz"
+    rm -f "$LATEST"
+    cp "$FNAME" "$LATEST"
   else
     echo "[backup] ERROR: pg_dump ${DB} failed! $(cat /tmp/pg_dump.err)" >&2
     rm -f "$FNAME"

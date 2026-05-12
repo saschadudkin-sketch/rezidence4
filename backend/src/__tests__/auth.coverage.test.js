@@ -22,6 +22,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { sendSms } = require('../services/smsService');
 const passwordHasher = require('../utils/passwordHasher');
+const { getRedis } = require('../lib/redisClient');
 
 process.env.JWT_SECRET = 'a'.repeat(40);
 process.env.AUTH_SKIP_ACTIVE_CHECK = '1'; // bypass middleware DB check для изоляции
@@ -45,6 +46,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   // sendSms возвращает undefined по умолчанию — happy path
   sendSms.mockResolvedValue(undefined);
+  getRedis.mockReturnValue(null);
 });
 
 // ─── send-otp success path (DB-fallback без Redis) ───────────────────────────
@@ -69,6 +71,65 @@ describe('POST /api/auth/send-otp — success path coverage', () => {
     expect(sendSms.mock.calls[0][0]).toBe(VALID_PHONE);
     expect(sendSms.mock.calls[0][1]).toMatch(/Код входа Резиденции:/);
     expect(passwordHasher.hash).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses DEV_FIXED_OTP_CODE outside production when configured', async () => {
+    const previousFixedCode = process.env.DEV_FIXED_OTP_CODE;
+    process.env.DEV_FIXED_OTP_CODE = '654321';
+    try {
+      db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+      db.query.mockResolvedValueOnce({ rows: [] });
+      db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] });
+      db.query.mockResolvedValueOnce({ rows: [] });
+
+      const res = await request(app)
+        .post('/api/auth/send-otp')
+        .send({ phone: VALID_PHONE });
+
+      expect(res.status).toBe(200);
+      expect(sendSms.mock.calls[0][1]).toContain('654321');
+      expect(passwordHasher.hash).toHaveBeenCalledWith('654321');
+    } finally {
+      if (previousFixedCode === undefined) delete process.env.DEV_FIXED_OTP_CODE;
+      else process.env.DEV_FIXED_OTP_CODE = previousFixedCode;
+    }
+  });
+
+  it('uses Redis OTP rate-limit path when Redis is available', async () => {
+    const redis = {
+      incr: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
+    };
+    getRedis.mockReturnValue(redis);
+    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .post('/api/auth/send-otp')
+      .send({ phone: VALID_PHONE });
+
+    expect(res.status).toBe(200);
+    expect(redis.incr).toHaveBeenCalledWith(`otp:send:${VALID_PHONE}`);
+    expect(redis.expire).toHaveBeenCalledWith(`otp:send:${VALID_PHONE}`, 300);
+    expect(sendSms).toHaveBeenCalledTimes(1);
+    expect(db.query.mock.calls[1][0]).toMatch(/INSERT INTO otp_codes/);
+  });
+
+  it('429 when Redis OTP rate-limit counter exceeds max', async () => {
+    const redis = {
+      incr: jest.fn().mockResolvedValue(4),
+      expire: jest.fn(),
+    };
+    getRedis.mockReturnValue(redis);
+    db.query.mockResolvedValueOnce({ rows: [{ uid: 'u1' }] });
+
+    const res = await request(app)
+      .post('/api/auth/send-otp')
+      .send({ phone: VALID_PHONE });
+
+    expect(res.status).toBe(429);
+    expect(redis.expire).not.toHaveBeenCalled();
+    expect(sendSms).not.toHaveBeenCalled();
   });
 
   it('429 rate-limited когда DB-counter >= OTP_SEND_MAX (DB-fallback path)', async () => {

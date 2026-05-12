@@ -14,6 +14,7 @@ import { emitUnauthorized, emitSessionExpired } from '../../utils/events';
 import { classifyHttpError } from './errorTaxonomy';
 
 const BASE_URL = API_BASE_URL;
+const PROPERTY_SLUG = import.meta.env.VITE_PROPERTY_SLUG || (import.meta.env.DEV ? 'zamoskv' : '');
 
 const authSession = createAuthSession({
   baseUrl: BASE_URL,
@@ -63,6 +64,7 @@ async function api(
             'Content-Type': 'application/json',
             'X-CSRF-Token': getCsrfToken(),
             'X-Request-Id': requestId,
+            ...(PROPERTY_SLUG ? { 'X-Property-Slug': PROPERTY_SLUG } : {}),
             ...extraHeaders,
           },
           credentials: 'include',

@@ -799,6 +799,111 @@
   }
 }
 
+/* Fallback: Vite dev can preserve @custom-media tokens when this package is
+   served from frontend/ as root. Keep nav breakpoints explicit so tabs never
+   inherit the base display:none rules. */
+@media (min-width: 1025px) {
+  .top-nav {
+    display: flex !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: none !important;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1024px) {
+  .top-nav {
+    display: none !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: flex !important;
+    position: sticky;
+    top: calc(var(--header-h) + var(--sat));
+    z-index: var(--z-sticky);
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    justify-content: center;
+    padding-left: max(18px, var(--sal));
+    padding-right: max(18px, var(--sar));
+    gap: 4px;
+    border-top: none;
+    border-bottom: 1px solid var(--b1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-btn {
+    gap: 6px;
+    padding: 0 12px;
+    height: 40px;
+    font-size: 11.5px;
+    scroll-snap-align: start;
+  }
+
+  .mobile-nav {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .top-nav {
+    display: none !important;
+  }
+
+  .top-nav.top-nav--mobile-top {
+    display: flex !important;
+    position: sticky;
+    top: calc(var(--header-h) + var(--sat));
+    z-index: var(--z-sticky);
+    width: max-content;
+    min-width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    justify-content: flex-start;
+    padding-left: max(14px, var(--sal));
+    padding-right: max(14px, var(--sar));
+    gap: 4px;
+    border-top: none;
+    border-bottom: 1px solid var(--b1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .top-nav.top-nav--mobile-top .tn-btn {
+    gap: 6px;
+    padding: 0 11px;
+    min-height: 36px;
+    font-size: 11px;
+    scroll-snap-align: start;
+  }
+
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: var(--vk-offset, 0px);
+    top: auto;
+    border-bottom: none;
+    border-top: 1px solid var(--b1);
+    padding-left: max(14px, var(--sal));
+    padding-right: max(14px, var(--sar));
+    padding-bottom: max(calc(var(--sab) + 10px), 14px);
+    justify-content: center;
+    gap: 0;
+  }
+}
+
 @media (--bp-md-below) {
   .content {
     padding-bottom: calc(var(--nav-h) + var(--sab) + 52px) !important;

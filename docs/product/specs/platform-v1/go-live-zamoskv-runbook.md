@@ -380,7 +380,7 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
    # SSE pub/sub). Всё persistent — в Postgres.
    docker compose exec redis redis-cli -a "$REDIS_PASSWORD" FLUSHDB
    ```
-4. Если нужен **data rollback** — есть ежедневные бэкапы ВСЕХ трёх БД (см. `backup.sh`, симлинки `*_latest.sql.gz`):
+4. Если нужен **data rollback** — есть ежедневные бэкапы ВСЕХ трёх БД (см. `backup.sh`, latest-копии `*_latest.sql.gz`):
    ```bash
    # Восстановление per-tenant данных (zamoskv) — НЕ трогает registry/legacy:
    docker compose exec -T db psql -U residenze -d zamoskv < <(gunzip -c ./backups/zamoskv_latest.sql.gz)

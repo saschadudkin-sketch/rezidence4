@@ -41,6 +41,7 @@ export const FEATURE_KEYS = [
   'skud_integration',
   'video_evidence',
   'erp_exchange',
+  'gis_oss_readiness',
   'analytics',
   'legacy_utilities_enabled',
 ] as const;

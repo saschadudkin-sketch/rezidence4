@@ -67,9 +67,25 @@ vi.mock('./api', () => {
         getRequestDetail: neverResolves,
       },
       packages: { list: neverResolves },
+      gisOssReadiness: {
+        getBoundary: neverResolves,
+        listExportPackages: neverResolves,
+        createExportPackage: neverResolves,
+      },
+      skudIntegrations: { getProviderFailures: neverResolves },
+      auditReviews: {
+        meta: neverResolves,
+        summary: neverResolves,
+        antiAbuse: neverResolves,
+        list: neverResolves,
+      },
+      emergencyDispatch: {
+        readiness: neverResolves,
+        createDrill: neverResolves,
+      },
       operationsDashboard: { get: neverResolves },
       managementCompanyPortfolio: { get: neverResolves },
-      residents: { getById: neverResolves },
+      residents: { getById: neverResolves, offboardingReport: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
     isV1ApiError: () => false,
@@ -285,6 +301,46 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/operations');
     expect(
       await screen.findByRole('heading', { name: /операционный обзор/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/gis-oss reaches GIS/OSS readiness page', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/gis-oss');
+    expect(
+      await screen.findByRole('heading', { name: /gis жкх \/ осс/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/skud-provider-failures reaches SKUD dashboard', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/skud-provider-failures');
+    expect(
+      await screen.findByRole('heading', { name: /скуд: отказы провайдеров/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/sensitive-actions reaches sensitive review report', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/sensitive-actions');
+    expect(
+      await screen.findByRole('heading', { name: /sensitive action review/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/offboarding reaches resident offboarding report', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/offboarding');
+    expect(
+      await screen.findByRole('heading', { name: /resident offboarding/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/emergency-dispatch reaches emergency dispatch', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/emergency-dispatch');
+    expect(
+      await screen.findByRole('heading', { name: /emergency dispatch/i }),
     ).toBeInTheDocument();
   });
 

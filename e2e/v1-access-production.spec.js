@@ -139,14 +139,16 @@ test.describe('platform-v1 access production e2e', () => {
       expect(created.access_request.approval_required).toBe(false);
       expect(created.pass.status).toBe('active');
 
-      await expect(resident.page.getByText(visitorName)).toBeVisible();
-      await resident.page.getByRole('button', { name: 'Открыть QR' }).click();
-      await expect(resident.page.getByAltText('QR пропуска')).toBeVisible();
-      const token = (await resident.page.getByTestId('v1-qr-token').textContent()).trim();
+      const requestCard = resident.page.locator('section').filter({ hasText: visitorName }).first();
+      await expect(requestCard).toBeVisible();
+      await requestCard.getByRole('button', { name: 'Открыть QR' }).click();
+      await expect(requestCard.getByAltText('QR пропуска')).toBeVisible();
+      const token = (await requestCard.getByTestId('v1-qr-token').textContent()).trim();
       expect(token).toMatch(/^[a-f0-9]{32}$/);
 
       const residentPlate = uniquePlate(Date.now() + 17);
       await resident.page.getByRole('button', { name: 'Добавить авто' }).click();
+      await expect(resident.page.getByLabel('Госномер')).toBeVisible();
       await resident.page.getByLabel('Госномер').fill(residentPlate);
       await resident.page.getByLabel('Марка').fill('Lada');
       await resident.page.getByLabel('Модель').fill('Vesta');

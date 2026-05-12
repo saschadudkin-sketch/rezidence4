@@ -394,6 +394,7 @@ function ResidentVehiclesPanel({
               <Field label="Госномер" id="v1-resident-vehicle-plate">
                 <Input
                   id="v1-resident-vehicle-plate"
+                  aria-label="Госномер"
                   value={plate}
                   onChange={(e) => setPlate(e.target.value)}
                   placeholder="A001AA77"
