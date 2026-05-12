@@ -11,6 +11,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:preflight:current',
   'tenant:restore-drill:preflight',
   'tenant:restore-drill',
+  'pilot:training-pack',
 ];
 
 const READINESS_GROUPS = [
@@ -129,6 +130,24 @@ const READINESS_GROUPS = [
       ['backend/src/v1/services/auditReviewService.js', 'sensitive_action_report_evidence'],
     ],
   },
+  {
+    id: 'DH-61',
+    title: 'Pilot operations and training pack',
+    evidence: [
+      'scripts/pilot-training-pack-check.cjs',
+      'backend/src/__tests__/pilotTrainingPackScript.test.js',
+      'docs/runbooks/pilot-operations-training-pack.md',
+      'docs/runbooks/pilot-rollout.md',
+      'docs/product/specs/platform-v1/pilot-operations-training-pack-spec.md',
+      'docs/product/specs/domhub-operational-runbooks-index.md',
+    ],
+    markers: [
+      ['docs/runbooks/pilot-operations-training-pack.md', 'DH-61'],
+      ['docs/runbooks/pilot-operations-training-pack.md', 'PDn/DSAR'],
+      ['docs/runbooks/pilot-operations-training-pack.md', 'emergency drill'],
+      ['scripts/pilot-training-pack-check.cjs', 'TRAINING_PACK_SECTIONS'],
+    ],
+  },
 ];
 
 const SHARED_EVIDENCE = [
@@ -136,6 +155,8 @@ const SHARED_EVIDENCE = [
   'docs/product/specs/domhub-release-gate-checklists.md',
   'docs/product/specs/platform-v1/README.md',
   'docs/runbooks/pilot-rollout.md',
+  'docs/runbooks/pilot-operations-training-pack.md',
+  'scripts/pilot-training-pack-check.cjs',
   'scripts/release-gate-matrix.cjs',
   'scripts/pilot-readiness-check.cjs',
   'e2e/v1-access-production.spec.js',
@@ -148,6 +169,7 @@ const LIVE_EVIDENCE_FILES = [
   'dh58-gis-oss-package.json',
   'dh59-field-rollout.json',
   'dh60-sensitive-report.json',
+  'dh61-training-pack.json',
   'staging-verify-strict.json',
   'staging-restore-drill.json',
 ];

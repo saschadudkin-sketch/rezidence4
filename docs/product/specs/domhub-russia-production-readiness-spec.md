@@ -177,6 +177,12 @@ DomHub MUST provide runbooks for:
 - incident escalation;
 - data correction and resident offboarding.
 
+Current DH-61 baseline: `docs/runbooks/pilot-operations-training-pack.md`
+packages first-week support, guard/checkpoint training, emergency drill,
+resident offboarding drill, PDn/DSAR support and daily evidence capture.
+`npm run pilot:training-pack` verifies the required sections and links the pack
+into the Russia readiness gate.
+
 ### FR-12 Incident And Evidence Handling
 
 DomHub MUST support incident evidence handling without becoming a video management system:

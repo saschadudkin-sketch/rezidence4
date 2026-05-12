@@ -74,6 +74,7 @@
 | [gis-oss-readiness](./gis-oss-readiness-spec.md) | Draft (DH-58 GIS ZhKH / OSS readiness export packages; not certified filing or legally significant e-voting) |
 | [skud-provider-failure-dashboard](./skud-provider-failure-dashboard-spec.md) | Draft (DH-59 provider failure dashboard and field rollout evidence over SKUD events/devices/manual control) |
 | [sensitive-actions-review-report](./sensitive-actions-review-report-spec.md) | Draft (DH-60 sensitive action review report UI and escalation notification fanout) |
+| [pilot-operations-training-pack](./pilot-operations-training-pack-spec.md) | Draft (DH-61 first-week support, guard/checkpoint training, emergency drill, offboarding and PDn/DSAR support evidence) |
 
 **Фаза 5 не покрытая спеками (rename, делается миграцией без отдельного spec-файла):**
 - `property_audit_log` — rename из legacy `audit_log` + `actor_type`/`entity_type`/`entity_id`. Миграция в `backend/src/v1/migrations/` при старте Phase 5, отдельный spec-файл не нужен.

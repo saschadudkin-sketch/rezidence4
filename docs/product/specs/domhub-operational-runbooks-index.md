@@ -35,15 +35,16 @@ DomHub должен быть внедряемым продуктом, а не н
 | Property launch | Required | Ops And Enablement | New property onboarding | `docs/runbooks/pilot-rollout.md` |
 | Tenant provisioning and migration | Required | Data And Infra | New tenant or migration | `domhub-deployment-and-tenant-ops-spec.md`, `docs/runbooks/pilot-rollout.md` |
 | Resident import and activation | Required | Ops And Enablement | Before resident rollout | `docs/runbooks/pilot-rollout.md` |
-| Resident lifecycle/offboarding | Required | Property Admin / Support | Move-out, sale, lease end, correction | `docs/runbooks/pilot-rollout.md` |
-| Guard/checkpoint training | Required | Ops And Enablement | Before КПП go-live | `docs/runbooks/pilot-rollout.md` |
+| Resident lifecycle/offboarding | Required | Property Admin / Support | Move-out, sale, lease end, correction | `docs/runbooks/pilot-rollout.md`, `docs/runbooks/pilot-operations-training-pack.md` |
+| Guard/checkpoint training | Required | Ops And Enablement | Before КПП go-live | `docs/runbooks/pilot-rollout.md`, `docs/runbooks/pilot-operations-training-pack.md` |
 | КПП degraded mode | Required | Security Lead / Support | Connectivity loss or provider outage | `docs/runbooks/pilot-rollout.md` |
-| Emergency dispatch | Required | Property Admin / Concierge Lead | P0/P1 emergency request | `docs/runbooks/pilot-rollout.md` |
+| Emergency dispatch | Required | Property Admin / Concierge Lead | P0/P1 emergency request | `docs/runbooks/pilot-rollout.md`, `docs/runbooks/pilot-operations-training-pack.md` |
 | Data correction | Required | Support / Property Admin | Wrong unit, resident, vehicle or membership data | `docs/runbooks/pilot-rollout.md` |
-| PDn/DSAR handling | Required | Legal/Ops / Support | Export/delete/correct/restrict request | `domhub-russia-production-readiness-spec.md` |
+| PDn/DSAR handling | Required | Legal/Ops / Support | Export/delete/correct/restrict request | `domhub-russia-production-readiness-spec.md`, `docs/runbooks/pilot-operations-training-pack.md` |
 | Incident escalation | Required | Support / Engineering | Security, access, data or platform incident | `docs/runbooks/pilot-rollout.md` |
 | Backup/restore and rollback | Required | Data And Infra | Failed deployment, migration or tenant issue | `docs/runbooks/restore-drill.md`, `docs/runbooks/pilot-rollout.md` |
-| First-week pilot support | Required | Ops And Enablement | First live property week | `docs/runbooks/pilot-rollout.md` |
+| First-week pilot support | Required | Ops And Enablement | First live property week | `docs/runbooks/pilot-rollout.md`, `docs/runbooks/pilot-operations-training-pack.md` |
+| Pilot operations training pack | Required | Ops And Enablement / QA And Release | Before Russia production readiness sign-off | `docs/runbooks/pilot-operations-training-pack.md`, `platform-v1/pilot-operations-training-pack-spec.md` |
 
 ---
 
@@ -104,6 +105,9 @@ Each runbook SHOULD include:
 - `platform-v1/go-live-zamoskv-runbook.md` — first production tenant go-live reference.
 - `docs/runbooks/pilot-rollout.md` — pilot go/no-go, first-week support,
   checkpoint, incident, correction and rollback wrapper.
+- `docs/runbooks/pilot-operations-training-pack.md` — DH-61 training and
+  sign-off package for support, guard/checkpoint, emergency, offboarding and
+  PDn/DSAR workflows.
 - `domhub-deployment-and-tenant-ops-spec.md` — tenant provisioning, migrations, rollback and operational model.
 - `domhub-russia-production-readiness-spec.md` — required runbook topics for Russia readiness.
 

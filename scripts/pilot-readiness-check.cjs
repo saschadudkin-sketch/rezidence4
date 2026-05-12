@@ -14,6 +14,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:migrate',
   'tenant:restore-drill:preflight',
   'tenant:restore-drill',
+  'pilot:training-pack',
   'pilot:readiness',
   'russia:readiness',
 ];
@@ -25,14 +26,17 @@ const REQUIRED_EVIDENCE = [
   'docs/product/specs/domhub-russia-production-readiness-spec.md',
   'docs/product/specs/platform-v1/go-live-zamoskv-runbook.md',
   'docs/product/specs/platform-v1/privacy-compliance-controls-spec.md',
+  'docs/product/specs/platform-v1/pilot-operations-training-pack-spec.md',
   'docs/runbooks/restore-drill.md',
   'docs/runbooks/pilot-rollout.md',
+  'docs/runbooks/pilot-operations-training-pack.md',
   'e2e/v1-access-production.spec.js',
   'scripts/release-gate-matrix.cjs',
   'scripts/tenant-ops-preflight.cjs',
   'scripts/tenant-ops-provision.cjs',
   'scripts/tenant-ops-migrate.cjs',
   'scripts/restore-drill-preflight.cjs',
+  'scripts/pilot-training-pack-check.cjs',
   'scripts/russia-readiness-check.cjs',
 ];
 
@@ -44,6 +48,7 @@ const PILOT_RUNBOOK_SECTIONS = [
   'Degraded checkpoint mode',
   'Emergency dispatch',
   'First-week support',
+  'Pilot operations training pack',
   'Incident escalation',
   'Data correction and offboarding',
   'Backup/restore and rollback',

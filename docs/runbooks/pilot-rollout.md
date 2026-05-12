@@ -83,6 +83,18 @@ Daily for the first live week:
 - review guard/support feedback from the previous day;
 - decide whether to continue, pause or roll back the pilot.
 
+## Pilot Operations Training Pack
+
+Before go-live, run:
+
+```bash
+npm run pilot:training-pack
+```
+
+The DH-61 training pack lives in `docs/runbooks/pilot-operations-training-pack.md`
+and must cover first-week support, guard/checkpoint training, emergency drill,
+resident offboarding drill, PDn/DSAR support and daily evidence capture.
+
 ## Incident Escalation
 
 Escalate immediately when:

@@ -142,9 +142,10 @@ Required:
 
 Exit evidence:
 - Russia readiness checklist is complete.
+- Pilot operations training pack passes through `npm run pilot:training-pack`.
 - Executable readiness evidence registration passes through `npm run russia:readiness`.
 - Live pilot/staging evidence can be enforced with `npm run russia:readiness -- --require-live`
-  once `artifacts/russia-readiness/` contains retained DH-55/DH-56/DH-57/DH-58/DH-59/DH-60 evidence.
+  once `artifacts/russia-readiness/` contains retained DH-55/DH-56/DH-57/DH-58/DH-59/DH-60/DH-61 evidence.
 - Security threat model is reviewed for target pilot.
 - Runbook index links the procedures needed for the pilot.
 

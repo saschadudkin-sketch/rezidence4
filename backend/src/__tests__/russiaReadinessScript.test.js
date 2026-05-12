@@ -23,6 +23,7 @@ describe('russia-readiness-check script', () => {
       'DH-58',
       'DH-59',
       'DH-60',
+      'DH-61',
     ]);
   });
 

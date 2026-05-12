@@ -23,6 +23,7 @@ describe('pilot-readiness-check script', () => {
       'Degraded checkpoint mode',
       'Emergency dispatch',
       'First-week support',
+      'Pilot operations training pack',
       'Incident escalation',
       'Data correction and offboarding',
       'Backup/restore and rollback',
