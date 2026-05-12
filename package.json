@@ -26,6 +26,7 @@
     "release:gate:matrix": "node scripts/release-gate-matrix.cjs --list",
     "release:gate:check": "node scripts/release-gate-matrix.cjs",
     "pilot:readiness": "node scripts/pilot-readiness-check.cjs",
+    "russia:readiness": "node scripts/russia-readiness-check.cjs",
     "e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
     "tenant:preflight": "node scripts/tenant-ops-preflight.cjs",
