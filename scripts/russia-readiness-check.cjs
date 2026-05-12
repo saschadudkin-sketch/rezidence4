@@ -156,6 +156,7 @@ const SHARED_EVIDENCE = [
   'docs/product/specs/platform-v1/README.md',
   'docs/runbooks/pilot-rollout.md',
   'docs/runbooks/pilot-operations-training-pack.md',
+  'docs/runbooks/russia-readiness-evidence-capture.md',
   'scripts/pilot-training-pack-check.cjs',
   'scripts/release-gate-matrix.cjs',
   'scripts/pilot-readiness-check.cjs',
@@ -172,6 +173,115 @@ const LIVE_EVIDENCE_FILES = [
   'dh61-training-pack.json',
   'staging-verify-strict.json',
   'staging-restore-drill.json',
+];
+
+const LIVE_EVIDENCE_ENVIRONMENTS = [
+  'staging',
+  'prod-candidate',
+  'pilot',
+  'production',
+];
+
+const LIVE_EVIDENCE_RESULT_STATUSES = [
+  'passed',
+  'accepted',
+  'completed',
+  'green',
+  'waived',
+];
+
+const LIVE_EVIDENCE_REQUIREMENTS = [
+  {
+    filename: 'dh55-ownership-transfer.json',
+    dh: 'DH-55',
+    evidenceKeys: [
+      'property_slug',
+      'ownership_transfer_id',
+      'offboarding_report_id',
+      'notification_cascade_evidence',
+    ],
+  },
+  {
+    filename: 'dh56-privacy-compliance.json',
+    dh: 'DH-56',
+    evidenceKeys: [
+      'property_slug',
+      'dsar_request_id',
+      'privacy_readiness_report_id',
+      'no_biometrics_guard_checked',
+    ],
+  },
+  {
+    filename: 'dh57-provider-delivery.json',
+    dh: 'DH-57',
+    evidenceKeys: [
+      'property_slug',
+      'emergency_request_id',
+      'provider_delivery_evidence_id',
+      'notification_provider',
+    ],
+  },
+  {
+    filename: 'dh58-gis-oss-package.json',
+    dh: 'DH-58',
+    evidenceKeys: [
+      'property_slug',
+      'export_package_id',
+      'document_registry_id',
+      'legally_authoritative',
+    ],
+  },
+  {
+    filename: 'dh59-field-rollout.json',
+    dh: 'DH-59',
+    evidenceKeys: [
+      'property_slug',
+      'provider_config_id',
+      'field_rollout_evidence_id',
+      'drill_type',
+    ],
+  },
+  {
+    filename: 'dh60-sensitive-report.json',
+    dh: 'DH-60',
+    evidenceKeys: [
+      'property_slug',
+      'report_evidence_id',
+      'review_report_id',
+      'anti_abuse_summary_id',
+    ],
+  },
+  {
+    filename: 'dh61-training-pack.json',
+    dh: 'DH-61',
+    evidenceKeys: [
+      'property_slug',
+      'training_date',
+      'accepted_by',
+      'open_waivers',
+    ],
+  },
+  {
+    filename: 'staging-verify-strict.json',
+    dh: null,
+    evidenceKeys: [
+      'property_slug',
+      'command',
+      'exit_code',
+      'log_reference',
+    ],
+  },
+  {
+    filename: 'staging-restore-drill.json',
+    dh: null,
+    evidenceKeys: [
+      'property_slug',
+      'command',
+      'exit_code',
+      'backup_reference',
+      'restore_target',
+    ],
+  },
 ];
 
 function parseArgs(argv = []) {
@@ -197,6 +307,155 @@ function loadRootScripts(root = repoRoot) {
 
 function makeCheck(type, ref, ok, message, group = null) {
   return { type, ref, ok, message, group };
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isPlaceholderString(value) {
+  if (typeof value !== 'string') return false;
+  return ['', 'todo', 'tbd', 'example', 'sample', 'template', 'placeholder', 'local']
+    .includes(value.trim().toLowerCase());
+}
+
+function hasMeaningfulValue(value) {
+  if (typeof value === 'string') return !isPlaceholderString(value);
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isPlainObject(value)) return Object.keys(value).length > 0;
+  return false;
+}
+
+function isIsoTimestamp(value) {
+  if (typeof value !== 'string' || isPlaceholderString(value)) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && value.includes('T');
+}
+
+function getLiveEvidenceRequirement(filename) {
+  return LIVE_EVIDENCE_REQUIREMENTS.find((requirement) => requirement.filename === filename) || {
+    filename,
+    dh: null,
+    evidenceKeys: [],
+  };
+}
+
+function readJsonEvidence(root, relativePath) {
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8')),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message,
+    };
+  }
+}
+
+function validateLiveEvidencePayload(payload, requirement = {}) {
+  const failures = [];
+
+  if (!isPlainObject(payload)) {
+    return ['payload must be a JSON object'];
+  }
+
+  if (payload.schema_version !== 1) {
+    failures.push('schema_version must be 1');
+  }
+
+  if (requirement.dh && payload.dh !== requirement.dh) {
+    failures.push(`dh must be ${requirement.dh}`);
+  }
+
+  if (!LIVE_EVIDENCE_ENVIRONMENTS.includes(payload.environment)) {
+    failures.push(`environment must be one of ${LIVE_EVIDENCE_ENVIRONMENTS.join(', ')}`);
+  }
+
+  if (!isIsoTimestamp(payload.captured_at)) {
+    failures.push('captured_at must be an ISO timestamp');
+  }
+
+  if (!hasMeaningfulValue(payload.captured_by)) {
+    failures.push('captured_by is required');
+  }
+
+  if (!isPlainObject(payload.source)) {
+    failures.push('source object is required');
+  } else {
+    if (!hasMeaningfulValue(payload.source.type)) failures.push('source.type is required');
+    const sourceRefKeys = ['command', 'endpoint', 'report_uri', 'runbook', 'artifact_url', 'request_id'];
+    if (!sourceRefKeys.some((key) => hasMeaningfulValue(payload.source[key]))) {
+      failures.push(`source must include one of ${sourceRefKeys.join(', ')}`);
+    }
+  }
+
+  if (!isPlainObject(payload.result)) {
+    failures.push('result object is required');
+  } else if (!LIVE_EVIDENCE_RESULT_STATUSES.includes(payload.result.status)) {
+    failures.push(`result.status must be one of ${LIVE_EVIDENCE_RESULT_STATUSES.join(', ')}`);
+  }
+
+  if (payload.result?.status === 'waived') {
+    const waiver = payload.waiver;
+    if (!isPlainObject(waiver)) {
+      failures.push('waived evidence requires waiver object');
+    } else {
+      for (const key of ['reason', 'risk', 'owner', 'follow_up_ticket']) {
+        if (!hasMeaningfulValue(waiver[key])) failures.push(`waiver.${key} is required`);
+      }
+    }
+  }
+
+  if (!isPlainObject(payload.evidence)) {
+    failures.push('evidence object is required');
+  } else {
+    for (const key of requirement.evidenceKeys || []) {
+      if (!hasMeaningfulValue(payload.evidence[key])) failures.push(`evidence.${key} is required`);
+    }
+    if (requirement.filename === 'dh58-gis-oss-package.json' && payload.evidence.legally_authoritative !== false) {
+      failures.push('evidence.legally_authoritative must be false');
+    }
+    if (
+      (requirement.filename === 'staging-verify-strict.json'
+        || requirement.filename === 'staging-restore-drill.json')
+      && payload.evidence.exit_code !== 0
+    ) {
+      failures.push('evidence.exit_code must be 0');
+    }
+  }
+
+  if (payload.pii_policy !== 'no_personal_data_embedded') {
+    failures.push('pii_policy must be no_personal_data_embedded');
+  }
+
+  return failures;
+}
+
+function validateLiveEvidenceFile(root, relativePath, filename) {
+  const parsed = readJsonEvidence(root, relativePath);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      message: `invalid live pilot/staging evidence: invalid JSON (${parsed.error})`,
+    };
+  }
+
+  const failures = validateLiveEvidencePayload(parsed.value, getLiveEvidenceRequirement(filename));
+  if (failures.length) {
+    return {
+      ok: false,
+      message: `invalid live pilot/staging evidence: ${failures.join('; ')}`,
+    };
+  }
+
+  return {
+    ok: true,
+    message: 'validated live pilot/staging evidence',
+  };
 }
 
 function fileContains(root, relativePath, marker) {
@@ -264,12 +523,16 @@ function checkRussiaReadiness({
   if (requireLive) {
     for (const filename of liveEvidenceFiles) {
       const relativePath = path.join(liveDir, filename).replace(/\\/g, '/');
-      const ok = fs.existsSync(path.join(root, relativePath));
+      const absolutePath = path.join(root, relativePath);
+      const exists = fs.existsSync(absolutePath);
+      const validation = exists
+        ? validateLiveEvidenceFile(root, relativePath, filename)
+        : { ok: false, message: 'missing live pilot/staging evidence' };
       checks.push(makeCheck(
         'live-evidence',
         relativePath,
-        ok,
-        ok ? 'live pilot/staging evidence exists' : 'missing live pilot/staging evidence',
+        validation.ok,
+        validation.message,
       ));
     }
   }
@@ -322,6 +585,7 @@ if (require.main === module) {
 
 module.exports = {
   LIVE_EVIDENCE_FILES,
+  LIVE_EVIDENCE_REQUIREMENTS,
   READINESS_GROUPS,
   REQUIRED_ROOT_SCRIPTS,
   SHARED_EVIDENCE,
@@ -329,4 +593,5 @@ module.exports = {
   formatReport,
   loadRootScripts,
   parseArgs,
+  validateLiveEvidencePayload,
 };

@@ -144,6 +144,8 @@ by the pilot owner. For strict readiness, retain a JSON summary compatible with:
 artifacts/russia-readiness/dh61-training-pack.json
 ```
 
+The JSON must follow `docs/runbooks/russia-readiness-evidence-capture.md`.
+
 Minimum JSON fields:
 - `property_slug`;
 - `training_date`;
