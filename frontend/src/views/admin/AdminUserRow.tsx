@@ -122,21 +122,27 @@ export default function AdminUserRow({ u, currentUser }: AdminUserRowProps) {
 
   return (
     <div className="admin-user-row-card">
-      <div className="u-flex u-flex-center u-gap10 u-pad10-12">
-        <div className="u-fs0">
+      <div className="admin-user-row-main u-pad10-12">
+        <div className="admin-user-avatar u-fs0">
           <AvatarCircle avData={avData} role={u.role} name={u.name} size={36} fontSize={14} />
         </div>
-        <div className="u-flex1 u-mw0">
+        <div className="admin-user-identity u-mw0">
           <div className="u-flex u-flex-center u-gap8 u-wrap admin-user-header">
             <span className="u-fs13 u-fw500 u-t1 admin-user-name">{u.name}</span>
             <span className={'admin-badge ' + u.role}>{ROLE_LABELS[u.role]}</span>
             {isSelf && <span className="admin-user-self-mark">• это вы</span>}
           </div>
-          <div className="u-fs11 u-t4 u-mt2 u-flex u-gap8 u-wrap admin-user-meta">
-            <span className="admin-user-meta-item">{u.phone}</span>
-            {u.apartment && u.apartment !== '—' && <span className="admin-user-meta-item">Апарт. {u.apartment}</span>}
-            {u.parkingSpot && <span className="admin-user-meta-item"><AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}</span>}
-          </div>
+        </div>
+        <div className="admin-user-cell admin-user-phone">{u.phone}</div>
+        <div className="admin-user-cell admin-user-unit">
+          {u.apartment && u.apartment !== '—' ? `Апарт. ${u.apartment}` : '—'}
+        </div>
+        <div className="admin-user-cell admin-user-parking">
+          {u.parkingSpot ? (
+            <>
+              <AppIcon name="car" className="u-inline-icon" /> {u.parkingSpot}
+            </>
+          ) : '—'}
         </div>
         <div className="u-row-g5-fs0 admin-user-controls">
           <button className="btn-edit" onClick={() => setEditing((current) => !current)} aria-label={editing ? 'Закрыть' : 'Редактировать'}>

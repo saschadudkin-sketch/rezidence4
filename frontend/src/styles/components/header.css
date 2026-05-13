@@ -698,7 +698,56 @@ html.theme-light .header-logo { filter: drop-shadow(0 0 8px rgba(184, 147, 90, .
   }
 }
 
-@media (min-width: 721px) and (max-width: 767px) {
+@media (--bp-tablet-narrow) {
+  .header-brand-copy {
+    display: flex !important;
+    min-width: 0;
+    gap: 6px;
+  }
+  .header-wordmark {
+    display: inline-block !important;
+    max-width: min(34ch, calc(100vw - 370px));
+    font-size: 10.5px;
+    letter-spacing: 1px;
+  }
+  .header-wordmark-mobile {
+    display: none !important;
+  }
+}
+
+/* Browser fallback for dev/runtime environments that do not expand @custom-media. */
+@media (width <= 1024px) {
+  .header {
+    padding-left: max(12px, var(--sal));
+    padding-right: max(12px, var(--sar));
+  }
+  .header-wordmark,
+  .header-info {
+    display: none !important;
+  }
+  .header-logo {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+@media (width <= 767px) {
+  .header-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .header-brand-copy,
+  .header-wordmark,
+  .header-info,
+  .demo-badge {
+    display: none !important;
+  }
+  .header-wordmark-mobile {
+    display: inline-block;
+  }
+}
+
+@media (721px <= width <= 767px) {
   .header-brand-copy {
     display: flex !important;
     min-width: 0;

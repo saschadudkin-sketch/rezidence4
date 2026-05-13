@@ -133,6 +133,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
     ? filterMobileNavItems(userRole, mobileNavSource)
     : [];
   const hasMobileTopTabs = isTablet || (isMobile && roleHasMobileTopTabs && topNavItems.length > 0);
+  const useMobileTopNavClass = isMobile && hasMobileTopTabs;
 
   const mobileMaxTabs = getMobileMaxTabs(userRole);
   const needsMore = mobileNavItems.length > mobileMaxTabs;
@@ -174,7 +175,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
   return (
     <>
       <nav
-        className={`top-nav${hasMobileTopTabs ? ' top-nav--mobile-top' : ''}`}
+        className={`top-nav${useMobileTopNavClass ? ' top-nav--mobile-top' : ''}`}
         aria-label="Основная навигация"
         ref={topNavRef}
       >

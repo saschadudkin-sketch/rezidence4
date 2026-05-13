@@ -728,7 +728,7 @@
   }
 }
 
-@media (min-width: 721px) and (max-width: 767px) {
+@media (--bp-tablet-narrow) {
   .top-nav {
     display: none !important;
   }
@@ -799,24 +799,30 @@
   }
 }
 
-/* Fallback: Vite dev can preserve @custom-media tokens when this package is
-   served from frontend/ as root. Keep nav breakpoints explicit so tabs never
-   inherit the base display:none rules. */
-@media (min-width: 1025px) {
+/* Browser fallback for dev/runtime environments that do not expand @custom-media. */
+@media (width > 1024px) {
   .top-nav {
     display: flex !important;
+    justify-content: flex-start;
+    max-width: 960px;
+    padding-inline: 12px;
   }
 
   .top-nav.top-nav--mobile-top {
-    display: none !important;
+    display: flex !important;
   }
 
   .mobile-nav {
     display: none !important;
   }
+
+  .content {
+    max-width: 960px;
+    padding: 28px 40px calc(28px + var(--sab)) !important;
+  }
 }
 
-@media (min-width: 721px) and (max-width: 1024px) {
+@media (768px <= width <= 1024px) {
   .top-nav {
     display: none !important;
   }
@@ -826,11 +832,10 @@
     position: sticky;
     top: calc(var(--header-h) + var(--sat));
     z-index: var(--z-sticky);
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     max-width: 100%;
-    margin: 0 auto;
-    justify-content: center;
+    margin: 0;
+    justify-content: flex-start;
     padding-left: max(18px, var(--sal));
     padding-right: max(18px, var(--sar));
     gap: 4px;
@@ -853,9 +858,14 @@
   .mobile-nav {
     display: none !important;
   }
+
+  .content {
+    max-width: 100%;
+    padding: 20px 16px calc(24px + var(--sab)) !important;
+  }
 }
 
-@media (max-width: 720px) {
+@media (width <= 767px) {
   .top-nav {
     display: none !important;
   }
@@ -865,10 +875,9 @@
     position: sticky;
     top: calc(var(--header-h) + var(--sat));
     z-index: var(--z-sticky);
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     max-width: 100%;
-    margin: 0 auto;
+    margin: 0;
     justify-content: flex-start;
     padding-left: max(14px, var(--sal));
     padding-right: max(14px, var(--sar));
@@ -901,6 +910,38 @@
     padding-bottom: max(calc(var(--sab) + 10px), 14px);
     justify-content: center;
     gap: 0;
+  }
+
+  .mn-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 8px;
+    gap: 6px;
+  }
+
+  .mn-label {
+    font-size: 12px;
+    line-height: 1.15;
+  }
+
+  .content {
+    max-width: 100%;
+    padding: 16px 14px calc(var(--nav-h) + var(--sab) + 52px) !important;
+  }
+
+  .page-top {
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+
+  .page-title {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .page-sub {
+    font-size: 11px;
+    line-height: 1.38;
   }
 }
 

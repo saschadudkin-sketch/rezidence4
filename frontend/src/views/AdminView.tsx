@@ -185,7 +185,18 @@ const AdminUsersView = memo(function AdminUsersView({ allUsers, currentUser, con
           type="empty"
           title={query ? 'Ничего не найдено' : usersEmptyCopy.title}
           subtitle={query ? 'Попробуйте изменить запрос' : (contractorOnly ? 'Нажмите «+ Добавить подрядчика»' : usersEmptyCopy.subtitle)}
+          actionLabel={!query ? (contractorOnly ? 'Добавить подрядчика' : 'Добавить пользователя') : undefined}
+          onAction={!query ? handleOpenAdd : undefined}
         />
+      )}
+      {filtered.length > 0 && (
+        <div className="admin-users-table-head" aria-hidden="true">
+          <span>Пользователь</span>
+          <span>Телефон</span>
+          <span>Помещение</span>
+          <span>Парковка</span>
+          <span>Действия</span>
+        </div>
       )}
       <VirtualList
         items={filtered}

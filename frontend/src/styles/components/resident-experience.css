@@ -358,7 +358,7 @@ html.theme-light .resident-quick-icon {
   font-size: var(--fs-sm);
 }
 
-@media (min-width: 721px) and (max-width: 1024px) {
+@media (--bp-tablet-range) {
   .resident-pass-home {
     gap: 12px;
   }
