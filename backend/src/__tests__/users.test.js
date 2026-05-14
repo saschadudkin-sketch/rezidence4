@@ -186,6 +186,19 @@ describe('POST /api/users', () => {
     expect(params[1]).toBe('+79001112233');
   });
 
+  it('writes audit log when admin creates user', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ ...USER_ROW, uid: 'new-u', role: 'owner' }] });
+    const res = await request(app)
+      .post('/api/users').set('Cookie', `token=${T_ADMIN}`)
+      .send({ phone: '+79001112233', name: 'Иван', role: 'owner' });
+
+    expect(res.status).toBe(201);
+    const auditCall = db.query.mock.calls.find(([sql]) => /INSERT INTO property_audit_log/i.test(sql));
+    expect(auditCall).toBeDefined();
+    expect(auditCall[1][2]).toBe('user.created');
+    expect(auditCall[1][3]).toBe('new-u');
+  });
+
   it('нормализует 11-значный номер (+ prefix)', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ ...USER_ROW, phone: '+79001112233' }] });
     await request(app)
@@ -319,6 +332,19 @@ describe('PATCH /api/users/:uid', () => {
     expect(res.body.role).toBe('tenant');
   });
 
+  it('writes audit log when admin changes user role', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ ...USER_ROW, role: 'tenant' }] });
+    const res = await request(app)
+      .patch('/api/users/u1').set('Cookie', `token=${T_ADMIN}`)
+      .send({ role: 'tenant' });
+
+    expect(res.status).toBe(200);
+    const auditCall = db.query.mock.calls.find(([sql]) => /INSERT INTO property_audit_log/i.test(sql));
+    expect(auditCall).toBeDefined();
+    expect(auditCall[1][2]).toBe('user.role_updated');
+    expect(auditCall[1][3]).toBe('u1');
+  });
+
   it('400 admin пытается поставить невалидную роль', async () => {
     const res = await request(app)
       .patch('/api/users/u1').set('Cookie', `token=${T_ADMIN}`)
@@ -391,6 +417,9 @@ describe('DELETE /api/users/:uid', () => {
     expect(refreshDelete).toBeDefined();
     expect(refreshDelete[1]).toEqual(['u1']);
     expect(requireAuth.invalidateUserActiveCache).toHaveBeenCalledWith('u1');
+    const auditCall = db.query.mock.calls.find(([stmt]) => /INSERT INTO property_audit_log/i.test(stmt));
+    expect(auditCall).toBeDefined();
+    expect(auditCall[1][2]).toBe('user.deleted');
   });
 
   it('не удаляет связанные данные каскадно при soft-delete', async () => {
@@ -440,5 +469,8 @@ describe('PATCH /api/users/:uid/restore', () => {
     expect(broadcastUserUpdate).toHaveBeenCalledWith(expect.objectContaining({ uid: 'u1' }));
     const sql = db.query.mock.calls[0][0];
     expect(sql).toMatch(/SET deleted_at=NULL/i);
+    const auditCall = db.query.mock.calls.find(([stmt]) => /INSERT INTO property_audit_log/i.test(stmt));
+    expect(auditCall).toBeDefined();
+    expect(auditCall[1][2]).toBe('user.restored');
   });
 });

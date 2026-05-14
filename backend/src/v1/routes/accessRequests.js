@@ -40,6 +40,7 @@ const {
   escalateAccessRequest,
   isAccessRequestServiceError,
   rejectAccessRequest,
+  submitAccessRequest,
 } = require('../services/accessRequestService');
 const {
   isAccessTopologyServiceError,
@@ -418,7 +419,7 @@ router.post('/:id/submit', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows: curRows } = await getDb(req).query(
-      `SELECT status, property_id, created_by_resident_id FROM access_requests WHERE id = $1`,
+      `SELECT property_id, created_by_resident_id FROM access_requests WHERE id = $1`,
       [req.params.id],
     );
     if (!curRows[0]) return res.status(404).json({ error: 'Access request not found' });
@@ -433,22 +434,21 @@ router.post('/:id/submit', async (req, res, next) => {
         return res.status(403).json({ error: 'Forbidden' });
       }
     }
-    if (curRows[0].status !== 'new') {
-      return res.status(409).json({ error: `Cannot submit from status '${curRows[0].status}'` });
-    }
-    const { rows } = await getDb(req).query(
-      `UPDATE access_requests SET status = 'pending_approval', updated_at = NOW()
-         WHERE id = $1 RETURNING ${AR_COLS}`,
-      [req.params.id],
-    );
+    const result = await submitAccessRequest({
+      txPool: getTxPool(req),
+      accessRequestId: req.params.id,
+    });
     auditLog(req, {
       action: 'access_request.submitted',
       resourceType: 'access_request',
       resourceId: req.params.id,
       changes: null,
     });
-    res.json({ access_request: rows[0] });
-  } catch (err) { next(err); }
+    res.json(result);
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── POST /api/v1/access-requests/:id/approve ────────────────────────────────

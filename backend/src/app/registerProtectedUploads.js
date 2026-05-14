@@ -4,7 +4,42 @@ const path = require('path');
 const logger = require('../logger');
 const requireAuth = require('../middleware/auth');
 const { canUserAccessUpload } = require('../services/uploadAccess');
-const { verifySignedUploadQuery, auditUploadAccess } = require('../services/uploadSecurity');
+const {
+  verifySignedUploadQuery,
+  auditUploadAccess,
+  getSignedUploadPropertySlug,
+} = require('../services/uploadSecurity');
+const {
+  resolveProperty,
+  getProperty,
+  getPropertyPool,
+} = require('../middleware/propertyDb');
+
+function attachUploadProperty(req, property, resolvedBy) {
+  req.propertySlug = property.slug;
+  req.property = property;
+  req.propertyResolvedBy = resolvedBy;
+  req.db = getPropertyPool(property);
+}
+
+async function resolveUploadTenant(req, signedTenantSlug = null) {
+  if (signedTenantSlug) {
+    const property = await getProperty(signedTenantSlug);
+    if (!property) return { errorStatus: 404, body: { error: 'Property not found' } };
+    if (!property.is_active) return { errorStatus: 503, body: { error: 'Property unavailable' } };
+    attachUploadProperty(req, property, 'signed_url');
+    return { queryDb: req.db };
+  }
+
+  const ctx = await resolveProperty(req);
+  if (ctx.error === 'cross_tenant') {
+    return { errorStatus: 403, body: { error: 'Cross-tenant access denied' } };
+  }
+  if (!ctx.property) return { queryDb: null };
+  if (!ctx.property.is_active) return { errorStatus: 503, body: { error: 'Property unavailable' } };
+  attachUploadProperty(req, ctx.property, ctx.resolvedBy);
+  return { queryDb: req.db };
+}
 
 function createTryAuthForUpload() {
   return async function tryAuthForUpload(req, res) {
@@ -27,25 +62,33 @@ function registerProtectedUploads(app, { uploadDir }) {
     }
 
     const signedAllowed = verifySignedUploadQuery(filename, req.query);
+    const tenantResolution = await resolveUploadTenant(
+      req,
+      signedAllowed ? getSignedUploadPropertySlug(req.query) : null,
+    );
+    if (tenantResolution.errorStatus) {
+      return res.status(tenantResolution.errorStatus).json(tenantResolution.body);
+    }
+    const queryDb = tenantResolution.queryDb || req.db;
     let user = null;
     const accessVia = signedAllowed ? 'signed_url' : 'auth';
 
     if (!signedAllowed) {
       user = await tryAuthForUpload(req, res);
       if (!user) {
-        await auditUploadAccess({ filename, decision: 'deny', reason: 'unauthenticated', via: 'auth', req }).catch(() => {});
+        await auditUploadAccess({ filename, decision: 'deny', reason: 'unauthenticated', via: 'auth', req, queryDb }).catch(() => {});
         if (!res.headersSent) return res.status(401).json({ error: 'No token' });
         return;
       }
       try {
-        const allowed = await canUserAccessUpload(user, filename);
+        const allowed = await canUserAccessUpload(user, filename, queryDb);
         if (!allowed) {
-          await auditUploadAccess({ filename, uid: user.uid, decision: 'deny', reason: 'acl_forbidden', via: 'auth', req }).catch(() => {});
+          await auditUploadAccess({ filename, uid: user.uid, decision: 'deny', reason: 'acl_forbidden', via: 'auth', req, queryDb }).catch(() => {});
           return res.status(403).json({ error: 'Forbidden' });
         }
       } catch (err) {
         logger.error({ err, uid: user?.uid, filename }, '[uploads] ACL check failed');
-        await auditUploadAccess({ filename, uid: user?.uid, decision: 'deny', reason: 'acl_check_failed', via: 'auth', req }).catch(() => {});
+        await auditUploadAccess({ filename, uid: user?.uid, decision: 'deny', reason: 'acl_check_failed', via: 'auth', req, queryDb }).catch(() => {});
         return res.status(500).json({ error: 'Access check failed' });
       }
     }
@@ -75,6 +118,7 @@ function registerProtectedUploads(app, { uploadDir }) {
       reason: signedAllowed ? 'signed_url_valid' : 'acl_allowed',
       via: accessVia,
       req,
+      queryDb,
     }).catch(() => {});
 
     res.sendFile(filepath, (err) => {

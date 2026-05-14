@@ -66,6 +66,28 @@ function sendPrivacyComplianceError(res, err) {
   return true;
 }
 
+async function writePrivacyAudit(req, action, resourceId, changes = null) {
+  try {
+    await getDb(req).query(
+      `INSERT INTO property_audit_log
+         (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+       VALUES ($1,$2,$3,'privacy_request',$4,$5,$6)`,
+      [
+        req.user?.uid || null,
+        req.user?.role || null,
+        action,
+        resourceId,
+        changes ? JSON.stringify(changes) : null,
+        req.ip || null,
+      ],
+    );
+  } catch (err) {
+    if (err?.code !== '42P01') {
+      logger.warn({ err, action, resourceId }, '[privacy] audit log write failed');
+    }
+  }
+}
+
 function hashPhone(phone) {
   if (!phone) return null;
   return crypto
@@ -318,6 +340,7 @@ router.post('/delete-account', express.json(), async (req, res, next) => {
     await client.query('COMMIT');
 
     logger.warn({ uid, auditId }, '[privacy] account anonymized on user request');
+    await writePrivacyAudit(req, 'privacy.account_anonymized', auditId, { uid });
 
     await invalidateUserSessionCache(uid, getTenantOptions(req));
     try { broadcastWithTenant(broadcastUserDelete, uid, req); } catch { /* SSE errors should not fail the flow */ }

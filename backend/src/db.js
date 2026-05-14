@@ -153,9 +153,9 @@ async function migratePlatform() {
 }
 
 async function assertSchemaCurrent() {
-  const latestPropertyMigrationId = V1_PROPERTY_MIGRATIONS[V1_PROPERTY_MIGRATIONS.length - 1]?.id
-    || LATEST_MIGRATION_ID;
-  const requiredPropertyIds = [LATEST_MIGRATION_ID, latestPropertyMigrationId].filter(Boolean);
+  const requiredPropertyIds = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS]
+    .map((migration) => migration.id)
+    .filter(Boolean);
   if (!requiredPropertyIds.length) return;
   const { rows } = await query(
     `SELECT id FROM schema_migrations WHERE id = ANY($1::text[])`,
@@ -172,13 +172,16 @@ async function assertSchemaCurrent() {
   if (!process.env.PLATFORM_DB_URL) return;
 
   const platformDb = getPlatformDb();
-  if (LATEST_PLATFORM_MIGRATION_ID) {
+  const requiredPlatformIds = PLATFORM_MIGRATIONS.map((migration) => migration.id).filter(Boolean);
+  if (requiredPlatformIds.length) {
     const { rows: platformRows } = await platformDb.query(
-      `SELECT 1 FROM platform_schema_migrations WHERE id=$1`,
-      [LATEST_PLATFORM_MIGRATION_ID],
+      `SELECT id FROM platform_schema_migrations WHERE id = ANY($1::text[])`,
+      [requiredPlatformIds],
     );
-    if (!platformRows.length) {
-      const err = new Error(`Platform schema is outdated. Run platform migrations before starting the server (missing ${LATEST_PLATFORM_MIGRATION_ID}).`);
+    const appliedPlatformIds = new Set(platformRows.map((row) => row.id));
+    const missingPlatform = requiredPlatformIds.find((id) => !appliedPlatformIds.has(id));
+    if (missingPlatform) {
+      const err = new Error(`Platform schema is outdated. Run platform migrations before starting the server (missing ${missingPlatform}).`);
       err.code = 'PLATFORM_SCHEMA_OUTDATED';
       throw err;
     }

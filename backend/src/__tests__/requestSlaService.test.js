@@ -22,6 +22,70 @@ describe('RequestSlaService', () => {
     })).toThrow('Invalid assigneeRole');
   });
 
+  test('assignRequest rejects stale expectedCurrentStatus', async () => {
+    const queryDb = {
+      query: jest.fn().mockResolvedValueOnce({
+        rows: [{
+          id: 'req-1',
+          type: 'repair',
+          category: 'plumber',
+          status: 'accepted',
+          created_by_uid: 'resident-1',
+          created_by_name: 'Resident',
+          created_by_role: 'owner',
+          photos: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        }],
+      }),
+    };
+
+    await expect(RequestSlaService.assignRequest(
+      { uid: 'admin-1', role: 'admin' },
+      'req-1',
+      { assigneeUid: 'tech-1', assigneeRole: 'technician', expectedCurrentStatus: 'pending' },
+      queryDb,
+    )).rejects.toMatchObject({
+      status: 409,
+      code: 'REQUEST_CONFLICT',
+      details: {
+        currentStatus: 'accepted',
+        expectedCurrentStatus: 'pending',
+      },
+    });
+    expect(queryDb.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('assignRequest rejects terminal requests', async () => {
+    const queryDb = {
+      query: jest.fn().mockResolvedValueOnce({
+        rows: [{
+          id: 'req-1',
+          type: 'repair',
+          category: 'plumber',
+          status: 'completed',
+          created_by_uid: 'resident-1',
+          created_by_name: 'Resident',
+          created_by_role: 'owner',
+          photos: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        }],
+      }),
+    };
+
+    await expect(RequestSlaService.assignRequest(
+      { uid: 'admin-1', role: 'admin' },
+      'req-1',
+      { assigneeUid: 'tech-1', assigneeRole: 'technician' },
+      queryDb,
+    )).rejects.toMatchObject({
+      status: 409,
+      code: 'REQUEST_CONFLICT',
+      details: { currentStatus: 'completed', terminal: true },
+    });
+  });
+
   test('escalateOverdueRequests persists SLA event and updates request state', async () => {
     const dueAt = new Date('2026-05-08T08:00:00Z');
     const queryDb = {

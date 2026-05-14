@@ -42,4 +42,12 @@ describe('uploadAccess ACL', () => {
     const allowed = await canUserAccessUpload({ uid: 'owner-1', role: 'owner' }, 'photo_other.jpg');
     expect(allowed).toBe(false);
   });
+
+  test('uses provided tenant DB for resident ACL checks', async () => {
+    const tenantDb = { query: jest.fn().mockResolvedValueOnce({ rows: [{ allowed: true }] }) };
+    const allowed = await canUserAccessUpload({ uid: 'owner-1', role: 'owner' }, 'photo_own.jpg', tenantDb);
+    expect(allowed).toBe(true);
+    expect(tenantDb.query).toHaveBeenCalledTimes(1);
+    expect(db.query).not.toHaveBeenCalled();
+  });
 });

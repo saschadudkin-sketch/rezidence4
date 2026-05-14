@@ -3,7 +3,7 @@
 const { isStaff } = require('../../constants');
 const { RequestsService } = require('../RequestsService');
 const { formatRequestRow } = require('./RequestFormatter');
-const { ServiceError } = require('./RequestErrors');
+const { ServiceError, ConflictError } = require('./RequestErrors');
 
 const ASSIGNABLE_ROLES = new Set([
   'security',
@@ -44,6 +44,13 @@ function normalizeAssignee(body = {}) {
   return { assigneeUid, assigneeName, assigneeRole };
 }
 
+function normalizeExpectedCurrentStatus(body = {}) {
+  if (body.expectedCurrentStatus === undefined && body.expected_current_status === undefined) return null;
+  const status = String(body.expectedCurrentStatus ?? body.expected_current_status ?? '').trim();
+  if (!status) throw new ServiceError('expectedCurrentStatus must be non-empty when provided', 400);
+  return status;
+}
+
 function formatSlaEventRow(row) {
   return {
     id: row.id,
@@ -78,8 +85,22 @@ function toSlaEventInput(row) {
 class RequestSlaService {
   static async assignRequest(user, requestId, body, queryDb) {
     assertCanManageRequests(user);
-    await RequestsService.getOne(user, requestId, queryDb);
+    const current = await RequestsService.getOne(user, requestId, queryDb);
     const assignee = normalizeAssignee(body);
+    const expectedCurrentStatus = normalizeExpectedCurrentStatus(body);
+
+    if (expectedCurrentStatus && current.status !== expectedCurrentStatus) {
+      throw new ConflictError('Request status changed since last read', {
+        currentStatus: current.status,
+        expectedCurrentStatus,
+      });
+    }
+    if (TERMINAL_STATUSES.has(current.status)) {
+      throw new ConflictError('Cannot assign terminal request', {
+        currentStatus: current.status,
+        terminal: true,
+      });
+    }
 
     const { rows } = await queryDb.query(
       `UPDATE requests
@@ -89,11 +110,27 @@ class RequestSlaService {
               assigned_at=NOW(),
               status=CASE WHEN status IN ('pending','scheduled') THEN 'accepted' ELSE status END,
               updated_at=NOW()
-        WHERE id=$4 AND deleted_at IS NULL
+        WHERE id=$4
+          AND deleted_at IS NULL
+          AND status <> ALL($5::text[])
+          AND ($6::text IS NULL OR status=$6)
         RETURNING *`,
-      [assignee.assigneeUid, assignee.assigneeName, assignee.assigneeRole, requestId],
+      [
+        assignee.assigneeUid,
+        assignee.assigneeName,
+        assignee.assigneeRole,
+        requestId,
+        [...TERMINAL_STATUSES],
+        expectedCurrentStatus,
+      ],
     );
-    if (!rows.length) throw new ServiceError('Not found', 404);
+    if (!rows.length) {
+      const latest = await RequestsService.getOne(user, requestId, queryDb).catch(() => null);
+      throw new ConflictError('Request status changed since last read', {
+        currentStatus: latest?.status || current.status,
+        expectedCurrentStatus,
+      });
+    }
     return formatRequestRow(rows[0]);
   }
 
@@ -213,4 +250,5 @@ class RequestSlaService {
 module.exports = {
   RequestSlaService,
   normalizeAssignee,
+  normalizeExpectedCurrentStatus,
 };

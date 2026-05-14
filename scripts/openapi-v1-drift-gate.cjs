@@ -7,6 +7,7 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..');
 const openApiPath = path.join(repoRoot, 'docs', 'openapi.json');
 const routesPath = path.join(repoRoot, 'backend', 'src', 'app', 'registerApiRoutes.js');
+const observabilityRoutesPath = path.join(repoRoot, 'backend', 'src', 'app', 'registerObservabilityRoutes.js');
 
 const ROOT_MOUNTS = new Set(['/api/v1']);
 const INTENTIONAL_EXTERNAL_DOCS = new Set([
@@ -38,6 +39,20 @@ function extractMountedPrefixes(source) {
   return [...prefixes].sort();
 }
 
+function extractMountedOperations(source) {
+  const operations = [];
+  const regex = /app\.(get|post|put|patch|delete)\(\s*['"`](\/api\/v1(?:\/[^'"`]*)?)['"`]/g;
+  let match;
+  while ((match = regex.exec(source)) !== null) {
+    operations.push({
+      method: match[1].toLowerCase(),
+      path: normalizeMount(match[2].replace(/:[A-Za-z0-9_]+/g, '{param}')),
+    });
+  }
+  return operations
+    .sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`));
+}
+
 function hasOpenApiPrefix(paths, prefix) {
   return Object.keys(paths).some((pathname) => {
     const normalized = normalizeMount(pathname);
@@ -45,12 +60,28 @@ function hasOpenApiPrefix(paths, prefix) {
   });
 }
 
+function hasOpenApiOperation(paths, operation) {
+  const pathItem = paths[operation.path];
+  return Boolean(pathItem && pathItem[operation.method]);
+}
+
 function run({ routesSource, openApi } = {}) {
-  const source = routesSource ?? fs.readFileSync(routesPath, 'utf8');
+  const source = routesSource ?? [
+    fs.readFileSync(routesPath, 'utf8'),
+    fs.readFileSync(observabilityRoutesPath, 'utf8'),
+  ].join('\n');
   const spec = openApi ?? JSON.parse(fs.readFileSync(openApiPath, 'utf8'));
   const mountedPrefixes = extractMountedPrefixes(source);
   const missing = mountedPrefixes.filter((prefix) => !hasOpenApiPrefix(spec.paths || {}, prefix));
-  return { ok: missing.length === 0, mountedPrefixes, missing };
+  const mountedOperations = extractMountedOperations(source);
+  const missingOperations = mountedOperations.filter((operation) => !hasOpenApiOperation(spec.paths || {}, operation));
+  return {
+    ok: missing.length === 0 && missingOperations.length === 0,
+    mountedPrefixes,
+    mountedOperations,
+    missing,
+    missingOperations,
+  };
 }
 
 if (require.main === module) {
@@ -58,9 +89,15 @@ if (require.main === module) {
   if (!result.ok) {
     console.error('[openapi-v1-drift] missing OpenAPI anchors for mounted prefixes:');
     for (const prefix of result.missing) console.error(`- ${prefix}`);
+    if (result.missingOperations.length) {
+      console.error('[openapi-v1-drift] missing OpenAPI operations for mounted routes:');
+      for (const operation of result.missingOperations) {
+        console.error(`- ${operation.method.toUpperCase()} ${operation.path}`);
+      }
+    }
     process.exit(1);
   }
   console.log(`[openapi-v1-drift] ok (${result.mountedPrefixes.length} mounted prefixes covered)`);
 }
 
-module.exports = { extractMountedPrefixes, run };
+module.exports = { extractMountedPrefixes, extractMountedOperations, run };

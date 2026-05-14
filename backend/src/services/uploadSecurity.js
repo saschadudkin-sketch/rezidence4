@@ -19,18 +19,36 @@ function getSecret() {
   return secret;
 }
 
-function signUploadAccess(filename, expiresAt) {
-  const payload = `${filename}:${expiresAt}`;
+function normalizeSignedPropertySlug(value) {
+  const slug = String(value || '').trim().toLowerCase();
+  if (!slug) return null;
+  return /^[a-z0-9-]{1,80}$/.test(slug) ? slug : null;
+}
+
+function signaturePayload(filename, expiresAt, propertySlug = null) {
+  const slug = normalizeSignedPropertySlug(propertySlug);
+  return slug ? `${filename}:${expiresAt}:${slug}` : `${filename}:${expiresAt}`;
+}
+
+function getSignedUploadPropertySlug(query) {
+  return normalizeSignedPropertySlug(query?.propertySlug || query?.property_slug || query?.ps);
+}
+
+function signUploadAccess(filename, expiresAt, propertySlug = null) {
+  const payload = signaturePayload(filename, expiresAt, propertySlug);
   return crypto
     .createHmac('sha256', getSecret())
     .update(payload)
     .digest('hex');
 }
 
-function createSignedUploadUrl(filename, baseUrl) {
+function createSignedUploadUrl(filename, baseUrl, options = {}) {
   const expiresAt = Math.floor(Date.now() / 1000) + SIGN_TTL_SECONDS;
-  const sig = signUploadAccess(filename, expiresAt);
-  return `${baseUrl.replace(/\/+$/, '')}/uploads/${encodeURIComponent(filename)}?exp=${expiresAt}&sig=${sig}`;
+  const propertySlug = normalizeSignedPropertySlug(options.propertySlug || options.property_slug);
+  const sig = signUploadAccess(filename, expiresAt, propertySlug);
+  const params = new URLSearchParams({ exp: String(expiresAt), sig });
+  if (propertySlug) params.set('ps', propertySlug);
+  return `${baseUrl.replace(/\/+$/, '')}/uploads/${encodeURIComponent(filename)}?${params.toString()}`;
 }
 
 function verifySignedUploadQuery(filename, query) {
@@ -38,7 +56,7 @@ function verifySignedUploadQuery(filename, query) {
   const sig = String(query?.sig || '');
   if (!exp || !sig) return false;
   if (exp < Math.floor(Date.now() / 1000)) return false;
-  const expected = signUploadAccess(filename, exp);
+  const expected = signUploadAccess(filename, exp, getSignedUploadPropertySlug(query));
   // FIX [BUG]: crypto.timingSafeEqual бросает RangeError если буферы разной длины.
   // Malformed sig (не 64 hex-символа) → unhandled throw → 500 вместо 403.
   // Проверяем длину заранее — это не timing leak, так как длина expected фиксирована (64).
@@ -48,9 +66,9 @@ function verifySignedUploadQuery(filename, query) {
   return crypto.timingSafeEqual(sigBuf, expBuf);
 }
 
-async function registerUploadMetadata({ ownerUid, filename, mimeType, byteSize }) {
+async function registerUploadMetadata({ ownerUid, filename, mimeType, byteSize, queryDb = db }) {
   if (!ownerUid || !filename) return;
-  await db.query(
+  await queryDb.query(
     `INSERT INTO upload_objects(owner_uid, filename, mime_type, byte_size)
      VALUES($1, $2, $3, $4)
      ON CONFLICT (filename)
@@ -62,8 +80,8 @@ async function registerUploadMetadata({ ownerUid, filename, mimeType, byteSize }
   );
 }
 
-async function auditUploadAccess({ filename, uid, decision, reason, via, req }) {
-  await db.query(
+async function auditUploadAccess({ filename, uid, decision, reason, via, req, queryDb = db }) {
+  await queryDb.query(
     `INSERT INTO upload_access_audit(filename, uid, decision, reason, access_via, ip, user_agent)
      VALUES($1, $2, $3, $4, $5, $6, $7)`,
     [
@@ -82,6 +100,7 @@ module.exports = {
   SIGN_TTL_SECONDS,
   createSignedUploadUrl,
   verifySignedUploadQuery,
+  getSignedUploadPropertySlug,
   registerUploadMetadata,
   auditUploadAccess,
 };

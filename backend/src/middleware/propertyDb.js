@@ -418,6 +418,7 @@ module.exports = {
   extractJwtSlug,
   getProperty,
   getPropertyByHostname,
+  getPropertyPool,
   resolveProperty,
   invalidatePropertyCache,
   // Export for testing

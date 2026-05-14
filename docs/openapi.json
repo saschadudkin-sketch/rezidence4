@@ -108,6 +108,31 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string" },
+                  "expectedCurrentStatus": {
+                    "type": "string",
+                    "description": "Optimistic concurrency guard. When provided, stale status mutations return 409 with the current status."
+                  },
+                  "assigneeUid": { "type": "string" },
+                  "assigneeRole": { "type": "string" },
+                  "comment": { "type": "string" },
+                  "photos": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -246,6 +271,53 @@
             }
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/upload/sign": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["filename"],
+                "properties": {
+                  "filename": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1560,6 +1632,58 @@
     "/api/v1/events": {
       "get": { "summary": "Mounted v1 route prefix: /api/v1/events", "responses": { "200": { "description": "SSE stream for tenant-scoped events." } } }
     },
+    "/api/v1/events/health": {
+      "get": {
+        "summary": "Tenant-scoped SSE connection health",
+        "responses": {
+          "200": {
+            "description": "SSE connection counters.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EventsHealthResponse" }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/outbox/health": {
+      "get": {
+        "summary": "Tenant notification outbox health",
+        "responses": {
+          "200": {
+            "description": "Notification outbox health snapshot.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/outbox/retry": {
+      "post": {
+        "summary": "Retry tenant notification outbox rows",
+        "responses": {
+          "200": {
+            "description": "Retry operation result.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/gis-oss": {
       "get": { "summary": "Mounted v1 route prefix: /api/v1/gis-oss", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
     },
@@ -1786,6 +1910,40 @@
           "url": {
             "type": "string"
           }
+        }
+      },
+      "SignedUploadResponse": {
+        "type": "object",
+        "required": [
+          "url",
+          "expiresIn"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventsHealthResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "uniqueUsers",
+          "totalConnections",
+          "maxTotalConnections",
+          "saturated",
+          "ts"
+        ],
+        "properties": {
+          "ok": { "type": "boolean" },
+          "uniqueUsers": { "type": "integer" },
+          "totalConnections": { "type": "integer" },
+          "maxTotalConnections": { "type": "integer" },
+          "saturated": { "type": "boolean" },
+          "ts": { "type": "string", "format": "date-time" }
         }
       },
       "ChatMessage": {

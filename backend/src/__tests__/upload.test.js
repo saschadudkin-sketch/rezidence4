@@ -139,12 +139,12 @@ describe('POST /api/upload/photo', () => {
     expect(res.body.url).toMatch(/\.gif$/);
   });
 
-  it('URL содержит BACKEND_URL из env', async () => {
+  it('URL возвращается как локальный /uploads path', async () => {
     fileType.fromBuffer.mockResolvedValueOnce({ mime: 'image/jpeg', ext: 'jpg' });
     const res = await request(app)
       .post('/api/upload/photo').set('Cookie', `token=${T_USER}`)
       .send(FAKE_JPEG);
-    expect(res.body.url).toContain('http://backend.test');
+    expect(res.body.url).toMatch(/^\/uploads\//);
   });
 
   it('URL содержит уникальное имя файла (содержит "photo_")', async () => {

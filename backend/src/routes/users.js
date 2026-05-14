@@ -2,6 +2,7 @@
 const express = require('express');
 const { randomUUID: uuid } = require('crypto');
 const db      = require('../db');
+const logger  = require('../logger');
 const requireAuth = require('../middleware/auth');
 const { isStaff, normalizePhone } = require('../constants'); // FIX [CODE-1]: убираем магические строки + normalizePhone
 const { USER_FIELD_MAX } = require('../constants/validationLimits');
@@ -43,6 +44,28 @@ function fmt(u) {
     apartment: u.apartment,
     avatar:    u.avatar,
   };
+}
+
+async function writeUserAudit(req, action, resourceId, changes = null) {
+  const queryDb = getDb(req);
+  try {
+    await queryDb.query(
+      `INSERT INTO property_audit_log
+         (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
+       VALUES ($1,$2,$3,'user',$4,$5,$6)`,
+      [
+        req.user?.uid || null,
+        req.user?.role || null,
+        action,
+        resourceId,
+        changes ? JSON.stringify(changes) : null,
+        req.ip || null,
+      ],
+    );
+  } catch (err) {
+    if (err?.code === '42P01') return;
+    logger.warn({ err, action, resourceId }, '[users] audit log write failed');
+  }
 }
 
 // ─── GET /api/users ───────────────────────────────────────────────────────────
@@ -89,6 +112,7 @@ router.post('/', async (req, res, next) => {
        VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [uid, normalised, name, role, apartment || null],
     );
+    await writeUserAudit(req, 'user.created', rows[0].uid, { role, apartment: apartment || null });
     broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.status(201).json(fmt(rows[0]));
   } catch (err) {
@@ -163,6 +187,13 @@ router.patch('/:uid', validateUid, async (req, res, next) => {
       vals,
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (isAdmin) {
+      const auditChanges = {};
+      if (role !== undefined) auditChanges.role = role;
+      if (Object.keys(auditChanges).length) {
+        await writeUserAudit(req, 'user.role_updated', req.params.uid, auditChanges);
+      }
+    }
     broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.json(fmt(rows[0]));
   } catch (err) { next(err); }
@@ -184,6 +215,7 @@ router.delete('/:uid', validateUid, async (req, res, next) => {
       [req.params.uid],
     );
     await revokeUserSessions(queryDb, req.params.uid, getTenantOptions(req));
+    await writeUserAudit(req, 'user.deleted', req.params.uid, null);
     broadcastWithTenant(broadcastUserDelete, req.params.uid, req);
     res.json({ ok: true });
   } catch (err) { next(err); }
@@ -204,6 +236,7 @@ router.patch('/:uid/restore', validateUid, async (req, res, next) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
     await invalidateUserSessionCache(req.params.uid, getTenantOptions(req));
+    await writeUserAudit(req, 'user.restored', req.params.uid, null);
     broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.json({ ok: true });
   } catch (err) { next(err); }

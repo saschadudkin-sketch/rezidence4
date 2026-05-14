@@ -253,6 +253,35 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
   }
 }
 
+async function submitAccessRequest({ txPool, accessRequestId }) {
+  const client = await txPool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: curRows } = await client.query(
+      `SELECT status FROM access_requests WHERE id = $1 FOR UPDATE`,
+      [accessRequestId],
+    );
+    if (!curRows[0]) throw serviceError(404, 'Access request not found');
+    if (curRows[0].status !== 'new') {
+      throw serviceError(409, `Cannot submit from status '${curRows[0].status}'`);
+    }
+    const { rows } = await client.query(
+      `UPDATE access_requests
+          SET status = 'pending_approval', updated_at = NOW()
+        WHERE id = $1
+        RETURNING ${AR_COLS}`,
+      [accessRequestId],
+    );
+    await client.query('COMMIT');
+    return { access_request: rows[0] };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
   const client = await txPool.connect();
   try {
@@ -365,6 +394,7 @@ module.exports = {
   AR_COLS,
   AccessRequestServiceError,
   createAccessRequest,
+  submitAccessRequest,
   approveAccessRequest,
   rejectAccessRequest,
   cancelAccessRequest,

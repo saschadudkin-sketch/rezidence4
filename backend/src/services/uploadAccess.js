@@ -10,12 +10,12 @@ function buildUploadUrlVariants(filename) {
   return { relative, absolute };
 }
 
-async function canUserAccessUpload(user, filename) {
+async function canUserAccessUpload(user, filename, queryDb = db) {
   if (!user?.uid) return false;
   if (isStaff(user.role)) return true;
 
   const { relative, absolute } = buildUploadUrlVariants(filename);
-  const result = await db.query(
+  const result = await queryDb.query(
     `SELECT EXISTS (
       SELECT 1
         FROM requests r

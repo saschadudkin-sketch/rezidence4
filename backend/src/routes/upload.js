@@ -20,22 +20,23 @@ router.use(requireAuth);
 // ─── Photo quota cache ─────────────────────────────────────────────────────────
 // Снижает нагрузку на агрегирующий COUNT-запрос в hot path upload.
 // TTL маленький (30с), поэтому риск устаревания минимальный.
-const photoCountCache = new Map(); // uid -> { count, expiresAt }
+const photoCountCache = new Map(); // tenant:uid -> { count, expiresAt }
 const PHOTO_COUNT_CACHE_TTL_MS = 30_000;
 
-async function getCurrentPhotoCount(uid) {
+async function getCurrentPhotoCount(uid, queryDb = db, propertySlug = 'global') {
   const now = Date.now();
-  const cached = photoCountCache.get(uid);
+  const cacheKey = `${String(propertySlug || 'global').toLowerCase()}:${uid}`;
+  const cached = photoCountCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.count;
 
-  const countResult = await db.query(
+  const countResult = await queryDb.query(
     `SELECT COALESCE(SUM(array_length(photos, 1)), 0)::int AS cnt
      FROM requests
      WHERE created_by_uid=$1 AND cardinality(photos) > 0 AND deleted_at IS NULL`,
     [uid],
   );
   const count = Number(countResult?.rows?.[0]?.cnt || 0);
-  photoCountCache.set(uid, { count, expiresAt: now + PHOTO_COUNT_CACHE_TTL_MS });
+  photoCountCache.set(cacheKey, { count, expiresAt: now + PHOTO_COUNT_CACHE_TTL_MS });
   return count;
 }
 
@@ -91,11 +92,12 @@ const rawUploadBody = express.raw({
 // POST /api/upload/photo — raw binary body
 router.post('/photo', rawUploadBody, async (req, res, next) => {
   try {
+    const queryDb = req.db || db;
     if (!uploadDirReady) {
       return res.status(503).json({ error: 'Upload storage is temporarily unavailable' });
     }
     const MAX_PHOTOS_PER_USER = 200;
-    const currentCount = await getCurrentPhotoCount(req.user.uid);
+    const currentCount = await getCurrentPhotoCount(req.user.uid, queryDb, req.propertySlug);
     if (currentCount >= MAX_PHOTOS_PER_USER) {
       return res.status(429).json({ error: `Upload quota exceeded. Maximum ${MAX_PHOTOS_PER_USER} photos total.` });
     }
@@ -164,13 +166,13 @@ router.post('/photo', rawUploadBody, async (req, res, next) => {
         filename,
         mimeType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
         byteSize: outputBuffer.byteLength,
+        queryDb,
       });
     } catch (metadataErr) {
       logger.warn({ err: metadataErr, filename }, '[upload] failed to persist upload metadata');
     }
 
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
-    res.json({ url: `${baseUrl}/uploads/${filename}` });
+    res.json({ url: `/uploads/${filename}` });
   } catch (err) { next(err); }
 });
 
@@ -179,7 +181,8 @@ router.post('/sign', express.json(), async (req, res) => {
   const filename = path.basename(rawFilename);
   if (!filename) return res.status(400).json({ error: 'filename required' });
 
-  const { rows } = await db.query(
+  const queryDb = req.db || db;
+  const { rows } = await queryDb.query(
     `SELECT owner_uid FROM upload_objects WHERE filename=$1 LIMIT 1`,
     [filename],
   );
@@ -190,7 +193,7 @@ router.post('/sign', express.json(), async (req, res) => {
   }
 
   const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
-  const signedUrl = createSignedUploadUrl(filename, baseUrl);
+  const signedUrl = createSignedUploadUrl(filename, baseUrl, { propertySlug: req.propertySlug });
   return res.json({ url: signedUrl, expiresIn: SIGN_TTL_SECONDS });
 });
 
