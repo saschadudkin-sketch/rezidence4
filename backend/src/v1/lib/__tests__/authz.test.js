@@ -147,8 +147,9 @@ describe('can(user, capability)', () => {
     expect(can({ role: 'concierge' }, 'access.qr.verify')).toBe(false);
     expect(can({ role: 'admin' }, 'access.request.approve')).toBe(true);
     expect(can({ role: 'property_admin' }, 'audit.read')).toBe(true);
-    expect(can({ role: 'management_company_admin' }, 'access.pass.revoke')).toBe(true);
-    expect(can({ role: 'platform_admin' }, 'access.override.create')).toBe(true);
+    expect(can({ role: 'management_company_admin' }, 'access.pass.revoke')).toBe(false);
+    expect(can({ role: 'platform_admin' }, 'access.override.create')).toBe(false);
+    expect(can({ role: 'property_admin' }, 'access.override.create')).toBe(true);
   });
 });
 

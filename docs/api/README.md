@@ -11,14 +11,19 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/users/*` | list, restore | response codes + User schema |
 | `/api/v1/upload/*` | photo | UploadResponse |
 | `/api/v1/chat/*` | messages | ChatMessage stub |
-| `/api/v1/passes/*` | list, create, get, patch, qr, regenerate-qr | **полные схемы** (Pass, PassQR) |
+| `/api/v1/passes/*` | list, create, get, qr, regenerate-qr, revoke/block/unblock | **полные схемы** (Pass, PassQR, transition commands) |
 | `/api/v1/announcements/*` | list, create, get, patch, delete, publish, admin-list | **полные схемы** (Announcement) |
 | `/api/v1/packages/*` | list, create, get, patch | **полные схемы** (Package) |
 | `/api/v1/documents/*` | list, create, get, patch | полные схемы (Document) |
-| `/api/v1/access-requests/*` | list, create, patch | полные схемы (AccessRequest) |
+| `/api/v1/access-requests/*` | list, create, detail, submit/approve/reject/cancel/escalate | полные схемы (AccessRequest, structured 409) |
 | `/api/v1/visits/*` | list, verify | VerifyPassResponse детально |
-| `/api/v1/access-incidents/*` | list, create | stub |
-| `/api/v1/vehicles/*` | list, create | stub |
+| `/api/v1/guard/*` | scan-pass | VerifyPassResponse детально |
+| `/api/v1/access-zones/*`, `/api/v1/access-points/*` | list, create, patch, deactivate | схемы topology entities |
+| `/api/v1/access-policies/*` | templates, list, create, get, patch, evaluate, deactivate | схемы policy + decision |
+| `/api/v1/security-workspace/*` | bootstrap/dashboard/search/recent, manual decisions, offline replay, degraded reconcile | manual-decision контракт детализирован |
+| `/api/v1/access-incidents/*` | list, create, get, assign/resolve/dismiss/status/reopen, patch | схемы incident lifecycle |
+| `/api/v1/access-overrides/*` | list, get, create | схемы override audit path |
+| `/api/v1/vehicles/*` | list, create, get, by-plate, patch flags/metadata, compatibility commands, delete | схемы Vehicle + flag PATCH |
 | `/api/v1/residents` | list | stub |
 | `/api/v1/staff` | list | stub |
 | `/api/v1/contractors` | list | stub |
@@ -26,14 +31,14 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/notification-log` | list | stub |
 | `/api/v1/admin/outbox` | list | stub |
 
-**Итого:** 33 paths, 49 schemas. Coverage v1 routes ~85% (по path count), детализация unevenly — высокотрафиковые (passes/announcements/packages) заполнены, остальные — placeholder'ы для постепенного наполнения.
+**Итого:** 109 paths, 71 schemas. Coverage v1 mounted prefixes проходит `npm run openapi:drift`; access-domain пилотные маршруты теперь имеют явные path/schema anchors, включая stale-state 409 и manual security decisions.
 
 ## Что НЕ покрыто (и должно быть)
 
 - **Request bodies** — почти везде `requestBody` не задан. При следующем проходе по конкретному route нужно добавить `requestBody.content.application/json.schema` со ссылкой на `*Create` / `*Update` schema.
 - **Параметры query** — задано только для passes; остальные list endpoints принимают query (status filter, pagination), это нужно описать.
 - **Pagination** — все list endpoints возвращают плоские массивы без cursor/page (см. audit gap про LIMIT 500). Когда введём pagination, обновить response schemas.
-- **Authentication** — `securitySchemes` и `security` не задано; сейчас все non-`auth/*` endpoint'ы требуют JWT cookie + `X-Complex-Slug` header. Документируем после введения OAuth-style description.
+- **Authentication details** — `securitySchemes` теперь фиксирует JWT cookie и `X-Property-Slug`; per-route capability matrix остаётся в markdown spec'ах и backend authz tests.
 - **Tags + descriptions** — теги проставлены, но без top-level `tags[]` array с описаниями.
 
 ## Cross-cutting headers

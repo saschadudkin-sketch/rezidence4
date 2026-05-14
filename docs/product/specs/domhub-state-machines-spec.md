@@ -29,6 +29,7 @@
 
 - `new`
 - `pending_approval`
+- `escalated`
 - `approved`
 - `rejected`
 - `cancelled`
@@ -43,7 +44,11 @@
 | `new` | `cancelled` | creator / admin | до активации |
 | `pending_approval` | `approved` | approver | security/admin/resident per policy |
 | `pending_approval` | `rejected` | approver | требуется reason/comment |
+| `pending_approval` | `escalated` | security / concierge | требуется admin visibility или спорный кейс |
 | `pending_approval` | `cancelled` | creator / admin | если request больше не нужен |
+| `escalated` | `approved` | approver | после admin/security review |
+| `escalated` | `rejected` | approver | требуется reason/comment |
+| `escalated` | `cancelled` | creator / admin | если request больше не нужен |
 | `approved` | `expired` | system | по времени |
 | `approved` | `cancelled` | admin / creator if allowed | если pass ещё не использован |
 | `rejected` | `new` | никто | только создание нового request |
@@ -69,6 +74,11 @@
 - `pending_approval -> rejected`
   - записать `access_approval`
   - отправить уведомление инициатору
+
+- `pending_approval -> escalated`
+  - записать `access_approval` с decision=`escalated`
+  - создать audit/sensitive review signal
+  - уведомить ответственного property admin/security lead
 
 - `approved -> expired`
   - деактивировать pass

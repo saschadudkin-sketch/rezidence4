@@ -88,6 +88,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./047_readiness_live_evidence_and_transfers'),
   // DH-56 personal-data DSAR workflow and compliance evidence controls
   require('./048_privacy_compliance_controls'),
+  // Access-control pilot readiness gaps: service/access links and degraded reconciliation
+  require('./049_access_readiness_gaps'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

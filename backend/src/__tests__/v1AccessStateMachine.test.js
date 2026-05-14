@@ -58,9 +58,9 @@ describe('access state machine', () => {
     for (const status of ['active', 'used', 'blocked']) {
       expect(() => assertPassAction(status, 'revoke')).not.toThrow();
       expect(() => assertPassAction(status, 'block')).not.toThrow();
-      expect(() => assertPassAction(status, 'qr')).not.toThrow();
-      expect(() => assertPassAction(status, 'regenerate_qr')).not.toThrow();
     }
+    expect(() => assertPassAction('active', 'qr')).not.toThrow();
+    expect(() => assertPassAction('active', 'regenerate_qr')).not.toThrow();
     expect(() => assertPassAction('blocked', 'unblock')).not.toThrow();
 
     expectConflict(
@@ -82,6 +82,14 @@ describe('access state machine', () => {
     expectConflict(
       () => assertPassAction('expired', 'unblock'),
       "Pass is not blocked (status='expired')",
+    );
+    expectConflict(
+      () => assertPassAction('used', 'qr'),
+      "Cannot fetch QR for pass in status 'used'",
+    );
+    expectConflict(
+      () => assertPassAction('blocked', 'regenerate_qr'),
+      "Cannot regenerate QR for pass in status 'blocked'",
     );
     expectConflict(
       () => assertPassAction('revoked', 'qr'),

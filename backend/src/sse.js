@@ -24,6 +24,15 @@ const clients = new Map();
 
 // Roles allowed to receive blacklist events
 const BLACKLIST_ROLES = new Set(['admin', 'security', 'concierge']);
+const ACCESS_EVENT_ROLES = new Set([
+  'admin',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+  'security',
+  'concierge',
+  'staff',
+]);
 
 function nextEventId() {
   return `${Date.now()}-${randomUUID()}`;
@@ -184,6 +193,7 @@ function broadcastChatDelete(id, options)   { broadcastToAll('message_delete', {
 // Blacklist: only admin/security/concierge may see blacklist data
 function broadcastBlacklistAdd(entry, options)  { broadcastToRoles('blacklist_add',    entry,    BLACKLIST_ROLES, options); }
 function broadcastBlacklistRemove(id, options)  { broadcastToRoles('blacklist_remove', { id },   BLACKLIST_ROLES, options); }
+function broadcastAccessEvent(data, options)   { broadcastToRoles('access_event', data, ACCESS_EVENT_ROLES, options); }
 // User updates: all clients already receive full user list at sync,
 // so broadcasting to all is consistent with existing data access model.
 function broadcastUserUpdate(user, options)     { broadcastToAll('user_update', user, options); }
@@ -209,6 +219,7 @@ module.exports = {
   broadcastRequestUpdate,
   broadcastChatMessage, broadcastChatUpdate, broadcastChatDelete,
   broadcastBlacklistAdd, broadcastBlacklistRemove,
+  broadcastAccessEvent,
   broadcastUserUpdate, broadcastUserDelete,
   setRedisPublish,
   localBroadcastToAll, localBroadcastToRoles,

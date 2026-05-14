@@ -20,6 +20,7 @@
 const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
+const { broadcastAccessEvent } = require('../../sse');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { canInPropertyScope, isStaff, isAdmin, isResident } = require('../lib/authz');
@@ -109,14 +110,34 @@ async function requireResidentVehicleOwner(req, res, vehicleId) {
   return { propertyId: rows[0].property_id, residentId };
 }
 
-function auditLog(req, { action, resourceType, resourceId, changes }) {
+function actorTypeForRole(role) {
+  if (role === 'contractor') return 'contractor';
+  if (role === 'owner' || role === 'tenant' || role === 'resident') return 'resident';
+  if (role === 'system') return 'system';
+  return 'staff';
+}
+
+function auditLog(req, {
+  propertyId,
+  action,
+  resourceType,
+  resourceId,
+  changes,
+  entityType = resourceType,
+  entityId = resourceId,
+}) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
+      propertyId,
       req.user?.uid || null,
       req.user?.role || null,
+      actorTypeForRole(req.user?.role),
+      entityType,
+      entityId,
       action,
       resourceType,
       resourceId,
@@ -132,6 +153,10 @@ function sendServiceError(res, err) {
   if (err.details) Object.assign(body, err.details);
   res.status(err.status).json(body);
   return true;
+}
+
+function emitAccessEvent(req, payload) {
+  broadcastAccessEvent(payload, { propertySlug: req.propertySlug });
 }
 
 // ─── GET /api/v1/vehicles ────────────────────────────────────────────────────
@@ -324,6 +349,7 @@ router.post('/', idempotency, async (req, res, next) => {
       },
     });
     auditLog(req, {
+      propertyId: result.vehicle.property_id,
       action: 'vehicle.created',
       resourceType: 'vehicle',
       resourceId: result.vehicle.id,
@@ -340,13 +366,52 @@ router.post('/', idempotency, async (req, res, next) => {
 });
 
 // ─── PATCH /api/v1/vehicles/:id ──────────────────────────────────────────────
-// Редактирование (color/brand/model/notes/vehicle_type) — не трогаем owner/plate.
+// Редактирование metadata + canonical flag updates.
 router.patch('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
     const propertyId = await loadVehicleProperty(req, req.params.id);
     const adminForVehicle = isPropertyAdmin(req, propertyId);
     if (isAdmin(req) && !adminForVehicle) return res.status(403).json({ error: 'Forbidden' });
+
+    const wantsFlagChange = req.body.is_whitelisted !== undefined || req.body.is_blacklisted !== undefined;
+    if (wantsFlagChange) {
+      if (!adminForVehicle && !canSecurityManageVehicleFlag(req, propertyId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      const isWhitelisted = req.body.is_whitelisted === true;
+      const isBlacklisted = req.body.is_blacklisted === true;
+      if (isWhitelisted && isBlacklisted) return res.status(400).json({ error: 'flag conflict' });
+      const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
+      if (isBlacklisted && !reason) return res.status(400).json({ error: 'reason is required' });
+
+      let action;
+      let result;
+      if (isBlacklisted) {
+        action = 'vehicle.blacklisted';
+        result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+      } else if (isWhitelisted) {
+        action = 'vehicle.whitelisted';
+        result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+      } else {
+        action = 'vehicle.flags_cleared';
+        result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id });
+      }
+      auditLog(req, {
+        propertyId: result.vehicle.property_id,
+        action,
+        resourceType: 'vehicle',
+        resourceId: result.vehicle.id,
+        changes: { reason, is_whitelisted: result.vehicle.is_whitelisted, is_blacklisted: result.vehicle.is_blacklisted },
+      });
+      emitAccessEvent(req, {
+        event_type: `access.${action}`,
+        property_id: result.vehicle.property_id,
+        vehicle_id: result.vehicle.id,
+        plate_number: result.vehicle.plate_number,
+      });
+      return res.json({ vehicle: result.vehicle });
+    }
 
     const changes = {};
     const str = (k, max) => {
@@ -379,7 +444,13 @@ router.patch('/:id', async (req, res, next) => {
       vehicleId: req.params.id,
       changes,
     });
-    auditLog(req, { action: 'vehicle.updated', resourceType: 'vehicle', resourceId: result.vehicle.id, changes });
+    auditLog(req, {
+      propertyId: result.vehicle.property_id,
+      action: 'vehicle.updated',
+      resourceType: 'vehicle',
+      resourceId: result.vehicle.id,
+      changes,
+    });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
     if (sendScopeError(res, err)) return;
@@ -397,10 +468,17 @@ router.post('/:id/whitelist', async (req, res, next) => {
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     const result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
     auditLog(req, {
+      propertyId: result.vehicle.property_id,
       action: 'vehicle.whitelisted',
       resourceType: 'vehicle',
       resourceId: result.vehicle.id,
       changes: { reason },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.vehicle.whitelisted',
+      property_id: result.vehicle.property_id,
+      vehicle_id: result.vehicle.id,
+      plate_number: result.vehicle.plate_number,
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
@@ -423,10 +501,17 @@ router.post('/:id/blacklist', async (req, res, next) => {
     if (!reason) return res.status(400).json({ error: 'reason is required' });
     const result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
     auditLog(req, {
+      propertyId: result.vehicle.property_id,
       action: 'vehicle.blacklisted',
       resourceType: 'vehicle',
       resourceId: result.vehicle.id,
       changes: { reason },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.vehicle.blacklisted',
+      property_id: result.vehicle.property_id,
+      vehicle_id: result.vehicle.id,
+      plate_number: result.vehicle.plate_number,
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
@@ -445,10 +530,17 @@ router.post('/:id/clear-flags', async (req, res, next) => {
     if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id });
     auditLog(req, {
+      propertyId: result.vehicle.property_id,
       action: 'vehicle.flags_cleared',
       resourceType: 'vehicle',
       resourceId: result.vehicle.id,
       changes: null,
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.vehicle.flags_cleared',
+      property_id: result.vehicle.property_id,
+      vehicle_id: result.vehicle.id,
+      plate_number: result.vehicle.plate_number,
     });
     res.json({ vehicle: result.vehicle });
   } catch (err) {
@@ -475,6 +567,7 @@ router.delete('/:id', async (req, res, next) => {
       vehicleId: req.params.id,
     });
     auditLog(req, {
+      propertyId,
       action: 'vehicle.deleted',
       resourceType: 'vehicle',
       resourceId: req.params.id,

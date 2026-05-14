@@ -43,6 +43,10 @@ export interface CreateAccessRequestBody {
   approval_required?: boolean;
 }
 
+type TransitionOpts = RequestOpts & {
+  expectedCurrentStatus?: RequestStatus;
+};
+
 function toQuery(params: object | undefined): string {
   if (!params) return '';
   const entries = Object.entries(params).filter(
@@ -74,32 +78,36 @@ export const accessRequestsApi = {
       opts,
     );
   },
-  approve(id: UUID, comment?: string, opts?: RequestOpts) {
+  approve(id: UUID, comment?: string, opts?: TransitionOpts) {
+    const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest; pass: unknown }>(
       `/access-requests/${id}/approve`,
-      comment !== undefined ? { comment } : undefined,
-      opts,
+      { ...(comment !== undefined ? { comment } : {}), ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
+      requestOpts,
     );
   },
-  reject(id: UUID, reason: string, opts?: RequestOpts) {
+  reject(id: UUID, reason: string, opts?: TransitionOpts) {
+    const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest }>(
       `/access-requests/${id}/reject`,
-      { reason },
-      opts,
+      { reason, ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
+      requestOpts,
     );
   },
-  cancel(id: UUID, opts?: RequestOpts) {
+  cancel(id: UUID, opts?: TransitionOpts) {
+    const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest }>(
       `/access-requests/${id}/cancel`,
-      undefined,
-      opts,
+      expectedCurrentStatus ? { expectedCurrentStatus } : undefined,
+      requestOpts,
     );
   },
-  escalate(id: UUID, comment?: string, opts?: RequestOpts) {
+  escalate(id: UUID, comment?: string, opts?: TransitionOpts) {
+    const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ ok: true; access_request_id: UUID }>(
       `/access-requests/${id}/escalate`,
-      comment !== undefined ? { comment } : undefined,
-      opts,
+      { ...(comment !== undefined ? { comment } : {}), ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
+      requestOpts,
     );
   },
 };

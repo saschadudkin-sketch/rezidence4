@@ -305,12 +305,14 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1', v1AccessTopologyRouter);
   app.use('/api/v1', v1AccessPoliciesRouter);
   app.use('/api/v1/security-workspace', v1SecurityWorkspaceRouter);
+  app.use('/api/v1/security', v1SecurityWorkspaceRouter);
   app.use('/api/v1/staff-workspace', v1StaffWorkspaceRouter);
   app.use('/api/v1/technician-workspace', v1TechnicianWorkspaceRouter);
   app.use('/api/v1/contractor-workspace', v1ContractorWorkspaceRouter);
   app.use('/api/v1/access-requests', v1AccessRequestsRouter);
   app.use('/api/v1/passes', v1PassesRouter);
   app.use('/api/v1/visits', v1VisitsRouter);
+  app.use('/api/v1/guard', v1VisitsRouter);
   app.use('/api/v1', v1AccessIncidentsRouter);
   app.use('/api/v1/audit', v1AuditReviewsRouter);
   app.use('/api/v1/skud', requireFeature('skud_integration'), v1SkudIntegrationsRouter);

@@ -29,6 +29,7 @@ const UUID_PASS = '66666666-6666-4666-8666-666666666666';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 const UUID_VEHICLE = '99999999-9999-4999-8999-999999999999';
+const UUID_POLICY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 function buildApp({ featureFlags = null } = {}) {
   const app = express();
@@ -87,6 +88,31 @@ function accessRequestRow(overrides = {}) {
   };
 }
 
+function allowPolicy(overrides = {}) {
+  return {
+    id: UUID_POLICY,
+    property_id: UUID_PROPERTY,
+    name: 'Allow access',
+    subject_type: 'guest',
+    subject_role: null,
+    zone_id: null,
+    point_id: null,
+    access_method: 'qr',
+    approval_mode: 'auto',
+    effect: 'allow',
+    priority: 10,
+    schedule_json: null,
+    duration_minutes: null,
+    is_recurring: true,
+    is_active: true,
+    created_by: null,
+    metadata: {},
+    created_at: '2026-05-04T10:00:00.000Z',
+    updated_at: '2026-05-04T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
 function makeTxClient(handler) {
   return {
     query: jest.fn(handler),
@@ -117,15 +143,18 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
           id: UUID_PASS,
           pass_type: 'guest',
           status: 'active',
+          policy_id: UUID_POLICY,
           valid_from: row.starts_at,
           valid_until: row.ends_at,
         }] });
       }
       throw new Error(`unexpected SQL: ${sql}`);
     });
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: UUID_RESIDENT }] })
-      .mockResolvedValue({ rows: [] });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      return Promise.resolve({ rows: [] });
+    });
     db.pool.connect.mockResolvedValue(txClient);
 
     const res = await supertest(buildApp())
@@ -160,25 +189,39 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('INSERT INTO request_access_links')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO passes')) {
         return Promise.resolve({ rows: [{
           id: UUID_PASS,
           pass_type: 'contractor',
           status: 'active',
+          policy_id: UUID_POLICY,
           valid_from: row.starts_at,
           valid_until: row.ends_at,
         }] });
       }
       throw new Error(`unexpected SQL: ${sql}`);
     });
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: UUID_CONTRACTOR }] })
-      .mockResolvedValue({ rows: [] });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM contractor_users')) return Promise.resolve({ rows: [{ id: UUID_CONTRACTOR }] });
+      if (sql.includes('FROM requests')) {
+        return Promise.resolve({ rows: [{
+          id: 'req-1',
+          status: 'assigned',
+          assigned_contractor_user_id: UUID_CONTRACTOR,
+          resolution_due_at: '2026-05-05T13:00:00.000Z',
+        }] });
+      }
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({ rows: [allowPolicy({ subject_type: 'contractor' })] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
     db.pool.connect.mockResolvedValue(txClient);
 
     const res = await supertest(buildApp())
       .post('/api/v1/access-requests')
-      .send(validCreatePayload({ request_type: 'contractor_access' }));
+      .send(validCreatePayload({ request_type: 'contractor_access', request_id: 'req-1' }));
 
     expect(res.status).toBe(201);
     const insertCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_requests'));
@@ -212,6 +255,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
           status: 'active',
           zone_id: UUID_ZONE,
           point_id: UUID_POINT,
+          policy_id: UUID_POLICY,
           valid_from: row.starts_at,
           valid_until: row.ends_at,
         }] });
@@ -224,6 +268,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       if (sql.includes('FROM access_points')) {
         return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
       }
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
       return Promise.resolve({ rows: [] });
     });
     db.pool.connect.mockResolvedValue(txClient);
@@ -266,10 +311,21 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
             property_id: UUID_PROPERTY,
             owner_resident_id: UUID_RESIDENT,
             owner_contractor_user_id: null,
+            owner_type: 'resident',
+            vehicle_type: 'car',
+            is_whitelisted: true,
+            is_blacklisted: false,
           }],
         });
       }
       if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({ rows: [allowPolicy({
+          subject_type: 'vehicle',
+          access_method: 'plate',
+          approval_mode: 'required',
+        })] });
+      }
       return Promise.resolve({ rows: [] });
     });
     db.pool.connect.mockResolvedValue(txClient);
@@ -298,9 +354,11 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       if (sql.includes('INSERT INTO passes')) throw new Error('pass should not be issued');
       throw new Error(`unexpected SQL: ${sql}`);
     });
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: UUID_RESIDENT }] })
-      .mockResolvedValue({ rows: [] });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      return Promise.resolve({ rows: [] });
+    });
     db.pool.connect.mockResolvedValue(txClient);
 
     const res = await supertest(buildApp({ featureFlags: { manual_access_approval: true } }))
@@ -327,17 +385,30 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('INSERT INTO request_access_links')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO passes')) throw new Error('pass should not be issued');
       throw new Error(`unexpected SQL: ${sql}`);
     });
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: UUID_CONTRACTOR }] })
-      .mockResolvedValue({ rows: [] });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM contractor_users')) return Promise.resolve({ rows: [{ id: UUID_CONTRACTOR }] });
+      if (sql.includes('FROM requests')) {
+        return Promise.resolve({ rows: [{
+          id: 'req-1',
+          status: 'assigned',
+          assigned_contractor_user_id: UUID_CONTRACTOR,
+          resolution_due_at: '2026-05-05T13:00:00.000Z',
+        }] });
+      }
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({ rows: [allowPolicy({ subject_type: 'contractor' })] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
     db.pool.connect.mockResolvedValue(txClient);
 
     const res = await supertest(buildApp({ featureFlags: { manual_access_approval: true } }))
       .post('/api/v1/access-requests')
-      .send(validCreatePayload({ request_type: 'contractor_access' }));
+      .send(validCreatePayload({ request_type: 'contractor_access', request_id: 'req-1' }));
 
     expect(res.status).toBe(201);
     expect(res.body.access_request.status).toBe('pending_approval');
@@ -377,6 +448,7 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
       }
       if (sql.includes('INSERT INTO access_approvals')) return Promise.resolve({ rows: [] });
       if (sql.includes('UPDATE access_requests')) return Promise.resolve({ rows: [approved] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
       if (sql.includes('INSERT INTO passes')) {
         return Promise.resolve({ rows: [{
           id: UUID_PASS,

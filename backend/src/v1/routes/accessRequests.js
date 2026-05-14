@@ -20,6 +20,7 @@
 const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
+const { broadcastAccessEvent } = require('../../sse');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { can, canInPropertyScope, isAdmin } = require('../lib/authz');
@@ -168,14 +169,34 @@ async function requireContractorUserId(req, res) {
   return contractorUserId;
 }
 
-function auditLog(req, { action, resourceType, resourceId, changes }) {
+function actorTypeForRole(role) {
+  if (role === 'contractor') return 'contractor';
+  if (role === 'owner' || role === 'tenant' || role === 'resident') return 'resident';
+  if (role === 'system') return 'system';
+  return 'staff';
+}
+
+function auditLog(req, {
+  propertyId,
+  action,
+  resourceType,
+  resourceId,
+  changes,
+  entityType = resourceType,
+  entityId = resourceId,
+}) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
+      propertyId,
       req.user?.uid || null,
       req.user?.role || null,
+      actorTypeForRole(req.user?.role),
+      entityType,
+      entityId,
       action,
       resourceType,
       resourceId,
@@ -187,7 +208,7 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 
 function sendServiceError(res, err) {
   if (!isAccessRequestServiceError(err)) return false;
-  res.status(err.status).json({ error: err.message });
+  res.status(err.status).json({ error: err.message, ...(err.details || {}) });
   return true;
 }
 
@@ -196,6 +217,10 @@ function sendKnownError(res, err) {
   if (!isAccessTopologyServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
   return true;
+}
+
+function emitAccessEvent(req, payload) {
+  broadcastAccessEvent(payload, { propertySlug: req.propertySlug });
 }
 
 // ─── GET /api/v1/access-requests ─────────────────────────────────────────────
@@ -335,6 +360,7 @@ router.post('/', idempotency, async (req, res, next) => {
       property_id, request_type,
       visitor_name = null, visitor_phone = null, vehicle_id = null,
       target_unit_id = null, target_zone_id = null, target_point_id = null,
+      request_id = null,
       reason = null,
       starts_at, ends_at,
     } = req.body || {};
@@ -371,6 +397,9 @@ router.post('/', idempotency, async (req, res, next) => {
     if (visitor_name !== null && typeof visitor_name !== 'string') return res.status(400).json({ error: 'visitor_name must be string or null' });
     if (visitor_phone !== null && typeof visitor_phone !== 'string') return res.status(400).json({ error: 'visitor_phone must be string or null' });
     if (reason !== null && typeof reason !== 'string') return res.status(400).json({ error: 'reason must be string or null' });
+    if (request_id !== null && (typeof request_id !== 'string' || !request_id.trim() || request_id.length > 128)) {
+      return res.status(400).json({ error: 'request_id must be a non-empty string or null' });
+    }
 
     const result = await createAccessRequest({
       queryable: getDb(req),
@@ -386,6 +415,7 @@ router.post('/', idempotency, async (req, res, next) => {
         target_unit_id,
         target_zone_id,
         target_point_id,
+        request_id,
         reason,
         starts_at,
         ends_at,
@@ -393,6 +423,7 @@ router.post('/', idempotency, async (req, res, next) => {
     });
 
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.created',
       resourceType: 'access_request',
       resourceId: result.access_request.id,
@@ -439,6 +470,7 @@ router.post('/:id/submit', async (req, res, next) => {
       accessRequestId: req.params.id,
     });
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.submitted',
       resourceType: 'access_request',
       resourceId: req.params.id,
@@ -458,6 +490,9 @@ router.post('/:id/approve', async (req, res, next) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
 
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
+  const expectedCurrentStatus = typeof req.body?.expectedCurrentStatus === 'string'
+    ? req.body.expectedCurrentStatus
+    : null;
   try {
     const propertyId = await loadAccessRequestProperty(req, req.params.id);
     if (!canApproveRequest(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
@@ -466,12 +501,21 @@ router.post('/:id/approve', async (req, res, next) => {
       user: req.user,
       accessRequestId: req.params.id,
       comment,
+      expectedCurrentStatus,
     });
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.approved',
       resourceType: 'access_request',
       resourceId: req.params.id,
       changes: { pass_id: result.pass.id },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.request.approved',
+      property_id: result.access_request.property_id,
+      access_request_id: req.params.id,
+      pass_id: result.pass.id,
+      status: result.access_request.status,
     });
     res.json({ access_request: result.access_request, pass: result.pass });
   } catch (err) {
@@ -488,6 +532,9 @@ router.post('/:id/reject', async (req, res, next) => {
   if (!can(req.user, 'access.request.reject')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const comment = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  const expectedCurrentStatus = typeof req.body?.expectedCurrentStatus === 'string'
+    ? req.body.expectedCurrentStatus
+    : null;
   if (!comment) return res.status(400).json({ error: 'reason is required' });
 
   try {
@@ -498,12 +545,20 @@ router.post('/:id/reject', async (req, res, next) => {
       user: req.user,
       accessRequestId: req.params.id,
       comment,
+      expectedCurrentStatus,
     });
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.rejected',
       resourceType: 'access_request',
       resourceId: req.params.id,
       changes: { reason: comment },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.request.rejected',
+      property_id: result.access_request.property_id,
+      access_request_id: req.params.id,
+      status: result.access_request.status,
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
@@ -529,12 +584,22 @@ router.post('/:id/cancel', async (req, res, next) => {
       user: req.user,
       accessRequestId: req.params.id,
       isPropertyAdmin: isPropertyAdmin(req, propertyId),
+      expectedCurrentStatus: typeof req.body?.expectedCurrentStatus === 'string'
+        ? req.body.expectedCurrentStatus
+        : null,
     });
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.cancelled',
       resourceType: 'access_request',
       resourceId: req.params.id,
       changes: null,
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.request.cancelled',
+      property_id: result.access_request.property_id,
+      access_request_id: req.params.id,
+      status: result.access_request.status,
     });
     res.json({ access_request: result.access_request });
   } catch (err) {
@@ -551,6 +616,9 @@ router.post('/:id/escalate', async (req, res, next) => {
   if (!can(req.user, 'requests:escalate')) return res.status(403).json({ error: 'Forbidden' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const comment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : null;
+  const expectedCurrentStatus = typeof req.body?.expectedCurrentStatus === 'string'
+    ? req.body.expectedCurrentStatus
+    : null;
   try {
     const propertyId = await loadAccessRequestProperty(req, req.params.id);
     if (!canEscalateRequest(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
@@ -559,12 +627,20 @@ router.post('/:id/escalate', async (req, res, next) => {
       user: req.user,
       accessRequestId: req.params.id,
       comment,
+      expectedCurrentStatus,
     });
     auditLog(req, {
+      propertyId: result.access_request.property_id,
       action: 'access_request.escalated',
       resourceType: 'access_request',
       resourceId: req.params.id,
       changes: { comment },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.request.escalated',
+      property_id: result.access_request.property_id,
+      access_request_id: req.params.id,
+      status: result.access_request.status,
     });
     res.json({ ok: true, access_request_id: req.params.id, access_request: result.access_request });
   } catch (err) {

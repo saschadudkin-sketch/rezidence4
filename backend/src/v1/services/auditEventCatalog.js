@@ -67,6 +67,11 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     category: 'incident_review',
     reviewReason: 'incident dismissal marks a security event as false or closed',
   }),
+  'incident.reopened': entry({
+    canonicalEventType: 'access.incident.reopened',
+    category: 'incident_review',
+    reviewReason: 'incident reopen restores a previously closed security case',
+  }),
   'incident.patched': entry({
     canonicalEventType: 'access.incident.updated',
     category: 'incident_review',
@@ -136,6 +141,21 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     canonicalEventType: 'access.policy_boundary.disabled',
     category: 'access_boundary',
     reviewReason: 'deactivating a zone changes access routing',
+  }),
+  'access_policy.created': entry({
+    canonicalEventType: 'access.policy.created',
+    category: 'access_policy',
+    reviewReason: 'access policy creation can grant or restrict physical access',
+  }),
+  'access_policy.updated': entry({
+    canonicalEventType: 'access.policy.updated',
+    category: 'access_policy',
+    reviewReason: 'access policy edits can change approval, schedule or point access behavior',
+  }),
+  'access_policy.deactivated': entry({
+    canonicalEventType: 'access.policy.deactivated',
+    category: 'access_policy',
+    reviewReason: 'deactivating a policy can remove access controls or grants',
   }),
   'access_point.created': entry({
     canonicalEventType: 'hardware.device.created',
@@ -227,6 +247,11 @@ const AUDIT_ACTION_CATALOG = Object.freeze({
     category: 'video_evidence',
     sensitivity: 'restricted',
     reviewReason: 'video evidence links affect incident investigation context',
+  }),
+  'degraded_checkpoint.reconciled': entry({
+    canonicalEventType: 'access.degraded_checkpoint.reconciled',
+    category: 'manual_override',
+    reviewReason: 'degraded checkpoint reconciliation resolves offline guard decisions',
   }),
   'hardware.manual_control.executed': entry({
     canonicalEventType: 'hardware.manual_control.executed',

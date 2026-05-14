@@ -11,6 +11,9 @@ const {
   StateTransitionError,
   assertAccessRequestAction,
 } = require('./accessStateMachine');
+const {
+  evaluateAccessPolicy,
+} = require('./accessPolicyService');
 
 const AR_COLS = `
   id, property_id, created_by_type,
@@ -30,19 +33,17 @@ const REQUEST_TO_PASS_TYPE = Object.freeze({
   temporary_resident_access: 'guest',
 });
 
-const AUTO_ISSUE_REQUEST_TYPES = new Set(['guest_access', 'courier_access', 'contractor_access']);
-const AUTO_ISSUE_MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 class AccessRequestServiceError extends Error {
-  constructor(status, message) {
+  constructor(status, message, details = null) {
     super(message);
     this.name = 'AccessRequestServiceError';
     this.status = status;
+    this.details = details;
   }
 }
 
-function serviceError(status, message) {
-  return new AccessRequestServiceError(status, message);
+function serviceError(status, message, details = null) {
+  return new AccessRequestServiceError(status, message, details);
 }
 
 function isAccessRequestServiceError(err) {
@@ -53,13 +54,11 @@ function getResolvedFeatureFlags(property) {
   return property?.resolvedFlags || resolveFlags(property?.feature_flags, property?.plan);
 }
 
-function shouldRequireManualApproval({ property, requestType, startsAt, endsAt }) {
+function shouldRequireManualApproval({ property, policyDecision = null }) {
   const flags = getResolvedFeatureFlags(property);
   if (flags.manual_access_approval) return true;
-  if (!AUTO_ISSUE_REQUEST_TYPES.has(requestType)) return true;
-
-  const windowMs = new Date(endsAt).getTime() - new Date(startsAt).getTime();
-  return windowMs > AUTO_ISSUE_MAX_WINDOW_MS;
+  if (!policyDecision) return true;
+  return policyDecision.decision !== 'allow';
 }
 
 function isContractorRole(role) {
@@ -100,9 +99,9 @@ async function insertPassForAccessRequest(client, ar, approvedByStaffId = null) 
     `INSERT INTO passes
        (property_id, access_request_id, pass_type, subject_type,
         subject_contractor_user_id, subject_vehicle_id,
-        zone_id, point_id, valid_from, valid_until, status, approved_by_staff_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11)
-     RETURNING id, pass_type, status, zone_id, point_id, valid_from, valid_until`,
+        zone_id, point_id, policy_id, valid_from, valid_until, status, approved_by_staff_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12)
+     RETURNING id, pass_type, status, zone_id, point_id, policy_id, valid_from, valid_until`,
     [
       ar.property_id,
       ar.id,
@@ -112,12 +111,119 @@ async function insertPassForAccessRequest(client, ar, approvedByStaffId = null) 
       subjectVehicleId,
       ar.target_zone_id || null,
       ar.target_point_id || null,
+      ar.policy_id || null,
       ar.starts_at,
       ar.ends_at,
       approvedByStaffId,
     ],
   );
   return rows[0];
+}
+
+function getRequestPolicyContext(input, creator) {
+  const { subjectType } = getPassSubject({
+    requestType: input.request_type,
+    vehicleId: input.vehicle_id,
+    contractorUserId: creator.created_by_contractor_user_id,
+  });
+  return {
+    subjectType,
+    passType: REQUEST_TO_PASS_TYPE[input.request_type],
+    accessMethod: input.vehicle_id || input.request_type === 'vehicle_access' ? 'plate' : 'qr',
+  };
+}
+
+async function loadPolicyVehicle(queryable, { propertyId, vehicleId }) {
+  if (!vehicleId) return null;
+  const { rows } = await queryable.query(
+    `SELECT id, property_id, owner_type, vehicle_type, is_whitelisted, is_blacklisted
+       FROM vehicles
+      WHERE id = $1 AND property_id = $2`,
+    [vehicleId, propertyId],
+  );
+  if (!rows[0]) throw serviceError(404, 'Vehicle not found');
+  return rows[0];
+}
+
+async function evaluateAccessRequestPolicy({ queryable, property, input, creator }) {
+  const policyContext = getRequestPolicyContext(input, creator);
+  const vehicle = await loadPolicyVehicle(queryable, {
+    propertyId: input.property_id,
+    vehicleId: input.vehicle_id || null,
+  });
+  const policyDecision = await evaluateAccessPolicy({
+    queryable,
+    propertyId: input.property_id,
+    subjectType: policyContext.subjectType,
+    passType: policyContext.passType,
+    accessMethod: policyContext.accessMethod,
+    zoneId: input.target_zone_id || null,
+    pointId: input.target_point_id || null,
+    vehicle,
+    now: input.starts_at ? new Date(input.starts_at) : new Date(),
+  });
+
+  if (policyDecision.decision === 'deny' || policyDecision.decision === 'incident_required') {
+    throw serviceError(422, `Access request violates policy: ${policyDecision.reason}`);
+  }
+
+  return {
+    policyDecision,
+    approvalRequired: shouldRequireManualApproval({ property, policyDecision }),
+  };
+}
+
+const LINKED_SERVICE_REQUEST_TYPES = new Set(['contractor_access', 'service_access']);
+const LINKED_REQUEST_TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'rejected', 'expired']);
+
+function validateLinkedServiceRequestRow({ linkedRequest, input, creator }) {
+  if (LINKED_REQUEST_TERMINAL_STATUSES.has(linkedRequest.status)) {
+    throw serviceError(409, `Linked service request is already ${linkedRequest.status}`);
+  }
+  if (creator.created_by_contractor_user_id
+    && linkedRequest.assigned_contractor_user_id
+    && String(linkedRequest.assigned_contractor_user_id) !== String(creator.created_by_contractor_user_id)) {
+    throw serviceError(403, 'Linked service request is assigned to another contractor');
+  }
+  if (linkedRequest.resolution_due_at && new Date(input.ends_at) > new Date(linkedRequest.resolution_due_at)) {
+    throw serviceError(422, 'Access window cannot outlive linked service request resolution_due_at');
+  }
+}
+
+async function validateLinkedServiceRequest(queryable, { input, creator }) {
+  const requestId = input.request_id || null;
+  if (!requestId) {
+    if (LINKED_SERVICE_REQUEST_TYPES.has(input.request_type)) {
+      throw serviceError(422, `${input.request_type} requires linked request_id`);
+    }
+    return;
+  }
+  const { rows } = await queryable.query(
+    `SELECT id, status, assigned_contractor_user_id, resolution_due_at
+       FROM requests
+      WHERE id = $1
+        AND deleted_at IS NULL`,
+    [requestId],
+  );
+  const linkedRequest = rows[0];
+  if (!linkedRequest) throw serviceError(404, 'Linked service request not found');
+  validateLinkedServiceRequestRow({ linkedRequest, input, creator });
+}
+
+async function validateExistingLinkedServiceRequest(queryable, { accessRequestId, input, creator }) {
+  if (!LINKED_SERVICE_REQUEST_TYPES.has(input.request_type)) return;
+  const { rows } = await queryable.query(
+    `SELECT r.id, r.status, r.assigned_contractor_user_id, r.resolution_due_at
+       FROM request_access_links ral
+       JOIN requests r ON r.id = ral.request_id
+      WHERE ral.access_request_id = $1
+        AND r.deleted_at IS NULL
+      ORDER BY ral.created_at DESC
+      LIMIT 1`,
+    [accessRequestId],
+  );
+  if (!rows[0]) throw serviceError(409, `${input.request_type} requires linked service request`);
+  validateLinkedServiceRequestRow({ linkedRequest: rows[0], input, creator });
 }
 
 async function resolveCreator({ queryable, user }) {
@@ -160,11 +266,12 @@ async function createAccessRequest({
   input,
 }) {
   const creator = await resolveCreator({ queryable, user });
-  const approvalRequired = shouldRequireManualApproval({
+  await validateLinkedServiceRequest(queryable, { input, creator });
+  const { policyDecision, approvalRequired } = await evaluateAccessRequestPolicy({
+    queryable,
     property,
-    requestType: input.request_type,
-    startsAt: input.starts_at,
-    endsAt: input.ends_at,
+    input,
+    creator,
   });
   const initialStatus = approvalRequired ? 'pending_approval' : 'approved';
   const approvedAt = approvalRequired ? null : new Date().toISOString();
@@ -192,6 +299,15 @@ async function createAccessRequest({
       ],
     );
     accessRequest = rows[0];
+    accessRequest.policy_id = policyDecision.matched_policy_id || null;
+    if (input.request_id) {
+      await client.query(
+        `INSERT INTO request_access_links (request_id, access_request_id)
+         VALUES ($1, $2)
+         ON CONFLICT (request_id, access_request_id) DO NOTHING`,
+        [input.request_id, accessRequest.id],
+      );
+    }
     if (!approvalRequired) {
       pass = await insertPassForAccessRequest(client, accessRequest);
     }
@@ -212,7 +328,42 @@ async function requireStaffId(client, user) {
   return staffId;
 }
 
-async function approveAccessRequest({ txPool, user, accessRequestId, comment }) {
+function assertExpectedStatus(currentStatus, expectedCurrentStatus) {
+  if (!expectedCurrentStatus) return;
+  if (currentStatus !== expectedCurrentStatus) {
+    throw serviceError(409, 'Access request status changed', {
+      currentStatus,
+      expectedCurrentStatus,
+    });
+  }
+}
+
+async function enqueueAccessEvent(client, {
+  propertyId,
+  eventType,
+  correlationId,
+  payload,
+}) {
+  await client.query(
+    `INSERT INTO notifications_outbox
+       (property_id, event_type, channel, recipient_type, payload, correlation_id)
+     VALUES ($1, $2, 'webhook', 'external', $3, $4)`,
+    [
+      propertyId,
+      eventType,
+      JSON.stringify(payload || {}),
+      correlationId || null,
+    ],
+  );
+}
+
+async function approveAccessRequest({
+  txPool,
+  user,
+  accessRequestId,
+  comment,
+  expectedCurrentStatus = null,
+}) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
@@ -226,7 +377,33 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
     );
     if (!arRows[0]) throw serviceError(404, 'Access request not found');
     const ar = arRows[0];
+    assertExpectedStatus(ar.status, expectedCurrentStatus);
     assertAccessRequestAction(ar.status, 'approve');
+    await validateExistingLinkedServiceRequest(client, {
+      accessRequestId: ar.id,
+      input: {
+        request_type: ar.request_type,
+        ends_at: ar.ends_at,
+      },
+      creator: {
+        created_by_contractor_user_id: ar.created_by_contractor_user_id,
+      },
+    });
+    const { policyDecision } = await evaluateAccessRequestPolicy({
+      queryable: client,
+      property: null,
+      input: {
+        property_id: ar.property_id,
+        request_type: ar.request_type,
+        vehicle_id: ar.vehicle_id,
+        target_zone_id: ar.target_zone_id,
+        target_point_id: ar.target_point_id,
+        starts_at: ar.starts_at,
+      },
+      creator: {
+        created_by_contractor_user_id: ar.created_by_contractor_user_id,
+      },
+    });
 
     await client.query(
       `INSERT INTO access_approvals
@@ -242,7 +419,22 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
       [ar.id],
     );
 
-    const pass = await insertPassForAccessRequest(client, ar, staffId);
+    const pass = await insertPassForAccessRequest(
+      client,
+      { ...ar, policy_id: policyDecision.matched_policy_id || null },
+      staffId,
+    );
+    await enqueueAccessEvent(client, {
+      propertyId: ar.property_id,
+      eventType: 'access.request.approved',
+      correlationId: ar.id,
+      payload: {
+        access_request_id: ar.id,
+        pass_id: pass.id,
+        previous_status: ar.status,
+        status: 'approved',
+      },
+    });
     await client.query('COMMIT');
     return { access_request: updatedArRows[0], pass };
   } catch (err) {
@@ -253,7 +445,7 @@ async function approveAccessRequest({ txPool, user, accessRequestId, comment }) 
   }
 }
 
-async function submitAccessRequest({ txPool, accessRequestId }) {
+async function submitAccessRequest({ txPool, accessRequestId, expectedCurrentStatus = null }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
@@ -262,6 +454,7 @@ async function submitAccessRequest({ txPool, accessRequestId }) {
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
+    assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
     if (curRows[0].status !== 'new') {
       throw serviceError(409, `Cannot submit from status '${curRows[0].status}'`);
     }
@@ -282,7 +475,13 @@ async function submitAccessRequest({ txPool, accessRequestId }) {
   }
 }
 
-async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
+async function rejectAccessRequest({
+  txPool,
+  user,
+  accessRequestId,
+  comment,
+  expectedCurrentStatus = null,
+}) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
@@ -292,6 +491,7 @@ async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
+    assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
     assertAccessRequestAction(curRows[0].status, 'reject');
 
     await client.query(
@@ -306,6 +506,16 @@ async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
         WHERE id = $1 RETURNING ${AR_COLS}`,
       [accessRequestId],
     );
+    await enqueueAccessEvent(client, {
+      propertyId: rows[0].property_id,
+      eventType: 'access.request.rejected',
+      correlationId: accessRequestId,
+      payload: {
+        access_request_id: accessRequestId,
+        previous_status: curRows[0].status,
+        status: 'rejected',
+      },
+    });
     await client.query('COMMIT');
     return { access_request: rows[0] };
   } catch (err) {
@@ -316,7 +526,13 @@ async function rejectAccessRequest({ txPool, user, accessRequestId, comment }) {
   }
 }
 
-async function cancelAccessRequest({ txPool, user, accessRequestId, isPropertyAdmin }) {
+async function cancelAccessRequest({
+  txPool,
+  user,
+  accessRequestId,
+  isPropertyAdmin,
+  expectedCurrentStatus = null,
+}) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
@@ -326,6 +542,7 @@ async function cancelAccessRequest({ txPool, user, accessRequestId, isPropertyAd
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
+    assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
     if (!isPropertyAdmin) {
       if (isContractorRole(user?.role)) {
         const contractorUserId = await resolveContractorUserIdByUid(client, user.uid);
@@ -346,6 +563,16 @@ async function cancelAccessRequest({ txPool, user, accessRequestId, isPropertyAd
         WHERE id = $1 RETURNING ${AR_COLS}`,
       [accessRequestId],
     );
+    await enqueueAccessEvent(client, {
+      propertyId: rows[0].property_id,
+      eventType: 'access.request.cancelled',
+      correlationId: accessRequestId,
+      payload: {
+        access_request_id: accessRequestId,
+        previous_status: curRows[0].status,
+        status: 'cancelled',
+      },
+    });
     await client.query('COMMIT');
     return { access_request: rows[0] };
   } catch (err) {
@@ -356,7 +583,13 @@ async function cancelAccessRequest({ txPool, user, accessRequestId, isPropertyAd
   }
 }
 
-async function escalateAccessRequest({ txPool, user, accessRequestId, comment }) {
+async function escalateAccessRequest({
+  txPool,
+  user,
+  accessRequestId,
+  comment,
+  expectedCurrentStatus = null,
+}) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
@@ -366,6 +599,7 @@ async function escalateAccessRequest({ txPool, user, accessRequestId, comment })
       [accessRequestId],
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
+    assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
     assertAccessRequestAction(curRows[0].status, 'escalate');
 
     await client.query(
@@ -380,6 +614,16 @@ async function escalateAccessRequest({ txPool, user, accessRequestId, comment })
         WHERE id = $1 RETURNING ${AR_COLS}`,
       [accessRequestId],
     );
+    await enqueueAccessEvent(client, {
+      propertyId: rows[0].property_id,
+      eventType: 'access.request.escalated',
+      correlationId: accessRequestId,
+      payload: {
+        access_request_id: accessRequestId,
+        previous_status: curRows[0].status,
+        status: 'escalated',
+      },
+    });
     await client.query('COMMIT');
     return { access_request: rows[0] };
   } catch (err) {

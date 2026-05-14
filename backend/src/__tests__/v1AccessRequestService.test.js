@@ -2,6 +2,7 @@
 
 const {
   approveAccessRequest,
+  createAccessRequest,
   escalateAccessRequest,
   shouldRequireManualApproval,
 } = require('../v1/services/accessRequestService');
@@ -11,6 +12,32 @@ const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
+const UUID_POLICY = '99999999-9999-4999-8999-999999999999';
+
+function allowPolicy(overrides = {}) {
+  return {
+    id: UUID_POLICY,
+    property_id: UUID_PROPERTY,
+    name: 'Guest allow',
+    subject_type: 'guest',
+    subject_role: null,
+    zone_id: null,
+    point_id: null,
+    access_method: 'qr',
+    approval_mode: 'auto',
+    effect: 'allow',
+    priority: 100,
+    schedule_json: null,
+    duration_minutes: null,
+    is_recurring: false,
+    is_active: true,
+    created_by: null,
+    metadata: {},
+    created_at: '2026-05-05T08:00:00.000Z',
+    updated_at: '2026-05-05T08:00:00.000Z',
+    ...overrides,
+  };
+}
 
 function makeTxClient(handler) {
   return {
@@ -35,28 +62,56 @@ describe('AccessRequestService approval policy', () => {
     })).toBe(true);
   });
 
-  test('guest/courier/contractor requests up to 24h auto-issue when manual review is off', () => {
-    for (const requestType of ['guest_access', 'courier_access', 'contractor_access']) {
-      expect(shouldRequireManualApproval({
-        property: { feature_flags: { manual_access_approval: false } },
-        requestType,
-        startsAt: '2026-05-05T10:00:00.000Z',
-        endsAt: '2026-05-06T09:59:00.000Z',
-      })).toBe(false);
-    }
-  });
-
-  test('long windows still require manual review', () => {
+  test('policy allow can auto-issue when manual review is off', () => {
     expect(shouldRequireManualApproval({
       property: { feature_flags: { manual_access_approval: false } },
-      requestType: 'guest_access',
-      startsAt: '2026-05-05T10:00:00.000Z',
-      endsAt: '2026-05-06T10:01:00.000Z',
+      policyDecision: { decision: 'allow' },
+    })).toBe(false);
+  });
+
+  test('missing policy decision requires manual review', () => {
+    expect(shouldRequireManualApproval({
+      property: { feature_flags: { manual_access_approval: false } },
     })).toBe(true);
   });
 });
 
 describe('AccessRequestService state transitions', () => {
+  test('service and contractor access require a linked service request', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+    const txPool = { connect: jest.fn() };
+
+    await expect(createAccessRequest({
+      queryable,
+      txPool,
+      property: { feature_flags: { manual_access_approval: false } },
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        request_type: 'service_access',
+        visitor_name: null,
+        visitor_phone: null,
+        vehicle_id: null,
+        target_unit_id: null,
+        target_zone_id: UUID_ZONE,
+        target_point_id: UUID_POINT,
+        request_id: null,
+        reason: 'repair work',
+        starts_at: '2026-05-05T10:00:00.000Z',
+        ends_at: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 422,
+      message: 'service_access requires linked request_id',
+    });
+    expect(txPool.connect).not.toHaveBeenCalled();
+  });
+
   test('approve rejects terminal states without writing pass', async () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
@@ -75,6 +130,45 @@ describe('AccessRequestService state transitions', () => {
     })).rejects.toMatchObject({
       status: 409,
       message: "Cannot approve from status 'rejected'",
+    });
+
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+    expect(txClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  test('approve rejects service access when linked service request is missing', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_REQUEST,
+            property_id: UUID_PROPERTY,
+            request_type: 'service_access',
+            vehicle_id: null,
+            created_by_contractor_user_id: null,
+            target_zone_id: UUID_ZONE,
+            target_point_id: UUID_POINT,
+            starts_at: '2026-05-05T10:00:00.000Z',
+            ends_at: '2026-05-05T12:00:00.000Z',
+            status: 'pending_approval',
+          }],
+        });
+      }
+      if (sql.includes('FROM request_access_links')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(approveAccessRequest({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      accessRequestId: UUID_REQUEST,
+      comment: 'ok',
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'service_access requires linked service request',
     });
 
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
@@ -130,9 +224,11 @@ describe('AccessRequestService state transitions', () => {
       if (sql.includes('UPDATE access_requests')) {
         return Promise.resolve({ rows: [{ id: UUID_REQUEST, status: 'approved' }] });
       }
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
       if (sql.includes('INSERT INTO passes')) {
         return Promise.resolve({ rows: [{ id: '66666666-6666-4666-8666-666666666666', status: 'active' }] });
       }
+      if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
@@ -152,5 +248,42 @@ describe('AccessRequestService state transitions', () => {
     const passCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO passes'));
     expect(passCall[1][6]).toBe(UUID_ZONE);
     expect(passCall[1][7]).toBe(UUID_POINT);
+    expect(passCall[1][8]).toBe(UUID_POLICY);
+  });
+
+  test('approve returns structured conflict when expected status is stale', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_REQUEST,
+            property_id: UUID_PROPERTY,
+            request_type: 'guest_access',
+            vehicle_id: null,
+            target_zone_id: UUID_ZONE,
+            target_point_id: UUID_POINT,
+            starts_at: '2026-05-05T10:00:00.000Z',
+            ends_at: '2026-05-05T12:00:00.000Z',
+            status: 'approved',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(approveAccessRequest({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      accessRequestId: UUID_REQUEST,
+      expectedCurrentStatus: 'pending_approval',
+    })).rejects.toMatchObject({
+      status: 409,
+      details: {
+        currentStatus: 'approved',
+        expectedCurrentStatus: 'pending_approval',
+      },
+    });
   });
 });

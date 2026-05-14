@@ -19,6 +19,7 @@
 const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
+const { broadcastAccessEvent } = require('../../sse');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { can, canInPropertyScope } = require('../lib/authz');
@@ -97,14 +98,34 @@ function canBlockPassScope(req, propertyId) {
   return canInPropertyScope(req, 'access.pass.block', propertyId);
 }
 
-function auditLog(req, { action, resourceType, resourceId, changes }) {
+function actorTypeForRole(role) {
+  if (role === 'contractor') return 'contractor';
+  if (role === 'owner' || role === 'tenant' || role === 'resident') return 'resident';
+  if (role === 'system') return 'system';
+  return 'staff';
+}
+
+function auditLog(req, {
+  propertyId,
+  action,
+  resourceType,
+  resourceId,
+  changes,
+  entityType = resourceType,
+  entityId = resourceId,
+}) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
+      propertyId,
       req.user?.uid || null,
       req.user?.role || null,
+      actorTypeForRole(req.user?.role),
+      entityType,
+      entityId,
       action,
       resourceType,
       resourceId,
@@ -125,6 +146,10 @@ function sendKnownError(res, err) {
   if (!isAccessTopologyServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
   return true;
+}
+
+function emitAccessEvent(req, payload) {
+  broadcastAccessEvent(payload, { propertySlug: req.propertySlug });
 }
 
 // Validation helper: ensures subject_type/subject_*_id pair is consistent before
@@ -282,6 +307,7 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
       passId: req.params.id,
     });
     auditLog(req, {
+      propertyId: result.pass.property_id,
       action: 'pass.qr_regenerated',
       resourceType: 'pass',
       resourceId: result.pass.id,
@@ -364,6 +390,7 @@ router.post('/', idempotency, async (req, res, next) => {
       },
     });
     auditLog(req, {
+      propertyId: result.pass.property_id,
       action: 'pass.created',
       resourceType: 'pass',
       resourceId: result.pass.id,
@@ -396,10 +423,17 @@ router.post('/:id/revoke', async (req, res, next) => {
       reason,
     });
     auditLog(req, {
+      propertyId: result.pass.property_id,
       action: 'pass.revoked',
       resourceType: 'pass',
       resourceId: req.params.id,
       changes: { reason },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.pass.revoked',
+      property_id: result.pass.property_id,
+      pass_id: req.params.id,
+      status: result.pass.status,
     });
     res.json({ pass: result.pass });
   } catch (err) {
@@ -420,12 +454,19 @@ router.post('/:id/block', async (req, res, next) => {
     const propertyId = await loadPassProperty(req, req.params.id);
     if (!canBlockPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
-    const result = await blockPass({ queryable: getDb(req), passId: req.params.id });
+    const result = await blockPass({ queryable: getDb(req), passId: req.params.id, reason });
     auditLog(req, {
+      propertyId: result.pass.property_id,
       action: 'pass.blocked',
       resourceType: 'pass',
       resourceId: req.params.id,
       changes: { reason },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.pass.blocked',
+      property_id: result.pass.property_id,
+      pass_id: req.params.id,
+      status: result.pass.status,
     });
     res.json({ pass: result.pass });
   } catch (err) {
@@ -442,13 +483,32 @@ router.post('/:id/unblock', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const propertyId = await loadPassProperty(req, req.params.id);
     if (!canBlockPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    const policyId = typeof req.body?.policy_id === 'string' ? req.body.policy_id : null;
+    const overrideId = typeof req.body?.override_id === 'string' ? req.body.override_id : null;
+    if (policyId !== null && !isValidUuid(policyId)) return res.status(400).json({ error: 'policy_id must be UUID' });
+    if (overrideId !== null && !isValidUuid(overrideId)) return res.status(400).json({ error: 'override_id must be UUID' });
 
-    const result = await unblockPass({ queryable: getDb(req), passId: req.params.id });
+    const result = await unblockPass({
+      queryable: getDb(req),
+      passId: req.params.id,
+      reason,
+      policyId,
+      overrideId,
+    });
     auditLog(req, {
+      propertyId: result.pass.property_id,
       action: 'pass.unblocked',
       resourceType: 'pass',
       resourceId: req.params.id,
-      changes: null,
+      changes: { reason, policy_id: policyId, override_id: overrideId },
+    });
+    emitAccessEvent(req, {
+      event_type: 'access.pass.unblocked',
+      property_id: result.pass.property_id,
+      pass_id: req.params.id,
+      status: result.pass.status,
     });
     res.json({ pass: result.pass });
   } catch (err) {

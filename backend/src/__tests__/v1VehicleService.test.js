@@ -100,6 +100,7 @@ describe('VehicleService mutations', () => {
       if (sql.includes('UPDATE vehicles')) {
         return Promise.resolve({ rows: [{ id: UUID_VEHICLE, is_whitelisted: true, is_blacklisted: false }] });
       }
+      if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
@@ -107,7 +108,13 @@ describe('VehicleService mutations', () => {
     expect(queryable.query.mock.calls[0][1]).toEqual([UUID_VEHICLE, true, false]);
 
     queryable.query.mockClear();
-    queryable.query.mockResolvedValueOnce({ rows: [{ id: UUID_VEHICLE, is_whitelisted: false, is_blacklisted: true }] });
+    queryable.query.mockImplementation((sql) => {
+      if (sql.includes('UPDATE vehicles')) {
+        return Promise.resolve({ rows: [{ id: UUID_VEHICLE, is_whitelisted: false, is_blacklisted: true }] });
+      }
+      if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
     await blacklistVehicle({ queryable, vehicleId: UUID_VEHICLE });
     expect(queryable.query.mock.calls[0][1]).toEqual([UUID_VEHICLE, false, true]);
   });

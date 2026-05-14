@@ -286,7 +286,7 @@ async function verifyPass({
              OR (vehicle_plate = $3 AND $3 IS NOT NULL))`,
       [cutoff, pass?.id || null, normalizedPlate || null, eventTypeFor(direction, false)],
     );
-    if (rows[0].n >= SUSPICIOUS_REPEAT_THRESHOLD) {
+    if ((rows[0]?.n || 0) >= SUSPICIOUS_REPEAT_THRESHOLD) {
       verdict.incident_type = 'suspicious_repeat_attempt';
       verdict.severity = 'high';
     }

@@ -42,6 +42,7 @@ const EVENT_TYPES = new Set([
   'entry_allowed', 'entry_denied', 'exit_allowed', 'exit_denied',
   'manual_admit', 'manual_deny', 'override',
 ]);
+const MANUAL_EVENT_TYPES = new Set(['manual_admit', 'manual_deny']);
 const EVENT_SOURCES = new Set(['domhub', 'skud', 'guard_console', 'import']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
@@ -60,17 +61,14 @@ function sendKnownError(res, err) {
   return true;
 }
 
-// ─── POST /api/v1/visits/verify ──────────────────────────────────────────────
-// Главный endpoint guard-console.  Возвращает 200 OK { allowed } вне
-// зависимости от verdict'а — deny это валидный бизнес-ответ.
-router.post('/verify', async (req, res, next) => {
+async function sendVerify(req, res, next, defaults = {}) {
   try {
     if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const {
       property_id,
-      mode,
+      mode = defaults.mode,
       token = null,
       plate = null,
       access_point_id = null,
@@ -114,11 +112,25 @@ router.post('/verify', async (req, res, next) => {
     logger.error({ err }, '[v1/visits] verify failed');
     next(err);
   }
+}
+
+// ─── POST /api/v1/visits/verify ──────────────────────────────────────────────
+// Главный endpoint guard-console.  Возвращает 200 OK { allowed } вне
+// зависимости от verdict'а — deny это валидный бизнес-ответ.
+router.post('/verify', async (req, res, next) => {
+  await sendVerify(req, res, next);
+});
+
+// Contract alias for POST /api/v1/guard/scan-pass when this router is mounted
+// at /api/v1/guard.
+router.post('/scan-pass', async (req, res, next) => {
+  await sendVerify(req, res, next, { mode: 'qr' });
 });
 
 // ─── POST /api/v1/visits ─────────────────────────────────────────────────────
-// Прямой INSERT события — для internal services, import, manual admit без
-// цикла verify-pass.  Обычные guard-console сканы идут через /verify.
+// Прямой INSERT события — только для provider/import/system logs.
+// Manual admit/deny must go through createManualSecurityDecision so override,
+// incident, degraded reconciliation, and sensitive audit rows are atomic.
 router.post('/', async (req, res, next) => {
   try {
     if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
@@ -133,6 +145,11 @@ router.post('/', async (req, res, next) => {
 
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
     if (!EVENT_TYPES.has(event_type)) return res.status(400).json({ error: 'Invalid event_type' });
+    if (MANUAL_EVENT_TYPES.has(event_type)) {
+      return res.status(422).json({
+        error: 'manual_admit/manual_deny must use the manual security decision endpoint',
+      });
+    }
     if (!EVENT_SOURCES.has(event_source)) return res.status(400).json({ error: 'Invalid event_source' });
     if (pass_id && !isValidUuid(pass_id)) return res.status(400).json({ error: 'pass_id must be UUID or null' });
     if (access_point_id !== null && !isValidUuid(access_point_id)) {

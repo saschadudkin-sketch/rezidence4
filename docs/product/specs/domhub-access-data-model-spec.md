@@ -425,11 +425,16 @@ Enum `vehicle_type`:
 
 Enum `zone_type`:
 - `perimeter`
+- `checkpoint`
 - `residential_entry`
 - `parking`
+- `guest_parking`
+- `resident_parking`
 - `public_area`
 - `technical_area`
 - `service_area`
+- `street`
+- `sector`
 
 ### `access_points`
 

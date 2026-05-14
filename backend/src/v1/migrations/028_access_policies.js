@@ -30,7 +30,7 @@ module.exports = {
         subject_type        VARCHAR(30) NOT NULL
                             CHECK (subject_type IN (
                               'resident','guest','staff','contractor',
-                              'contractor_user','vehicle','courier'
+                              'vehicle','courier'
                             )),
         subject_role        VARCHAR(30),
         zone_id             UUID,

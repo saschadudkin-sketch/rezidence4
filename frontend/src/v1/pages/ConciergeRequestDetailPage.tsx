@@ -147,31 +147,57 @@ export function ConciergeRequestDetailPage({
 
   const runAction = useCallback(async () => {
     if (!pendingAction) return;
+    if (state.kind !== 'ready') return;
     setActionError(null);
     if (pendingAction === 'reject' && !actionComment.trim()) {
       setActionError('Укажите причину отклонения');
       return;
     }
     setActionSubmitting(true);
+    const expectedCurrentStatus = state.data.request.status;
     try {
       if (pendingAction === 'approve') {
-        await api.accessRequests.approve(requestId, actionComment.trim() || undefined);
+        await api.accessRequests.approve(
+          requestId,
+          actionComment.trim() || undefined,
+          { expectedCurrentStatus },
+        );
       } else if (pendingAction === 'reject') {
-        await api.accessRequests.reject(requestId, actionComment.trim());
+        await api.accessRequests.reject(
+          requestId,
+          actionComment.trim(),
+          { expectedCurrentStatus },
+        );
       } else if (pendingAction === 'escalate') {
-        await api.accessRequests.escalate(requestId, actionComment.trim() || undefined);
+        await api.accessRequests.escalate(
+          requestId,
+          actionComment.trim() || undefined,
+          { expectedCurrentStatus },
+        );
       }
       setPendingAction(null);
       setActionComment('');
       setRefreshToken((t) => t + 1);
     } catch (err) {
+      if (isV1ApiError(err) && err.kind === 'conflict') {
+        const current = typeof err.payload?.currentStatus === 'string'
+          ? err.payload.currentStatus
+          : null;
+        setActionError(
+          current
+            ? `Статус уже изменился: ${current}. Обновляем заявку.`
+            : 'Статус заявки уже изменился. Обновляем данные.',
+        );
+        setRefreshToken((t) => t + 1);
+        return;
+      }
       setActionError(
         isV1ApiError(err) ? err.message : 'Не удалось применить действие',
       );
     } finally {
       setActionSubmitting(false);
     }
-  }, [pendingAction, actionComment, requestId]);
+  }, [pendingAction, state, actionComment, requestId]);
 
   const handlePassRevoked = useCallback((updated: Pass) => {
     setState((prev) => {

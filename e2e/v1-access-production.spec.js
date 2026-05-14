@@ -218,7 +218,7 @@ test.describe('platform-v1 access production e2e', () => {
       await expect(admin.page.getByRole('heading', { name: 'Онбординг объекта' })).toBeVisible();
       await expect(admin.page.getByText('Импорт домов/участков')).toBeVisible();
 
-      const meResponse = await admin.page.request.get('/api/auth/me');
+      const meResponse = await admin.page.request.get('/api/v1/auth/me');
       expect(meResponse.status()).toBe(200);
       const me = await meResponse.json();
       const propertyId = me.user.property_id;

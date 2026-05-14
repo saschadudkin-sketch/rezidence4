@@ -27,6 +27,9 @@ const {
   loadResourcePropertyId,
 } = require('../services/resourceScope');
 const {
+  resolveStaffIdByUid,
+} = require('../services/accessActorResolver');
+const {
   INCIDENT_COLS,
   OVERRIDE_COLS,
   assignIncident,
@@ -35,6 +38,7 @@ const {
   dismissIncident,
   isAccessIncidentServiceError,
   patchIncident,
+  reopenIncident,
   resolveIncident,
 } = require('../services/accessIncidentService');
 
@@ -106,15 +110,26 @@ function canCreateOverride(req, propertyId) {
   return canInPropertyScope(req, 'access.override.create', propertyId);
 }
 
-function auditLog(req, { propertyId = null, action, resourceType, resourceId, changes }) {
+function auditLog(req, {
+  propertyId = null,
+  action,
+  resourceType,
+  resourceId,
+  changes,
+  entityType = resourceType,
+  entityId = resourceId,
+}) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (property_id, actor_uid, actor_role, actor_type, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, 'staff', $4, $5, $6, $7, $8)`,
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, 'staff', $4, $5, $6, $7, $8, $9, $10)`,
     [
       propertyId,
       req.user?.uid || null,
       req.user?.role || null,
+      entityType,
+      entityId,
       action,
       resourceType,
       resourceId,
@@ -383,6 +398,145 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
       resourceType: 'access_incident',
       resourceId: req.params.id,
       changes: { reason },
+    });
+    res.json({ incident: result.incident });
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+// Contract endpoint: POST /api/v1/access-incidents/:id/status.
+router.post('/access-incidents/:id/status', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const status = req.body?.status;
+    if (!INCIDENT_STATUSES.has(status)) return res.status(400).json({ error: 'Invalid status' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!canResolveIncident(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    if (status === 'resolved') {
+      const reason = typeof req.body?.reason === 'string'
+        ? req.body.reason.trim()
+        : typeof req.body?.comment === 'string'
+          ? req.body.comment.trim()
+          : '';
+      if (!reason) return res.status(400).json({ error: 'reason is required' });
+      const result = await resolveIncident({
+        txPool: getTxPool(req),
+        user: req.user,
+        incidentId: req.params.id,
+        reason,
+        overrideInput: null,
+        isPropertyAdmin: isPropertyAdmin(req, propertyId),
+      });
+      auditLog(req, {
+        propertyId: result.incident.property_id,
+        action: 'incident.resolved',
+        resourceType: 'access_incident',
+        resourceId: req.params.id,
+        changes: { reason },
+      });
+      return res.json({ incident: result.incident });
+    }
+
+    if (status === 'dismissed') {
+      const reason = typeof req.body?.reason === 'string'
+        ? req.body.reason.trim()
+        : typeof req.body?.comment === 'string'
+          ? req.body.comment.trim()
+          : '';
+      if (!reason) return res.status(400).json({ error: 'reason is required' });
+      const result = await dismissIncident({
+        queryable: getDb(req),
+        user: req.user,
+        incidentId: req.params.id,
+        reason,
+        isPropertyAdmin: isPropertyAdmin(req, propertyId),
+      });
+      auditLog(req, {
+        propertyId: result.incident.property_id,
+        action: 'incident.dismissed',
+        resourceType: 'access_incident',
+        resourceId: req.params.id,
+        changes: { reason },
+      });
+      return res.json({ incident: result.incident });
+    }
+
+    if (status === 'investigating') {
+      const reason = typeof req.body?.reason === 'string'
+        ? req.body.reason.trim()
+        : typeof req.body?.comment === 'string'
+          ? req.body.comment.trim()
+          : '';
+      if (!reason) return res.status(400).json({ error: 'reason is required' });
+      if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+      const assignee = req.body?.assigned_to_staff_id || await resolveStaffIdByUid(getDb(req), req.user?.uid);
+      if (!assignee || !isValidUuid(assignee)) return res.status(400).json({ error: 'assigned_to_staff_id required' });
+      let result;
+      try {
+        result = await reopenIncident({
+          queryable: getDb(req),
+          user: req.user,
+          incidentId: req.params.id,
+          assignee,
+          reason,
+        });
+      } catch (err) {
+        if (!isAccessIncidentServiceError(err) || !String(err.message).includes('Cannot reopen')) throw err;
+        result = await assignIncident({
+          queryable: getDb(req),
+          incidentId: req.params.id,
+          assignee,
+        });
+      }
+      auditLog(req, {
+        propertyId: result.incident.property_id,
+        action: 'incident.reopened',
+        resourceType: 'access_incident',
+        resourceId: req.params.id,
+        changes: { assigned_to_staff_id: assignee, status, reason },
+      });
+      return res.json({ incident: result.incident });
+    }
+
+    if (status === 'open') {
+      return res.status(409).json({ error: 'Cannot transition incident to open' });
+    }
+
+    return res.status(409).json({ error: `Cannot transition incident to ${status}` });
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+// Explicit admin-only reopen alias.
+router.post('/access-incidents/:id/reopen', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
+    if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    if (!reason) return res.status(400).json({ error: 'reason is required' });
+    const assignee = req.body?.assigned_to_staff_id || await resolveStaffIdByUid(getDb(req), req.user?.uid);
+    if (!assignee || !isValidUuid(assignee)) return res.status(400).json({ error: 'assigned_to_staff_id required' });
+    const result = await reopenIncident({
+      queryable: getDb(req),
+      user: req.user,
+      incidentId: req.params.id,
+      assignee,
+      reason,
+    });
+    auditLog(req, {
+      propertyId: result.incident.property_id,
+      action: 'incident.reopened',
+      resourceType: 'access_incident',
+      resourceId: req.params.id,
+      changes: { assigned_to_staff_id: assignee, reason },
     });
     res.json({ incident: result.incident });
   } catch (err) {

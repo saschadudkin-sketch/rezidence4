@@ -36,6 +36,31 @@ function makePass(overrides = {}) {
   };
 }
 
+function allowPolicy(overrides = {}) {
+  return {
+    id: '88888888-8888-4888-8888-888888888888',
+    property_id: UUID_PROPERTY,
+    name: 'Allow access',
+    subject_type: 'guest',
+    subject_role: null,
+    zone_id: null,
+    point_id: null,
+    access_method: 'qr',
+    approval_mode: 'auto',
+    effect: 'allow',
+    priority: 10,
+    schedule_json: null,
+    duration_minutes: null,
+    is_recurring: true,
+    is_active: true,
+    created_by: null,
+    metadata: {},
+    created_at: '2026-05-05T08:00:00.000Z',
+    updated_at: '2026-05-05T08:00:00.000Z',
+    ...overrides,
+  };
+}
+
 function makeTxClient(handler) {
   return {
     query: jest.fn(handler),
@@ -70,7 +95,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     db.query.mockImplementation((sql) => {
       if (sql.includes('FROM qr_passes_v2')) return Promise.resolve({ rows: [makePass()] });
       if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
-      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
@@ -254,12 +279,16 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
         return Promise.resolve({ rows: [{
           id: UUID_VEHICLE,
           plate_number: 'A001AA77',
+          owner_type: 'resident',
+          vehicle_type: 'car',
           is_whitelisted: false,
           is_blacklisted: false,
         }] });
       }
       if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
-      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({ rows: [allowPolicy({ subject_type: 'vehicle', access_method: 'qr' })] });
+      }
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
@@ -288,13 +317,18 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     };
   }
 
-  function mockPlateQueries({ vehicle = makeVehicle(), pass = null, repeatCount = 0 } = {}) {
+  function mockPlateQueries({
+    vehicle = makeVehicle(),
+    pass = null,
+    repeatCount = 0,
+    policyRows = [allowPolicy({ subject_type: 'vehicle', access_method: 'plate' })],
+  } = {}) {
     db.query.mockImplementation((sql) => {
       if (sql.includes('FROM vehicles') && sql.includes('plate_number')) {
         return Promise.resolve({ rows: vehicle ? [vehicle] : [] });
       }
       if (sql.includes('FROM passes p')) return Promise.resolve({ rows: pass ? [pass] : [] });
-      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: policyRows });
       if (sql.includes('COUNT(*)::int AS n')) return Promise.resolve({ rows: [{ n: repeatCount }] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
@@ -390,7 +424,7 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
 
   test('known non-whitelisted vehicle without pass denies as unauthorized resident vehicle', async () => {
     const txClient = installTxClient();
-    mockPlateQueries({ vehicle: makeVehicle({ is_whitelisted: false }), pass: null });
+    mockPlateQueries({ vehicle: makeVehicle({ is_whitelisted: false }), pass: null, policyRows: [] });
 
     const result = await verifyPass({
       property_id: UUID_PROPERTY,

@@ -160,10 +160,20 @@ async function revokePass({ queryable, user, passId, reason }) {
      RETURNING ${PASS_COLS}`,
     [staffId, reason, passId],
   );
+  await queryable.query(
+    `INSERT INTO notifications_outbox
+       (property_id, event_type, channel, recipient_type, payload, correlation_id)
+     VALUES ($1, 'access.pass.revoked', 'webhook', 'external', $2, $3)`,
+    [
+      rows[0].property_id,
+      JSON.stringify({ pass_id: passId, reason }),
+      passId,
+    ],
+  );
   return { pass: rows[0] };
 }
 
-async function blockPass({ queryable, passId }) {
+async function blockPass({ queryable, passId, reason = null }) {
   const { rows: curRows } = await queryable.query(
     `SELECT status FROM passes WHERE id = $1`,
     [passId],
@@ -174,19 +184,65 @@ async function blockPass({ queryable, passId }) {
     `UPDATE passes SET status = 'blocked' WHERE id = $1 RETURNING ${PASS_COLS}`,
     [passId],
   );
+  await queryable.query(
+    `INSERT INTO notifications_outbox
+       (property_id, event_type, channel, recipient_type, payload, correlation_id)
+     VALUES ($1, 'access.pass.blocked', 'webhook', 'external', $2, $3)`,
+    [
+      rows[0].property_id,
+      JSON.stringify({ pass_id: passId, reason }),
+      passId,
+    ],
+  );
   return { pass: rows[0] };
 }
 
-async function unblockPass({ queryable, passId }) {
+async function policyAllowsUnblock(queryable, pass) {
+  if (!pass.policy_id) return false;
+  const { rows } = await queryable.query(
+    `SELECT metadata FROM access_policies WHERE id = $1 AND property_id = $2`,
+    [pass.policy_id, pass.property_id],
+  );
+  if (!rows[0]) return false;
+  const metadata = rows[0].metadata && typeof rows[0].metadata === 'object'
+    ? rows[0].metadata
+    : typeof rows[0].metadata === 'string'
+      ? JSON.parse(rows[0].metadata)
+      : {};
+  return metadata.allow_pass_unblock === true || metadata.allow_reactivation === true;
+}
+
+async function unblockPass({ queryable, passId, reason, policyId = null, overrideId = null }) {
   const { rows: curRows } = await queryable.query(
-    `SELECT status FROM passes WHERE id = $1`,
+    `SELECT id, property_id, status, policy_id FROM passes WHERE id = $1`,
     [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
-  assertPassAction(curRows[0].status, 'unblock');
+  const pass = curRows[0];
+  assertPassAction(pass.status, 'unblock');
+  if (!reason || !String(reason).trim()) throw serviceError(400, 'reason is required');
+  if (!policyId && !overrideId) {
+    throw serviceError(422, 'policy_id or override_id is required for unblock');
+  }
+  if (policyId && policyId !== pass.policy_id) {
+    throw serviceError(409, 'policy_id does not match pass policy');
+  }
+  if (!overrideId && !(await policyAllowsUnblock(queryable, pass))) {
+    throw serviceError(422, 'Pass policy does not allow reactivation');
+  }
   const { rows } = await queryable.query(
     `UPDATE passes SET status = 'active' WHERE id = $1 RETURNING ${PASS_COLS}`,
     [passId],
+  );
+  await queryable.query(
+    `INSERT INTO notifications_outbox
+       (property_id, event_type, channel, recipient_type, payload, correlation_id)
+     VALUES ($1, 'access.pass.unblocked', 'webhook', 'external', $2, $3)`,
+    [
+      rows[0].property_id,
+      JSON.stringify({ pass_id: passId, reason, policy_id: policyId, override_id: overrideId }),
+      passId,
+    ],
   );
   return { pass: rows[0] };
 }

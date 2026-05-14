@@ -63,7 +63,7 @@ describe('AccessPolicyService', () => {
     ]);
   });
 
-  test('allows existing verify behavior when no active policies exist', async () => {
+  test('denies by default when no active policies exist', async () => {
     const queryable = queryableWithPolicies([]);
 
     const result = await evaluateAccessPolicy({
@@ -74,7 +74,7 @@ describe('AccessPolicyService', () => {
       now: NOW,
     });
 
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
     expect(result.reason).toBe('no_active_policies');
     expect(queryable.query).toHaveBeenCalledTimes(1);
   });
@@ -206,7 +206,7 @@ describe('AccessPolicyService', () => {
       now: NOW,
     });
 
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
     expect(result.reason).toBe('no_matching_policy');
     expect(result.trace[0]).toMatchObject({ result: 'vehicle_context_mismatch' });
   });

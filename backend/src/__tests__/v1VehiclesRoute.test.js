@@ -75,6 +75,41 @@ describe('v1 vehicles route resource-scope checks', () => {
     expect(updateCall).toBeDefined();
   });
 
+  test('PATCH /vehicles/:id is canonical vehicle flag mutation and writes scoped audit', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY_A };
+    db.query.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('SELECT property_id FROM vehicles')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY_A }] });
+      }
+      if (s.includes('UPDATE vehicles')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VEHICLE,
+            property_id: UUID_PROPERTY_A,
+            plate_number: 'A001AA77',
+            is_whitelisted: false,
+            is_blacklisted: true,
+          }],
+        });
+      }
+      if (s.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
+      if (s.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .patch(`/api/v1/vehicles/${UUID_VEHICLE}`)
+      .send({ is_blacklisted: true, reason: 'manual guard decision' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.vehicle.is_blacklisted).toBe(true);
+    const auditCall = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO property_audit_log'));
+    expect(auditCall[0]).toContain('property_id');
+    expect(auditCall[0]).toContain('entity_type');
+    expect(auditCall[1][0]).toBe(UUID_PROPERTY_A);
+  });
+
   test('resident can list only their own vehicles for vehicle-access requests', async () => {
     mockCurrentUser = { uid: 'resident-1', role: 'owner', property_id: UUID_PROPERTY_A };
     db.query.mockImplementation((sql) => {

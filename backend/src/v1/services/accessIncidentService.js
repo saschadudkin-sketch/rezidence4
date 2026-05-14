@@ -20,7 +20,9 @@ const OVERRIDE_COLS = `
 const VISIT_LOG_COLS = `
   id, property_id, pass_id, access_point_id, event_type, event_source,
   person_label, vehicle_plate, performed_by_staff_id,
-  provider_event_id, provider_payload, offline_replay_event_id, occurred_at, created_at
+  provider_event_id, provider_payload, offline_replay_event_id,
+  degraded_mode, degraded_reconciliation_state, degraded_reconciled_at,
+  degraded_reconciliation_note, occurred_at, created_at
 `;
 
 class AccessIncidentServiceError extends Error {
@@ -81,6 +83,28 @@ async function assignIncident({ queryable, incidentId, assignee }) {
             status = CASE WHEN status = 'open' THEN 'investigating' ELSE status END
       WHERE id = $2 RETURNING ${INCIDENT_COLS}`,
     [assignee, incidentId],
+  );
+  return { incident: rows[0] };
+}
+
+async function reopenIncident({ queryable, user, incidentId, assignee, reason }) {
+  const staffId = await requireStaffId(queryable, user);
+  const { rows: curRows } = await queryable.query(
+    `SELECT status FROM access_incidents WHERE id = $1`,
+    [incidentId],
+  );
+  if (!curRows[0]) throw serviceError(404, 'Incident not found');
+  assertIncidentAction(curRows[0].status, 'reopen');
+  const { rows } = await queryable.query(
+    `UPDATE access_incidents
+        SET assigned_to_staff_id = $1,
+            status = 'investigating',
+            resolved_at = NULL,
+            description = COALESCE(description, '') ||
+                         CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
+                         '[reopened] ' || $2
+      WHERE id = $3 RETURNING ${INCIDENT_COLS}`,
+    [assignee || staffId, reason, incidentId],
   );
   return { incident: rows[0] };
 }
@@ -240,8 +264,9 @@ async function createManualSecurityDecision({ txPool, user, input }) {
       `INSERT INTO visit_logs_v2
          (property_id, pass_id, access_point_id, event_type, event_source,
           person_label, vehicle_plate, performed_by_staff_id,
-          provider_event_id, provider_payload, offline_replay_event_id, occurred_at)
-       VALUES ($1,$2,$3,$4,'guard_console',$5,$6,$7,NULL,$8,$9,$10)
+          provider_event_id, provider_payload, offline_replay_event_id,
+          degraded_mode, degraded_reconciliation_state, occurred_at)
+       VALUES ($1,$2,$3,$4,'guard_console',$5,$6,$7,NULL,$8,$9,$10,$11,$12)
        RETURNING ${VISIT_LOG_COLS}`,
       [
         input.property_id,
@@ -253,6 +278,8 @@ async function createManualSecurityDecision({ txPool, user, input }) {
         staffId,
         JSON.stringify(providerPayload),
         input.offline_replay_event_id || null,
+        input.degraded_mode === true,
+        input.degraded_mode ? 'pending' : 'not_required',
         occurredAtIso,
       ],
     );
@@ -263,7 +290,8 @@ async function createManualSecurityDecision({ txPool, user, input }) {
          (property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
           incident_type, severity, status, title, description,
           created_by_staff_id, resolved_at)
-       VALUES ($1,$2,$3,$4,'manual_override',$5,'resolved',$6,$7,$8,NOW())
+       VALUES ($1,$2,$3,$4,'manual_override',$5,$6,$7,$8,$9,
+               CASE WHEN $6 = 'resolved' THEN NOW() ELSE NULL END)
        RETURNING ${INCIDENT_COLS}`,
       [
         input.property_id,
@@ -271,6 +299,7 @@ async function createManualSecurityDecision({ txPool, user, input }) {
         visitLog.id,
         input.related_vehicle_id || null,
         severity,
+        input.degraded_mode ? 'investigating' : 'resolved',
         manualDecisionTitle(input),
         manualDecisionDescription(input),
         staffId,
@@ -330,6 +359,48 @@ async function createManualSecurityDecision({ txPool, user, input }) {
   }
 }
 
+async function reconcileDegradedVisitLog({
+  queryable,
+  user,
+  propertyId,
+  visitLogId,
+  state,
+  note = null,
+  ipAddress = null,
+}) {
+  const staffId = await requireStaffId(queryable, user);
+  const { rows } = await queryable.query(
+    `UPDATE visit_logs_v2
+        SET degraded_reconciliation_state = $2,
+            degraded_reconciled_at = NOW(),
+            degraded_reconciliation_note = $3
+      WHERE id = $1
+        AND property_id = $4
+        AND degraded_mode = true
+        AND degraded_reconciliation_state = 'pending'
+      RETURNING ${VISIT_LOG_COLS}`,
+    [visitLogId, state, note, propertyId],
+  );
+  if (!rows[0]) throw serviceError(404, 'Pending degraded visit log not found');
+
+  await queryable.query(
+    `INSERT INTO property_audit_log
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1,$2,$3,'staff','staff',$4,'degraded_checkpoint.reconciled','visit_log',$5,$6,$7)`,
+    [
+      rows[0].property_id,
+      user?.uid || null,
+      user?.role || null,
+      staffId,
+      rows[0].id,
+      JSON.stringify({ reconciliation_state: state, note }),
+      ipAddress,
+    ],
+  );
+  return { visit_log: rows[0] };
+}
+
 module.exports = {
   INCIDENT_COLS,
   OVERRIDE_COLS,
@@ -341,5 +412,7 @@ module.exports = {
   dismissIncident,
   isAccessIncidentServiceError,
   patchIncident,
+  reconcileDegradedVisitLog,
+  reopenIncident,
   resolveIncident,
 };

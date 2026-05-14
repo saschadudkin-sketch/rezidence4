@@ -141,7 +141,7 @@ access_approvals
 
 ## 7. Открытые вопросы
 
-1. **Авто-approval:** в v1 без `access_policies` таблицы — как маркировать auto-approved? → **Решено:** property setting `manual_access_approval=false` выпускает `guest_access`/`courier_access`/`contractor_access` до 24h сразу (`approval_required=false`, `status='approved'`, pass created in the same tx). Если `manual_access_approval=true`, эти заявки уходят в `pending_approval`; полноценные policies приходят пост-релиз.
+1. **Авто-approval:** v1 использует `access_policies` как источник решения. `approval_mode='auto'` может выпустить pass сразу только при matched allow-policy и выключенном `manual_access_approval`; `required`/`security_only`/`admin_only`, отсутствие policy или policy deny переводят flow в review/deny согласно policy engine. `contractor_access` и `service_access` должны быть связаны с service request через `request_access_links`.
 2. **Multiple visitors на одной заявке:** 5 гостей резидента на ужин → **Не в v1.** Создаётся 5 заявок или одна с `visitor_name='Гости Ивановых (5 чел)'` + batch-issue QR. Полная multi-visitor модель — пост-релиз.
 3. **Повторяющиеся заявки:** клининг каждый вторник → **Не в v1.** Повторяющиеся — через `access_policies.is_recurring` (пост-релиз). В v1 — создавать вручную каждый раз.
 4. **Co-approval (муж+жена оба должны одобрить гостя):** `access_approvals.approver_resident_id` nullable оставляем schemaтически, но UX co-approval — пост-релиз.

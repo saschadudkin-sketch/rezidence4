@@ -45,8 +45,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-58 GIS/OSS readiness export packages
     // + 1 DH-57 emergency readiness evidence
     // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers
-    // + 1 DH-56 privacy compliance controls = 48
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(48);
+    // + 1 DH-56 privacy compliance controls
+    // + 1 access-control pilot readiness hardening = 49
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(49);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -2019,5 +2020,28 @@ describe('v1_033_contractor_workflow', () => {
       .toContain('contractor_user_id, event_type, created_at DESC');
     expect(sqls.find((s) => s.includes('idx_request_contractor_events_company')))
       .toContain('contractor_company_id, event_type, created_at DESC');
+  });
+});
+
+describe('v1_049_access_readiness_gaps', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds service/access links and degraded reconciliation columns', async () => {
+    await byId('v1_049_access_readiness_gaps').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const linkTable = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS request_access_links'));
+    const visitAlter = sqls.find((s) => s.includes('ALTER TABLE visit_logs_v2') && s.includes('degraded_mode'));
+
+    expect(sqls.find((s) => s.includes("WHERE subject_type = 'contractor_user'"))).toBeDefined();
+    expect(linkTable).toContain('request_id          TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE');
+    expect(linkTable).toContain('access_request_id   UUID NOT NULL REFERENCES access_requests(id) ON DELETE CASCADE');
+    expect(linkTable).toContain('CONSTRAINT request_access_links_unique UNIQUE (request_id, access_request_id)');
+    expect(visitAlter).toContain('ADD COLUMN IF NOT EXISTS degraded_mode BOOLEAN NOT NULL DEFAULT false');
+    expect(visitAlter).toContain("degraded_reconciliation_state VARCHAR(20) NOT NULL DEFAULT 'not_required'");
+    expect(sqls.find((s) => s.includes('visit_logs_v2_degraded_reconciliation_state_check')))
+      .toContain("'pending','matched','discrepancy','dismissed'");
+    expect(sqls.find((s) => s.includes('idx_visit_logs_v2_degraded_reconciliation')))
+      .toContain('WHERE degraded_mode = true');
   });
 });

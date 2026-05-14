@@ -141,7 +141,7 @@ describe('AccessIncidentService', () => {
     expect(insertCall[1]).not.toContain('legacy-security-1');
   });
 
-  test('createManualSecurityDecision writes visit log, resolved incident, override and audit in one transaction', async () => {
+  test('createManualSecurityDecision writes visit log, incident, override and audit in one transaction', async () => {
     const txClient = makeTxClient((sql) => {
       if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -223,6 +223,8 @@ describe('AccessIncidentService', () => {
       UUID_STAFF,
       expect.any(String),
       null,
+      true,
+      'pending',
       '2026-05-05T10:00:00.000Z',
     ]);
     expect(JSON.parse(visitCall[1][7])).toMatchObject({
@@ -240,6 +242,7 @@ describe('AccessIncidentService', () => {
       UUID_VISIT_LOG,
       null,
       'medium',
+      'investigating',
       'Manual deny at access point',
       expect.stringContaining('offline deny'),
       UUID_STAFF,

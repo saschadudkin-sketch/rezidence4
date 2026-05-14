@@ -56,6 +56,9 @@ export interface UpdateVehicleBody {
   model?: string | null;
   notes?: string | null;
   vehicle_type?: VehicleKind;
+  is_whitelisted?: boolean;
+  is_blacklisted?: boolean;
+  reason?: string | null;
 }
 
 function toQuery(params: object | undefined): string {
@@ -96,12 +99,16 @@ export const vehiclesApi = {
     return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, body, opts);
   },
   whitelist(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<{ vehicle: Vehicle }>(`/vehicles/${id}/whitelist`, undefined, opts);
+    return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, { is_whitelisted: true }, opts);
   },
   blacklist(id: UUID, reason: string, opts?: RequestOpts) {
-    return v1Client.post<{ vehicle: Vehicle }>(`/vehicles/${id}/blacklist`, { reason }, opts);
+    return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, { is_blacklisted: true, reason }, opts);
   },
   clearFlags(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<{ vehicle: Vehicle }>(`/vehicles/${id}/clear-flags`, undefined, opts);
+    return v1Client.patch<{ vehicle: Vehicle }>(
+      `/vehicles/${id}`,
+      { is_whitelisted: false, is_blacklisted: false },
+      opts,
+    );
   },
 };

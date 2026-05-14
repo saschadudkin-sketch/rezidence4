@@ -18,6 +18,7 @@ const {
 const {
   createManualSecurityDecision,
   isAccessIncidentServiceError,
+  reconcileDegradedVisitLog,
 } = require('../services/accessIncidentService');
 const {
   isAccessTopologyServiceError,
@@ -48,6 +49,7 @@ const DEGRADED_REASONS = new Set([
   'policy_override',
 ]);
 const LOOKUP_STATES = new Set(['online', 'cached_hit', 'cached_miss', 'not_checked', 'unavailable']);
+const RECONCILIATION_STATES = new Set(['matched', 'discrepancy', 'dismissed']);
 
 function isValidUuid(value) {
   return typeof value === 'string' && UUID_RE.test(value);
@@ -206,7 +208,7 @@ function parseManualDecisionBody(req, res, propertyId, accessPointId) {
   };
 }
 
-router.get('/bootstrap', async (req, res, next) => {
+async function sendBootstrap(req, res, next, { dashboard = false } = {}) {
   try {
     const common = await validateCommon(req, res);
     if (!common) return;
@@ -227,11 +229,28 @@ router.get('/bootstrap', async (req, res, next) => {
         blacklistHits: req.query.blacklist_hits_limit,
       },
     });
+    if (dashboard) {
+      return res.json({
+        expectedArrivals: workspace.expected_guests.length,
+        activePasses: workspace.active_passes.length,
+        openIncidents: workspace.blacklist_hits.length,
+        recentEvents: workspace.recent_events,
+        workspace,
+      });
+    }
     res.json({ workspace });
   } catch (err) {
     if (sendKnownError(res, err)) return;
     next(err);
   }
+}
+
+router.get('/bootstrap', async (req, res, next) => {
+  await sendBootstrap(req, res, next);
+});
+
+router.get('/dashboard', async (req, res, next) => {
+  await sendBootstrap(req, res, next, { dashboard: true });
 });
 
 router.get('/search', async (req, res, next) => {
@@ -277,8 +296,9 @@ router.get('/recent-events', async (req, res, next) => {
   }
 });
 
-router.post('/manual-decision', async (req, res, next) => {
+async function sendManualDecision(req, res, next, forcedDecision = null) {
   try {
+    if (forcedDecision) req.body = { ...(req.body || {}), decision: forcedDecision };
     const propertyId = resolvePropertyId(req);
     const accessPointId = parseAccessPointId(req);
     if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
@@ -305,6 +325,18 @@ router.post('/manual-decision', async (req, res, next) => {
     if (err && err.code === '23514') return res.status(400).json({ error: 'manual decision constraint violation' });
     next(err);
   }
+}
+
+router.post('/manual-decision', async (req, res, next) => {
+  await sendManualDecision(req, res, next);
+});
+
+router.post('/manual-admit', async (req, res, next) => {
+  await sendManualDecision(req, res, next, 'manual_admit');
+});
+
+router.post('/manual-deny', async (req, res, next) => {
+  await sendManualDecision(req, res, next, 'manual_deny');
 });
 
 router.post('/offline-replay', async (req, res, next) => {
@@ -338,6 +370,31 @@ router.post('/offline-replay', async (req, res, next) => {
   } catch (err) {
     if (sendKnownError(res, err)) return;
     if (err && err.code === '23505') return res.status(409).json({ error: 'offline replay event already exists' });
+    next(err);
+  }
+});
+
+router.post('/degraded-events/:visitLogId/reconcile', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.visitLogId)) return res.status(400).json({ error: 'Invalid visitLogId' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canCreateManualDecision(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const state = req.body?.reconciliation_state || req.body?.state;
+    if (!RECONCILIATION_STATES.has(state)) return res.status(400).json({ error: 'Invalid reconciliation_state' });
+    const note = req.body?.note === undefined || req.body?.note === null ? null : String(req.body.note).trim();
+    const result = await reconcileDegradedVisitLog({
+      queryable: getDb(req),
+      user: req.user,
+      propertyId,
+      visitLogId: req.params.visitLogId,
+      state,
+      note,
+      ipAddress: req.ip || null,
+    });
+    res.json(result);
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
     next(err);
   }
 });

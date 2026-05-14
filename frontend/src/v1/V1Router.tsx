@@ -67,6 +67,7 @@ import {
   Spinner,
   uiClasses,
 } from './components/ui';
+import { useAccessEvents } from './hooks/useAccessEvents';
 
 // Role sets mirror the final role model in store/session.tsx. Legacy aliases
 // stay listed where current sessions can still emit them.
@@ -112,6 +113,7 @@ const CONTRACTOR_WORKSPACE_ALLOW = [
 export function V1Router() {
   return (
     <V1SessionProvider>
+      <AccessEventBridge />
       <Routes>
         <Route index element={<V1IndexRedirect />} />
         <Route
@@ -293,6 +295,11 @@ export function V1Router() {
       </Routes>
     </V1SessionProvider>
   );
+}
+
+function AccessEventBridge() {
+  useAccessEvents();
+  return null;
 }
 
 // ─── Smart role-based landing ───────────────────────────────────────────────

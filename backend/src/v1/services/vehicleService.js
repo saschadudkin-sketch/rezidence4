@@ -104,6 +104,26 @@ async function setVehicleFlags({ queryable, vehicleId, whitelist, blacklist }) {
     [vehicleId, whitelist, blacklist],
   );
   if (!rows[0]) throw serviceError(404, 'Vehicle not found');
+  const eventType = blacklist
+    ? 'access.vehicle.blacklisted'
+    : whitelist
+      ? 'access.vehicle.whitelisted'
+      : 'access.vehicle.flags_cleared';
+  await queryable.query(
+    `INSERT INTO notifications_outbox
+       (property_id, event_type, channel, recipient_type, payload, correlation_id)
+     VALUES ($1, $2, 'webhook', 'external', $3, $4)`,
+    [
+      rows[0].property_id,
+      eventType,
+      JSON.stringify({
+        vehicle_id: vehicleId,
+        is_whitelisted: rows[0].is_whitelisted,
+        is_blacklisted: rows[0].is_blacklisted,
+      }),
+      vehicleId,
+    ],
+  );
   return { vehicle: rows[0] };
 }
 

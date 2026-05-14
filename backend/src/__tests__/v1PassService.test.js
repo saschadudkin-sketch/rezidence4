@@ -15,6 +15,7 @@ const UUID_RESIDENT = '33333333-3333-4333-8333-333333333333';
 const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
+const UUID_POLICY = '99999999-9999-4999-8999-999999999999';
 
 function makeQueryable(handler) {
   return { query: jest.fn(handler) };
@@ -121,6 +122,7 @@ describe('PassService QR and status transitions', () => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
       if (sql.includes('SELECT status FROM passes')) return Promise.resolve({ rows: [{ status: 'active' }] });
       if (sql.includes('UPDATE passes SET')) return Promise.resolve({ rows: [{ id: UUID_PASS, status: 'revoked' }] });
+      if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
@@ -151,13 +153,35 @@ describe('PassService QR and status transitions', () => {
 
   test('unblockPass only accepts blocked passes', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('SELECT status FROM passes')) return Promise.resolve({ rows: [{ status: 'active' }] });
+      if (sql.includes('FROM passes WHERE id = $1')) {
+        return Promise.resolve({ rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'active', policy_id: null }] });
+      }
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
     await expect(unblockPass({ queryable, passId: UUID_PASS })).rejects.toMatchObject({
       status: 409,
       message: "Pass is not blocked (status='active')",
+    });
+  });
+
+  test('unblockPass requires reason and policy or override context', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM passes WHERE id = $1')) {
+        return Promise.resolve({
+          rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'blocked', policy_id: UUID_POLICY }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(unblockPass({
+      queryable,
+      passId: UUID_PASS,
+      reason: 'resident verified',
+    })).rejects.toMatchObject({
+      status: 422,
+      message: 'policy_id or override_id is required for unblock',
     });
   });
 });

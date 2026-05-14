@@ -279,18 +279,19 @@ function spec(roleList, options = {}) {
 }
 
 const admin = roles(ADMIN_ROLE_LIST);
+const propertyAdmin = roles(FINAL_ROLES.PROPERTY_ADMIN);
 const portfolioAdmins = roles(
   FINAL_ROLES.MANAGEMENT_COMPANY_ADMIN,
   FINAL_ROLES.PLATFORM_ADMIN,
 );
-const accessStaff = roles(FINAL_ROLES.SECURITY, FINAL_ROLES.CONCIERGE, ADMIN_ROLE_LIST);
-const accessOperators = roles(FINAL_ROLES.SECURITY, ADMIN_ROLE_LIST);
+const accessStaff = roles(FINAL_ROLES.SECURITY, FINAL_ROLES.CONCIERGE, propertyAdmin);
+const accessOperators = roles(FINAL_ROLES.SECURITY, propertyAdmin);
 const requestCreators = roles(
   FINAL_ROLES.RESIDENT,
   FINAL_ROLES.CONTRACTOR,
   FINAL_ROLES.SECURITY,
   FINAL_ROLES.CONCIERGE,
-  ADMIN_ROLE_LIST,
+  propertyAdmin,
 );
 
 const CAPABILITIES = Object.freeze({
@@ -307,9 +308,9 @@ const CAPABILITIES = Object.freeze({
   'access.incident.resolve': spec(accessStaff),
   'access.override.create': spec(accessOperators),
   'access.topology.read': spec(accessStaff),
-  'access.topology.write': spec(admin),
+  'access.topology.write': spec(propertyAdmin),
   'access.policy.read': spec(accessStaff),
-  'access.policy.write': spec(admin),
+  'access.policy.write': spec(propertyAdmin),
   'access.security.workspace.read': spec(accessOperators),
   'video.evidence.read': spec(accessOperators),
   'video.evidence.write': spec(accessOperators),
@@ -372,7 +373,7 @@ const CAPABILITIES = Object.freeze({
   }),
 
   'passes:read': spec(accessStaff),
-  'passes:manage': spec(admin),
+  'passes:manage': spec(propertyAdmin),
   'passes:block': spec(accessOperators),
 
   'visits:verify': spec(accessOperators),
@@ -380,19 +381,19 @@ const CAPABILITIES = Object.freeze({
 
   'incidents:read': spec(accessStaff),
   'incidents:write': spec(accessStaff),
-  'incidents:override': spec(admin),
+  'incidents:override': spec(propertyAdmin),
 
   'staff:read': spec(admin),
   'staff:write': spec(admin),
 
   'contractors:read': spec(accessStaff),
-  'contractors:write': spec(admin),
+  'contractors:write': spec(propertyAdmin),
 
   'structure:read': spec(accessStaff),
   'structure:write': spec(admin),
 
   'vehicles:read': spec(accessStaff),
-  'vehicles:manage': spec(admin),
+  'vehicles:manage': spec(propertyAdmin),
 });
 
 function can(user, capability) {

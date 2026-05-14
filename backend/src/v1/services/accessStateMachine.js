@@ -21,12 +21,13 @@ const PASS_ACTION_ALLOWED = Object.freeze({
   block: new Set(['active', 'used', 'blocked']),
   unblock: new Set(['blocked']),
   expire: new Set(['active']),
-  qr: new Set(['active', 'used', 'blocked']),
-  regenerate_qr: new Set(['active', 'used', 'blocked']),
+  qr: new Set(['active']),
+  regenerate_qr: new Set(['active']),
 });
 
 const INCIDENT_ACTION_ALLOWED = Object.freeze({
   assign: new Set(['open', 'investigating']),
+  reopen: new Set(['resolved', 'dismissed']),
   resolve: new Set(['open', 'investigating']),
   dismiss: new Set(['open', 'investigating']),
 });
@@ -69,6 +70,9 @@ function assertIncidentAction(status, action) {
 
   if (action === 'assign') {
     throw new StateTransitionError(`Cannot assign in status '${status}'`);
+  }
+  if (action === 'reopen') {
+    throw new StateTransitionError(`Cannot reopen incident in status '${status}'`);
   }
   if (status === 'resolved' || status === 'dismissed') {
     throw new StateTransitionError(`Incident already ${status}`);

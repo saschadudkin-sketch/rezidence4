@@ -115,17 +115,27 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": { "type": "string" },
+                  "status": {
+                    "type": "string"
+                  },
                   "expectedCurrentStatus": {
                     "type": "string",
                     "description": "Optimistic concurrency guard. When provided, stale status mutations return 409 with the current status."
                   },
-                  "assigneeUid": { "type": "string" },
-                  "assigneeRole": { "type": "string" },
-                  "comment": { "type": "string" },
+                  "assigneeUid": {
+                    "type": "string"
+                  },
+                  "assigneeRole": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
                   "photos": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "additionalProperties": true
@@ -290,9 +300,13 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["filename"],
+                "required": [
+                  "filename"
+                ],
                 "properties": {
-                  "filename": { "type": "string" }
+                  "filename": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -1346,6 +1360,44 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestDetailResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get access request detail"
       }
     },
     "/api/v1/visits/verify": {
@@ -1600,37 +1652,184 @@
       }
     },
     "/api/v1/admin/documents": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/admin/documents", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/admin/documents",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/admin/operations-dashboard": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/admin/operations-dashboard", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/admin/operations-dashboard",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/analytics": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/analytics", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/analytics",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/audit": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/audit", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/audit",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/billing": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/billing", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/billing",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/blacklist": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/blacklist", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/blacklist",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/bookings": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/bookings", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/bookings",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/client-logs": {
-      "post": { "summary": "Mounted v1 route prefix: /api/v1/client-logs", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "post": {
+        "summary": "Mounted v1 route prefix: /api/v1/client-logs",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/contractor-workspace": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/contractor-workspace", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/contractor-workspace",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/erp": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/erp", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/erp",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/events": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/events", "responses": { "200": { "description": "SSE stream for tenant-scoped events." } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/events",
+        "responses": {
+          "200": {
+            "description": "SSE stream for tenant-scoped events."
+          }
+        }
+      }
     },
     "/api/v1/events/health": {
       "get": {
@@ -1640,14 +1839,18 @@
             "description": "SSE connection counters.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/EventsHealthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/EventsHealthResponse"
+                }
               }
             }
           },
           "403": {
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -1662,7 +1865,9 @@
             "description": "Notification outbox health snapshot.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/OkResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
               }
             }
           }
@@ -1677,7 +1882,9 @@
             "description": "Retry operation result.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/OkResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
               }
             }
           }
@@ -1685,58 +1892,2978 @@
       }
     },
     "/api/v1/gis-oss": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/gis-oss", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/gis-oss",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/guard": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/guard", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/guard",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/integrations": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/integrations", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/integrations",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/management-company/portfolio": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/management-company/portfolio", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/management-company/portfolio",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/memberships": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/memberships", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/memberships",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/meter-readings": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/meter-readings", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/meter-readings",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/perms": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/perms", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/perms",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/privacy": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/privacy", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/privacy",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/push-subscriptions": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/push-subscriptions", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/push-subscriptions",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security": {
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/security",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/security-workspace": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/security-workspace", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/security-workspace",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/skud": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/skud", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/skud",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/spaces": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/spaces", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/spaces",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/staff-workspace": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/staff-workspace", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/staff-workspace",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/technician-workspace": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/technician-workspace", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/technician-workspace",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/telegram": {
-      "post": { "summary": "Mounted v1 route prefix: /api/v1/telegram", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "post": {
+        "summary": "Mounted v1 route prefix: /api/v1/telegram",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/templates": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/templates", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/templates",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/visit-logs": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/visit-logs", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/visit-logs",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/api/v1/webhooks": {
-      "get": { "summary": "Mounted v1 route prefix: /api/v1/webhooks", "responses": { "200": { "description": "OpenAPI anchor for mounted v1 route prefix.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OkResponse" } } } } } }
+      "get": {
+        "summary": "Mounted v1 route prefix: /api/v1/webhooks",
+        "responses": {
+          "200": {
+            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}/submit": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit access request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequestTransitionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}/approve": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Approve access request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequestTransitionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}/reject": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reject access request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequestTransitionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}/cancel": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cancel access request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequestTransitionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-requests/{id}/escalate": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRequestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Escalate access request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRequestTransitionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update vehicle metadata or whitelist/blacklist flags",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVehicleRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/by-plate/{plate}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "plate",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}/whitelist": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Compatibility command: vehicle whitelist",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}/blacklist": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Compatibility command: vehicle blacklist",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{id}/clear-flags": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Compatibility command: vehicle clear-flags",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/passes/{id}/revoke": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "passes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mutate pass: revoke",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "policy_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "override_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/passes/{id}/block": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "passes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mutate pass: block",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "policy_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "override_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/passes/{id}/unblock": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "passes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PassResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mutate pass: unblock",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "policy_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "override_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guard/scan-pass": {
+      "post": {
+        "tags": [
+          "visits"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPassResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verify QR pass from guard namespace",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-zones": {
+      "get": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessZoneListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessZoneResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessZone"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-zones/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessZoneResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessZone"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-zones/{id}/deactivate": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessZoneResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-points": {
+      "get": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPointListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPointResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessPoint"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-points/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPointResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessPoint"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-points/{id}/deactivate": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-topology"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPointResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-policy-templates": {
+      "get": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "templates": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccessPolicy"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-policies": {
+      "get": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessPolicy"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-policies/evaluate": {
+      "post": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyDecision"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-policies/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessPolicy"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-policies/{id}/deactivate": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-policies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessPolicyResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}/assign": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Incident action: assign",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}/resolve": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Incident action: resolve",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}/dismiss": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Incident action: dismiss",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}/status": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Incident action: status",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}/reopen": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale state or conflicting transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Incident action: reopen",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-incidents/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "access-incidents"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessIncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessIncident"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-overrides": {
+      "get": {
+        "tags": [
+          "access-overrides"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOverrideListResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "access-overrides"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOverrideResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessOverride"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access-overrides/{id}": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "access-overrides"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOverrideResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/bootstrap": {
+      "get": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/dashboard": {
+      "get": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/search": {
+      "get": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/recent-events": {
+      "get": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/manual-decision": {
+      "post": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualSecurityDecisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/manual-admit": {
+      "post": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualSecurityDecisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/manual-deny": {
+      "post": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualSecurityDecisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/offline-replay": {
+      "post": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/security-workspace/degraded-events/{visitLogId}/reconcile": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "visitLogId",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "security-workspace"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityWorkspaceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "matched",
+                      "discrepancy",
+                      "dismissed"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1768,22 +4895,31 @@
       "ConflictResponse": {
         "type": "object",
         "required": [
-          "error",
-          "code"
+          "error"
         ],
+        "additionalProperties": true,
         "properties": {
           "error": {
             "type": "string"
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
+          },
+          "currentStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "expectedCurrentStatus": {
+            "type": "string",
+            "nullable": true
           },
           "details": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
-        },
-        "additionalProperties": true
+        }
       },
       "StatusTransitionsResponse": {
         "type": "object",
@@ -1938,12 +5074,25 @@
           "ts"
         ],
         "properties": {
-          "ok": { "type": "boolean" },
-          "uniqueUsers": { "type": "integer" },
-          "totalConnections": { "type": "integer" },
-          "maxTotalConnections": { "type": "integer" },
-          "saturated": { "type": "boolean" },
-          "ts": { "type": "string", "format": "date-time" }
+          "ok": {
+            "type": "boolean"
+          },
+          "uniqueUsers": {
+            "type": "integer"
+          },
+          "totalConnections": {
+            "type": "integer"
+          },
+          "maxTotalConnections": {
+            "type": "integer"
+          },
+          "saturated": {
+            "type": "boolean"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "ChatMessage": {
@@ -2468,9 +5617,14 @@
         "type": "object",
         "required": [
           "id",
+          "property_id",
+          "request_type",
           "status",
+          "starts_at",
+          "ends_at",
           "created_at"
         ],
+        "additionalProperties": true,
         "properties": {
           "id": {
             "type": "string",
@@ -2480,34 +5634,115 @@
             "type": "string",
             "format": "uuid"
           },
+          "created_by_type": {
+            "type": "string",
+            "enum": [
+              "resident",
+              "staff",
+              "contractor"
+            ]
+          },
+          "created_by_resident_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_by_staff_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_by_contractor_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "request_type": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "guest_access",
+              "vehicle_access",
+              "contractor_access",
+              "courier_access",
+              "service_access",
+              "temporary_resident_access"
+            ]
+          },
+          "visitor_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
           },
           "status": {
             "type": "string",
             "enum": [
-              "pending",
+              "new",
+              "pending_approval",
+              "escalated",
               "approved",
-              "denied",
-              "fulfilled",
-              "cancelled"
+              "rejected",
+              "cancelled",
+              "expired"
             ]
           },
-          "subject_resident_id": {
-            "type": "string",
-            "nullable": true
+          "approval_required": {
+            "type": "boolean"
           },
-          "valid_from": {
+          "approved_at": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "valid_until": {
+          "rejected_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "cancelled_at": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
           "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
             "type": "string",
             "format": "date-time"
           }
@@ -2585,7 +5820,88 @@
         }
       },
       "AccessIncident": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "incident_type",
+          "severity",
+          "status",
+          "created_at"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "related_pass_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "related_visit_log_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "related_vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "incident_type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "investigating",
+              "resolved",
+              "dismissed"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by_staff_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "assigned_to_staff_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "resolved_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "AccessIncidentListResponse": {
         "type": "object",
@@ -2613,7 +5929,94 @@
         }
       },
       "Vehicle": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "plate_number",
+          "is_whitelisted",
+          "is_blacklisted"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "owner_type": {
+            "type": "string",
+            "enum": [
+              "resident",
+              "staff",
+              "contractor",
+              "guest"
+            ]
+          },
+          "owner_resident_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "owner_staff_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "owner_contractor_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "plate_number": {
+            "type": "string"
+          },
+          "vehicle_type": {
+            "type": "string",
+            "enum": [
+              "car",
+              "motorcycle",
+              "truck",
+              "service_vehicle"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_whitelisted": {
+            "type": "boolean"
+          },
+          "is_blacklisted": {
+            "type": "boolean"
+          },
+          "review_required": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "VehicleListResponse": {
         "type": "object",
@@ -2747,7 +6150,600 @@
             }
           }
         }
+      },
+      "AccessRequestDetailResponse": {
+        "type": "object",
+        "required": [
+          "access_request",
+          "approvals",
+          "pass"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "access_request": {
+            "$ref": "#/components/schemas/AccessRequest"
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "pass": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Pass"
+              }
+            ]
+          }
+        }
+      },
+      "AccessRequestTransitionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "comment": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "expectedCurrentStatus": {
+            "type": "string",
+            "enum": [
+              "new",
+              "pending_approval",
+              "escalated",
+              "approved",
+              "rejected",
+              "cancelled",
+              "expired"
+            ]
+          }
+        }
+      },
+      "UpdateVehicleRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "brand": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicle_type": {
+            "type": "string",
+            "enum": [
+              "car",
+              "motorcycle",
+              "truck",
+              "service_vehicle"
+            ]
+          },
+          "is_whitelisted": {
+            "type": "boolean"
+          },
+          "is_blacklisted": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AccessOverride": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "override_type",
+          "reason",
+          "created_at"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "incident_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "pass_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "performed_by_staff_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "override_type": {
+            "type": "string",
+            "enum": [
+              "manual_admit",
+              "manual_deny",
+              "temporary_whitelist",
+              "temporary_block"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AccessOverrideResponse": {
+        "type": "object",
+        "required": [
+          "override"
+        ],
+        "properties": {
+          "override": {
+            "$ref": "#/components/schemas/AccessOverride"
+          }
+        }
+      },
+      "AccessOverrideListResponse": {
+        "type": "object",
+        "required": [
+          "overrides"
+        ],
+        "properties": {
+          "overrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessOverride"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "AccessZone": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "zone_type",
+          "name",
+          "status"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parent_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "zone_type": {
+            "type": "string",
+            "enum": [
+              "perimeter",
+              "checkpoint",
+              "residential_entry",
+              "parking",
+              "guest_parking",
+              "resident_parking",
+              "public_area",
+              "technical_area",
+              "service_area",
+              "street",
+              "sector"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          }
+        }
+      },
+      "AccessPoint": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "zone_id",
+          "point_type",
+          "name",
+          "status"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zone_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "point_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "exit",
+              "both"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          }
+        }
+      },
+      "AccessPolicy": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "name",
+          "subject_type",
+          "access_method",
+          "approval_mode",
+          "effect",
+          "priority"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "subject_type": {
+            "type": "string",
+            "enum": [
+              "resident",
+              "guest",
+              "staff",
+              "contractor",
+              "vehicle",
+              "courier"
+            ]
+          },
+          "subject_role": {
+            "type": "string",
+            "nullable": true
+          },
+          "zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "access_method": {
+            "type": "string",
+            "enum": [
+              "qr",
+              "manual",
+              "plate",
+              "ble",
+              "card",
+              "face",
+              "pin"
+            ]
+          },
+          "approval_mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "required",
+              "security_only",
+              "admin_only"
+            ]
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny",
+              "needs_approval",
+              "needs_security_review",
+              "incident_required"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "AccessPolicyDecision": {
+        "type": "object",
+        "required": [
+          "allowed",
+          "decision",
+          "reason"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "matched_policy_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "ManualSecurityDecisionRequest": {
+        "type": "object",
+        "required": [
+          "property_id",
+          "decision",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "manual_admit",
+              "manual_deny"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "pass_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "access_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "related_vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "person_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicle_plate": {
+            "type": "string",
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "exit"
+            ]
+          },
+          "degraded_mode": {
+            "type": "boolean"
+          },
+          "degraded_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "lookup_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ManualSecurityDecisionResponse": {
+        "type": "object",
+        "required": [
+          "visit_log",
+          "incident",
+          "override"
+        ],
+        "properties": {
+          "visit_log": {
+            "$ref": "#/components/schemas/Visit"
+          },
+          "incident": {
+            "$ref": "#/components/schemas/AccessIncident"
+          },
+          "override": {
+            "$ref": "#/components/schemas/AccessOverride"
+          }
+        }
+      },
+      "SecurityWorkspaceResponse": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "AccessZoneListResponse": {
+        "type": "object",
+        "required": [
+          "zones"
+        ],
+        "properties": {
+          "zones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessZone"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "AccessZoneResponse": {
+        "type": "object",
+        "required": [
+          "zone"
+        ],
+        "properties": {
+          "zone": {
+            "$ref": "#/components/schemas/AccessZone"
+          }
+        }
+      },
+      "AccessPointListResponse": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessPoint"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "AccessPointResponse": {
+        "type": "object",
+        "required": [
+          "point"
+        ],
+        "properties": {
+          "point": {
+            "$ref": "#/components/schemas/AccessPoint"
+          }
+        }
+      },
+      "AccessPolicyListResponse": {
+        "type": "object",
+        "required": [
+          "policies"
+        ],
+        "properties": {
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessPolicy"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "AccessPolicyResponse": {
+        "type": "object",
+        "required": [
+          "policy"
+        ],
+        "properties": {
+          "policy": {
+            "$ref": "#/components/schemas/AccessPolicy"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "CookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "rz_jwt"
+      },
+      "PropertySlug": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Property-Slug"
       }
     }
-  }
+  },
+  "security": [
+    {
+      "CookieAuth": [],
+      "PropertySlug": []
+    }
+  ]
 }

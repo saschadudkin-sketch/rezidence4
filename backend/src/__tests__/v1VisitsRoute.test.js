@@ -24,6 +24,7 @@ jest.mock('../v1/services/visitService', () => ({
 
 const db = require('../db');
 const {
+  createVisitLog,
   verifyVisit,
 } = require('../v1/services/visitService');
 const visitsRouter = require('../v1/routes/visits');
@@ -132,5 +133,19 @@ describe('v1 visits route access topology wiring', () => {
     expect(verifyVisit).toHaveBeenCalledWith(expect.objectContaining({
       input: expect.objectContaining({ direction: 'exit' }),
     }));
+  });
+
+  test('direct visit insert rejects manual decisions before generic visit log write', async () => {
+    const res = await supertest(buildApp())
+      .post('/api/v1/visits')
+      .send({
+        property_id: UUID_PROPERTY,
+        event_type: 'manual_admit',
+        event_source: 'guard_console',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/manual_admit\/manual_deny/);
+    expect(createVisitLog).not.toHaveBeenCalled();
   });
 });

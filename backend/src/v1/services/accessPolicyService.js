@@ -12,7 +12,6 @@ const SUBJECT_TYPES = new Set([
   'guest',
   'staff',
   'contractor',
-  'contractor_user',
   'vehicle',
   'courier',
 ]);
@@ -529,6 +528,7 @@ async function evaluateAccessPolicy({
   pass = null,
   vehicle = null,
   now = new Date(),
+  failOpen = false,
 }) {
   if (!propertyId) throw serviceError(400, 'propertyId required');
   if (!ACCESS_METHODS.has(accessMethod)) throw serviceError(400, 'Invalid accessMethod');
@@ -576,6 +576,12 @@ async function evaluateAccessPolicy({
   );
 
   if (!rows.length) {
+    if (!failOpen) {
+      return denialShape('deny', 'no_active_policies', null, [{
+        step: 'active_policy_lookup',
+        result: 'none',
+      }]);
+    }
     return {
       allowed: true,
       decision: 'allow',
@@ -654,6 +660,10 @@ async function evaluateAccessPolicy({
 
   if (firstScheduleMiss) {
     return denialShape('deny', 'outside_policy_schedule', firstScheduleMiss.policy, trace);
+  }
+
+  if (!failOpen) {
+    return denialShape('deny', 'no_matching_policy', null, trace);
   }
 
   return {
