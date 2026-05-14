@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react';
 import { ConciergeView, SecurityView } from './SecurityConciergeViews';
 import * as AppStore from '../store/AppStore';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { AppStoreSnapshot } from '../store/boundedContexts/contexts';
 
 const baseReq = (overrides={}) => ({
   id:'r1', type:'pass', status:'pending', category:'guest',
@@ -17,6 +18,7 @@ const baseReq = (overrides={}) => ({
 });
 
 vi.mock('../store/AppStore', () => ({
+  useAppStoreSelector: vi.fn((selector) => selector({ reqState: { requests: [baseReq()] } })),
   useRequests:  vi.fn(() => [baseReq()]),
   useUsers:     () => ({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } }),
   useAllPerms:  () => ({}),
@@ -24,7 +26,14 @@ vi.mock('../store/AppStore', () => ({
 }));
 
 beforeEach(() => {
-  vi.spyOn(AppStore, 'useRequests').mockReturnValue([baseReq()]);
+  const requests = [baseReq()];
+  const storeSnapshot = {
+    reqState: { requests, history: {} },
+  } as unknown as AppStoreSnapshot;
+  vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation(
+    <T,>(selector: (state: AppStoreSnapshot) => T) => selector(storeSnapshot),
+  );
+  vi.spyOn(AppStore, 'useRequests').mockReturnValue(requests);
   vi.spyOn(AppStore, 'useUsers').mockReturnValue({ users: { u1: { uid:'u1', name:'Иван', role:'owner', apartment:'12', phone:'+7' } } });
   vi.spyOn(AppStore, 'useAllPerms').mockReturnValue({});
   vi.spyOn(AppStore, 'useActions').mockReturnValue({ updateRequest: vi.fn(), approveRequest: vi.fn(), rejectRequest: vi.fn() });

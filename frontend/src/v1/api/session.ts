@@ -1,10 +1,7 @@
 /**
  * platform-v1 session probe.
  *
- * Hits the legacy /api/auth/me endpoint (backend/src/routes/auth.js:365),
- * which is mounted at /api/auth/me (NOT /api/v1/auth/me).  The v1Client base
- * is `/api/v1` — we pass an absolute override via the `path` argument to
- * reach the legacy mount.
+ * Hits the platform-v1 /api/v1/auth/me endpoint via the v1Client base.
  *
  * Response shape:  { user: UserMe }
  * Returned value: the unwrapped UserMe.

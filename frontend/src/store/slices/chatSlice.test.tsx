@@ -43,6 +43,15 @@ describe('chatReducer — CHAT_SEND', () => {
     const result = chatReducer(baseState, { type: 'CHAT_SEND', message: msg });
     expect(result.chatLastSeen).toBe(baseState.chatLastSeen);
   });
+
+  test('дедуплицирует replay/SSE сообщение по id', () => {
+    const result = chatReducer(baseState, {
+      type: 'CHAT_SEND',
+      message: { id: 'm2', uid: 'u2', text: 'Обновлено', at: '2026-03-15T10:01:30' },
+    });
+    expect(result.chat).toHaveLength(2);
+    expect(result.chat[1].text).toBe('Обновлено');
+  });
 });
 
 describe('chatReducer — CHAT_SET_ALL', () => {

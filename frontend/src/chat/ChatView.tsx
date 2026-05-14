@@ -627,7 +627,25 @@ export function ChatView({ user }: { user: AppUser }) {
                         <div className="msg-reply-quote-text">{quotedMsg.photo ? 'Фото' : quotedMsg.text || message.replyTo?.text || ''}</div>
                       </div>
                     )}
-                    {message.photo && <img src={message.photo} className="msg-photo" alt="фото" loading="lazy" decoding="async" onClick={() => setLightbox(message.photo || null)}/>}
+                    {message.photo && (
+                      <img
+                        src={message.photo}
+                        className="msg-photo"
+                        alt="фото"
+                        loading="lazy"
+                        decoding="async"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Открыть фото"
+                        onClick={() => setLightbox(message.photo || null)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setLightbox(message.photo || null);
+                          }
+                        }}
+                      />
+                    )}
                     {message.text && <div className="msg-text">{linkify(message.text)}</div>}
                     <div className="msg-time">
                       <span>{fmtTime(message.at)}</span>

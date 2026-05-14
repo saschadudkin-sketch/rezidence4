@@ -12,7 +12,7 @@ import type { AppUser } from '../store/slices/usersSlice';
 // ─── Security model ──────────────────────────────────────────────────────────
 // SEC: JWT stored in HttpOnly cookie (not accessible to JS).
 // Access token: 15min. Refresh token: 30 days, rotated on each use.
-// Session recovery: GET /api/auth/me on app load.
+// Session recovery: GET /api/v1/auth/me on app load.
 // Auto-logout: 401 from API → emits 'rz:unauthorized' event → setPhase(LOGIN)
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ export function useAuth(): UseAuthResult {
 
   useEffect(() => {
     if (isLiveMode()) {
-      // Live: пробуем восстановить сессию по HttpOnly cookie (/api/auth/me)
+      // Live: пробуем восстановить сессию по HttpOnly cookie (/api/v1/auth/me)
       let cancelled = false;
       services.auth.getMe()
         .then((user) => {

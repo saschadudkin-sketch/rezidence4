@@ -25,8 +25,15 @@ describe('PhotoLightbox', () => {
     const onClose = vi.fn();
     render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Закрыть'));
-    // Клик по кнопке всплывает на overlay, поэтому onClose вызывается дважды.
-    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('рендерится как модальный диалог и фокусирует закрытие', () => {
+    const onClose = vi.fn();
+    render(<PhotoLightbox src="/test.jpg" onClose={onClose} />);
+    const dialog = screen.getByRole('dialog', { name: 'Просмотр фото' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByLabelText('Закрыть')).toHaveFocus();
   });
 
   test('нажатие Escape вызывает onClose', () => {

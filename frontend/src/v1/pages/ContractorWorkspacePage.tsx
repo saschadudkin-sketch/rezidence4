@@ -110,6 +110,7 @@ const PRIORITY_LABELS: Record<StaffRequestPriority, string> = {
 function canUseContractorWorkspace(user: UserMe): boolean {
   const role = normalizeUserRole(user.role);
   return role === 'contractor'
+    || role === 'admin'
     || role === 'property_admin'
     || role === 'management_company_admin'
     || role === 'platform_admin';
@@ -143,6 +144,16 @@ function formatStatus(status: StaffRequestStatus): string {
 
 function formatPriority(priority: StaffRequestPriority): string {
   return PRIORITY_LABELS[priority] ?? priority;
+}
+
+function formatActionError(error: unknown, fallback: string): string {
+  if (isV1ApiError(error)) {
+    if (error.kind === 'conflict') {
+      return 'Работа уже изменилась. Детали обновляются; проверьте актуальный статус и повторите действие.';
+    }
+    return error.message;
+  }
+  return fallback;
 }
 
 function formatType(type: ContractorWorkspaceRequest['type']): string {
@@ -400,6 +411,11 @@ function ContractorJobPanel({ requestId, listRequest }: ContractorJobPanelProps)
   const request = detail.data?.request ?? listRequest;
 
   const invalidate = () => invalidateContractorWorkspaceRequest(queryClient, requestId);
+  const handleActionError = (error: unknown, fallback: string) => {
+    setActionMessage(null);
+    if (isV1ApiError(error) && error.kind === 'conflict') void invalidate();
+    setActionError(formatActionError(error, fallback));
+  };
 
   const startMutation = useContractorActionMutation({
     action: () => api.contractorWorkspace.startRequest(requestId),
@@ -430,8 +446,7 @@ function ContractorJobPanel({ requestId, listRequest }: ContractorJobPanelProps)
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось изменить статус ожидания');
+      handleActionError(error, 'Не удалось изменить статус ожидания');
     },
   });
 
@@ -454,10 +469,12 @@ function ContractorJobPanel({ requestId, listRequest }: ContractorJobPanelProps)
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(error instanceof Error && error.message === 'resolutionNote is required'
-        ? 'Введите результат работ'
-        : isV1ApiError(error) ? error.message : 'Не удалось сдать работу');
+      if (error instanceof Error && error.message === 'resolutionNote is required') {
+        setActionMessage(null);
+        setActionError('Введите результат работ');
+        return;
+      }
+      handleActionError(error, 'Не удалось сдать работу');
     },
   });
 
@@ -712,7 +729,8 @@ function useContractorActionMutation({
     },
     onError: (error) => {
       setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось выполнить действие');
+      if (isV1ApiError(error) && error.kind === 'conflict') void invalidate();
+      setActionError(formatActionError(error, 'Не удалось выполнить действие'));
     },
   });
 }

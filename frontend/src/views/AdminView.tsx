@@ -1,6 +1,6 @@
 import { useState, useMemo, memo, useDeferredValue, useRef } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
-import { useAppStoreSelector, useUsers } from '../store/AppStore';
+import { useAppStoreSelector } from '../store/AppStore';
 import { ROLES } from '../domain/permissions';
 import { ROLE_LABELS, ROLE_COLOR } from '../constants';
 import { filterByPeriod } from '../utils';
@@ -40,29 +40,18 @@ function StatCardSkeleton() {
 }
 
 // FIX [PERF]: memo — не ре-рендерится при смене activeTab если allUsers/requests не изменились
-const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoading }: { allUsers: AppUser[]; requests: AppRequest[]; isLoading: boolean }) {
+const AdminStatsView = memo(function AdminStatsView({
+  allUsers,
+  stats,
+  roleCount,
+  isLoading,
+}: {
+  allUsers: AppUser[];
+  stats: ReadonlyArray<readonly [AppIconName, number, string]>;
+  roleCount: Record<string, number>;
+  isLoading: boolean;
+}) {
   const sla = useTelemetrySla();
-  // FIX [PERF]: stats и roleCount мемоизированы — не пересчитываются при несвязанных ре-рендерах
-  const { stats, roleCount } = useMemo(() => {
-    // FIX [PERF]: todayTs — числовая метка, не объект Date — избегаем new Date() в каждом filter
-    const now = new Date(); now.setHours(0, 0, 0, 0);
-    const todayTs = now.getTime();
-    const todayR = requests.filter(r => new Date(r.createdAt).getTime() >= todayTs);
-    return {
-      stats: [
-        ['users', allUsers.length,                                         'Пользователей'],
-        ['tools', allUsers.filter(u => u.role === ROLES.CONTRACTOR).length, 'Подрядчиков'],
-        ['ticket', todayR.filter(r => r.type === 'pass').length,            'Пропусков сегодня'],
-        ['tools', todayR.filter(r => r.type === 'tech').length,             'Техзаявок сегодня'],
-        ['history', requests.filter(r => r.status === 'pending').length,    'Ожидают решения'],
-        ['check', requests.filter(r => r.status === 'arrived').length,       'Входов отмечено'],
-      ] satisfies ReadonlyArray<readonly [AppIconName, number, string]>,
-      roleCount: allUsers.reduce<Record<string, number>>((acc, u) => {
-        acc[u.role] = (acc[u.role] || 0) + 1;
-        return acc;
-      }, {}),
-    } satisfies { stats: ReadonlyArray<readonly [AppIconName, number, string]>; roleCount: Record<string, number> };
-  }, [allUsers, requests]);
 
   if (isLoading) {
     return (
@@ -88,7 +77,7 @@ const AdminStatsView = memo(function AdminStatsView({ allUsers, requests, isLoad
       <SectionHeader title="Распределение по ролям" />
       <div className="t-wrap">
         {Object.entries(roleCount).map(([role, count]) => {
-          const pct = Math.round((count as number) / allUsers.length * 100);
+          const pct = allUsers.length > 0 ? Math.round((count as number) / allUsers.length * 100) : 0;
           const roleKey = role as keyof typeof ROLE_LABELS;
           return (
             <div key={role} className="u-pad12-16 role-stat-row">
@@ -314,14 +303,11 @@ const AdminRequestsView = memo(function AdminRequestsView({ requests, adminUid }
 
 export default function AdminView({ user, activeTab, isLoading = false }: { user: AppUser; activeTab: string; isLoading?: boolean }) {
   const requestsSelectorRef = useRef(makeSelectAdminCollections());
-  const { requests } = useAppStoreSelector((state) => requestsSelectorRef.current(state));
-  const { users } = useUsers();
-  // FIX [PERF]: Object.values(users) мемоизирован — не создаёт новый массив при ре-рендерах
-  const allUsers = useMemo(() => Object.values(users), [users]);
+  const { requests, allUsers, stats, roleCount } = useAppStoreSelector((state) => requestsSelectorRef.current(state));
 
   return (
     <>
-      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} requests={requests} isLoading={isLoading} />}
+      {activeTab === 'stats'       && <AdminStatsView    allUsers={allUsers} stats={stats} roleCount={roleCount} isLoading={isLoading} />}
       {activeTab === 'users'       && <AdminUsersView    allUsers={allUsers} currentUser={user} />}
       {activeTab === 'contractors' && <AdminUsersView    allUsers={allUsers} currentUser={user} contractorOnly />}
       {activeTab === 'requests'    && <AdminRequestsView requests={requests} adminUid={user.uid} />}

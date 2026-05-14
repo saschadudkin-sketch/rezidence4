@@ -69,7 +69,7 @@ describe('authProvider', () => {
     expect(result).toEqual(user);
   });
 
-  test('getMe → GET /api/auth/me, возвращает user', async () => {
+  test('getMe → GET /api/v1/auth/me, возвращает user', async () => {
     const user = { uid: 'u1', role: 'owner' };
     apiClient.get.mockResolvedValueOnce({ user });
     const result = await authProvider.getMe();

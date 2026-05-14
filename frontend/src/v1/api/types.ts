@@ -60,7 +60,7 @@ export type PropertyType =
   | 'cottage_community';
 
 /**
- * Shape of `{ user }` in `GET /api/auth/me` response.  The legacy JWT still
+ * Shape of `{ user }` in `GET /api/v1/auth/me` response.  The legacy JWT still
  * drives auth so the row comes straight from `users` (not v1 tables).
  *
  * `property_id` is resolved via LEFT JOIN on `properties.slug = users.property_slug`

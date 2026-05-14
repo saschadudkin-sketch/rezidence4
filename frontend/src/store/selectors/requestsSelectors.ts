@@ -1,11 +1,37 @@
 import { createSelector } from 'reselect';
+import { ROLES } from '../../domain/permissions';
+import type { AppIconName } from '../../ui/AppIcon';
 import type { AppStoreSnapshot } from '../boundedContexts/contexts';
 import type { AppRequest, RequestStatus } from '../slices/requestsSlice';
+import type { AppUser } from '../slices/usersSlice';
 
 const INACTIVE_STATUSES = new Set<RequestStatus>(['cancelled', 'rejected', 'expired']);
 const COMPLETED_STATUSES = new Set<RequestStatus>(['arrived', 'rejected', 'expired', 'cancelled']);
+const EMPTY_REQUESTS: AppRequest[] = [];
+const EMPTY_USERS: Record<string, AppUser> = {};
 
-const selectRequests = (state: AppStoreSnapshot) => state.reqState.requests;
+const selectRequests = (state: AppStoreSnapshot) => state.reqState?.requests ?? EMPTY_REQUESTS;
+const selectUsers = (state: AppStoreSnapshot) => state.usersState?.users ?? EMPTY_USERS;
+
+function getRequestTime(request: AppRequest): number {
+  const time = new Date(request.createdAt).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function sortRequestsDesc(requests: AppRequest[]): AppRequest[] {
+  return [...requests].sort((left, right) => getRequestTime(right) - getRequestTime(left));
+}
+
+function matchesRequestQuery(req: AppRequest, query: string): boolean {
+  if (!query) return true;
+  return [
+    req.createdByName,
+    req.createdByApt,
+    req.visitorName,
+    req.carPlate,
+    req.comment,
+  ].some((value) => typeof value === 'string' && value.toLowerCase().includes(query));
+}
 
 export function makeSelectResidentComputed() {
   return createSelector(
@@ -43,8 +69,58 @@ export function makeSelectResidentComputed() {
 }
 
 export function makeSelectAdminCollections() {
-  return createSelector([selectRequests], (requests) => ({
-    requests,
-    requestCount: requests.length,
-  }));
+  return createSelector([selectRequests, selectUsers], (requests, usersById) => {
+    const allUsers = Object.values(usersById);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const todayTs = now.getTime();
+    let todayPassCount = 0;
+    let todayTechCount = 0;
+    let pendingCount = 0;
+    let arrivedCount = 0;
+
+    for (const request of requests) {
+      if (getRequestTime(request) >= todayTs) {
+        if (request.type === 'pass') todayPassCount += 1;
+        if (request.type === 'tech') todayTechCount += 1;
+      }
+      if (request.status === 'pending') pendingCount += 1;
+      if (request.status === 'arrived') arrivedCount += 1;
+    }
+
+    const contractorCount = allUsers.filter((user) => user.role === ROLES.CONTRACTOR).length;
+    const roleCount = allUsers.reduce<Record<string, number>>((acc, user) => {
+      acc[user.role] = (acc[user.role] || 0) + 1;
+      return acc;
+    }, {});
+    const stats: ReadonlyArray<readonly [AppIconName, number, string]> = [
+      ['users', allUsers.length, 'Пользователей'],
+      ['tools', contractorCount, 'Подрядчиков'],
+      ['ticket', todayPassCount, 'Пропусков сегодня'],
+      ['tools', todayTechCount, 'Техзаявок сегодня'],
+      ['history', pendingCount, 'Ожидают решения'],
+      ['check', arrivedCount, 'Входов отмечено'],
+    ];
+
+    return {
+      requests,
+      requestCount: requests.length,
+      allUsers: allUsers as AppUser[],
+      stats,
+      roleCount,
+    };
+  });
+}
+
+export function makeSelectConciergeCollections() {
+  return createSelector(
+    [
+      selectRequests,
+      (_state: AppStoreSnapshot, query: string) => query,
+    ],
+    (requests, query) => ({
+      allPasses: sortRequestsDesc(requests.filter((request) => request.type === 'pass' && matchesRequestQuery(request, query))),
+      allTech: sortRequestsDesc(requests.filter((request) => request.type === 'tech' && matchesRequestQuery(request, query))),
+    }),
+  );
 }

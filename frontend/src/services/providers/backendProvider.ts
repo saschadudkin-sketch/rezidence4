@@ -271,6 +271,26 @@ function createSSEManager() {
     user_update: [], user_delete: [],
   };
 
+  function scheduleReconnect(reason: string) {
+    abortController = null;
+    isConnected = false;
+    _retryCount += 1;
+    emitSseStatus({ connected: false });
+    realtimeState.transition(REALTIME_STATES.DEGRADED);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (_retryCount >= MAX_SSE_RETRIES) {
+      logger.warn(`[SSE] gave up after ${MAX_SSE_RETRIES} retries`);
+      emitSsePermanentError();
+      realtimeState.transition(REALTIME_STATES.FAILED);
+      return;
+    }
+    const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
+    const delay = Math.round(_reconnectDelay * jitter);
+    logger.warn(`[SSE] ${reason}, retry ${_retryCount}/${MAX_SSE_RETRIES} in ${Math.round(delay / 1000)}s`);
+    _reconnectDelay = Math.min(_reconnectDelay * 1.5, _RECONNECT_MAX);
+    reconnectTimer = setTimeout(() => connect(currentUid), delay);
+  }
+
   async function connect(uid: string | null = null) {
     // Skip reconnect if already live on the same user session.
     // On user switch (logout + new login), force-disconnect first so the new
@@ -278,6 +298,7 @@ function createSSEManager() {
     if (isConnected) {
       if (uid && uid === currentUid) return;
       _forceDisconnect();
+      _lastEventId = null;
     }
 
     currentUid  = uid;
@@ -337,28 +358,12 @@ function createSSEManager() {
           }
         }
       }
+      if (!signal.aborted) {
+        scheduleReconnect('stream closed');
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return; // намеренный disconnect
-      abortController = null;
-      isConnected     = false;
-      _retryCount    += 1;
-      // FA-07: уведомляем React о разрыве SSE-соединения
-      emitSseStatus({ connected: false });
-      realtimeState.transition(REALTIME_STATES.DEGRADED);
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      // D-04: после MAX_SSE_RETRIES — прекращаем автоматические попытки
-      if (_retryCount >= MAX_SSE_RETRIES) {
-        logger.warn(`[SSE] gave up after ${MAX_SSE_RETRIES} retries`);
-        emitSsePermanentError();
-        realtimeState.transition(REALTIME_STATES.FAILED);
-        return;
-      }
-      const jitter = 0.85 + Math.random() * 0.3; // 0.85..1.15 — anti-thundering-herd
-      const delay = Math.round(_reconnectDelay * jitter);
-      logger.warn(`[SSE] connection error, retry ${_retryCount}/${MAX_SSE_RETRIES} in ${Math.round(delay / 1000)}s`);
-      // Exponential backoff: multiply delay × 1.5, cap at RECONNECT_MAX.
-      _reconnectDelay = Math.min(_reconnectDelay * 1.5, _RECONNECT_MAX);
-      reconnectTimer  = setTimeout(() => connect(currentUid), delay);
+      scheduleReconnect('connection error');
     }
   }
 
@@ -381,6 +386,7 @@ function createSSEManager() {
   function disconnect() {
     _forceDisconnect();
     currentUid = null;
+    _lastEventId = null;
     (Object.keys(sseHandlers) as SseEventName[]).forEach((key) => { sseHandlers[key] = []; });
   }
 

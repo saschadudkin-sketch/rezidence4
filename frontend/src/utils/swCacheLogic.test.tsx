@@ -26,7 +26,7 @@ describe('SW: /api/ не кешируется', () => {
     'http://localhost/api/requests',
     'http://localhost/api/chat/messages',
     'http://localhost/api/users',
-    'http://localhost/api/auth/me',
+    'http://localhost/api/v1/auth/me',
     'http://localhost/api/v1/requests',
     'http://localhost/api/chat/stream', // SSE
     'http://localhost/api/health',

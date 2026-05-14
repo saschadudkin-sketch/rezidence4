@@ -196,6 +196,16 @@ function actionLabel(status: StaffRequestStatus): string {
   return `Статус изменён: ${formatStatus(status)}`;
 }
 
+function formatActionError(error: unknown, fallback: string): string {
+  if (isV1ApiError(error)) {
+    if (error.kind === 'conflict') {
+      return 'Заявка уже изменилась. Детали обновляются; проверьте актуальный статус и повторите действие.';
+    }
+    return error.message;
+  }
+  return fallback;
+}
+
 function assigneeRoleFor(user: UserMe): string {
   if (user.role === 'platform_admin' || user.role === 'management_company_admin') {
     return 'property_admin';
@@ -433,6 +443,12 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
 
   const invalidate = () => invalidateStaffWorkspaceRequest(queryClient, requestId);
 
+  const handleActionError = (error: unknown, fallback: string) => {
+    setActionMessage(null);
+    if (isV1ApiError(error) && error.kind === 'conflict') void invalidate();
+    setActionError(formatActionError(error, fallback));
+  };
+
   const noteMutation = useMutation({
     mutationFn: (body: string) => api.staffWorkspace.createInternalComment(requestId, { body }),
     onSuccess: () => {
@@ -442,8 +458,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось добавить заметку');
+      handleActionError(error, 'Не удалось добавить заметку');
     },
   });
 
@@ -460,8 +475,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось назначить заявку');
+      handleActionError(error, 'Не удалось назначить заявку');
     },
   });
 
@@ -473,8 +487,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось зафиксировать первый ответ');
+      handleActionError(error, 'Не удалось зафиксировать первый ответ');
     },
   });
 
@@ -493,8 +506,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       void invalidate();
     },
     onError: (error) => {
-      setActionMessage(null);
-      setActionError(isV1ApiError(error) ? error.message : 'Не удалось изменить статус');
+      handleActionError(error, 'Не удалось изменить статус');
     },
   });
 

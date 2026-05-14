@@ -26,6 +26,7 @@ const mockUsers = {
 beforeEach(() => {
   const storeSnapshot = {
     reqState: { requests: mockRequests, history: {} },
+    usersState: mockUsers,
   } as unknown as AppStoreSnapshot;
   vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation(
     <T,>(selector: (state: AppStoreSnapshot) => T) => selector(storeSnapshot),

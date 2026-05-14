@@ -34,6 +34,14 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
 
     case 'CHAT_SEND':
+      if (state.chat.some(m => m.id === action.message.id)) {
+        return {
+          ...state,
+          chat: state.chat.map(m =>
+            m.id === action.message.id ? { ...m, ...action.message } : m
+          ),
+        };
+      }
       return { ...state, chat: [...state.chat, action.message] };
 
     case 'CHAT_SET_ALL':

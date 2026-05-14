@@ -1,8 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useRequests } from '../store/AppStore.jsx';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useAppStoreSelector } from '../store/AppStore.jsx';
 import { useDebounce } from '../hooks/useDebounce';
-import { sortReqs, filterByPeriod } from '../utils.js';
-import { isPassRequest, isTechRequest } from '../constants/requestPredicates.js';
 import { CreateModal } from '../requests/CreateModal.jsx';
 import { ScanQRModal } from '../requests/ScanQRModal.jsx';
 import { ChatView } from '../chat/ChatView.jsx';
@@ -17,7 +15,8 @@ import { ConciergePassesTab } from './security/ConciergePassesTab';
 import { ConciergeTechTab } from './security/ConciergeTechTab';
 import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
-import type { AppRequest, RequestType } from '../store/slices/requestsSlice';
+import { makeSelectConciergeCollections } from '../store/selectors/requestsSelectors';
+import type { RequestType } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { Template } from '../store/slices/permsSlice';
 
@@ -52,19 +51,7 @@ type SecurityViewProps = {
   setHighlightReqId?: (reqId: string | null) => void;
 };
 
-function matchesRequestQuery(req: AppRequest, query: string): boolean {
-  if (!query) return true;
-  return [
-    req.createdByName,
-    req.createdByApt,
-    req.visitorName,
-    req.carPlate,
-    req.comment,
-  ].some((value) => typeof value === 'string' && value.toLowerCase().includes(query));
-}
-
 export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewProps) {
-  const requests = useRequests();
   const [modal, setModal] = useState<ModalState>(null);
   const [query, setQuery] = useState('');
   const [showScan, setShowScan] = useState(false);
@@ -79,19 +66,9 @@ export function ConciergeView({ user, activeTab, setActiveTab }: ConciergeViewPr
     () => debouncedQuery.trim().toLowerCase(),
     [debouncedQuery],
   );
-
-  const matchQuery = useCallback(
-    (req: AppRequest) => matchesRequestQuery(req, normalizedQuery),
-    [normalizedQuery],
-  );
-
-  const allPasses = useMemo(
-    () => sortReqs(filterByPeriod(requests.filter(isPassRequest), 'all').filter(matchQuery)) as AppRequest[],
-    [requests, matchQuery],
-  );
-  const allTech = useMemo(
-    () => sortReqs(filterByPeriod(requests.filter(isTechRequest), 'all').filter(matchQuery)) as AppRequest[],
-    [requests, matchQuery],
+  const conciergeCollectionsSelectorRef = useRef(makeSelectConciergeCollections());
+  const { allPasses, allTech } = useAppStoreSelector((state) =>
+    conciergeCollectionsSelectorRef.current(state, normalizedQuery)
   );
 
   const isKnownConciergeTab = CONCIERGE_KNOWN_TABS.has(activeTab);
