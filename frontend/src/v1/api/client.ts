@@ -16,8 +16,10 @@
  */
 
 import { V1ApiError, classifyByStatus, type V1ApiErrorPayload } from './errors';
+import { API_BASE_URL } from '../../config/apiBaseUrl';
 
-const API_BASE = '/api/v1';
+const API_BASE = `${API_BASE_URL}/api/v1`;
+const PROPERTY_SLUG = import.meta.env.VITE_PROPERTY_SLUG || (import.meta.env.DEV ? 'zamoskv' : '');
 const GET_TIMEOUT_MS = 10_000;
 const WRITE_TIMEOUT_MS = 20_000;
 const MAX_GET_RETRIES = 2;
@@ -113,6 +115,7 @@ async function performRequest<T>(
   const headers = new Headers();
   headers.set('Accept', 'application/json');
   headers.set('X-Request-Id', requestId);
+  if (PROPERTY_SLUG) headers.set('X-Property-Slug', PROPERTY_SLUG);
 
   let payload: BodyInit | undefined;
   if (body !== undefined && body !== null) {

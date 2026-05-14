@@ -136,6 +136,6 @@ describe('registerApiRoutes.js wiring contract', () => {
   });
 
   test('legacy /api/chat (deprecate) тоже за гейтом', () => {
-    expect(src).toMatch(/app\.use\(['"]\/api\/chat['"]\s*,\s*deprecate\s*,\s*legacyUtilitiesGate/);
+    expect(src).toMatch(/app\.use\(['"]\/api\/chat['"]\s*,\s*propertyDbMiddleware\s*,\s*deprecate\s*,\s*legacyUtilitiesGate/);
   });
 });

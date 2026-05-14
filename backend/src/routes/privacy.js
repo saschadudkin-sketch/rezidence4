@@ -45,6 +45,12 @@ const CURRENT_CONSENT_VERSION = process.env.PRIVACY_CONSENT_VERSION || '2026-04-
 
 const getDb = (req) => req.db || db;
 const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+const getTenantOptions = (req) => (req.propertySlug ? { propertySlug: req.propertySlug } : undefined);
+const broadcastWithTenant = (fn, payload, req) => {
+  const options = getTenantOptions(req);
+  if (options) fn(payload, options);
+  else fn(payload);
+};
 
 function propertyIdFromReq(req, input = {}) {
   return resolvePropertyId({
@@ -313,8 +319,8 @@ router.post('/delete-account', express.json(), async (req, res, next) => {
 
     logger.warn({ uid, auditId }, '[privacy] account anonymized on user request');
 
-    await invalidateUserSessionCache(uid);
-    try { broadcastUserDelete(uid); } catch { /* SSE errors should not fail the flow */ }
+    await invalidateUserSessionCache(uid, getTenantOptions(req));
+    try { broadcastWithTenant(broadcastUserDelete, uid, req); } catch { /* SSE errors should not fail the flow */ }
 
     // Clear auth cookies so the client is immediately logged out.
     clearAuthCookies(res);

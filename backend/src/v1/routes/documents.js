@@ -105,11 +105,8 @@ const publicLimiter = rateLimit({
 
 // ─── Audit ──────────────────────────────────────────────────────────────────
 function audit(req, action, resourceId, changes) {
-  // SEC [AUDIT #1]: audit остаётся на singleton db.query (не req.db).
-  //   • Single-tenant go-live: DATABASE_URL === tenant DB → корректно.
-  //   • Multi-tenant post-launch: TODO — мигрировать на req.db, когда подключён
-  //     второй property и надо гарантировать tenant-isolated audit_log.
-  db.query(
+  const auditDb = req.db || db;
+  auditDb.query(
     `INSERT INTO property_audit_log
        (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
      VALUES ($1,$2,$3,'document',$4,$5,$6)`,

@@ -8,6 +8,13 @@ const { broadcastBlacklistAdd, broadcastBlacklistRemove } = require('../sse');
 
 const router = express.Router();
 router.use(requireAuth);
+const getDb = (req) => req.db || db;
+const getSseTenant = (req) => (req.propertySlug ? { propertySlug: req.propertySlug } : undefined);
+const callWithTenant = (fn, payload, req) => {
+  const options = getSseTenant(req);
+  if (options) fn(payload, options);
+  else fn(payload);
+};
 
 // Разрешённые роли для чтения/записи чёрного списка
 const ALLOWED_ROLES = new Set(['admin', 'security', 'concierge']);
@@ -44,7 +51,7 @@ router.get('/', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     // FIX [AUDIT]: явные колонки вместо SELECT * — не тянем служебные поля
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT id, name, phone, car_plate, reason, added_by, added_at
        FROM blacklist ORDER BY added_at DESC`
     );
@@ -70,7 +77,7 @@ router.post('/', async (req, res, next) => {
     }
 
     const generatedId = uuid();
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO blacklist(id, name, phone, car_plate, reason, added_by)
        VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
       [generatedId, name || null, phone || null, carPlate || null, reason || null, req.user.name],
@@ -84,7 +91,7 @@ router.post('/', async (req, res, next) => {
       added_by: req.user.name || null,
       added_at: new Date().toISOString(),
     };
-    broadcastBlacklistAdd(fmt(inserted));
+    callWithTenant(broadcastBlacklistAdd, fmt(inserted), req);
     res.status(201).json(fmt(inserted));
   } catch (err) { next(err); }
 });
@@ -94,8 +101,8 @@ router.delete('/:id', validateId, async (req, res, next) => {
     if (!ALLOWED_ROLES.has(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    await db.query(`DELETE FROM blacklist WHERE id=$1`, [req.params.id]);
-    broadcastBlacklistRemove(req.params.id);
+    await getDb(req).query(`DELETE FROM blacklist WHERE id=$1`, [req.params.id]);
+    callWithTenant(broadcastBlacklistRemove, req.params.id, req);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

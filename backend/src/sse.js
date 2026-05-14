@@ -19,7 +19,7 @@
 const { STAFF_ROLES } = require('./constants');
 const { randomUUID } = require('crypto');
 
-// In-memory map: uid -> Set<{ res, role }>
+// In-memory map: uid -> Set<{ res, role, propertySlug }>
 const clients = new Map();
 
 // Roles allowed to receive blacklist events
@@ -38,7 +38,31 @@ function getTotalConnections() {
   return total;
 }
 
-function addClient(uid, res, role) {
+function normalizeTenantContext(input) {
+  if (!input) return null;
+  if (typeof input === 'string') return input.trim().toLowerCase() || null;
+  const slug = input.propertySlug || input.property_slug || input.slug || input.property?.slug;
+  return slug ? String(slug).trim().toLowerCase() : null;
+}
+
+function eventTenant(data, options = {}) {
+  return normalizeTenantContext(options)
+    || normalizeTenantContext(data)
+    || normalizeTenantContext(data?.property);
+}
+
+function withTenantData(data, tenant) {
+  if (!tenant || !data || typeof data !== 'object' || Array.isArray(data)) return data;
+  if (data.property_slug === tenant || data.propertySlug === tenant) return data;
+  return { ...data, property_slug: tenant };
+}
+
+function tenantMatches(entry, tenant) {
+  if (!tenant) return !entry.propertySlug;
+  return entry.propertySlug === tenant;
+}
+
+function addClient(uid, res, role, tenantContext = null) {
   if (getTotalConnections() >= MAX_TOTAL_CONNECTIONS) {
     try { res.status(503).end(); } catch { /* already closed */ }
     return;
@@ -50,7 +74,7 @@ function addClient(uid, res, role) {
     try { first.res.end(); } catch { /* уже закрыто */ }
     set.delete(first);
   }
-  set.add({ res, role });
+  set.add({ res, role, propertySlug: normalizeTenantContext(tenantContext) });
 }
 
 function removeClient(uid, res) {
@@ -69,22 +93,30 @@ function setRedisPublish(fn) { _redisPublish = fn; }
 
 // ─── Local broadcast (вызывается напрямую ИЛИ из Redis subscriber) ───────────
 
-function localBroadcastToAll(event, data) {
+function localBroadcastToAll(event, data, options = {}) {
+  const tenant = eventTenant(data, options);
+  const scopedData = withTenantData(data, tenant);
   const id = nextEventId();
-  const payload = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const payload = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(scopedData)}\n\n`;
   for (const set of clients.values()) {
-    for (const { res } of set) {
+    for (const entry of set) {
+      if (!tenantMatches(entry, tenant)) continue;
+      const { res } = entry;
       try { res.write(payload); } catch { /* disconnected */ }
     }
   }
 }
 
-function localBroadcastRequestUpdate(req) {
+function localBroadcastRequestUpdate(req, options = {}) {
+  const tenant = eventTenant(req, options);
+  const scopedReq = withTenantData(req, tenant);
   const id = nextEventId();
-  const payload = `id: ${id}\nevent: request_update\ndata: ${JSON.stringify(req)}\n\n`;
+  const payload = `id: ${id}\nevent: request_update\ndata: ${JSON.stringify(scopedReq)}\n\n`;
   for (const [uid, set] of clients.entries()) {
-    for (const { res, role } of set) {
-      if (STAFF_ROLES.has(role) || req.createdByUid === uid) {
+    for (const entry of set) {
+      if (!tenantMatches(entry, tenant)) continue;
+      const { res, role } = entry;
+      if (STAFF_ROLES.has(role) || scopedReq.createdByUid === uid) {
         try { res.write(payload); } catch { /* disconnected */ }
       }
     }
@@ -93,11 +125,15 @@ function localBroadcastRequestUpdate(req) {
 
 // ─── Local broadcast: only to clients with specific roles ─────────────────────
 // Used directly OR from Redis subscriber when targetRoles is set.
-function localBroadcastToRoles(event, data, allowedRoles) {
+function localBroadcastToRoles(event, data, allowedRoles, options = {}) {
+  const tenant = eventTenant(data, options);
+  const scopedData = withTenantData(data, tenant);
   const id = nextEventId();
-  const payload = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const payload = `id: ${id}\nevent: ${event}\ndata: ${JSON.stringify(scopedData)}\n\n`;
   for (const [, set] of clients.entries()) {
-    for (const { res, role } of set) {
+    for (const entry of set) {
+      if (!tenantMatches(entry, tenant)) continue;
+      const { res, role } = entry;
       if (allowedRoles.has(role)) {
         try { res.write(payload); } catch { /* disconnected */ }
       }
@@ -107,45 +143,51 @@ function localBroadcastToRoles(event, data, allowedRoles) {
 
 // ─── Public broadcast (Redis-aware) ──────────────────────────────────────────
 
-function broadcastToAll(event, data) {
+function broadcastToAll(event, data, options = {}) {
+  const tenant = eventTenant(data, options);
+  const scopedData = withTenantData(data, tenant);
   if (_redisPublish) {
-    _redisPublish(event, data);
+    _redisPublish(event, scopedData, undefined, tenant);
   } else {
-    localBroadcastToAll(event, data);
+    localBroadcastToAll(event, scopedData, { propertySlug: tenant });
   }
 }
 
 // Broadcast to specific roles only (Redis-aware).
 // targetRoles must be a Set<string>.
-function broadcastToRoles(event, data, targetRoles) {
+function broadcastToRoles(event, data, targetRoles, options = {}) {
+  const tenant = eventTenant(data, options);
+  const scopedData = withTenantData(data, tenant);
   if (_redisPublish) {
     // Pass roles array so Redis subscriber can re-filter per instance
-    _redisPublish(event, data, [...targetRoles]);
+    _redisPublish(event, scopedData, [...targetRoles], tenant);
   } else {
-    localBroadcastToRoles(event, data, targetRoles);
+    localBroadcastToRoles(event, scopedData, targetRoles, { propertySlug: tenant });
   }
 }
 
-function broadcastRequestUpdate(req) {
+function broadcastRequestUpdate(req, options = {}) {
+  const tenant = eventTenant(req, options);
+  const scopedReq = withTenantData(req, tenant);
   if (_redisPublish) {
-    _redisPublish('request_update', req);
+    _redisPublish('request_update', scopedReq, undefined, tenant);
   } else {
-    localBroadcastRequestUpdate(req);
+    localBroadcastRequestUpdate(scopedReq, { propertySlug: tenant });
   }
 }
 
-function broadcastChatMessage(msg) { broadcastToAll('message',        msg); }
-function broadcastChatUpdate(msg)  { broadcastToAll('message_update', msg); }
-function broadcastChatDelete(id)   { broadcastToAll('message_delete', { id }); }
+function broadcastChatMessage(msg, options) { broadcastToAll('message',        msg, options); }
+function broadcastChatUpdate(msg, options)  { broadcastToAll('message_update', msg, options); }
+function broadcastChatDelete(id, options)   { broadcastToAll('message_delete', { id }, options); }
 
 // ─── Domain-specific broadcasts ──────────────────────────────────────────────
 // Blacklist: only admin/security/concierge may see blacklist data
-function broadcastBlacklistAdd(entry)  { broadcastToRoles('blacklist_add',    entry,    BLACKLIST_ROLES); }
-function broadcastBlacklistRemove(id)  { broadcastToRoles('blacklist_remove', { id },   BLACKLIST_ROLES); }
+function broadcastBlacklistAdd(entry, options)  { broadcastToRoles('blacklist_add',    entry,    BLACKLIST_ROLES, options); }
+function broadcastBlacklistRemove(id, options)  { broadcastToRoles('blacklist_remove', { id },   BLACKLIST_ROLES, options); }
 // User updates: all clients already receive full user list at sync,
 // so broadcasting to all is consistent with existing data access model.
-function broadcastUserUpdate(user)     { broadcastToAll('user_update', user); }
-function broadcastUserDelete(uid)      { broadcastToAll('user_delete', { uid }); }
+function broadcastUserUpdate(user, options)     { broadcastToAll('user_update', user, options); }
+function broadcastUserDelete(uid, options)      { broadcastToAll('user_delete', { uid }, options); }
 
 /**
  * closeAll — send retry hint to all SSE clients and close their connections.
@@ -171,4 +213,5 @@ module.exports = {
   setRedisPublish,
   localBroadcastToAll, localBroadcastToRoles,
   localBroadcastRequestUpdate,
+  normalizeTenantContext,
 };

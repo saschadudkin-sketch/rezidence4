@@ -8,13 +8,9 @@
 #   - При рестарте контейнера следующий запуск будет в ближайшее 03:00, не через 24ч.
 #   - cron устойчив к перезапускам: не теряет день при падении в 23:59.
 #
-# SEC [AUDIT #5]: раньше дампилась только legacy `residenze` БД.  С переходом
-# на platform-v1 multi-tenant архитектуру обязательно бекапить:
-#   - residenze — legacy данные (пока жива)
-#   - platform — registry (список tenant'ов, platform_admins, audit_log)
-#   - zamoskv — per-tenant данные первого production клиента
-# Список БД управляется через env BACKUP_DATABASES (разделитель — пробел).
-# При добавлении нового tenant'а достаточно допиcать slug в compose env.
+# SEC [AUDIT #5]: default backup discovery reads active tenant DBs from the
+# platform registry. BACKUP_DATABASES remains as an explicit override for
+# break-glass/manual runs (space-separated database names).
 #
 # Переменные окружения (задаются в docker-compose):
 #   PGPASSWORD        — пароль PostgreSQL (обязателен)
@@ -22,7 +18,8 @@
 #   BACKUP_DIR        — директория для бэкапов (по умолчанию /backups)
 #   DB_HOST           — хост PostgreSQL (по умолчанию db)
 #   DB_USER           — пользователь PostgreSQL (по умолчанию residenze)
-#   BACKUP_DATABASES  — список БД через пробел (по умолчанию "residenze platform zamoskv")
+#   BACKUP_DATABASES  — optional explicit DB names; when empty, discover tenants
+#                       from platform.properties where active
 
 set -e
 
@@ -30,37 +27,79 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 KEEP_DAYS="${KEEP_DAYS:-7}"
 DB_HOST="${DB_HOST:-db}"
 DB_USER="${DB_USER:-residenze}"
-# SEC [AUDIT #5]: legacy дефолт DB_NAME сохранён для обратной совместимости,
-# но если BACKUP_DATABASES задан, он имеет приоритет.
-BACKUP_DATABASES="${BACKUP_DATABASES:-${DB_NAME:-residenze} platform zamoskv}"
+PLATFORM_DB_URL="${PLATFORM_DB_URL:-postgresql://${DB_USER}:${PGPASSWORD}@${DB_HOST}:5432/platform}"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 mkdir -p "$BACKUP_DIR"
 
+discover_backup_targets() {
+  if [ -n "${BACKUP_DATABASES:-}" ]; then
+    for DB in $BACKUP_DATABASES; do
+      echo "${DB}|${DB}"
+    done
+    return
+  fi
+
+  # Always include legacy/global and platform registry DBs.
+  echo "${DB_NAME:-residenze}|${DB_NAME:-residenze}"
+  echo "platform|platform"
+
+  psql "$PLATFORM_DB_URL" -At -F '|' \
+    -c "SELECT slug, db_connection_url FROM properties WHERE COALESCE(is_active, true) = true AND COALESCE(status, 'active') <> 'terminated' ORDER BY slug" \
+    2>/tmp/psql_properties.err || {
+      echo "[backup] ERROR: cannot discover tenant DBs from platform registry: $(cat /tmp/psql_properties.err)" >&2
+      return 1
+    }
+}
+
+backup_one() {
+  LABEL="$1"
+  TARGET="$2"
+  SAFE_LABEL=$(echo "$LABEL" | tr -c 'A-Za-z0-9_.-' '_')
+  FNAME="${BACKUP_DIR}/${SAFE_LABEL}_${DATE}.sql.gz"
+  TMP_SQL="/tmp/backup_${SAFE_LABEL}_$$.sql"
+  echo "[backup] $(date '+%Y-%m-%d %H:%M:%S') — starting backup of ${LABEL}@${DB_HOST}..."
+
+  if echo "$TARGET" | grep -q '://'; then
+    pg_dump "$TARGET" > "$TMP_SQL" 2>/tmp/pg_dump.err
+    DUMP_STATUS=$?
+  else
+    pg_dump -h "$DB_HOST" -U "$DB_USER" "$TARGET" > "$TMP_SQL" 2>/tmp/pg_dump.err
+    DUMP_STATUS=$?
+  fi
+
+  if [ "$DUMP_STATUS" -eq 0 ]; then
+    gzip -c "$TMP_SQL" > "$FNAME"
+    rm -f "$TMP_SQL"
+    SIZE=$(du -sh "$FNAME" 2>/dev/null | cut -f1 || echo "?")
+    echo "[backup] saved: $FNAME ($SIZE)"
+    LATEST="${BACKUP_DIR}/${SAFE_LABEL}_latest.sql.gz"
+    rm -f "$LATEST"
+    cp "$FNAME" "$LATEST"
+    return 0
+  fi
+
+  echo "[backup] ERROR: pg_dump ${LABEL} failed! $(cat /tmp/pg_dump.err)" >&2
+  rm -f "$TMP_SQL"
+  rm -f "$FNAME"
+  return 1
+}
+
 # SEC [AUDIT #5]: per-database цикл — упадёт на первой ошибке (set -e), но
 # каждая БД бекапится в отдельный файл чтобы восстановление было гранулярным.
 FAILURES=0
-for DB in $BACKUP_DATABASES; do
-  FNAME="${BACKUP_DIR}/${DB}_${DATE}.sql.gz"
-  echo "[backup] $(date '+%Y-%m-%d %H:%M:%S') — starting backup of ${DB}@${DB_HOST}..."
-
-  # Отдельный if/else на БД, чтобы продолжить цикл при сбое одной
-  # (иначе set -e убил бы скрипт и оставил частичные данные за день).
-  if pg_dump -h "$DB_HOST" -U "$DB_USER" "$DB" 2>/tmp/pg_dump.err | gzip > "$FNAME"; then
-    SIZE=$(du -sh "$FNAME" 2>/dev/null | cut -f1 || echo "?")
-    echo "[backup] saved: $FNAME ($SIZE)"
-    # "latest" файл — runbook'и rollback-сценариев ссылаются на *_latest.sql.gz.
-    # Делаем обычную gzip-копию, а не symlink: Windows bind-mount'ы Docker
-    # отдают Linux symlink'и как нулевые link-файлы для host-side preflight.
-    LATEST="${BACKUP_DIR}/${DB}_latest.sql.gz"
-    rm -f "$LATEST"
-    cp "$FNAME" "$LATEST"
-  else
-    echo "[backup] ERROR: pg_dump ${DB} failed! $(cat /tmp/pg_dump.err)" >&2
-    rm -f "$FNAME"
-    FAILURES=$((FAILURES + 1))
-  fi
-done
+TARGETS_FILE="/tmp/backup_targets.$$"
+if discover_backup_targets > "$TARGETS_FILE"; then
+  while IFS='|' read -r LABEL TARGET; do
+    [ -n "$LABEL" ] || continue
+    if ! backup_one "$LABEL" "$TARGET"; then
+      FAILURES=$((FAILURES + 1))
+    fi
+  done < "$TARGETS_FILE"
+else
+  FAILURES=$((FAILURES + 1))
+fi
+rm -f "$TARGETS_FILE"
 
 # Ротация: удаляем файлы старше KEEP_DAYS дней (по всем БД сразу)
 DELETED=$(find "$BACKUP_DIR" -name "*.sql.gz" -mtime "+${KEEP_DAYS}" -print)

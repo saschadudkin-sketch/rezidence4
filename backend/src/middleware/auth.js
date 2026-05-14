@@ -10,8 +10,13 @@ const REDIS_WARN_THROTTLE_MS = 30_000;
 const userActiveFallbackCache = new Map();
 const redisWarnAtByScope = new Map();
 
-function getUserActiveCacheKey(uid) {
-  return `user_active:${uid}`;
+function normalizeCacheScope(scope) {
+  if (!scope) return 'global';
+  return String(scope).trim().toLowerCase() || 'global';
+}
+
+function getUserActiveCacheKey(uid, propertySlug = 'global') {
+  return `user_active:${normalizeCacheScope(propertySlug)}:${uid}`;
 }
 
 function compactUserActiveFallbackCache(nowTs) {
@@ -62,25 +67,25 @@ async function isTokenRevoked(jti, queryDb = db) {
   return rows.length > 0;
 }
 
-async function isUserActive(uid, queryDb = db) {
+async function isUserActive(uid, queryDb = db, propertySlug = 'global') {
   const now = Date.now();
-  const fallbackCached = userActiveFallbackCache.get(uid);
+  const cacheKey = getUserActiveCacheKey(uid, propertySlug);
+  const fallbackCached = userActiveFallbackCache.get(cacheKey);
   if (fallbackCached && fallbackCached.expiresAt > now) {
     return fallbackCached.value;
   }
   if (fallbackCached && fallbackCached.expiresAt <= now) {
-    userActiveFallbackCache.delete(uid);
+    userActiveFallbackCache.delete(cacheKey);
   }
 
   const _redis = getRedis();
-  const cacheKey = getUserActiveCacheKey(uid);
 
   if (_redis) {
     try {
       const cached = await _redis.get(cacheKey);
       if (cached !== null) {
         const value = cached === '1';
-        setUserActiveFallback(uid, value, now);
+        setUserActiveFallback(cacheKey, value, now);
         return value;
       }
     } catch (err) {
@@ -93,7 +98,7 @@ async function isUserActive(uid, queryDb = db) {
     [uid],
   );
   const isActive = rows.length > 0;
-  setUserActiveFallback(uid, isActive, now);
+  setUserActiveFallback(cacheKey, isActive, now);
 
   if (_redis) {
     try {
@@ -106,13 +111,15 @@ async function isUserActive(uid, queryDb = db) {
   return isActive;
 }
 
-async function invalidateUserActiveCache(uid) {
+async function invalidateUserActiveCache(uid, options = {}) {
   if (!uid) return;
-  userActiveFallbackCache.delete(uid);
+  const propertySlug = options.propertySlug || options.property_slug || options.slug || 'global';
+  const cacheKey = getUserActiveCacheKey(uid, propertySlug);
+  userActiveFallbackCache.delete(cacheKey);
   const _redis = getRedis();
   if (!_redis) return;
   try {
-    await _redis.del(getUserActiveCacheKey(uid));
+    await _redis.del(cacheKey);
   } catch (err) {
     warnRedisThrottled('user-active-del', { err, uid }, '[auth] user active cache invalidate failed');
   }
@@ -166,7 +173,7 @@ module.exports = async function requireAuth(req, res, next) {
     // По умолчанию (включая test) проверка включена.
     const shouldCheckActiveUser = process.env.AUTH_SKIP_ACTIVE_CHECK !== '1';
     if (shouldCheckActiveUser) {
-      const activeUser = await isUserActive(payload.uid, queryDb);
+      const activeUser = await isUserActive(payload.uid, queryDb, req.propertySlug || payload.property_slug || 'global');
       if (!activeUser) {
         return res.status(401).json({ error: 'User not found or deleted' });
       }

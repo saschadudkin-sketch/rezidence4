@@ -191,7 +191,7 @@ function registerApiRoutes(app, { rateLimiters }) {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
     res.write(': connected\n\n');
-    sse.addClient(uid, res, role);
+    sse.addClient(uid, res, role, { propertySlug: req.propertySlug });
     const ping = setInterval(() => {
       try { res.write(': ping\n\n'); }
       catch { clearInterval(ping); sse.removeClient(uid, res); }
@@ -347,16 +347,18 @@ function registerApiRoutes(app, { rateLimiters }) {
   // platform registry to aggregate DH-35 snapshots for that portfolio only.
   app.use('/api/v1/management-company/portfolio', v1ManagementCompanyPortfolioRouter);
 
-  app.use('/api/auth', deprecate, authLimiter, authRouter);
-  app.use('/api/requests', deprecate, requestsRouter);
-  app.use('/api/users', deprecate, usersRouter);
-  app.use('/api/chat', deprecate, legacyUtilitiesGate, chatRouter);
-  app.use('/api/perms', deprecate, permsRouter);
-  app.use('/api/templates', deprecate, templatesRouter);
-  app.use('/api/blacklist', deprecate, blacklistRouter);
-  app.use('/api/visit-logs', deprecate, visitLogsRouter);
-  app.use('/api/upload', deprecate, uploadLimiter, uploadRouter);
-  app.use('/api/contracts', deprecate, contractsRouter);
+  // Deprecated /api/* shims are still tenant-scoped. Without this resolver the
+  // compatibility mounts can fall back to the singleton DATABASE_URL pool.
+  app.use('/api/auth', propertyDbMiddleware, deprecate, authLimiter, authRouter);
+  app.use('/api/requests', propertyDbMiddleware, deprecate, requestsRouter);
+  app.use('/api/users', propertyDbMiddleware, deprecate, usersRouter);
+  app.use('/api/chat', propertyDbMiddleware, deprecate, legacyUtilitiesGate, chatRouter);
+  app.use('/api/perms', propertyDbMiddleware, deprecate, permsRouter);
+  app.use('/api/templates', propertyDbMiddleware, deprecate, templatesRouter);
+  app.use('/api/blacklist', propertyDbMiddleware, deprecate, blacklistRouter);
+  app.use('/api/visit-logs', propertyDbMiddleware, deprecate, visitLogsRouter);
+  app.use('/api/upload', propertyDbMiddleware, deprecate, uploadLimiter, uploadRouter);
+  app.use('/api/contracts', propertyDbMiddleware, deprecate, contractsRouter);
 }
 
 module.exports = {

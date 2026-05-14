@@ -9,6 +9,14 @@ const { CHAT_LIMITS } = require('../constants/validationLimits');
 
 const router = express.Router();
 router.use(requireAuth);
+const getDb = (req) => req.db || db;
+const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
+const getSseTenant = (req) => (req.propertySlug ? { propertySlug: req.propertySlug } : undefined);
+const callWithTenant = (fn, payload, req) => {
+  const options = getSseTenant(req);
+  if (options) fn(payload, options);
+  else fn(payload);
+};
 
 // FIX [AUDIT-2]: chatLimiter перенесён ВНУТРЬ роутера — на конкретный POST /messages.
 //
@@ -85,7 +93,7 @@ router.get('/messages', async (req, res, next) => {
 
     if (search) {
       // Full-history search: ignore cursor pagination, return matching messages newest-first
-      const { rows: r } = await db.query(
+      const { rows: r } = await getDb(req).query(
         `SELECT id, uid, name, role, text, photo, reply_to, reactions, edited, at
          FROM chat_messages
          WHERE text ILIKE $1
@@ -104,7 +112,7 @@ router.get('/messages', async (req, res, next) => {
       // FIX [AUDIT-3 #9]: составной курсор (at, id) вместо только at.
       // При одновременных сообщениях (одинаковый timestamp) курсор по at
       // пропускал одно из сообщений. Составной индекс (at DESC, id DESC) решает.
-      const { rows: r } = await db.query(
+      const { rows: r } = await getDb(req).query(
         `SELECT id, uid, name, role, text, photo, reply_to, reactions, edited, at
          FROM chat_messages
          WHERE (at, id) < (
@@ -117,7 +125,7 @@ router.get('/messages', async (req, res, next) => {
       rows = r;
     } else {
       // Первая загрузка: последние N сообщений
-      const { rows: r } = await db.query(
+      const { rows: r } = await getDb(req).query(
         `SELECT id, uid, name, role, text, photo, reply_to, reactions, edited, at
          FROM chat_messages
          ORDER BY at DESC
@@ -197,14 +205,14 @@ router.post('/messages', chatMessagesLimiter, async (req, res, next) => {
       }
     }
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `INSERT INTO chat_messages(id, uid, name, role, text, photo, reply_to)
        VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [id, uid, name, role, text || null, photo || null, replyTo || null],
     );
 
     const msg = fmt(rows[0]);
-    sse.broadcastChatMessage(msg);
+    callWithTenant(sse.broadcastChatMessage, msg, req);
     res.status(201).json(msg);
   } catch (err) { next(err); }
 });
@@ -250,7 +258,7 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
 
     // FIX [SEC]: используем транзакцию с FOR UPDATE для атомарного merge реакций.
     // SELECT FOR UPDATE блокирует строку — исключает race condition при concurrent реакциях.
-    const client = await db.pool.connect();
+    const client = await getTxPool(req).connect();
     try {
       await client.query('BEGIN');
 
@@ -329,7 +337,7 @@ router.patch('/messages/:id', validateMsgId, async (req, res, next) => {
       await client.query('COMMIT');
 
       const msg = fmt(rows[0]);
-      sse.broadcastChatUpdate(msg);
+      callWithTenant(sse.broadcastChatUpdate, msg, req);
       res.json(msg);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -347,7 +355,7 @@ router.delete('/messages/:id', validateMsgId, async (req, res, next) => {
     const { uid, role } = req.user;
     const { id }        = req.params;
 
-    const { rows } = await db.query(
+    const { rows } = await getDb(req).query(
       `SELECT uid FROM chat_messages WHERE id=$1`, [id],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
@@ -355,8 +363,8 @@ router.delete('/messages/:id', validateMsgId, async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    await db.query(`DELETE FROM chat_messages WHERE id=$1`, [id]);
-    sse.broadcastChatDelete(id);
+    await getDb(req).query(`DELETE FROM chat_messages WHERE id=$1`, [id]);
+    callWithTenant(sse.broadcastChatDelete, id, req);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -379,7 +387,7 @@ router.get('/stream', sseConnectLimiter, (req, res) => {
   // Send initial ping so client knows connection is alive
   res.write(': connected\n\n');
 
-  sse.addClient(uid, res, role); // FIX [SEC-2]: role передаётся для фильтрации broadcast
+  sse.addClient(uid, res, role, getSseTenant(req)); // FIX [SEC-2]: role передаётся для фильтрации broadcast
 
   // Keepalive every 25s
   const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25000);

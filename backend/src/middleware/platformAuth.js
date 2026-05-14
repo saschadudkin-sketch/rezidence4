@@ -51,10 +51,34 @@ async function platformAuth(req, res, next) {
     });
   }
 
-  req.platformAdmin = { id, email, name };
+  let admin;
+  const platformDb = getPlatformDb();
+  try {
+    const { rows } = await platformDb.query(
+      `SELECT id, email, name, is_active
+         FROM platform_admins
+        WHERE id = $1`,
+      [id],
+    );
+    admin = rows[0] || null;
+  } catch (err) {
+    logger.warn({ err, id }, '[platformAuth] failed to load admin state');
+    return res.status(503).json({
+      error: { code: 'AUTH_STATE_UNAVAILABLE', message: 'Platform admin state unavailable' },
+    });
+  }
+
+  if (!admin || admin.email !== email || admin.is_active !== true) {
+    logger.warn({ id, email }, '[platformAuth] inactive or unknown platform admin token rejected');
+    return res.status(401).json({
+      error: { code: 'UNAUTHORIZED', message: 'Platform admin is inactive' },
+    });
+  }
+
+  req.platformAdmin = { id: admin.id, email: admin.email, name: admin.name || name };
 
   // Fire-and-forget: update last_login_at (non-blocking)
-  getPlatformDb()
+  platformDb
     .query('UPDATE platform_admins SET last_login_at = NOW() WHERE id = $1', [id])
     .catch((err) => logger.warn({ err, id }, '[platformAuth] failed to update last_login_at'));
 

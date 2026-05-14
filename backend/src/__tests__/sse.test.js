@@ -163,6 +163,21 @@ describe('SEC-2: broadcastRequestUpdate — фильтрация по роли',
 
     expect(tenantRes.write).not.toHaveBeenCalled();
   });
+
+  test('tenant scope: событие tenant A не уходит клиенту tenant B', async () => {
+    const sse = getSse();
+    const alphaRes = mockRes();
+    const betaRes = mockRes();
+    sse.addClient('g1', alphaRes, 'security', { propertySlug: 'alpha' });
+    sse.addClient('g2', betaRes, 'security', { propertySlug: 'beta' });
+
+    sse.broadcastRequestUpdate(req, { propertySlug: 'alpha' });
+    await flushImmediate();
+
+    expect(alphaRes.write).toHaveBeenCalledTimes(1);
+    expect(betaRes.write).not.toHaveBeenCalled();
+    expect(alphaRes.write.mock.calls[0][0]).toContain('"property_slug":"alpha"');
+  });
 });
 
 describe('broadcastChatMessage/Update/Delete — рассылка всем', () => {
@@ -212,6 +227,22 @@ describe('broadcastChatMessage/Update/Delete — рассылка всем', () 
     const sse = getSse();
     expect(() => sse.broadcastChatMessage({ id: 'm1' })).not.toThrow();
     expect(() => sse.broadcastRequestUpdate({ id: 'r1', createdByUid: 'u1' })).not.toThrow();
+  });
+
+  test('tenant scope applies to chat/user/blacklist broadcasts', async () => {
+    const sse = getSse();
+    const alphaRes = mockRes();
+    const betaRes = mockRes();
+    sse.addClient('a1', alphaRes, 'admin', 'alpha');
+    sse.addClient('b1', betaRes, 'admin', 'beta');
+
+    sse.broadcastChatMessage({ id: 'm1', text: 'alpha only' }, { propertySlug: 'alpha' });
+    sse.broadcastBlacklistAdd({ id: 'bl1' }, { propertySlug: 'alpha' });
+    sse.broadcastUserDelete('u1', { propertySlug: 'alpha' });
+    await flushImmediate();
+
+    expect(alphaRes.write).toHaveBeenCalledTimes(3);
+    expect(betaRes.write).not.toHaveBeenCalled();
   });
 });
 

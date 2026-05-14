@@ -3,8 +3,17 @@ module.exports = {
   collectCoverageFrom: [
     'src/routes/auth.js',
     'src/routes/requests.js',
+    'src/middleware/auth.js',
     'src/middleware/authorize.js',
     'src/middleware/idempotency.js',
+    'src/middleware/platformAuth.js',
+    'src/middleware/propertyDb.js',
+    'src/sse.js',
+    'src/sse-redis.js',
+    'src/v1/routes/announcements.js',
+    'src/v1/routes/documents.js',
+    'src/v1/routes/packages.js',
+    'src/v1/routes/adminOutbox.js',
   ],
   coverageThreshold: {
     global: {
@@ -23,6 +32,15 @@ module.exports = {
     '**/__tests__/authorize.test.js',
     '**/__tests__/idempotency.test.js',
     '**/__tests__/idempotency.coverage.test.js',
+    '**/__tests__/middleware_auth.test.js',
+    '**/__tests__/platformAuth.test.js',
+    '**/__tests__/propertyDb.test.js',
+    '**/__tests__/sse.test.js',
+    '**/__tests__/sseRedis.test.js',
+    '**/__tests__/v1AnnouncementsEndpoint.test.js',
+    '**/__tests__/v1DocumentsEndpoint.test.js',
+    '**/__tests__/v1PackagesEndpoint.test.js',
+    '**/__tests__/v1AdminOutboxEndpoint.test.js',
   ],
   testEnvironment: 'node',
 };

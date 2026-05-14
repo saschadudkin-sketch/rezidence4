@@ -40,6 +40,7 @@
     "test:e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:visual": "node ./node_modules/@playwright/test/cli.js test e2e/visual-states.spec.js",
     "openapi:types": "openapi-typescript docs/openapi.json -o frontend/src/api/generated/openapi.d.ts",
+    "openapi:drift": "node scripts/openapi-v1-drift-gate.cjs",
     "security:gitleaks": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-gitleaks.ps1",
     "security:semgrep": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-semgrep.ps1",
     "security:scan": "npm run security:gitleaks && npm run security:semgrep"

@@ -14,6 +14,12 @@ router.use(requireAuth);
 const ALLOWED_ROLES = ['owner','tenant','contractor','concierge','security','admin'];
 
 const getDb = (req) => req.db || db;
+const getTenantOptions = (req) => (req.propertySlug ? { propertySlug: req.propertySlug } : undefined);
+const broadcastWithTenant = (fn, payload, req) => {
+  const options = getTenantOptions(req);
+  if (options) fn(payload, options);
+  else fn(payload);
+};
 
 // FIX [AUDIT]: валидация формата UID — принимаем UUID или legacy safe-id.
 // Без проверки PATCH /api/users/<любая-строка> доходил до БД с мусорным uid.
@@ -83,7 +89,7 @@ router.post('/', async (req, res, next) => {
        VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [uid, normalised, name, role, apartment || null],
     );
-    broadcastUserUpdate(fmt(rows[0]));
+    broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.status(201).json(fmt(rows[0]));
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Телефон уже зарегистрирован' });
@@ -157,7 +163,7 @@ router.patch('/:uid', validateUid, async (req, res, next) => {
       vals,
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    broadcastUserUpdate(fmt(rows[0]));
+    broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.json(fmt(rows[0]));
   } catch (err) { next(err); }
 });
@@ -177,8 +183,8 @@ router.delete('/:uid', validateUid, async (req, res, next) => {
        WHERE uid=$1 AND deleted_at IS NULL`,
       [req.params.uid],
     );
-    await revokeUserSessions(queryDb, req.params.uid);
-    broadcastUserDelete(req.params.uid);
+    await revokeUserSessions(queryDb, req.params.uid, getTenantOptions(req));
+    broadcastWithTenant(broadcastUserDelete, req.params.uid, req);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -197,8 +203,8 @@ router.patch('/:uid/restore', validateUid, async (req, res, next) => {
       [req.params.uid],
     );
     if (!rows.length) return res.status(404).json({ error: 'Not found or not deleted' });
-    await invalidateUserSessionCache(req.params.uid);
-    broadcastUserUpdate(fmt(rows[0]));
+    await invalidateUserSessionCache(req.params.uid, getTenantOptions(req));
+    broadcastWithTenant(broadcastUserUpdate, fmt(rows[0]), req);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

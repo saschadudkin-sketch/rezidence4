@@ -229,6 +229,43 @@ describe('requireAuth middleware', () => {
     expect(userLookupCall).toBeUndefined();
   });
 
+  test('active-user Redis key is scoped by tenant', async () => {
+    const req = makeReq({ cookie: validToken });
+    req.propertySlug = 'alpha';
+    const res = makeRes();
+    const next = jest.fn();
+
+    mockRedisGet.mockResolvedValueOnce('1');
+    await requireAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(mockRedisGet).toHaveBeenCalledWith('user_active:alpha:u1');
+  });
+
+  test('local fallback active-user cache does not cross tenant boundaries', async () => {
+    const alphaReq = makeReq({ cookie: validToken });
+    alphaReq.propertySlug = 'alpha';
+    const betaReq = makeReq({ cookie: validToken });
+    betaReq.propertySlug = 'beta';
+    const alphaRes = makeRes();
+    const betaRes = makeRes();
+    const alphaNext = jest.fn();
+    const betaNext = jest.fn();
+
+    db.query
+      .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await requireAuth(alphaReq, alphaRes, alphaNext);
+    await requireAuth(betaReq, betaRes, betaNext);
+
+    expect(alphaNext).toHaveBeenCalledTimes(1);
+    expect(betaNext).not.toHaveBeenCalled();
+    expect(betaRes.status).toHaveBeenCalledWith(401);
+    const userLookupCalls = db.query.mock.calls.filter(([sql]) => String(sql).includes('FROM users'));
+    expect(userLookupCalls).toHaveLength(2);
+  });
+
   test('falls back from Redis read error to DB lookup and logs once', async () => {
     const req = makeReq({ cookie: validToken });
     const res = makeRes();

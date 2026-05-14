@@ -365,13 +365,19 @@ function startRuntimeJobs({ db, property }) {
       if (expiredRows.length > 0) {
         logger.info(`[expiration] expired ${expiredRows.length} requests`);
         expiredRows.forEach(r => {
-          try { broadcastRequestUpdate(r); } catch { /* SSE не должна ронять джоб */ }
+          try {
+            if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
+            else broadcastRequestUpdate(r);
+          } catch { /* SSE не должна ронять джоб */ }
         });
       }
       if (activatedRows.length > 0) {
         logger.info(`[expiration] activated ${activatedRows.length} scheduled requests`);
         activatedRows.forEach(r => {
-          try { broadcastRequestUpdate(r); } catch { /* SSE не должна ронять джоб */ }
+          try {
+            if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
+            else broadcastRequestUpdate(r);
+          } catch { /* SSE не должна ронять джоб */ }
         });
       }
     } catch (err) {

@@ -46,6 +46,12 @@ router.use(requireAuth);
 const getDb = (req) => req.db || db;
 const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.pool);
 const getPropertyId = (req) => req.property?.id || req.body?.propertyId || req.query?.propertyId || null;
+const getSseTenant = (req) => (req.propertySlug ? { propertySlug: req.propertySlug } : undefined);
+const broadcastRequestWithTenant = (payload, req) => {
+  const options = getSseTenant(req);
+  if (options) broadcastRequestUpdate(payload, options);
+  else broadcastRequestUpdate(payload);
+};
 
 // FIX: поддерживаем и UUID, и legacy/string id (например "req-123"),
 // чтобы не ломать существующие данные/тесты, но всё ещё отсеивать мусор.
@@ -208,7 +214,7 @@ router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
     const created = await RequestsService.create(req.user, req.body, getDb(req), {
       propertyId: getPropertyId(req),
     });
-    broadcastRequestUpdate(created);
+    broadcastRequestWithTenant(created, req);
     res.status(201).json(created);
     if (created.emergencyProfile) {
       setImmediate(() => {
@@ -235,7 +241,7 @@ router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
 router.patch('/:id', validateId, async (req, res, next) => {
   try {
     const updated = await RequestsService.update(req.user, req.params.id, req.body, getDb(req), getTxPool(req));
-    broadcastRequestUpdate(updated);
+    broadcastRequestWithTenant(updated, req);
     res.json(updated);
 
     // Dispatch push notifications for status transitions (non-blocking, fire-and-forget).
@@ -311,7 +317,7 @@ router.patch('/:id', validateId, async (req, res, next) => {
 router.delete('/:id', validateId, async (req, res, next) => {
   try {
     const result = await RequestsService.delete(req.user, req.params.id, getDb(req));
-    broadcastRequestUpdate({ id: req.params.id, status: 'deleted', deletedAt: new Date().toISOString() });
+    broadcastRequestWithTenant({ id: req.params.id, status: 'deleted', deletedAt: new Date().toISOString() }, req);
     res.json(result);
   } catch (err) { handleServiceError(err, res, next); }
 });

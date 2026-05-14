@@ -40,13 +40,17 @@ async function deleteRefreshTokensForUser(queryDb, uid, { ignoreMissingTable = t
   }
 }
 
-async function invalidateUserSessionCache(uid) {
-  await requireAuth.invalidateUserActiveCache(uid);
+async function invalidateUserSessionCache(uid, options) {
+  if (options) {
+    await requireAuth.invalidateUserActiveCache(uid, options);
+  } else {
+    await requireAuth.invalidateUserActiveCache(uid);
+  }
 }
 
 async function revokeUserSessions(queryDb, uid, options) {
-  await deleteRefreshTokensForUser(queryDb, uid, options);
-  await invalidateUserSessionCache(uid);
+  await deleteRefreshTokensForUser(queryDb, uid);
+  await invalidateUserSessionCache(uid, options);
 }
 
 module.exports = {

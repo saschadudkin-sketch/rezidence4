@@ -153,15 +153,74 @@ async function migratePlatform() {
 }
 
 async function assertSchemaCurrent() {
-  if (!LATEST_MIGRATION_ID) return;
+  const latestPropertyMigrationId = V1_PROPERTY_MIGRATIONS[V1_PROPERTY_MIGRATIONS.length - 1]?.id
+    || LATEST_MIGRATION_ID;
+  const requiredPropertyIds = [LATEST_MIGRATION_ID, latestPropertyMigrationId].filter(Boolean);
+  if (!requiredPropertyIds.length) return;
   const { rows } = await query(
-    `SELECT 1 FROM schema_migrations WHERE id=$1`,
-    [LATEST_MIGRATION_ID],
+    `SELECT id FROM schema_migrations WHERE id = ANY($1::text[])`,
+    [requiredPropertyIds],
   );
-  if (!rows.length) {
-    const err = new Error(`Database schema is outdated. Run migrations before starting the server (missing ${LATEST_MIGRATION_ID}).`);
+  const appliedDefaultIds = new Set(rows.map((row) => row.id));
+  const missingDefault = requiredPropertyIds.find((id) => !appliedDefaultIds.has(id));
+  if (missingDefault) {
+    const err = new Error(`Database schema is outdated. Run migrations before starting the server (missing ${missingDefault}).`);
     err.code = 'SCHEMA_OUTDATED';
     throw err;
+  }
+
+  if (!process.env.PLATFORM_DB_URL) return;
+
+  const platformDb = getPlatformDb();
+  if (LATEST_PLATFORM_MIGRATION_ID) {
+    const { rows: platformRows } = await platformDb.query(
+      `SELECT 1 FROM platform_schema_migrations WHERE id=$1`,
+      [LATEST_PLATFORM_MIGRATION_ID],
+    );
+    if (!platformRows.length) {
+      const err = new Error(`Platform schema is outdated. Run platform migrations before starting the server (missing ${LATEST_PLATFORM_MIGRATION_ID}).`);
+      err.code = 'PLATFORM_SCHEMA_OUTDATED';
+      throw err;
+    }
+  }
+
+  const { rows: properties } = await platformDb.query(
+    `SELECT slug, db_connection_url
+       FROM properties
+      WHERE COALESCE(is_active, true) = true
+        AND COALESCE(status, 'active') <> 'terminated'
+      ORDER BY slug`,
+  );
+
+  const seenConnectionStrings = new Set([process.env.DATABASE_URL].filter(Boolean));
+  for (const property of properties) {
+    if (!property.db_connection_url) continue;
+    if (seenConnectionStrings.has(property.db_connection_url)) continue;
+    seenConnectionStrings.add(property.db_connection_url);
+
+    const tenantPool = new Pool({
+      connectionString: property.db_connection_url,
+      max: 1,
+      idleTimeoutMillis: 1_000,
+      connectionTimeoutMillis: 5_000,
+      statement_timeout: 10_000,
+    });
+    try {
+      const { rows: tenantRows } = await tenantPool.query(
+        `SELECT id FROM schema_migrations WHERE id = ANY($1::text[])`,
+        [requiredPropertyIds],
+      );
+      const applied = new Set(tenantRows.map((row) => row.id));
+      const missing = requiredPropertyIds.find((id) => !applied.has(id));
+      if (missing) {
+        const err = new Error(`Tenant schema is outdated for '${property.slug}'. Run tenant migrations before starting the server (missing ${missing}).`);
+        err.code = 'TENANT_SCHEMA_OUTDATED';
+        err.propertySlug = property.slug;
+        throw err;
+      }
+    } finally {
+      await tenantPool.end().catch(() => {});
+    }
   }
 }
 

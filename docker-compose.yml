@@ -206,10 +206,11 @@ services:
     environment:
       PGPASSWORD: ${DB_PASSWORD}
       # SEC [AUDIT #5]: три БД бекапятся, не одна.  При добавлении нового
-      # tenant'а — дописать его slug сюда (порядок: legacy residenze,
-      # platform registry, per-property DB).  Переопределить через .env если
-      # нужен другой список.
-      BACKUP_DATABASES: ${BACKUP_DATABASES:-residenze platform zamoskv}
+        # Empty by default: backup.sh discovers active tenant DBs from
+        # platform.properties. Set BACKUP_DATABASES only as a manual override.
+        BACKUP_DATABASES: ${BACKUP_DATABASES:-}
+        PLATFORM_DB_URL: ${PLATFORM_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/platform}
+        PGPASSWORD: ${DB_PASSWORD}
     volumes:
       - ./backups:/backups
       - ./backup.sh:/backup.sh:ro

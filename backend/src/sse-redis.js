@@ -38,25 +38,27 @@ function init() {
 
   sub.on('message', (_channel, raw) => {
     try {
-      const { event, data, targetRoles } = JSON.parse(raw);
+      const { event, data, targetRoles, propertySlug } = JSON.parse(raw);
+      const options = propertySlug ? { propertySlug } : {};
       if (targetRoles && Array.isArray(targetRoles)) {
         // Role-restricted broadcast (e.g. blacklist events)
-        sse.localBroadcastToRoles(event, data, new Set(targetRoles));
+        sse.localBroadcastToRoles(event, data, new Set(targetRoles), options);
       } else if (event === 'request_update') {
-        sse.localBroadcastRequestUpdate(data);
+        sse.localBroadcastRequestUpdate(data, options);
       } else {
-        sse.localBroadcastToAll(event, data);
+        sse.localBroadcastToAll(event, data, options);
       }
     } catch (e) {
       logger.warn({ err: e }, '[redis-sub] malformed message');
     }
   });
 
-  // fn signature: (event, data, targetRoles?) — targetRoles is string[] or undefined
-  sse.setRedisPublish((event, data, targetRoles) => {
+  // fn signature: (event, data, targetRoles?, propertySlug?)
+  sse.setRedisPublish((event, data, targetRoles, propertySlug) => {
     if (pub) {
       const msg = { event, data };
       if (targetRoles) msg.targetRoles = targetRoles;
+      if (propertySlug) msg.propertySlug = propertySlug;
       pub.publish(CHANNEL, JSON.stringify(msg)).catch(() => {});
     }
   });

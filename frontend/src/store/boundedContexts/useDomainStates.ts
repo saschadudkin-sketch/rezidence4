@@ -25,6 +25,7 @@ import {
 import {
   loadFromLS,
   hydrateRequestMediaFromIndexedDb,
+  clearLS,
   saveRequests,
   saveChat,
   saveUsers,
@@ -105,6 +106,11 @@ export function useBoundedDomainStates() {
   useDebouncedSave(permsState, savePerms, isDemoMode);
   useDebouncedSave(blacklistState, saveBlacklist, isDemoMode);
   useDebouncedSave(garageState, saveGarage, isDemoMode);
+
+  useEffect(() => {
+    if (isDemoMode) return;
+    clearLS();
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (!isDemoMode) return;
