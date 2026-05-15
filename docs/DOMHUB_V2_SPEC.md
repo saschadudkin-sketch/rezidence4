@@ -574,7 +574,7 @@ Reminder job: daily at 18:00, send push for packages awaiting pickup > 2 days.
 ```
 POST  /api/v1/packages                   — staff only
 GET   /api/v1/packages                   — staff: all; resident: own
-PATCH /api/v1/packages/:id/pickup        — staff only
+POST  /api/v1/packages/:id/pickup        — staff only
 ```
 
 ---

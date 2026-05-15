@@ -53,9 +53,9 @@ describe('apiClient.get', () => {
   test('делает GET-запрос на правильный URL', async () => {
     mockFetchOk({ data: [] });
     const client = await getClient();
-    await client.get('/api/users');
+    await client.get('/api/v1/users');
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/users'),
+      expect.stringContaining('/api/v1/users'),
       expect.objectContaining({ method: 'GET' })
     );
   });
@@ -63,7 +63,7 @@ describe('apiClient.get', () => {
   test('КРИТ-1: использует credentials: include (без Authorization header)', async () => {
     mockFetchOk({});
     const client = await getClient();
-    await client.get('/api/test');
+    await client.get('/api/v1/test');
     const [, opts] = fetch.mock.calls[0];
     expect(opts.credentials).toBe('include');
     expect(opts.headers?.Authorization).toBeUndefined();
@@ -76,7 +76,7 @@ describe('apiClient.get', () => {
     const client = await getClient();
     const ctrl = new AbortController();
 
-    await client.get('/api/users', { signal: ctrl.signal });
+    await client.get('/api/v1/users', { signal: ctrl.signal });
 
     const [, opts] = fetch.mock.calls[0];
     expect(opts.signal).toBeInstanceOf(AbortSignal);
@@ -87,14 +87,14 @@ describe('apiClient.get', () => {
   test('возвращает распарсенный JSON', async () => {
     mockFetchOk({ users: ['u1'] });
     const client = await getClient();
-    const result = await client.get('/api/users');
+    const result = await client.get('/api/v1/users');
     expect(result).toEqual({ users: ['u1'] });
   });
 
   test('сетевая ошибка → throws с понятным сообщением', async () => {
     mockNetworkError();
     const client = await getClient();
-    await expect(client.get('/api/users')).rejects.toThrow(/соединения/i);
+    await expect(client.get('/api/v1/users')).rejects.toThrow(/соединения/i);
   });
 
   test('401 → диспатчит rz:unauthorized и throws', async () => {
@@ -103,7 +103,7 @@ describe('apiClient.get', () => {
     window.addEventListener('rz:unauthorized', eventSpy);
 
     const client = await getClient();
-    await expect(client.get('/api/users')).rejects.toThrow(/сессия истекла/i);
+    await expect(client.get('/api/v1/users')).rejects.toThrow(/сессия истекла/i);
     expect(eventSpy).toHaveBeenCalledTimes(1);
 
     window.removeEventListener('rz:unauthorized', eventSpy);
@@ -112,7 +112,7 @@ describe('apiClient.get', () => {
   test('500 → throws с текстом ошибки из JSON', async () => {
     mockFetchStatus(500, { error: 'Internal Server Error' });
     const client = await getClient();
-    await expect(client.get('/api/fail')).rejects.toThrow('Internal Server Error');
+    await expect(client.get('/api/v1/fail')).rejects.toThrow('Internal Server Error');
   });
 
   test('429 + Retry-After header -> ждёт указанную задержку перед retry', async () => {
@@ -140,7 +140,7 @@ describe('apiClient.get', () => {
         });
 
       const client = await getClient();
-      const promise = client.get('/api/users', { maxRetries: 1 });
+      const promise = client.get('/api/v1/users', { maxRetries: 1 });
       await vi.advanceTimersByTimeAsync(1000);
       await expect(promise).resolves.toEqual({ ok: true });
       expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
@@ -158,7 +158,7 @@ describe('apiClient.get', () => {
       json: vi.fn().mockRejectedValue(new SyntaxError('not json')),
     });
     const client = await getClient();
-    await expect(client.get('/api/fail')).rejects.toThrow('Service Unavailable');
+    await expect(client.get('/api/v1/fail')).rejects.toThrow('Service Unavailable');
   });
 
   test('401 -> refresh -> retry использует один X-Request-Id для операции', async () => {
@@ -183,7 +183,7 @@ describe('apiClient.get', () => {
       });
 
     const client = await getClient();
-    const result = await client.get('/api/users');
+    const result = await client.get('/api/v1/users');
     expect(result).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(3);
 
@@ -204,7 +204,7 @@ describe('apiClient.post', () => {
   test('делает POST-запрос с JSON-телом', async () => {
     mockFetchOk({ ok: true });
     const client = await getClient();
-    await client.post('/api/requests', { type: 'pass' });
+    await client.post('/api/v1/requests', { type: 'pass' });
 
     const [, opts] = fetch.mock.calls[0];
     expect(opts.method).toBe('POST');
@@ -219,7 +219,7 @@ describe('apiClient.post', () => {
     const client = await getClient();
     const ctrl = new AbortController();
 
-    await client.post('/api/requests', { type: 'pass' }, { signal: ctrl.signal });
+    await client.post('/api/v1/requests', { type: 'pass' }, { signal: ctrl.signal });
 
     const [, opts] = fetch.mock.calls[0];
     expect(opts.signal).toBeInstanceOf(AbortSignal);
@@ -230,7 +230,7 @@ describe('apiClient.post', () => {
   test('credentials: include в POST запросе', async () => {
     mockFetchOk({});
     const client = await getClient();
-    await client.post('/api/auth/logout', {});
+    await client.post('/api/v1/auth/logout', {});
     expect(fetch.mock.calls[0][1].credentials).toBe('include');
   });
 });
@@ -241,7 +241,7 @@ describe('apiClient.patch', () => {
   test('делает PATCH-запрос с телом', async () => {
     mockFetchOk({ uid: 'u1', name: 'Новое' });
     const client = await getClient();
-    const result = await client.patch('/api/users/u1', { name: 'Новое' });
+    const result = await client.patch('/api/v1/users/u1', { name: 'Новое' });
 
     const [, opts] = fetch.mock.calls[0];
     expect(opts.method).toBe('PATCH');
@@ -255,7 +255,7 @@ describe('apiClient.delete', () => {
   test('делает DELETE-запрос без тела', async () => {
     mockFetchOk({ ok: true });
     const client = await getClient();
-    await client.delete('/api/users/u1');
+    await client.delete('/api/v1/users/u1');
 
     const [, opts] = fetch.mock.calls[0];
     expect(opts.method).toBe('DELETE');
@@ -375,7 +375,7 @@ describe('apiClient timeout & retry', () => {
     const abortErr = new DOMException('The user aborted a request.', 'AbortError');
     global.fetch.mockRejectedValue(abortErr);
     const client = await getClient();
-    await expect(client.get('/api/test', { maxRetries: 0 })).rejects.toThrow(/не отвечает/i);
+    await expect(client.get('/api/v1/test', { maxRetries: 0 })).rejects.toThrow(/не отвечает/i);
   });
 
   test('500 ретраится до maxRetries раз', async () => {
@@ -384,7 +384,7 @@ describe('apiClient timeout & retry', () => {
       .mockResolvedValueOnce(response(500, { error: 'Internal' }))
       .mockResolvedValueOnce(response(500, { error: 'Internal' }));
     const client = await getClient();
-    const promise = client.get('/api/test');
+    const promise = client.get('/api/v1/test');
     const assertion = expect(promise).rejects.toThrow();
     await flushRetryTimers();
     await assertion;
@@ -394,7 +394,7 @@ describe('apiClient timeout & retry', () => {
   test('400 НЕ ретраится', async () => {
     mockFetchStatus(400, { error: 'Bad Request' });
     const client = await getClient();
-    await expect(client.get('/api/test')).rejects.toThrow();
+    await expect(client.get('/api/v1/test')).rejects.toThrow();
     // Только 1 вызов — 400 не ретраится
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -406,7 +406,7 @@ describe('apiClient timeout & retry', () => {
     const spy = vi.fn();
     window.addEventListener('rz:unauthorized', spy);
     const client = await getClient();
-    await expect(client.get('/api/test')).rejects.toThrow(/сессия истекла/i);
+    await expect(client.get('/api/v1/test')).rejects.toThrow(/сессия истекла/i);
     // 1-й запрос + попытка refresh
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(spy).toHaveBeenCalledTimes(1);
@@ -418,7 +418,7 @@ describe('apiClient timeout & retry', () => {
       .mockResolvedValueOnce(response(503, { error: 'Service Unavailable' }))
       .mockResolvedValueOnce(response(200, { ok: true }));
     const client = await getClient();
-    const promise = client.get('/api/test');
+    const promise = client.get('/api/v1/test');
     await flushRetryTimers();
     const result = await promise;
     expect(result).toEqual({ ok: true });

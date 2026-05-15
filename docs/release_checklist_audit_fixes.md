@@ -9,21 +9,21 @@ Use this checklist before promoting the audit-related changes to production.
 - [ ] `REFRESH_LEGACY_FALLBACK_ENABLED` confirmed (`0` by default unless rollback scenario).
 
 ## 2) Auth & user lifecycle smoke checks
-- [ ] Active user can call `GET /api/auth/me`.
+- [ ] Active user can call `GET /api/v1/auth/me`.
 - [ ] Soft-deleted user receives `401 User not found or deleted` on protected routes.
-- [ ] Logout revokes token (`jti`) and clears cookies.
-- [ ] Refresh token rotation rejects reuse of old refresh token.
+- [ ] `POST /api/v1/auth/logout` revokes token (`jti`) and clears cookies.
+- [ ] `POST /api/v1/auth/refresh` rejects reuse of old refresh token.
 
 ## 3) Users API soft-delete checks
-- [ ] `DELETE /api/users/:uid` sets `deleted_at` and `updated_at`.
-- [ ] `PATCH /api/users/:uid` does not mutate soft-deleted rows.
-- [ ] User listing excludes soft-deleted users.
+- [ ] `DELETE /api/v1/users/:uid` sets `deleted_at` and `updated_at`.
+- [ ] `PATCH /api/v1/users/:uid` does not mutate soft-deleted rows.
+- [ ] `GET /api/v1/users` excludes soft-deleted users.
 
 ## 4) Frontend HTTP behavior checks
 - [ ] `X-Request-Id` stays the same across `request -> refresh -> retry` chain.
 - [ ] Retry uses exponential backoff + jitter (no synchronized retry storm).
 - [ ] CSRF header (`X-CSRF-Token`) sent from cookie.
-- [ ] Upload path uses local `/api/upload/photo` and handles 401 consistently.
+- [ ] Upload path uses local `POST /api/v1/upload/photo` and handles 401 consistently.
 
 ## 5) API contract and SSE checks
 - [ ] OpenAPI smoke allows 204 responses without content.

@@ -31,12 +31,12 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/notification-log` | list | stub |
 | `/api/v1/admin/outbox` | list | stub |
 
-**Итого:** 109 paths, 71 schemas. Coverage v1 mounted prefixes проходит `npm run openapi:drift`; access-domain пилотные маршруты теперь имеют явные path/schema anchors, включая stale-state 409 и manual security decisions.
+**Итого:** 298 paths, 88 schemas, 365 operations. Coverage проходит `npm run openapi:drift`, который проверяет не только mounted prefixes, но и операции внутри Express router'ов, смонтированных под `/api/v1/*`. Access-domain пилотные маршруты имеют явные path/schema anchors, включая stale-state 409 и manual security decisions.
 
-## Что НЕ покрыто (и должно быть)
+## Что ещё нужно детализировать
 
-- **Request bodies** — почти везде `requestBody` не задан. При следующем проходе по конкретному route нужно добавить `requestBody.content.application/json.schema` со ссылкой на `*Create` / `*Update` schema.
-- **Параметры query** — задано только для passes; остальные list endpoints принимают query (status filter, pagination), это нужно описать.
+- **Generated operation anchors** — live route coverage полная, но 207 операций пока имеют generic `{ type: object }` request/response schemas. При следующем проходе по конкретному route нужно заменить generic schema на `*Create` / `*Update` / `*Response` schema.
+- **Параметры query** — часть list endpoints принимает query (status filter, pagination), это нужно описать в endpoint-specific schemas.
 - **Pagination** — все list endpoints возвращают плоские массивы без cursor/page (см. audit gap про LIMIT 500). Когда введём pagination, обновить response schemas.
 - **Authentication details** — `securitySchemes` теперь фиксирует JWT cookie и `X-Property-Slug`; per-route capability matrix остаётся в markdown spec'ах и backend authz tests.
 - **Tags + descriptions** — теги проставлены, но без top-level `tags[]` array с описаниями.

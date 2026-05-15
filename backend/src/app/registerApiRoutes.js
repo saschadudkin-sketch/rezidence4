@@ -17,13 +17,10 @@ const meterReadingsRouter = require('../routes/meterReadings');
 const billingRouter = require('../routes/billing');
 const spacesRouter = require('../routes/spaces');
 const bookingsRouter = require('../routes/bookings');
-const packagesRouter = require('../routes/packages');
 // Phase 5 — Webhooks & Integrations
 const webhooksRouter     = require('../routes/webhooks');
 const integrationsRouter = require('../routes/integrations');
 // Phase 2 — Announcements, Documents, QR Pass
-const announcementsRouter = require('../routes/announcements');
-const documentsRouter = require('../routes/documents');
 const publicPassRouter = require('../routes/publicPass');
 const guardScanRouter = require('../routes/guardScan');
 const privacyRouter = require('../routes/privacy');
@@ -117,8 +114,7 @@ const v1ManagementCompanyPortfolioRouter = require('../v1/routes/managementCompa
 
 // Phase 5 (platform-v1) — packages_v2 content module.  Spec:
 // docs/product/specs/platform-v1/packages-v2-spec.md §4.
-// Mount'ится на /api/v1/packages (same path as legacy, but taking over — legacy
-// `packagesRouter` outputs old schema; v1 is spec-authoritative).
+// Mount'ится на /api/v1/packages; v1 is spec-authoritative.
 const v1PackagesRouter          = require('../v1/routes/packages');
 
 // Phase 5 (platform-v1) — announcements_v2 content module.  Spec:
@@ -217,34 +213,28 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/push-subscriptions', pushSubscriptionsRouter);
   app.use('/api/v1/telegram', telegramLinkRouter);
   app.use('/api/v1/push-subscriptions', telegramLinkRouter);
-  app.use('/api/client-logs', deprecate, clientLogsLimiter, clientLogsRouter);
 
   // Phase 2 — Announcements, Documents, QR Pass
-  // announcements_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy
-  // остаётся как fall-through для ручек, которые v1 ещё не перехватил.
+  // announcements_v2 (Phase 5) — v1 router fully owns /api/v1/announcements.
   // Admin sub-router — отдельный путь /api/v1/admin/announcements (listForAdmin
   // + metrics).  Public sub-router — /api/v1/public/:slug/announcements без auth.
   app.use('/api/v1/announcements', requireFeature('announcements'), v1AnnouncementsRouter);
   app.use('/api/v1/admin/announcements', requireFeature('announcements'), v1AnnouncementsAdminRouter);
   app.use('/api/v1/public/:slug/announcements', v1AnnouncementsPublicRouter);
-  app.use('/api/v1/announcements', requireFeature('announcements'), announcementsRouter);
-  // documents_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy
-  // остаётся как fall-through.  Admin sub отдельно для versions history.
+  // documents_v2 (Phase 5) — v1 router fully owns /api/v1/documents.
+  // Admin sub отдельно для versions history.
   // Public sub — /api/v1/public/:slug/documents без auth (kiosk).
   app.use('/api/v1/documents', requireFeature('documents'), v1DocumentsRouter);
   app.use('/api/v1/admin/documents', requireFeature('documents'), v1DocumentsAdminRouter);
   app.use('/api/v1/public/:slug/documents', v1DocumentsPublicRouter);
-  app.use('/api/v1/documents', requireFeature('documents'), documentsRouter);
   // publicPassRouter: no auth, rate-limited 30/min/IP
   app.use('/api/v1/public/pass', publicPassLimiter, publicPassRouter);
   // guardScanRouter: staff auth required (enforced inside the router)
   app.use('/api/v1/guard', requireFeature('qr_pass'), guardScanRouter);
 
   // Phase 3 — Resident Dashboard Expansion
-  // packages_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy remains as
-  // fall-through for any endpoint v1 doesn't claim (none today, kept for audit).
+  // packages_v2 (Phase 5) — v1 router fully owns /api/v1/packages.
   app.use('/api/v1/packages', requireFeature('packages'), v1PackagesRouter);
-  app.use('/api/v1/packages', requireFeature('packages'), packagesRouter);
   app.use('/api/v1/meter-readings', legacyUtilitiesGate, requireFeature('meter_readings'), meterReadingsRouter);
   app.use('/api/v1/billing', legacyUtilitiesGate, requireFeature('billing'), billingRouter);
   app.use('/api/v1/spaces', legacyUtilitiesGate, requireFeature('space_booking'), spacesRouter);
@@ -363,6 +353,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/visit-logs', propertyDbMiddleware, deprecate, visitLogsRouter);
   app.use('/api/upload', propertyDbMiddleware, deprecate, uploadLimiter, uploadRouter);
   app.use('/api/contracts', propertyDbMiddleware, deprecate, contractsRouter);
+  app.use('/api/client-logs', propertyDbMiddleware, deprecate, clientLogsLimiter, clientLogsRouter);
 }
 
 module.exports = {

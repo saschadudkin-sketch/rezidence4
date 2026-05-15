@@ -33,9 +33,36 @@ describe('OpenAPI v1 drift gate', () => {
     ]);
   });
 
-  test('current OpenAPI covers mounted /api/v1 prefixes', () => {
+  test('extracts router-level operations behind mounted /api/v1 routers', () => {
+    const source = `
+      const requestsRouter = require('../routes/requests');
+      app.use('/api/v1/requests', authMiddleware, requestsRouter);
+    `;
+    const routerSource = `
+      router.get('/', handler);
+      router.post('/:id/updates', handler);
+    `;
+
+    expect(extractMountedOperations(source, {
+      readFile: () => routerSource,
+      baseDir: __dirname,
+    })).toEqual([
+      { method: 'get', path: '/api/v1/requests' },
+      { method: 'post', path: '/api/v1/requests/{id}/updates' },
+    ]);
+  });
+
+  test('current OpenAPI covers mounted /api/v1 prefixes and operations', () => {
     const result = run();
     expect(result.missing).toEqual([]);
     expect(result.missingOperations).toEqual([]);
+    expect(result.mountedOperations).toContainEqual({ method: 'post', path: '/api/v1/auth/verify-otp' });
+  });
+
+  test('v1 communications and packages do not have legacy fall-through mounts', () => {
+    const result = run();
+    expect(result.mountedOperations).toContainEqual({ method: 'post', path: '/api/v1/packages/{id}/pickup' });
+    expect(result.mountedOperations).not.toContainEqual({ method: 'patch', path: '/api/v1/packages/{id}/pickup' });
+    expect(result.mountedOperations).not.toContainEqual({ method: 'patch', path: '/api/v1/packages/{id}/return' });
   });
 });

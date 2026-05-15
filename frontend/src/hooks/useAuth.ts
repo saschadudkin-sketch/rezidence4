@@ -127,7 +127,7 @@ export function useAuth(): UseAuthResult {
     setUser(null);
     setPhase(PHASE.LOGIN);
     setAuthNotice('');
-    // В live-режиме: POST /api/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
+    // В live-режиме: POST /api/v1/auth/logout сбрасывает HttpOnly cookie + SSE disconnect
     // В demo-режиме: только SSE disconnect (нет реального сервера)
     if (isLiveMode()) {
       services.auth.logout().catch((err: unknown) => {
