@@ -297,6 +297,27 @@ async function verifyPass({
   try {
     await client.query('BEGIN');
 
+    // Step 4b: one-shot passes are authorized by the atomic status transition.
+    // If another guard/device used the same pass first, this scan becomes a
+    // business deny before any allowed visit log is written.
+    if (verdict.allowed && pass && ONE_SHOT_PASS_TYPES.has(pass.pass_type)) {
+      assertPassAction(pass.status, 'use');
+      const { rows: usedRows } = await client.query(
+        `UPDATE passes
+            SET status = 'used'
+          WHERE id = $1 AND status = 'active'
+          RETURNING id`,
+        [pass.id],
+      );
+      if (!usedRows.length) {
+        verdict.allowed = false;
+        verdict.reason = 'pass_used';
+        verdict.event_type = eventTypeFor(direction, false);
+        verdict.incident_type = 'expired_pass_attempt';
+        verdict.severity = 'low';
+      }
+    }
+
     // Step 5: visit_log INSERT
     const personLabel = resolvePersonLabel(pass, vehicle);
     const eventSource = mode === 'provider' ? 'skud' : 'guard_console';
@@ -339,15 +360,6 @@ async function verifyPass({
           throw err;
         }
       }
-    }
-
-    // Step 7: pass.status='used' для one-shot passes при allowed
-    if (verdict.allowed && pass && ONE_SHOT_PASS_TYPES.has(pass.pass_type)) {
-      assertPassAction(pass.status, 'use');
-      await client.query(
-        `UPDATE passes SET status = 'used' WHERE id = $1 AND status = 'active'`,
-        [pass.id],
-      );
     }
 
     // Step 8: audit_log fire-and-forget (внутри транзакции, чтобы rollback был единым)

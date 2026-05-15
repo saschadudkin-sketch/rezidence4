@@ -55,8 +55,11 @@ describe('localStorage save functions — QuotaExceededError', () => {
     expect(() => saveGarage({ garage: {} })).not.toThrow();
   });
 
-  it('saveRequests attempts to write into localStorage on quota exceeded', () => {
+  it('saveRequests does not write operational data in live mode', () => {
     saveRequests({ requests: [], history: {} });
-    expect(setItemSpy).toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('residenze_v5_s_req'),
+      expect.any(String),
+    );
   });
 });

@@ -18,10 +18,18 @@ describe('uploadAccess ACL', () => {
     });
   });
 
-  test('staff role can access any upload without DB lookup', async () => {
+  test('staff role cannot access arbitrary upload without linked resource ACL', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ allowed: false }] });
+    const allowed = await canUserAccessUpload({ uid: 'sec-1', role: 'security' }, 'photo_1.jpg');
+    expect(allowed).toBe(false);
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('assigned staff can access linked upload', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ allowed: true }] });
     const allowed = await canUserAccessUpload({ uid: 'sec-1', role: 'security' }, 'photo_1.jpg');
     expect(allowed).toBe(true);
-    expect(db.query).not.toHaveBeenCalled();
+    expect(db.query.mock.calls[0][0]).toMatch(/assigned_to_uid/);
   });
 
   test('resident can access own linked upload', async () => {
@@ -33,6 +41,8 @@ describe('uploadAccess ACL', () => {
       'owner-1',
       '/uploads/photo_own.jpg',
       'http://backend.test/uploads/photo_own.jpg',
+      'photo_own.jpg',
+      false,
     ]);
     expect(db.query.mock.calls[0][0]).toMatch(/request_attachments/);
   });

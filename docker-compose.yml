@@ -101,6 +101,8 @@ services:
       SMSRU_API_ID:  ${SMSRU_API_ID:-STUB}
       BACKEND_URL:   ${BACKEND_URL:-http://localhost:3001}
       UPLOAD_SIGNING_SECRET: ${UPLOAD_SIGNING_SECRET:?UPLOAD_SIGNING_SECRET must be set}
+      PLATFORM_ALLOWED_HOSTNAME_SUFFIX: ${PLATFORM_ALLOWED_HOSTNAME_SUFFIX:-}
+      PLATFORM_ALLOWED_HOSTNAMES: ${PLATFORM_ALLOWED_HOSTNAMES:-}
       # FIX [SEC-4]: FRONTEND_URL обязателен в production.
       # Сервер завершится с ошибкой если не задан при NODE_ENV=production.
       FRONTEND_URL:  ${FRONTEND_URL:?FRONTEND_URL must be set}
@@ -206,11 +208,10 @@ services:
     environment:
       PGPASSWORD: ${DB_PASSWORD}
       # SEC [AUDIT #5]: три БД бекапятся, не одна.  При добавлении нового
-        # Empty by default: backup.sh discovers active tenant DBs from
-        # platform.properties. Set BACKUP_DATABASES only as a manual override.
-        BACKUP_DATABASES: ${BACKUP_DATABASES:-}
-        PLATFORM_DB_URL: ${PLATFORM_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/platform}
-        PGPASSWORD: ${DB_PASSWORD}
+      # Empty by default: backup.sh discovers active tenant DBs from
+      # platform.properties. Set BACKUP_DATABASES only as a manual override.
+      BACKUP_DATABASES: ${BACKUP_DATABASES:-}
+      PLATFORM_DB_URL: ${PLATFORM_DB_URL:-postgresql://residenze:${DB_PASSWORD}@db:5432/platform}
     volumes:
       - ./backups:/backups
       - ./backup.sh:/backup.sh:ro

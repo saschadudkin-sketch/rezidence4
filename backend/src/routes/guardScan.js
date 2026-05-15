@@ -79,6 +79,9 @@ router.post('/', async (req, res, next) => {
     if (pass.invalidated_at) {
       return res.status(422).json({ error: { code: 'PASS_INVALID', message: 'Pass has been invalidated' } });
     }
+    if (pass.used_at) {
+      return res.status(422).json({ error: { code: 'PASS_USED', message: 'Pass has already been used' } });
+    }
     if (new Date(pass.expires_at) < new Date()) {
       return res.status(422).json({ error: { code: 'PASS_EXPIRED', message: 'Pass has expired' } });
     }
@@ -148,18 +151,29 @@ router.post('/:scanId/admit', validateScanId, async (req, res, next) => {
 
     const log = logRows[0];
 
+    // Mark QR pass as used first. This is the replay boundary for legacy QR:
+    // if no row is updated, another scan/admit already consumed the pass.
+    const { rows: usedRows } = await db.query(
+      `UPDATE qr_passes
+       SET used_at = NOW(), used_by_uid = $1
+       WHERE request_id = $2 AND used_at IS NULL AND invalidated_at IS NULL
+       RETURNING id`,
+      [req.user.uid, log.request_id],
+    );
+    if (!usedRows.length) {
+      await db.query(
+        `UPDATE visit_logs SET result = 'denied', notes = $1 WHERE id = $2`,
+        ['pass_used', scanId],
+      );
+      return res.status(409).json({
+        error: { code: 'PASS_USED', message: 'Pass has already been used' },
+      });
+    }
+
     // Update visit_log result to 'allowed'
     await db.query(
       `UPDATE visit_logs SET result = 'allowed' WHERE id = $1`,
       [scanId],
-    );
-
-    // Mark QR pass as used (find pass by request_id, not-yet-used)
-    await db.query(
-      `UPDATE qr_passes
-       SET used_at = NOW(), used_by_uid = $1
-       WHERE request_id = $2 AND used_at IS NULL AND invalidated_at IS NULL`,
-      [req.user.uid, log.request_id],
     );
 
     // Dispatch guest.arrived notification to the request creator (non-blocking)

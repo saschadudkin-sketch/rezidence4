@@ -22,6 +22,9 @@ function collectConfigErrors(env, prod) {
   if (prod && !env.PLATFORM_DB_URL) {
     errors.push('PLATFORM_DB_URL must be set in production for multi-tenant registry');
   }
+  if (prod && !env.PLATFORM_ALLOWED_HOSTNAME_SUFFIX && !env.PLATFORM_ALLOWED_HOSTNAMES) {
+    errors.push('PLATFORM_ALLOWED_HOSTNAME_SUFFIX or PLATFORM_ALLOWED_HOSTNAMES must be set in production for tenant hostname resolution');
+  }
 
   // SEC [AUDIT #3]: Platform JWT secret обязателен в production и должен
   // отличаться от JWT_SECRET.  Если секреты совпадают, резидентский токен

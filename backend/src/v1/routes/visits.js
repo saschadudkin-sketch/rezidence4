@@ -17,7 +17,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
-const { can } = require('../lib/authz');
+const { canInPropertyScope } = require('../lib/authz');
 const { normalizePlate, looksLikeRuPlate } = require('../lib/normalizePlate');
 const { parsePaginationParams, buildPageMeta } = require('../lib/pagination');
 const {
@@ -47,6 +47,13 @@ const EVENT_SOURCES = new Set(['domhub', 'skud', 'guard_console', 'import']);
 
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
+function resolveReadPropertyId(req) {
+  return req.property?.id || req.property?.property_id || req.user?.property_id || req.user?.propertyId || null;
+}
+function canVerifyInPropertyScope(req, propertyId) {
+  return canInPropertyScope(req, 'access.qr.verify', propertyId)
+    || canInPropertyScope(req, 'access.plate.verify', propertyId);
+}
 
 function sendServiceError(res, err) {
   if (!isVisitServiceError(err)) return false;
@@ -63,9 +70,6 @@ function sendKnownError(res, err) {
 
 async function sendVerify(req, res, next, defaults = {}) {
   try {
-    if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
     const {
       property_id,
       mode = defaults.mode,
@@ -90,6 +94,7 @@ async function sendVerify(req, res, next, defaults = {}) {
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
     }
+    if (!canVerifyInPropertyScope(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     await validateAccessPoint(getDb(req), { propertyId: property_id, accessPointId: access_point_id });
     const { result, pass } = await verifyVisit({
       queryable: getDb(req),
@@ -133,9 +138,6 @@ router.post('/scan-pass', async (req, res, next) => {
 // incident, degraded reconciliation, and sensitive audit rows are atomic.
 router.post('/', async (req, res, next) => {
   try {
-    if (!can(req.user, 'access.qr.verify') && !can(req.user, 'access.plate.verify')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
     const {
       property_id, pass_id = null, access_point_id = null, event_type, event_source,
       person_label = null, vehicle_plate = null,
@@ -155,7 +157,11 @@ router.post('/', async (req, res, next) => {
     if (access_point_id !== null && !isValidUuid(access_point_id)) {
       return res.status(400).json({ error: 'access_point_id must be UUID or null' });
     }
+    if ((event_source === 'guard_console' || event_source === 'skud') && !access_point_id) {
+      return res.status(400).json({ error: 'access_point_id is required for guard_console/skud visit events' });
+    }
     if (occurred_at && !isValidIso(occurred_at)) return res.status(400).json({ error: 'occurred_at must be ISO-8601' });
+    if (!canVerifyInPropertyScope(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     await validateAccessPoint(getDb(req), { propertyId: property_id, accessPointId: access_point_id });
 
     const result = await createVisitLog({
@@ -197,7 +203,9 @@ router.post('/', async (req, res, next) => {
 // Pagination: ?limit=1..200 (default 50), ?offset=0..100000 (default 0)
 router.get('/', async (req, res, next) => {
   try {
-    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolveReadPropertyId(req);
+    if (!propertyId) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'visits:read', propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -208,6 +216,8 @@ router.get('/', async (req, res, next) => {
 
     const filters = [];
     const params = [];
+    params.push(propertyId);
+    filters.push(`property_id = $${params.length}`);
     if (req.query.pass_id) {
       if (!isValidUuid(req.query.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
       params.push(req.query.pass_id); filters.push(`pass_id = $${params.length}`);
@@ -249,7 +259,9 @@ router.get('/', async (req, res, next) => {
 // ─── GET /api/v1/visits/by-pass/:pass_id ─────────────────────────────────────
 router.get('/by-pass/:pass_id', async (req, res, next) => {
   try {
-    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolveReadPropertyId(req);
+    if (!propertyId) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'visits:read', propertyId)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.pass_id)) return res.status(400).json({ error: 'Invalid pass_id' });
     let pagination;
     try {
@@ -259,9 +271,9 @@ router.get('/by-pass/:pass_id', async (req, res, next) => {
     }
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
-        WHERE pass_id = $1
-        ORDER BY occurred_at DESC LIMIT $2 OFFSET $3`,
-      [req.params.pass_id, pagination.limit, pagination.offset],
+        WHERE pass_id = $1 AND property_id = $2
+        ORDER BY occurred_at DESC LIMIT $3 OFFSET $4`,
+      [req.params.pass_id, propertyId, pagination.limit, pagination.offset],
     );
     res.json({
       visit_logs: rows,
@@ -273,7 +285,9 @@ router.get('/by-pass/:pass_id', async (req, res, next) => {
 // ─── GET /api/v1/visits/by-plate/:plate ──────────────────────────────────────
 router.get('/by-plate/:plate', async (req, res, next) => {
   try {
-    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolveReadPropertyId(req);
+    if (!propertyId) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'visits:read', propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const normalized = normalizePlate(req.params.plate);
     if (!normalized) return res.status(400).json({ error: 'Invalid plate' });
     if (!looksLikeRuPlate(normalized) && normalized.length < 3) {
@@ -287,9 +301,9 @@ router.get('/by-plate/:plate', async (req, res, next) => {
     }
     const { rows } = await getDb(req).query(
       `SELECT ${VL_COLS} FROM visit_logs_v2
-        WHERE vehicle_plate = $1
-        ORDER BY occurred_at DESC LIMIT $2 OFFSET $3`,
-      [normalized, pagination.limit, pagination.offset],
+        WHERE vehicle_plate = $1 AND property_id = $2
+        ORDER BY occurred_at DESC LIMIT $3 OFFSET $4`,
+      [normalized, propertyId, pagination.limit, pagination.offset],
     );
     res.json({
       plate: normalized,
@@ -304,11 +318,13 @@ router.get('/by-plate/:plate', async (req, res, next) => {
 // `/by-pass/:pass_id` и `/by-plate/:plate` не перехватывались.
 router.get('/:id', async (req, res, next) => {
   try {
-    if (!can(req.user, 'visits:read')) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolveReadPropertyId(req);
+    if (!propertyId) return res.status(400).json({ error: 'property_id must be resolved' });
+    if (!canInPropertyScope(req, 'visits:read', propertyId)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const { rows } = await getDb(req).query(
-      `SELECT ${VL_COLS} FROM visit_logs_v2 WHERE id = $1`,
-      [req.params.id],
+      `SELECT ${VL_COLS} FROM visit_logs_v2 WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Visit log not found' });
 

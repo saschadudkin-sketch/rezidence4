@@ -46,13 +46,24 @@ function fmt(u) {
   };
 }
 
+function actorTypeForRole(role) {
+  if (role === 'owner' || role === 'tenant' || role === 'resident') return 'resident';
+  if (role === 'contractor') return 'contractor';
+  return 'staff';
+}
+
+function toAuditUuid(value) {
+  return UUID_RE.test(String(value || '')) ? value : null;
+}
+
 async function writeUserAudit(req, action, resourceId, changes = null) {
   const queryDb = getDb(req);
   try {
     await queryDb.query(
       `INSERT INTO property_audit_log
-         (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-       VALUES ($1,$2,$3,'user',$4,$5,$6)`,
+         (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address,
+          property_id, actor_type, entity_type, entity_id)
+       VALUES ($1,$2,$3,'user',$4,$5,$6,$7,$8,'user',$9)`,
       [
         req.user?.uid || null,
         req.user?.role || null,
@@ -60,6 +71,9 @@ async function writeUserAudit(req, action, resourceId, changes = null) {
         resourceId,
         changes ? JSON.stringify(changes) : null,
         req.ip || null,
+        req.property?.id || req.property?.property_id || req.user?.property_id || null,
+        actorTypeForRole(req.user?.role),
+        toAuditUuid(resourceId),
       ],
     );
   } catch (err) {

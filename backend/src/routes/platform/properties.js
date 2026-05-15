@@ -61,6 +61,15 @@ function currentLifecycleStatus(property) {
   return property.status || (property.is_active ? 'active' : 'suspended');
 }
 
+function serializeProperty(property) {
+  if (!property) return property;
+  const { db_connection_url, ...safeProperty } = property;
+  return {
+    ...safeProperty,
+    db_connection_configured: Boolean(db_connection_url),
+  };
+}
+
 function normalizeLifecycleReason(reason) {
   if (typeof reason !== 'string') return null;
   const trimmed = reason.trim();
@@ -91,7 +100,7 @@ router.get('/', async (req, res, next) => {
     }
 
     const { rows } = await platformDb.query(sql, params);
-    return res.json({ properties: rows });
+    return res.json({ properties: rows.map(serializeProperty) });
   } catch (err) {
     next(err);
   }
@@ -126,7 +135,7 @@ router.get('/:slug', async (req, res, next) => {
       [property.id],
     );
 
-    return res.json({ property, recentAudit });
+    return res.json({ property: serializeProperty(property), recentAudit });
   } catch (err) {
     next(err);
   }
@@ -290,7 +299,7 @@ router.post('/', async (req, res, next) => {
 
     logger.info({ slug, propertyId: property.id }, '[platform/properties] property created');
 
-    return res.status(201).json({ property });
+    return res.status(201).json({ property: serializeProperty(property) });
   } catch (err) {
     next(err);
   }
@@ -492,7 +501,7 @@ router.patch('/:slug', async (req, res, next) => {
       details: { changes },
     });
 
-    return res.json({ property });
+    return res.json({ property: serializeProperty(property) });
   } catch (err) {
     next(err);
   }
@@ -585,7 +594,7 @@ router.post('/:slug/lifecycle', async (req, res, next) => {
       '[platform/properties] property lifecycle changed',
     );
 
-    return res.json({ property, lifecycle });
+    return res.json({ property: serializeProperty(property), lifecycle });
   } catch (err) {
     next(err);
   }
@@ -627,7 +636,7 @@ router.post('/:slug/disable', async (req, res, next) => {
 
     logger.info({ slug }, '[platform/properties] property disabled');
 
-    return res.json({ property });
+    return res.json({ property: serializeProperty(property) });
   } catch (err) {
     next(err);
   }
@@ -669,7 +678,7 @@ router.post('/:slug/enable', async (req, res, next) => {
 
     logger.info({ slug }, '[platform/properties] property enabled');
 
-    return res.json({ property });
+    return res.json({ property: serializeProperty(property) });
   } catch (err) {
     next(err);
   }

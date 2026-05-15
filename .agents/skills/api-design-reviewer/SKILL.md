@@ -252,7 +252,7 @@ X-RateLimit-Reset: 1640995200
 ### Idempotency Keys
 ```
 POST /api/v1/payments
-Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
+Idempotency-Key: demo-idempotency-key
 ```
 
 ## Backward Compatibility Guidelines

@@ -175,10 +175,15 @@ async function getPropertyByHostname(hostname) {
   //   • Кастомные домены (residence.example.com) добавить via PLATFORM_ALLOWED_HOSTNAMES
   //     future-work — сейчас первый tenant на поддомене домена платформы.
   const allowedSuffix = process.env.PLATFORM_ALLOWED_HOSTNAME_SUFFIX;
-  if (allowedSuffix) {
-    const ok = hostname === allowedSuffix || hostname.endsWith(`.${allowedSuffix}`);
-    if (!ok) {
-      logger.warn({ hostname, allowedSuffix }, '[propertyDb] hostname outside allowed suffix');
+  const allowedHosts = String(process.env.PLATFORM_ALLOWED_HOSTNAMES || '')
+    .split(',')
+    .map((item) => normalizeHostname(item))
+    .filter(Boolean);
+  if (allowedSuffix || allowedHosts.length) {
+    const suffixOk = allowedSuffix && (hostname === allowedSuffix || hostname.endsWith(`.${allowedSuffix}`));
+    const hostOk = allowedHosts.includes(hostname);
+    if (!suffixOk && !hostOk) {
+      logger.warn({ hostname, allowedSuffix, allowedHosts }, '[propertyDb] hostname outside allowed tenant host policy');
       return null;
     }
   }

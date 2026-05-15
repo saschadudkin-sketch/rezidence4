@@ -210,6 +210,48 @@ describe('POST /platform/api/v1/properties — Phase 1 field validation', () => 
   });
 });
 
+describe('platform properties response redaction', () => {
+  test('GET list never returns db_connection_url', async () => {
+    const db = makeDb();
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: 'p-1',
+        slug: 'some-zk',
+        name: 'Some ЖК',
+        db_connection_url: 'postgresql://u:p@h/db',
+      }],
+    });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp()).get('/platform/api/v1/properties');
+
+    expect(res.status).toBe(200);
+    expect(res.body.properties[0].db_connection_url).toBeUndefined();
+    expect(res.body.properties[0].db_connection_configured).toBe(true);
+  });
+
+  test('GET detail never returns db_connection_url', async () => {
+    const db = makeDb();
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'p-1',
+          slug: 'some-zk',
+          name: 'Some ЖК',
+          db_connection_url: 'postgresql://u:p@h/db',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    getPlatformDb.mockReturnValue(db);
+
+    const res = await supertest(buildApp()).get('/platform/api/v1/properties/some-zk');
+
+    expect(res.status).toBe(200);
+    expect(res.body.property.db_connection_url).toBeUndefined();
+    expect(res.body.property.db_connection_configured).toBe(true);
+  });
+});
+
 describe('PATCH /platform/api/v1/properties/:slug — Phase 1 field validation', () => {
   test('rejects invalid property_type', async () => {
     getPlatformDb.mockReturnValue(makeDb());

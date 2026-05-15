@@ -8,6 +8,7 @@ import type { BlacklistEntry, BlacklistState } from '../slices/blacklistSlice';
 import type { Car, GarageState } from '../slices/garageSlice';
 import { isDemoPrivateSessionEnabled } from './storageRegistry';
 import { putMedia, getMedia, clearMediaStore } from './mediaStore';
+import { isLiveMode } from '../../config/runtimeMode';
 
 const LS_KEY = 'residenze_v5';
 export const LS_SCHEMA_VERSION = 5;
@@ -58,6 +59,10 @@ export type PersistedStoreData = {
 
 function isPrivateDemoSession(): boolean {
   return isDemoPrivateSessionEnabled();
+}
+
+function shouldPersistDomainData(): boolean {
+  return !isLiveMode() && !isPrivateDemoSession();
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -212,7 +217,7 @@ export async function hydrateRequestMediaFromIndexedDb(requests: AppRequest[]): 
 }
 
 export function saveRequests(reqState: RequestsState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     const cleanedRequests = savePhotos(reqState.requests);
     localStorage.setItem(SLICE_KEYS.requests, JSON.stringify({
@@ -226,7 +231,7 @@ export function saveRequests(reqState: RequestsState): void {
 }
 
 export function saveChat(chatState: ChatState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     const recentMessages = chatState.chat.slice(-MAX_CACHED_MESSAGES);
     localStorage.setItem(SLICE_KEYS.chat, JSON.stringify({
@@ -240,7 +245,7 @@ export function saveChat(chatState: ChatState): void {
 }
 
 export function saveUsers(usersState: UsersState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     const initialUids = new Set(Object.values(PHONE_DB_INITIAL).map((user) => user.uid));
     const extraUsers = Object.fromEntries(
@@ -258,7 +263,7 @@ export function saveUsers(usersState: UsersState): void {
 }
 
 export function savePerms(permsState: PermsState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     localStorage.setItem(SLICE_KEYS.perms, JSON.stringify({
       perms: permsState.perms,
@@ -271,7 +276,7 @@ export function savePerms(permsState: PermsState): void {
 }
 
 export function saveBlacklist(blacklistState: BlacklistState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     localStorage.setItem(SLICE_KEYS.blacklist, JSON.stringify({
       blacklist: blacklistState.blacklist.map((entry) => ({
@@ -286,7 +291,7 @@ export function saveBlacklist(blacklistState: BlacklistState): void {
 }
 
 export function saveGarage(garageState: GarageState): void {
-  if (isPrivateDemoSession()) return;
+  if (!shouldPersistDomainData()) return;
   try {
     localStorage.setItem(SLICE_KEYS.garage, JSON.stringify({
       garage: garageState.garage,
@@ -349,7 +354,7 @@ function parseLegacy(data: PersistedStoreData): PersistedStoreData {
 
 export function loadFromLS(options: { criticalOnly?: boolean } = {}): PersistedStoreData | null {
   const criticalOnly = Boolean(options.criticalOnly);
-  if (isPrivateDemoSession()) return null;
+  if (!shouldPersistDomainData()) return null;
 
   try {
     if (!checkTTL()) {

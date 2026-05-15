@@ -75,7 +75,7 @@ function installTxClient({ incident = true } = {}) {
     if (sql.includes('INSERT INTO access_incidents')) {
       return Promise.resolve({ rows: incident ? [{ id: UUID_INCIDENT }] : [] });
     }
-    if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [] });
+    if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }], rowCount: 1 });
     if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
     throw new Error(`unexpected SQL: ${sql}`);
   });
@@ -126,6 +126,39 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     expect(auditCall[1][0]).toBe(UUID_PROPERTY);
     expect(auditCall[1][1]).toBe(UUID_STAFF);
     expect(auditCall[1][2]).toBe('visit.entry_allowed');
+  });
+
+  test('one-shot QR denies when atomic use transition loses a race', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [], rowCount: 0 });
+      if (sql.includes('INSERT INTO visit_logs_v2')) return Promise.resolve({ rows: [{ id: UUID_VISIT_LOG }] });
+      if (sql.includes('INSERT INTO access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    db.pool.connect.mockResolvedValue(txClient);
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM qr_passes_v2')) return Promise.resolve({ rows: [makePass()] });
+      if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'qr',
+      token: 'valid-qr-token-123',
+      access_point_id: UUID_POINT,
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(false);
+    expect(result.verdict.reason).toBe('pass_used');
+    expect(result.incident_id).toBe(UUID_INCIDENT);
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    expect(visitCall[1][3]).toBe('entry_denied');
   });
 
   test('valid QR can be denied by deterministic access policy with audit trace', async () => {

@@ -7,10 +7,18 @@ const logger = require('../logger');
  * If primary fails, falls back to secondary.
  */
 
+function maskPhone(phone) {
+  const raw = String(phone || '');
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 6) return '[masked-phone]';
+  const prefix = raw.trim().startsWith('+') ? '+' : '';
+  return `${prefix}${digits.slice(0, 4)}***${digits.slice(-4)}`;
+}
+
 async function sendViaSmsRu(phone, message) {
   const apiId = process.env.SMSRU_API_ID;
   if (!apiId || apiId === 'STUB') {
-    logger.info({ phone }, '[sms:smsru] STUB mode — skipping send');
+    logger.info({ masked_phone: maskPhone(phone) }, '[sms:smsru] STUB mode — skipping send');
     return;
   }
   const digits = phone.replace(/\D/g, '');
@@ -26,14 +34,14 @@ async function sendViaSmsRu(phone, message) {
     logger.error({ status: data.status, status_code: data.status_code }, '[sms:smsru] send failed');
     throw new Error('SMS провайдер sms.ru вернул ошибку: ' + data.status_code);
   }
-  logger.info({ phone }, '[sms:smsru] sent');
+  logger.info({ masked_phone: maskPhone(phone) }, '[sms:smsru] sent');
 }
 
 // Fallback: stub provider logs warning (replace with real secondary provider)
 async function sendViaFallback(phone, message) {
   const apiId = process.env.SMSRU_FALLBACK_API_ID;
   if (!apiId) {
-    logger.warn({ phone }, '[sms:fallback] no secondary provider configured — SMS not sent');
+    logger.warn({ masked_phone: maskPhone(phone) }, '[sms:fallback] no secondary provider configured — SMS not sent');
     throw new Error('Нет резервного SMS-провайдера');
   }
   // Same sms.ru endpoint with fallback key (or swap for another provider)
@@ -49,7 +57,7 @@ async function sendViaFallback(phone, message) {
     logger.error({ status: data.status, status_code: data.status_code }, '[sms:fallback] send failed');
     throw new Error('Резервный SMS-провайдер вернул ошибку');
   }
-  logger.info({ phone }, '[sms:fallback] sent');
+  logger.info({ masked_phone: maskPhone(phone) }, '[sms:fallback] sent');
 }
 
 /**
@@ -72,4 +80,4 @@ async function sendSms(phone, message) {
   throw lastErr || new Error('Все SMS-провайдеры недоступны');
 }
 
-module.exports = { sendSms };
+module.exports = { sendSms, maskPhone };

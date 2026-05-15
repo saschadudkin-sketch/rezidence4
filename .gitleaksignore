@@ -1,0 +1,11 @@
+c27c9e5ab7f6cf16694c26a69a27e7f823002ad9:.github/workflows/ci.yml:generic-api-key:241
+c27c9e5ab7f6cf16694c26a69a27e7f823002ad9:e2e/v1-access-production.spec.js:generic-api-key:8
+5647a116ac4bef361154d5ed8cd956cc98bfec71:ops/ci-dummy.env:generic-api-key:25
+46b2fcfbb829d3b6b2432969c9b1b88e9c15c9a8:.agents/skills/playwright-best-practices/advanced/authentication-flows.md:generic-api-key:54
+04d8efdd93b8d2722a2770f2eeb6ea1a20b57bcb:backend/src/__tests__/auth_redis_revocation.test.js:generic-api-key:19
+04d8efdd93b8d2722a2770f2eeb6ea1a20b57bcb:backend/src/__tests__/auth_redis_revocation.test.js:generic-api-key:31
+04d8efdd93b8d2722a2770f2eeb6ea1a20b57bcb:backend/src/__tests__/blacklist_validation.test.js:generic-api-key:23
+04d8efdd93b8d2722a2770f2eeb6ea1a20b57bcb:backend/src/__tests__/requests_service_validation.test.js:generic-api-key:19
+800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/api-design-reviewer/SKILL.md:generic-api-key:255
+800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/tech-debt-tracker/assets/sample_codebase/src/frontend.js:generic-api-key:5
+800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/tech-debt-tracker/assets/sample_codebase/src/user_service.py:generic-api-key:14

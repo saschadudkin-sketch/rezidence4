@@ -9,6 +9,7 @@ const logger     = require('../logger');
 const requireAuth = require('../middleware/auth');
 const db         = require('../db'); // moved to top
 const { registerUploadMetadata, createSignedUploadUrl, SIGN_TTL_SECONDS } = require('../services/uploadSecurity');
+const { canUserAccessUpload } = require('../services/uploadAccess');
 
 // ─── Image processing config ──────────────────────────────────────────────────
 const MAX_DIMENSION   = 1200; // px — resize if width or height exceeds this
@@ -182,13 +183,8 @@ router.post('/sign', express.json(), async (req, res) => {
   if (!filename) return res.status(400).json({ error: 'filename required' });
 
   const queryDb = req.db || db;
-  const { rows } = await queryDb.query(
-    `SELECT owner_uid FROM upload_objects WHERE filename=$1 LIMIT 1`,
-    [filename],
-  );
-  const ownerUid = rows?.[0]?.owner_uid;
-  const isStaff = ['admin', 'security', 'concierge'].includes(req.user?.role);
-  if (!ownerUid || (!isStaff && ownerUid !== req.user?.uid)) {
+  const allowed = await canUserAccessUpload(req.user, filename, queryDb);
+  if (!allowed) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

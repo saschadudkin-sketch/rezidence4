@@ -15,7 +15,9 @@ const {
   deleteRefreshTokensForUser,
 } = require('../services/authSessionService');
 
-const { sendSms } = require('../services/smsService');
+const smsService = require('../services/smsService');
+const sendSms = smsService.sendSms;
+const maskPhone = smsService.maskPhone || ((phone) => String(phone || '').replace(/(\d{4})\d+(\d{4})$/, '$1***$2'));
 
 const router = express.Router();
 
@@ -180,7 +182,7 @@ router.post('/send-otp', async (req, res, next) => {
     // Теперь: одинаковый ответ 200 при известном и неизвестном номере.
     // Если номер неизвестен — тихо отвечаем OK и не отправляем SMS.
     if (!rows.length) {
-      logger.info({ phone }, '[send-otp] unknown phone — returning 200 to prevent enumeration');
+      logger.info({ masked_phone: maskPhone(phone) }, '[send-otp] unknown phone — returning 200 to prevent enumeration');
       return res.json({ ok: true });
     }
 
@@ -325,7 +327,7 @@ router.post('/verify-otp', async (req, res, next) => {
           if (fails >= OTP_VERIFY_LOCKOUT_MAX) {
             await _redisFail.set(lockKey, '1', 'EX', OTP_VERIFY_LOCKOUT_SEC);
             await _redisFail.del(failKey);
-            logger.warn({ phone: phone.slice(0, -4) + '****' }, '[verify-otp] phone locked after repeated failures');
+            logger.warn({ masked_phone: maskPhone(phone) }, '[verify-otp] phone locked after repeated failures');
           }
         } catch (redisErr) {
           logger.warn({ err: redisErr }, '[verify-otp] redis lockout update failed');

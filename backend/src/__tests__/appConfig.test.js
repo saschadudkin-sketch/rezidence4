@@ -17,6 +17,7 @@ const VALID_PROD = {
   PLATFORM_JWT_SECRET: 'b'.repeat(32),
   FRONTEND_URL: 'https://app.example.com',
   UPLOAD_SIGNING_SECRET: 'c'.repeat(32),
+  PLATFORM_ALLOWED_HOSTNAME_SUFFIX: 'example.com',
 };
 
 describe('collectConfigErrors — base', () => {
@@ -58,6 +59,14 @@ describe('collectConfigErrors — production gates', () => {
     delete env.FRONTEND_URL;
     const errs = collectConfigErrors(env, true);
     expect(errs.some((m) => m.includes('FRONTEND_URL'))).toBe(true);
+  });
+
+  test('tenant hostname allowlist отсутствует в prod — error', () => {
+    const env = { ...VALID_PROD };
+    delete env.PLATFORM_ALLOWED_HOSTNAME_SUFFIX;
+    delete env.PLATFORM_ALLOWED_HOSTNAMES;
+    const errs = collectConfigErrors(env, true);
+    expect(errs.some((m) => m.includes('PLATFORM_ALLOWED_HOSTNAME_SUFFIX'))).toBe(true);
   });
 });
 
