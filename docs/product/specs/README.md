@@ -24,6 +24,9 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-access-core-production-slice-plan.md`
   - Execution plan for stabilizing the current `rezidence4` access-core slice before further platform expansion: identity mapping, restore/fresh-install drift, strict e2e, backend refactor, role/scope model, v1 cutover, legacy freeze, policy engine, and pilot readiness.
 
+- `domhub-access-competitive-improvement-plan.md`
+  - Execution plan for upgrading DomHub access UX against comparable resident/access-control products: guard console hydrate/search, v1 public pass, resident pass creation, trusted visitors, PIN credentials, admin pass management, guard authorized devices, and access analytics.
+
 - `platform-v1/README.md`
   - Sub-index for detailed platform-v1 migration and module specs. Use these files for current v1 implementation and migration details; they do not override the master product roadmap.
 
