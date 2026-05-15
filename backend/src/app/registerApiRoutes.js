@@ -52,6 +52,7 @@ const platformPropertiesRouter = require('../routes/platform/properties');
 const platformAdminsRouter = require('../routes/platform/admins');
 const platformStatsRouter = require('../routes/platform/stats');
 const platformAnalyticsRouter = require('../routes/platform/analytics');
+const platformAccessRouter = require('../routes/platform/access');
 const platformAuditLogRouter = require('../routes/platform/auditLog');
 // Phase 1 (D-lite): management-company CRUD for the superadmin SPA.  Tables
 // start empty — first MC gets created when an actual УК onboards (see
@@ -216,7 +217,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/push-subscriptions', pushSubscriptionsRouter);
   app.use('/api/v1/telegram', telegramLinkRouter);
   app.use('/api/v1/push-subscriptions', telegramLinkRouter);
-  app.use('/api/client-logs', clientLogsLimiter, clientLogsRouter);
+  app.use('/api/client-logs', deprecate, clientLogsLimiter, clientLogsRouter);
 
   // Phase 2 — Announcements, Documents, QR Pass
   // announcements_v2 (Phase 5) — v1 router mounted BEFORE legacy; legacy
@@ -282,6 +283,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/platform/api/v1/admins', platformAdminsRouter);
   app.use('/platform/api/v1/stats', platformStatsRouter);
   app.use('/platform/api/v1/analytics', platformAnalyticsRouter);
+  app.use('/platform/api/v1/access', platformAccessRouter);
   app.use('/platform/api/v1/audit-log', platformAuditLogRouter);
   app.use('/platform/api/v1/management-companies', platformManagementCompaniesRouter);
   app.use('/platform/api/v1/notifications/outbox/health', platformOutboxHealthRouter);

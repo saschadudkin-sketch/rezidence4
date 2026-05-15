@@ -31,6 +31,7 @@ const REQUEST_TYPE_RU: Record<RequestType, string> = {
 const REQUEST_STATUS_RU: Record<RequestStatus, string> = {
   new: 'Новая',
   pending_approval: 'На согласовании',
+  escalated: 'Эскалирована',
   approved: 'Одобрено',
   rejected: 'Отклонено',
   cancelled: 'Отменено',
@@ -164,7 +165,7 @@ export function requestStatusTone(
 ): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
   if (s === 'approved') return 'success';
   if (s === 'rejected' || s === 'cancelled') return 'error';
-  if (s === 'pending_approval') return 'warning';
+  if (s === 'pending_approval' || s === 'escalated') return 'warning';
   if (s === 'new') return 'info';
   if (s === 'expired') return 'neutral';
   return 'neutral';

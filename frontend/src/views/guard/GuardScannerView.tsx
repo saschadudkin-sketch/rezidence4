@@ -2,25 +2,22 @@
  * GuardScannerView — standalone guard station scanner, /dashboard/guard/scan.
  *
  * Ported from docs/design-reference/guard-scanner.html.  Wires the reference
- * UI to the server-authoritative scan API (see backend/src/routes/guardScan.js,
- * mounted at /api/v1/guard).  Staff-only — the backend enforces this, but we
+ * UI to the server-authoritative v1 scan API (see backend/src/v1/routes/visits.js,
+ * mounted at /api/v1/guard/scan-pass).  Staff-only — the backend enforces this, but we
  * also redirect residents to the dashboard so the tablet doesn't render chrome
  * they can't use.
  *
  * Design intent (from the reference):
  *   — Large, decisive UI suitable for gate use under pressure.
  *   — Dark palette pinned regardless of the app theme (see .root in CSS).
- *   — Two stacked action buttons (Admit gold, Deny ghost) — no mis-taps.
+ *   — One decisive success action after the server records the verdict.
  *   — "Online" badge = system liveness, not decoration.
  *
  * Flow:
  *   1. Camera opens, BarcodeDetector polls for QR every 300ms.
- *   2. On QR detected → extract token (URL or raw hex) → POST /guard/scan.
- *   3. Server returns `{scanId, pass, request, resident}` with PASS_EXPIRED /
- *      PASS_INVALID as typed errors.
- *   4. Guard clicks Admit → POST /guard/scan/:scanId/admit → pass used, guest
- *      arrival notification fires.  Or Deny with optional reason.
- *   5. "Сканировать ещё" resets to step 1 without full remount.
+ *   2. On QR detected → extract token (URL or raw token) → POST /api/v1/guard/scan-pass.
+ *   3. Server records the allow/deny decision and returns the guard verdict.
+ *   4. "Сканировать ещё" resets to step 1 without full remount.
  *
  * Camera fallback: if BarcodeDetector is unavailable or getUserMedia fails,
  * we show a manual token-entry field so the guard can still validate a pass
@@ -31,8 +28,6 @@ import { useNavigate } from 'react-router-dom';
 import styles from './GuardScannerView.module.css';
 import {
   scanPassToken,
-  admitScan,
-  denyScan,
   extractPassToken,
   GuardScanError,
   type GuardScanResult,
@@ -61,7 +56,8 @@ function initials(name: string | null): string {
   return parts.map((p) => p[0] || '').join('').toUpperCase() || '?';
 }
 
-function formatValidUntil(iso: string): string {
+function formatValidUntil(iso: string | null): string {
+  if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -99,7 +95,6 @@ export default function GuardScannerView() {
   const [view, setView] = useState<ScanView>({ kind: 'scanning' });
   const [manualEntry, setManualEntry] = useState('');
   const [cameraError, setCameraError] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -134,18 +129,23 @@ export default function GuardScannerView() {
   }, []);
 
   const runScan = useCallback(async (token: string) => {
+    const propertyId = (user as { property_id?: string | null } | null)?.property_id ?? null;
+    if (!propertyId) {
+      setView({ kind: 'error', code: 'VALIDATION', message: 'К пользователю не привязан объект.' });
+      return;
+    }
     lockRef.current = true;
     stopCamera();
     setView({ kind: 'checking' });
     try {
-      const scan = await scanPassToken(token);
+      const scan = await scanPassToken(propertyId, token);
       if (navigator.vibrate) navigator.vibrate(100);
       setView({ kind: 'result', scan });
     } catch (err) {
       const gErr = err as GuardScanError;
       setView({ kind: 'error', code: gErr.code, message: errorHeadline(gErr.code) });
     }
-  }, [stopCamera]);
+  }, [stopCamera, user]);
 
   const handleRawQr = useCallback((raw: string) => {
     if (lockRef.current) return;
@@ -214,40 +214,6 @@ export default function GuardScannerView() {
     if (!raw) return;
     handleRawQr(raw);
   }, [manualEntry, handleRawQr]);
-
-  const handleAdmit = useCallback(async () => {
-    if (view.kind !== 'result') return;
-    setActionBusy(true);
-    try {
-      await admitScan(view.scan.scanId);
-      toast('Гость пропущен', 'success');
-      setView({ kind: 'scanning' });
-      setManualEntry('');
-    } catch {
-      toast('Не удалось отметить вход. Попробуйте ещё раз.', 'error');
-    } finally {
-      setActionBusy(false);
-    }
-  }, [view]);
-
-  const handleDeny = useCallback(async () => {
-    if (view.kind !== 'result') return;
-    // The reference keeps the flow simple — no reason prompt.  A short prompt
-    // gives the audit trail context without a bespoke modal; staff can
-    // dismiss with empty input and still record the denial.
-    const reason = window.prompt('Причина отказа (необязательно)') ?? undefined;
-    setActionBusy(true);
-    try {
-      await denyScan(view.scan.scanId, reason || undefined);
-      toast('В допуске отказано', 'info');
-      setView({ kind: 'scanning' });
-      setManualEntry('');
-    } catch {
-      toast('Не удалось сохранить отказ. Попробуйте ещё раз.', 'error');
-    } finally {
-      setActionBusy(false);
-    }
-  }, [view]);
 
   const handleRescan = useCallback(() => {
     setView({ kind: 'scanning' });
@@ -456,26 +422,13 @@ export default function GuardScannerView() {
               <button
                 type="button"
                 className={styles.btnAdmit}
-                onClick={handleAdmit}
-                disabled={actionBusy}
-                aria-label="Пропустить гостя"
+                onClick={handleRescan}
+                aria-label="Сканировать следующий пропуск"
               >
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M4 10l4.5 5L16 5" />
                 </svg>
-                {actionBusy ? 'Сохраняем…' : 'Пропустить'}
-              </button>
-              <button
-                type="button"
-                className={styles.btnDeny}
-                onClick={handleDeny}
-                disabled={actionBusy}
-                aria-label="Отклонить пропуск"
-              >
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M5 5l10 10M15 5L5 15" />
-                </svg>
-                Отклонить
+                Проход разрешён
               </button>
               <button type="button" className={styles.btnRescan} onClick={handleRescan}>
                 Сканировать ещё

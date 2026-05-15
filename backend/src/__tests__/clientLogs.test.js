@@ -9,11 +9,16 @@ jest.mock('../logger', () => ({
 
 const logger = require('../logger');
 const clientLogsRouter = require('../routes/clientLogs');
+const {
+  DEPRECATION_HEADER_VALUE,
+  SUNSET_HTTP_DATE,
+  deprecate,
+} = require('../middleware/deprecate');
 
 function createApp() {
   const app = express();
   app.use(express.json());
-  app.use('/api/client-logs', clientLogsRouter);
+  app.use('/api/client-logs', deprecate, clientLogsRouter);
   return app;
 }
 
@@ -26,6 +31,17 @@ describe('clientLogs route', () => {
     const app = createApp();
     const res = await request(app).post('/api/client-logs').send({});
     expect(res.status).toBe(400);
+  });
+
+  test('legacy alias emits deprecation headers', async () => {
+    const app = createApp();
+    const res = await request(app).post('/api/client-logs').send({
+      errors: [{ message: 'legacy client log' }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.deprecation).toBe(DEPRECATION_HEADER_VALUE);
+    expect(res.headers.sunset).toBe(SUNSET_HTTP_DATE);
   });
 
   test('redacts sensitive keys in context before logging', async () => {

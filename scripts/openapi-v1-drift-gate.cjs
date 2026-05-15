@@ -10,9 +10,7 @@ const routesPath = path.join(repoRoot, 'backend', 'src', 'app', 'registerApiRout
 const observabilityRoutesPath = path.join(repoRoot, 'backend', 'src', 'app', 'registerObservabilityRoutes.js');
 
 const ROOT_MOUNTS = new Set(['/api/v1']);
-const INTENTIONAL_EXTERNAL_DOCS = new Set([
-  '/api/v1/public',
-]);
+const INTENTIONAL_EXTERNAL_DOCS = new Set();
 
 function normalizeMount(prefix) {
   return String(prefix || '').replace(/\/+$/, '') || '/';

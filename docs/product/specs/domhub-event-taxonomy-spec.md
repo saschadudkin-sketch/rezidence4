@@ -85,10 +85,13 @@ Payloads MUST avoid raw PII when an ID reference is enough.
 - `access.request.created`
 - `access.request.approved`
 - `access.request.rejected`
+- `access.request.escalated`
 - `access.pass.created`
 - `access.pass.activated`
 - `access.pass.expired`
 - `access.pass.revoked`
+- `access.pass.blocked`
+- `access.pass.unblocked`
 - `access.qr.verified`
 - `access.qr.denied`
 - `access.vehicle.verified`
@@ -105,6 +108,8 @@ Payloads MUST avoid raw PII when an ID reference is enough.
 - `access.policy.disabled`
 - `access.incident.created`
 - `access.incident.resolved`
+- `access.incident.dismissed`
+- `access.incident.patched`
 
 ### Requests And Emergency
 
@@ -182,12 +187,12 @@ Sensitive categories:
 
 | Category | Examples | Why reviewable |
 |---|---|---|
-| `manual_override` | `override.created` | guard/admin bypass of automatic policy |
-| `access_grant` | `access_request.approved`, `pass.created`, `pass.unblocked` | creates or restores access |
-| `access_restriction` | `pass.revoked`, `pass.blocked` | removes or limits access |
-| `access_decision` | `access_request.rejected`, `access_request.escalated` | resident/security dispute context |
-| `incident_review` | `incident.resolved`, `incident.dismissed`, `incident.patched` | closes or changes an incident |
-| `vehicle_decision` | `vehicle.whitelisted`, `vehicle.blacklisted`, `vehicle.flags_cleared` | affects barrier/LPR access |
+| `manual_override` | `access.manual_override.created` | guard/admin bypass of automatic policy |
+| `access_grant` | `access.request.approved`, `access.pass.created`, `access.pass.unblocked` | creates or restores access |
+| `access_restriction` | `access.pass.revoked`, `access.pass.blocked` | removes or limits access |
+| `access_decision` | `access.request.rejected`, `access.request.escalated` | resident/security dispute context |
+| `incident_review` | `access.incident.resolved`, `access.incident.dismissed`, `access.incident.patched` | closes or changes an incident |
+| `vehicle_decision` | `access.vehicle.whitelisted`, `access.vehicle.blacklisted`, `access.vehicle.flags_cleared` | affects barrier/LPR access |
 | `permission_change` | `staff.created`, `staff.updated`, `staff.deactivated` | changes operational permissions |
 | `contractor_access` | `contractor_user.created`, `contractor_user.updated`, `contractor_user.deactivated` | grants or removes contractor access |
 | `access_boundary` | `access_zone.updated`, `access_point.updated` | changes policy/checkpoint boundaries |

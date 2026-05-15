@@ -62,16 +62,17 @@ Platform-level endpoints:
 
 ```json
 {
-  "requestType": "guest_access",
-  "visitorName": "Иван Петров",
-  "visitorPhone": "+79990000000",
-  "vehicleId": null,
-  "targetZoneId": "uuid",
-  "targetPointId": null,
-  "targetUnitId": "uuid",
+  "property_id": "uuid",
+  "request_type": "guest_access",
+  "visitor_name": "Иван Петров",
+  "visitor_phone": "+79990000000",
+  "vehicle_id": null,
+  "target_zone_id": "uuid",
+  "target_point_id": null,
+  "target_unit_id": "uuid",
   "reason": "Гость",
-  "startsAt": "2026-04-21T12:00:00Z",
-  "endsAt": "2026-04-21T18:00:00Z"
+  "starts_at": "2026-04-21T12:00:00Z",
+  "ends_at": "2026-04-21T18:00:00Z"
 }
 ```
 
@@ -79,10 +80,13 @@ Platform-level endpoints:
 
 ```json
 {
-  "id": "uuid",
-  "status": "pending_approval",
-  "approvalRequired": true,
-  "createdAt": "2026-04-21T09:00:00Z"
+  "access_request": {
+    "id": "uuid",
+    "status": "pending_approval",
+    "approval_required": true,
+    "created_at": "2026-04-21T09:00:00Z"
+  },
+  "pass": null
 }
 ```
 
@@ -160,9 +164,13 @@ Detailed access request with approvals, linked pass, policy summary.
 
 ```json
 {
-  "id": "uuid",
-  "status": "approved",
-  "passId": "uuid"
+  "access_request": {
+    "id": "uuid",
+    "status": "approved"
+  },
+  "pass": {
+    "id": "uuid"
+  }
 }
 ```
 
@@ -211,11 +219,11 @@ Detailed access request with approvals, linked pass, policy summary.
 {
   "id": "uuid",
   "status": "active",
-  "passType": "guest",
-  "validFrom": "2026-04-21T12:00:00Z",
-  "validUntil": "2026-04-21T18:00:00Z",
+  "pass_type": "guest",
+  "valid_from": "2026-04-21T12:00:00Z",
+  "valid_until": "2026-04-21T18:00:00Z",
   "qr": {
-    "publicUrl": "https://example/pass/token"
+    "public_url": "https://example/pass/token"
   }
 }
 ```

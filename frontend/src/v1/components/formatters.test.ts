@@ -42,6 +42,7 @@ describe('formatters — enum → label', () => {
   test('request statuses render correct Russian', () => {
     expect(formatRequestStatus('new')).toBe('Новая');
     expect(formatRequestStatus('pending_approval')).toBe('На согласовании');
+    expect(formatRequestStatus('escalated')).toBe('Эскалирована');
     expect(formatRequestStatus('approved')).toBe('Одобрено');
     expect(formatRequestStatus('rejected')).toBe('Отклонено');
     expect(formatRequestStatus('cancelled')).toBe('Отменено');
@@ -88,6 +89,7 @@ describe('tone dispatch — feeds <Badge tone=...>', () => {
     expect(requestStatusTone('rejected')).toBe('error');
     expect(requestStatusTone('cancelled')).toBe('error');
     expect(requestStatusTone('pending_approval')).toBe('warning');
+    expect(requestStatusTone('escalated')).toBe('warning');
     expect(requestStatusTone('new')).toBe('info');
     expect(requestStatusTone('expired')).toBe('neutral');
   });

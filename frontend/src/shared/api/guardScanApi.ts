@@ -1,16 +1,14 @@
 /**
  * guardScanApi.ts — Phase 2 Guard QR scan API client wrappers.
  *
- * Mirrors backend/src/routes/guardScan.js.  Staff-only endpoints enforced
+ * Mirrors backend/src/v1/routes/visits.js.  Staff-only endpoints enforced
  * server-side; the frontend just forwards calls and handles typed responses.
  *
  * Flow:
- *   1. `scanPassToken(token)` — creates a `visit_logs` row with
- *      result='pending_guard_decision' and returns the scan context (guest
- *      identity, resident, pass validity).
+ *   1. `scanPassToken(propertyId, token)` verifies through
+ *      POST /api/v1/guard/scan-pass and returns the guard verdict.
  *   2. Guard sees the result screen (see views/guard/GuardScannerView).
- *   3. Guard clicks Admit → `admitScan(scanId)` (marks pass used, dispatches
- *      guest.arrived push) OR Deny → `denyScan(scanId, reason?)`.
+ *   3. The canonical v1 endpoint records the visit decision server-side.
  *
  * The server response intentionally never exposes the resident's UID or
  * phone — just name + apartment — so the guard can verify context without
@@ -22,10 +20,14 @@ import { apiClient } from '../../services/providers/apiClient';
 export type GuardScanPassState = 'valid' | 'used' | 'expired' | 'invalid';
 
 export type GuardScanResult = {
-  scanId: string;
+  scanId: string | null;
+  allowed: boolean;
+  reason: string | null;
+  visitLogId: string | null;
+  incidentId: string | null;
   pass: {
-    id: string;
-    expiresAt: string;
+    id: string | null;
+    expiresAt: string | null;
     usedAt: string | null;
   };
   request: {
@@ -51,6 +53,8 @@ export type GuardScanErrorCode =
   | 'NOT_FOUND'
   | 'PASS_EXPIRED'
   | 'PASS_INVALID'
+  | 'PASS_USED'
+  | 'POLICY_DENIED'
   | 'VALIDATION'
   | 'FORBIDDEN'
   | 'UNKNOWN';
@@ -74,6 +78,7 @@ function normalizeError(err: unknown): GuardScanError {
   const rawCode = typeof e?.code === 'string' ? e.code : '';
   const code: GuardScanErrorCode =
     rawCode === 'NOT_FOUND' || rawCode === 'PASS_EXPIRED' || rawCode === 'PASS_INVALID' ||
+    rawCode === 'PASS_USED' || rawCode === 'POLICY_DENIED' ||
     rawCode === 'VALIDATION' || rawCode === 'FORBIDDEN'
       ? rawCode
       : 'UNKNOWN';
@@ -81,29 +86,61 @@ function normalizeError(err: unknown): GuardScanError {
   return new GuardScanError(code, status, message);
 }
 
-export async function scanPassToken(token: string): Promise<GuardScanResult> {
-  try {
-    const res = await apiClient.post('/api/v1/guard/scan', { token });
-    return res as GuardScanResult;
-  } catch (err) {
-    throw normalizeError(err);
-  }
+function reasonToErrorCode(reason: string | null | undefined): GuardScanErrorCode {
+  if (reason === 'expired') return 'PASS_EXPIRED';
+  if (reason === 'pass_revoked' || reason === 'pass_blocked' || reason === 'invalid_qr') return 'PASS_INVALID';
+  if (reason === 'pass_used') return 'PASS_USED';
+  if (reason === 'policy_denied' || reason === 'unauthorized_vehicle') return 'POLICY_DENIED';
+  return 'UNKNOWN';
 }
 
-export async function admitScan(scanId: string): Promise<void> {
-  try {
-    await apiClient.post(`/api/v1/guard/scan/${encodeURIComponent(scanId)}/admit`, {});
-  } catch (err) {
-    throw normalizeError(err);
-  }
-}
+type ScanPassResponse = {
+  allowed: boolean;
+  reason: string | null;
+  visit_log_id: string | null;
+  incident_id: string | null;
+  pass?: {
+    id?: string | null;
+    pass_type?: string | null;
+    valid_until?: string | null;
+    status?: string | null;
+  } | null;
+};
 
-export async function denyScan(scanId: string, reason?: string): Promise<void> {
+export async function scanPassToken(propertyId: string, token: string): Promise<GuardScanResult> {
   try {
-    await apiClient.post(
-      `/api/v1/guard/scan/${encodeURIComponent(scanId)}/deny`,
-      reason ? { reason } : {},
-    );
+    const res = await apiClient.post('/api/v1/guard/scan-pass', {
+      property_id: propertyId,
+      mode: 'qr',
+      token,
+      direction: 'entry',
+    }) as ScanPassResponse;
+    if (!res.allowed) {
+      throw new GuardScanError(reasonToErrorCode(res.reason), 422, res.reason || 'Access denied');
+    }
+    return {
+      scanId: res.visit_log_id,
+      allowed: res.allowed,
+      reason: res.reason,
+      visitLogId: res.visit_log_id,
+      incidentId: res.incident_id,
+      pass: {
+        id: res.pass?.id ?? null,
+        expiresAt: res.pass?.valid_until ?? null,
+        usedAt: res.pass?.status === 'used' ? new Date().toISOString() : null,
+      },
+      request: {
+        id: '',
+        type: res.pass?.pass_type ?? 'pass',
+        visitorName: null,
+        visitorPhone: null,
+        createdByApt: null,
+      },
+      resident: {
+        name: null,
+        apartment: null,
+      },
+    };
   } catch (err) {
     throw normalizeError(err);
   }

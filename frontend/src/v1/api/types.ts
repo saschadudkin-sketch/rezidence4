@@ -482,6 +482,7 @@ export type RequestType =
 export type RequestStatus =
   | 'new'
   | 'pending_approval'
+  | 'escalated'
   | 'approved'
   | 'rejected'
   | 'cancelled'
