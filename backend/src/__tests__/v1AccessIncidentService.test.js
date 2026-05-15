@@ -246,6 +246,7 @@ describe('AccessIncidentService', () => {
       'Manual deny at access point',
       expect.stringContaining('offline deny'),
       UUID_STAFF,
+      null,
     ]);
 
     const overrideCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_overrides'));

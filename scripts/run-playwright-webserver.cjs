@@ -73,6 +73,7 @@ startChild(process.execPath, [viteEntry, '--host', '127.0.0.1', '--port', '3000'
     ...e2eEnv,
     VITE_RUNTIME_MODE: e2eEnv.VITE_RUNTIME_MODE || (backendMode ? 'live' : 'demo'),
     VITE_ENABLE_DEMO: e2eEnv.VITE_ENABLE_DEMO || (backendMode ? 'false' : 'true'),
+    VITE_API_URL: e2eEnv.VITE_API_URL || (backendMode ? `http://127.0.0.1:${backendPort}` : ''),
     VITE_DEV_API_PROXY: e2eEnv.VITE_DEV_API_PROXY || (backendMode ? `http://127.0.0.1:${backendPort}` : ''),
   },
 }, true);

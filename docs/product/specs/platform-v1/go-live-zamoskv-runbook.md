@@ -1,7 +1,7 @@
 # Go-Live Runbook — Резиденции Замоскворечья
 
 **Фаза:** 7 (ROADMAP.md) — первый production tenant
-**Статус:** Draft (2026-04-24) — runbook к деплою, доработать после dry-run
+**Статус:** Release-candidate (2026-05-15) — go-live разрешён только после подписанного dry-run sign-off в §4.1
 **Предусловия:** Phase 6 P1–P4 закрыты (authz + notification templates + legacy freeze)
 **Целевой ветки:** `platform-v1` (будет промерджена в `main` после успешного go-live)
 **Владелец:** Александр (owner)
@@ -354,6 +354,30 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
 
 ---
 
+### 4.1 Go/No-Go критерии и dry-run sign-off
+
+Перед §5 release manager собирает один go/no-go пакет в `artifacts/release-gates/` и `artifacts/russia-readiness/`. Переход к DNS cutover разрешён только если все критерии ниже зелёные или имеют явный waiver с owner, сроком и rollback-impact:
+
+- [ ] `npm run release:gate:check` проходит на свежих runtime artifacts.
+- [ ] `npm run tenant:preflight:current` проходит против целевых registry/platform/property DB.
+- [ ] `npm run tenant:restore-drill:preflight` и `npm run tenant:restore-drill` проходят на backup-файлах не старше 48h.
+- [ ] `npm run security:scan` проходит; Semgrep и Gitleaks evidence приложены к go/no-go пакету.
+- [ ] `npm run russia:readiness -- --require-live` проходит на DH-55..DH-61 live/staging artifacts.
+- [ ] `/health` возвращает 200 только при живых DB и Redis; `/api/v1/events/health` проверен admin-пользователем.
+- [ ] Smoke-тест из §4 выполнен в dry-run и приложен к `artifacts/release-gates/test-e2e-v1-access.json` или эквивалентному run evidence.
+- [ ] Rollback plan из §6 проверен на staging/prod-candidate и не превышает согласованный RTO/RPO.
+- [ ] Контакты из §9 подтверждены в день go-live.
+
+| Роль | Ответственный | Sign-off |
+|---|---|---|
+| Release manager | Александр | `artifacts/release-gates/release-manager-signoff.json` |
+| Backend/platform | Александр | `artifacts/release-gates/backend-platform-signoff.json` |
+| SRE/ops | Александр | `artifacts/release-gates/sre-ops-signoff.json` |
+| Security | Александр | `artifacts/release-gates/security-signoff.json` |
+| Product/legal | Александр | `artifacts/russia-readiness/product-legal-signoff.json` |
+
+---
+
 ## 5. DNS cutover + публикация
 
 Если smoke-тест зелёный:
@@ -427,9 +451,9 @@ curl -s -H "Cookie: $COOKIE" https://zamoskv.domhub.su/api/v1/admin/feature-flag
 
 | Роль | Кто | Канал |
 |---|---|---|
-| Owner | Александр | — |
-| On-call SRE | TBD (пока — Александр) | email |
+| Owner | Александр | телефон + email из access vault |
+| On-call SRE | Александр | телефон + email из access vault |
 | УК Замоскворечья | admin@zamoskv.ru | OTP SMS |
-| Timeweb support | — | ticket |
+| Timeweb support | аккаунт DomHub/Александр | ticket в личном кабинете |
 
 SLA (до найма команды) — best effort, 8×5. Формальный 24×7 SLA — после подключения второй УК.

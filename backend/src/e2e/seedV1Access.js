@@ -301,6 +301,36 @@ async function seedTenant(tenantPool, propertyId) {
     );
   }
 
+  const guestPolicyName = 'E2E Guest QR auto';
+  await tenantPool.query(
+    `DELETE FROM access_policies
+      WHERE property_id = $1
+        AND LOWER(name) = LOWER($2)`,
+    [propertyId, guestPolicyName],
+  );
+  await tenantPool.query(
+    `INSERT INTO access_policies
+       (property_id, name, subject_type, access_method, approval_mode, effect,
+        priority, is_recurring, metadata)
+     VALUES ($1,$2,'guest','qr','auto','allow',-1000,true,$3::jsonb)`,
+    [propertyId, guestPolicyName, JSON.stringify({ e2e: true, use_case: 'guest_qr_auto' })],
+  );
+
+  const vehiclePolicyName = 'E2E Resident vehicle plate auto';
+  await tenantPool.query(
+    `DELETE FROM access_policies
+      WHERE property_id = $1
+        AND LOWER(name) = LOWER($2)`,
+    [propertyId, vehiclePolicyName],
+  );
+  await tenantPool.query(
+    `INSERT INTO access_policies
+       (property_id, name, subject_type, access_method, approval_mode, effect,
+        priority, is_recurring, metadata)
+     VALUES ($1,$2,'vehicle','plate','auto','allow',-900,true,$3::jsonb)`,
+    [propertyId, vehiclePolicyName, JSON.stringify({ e2e: true, use_case: 'resident_vehicle_plate_auto' })],
+  );
+
   return { propertyId, buildingId, entranceId, unitId, residentId, conciergeId, securityId };
 }
 

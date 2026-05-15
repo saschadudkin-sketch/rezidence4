@@ -17,6 +17,20 @@ function run(args, env) {
   return result.status ?? 1;
 }
 
+function isProcessCrashStatus(status) {
+  return status === -1073741819 || status === 3221225477;
+}
+
+function runWithCrashRetry(args, env) {
+  let status = 1;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    status = run(args, env);
+    if (!isProcessCrashStatus(status) || attempt === 3) return status;
+    console.warn(`[test:e2e:v1-access] child process crashed before verdict; retrying (${attempt}/3); status=${status}`);
+  }
+  return status;
+}
+
 function writeArtifact(status) {
   fs.mkdirSync(artifactDir, { recursive: true });
   fs.writeFileSync(artifactPath, `${JSON.stringify({
@@ -57,7 +71,7 @@ if (status !== 0) {
   process.exit(status);
 }
 
-status = run([
+status = runWithCrashRetry([
   path.join(repoRoot, 'scripts', 'run-playwright-tests.cjs'),
   'e2e/v1-access-production.spec.js',
   '--project=chromium',

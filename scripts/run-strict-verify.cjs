@@ -70,6 +70,10 @@ function killProcessTree(child) {
   }
 }
 
+function isProcessCrashStatus(status) {
+  return status === -1073741819 || status === 3221225477;
+}
+
 function writeArtifact(result) {
   ensureArtifactDir();
   fs.writeFileSync(artifactPath, `${JSON.stringify({
@@ -160,6 +164,34 @@ function runPhase(phase) {
   });
 }
 
+async function runPhaseWithRetry(phase) {
+  const attempts = [];
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const result = await runPhase(phase);
+    attempts.push(result);
+
+    if (
+      result.status === 'failed'
+      && isProcessCrashStatus(result.exit_code)
+      && attempt < 2
+    ) {
+      console.warn(`[verify:strict] ${phase.id} crashed before verdict; retrying once; exit_code=${result.exit_code}`);
+      continue;
+    }
+
+    if (attempts.length > 1) {
+      return {
+        ...result,
+        attempts,
+      };
+    }
+    return result;
+  }
+
+  return attempts[attempts.length - 1];
+}
+
 async function main() {
   const startedAtMs = Date.now();
   const completedPhases = [];
@@ -167,7 +199,7 @@ async function main() {
   let timedOut = false;
 
   for (const phase of phases) {
-    const result = await runPhase(phase);
+    const result = await runPhaseWithRetry(phase);
     completedPhases.push(result);
     if (!result.ok) {
       exitCode = result.status === 'timeout' ? 124 : (result.exit_code || 1);

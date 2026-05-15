@@ -252,7 +252,7 @@ function registerObservabilityRoutes(app, { db }) {
       checks.redis = 'unconfigured';
     }
 
-    const healthy = checks.db === 'ok';
+    const healthy = checks.db === 'ok' && checks.redis !== 'error';
     res.status(healthy ? 200 : 503).json({
       status: healthy ? 'ok' : 'error',
       checks,

@@ -244,6 +244,8 @@ async function createManualSecurityDecision({ txPool, user, input }) {
   const normalizedPlate = input.vehicle_plate ? normalizePlate(input.vehicle_plate) : null;
   const occurredAtIso = input.occurred_at || new Date().toISOString();
   const severity = input.severity || (input.decision === 'manual_deny' ? 'medium' : 'low');
+  const incidentStatus = input.degraded_mode ? 'investigating' : 'resolved';
+  const resolvedAt = incidentStatus === 'resolved' ? occurredAtIso : null;
   const providerPayload = {
     source: 'security_workspace',
     manual_decision: true,
@@ -290,8 +292,7 @@ async function createManualSecurityDecision({ txPool, user, input }) {
          (property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
           incident_type, severity, status, title, description,
           created_by_staff_id, resolved_at)
-       VALUES ($1,$2,$3,$4,'manual_override',$5,$6,$7,$8,$9,
-               CASE WHEN $6 = 'resolved' THEN NOW() ELSE NULL END)
+       VALUES ($1,$2,$3,$4,'manual_override',$5,$6,$7,$8,$9,$10)
        RETURNING ${INCIDENT_COLS}`,
       [
         input.property_id,
@@ -299,10 +300,11 @@ async function createManualSecurityDecision({ txPool, user, input }) {
         visitLog.id,
         input.related_vehicle_id || null,
         severity,
-        input.degraded_mode ? 'investigating' : 'resolved',
+        incidentStatus,
         manualDecisionTitle(input),
         manualDecisionDescription(input),
         staffId,
+        resolvedAt,
       ],
     );
     const incident = incidentRows[0];
