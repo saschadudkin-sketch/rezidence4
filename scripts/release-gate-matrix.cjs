@@ -128,7 +128,12 @@ function parseArgs(argv = []) {
   return {
     json: argv.includes('--json'),
     list: argv.includes('--list'),
+    metadataOnly: argv.includes('--metadata'),
+    requireRuntimeEvidence: argv.includes('--require-runtime-evidence')
+      || (!argv.includes('--metadata') && !argv.includes('--list')),
     gate: readOption(argv, '--gate'),
+    evidenceDir: readOption(argv, '--evidence-dir') || process.env.RELEASE_GATE_EVIDENCE_DIR || 'artifacts/release-gates',
+    maxEvidenceAgeHours: Number(readOption(argv, '--max-evidence-age-hours') || process.env.RELEASE_GATE_EVIDENCE_MAX_AGE_HOURS || 168),
   };
 }
 
@@ -153,11 +158,97 @@ function selectGates(matrix, gateId) {
   return matrix.filter((gate) => gate.id === gateId);
 }
 
+function scriptArtifactName(script) {
+  return `${script.replace(/[^a-z0-9_.-]/gi, '-')}.json`;
+}
+
+function defaultRuntimeEvidenceForScript(script, evidenceDir = 'artifacts/release-gates') {
+  return path.join(evidenceDir, scriptArtifactName(script)).replace(/\\/g, '/');
+}
+
+function readJsonFile(filePath) {
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(fs.readFileSync(filePath, 'utf8')),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message,
+    };
+  }
+}
+
+function isFreshIsoTimestamp(value, maxAgeHours, now = Date.now()) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return false;
+  const maxAgeMs = maxAgeHours * 60 * 60 * 1000;
+  return timestamp <= now && now - timestamp <= maxAgeMs;
+}
+
+function validateRuntimeEvidencePayload(payload, script, maxEvidenceAgeHours) {
+  const failures = [];
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return ['runtime evidence must be a JSON object'];
+  }
+  if (payload.schema_version !== 1) failures.push('schema_version must be 1');
+  if (payload.command && !String(payload.command).includes(script)) {
+    failures.push(`command must reference ${script}`);
+  }
+  if (payload.script && payload.script !== script) {
+    failures.push(`script must be ${script}`);
+  }
+  if (!payload.command && !payload.script) {
+    failures.push('command or script is required');
+  }
+  if (!isFreshIsoTimestamp(payload.captured_at, maxEvidenceAgeHours)) {
+    failures.push(`captured_at must be an ISO timestamp within ${maxEvidenceAgeHours}h`);
+  }
+  const ok = payload.ok === true || payload.exit_code === 0 || payload.evidence?.exit_code === 0;
+  if (!ok) failures.push('runtime evidence must show ok=true or exit_code=0');
+  return failures;
+}
+
+function checkRuntimeEvidence(root, script, evidenceDir, maxEvidenceAgeHours) {
+  const relativePath = defaultRuntimeEvidenceForScript(script, evidenceDir);
+  const absolutePath = path.join(root, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return {
+      type: 'runtime-evidence',
+      ref: `${script} -> ${relativePath}`,
+      ok: false,
+      message: 'missing runtime evidence artifact',
+    };
+  }
+
+  const parsed = readJsonFile(absolutePath);
+  if (!parsed.ok) {
+    return {
+      type: 'runtime-evidence',
+      ref: `${script} -> ${relativePath}`,
+      ok: false,
+      message: `invalid runtime evidence JSON: ${parsed.error}`,
+    };
+  }
+
+  const failures = validateRuntimeEvidencePayload(parsed.value, script, maxEvidenceAgeHours);
+  return {
+    type: 'runtime-evidence',
+    ref: `${script} -> ${relativePath}`,
+    ok: failures.length === 0,
+    message: failures.length === 0 ? 'fresh passing runtime evidence exists' : failures.join('; '),
+  };
+}
+
 function checkMatrix({
   root = repoRoot,
   matrix = RELEASE_GATES,
   gateId = null,
   scripts = loadRootScripts(root),
+  requireRuntimeEvidence = false,
+  evidenceDir = 'artifacts/release-gates',
+  maxEvidenceAgeHours = 168,
 } = {}) {
   const gates = selectGates(matrix, gateId).map((gate) => {
     const scriptChecks = gate.scripts.map((script) => ({
@@ -178,7 +269,10 @@ function checkMatrix({
         message: ok ? 'evidence path exists' : 'missing evidence path',
       };
     });
-    const checks = [...scriptChecks, ...evidenceChecks];
+    const runtimeEvidenceChecks = requireRuntimeEvidence
+      ? gate.scripts.map((script) => checkRuntimeEvidence(root, script, evidenceDir, maxEvidenceAgeHours))
+      : [];
+    const checks = [...scriptChecks, ...evidenceChecks, ...runtimeEvidenceChecks];
     return {
       ...gate,
       ok: checks.every((check) => check.ok),
@@ -201,6 +295,11 @@ function formatList(matrix = RELEASE_GATES) {
 
 function formatReport(result) {
   const lines = ['[release-gate-matrix]'];
+  if (result.requireRuntimeEvidence) {
+    lines.push(`[mode] runtime evidence required; evidenceDir=${result.evidenceDir}; maxAgeHours=${result.maxEvidenceAgeHours}`);
+  } else {
+    lines.push('[mode] metadata only');
+  }
   for (const gate of result.gates) {
     lines.push(`${gate.ok ? '[ok]' : '[fail]'} ${gate.id}: ${gate.title}`);
     for (const check of gate.checks) {
@@ -219,7 +318,15 @@ async function main() {
     return;
   }
 
-  const result = checkMatrix({ gateId: args.gate });
+  const result = checkMatrix({
+    gateId: args.gate,
+    requireRuntimeEvidence: args.requireRuntimeEvidence,
+    evidenceDir: args.evidenceDir,
+    maxEvidenceAgeHours: args.maxEvidenceAgeHours,
+  });
+  result.requireRuntimeEvidence = args.requireRuntimeEvidence;
+  result.evidenceDir = args.evidenceDir;
+  result.maxEvidenceAgeHours = args.maxEvidenceAgeHours;
   if (args.json) {
     // eslint-disable-next-line no-console
     console.log(JSON.stringify(result, null, 2));
@@ -241,9 +348,12 @@ if (require.main === module) {
 module.exports = {
   RELEASE_GATES,
   checkMatrix,
+  checkRuntimeEvidence,
+  defaultRuntimeEvidenceForScript,
   formatList,
   formatReport,
   loadRootScripts,
   parseArgs,
   selectGates,
+  validateRuntimeEvidencePayload,
 };

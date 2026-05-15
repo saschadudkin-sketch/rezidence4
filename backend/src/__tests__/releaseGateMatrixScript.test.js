@@ -3,13 +3,15 @@
 const {
   RELEASE_GATES,
   checkMatrix,
+  defaultRuntimeEvidenceForScript,
   formatReport,
   selectGates,
+  validateRuntimeEvidencePayload,
 } = require('../../../scripts/release-gate-matrix.cjs');
 
 describe('release-gate-matrix script', () => {
   test('all configured release gate evidence and root scripts exist', () => {
-    const result = checkMatrix();
+    const result = checkMatrix({ requireRuntimeEvidence: false });
 
     expect(result.ok).toBe(true);
     expect(result.gates.length).toBeGreaterThanOrEqual(5);
@@ -21,7 +23,7 @@ describe('release-gate-matrix script', () => {
     expect(selected).toHaveLength(1);
     expect(selected[0].scripts).toContain('verify:strict');
 
-    const result = checkMatrix({ gateId: 'pilot-to-production' });
+    const result = checkMatrix({ gateId: 'pilot-to-production', requireRuntimeEvidence: false });
     expect(result.ok).toBe(true);
     expect(result.gates).toHaveLength(1);
     expect(formatReport(result)).toContain('[ok] pilot-to-production');
@@ -57,5 +59,41 @@ describe('release-gate-matrix script', () => {
         message: 'missing evidence path',
       },
     ]);
+  });
+
+  test('runtime evidence mode fails closed when artifacts are missing', () => {
+    const result = checkMatrix({
+      root: process.cwd(),
+      scripts: { 'blocking:script': 'node blocking.js' },
+      requireRuntimeEvidence: true,
+      matrix: [
+        {
+          id: 'fake',
+          title: 'Fake Gate',
+          coverage: 'none',
+          scripts: ['blocking:script'],
+          evidence: [],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.gates[0].checks).toContainEqual(expect.objectContaining({
+      type: 'runtime-evidence',
+      ok: false,
+      message: 'missing runtime evidence artifact',
+    }));
+  });
+
+  test('validates runtime evidence freshness and successful exit status', () => {
+    const payload = {
+      schema_version: 1,
+      script: 'security:scan',
+      captured_at: new Date().toISOString(),
+      ok: true,
+    };
+
+    expect(validateRuntimeEvidencePayload(payload, 'security:scan', 1)).toEqual([]);
+    expect(defaultRuntimeEvidenceForScript('security:scan')).toBe('artifacts/release-gates/security-scan.json');
   });
 });

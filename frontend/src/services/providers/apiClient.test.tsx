@@ -348,13 +348,7 @@ describe('apiClient retry backoff intervals', () => {
 
 // ─── Timeout + Retry (AUDIT-1, AUDIT-2) ──────────────────────────────────────
 
-describe.skip('apiClient timeout & retry', () => {
-  const flushAllTimers = async () => {
-    // Для версии jest в CRA нет runAllTimersAsync
-    vi.runAllTimers();
-    await Promise.resolve();
-  };
-
+describe('apiClient timeout & retry', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -362,27 +356,38 @@ describe.skip('apiClient timeout & retry', () => {
     vi.useRealTimers();
   });
 
+  function response(status, body = {}) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: `HTTP ${status}`,
+      json: vi.fn().mockResolvedValue(body),
+      text: vi.fn().mockResolvedValue(typeof body === 'string' ? body : JSON.stringify(body)),
+      headers: { get: vi.fn((name) => (name?.toLowerCase() === 'content-type' ? 'application/json' : null)) },
+    };
+  }
+
+  async function flushRetryTimers(ms = 30_000) {
+    await vi.advanceTimersByTimeAsync(ms);
+  }
+
   test('AbortError → throws "Сервер не отвечает"', async () => {
     const abortErr = new DOMException('The user aborted a request.', 'AbortError');
     global.fetch.mockRejectedValue(abortErr);
     const client = await getClient();
-    const promise = client.get('/api/test');
-    await flushAllTimers();
-    await expect(promise).rejects.toThrow(/не отвечает/i);
+    await expect(client.get('/api/test', { maxRetries: 0 })).rejects.toThrow(/не отвечает/i);
   });
 
   test('500 ретраится до maxRetries раз', async () => {
-    // 3 попытки: все возвращают 500
-    mockFetchStatus(500, { error: 'Internal' });
-    mockFetchStatus(500, { error: 'Internal' });
-    mockFetchStatus(500, { error: 'Internal' });
+    global.fetch
+      .mockResolvedValueOnce(response(500, { error: 'Internal' }))
+      .mockResolvedValueOnce(response(500, { error: 'Internal' }))
+      .mockResolvedValueOnce(response(500, { error: 'Internal' }));
     const client = await getClient();
-    // Запускаем запрос и сразу прокручиваем все таймеры
     const promise = client.get('/api/test');
-    // Прокрутить backoff-задержки (1s + 2s)
-    await flushAllTimers();
-    await expect(promise).rejects.toThrow();
-    // Должно быть 3 вызова: 1 начальный + 2 retry
+    const assertion = expect(promise).rejects.toThrow();
+    await flushRetryTimers();
+    await assertion;
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
@@ -395,7 +400,9 @@ describe.skip('apiClient timeout & retry', () => {
   });
 
   test('401 НЕ ретраится, диспатчит rz:unauthorized', async () => {
-    mockFetchStatus(401);
+    global.fetch
+      .mockResolvedValueOnce(response(401, { error: 'Unauthorized' }))
+      .mockResolvedValueOnce(response(401, { error: 'Unauthorized' }));
     const spy = vi.fn();
     window.addEventListener('rz:unauthorized', spy);
     const client = await getClient();
@@ -407,15 +414,14 @@ describe.skip('apiClient timeout & retry', () => {
   });
 
   test('fetch успешен со 2-й попытки → возвращает данные', async () => {
-    // 1-я попытка: 503, 2-я: 200
-    mockFetchStatus(503, { error: 'Service Unavailable' });
-    mockFetchOk({ ok: true });
+    global.fetch
+      .mockResolvedValueOnce(response(503, { error: 'Service Unavailable' }))
+      .mockResolvedValueOnce(response(200, { ok: true }));
     const client = await getClient();
     const promise = client.get('/api/test');
-    await flushAllTimers();
+    await flushRetryTimers();
     const result = await promise;
     expect(result).toEqual({ ok: true });
-    // 503 -> retry после backoff, затем 200
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

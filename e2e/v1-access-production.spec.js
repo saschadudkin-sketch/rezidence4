@@ -30,7 +30,7 @@ function base64urlJson(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
 }
 
-function signJwt(user) {
+function signJwt(user, overrides = {}) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64urlJson({ alg: 'HS256', typ: 'JWT' });
   const payload = base64urlJson({
@@ -41,6 +41,7 @@ function signJwt(user) {
     jti: `e2e-${user.uid}-${crypto.randomUUID()}`,
     iat: now,
     exp: now + 15 * 60,
+    ...overrides,
   });
   const body = `${header}.${payload}`;
   const signature = crypto.createHmac('sha256', jwtSecret).update(body).digest('base64url');
@@ -309,6 +310,26 @@ test.describe('platform-v1 access production e2e', () => {
       expect(manualBody.override.override_type).toBe('manual_admit');
     } finally {
       await Promise.all(contexts.map((context) => context.close().catch(() => {})));
+    }
+  });
+
+  test('cross-tenant JWT replay is rejected before property-scoped access', async ({ browser, baseURL }) => {
+    const origin = originFromBaseURL(baseURL);
+    const context = await browser.newContext({ baseURL: origin });
+    const page = await context.newPage();
+    try {
+      const response = await page.request.get('/api/v1/auth/me', {
+        headers: {
+          Cookie: `token=${signJwt(USERS.resident, { property_slug: 'other-property' })}`,
+          'X-Property-Slug': propertySlug,
+        },
+      });
+
+      expect(response.status()).toBe(403);
+      const body = await response.json();
+      expect(body.error).toBe('Cross-tenant access denied');
+    } finally {
+      await context.close();
     }
   });
 });

@@ -147,10 +147,41 @@ jobs:
           VITE_RUNTIME_MODE: live
         run: npm run build
 
+  governance-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: OpenAPI mounted-route drift
+        run: npm run openapi:drift
+      - name: Generated OpenAPI types are fresh
+        run: |
+          npm run openapi:types
+          git diff --exit-code -- frontend/src/api/generated/openapi.d.ts
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+      - name: Install Semgrep
+        run: |
+          python -m pip install --user semgrep
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Security scan
+        run: npm run security:scan
+      - name: Release gate metadata matrix
+        run: npm run release:gate:metadata
+
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [backend-test, frontend-test, login-e2e-smoke, frontend-verify-all, frontend-prod-env-guard, alert-rules-validate]
+    needs: [backend-test, frontend-test, login-e2e-smoke, frontend-verify-all, frontend-prod-env-guard, governance-gates, alert-rules-validate]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx

@@ -11,6 +11,8 @@ const playwrightCli = path.join(repoRoot, 'node_modules', '@playwright', 'test',
 const webServerScript = path.join(repoRoot, 'scripts', 'run-playwright-webserver.cjs');
 const forwardedArgs = process.argv.slice(2);
 const runOutputRoot = path.join('test-results', `e2e-${Date.now()}-${process.pid}`);
+const failOnInfrastructureRetry = process.env.E2E_FAIL_ON_INFRA_RETRY === '1'
+  || forwardedArgs.includes('--fail-on-infra-retry');
 let infrastructureRetryCount = 0;
 const defaultRuns = [
   { project: 'chromium', target: 'e2e/login-flow.spec.js' },
@@ -207,6 +209,7 @@ async function startWebServer() {
 }
 
 async function main() {
+  const effectiveArgs = forwardedArgs.filter((arg) => arg !== '--fail-on-infra-retry');
   let status = runNode([preflight]);
   if (status !== 0) {
     process.exit(status);
@@ -225,25 +228,29 @@ async function main() {
   const hasRetriesOverride = forwardedArgs.some((arg) => arg === '--retries' || arg.startsWith('--retries='));
 
   if (usesExplicitSelection) {
-    status = runNode([playwrightCli, 'test', ...forwardedArgs], { retryLaunch: true });
+    status = runNode([playwrightCli, 'test', ...effectiveArgs], { retryLaunch: true });
+    if (status === 0 && failOnInfrastructureRetry && infrastructureRetryCount > 0) {
+      console.error(`[e2e] failing strict run because infrastructureRetries=${infrastructureRetryCount}`);
+      status = 1;
+    }
     process.exit(status);
   }
 
   const webServer = await startWebServer();
 
   try {
-  const retryArgs = hasRetriesOverride ? [] : ['--retries=0'];
+    const retryArgs = hasRetriesOverride ? [] : ['--retries=0'];
 
-  for (const { project, target } of defaultRuns) {
-    console.log(`[e2e] ${project}: ${target}`);
-    const outputName = target.replace(/^e2e\//, '').replace(/[^a-z0-9_.-]/gi, '-');
-    const outputArgs = hasOutputOverride ? [] : ['--output', path.join(runOutputRoot, project, outputName)];
-    status = runNode(
-      [playwrightCli, 'test', target, `--project=${project}`, ...outputArgs, ...retryArgs, ...forwardedArgs],
-      { retryLaunch: true, extraEnv: { PLAYWRIGHT_SKIP_WEBSERVER: '1' } },
-    );
+    for (const { project, target } of defaultRuns) {
+      console.log(`[e2e] ${project}: ${target}`);
+      const outputName = target.replace(/^e2e\//, '').replace(/[^a-z0-9_.-]/gi, '-');
+      const outputArgs = hasOutputOverride ? [] : ['--output', path.join(runOutputRoot, project, outputName)];
+      status = runNode(
+        [playwrightCli, 'test', target, `--project=${project}`, ...outputArgs, ...retryArgs, ...effectiveArgs],
+        { retryLaunch: true, extraEnv: { PLAYWRIGHT_SKIP_WEBSERVER: '1' } },
+      );
       if (status !== 0) {
-        process.exit(status);
+        break;
       }
       sleep(3000);
     }
@@ -253,7 +260,15 @@ async function main() {
     }
   }
 
+  if (status !== 0) {
+    process.exit(status);
+  }
+
   console.log(`[e2e] all selected shards passed; outputRoot=${runOutputRoot}; infrastructureRetries=${infrastructureRetryCount}`);
+  if (status === 0 && failOnInfrastructureRetry && infrastructureRetryCount > 0) {
+    console.error(`[e2e] failing strict run because infrastructureRetries=${infrastructureRetryCount}`);
+    status = 1;
+  }
   process.exit(status);
 }
 
