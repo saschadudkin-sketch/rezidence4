@@ -47,7 +47,7 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers
     // + 1 DH-56 privacy compliance controls
     // + 1 access-control pilot readiness hardening = 49
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(49);
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(50);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -2043,5 +2043,23 @@ describe('v1_049_access_readiness_gaps', () => {
       .toContain("'pending','matched','discrepancy','dismissed'");
     expect(sqls.find((s) => s.includes('idx_visit_logs_v2_degraded_reconciliation')))
       .toContain('WHERE degraded_mode = true');
+  });
+});
+
+describe('v1_050_access_policy_biometric_method_freeze', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('deactivates face policies and constrains access methods to approved core set', async () => {
+    await byId('v1_050_access_policy_biometric_method_freeze').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls[0]).toContain("WHERE access_method = 'face'");
+    expect(sqls[0]).toContain("is_active = false");
+    expect(sqls[0]).toContain("disabled_access_method");
+    expect(sqls[1]).toContain('DROP CONSTRAINT IF EXISTS access_policies_access_method_check');
+    expect(sqls[2]).toContain('ADD CONSTRAINT access_policies_access_method_check');
+    expect(sqls[2]).toContain("'qr','manual','plate','ble','card','pin'");
+    expect(sqls[2]).not.toContain("'face'");
   });
 });

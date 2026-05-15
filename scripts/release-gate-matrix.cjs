@@ -10,12 +10,13 @@ const RELEASE_GATES = [
     id: 'v2-core',
     title: 'Gate v2 Core',
     coverage: 'DH-01..DH-26',
-    scripts: ['backend:test', 'frontend:lint', 'typecheck', 'test:e2e:preflight'],
+    scripts: ['backend:test', 'frontend:lint', 'typecheck', 'test:e2e:preflight', 'test:e2e:v1-access'],
     evidence: [
       'docs/product/specs/domhub-test-strategy-spec.md',
       'docs/product/specs/domhub-release-gate-checklists.md',
       'e2e/login-flow.spec.js',
       'e2e/pass-flow.spec.js',
+      'e2e/v1-access-production.spec.js',
       'e2e/navigation-role-matrix.spec.js',
       'frontend/src/v1/pages/StaffWorkspacePage.test.tsx',
     ],
@@ -55,6 +56,7 @@ const RELEASE_GATES = [
     coverage: 'DH-41..DH-49',
     scripts: [
       'verify:strict',
+      'test:e2e:v1-access',
       'tenant:preflight:e2e',
       'tenant:preflight:current',
       'tenant:provision',
@@ -66,6 +68,7 @@ const RELEASE_GATES = [
     ],
     evidence: [
       'scripts/run-strict-verify.cjs',
+      'scripts/run-v1-access-e2e.cjs',
       'scripts/tenant-ops-preflight.cjs',
       'scripts/tenant-ops-provision.cjs',
       'scripts/tenant-ops-migrate.cjs',

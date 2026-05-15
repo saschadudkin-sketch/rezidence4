@@ -345,6 +345,8 @@
     },
     "/api/v1/chat/messages": {
       "get": {
+        "deprecated": true,
+        "summary": "Legacy compatibility chat messages; not first-working-MVP evidence",
         "responses": {
           "200": {
             "content": {
@@ -358,6 +360,8 @@
         }
       },
       "post": {
+        "deprecated": true,
+        "summary": "Legacy compatibility chat message create; not first-working-MVP evidence",
         "responses": {
           "201": {
             "content": {
@@ -1721,10 +1725,11 @@
     },
     "/api/v1/billing": {
       "get": {
-        "summary": "Mounted v1 route prefix: /api/v1/billing",
+        "deprecated": true,
+        "summary": "Legacy compatibility anchor: /api/v1/billing is not first-working-MVP evidence",
         "responses": {
           "200": {
-            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "description": "Legacy/gated utility anchor; operational access core does not depend on this module.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1755,10 +1760,11 @@
     },
     "/api/v1/bookings": {
       "get": {
-        "summary": "Mounted v1 route prefix: /api/v1/bookings",
+        "deprecated": true,
+        "summary": "Legacy compatibility anchor: /api/v1/bookings is not first-working-MVP evidence",
         "responses": {
           "200": {
-            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "description": "Legacy/gated utility anchor; operational access core does not depend on this module.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1978,10 +1984,11 @@
     },
     "/api/v1/meter-readings": {
       "get": {
-        "summary": "Mounted v1 route prefix: /api/v1/meter-readings",
+        "deprecated": true,
+        "summary": "Legacy compatibility anchor: /api/v1/meter-readings is not first-working-MVP evidence",
         "responses": {
           "200": {
-            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "description": "Legacy/gated utility anchor; operational access core does not depend on this module.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2097,10 +2104,11 @@
     },
     "/api/v1/spaces": {
       "get": {
-        "summary": "Mounted v1 route prefix: /api/v1/spaces",
+        "deprecated": true,
+        "summary": "Legacy compatibility anchor: /api/v1/spaces is not first-working-MVP evidence",
         "responses": {
           "200": {
-            "description": "OpenAPI anchor for mounted v1 route prefix.",
+            "description": "Legacy/gated utility anchor; operational access core does not depend on this module.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6489,7 +6497,6 @@
               "plate",
               "ble",
               "card",
-              "face",
               "pin"
             ]
           },

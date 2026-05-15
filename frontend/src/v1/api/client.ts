@@ -11,7 +11,7 @@
  *
  * D-lite §2: do NOT import from frontend/src/services/http/* — this client
  * is an independent v1 dependency.  Legacy behaviours (refresh-on-401,
- * event bus emits) intentionally omitted — v1 UI redirects to /login on
+ * event bus emits) intentionally omitted — v1 UI redirects to the login shell on
  * unauthorized.
  */
 

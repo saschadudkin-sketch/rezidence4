@@ -3,7 +3,7 @@
  *
  * Three states:
  *   - session loading  → <Spinner> (no flicker on refresh)
- *   - session error unauthorized → redirect to /login (legacy login UI)
+ *   - session error unauthorized → redirect to /dashboard (legacy login shell)
  *   - session ready, role mismatch → <Navigate to="/" replace> (home)
  *
  * Components that need the role only use <RoleGate allow={['admin']}>.
@@ -14,6 +14,7 @@ import { Navigate } from 'react-router-dom';
 import { normalizeUserRole, useV1SessionState } from '../store';
 import type { UserRole } from '../api/types';
 import { Spinner, Stack } from './ui';
+import { redirectUnauthenticatedV1 } from '../lib/authRedirect';
 
 export interface RoleGateProps {
   allow: readonly UserRole[];
@@ -36,10 +37,7 @@ export function RoleGate({ allow, children, fallback = '/' }: RoleGateProps) {
 
   if (status === 'error') {
     if (error?.kind === 'unauthorized') {
-      // Legacy /login owns the auth flow; go there.
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.assign('/login');
-      }
+      redirectUnauthenticatedV1();
       return null;
     }
     return (

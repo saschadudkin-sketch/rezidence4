@@ -20,19 +20,23 @@ Multi-tenant residential complex management platform. Each complex gets its own 
   board ...   board ...    board ...
 ```
 
-### Modules (per-object)
-| Module | Path | Description |
-|--------|------|-------------|
-| Auth | `/api/v1/auth` | OTP phone auth, JWT + refresh rotation |
-| Access | `/api/v1/access` | Visitor passes with QR codes |
-| Board | `/api/v1/board` | Information board / announcements |
-| Service | `/api/v1/service` | Maintenance requests |
-| Meters | `/api/v1/meters` | Utility meter readings |
-| Voting | `/api/v1/voting` | Resident polls |
-| Parking | `/api/v1/parking` | Spot management + violations |
-| Chat | `/api/v1/chat` | Real-time SSE chat |
-| Users | `/api/v1/users` | Resident management |
-| Platform | `/api/v1/platform` | Registry CRUD (superadmin) |
+### Platform v1 modules (per-object)
+`/api/v1/*` is the source-of-truth contract surface. Legacy `/api/*` aliases
+exist only as compatibility shims.
+
+| Module | Path | Status |
+|--------|------|--------|
+| Auth/session | `/api/v1/auth` | Core: OTP phone auth, JWT + refresh rotation |
+| Access requests | `/api/v1/access-requests` | Core: resident/guest/staff/contractor access workflow |
+| Passes and verification | `/api/v1/passes`, `/api/v1/verify` | Core: QR/manual/plate access decisions |
+| Access topology | `/api/v1/access-zones`, `/api/v1/access-points` | Core: zones, checkpoints, territory-aware points |
+| Access policies | `/api/v1/access-policies` | Core: deterministic policy evaluation; biometric methods are dormant |
+| Vehicles | `/api/v1/vehicles` | Core: resident/guest vehicle baseline |
+| Guard/security workspace | `/api/v1/visit-logs`, `/api/v1/access-incidents`, `/api/v1/security/*` | Core: checkpoint operations, incidents, offline replay |
+| Staff/contractor workspaces | `/api/v1/staff-workspace`, `/api/v1/technician-workspace`, `/api/v1/contractor-workspace` | Core/pilot: operational execution queues |
+| Residents/units | `/api/v1/residents`, `/api/v1/units` | Core/pilot: lifecycle, imports, offboarding evidence |
+| Portfolio/admin readiness | `/api/v1/operations-dashboard`, `/api/v1/management-company-portfolio`, `/api/v1/gis-oss-*`, `/api/v1/skud-*`, `/api/v1/sensitive-actions` | Pilot/readiness layer |
+| Legacy utilities | `/api/v1/billing`, `/api/v1/bookings`, `/api/v1/meter-readings`, `/api/v1/spaces`, `/api/v1/chat` | Gated/legacy compatibility; not first-working-MVP evidence |
 
 ---
 

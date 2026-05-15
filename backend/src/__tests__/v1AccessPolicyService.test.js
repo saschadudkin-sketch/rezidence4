@@ -3,6 +3,7 @@
 const {
   evaluateAccessPolicy,
   getDefaultPolicyTemplates,
+  normalizePolicyInput,
   scheduleMatches,
 } = require('../v1/services/accessPolicyService');
 
@@ -77,6 +78,23 @@ describe('AccessPolicyService', () => {
     expect(result.allowed).toBe(false);
     expect(result.reason).toBe('no_active_policies');
     expect(queryable.query).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not accept face as an enabled access method without biometric approval', async () => {
+    expect(() => normalizePolicyInput({
+      property_id: UUID_PROPERTY,
+      name: 'Face policy',
+      subject_type: 'guest',
+      access_method: 'face',
+    })).toThrow(/biometric identity matching/);
+
+    await expect(evaluateAccessPolicy({
+      queryable: queryableWithPolicies([policy({ access_method: 'face' })]),
+      propertyId: UUID_PROPERTY,
+      subjectType: 'guest',
+      accessMethod: 'face',
+      now: NOW,
+    })).rejects.toMatchObject({ status: 422 });
   });
 
   test('uses deterministic priority ordering for matching policies', async () => {

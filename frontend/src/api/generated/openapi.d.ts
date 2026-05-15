@@ -455,6 +455,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Legacy compatibility chat messages; not first-working-MVP evidence
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -475,6 +479,10 @@ export interface paths {
             };
         };
         put?: never;
+        /**
+         * Legacy compatibility chat message create; not first-working-MVP evidence
+         * @deprecated
+         */
         post: {
             parameters: {
                 query?: never;
@@ -2191,7 +2199,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mounted v1 route prefix: /api/v1/billing */
+        /**
+         * Legacy compatibility anchor: /api/v1/billing is not first-working-MVP evidence
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2201,7 +2212,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OpenAPI anchor for mounted v1 route prefix. */
+                /** @description Legacy/gated utility anchor; operational access core does not depend on this module. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2263,7 +2274,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mounted v1 route prefix: /api/v1/bookings */
+        /**
+         * Legacy compatibility anchor: /api/v1/bookings is not first-working-MVP evidence
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2273,7 +2287,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OpenAPI anchor for mounted v1 route prefix. */
+                /** @description Legacy/gated utility anchor; operational access core does not depend on this module. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2737,7 +2751,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mounted v1 route prefix: /api/v1/meter-readings */
+        /**
+         * Legacy compatibility anchor: /api/v1/meter-readings is not first-working-MVP evidence
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2747,7 +2764,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OpenAPI anchor for mounted v1 route prefix. */
+                /** @description Legacy/gated utility anchor; operational access core does not depend on this module. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2989,7 +3006,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mounted v1 route prefix: /api/v1/spaces */
+        /**
+         * Legacy compatibility anchor: /api/v1/spaces is not first-working-MVP evidence
+         * @deprecated
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2999,7 +3019,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description OpenAPI anchor for mounted v1 route prefix. */
+                /** @description Legacy/gated utility anchor; operational access core does not depend on this module. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -6530,7 +6550,7 @@ export interface components {
             /** Format: uuid */
             point_id?: string | null;
             /** @enum {string} */
-            access_method: "qr" | "manual" | "plate" | "ble" | "card" | "face" | "pin";
+            access_method: "qr" | "manual" | "plate" | "ble" | "card" | "pin";
             /** @enum {string} */
             approval_mode: "auto" | "required" | "security_only" | "admin_only";
             /** @enum {string} */

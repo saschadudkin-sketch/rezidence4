@@ -68,6 +68,7 @@ import {
   uiClasses,
 } from './components/ui';
 import { useAccessEvents } from './hooks/useAccessEvents';
+import { redirectUnauthenticatedV1 } from './lib/authRedirect';
 
 // Role sets mirror the final role model in store/session.tsx. Legacy aliases
 // stay listed where current sessions can still emit them.
@@ -311,9 +312,8 @@ function AccessEventBridge() {
 //   - contractor → DH-30 external execution portal
 //   - staff      → DH-26 operations workspace
 //
-// We intentionally do NOT redirect to /login here — RoleGate handles 401 via
-// window.location.  Loading state is rendered in place so the URL does not
-// flicker.
+// We intentionally route 401 through the legacy /dashboard login shell.
+// Loading state is rendered in place so the URL does not flicker.
 function V1IndexRedirect() {
   const { status, user, error } = useV1SessionState();
 
@@ -323,9 +323,7 @@ function V1IndexRedirect() {
 
   if (status === 'error') {
     if (error?.kind === 'unauthorized') {
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.assign('/login');
-      }
+      redirectUnauthenticatedV1();
       return null;
     }
     return (

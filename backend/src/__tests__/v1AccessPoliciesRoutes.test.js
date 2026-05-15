@@ -101,6 +101,23 @@ describe('access policy routes', () => {
     expect(insert[1][15]).toBe(JSON.stringify({ source: 'test' }));
   });
 
+  test('POST /api/v1/access-policies rejects dormant biometric access methods', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-policies')
+      .send({
+        property_id: UUID_PROPERTY,
+        name: 'Face policy',
+        subject_type: 'guest',
+        access_method: 'face',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/biometric identity matching/);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
   test('POST /api/v1/access-policies rejects cross-property admin tokens', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_OTHER_PROPERTY };
 
@@ -150,6 +167,22 @@ describe('access policy routes', () => {
     expect(res.body.decision.allowed).toBe(false);
     expect(res.body.decision.reason).toBe('policy_denied');
     expect(res.body.decision.trace[0]).toMatchObject({ result: 'matched' });
+  });
+
+  test('POST /api/v1/access-policies/evaluate rejects dormant biometric access methods', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-policies/evaluate')
+      .send({
+        property_id: UUID_PROPERTY,
+        subject_type: 'guest',
+        access_method: 'face',
+      });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/biometric identity matching/);
+    expect(db.query).not.toHaveBeenCalled();
   });
 
   test('PATCH /api/v1/access-policies/:id uses row ownership before update', async () => {

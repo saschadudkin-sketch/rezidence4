@@ -89,7 +89,7 @@ const SUBJECT_TYPES: AccessPolicySubjectType[] = [
   'courier',
 ];
 
-const POLICY_METHODS: AccessPolicyMethod[] = ['qr', 'manual', 'plate', 'ble', 'card', 'face', 'pin'];
+const POLICY_METHODS: AccessPolicyMethod[] = ['qr', 'manual', 'plate', 'ble', 'card', 'pin'];
 const POLICY_EFFECTS: AccessPolicyEffect[] = [
   'allow',
   'deny',

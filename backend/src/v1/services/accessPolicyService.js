@@ -15,7 +15,9 @@ const SUBJECT_TYPES = new Set([
   'vehicle',
   'courier',
 ]);
-const ACCESS_METHODS = new Set(['qr', 'manual', 'plate', 'ble', 'card', 'face', 'pin']);
+const ENABLED_ACCESS_METHODS = new Set(['qr', 'manual', 'plate', 'ble', 'card', 'pin']);
+const DORMANT_ACCESS_METHODS = new Set(['face']);
+const ACCESS_METHODS = new Set([...ENABLED_ACCESS_METHODS, ...DORMANT_ACCESS_METHODS]);
 const APPROVAL_MODES = new Set(['auto', 'required', 'security_only', 'admin_only']);
 const POLICY_EFFECTS = new Set([
   'allow',
@@ -128,6 +130,14 @@ function isAccessPolicyServiceError(err) {
   return err instanceof AccessPolicyServiceError;
 }
 
+function assertEnabledAccessMethod(value, label = 'access_method') {
+  if (ENABLED_ACCESS_METHODS.has(value)) return;
+  if (DORMANT_ACCESS_METHODS.has(value)) {
+    throw serviceError(422, `${label} requires separately approved biometric identity matching`);
+  }
+  throw serviceError(400, `Invalid ${label}`);
+}
+
 function getDefaultPolicyTemplates() {
   return DEFAULT_POLICY_TEMPLATES.map((template) => ({
     ...template,
@@ -174,7 +184,7 @@ function normalizePolicyInput(input, { partial = false } = {}) {
   }
 
   if (input.access_method !== undefined) {
-    if (!ACCESS_METHODS.has(input.access_method)) throw serviceError(400, 'Invalid access_method');
+    assertEnabledAccessMethod(input.access_method);
     out.access_method = input.access_method;
   } else if (!partial) {
     throw serviceError(400, 'access_method required');
@@ -531,7 +541,7 @@ async function evaluateAccessPolicy({
   failOpen = false,
 }) {
   if (!propertyId) throw serviceError(400, 'propertyId required');
-  if (!ACCESS_METHODS.has(accessMethod)) throw serviceError(400, 'Invalid accessMethod');
+  assertEnabledAccessMethod(accessMethod, 'accessMethod');
 
   const scanPointId = pointId || null;
   const passPointId = pass?.point_id || null;
@@ -678,6 +688,7 @@ async function evaluateAccessPolicy({
 
 module.exports = {
   ACCESS_METHODS,
+  ENABLED_ACCESS_METHODS,
   APPROVAL_MODES,
   POLICY_COLS,
   POLICY_EFFECTS,
@@ -689,6 +700,7 @@ module.exports = {
   getDefaultPolicyTemplates,
   getPolicyById,
   isAccessPolicyServiceError,
+  assertEnabledAccessMethod,
   listPolicies,
   normalizePolicyInput,
   policyVehicleContextMatches,

@@ -687,7 +687,7 @@ export type AccessPolicySubjectType =
   | 'vehicle'
   | 'courier';
 
-export type AccessPolicyMethod = 'qr' | 'manual' | 'plate' | 'ble' | 'card' | 'face' | 'pin';
+export type AccessPolicyMethod = 'qr' | 'manual' | 'plate' | 'ble' | 'card' | 'pin';
 export type AccessPolicyApprovalMode = 'auto' | 'required' | 'security_only' | 'admin_only';
 export type AccessPolicyEffect =
   | 'allow'

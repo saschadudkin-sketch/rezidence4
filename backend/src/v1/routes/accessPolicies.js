@@ -14,6 +14,7 @@ const {
   ACCESS_METHODS,
   POLICY_EFFECTS,
   SUBJECT_TYPES,
+  assertEnabledAccessMethod,
   createPolicy,
   deactivatePolicy,
   evaluateAccessPolicy,
@@ -178,7 +179,12 @@ router.post('/access-policies/evaluate', async (req, res, next) => {
     if (!isValidUuid(property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
     if (!canReadPolicy(req, property_id)) return res.status(403).json({ error: 'Forbidden' });
     if (subject_type !== null && !SUBJECT_TYPES.has(subject_type)) return res.status(400).json({ error: 'Invalid subject_type' });
-    if (!ACCESS_METHODS.has(access_method)) return res.status(400).json({ error: 'Invalid access_method' });
+    try {
+      assertEnabledAccessMethod(access_method);
+    } catch (err) {
+      if (sendKnownError(res, err)) return;
+      throw err;
+    }
     if (zone_id !== null && !isValidUuid(zone_id)) return res.status(400).json({ error: 'zone_id must be UUID or null' });
     if (point_id !== null && !isValidUuid(point_id)) return res.status(400).json({ error: 'point_id must be UUID or null' });
     if (occurred_at !== null && Number.isNaN(Date.parse(occurred_at))) {

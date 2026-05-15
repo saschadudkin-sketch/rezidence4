@@ -124,7 +124,11 @@ const AppInner = memo(function AppInner() {
     if (phase !== PHASE.DASHBOARD || !user) return;
     const returnTo = readStorage(STORAGE_KEYS.RETURN_TO);
     if (returnTo) removeStorage(STORAGE_KEYS.RETURN_TO);
-    if (returnTo && returnTo.startsWith('/dashboard') && returnTo !== location.pathname + location.search) {
+    const allowedReturnTo = returnTo.startsWith('/dashboard')
+      || returnTo.startsWith('/v1/')
+      || returnTo === '/v1'
+      || returnTo === '/guard/scan';
+    if (returnTo && allowedReturnTo && returnTo !== location.pathname + location.search) {
       navigate(returnTo, { replace: true });
     }
   }, [phase, user, navigate, location.pathname, location.search]);
@@ -234,7 +238,7 @@ function AppRoutes() {
       {/* Platform v1 surface (Phase 4).  V1Router owns its own session
           provider + role gating; auth cookies are shared with the legacy
           app, so a logged-in user here already has a usable session.  If
-          unauthenticated, RoleGate redirects to /login. */}
+          unauthenticated, RoleGate stores returnTo and redirects to /dashboard. */}
       <Route path="/v1/*" element={
         <ErrorBoundary name="Платформа v1">
           <Suspense fallback={<LoadingScreen />}>

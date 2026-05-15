@@ -5,7 +5,7 @@
  * hooks, and surface loading/error states for the top-level page shell.
  *
  * Error model: 401 from /auth/me means "please log in" — we don't bounce to
- * /login here because different entry points have different fallbacks (the
+ * the login shell here because different entry points have different fallbacks (the
  * test harness injects a fake session).  The page shell decides what to do
  * with `session === null && error?.kind === 'unauthorized'`.
  */
