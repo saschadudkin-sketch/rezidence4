@@ -3,6 +3,16 @@
 const { createSignedUploadUrl, verifySignedUploadQuery } = require('../services/uploadSecurity');
 
 describe('uploadSecurity signed URL', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalUploadSigningSecret = process.env.UPLOAD_SIGNING_SECRET;
+
+  afterEach(() => {
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    if (originalUploadSigningSecret === undefined) delete process.env.UPLOAD_SIGNING_SECRET;
+    else process.env.UPLOAD_SIGNING_SECRET = originalUploadSigningSecret;
+  });
+
   test('creates verifiable signature', () => {
     const url = createSignedUploadUrl('photo_1.webp', 'http://localhost:3001');
     const parsed = new URL(url);
@@ -37,6 +47,18 @@ describe('uploadSecurity signed URL', () => {
       exp: parsed.searchParams.get('exp'),
       sig: parsed.searchParams.get('sig'),
       ps: 'beta',
+    })).toBe(false);
+  });
+
+  test('production rejects signed URL without tenant slug', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.UPLOAD_SIGNING_SECRET = 'test-upload-signing-secret';
+    const url = createSignedUploadUrl('photo_1.webp', 'http://localhost:3001');
+    const parsed = new URL(url);
+
+    expect(verifySignedUploadQuery('photo_1.webp', {
+      exp: parsed.searchParams.get('exp'),
+      sig: parsed.searchParams.get('sig'),
     })).toBe(false);
   });
 });

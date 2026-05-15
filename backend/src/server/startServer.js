@@ -2,7 +2,7 @@
 
 const logger = require('../logger');
 const sse = require('../sse');
-const { startRuntimeJobs } = require('./runtimeJobs');
+const { startRuntimeJobsRunner } = require('./runtimeJobs');
 const { startTelegramBot, stopBot: stopTelegramBot } = require('../services/telegramBot');
 const { startOutboxRunner } = require('../v1/workers/outboxRunner');
 const { startScheduledFanoutRunner } = require('../v1/workers/scheduledFanoutRunner');
@@ -32,7 +32,18 @@ async function startServer({ app, db, config }) {
 
   const server = app.listen(config.port, () => logger.info(`[server] :${config.port} ready (prod=${config.isProd})`));
 
-  const jobs = startRuntimeJobs({ db });
+  let runtimePlatformDb = null;
+  try {
+    runtimePlatformDb = process.env.PLATFORM_DB_URL ? db.getPlatformDb() : null;
+  } catch (err) {
+    logger.warn({ err: err.message }, '[server] platform DB unavailable for runtime jobs');
+  }
+
+  const jobs = startRuntimeJobsRunner({
+    platformDb: runtimePlatformDb,
+    getPool: runtimePlatformDb ? getPropertyPool : null,
+    fallbackDb: db,
+  });
 
   // Start Telegram bot if configured (Phase 1)
   // The bot uses long-polling and is cancellable via stopTelegramBot()

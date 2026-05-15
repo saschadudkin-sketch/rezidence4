@@ -8,6 +8,49 @@ const { dispatch: notifyDispatch } = require('../services/notificationService');
 const { RequestSlaService } = require('../services/requests/RequestSlaService');
 const webhookService = require('../services/webhookService');
 
+async function listActiveProperties(platformDb) {
+  if (!platformDb || typeof platformDb.query !== 'function') {
+    throw new Error('listActiveProperties: platformDb with .query required');
+  }
+  const { rows } = await platformDb.query(
+    `SELECT id, slug, db_connection_url
+       FROM properties
+      WHERE is_active = true
+      ORDER BY slug`,
+  );
+  return rows;
+}
+
+async function runForActiveProperties({ platformDb, getPool, jobName, jobFn }) {
+  if (typeof getPool !== 'function') {
+    throw new Error('runForActiveProperties: getPool(property) function required');
+  }
+
+  let properties;
+  try {
+    properties = await listActiveProperties(platformDb);
+  } catch (err) {
+    logger.error({ err: err.message, jobName }, '[runtime-jobs] failed to list active properties');
+    return [{ jobName, error: err.message }];
+  }
+
+  const results = [];
+  for (const property of properties) {
+    try {
+      const pool = getPool(property);
+      await jobFn(pool, property);
+      results.push({ slug: property.slug, ok: true });
+    } catch (err) {
+      logger.error(
+        { err: err.message, jobName, slug: property.slug },
+        '[runtime-jobs] job failed for property',
+      );
+      results.push({ slug: property.slug, error: err.message });
+    }
+  }
+  return results;
+}
+
 // ─── photoRetentionSweep (ФЗ-152) ─────────────────────────────────────────────
 // Deletes upload_objects older than PHOTO_RETENTION_DAYS (default 365) along
 // with their backing files on disk.  The sweep runs in batches of 100 per tick
@@ -291,6 +334,83 @@ async function notificationsOutboxRetentionSweep(db, property) {
   }
 }
 
+async function processRequestExpirationAndActivation(db, property) {
+  try {
+    const { rows: expiredRows } = await db.query(`
+      WITH expired_candidates AS (
+        SELECT id
+        FROM requests
+        WHERE status IN ('pending', 'approved')
+          AND deleted_at IS NULL
+          AND (
+            (pass_duration = 'once'
+             AND created_at < NOW() - INTERVAL '24 hours')
+            OR
+            (valid_until IS NOT NULL AND valid_until < NOW())
+          )
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE requests
+      SET status = 'expired', updated_at = NOW()
+      FROM expired_candidates
+      WHERE requests.id = expired_candidates.id
+        AND requests.status IN ('pending', 'approved')
+      RETURNING id, type, category, status, created_by_uid,
+        created_by_name, created_by_role, created_by_apt,
+        visitor_name, visitor_phone, car_plate, comment,
+        pass_duration, valid_until, scheduled_for, arrived_at,
+        photos, created_at, updated_at
+    `);
+
+    const { rows: activatedRows } = await db.query(`
+      WITH scheduled_candidates AS (
+        SELECT id
+        FROM requests
+        WHERE status = 'scheduled'
+          AND scheduled_for <= NOW()
+          AND deleted_at IS NULL
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE requests
+      SET status = CASE
+            WHEN type = 'pass' THEN 'approved'
+            ELSE 'pending'
+          END,
+          scheduled_for = NULL,
+          updated_at = NOW()
+      FROM scheduled_candidates
+      WHERE requests.id = scheduled_candidates.id
+        AND requests.status = 'scheduled'
+      RETURNING id, type, category, status, created_by_uid,
+        created_by_name, created_by_role, created_by_apt,
+        visitor_name, visitor_phone, car_plate, comment,
+        pass_duration, valid_until, scheduled_for, arrived_at,
+        photos, created_at, updated_at
+    `);
+
+    if (expiredRows.length > 0) {
+      logger.info({ count: expiredRows.length, property: property?.slug }, '[expiration] expired requests');
+      expiredRows.forEach((r) => {
+        try {
+          if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
+          else broadcastRequestUpdate(r);
+        } catch { /* SSE must not stop the job */ }
+      });
+    }
+    if (activatedRows.length > 0) {
+      logger.info({ count: activatedRows.length, property: property?.slug }, '[expiration] activated scheduled requests');
+      activatedRows.forEach((r) => {
+        try {
+          if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
+          else broadcastRequestUpdate(r);
+        } catch { /* SSE must not stop the job */ }
+      });
+    }
+  } catch (err) {
+    logger.error({ err, property: property?.slug }, '[expiration] request status update failed');
+  }
+}
+
 function startRuntimeJobs({ db, property }) {
   const cleanupJob = setInterval(async () => {
     try {
@@ -304,86 +424,10 @@ function startRuntimeJobs({ db, property }) {
   }, 60 * 60 * 1000);
   cleanupJob.unref();
 
-  const expirationJob = setInterval(async () => {
-    try {
-      // FIX [BUG]: добавлен SSE broadcast при изменении статуса через фоновый джоб.
-      // Без broadcast охрана и консьерж не узнают об истечении/активации заявок
-      // до следующего переподключения SSE или перезагрузки страницы.
-      // RETURNING позволяет broadcast только изменённых строк — не перегружаем SSE.
-      const { rows: expiredRows } = await db.query(`
-        WITH expired_candidates AS (
-          SELECT id
-          FROM requests
-          WHERE status IN ('pending', 'approved')
-            AND deleted_at IS NULL
-            AND (
-              (pass_duration = 'once'
-               AND created_at < NOW() - INTERVAL '24 hours')
-              OR
-              (valid_until IS NOT NULL AND valid_until < NOW())
-            )
-          FOR UPDATE SKIP LOCKED
-        )
-        UPDATE requests
-        SET status = 'expired', updated_at = NOW()
-        FROM expired_candidates
-        WHERE requests.id = expired_candidates.id
-          AND requests.status IN ('pending', 'approved')
-        RETURNING id, type, category, status, created_by_uid,
-          created_by_name, created_by_role, created_by_apt,
-          visitor_name, visitor_phone, car_plate, comment,
-          pass_duration, valid_until, scheduled_for, arrived_at,
-          photos, created_at, updated_at
-      `);
-
-      const { rows: activatedRows } = await db.query(`
-        WITH scheduled_candidates AS (
-          SELECT id
-          FROM requests
-          WHERE status = 'scheduled'
-            AND scheduled_for <= NOW()
-            AND deleted_at IS NULL
-          FOR UPDATE SKIP LOCKED
-        )
-        UPDATE requests
-        SET status = CASE
-              WHEN type = 'pass' THEN 'approved'
-              ELSE 'pending'
-            END,
-            scheduled_for = NULL,
-            updated_at = NOW()
-        FROM scheduled_candidates
-        WHERE requests.id = scheduled_candidates.id
-          AND requests.status = 'scheduled'
-        RETURNING id, type, category, status, created_by_uid,
-          created_by_name, created_by_role, created_by_apt,
-          visitor_name, visitor_phone, car_plate, comment,
-          pass_duration, valid_until, scheduled_for, arrived_at,
-          photos, created_at, updated_at
-      `);
-
-      if (expiredRows.length > 0) {
-        logger.info(`[expiration] expired ${expiredRows.length} requests`);
-        expiredRows.forEach(r => {
-          try {
-            if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
-            else broadcastRequestUpdate(r);
-          } catch { /* SSE не должна ронять джоб */ }
-        });
-      }
-      if (activatedRows.length > 0) {
-        logger.info(`[expiration] activated ${activatedRows.length} scheduled requests`);
-        activatedRows.forEach(r => {
-          try {
-            if (property?.slug) broadcastRequestUpdate(r, { propertySlug: property.slug });
-            else broadcastRequestUpdate(r);
-          } catch { /* SSE не должна ронять джоб */ }
-        });
-      }
-    } catch (err) {
-      logger.error({ err }, '[expiration] request status update failed');
-    }
-  }, 5 * 60 * 1000);
+  const expirationJob = setInterval(
+    () => processRequestExpirationAndActivation(db, property),
+    5 * 60 * 1000,
+  );
   expirationJob.unref();
 
   const otpCleanupInterval = 5 * 60 * 1000;
@@ -461,8 +505,128 @@ function startRuntimeJobs({ db, property }) {
   };
 }
 
+function startMultiTenantRuntimeJobs({
+  platformDb,
+  getPool,
+}) {
+  const runEveryProperty = (jobName, jobFn) => () => runForActiveProperties({
+    platformDb,
+    getPool,
+    jobName,
+    jobFn,
+  }).catch((err) => {
+    logger.error({ err: err.message, jobName }, '[runtime-jobs] multi-tenant tick failed');
+  });
+
+  const cleanupJob = setInterval(
+    runEveryProperty('token_revocations_cleanup', async (db, property) => {
+      const { rowCount } = await db.query('DELETE FROM token_revocations WHERE expires_at < NOW()');
+      if (rowCount > 0) {
+        logger.info({ rowCount, property: property.slug }, '[cleanup] removed expired token revocations');
+      }
+    }),
+    60 * 60 * 1000,
+  );
+  cleanupJob.unref();
+
+  const expirationJob = setInterval(
+    runEveryProperty('request_expiration_activation', processRequestExpirationAndActivation),
+    5 * 60 * 1000,
+  );
+  expirationJob.unref();
+
+  const runOtpCleanup = runEveryProperty('otp_cleanup', async (db, property) => {
+    const { rowCount } = await db.query(
+      `DELETE FROM otp_codes WHERE expires_at < NOW() - INTERVAL '1 hour'`,
+    );
+    if (rowCount > 0) logger.info({ rowCount, property: property.slug }, '[otp-cleanup] deleted expired codes');
+  });
+  runOtpCleanup();
+  const otpCleanupTimer = setInterval(runOtpCleanup, 5 * 60 * 1000);
+  otpCleanupTimer.unref();
+
+  const runBillingOverdue = runEveryProperty('billing_overdue', checkBillingOverdue);
+  runBillingOverdue();
+  const billingOverdueTimer = setInterval(runBillingOverdue, 60 * 60 * 1000);
+  billingOverdueTimer.unref();
+
+  const runMeterReminders = runEveryProperty('meter_reminders', sendMeterReminders);
+  runMeterReminders();
+  const meterReminderTimer = setInterval(runMeterReminders, 60 * 60 * 1000);
+  meterReminderTimer.unref();
+
+  const runSlaOverdue = runEveryProperty('sla_overdue', checkSlaOverdue);
+  const slaOverdueTimer = setInterval(runSlaOverdue, 15 * 60 * 1000);
+  slaOverdueTimer.unref();
+
+  const runPackageReminders = runEveryProperty('package_reminders', sendPackageReminders);
+  runPackageReminders();
+  const packageReminderTimer = setInterval(runPackageReminders, 60 * 60 * 1000);
+  packageReminderTimer.unref();
+
+  const runProcessWebhooks = runEveryProperty('webhook_deliveries', processWebhooks);
+  const webhookDeliveryTimer = setInterval(runProcessWebhooks, 30 * 1000);
+  webhookDeliveryTimer.unref();
+
+  const runPhotoRetention = runEveryProperty('photo_retention', photoRetentionSweep);
+  const photoRetentionTimer = setInterval(runPhotoRetention, 60 * 60 * 1000);
+  photoRetentionTimer.unref();
+
+  const runOutboxRetention = runEveryProperty('notifications_outbox_retention', notificationsOutboxRetentionSweep);
+  const outboxRetentionTimer = setInterval(runOutboxRetention, 60 * 60 * 1000);
+  outboxRetentionTimer.unref();
+
+  logger.info('[runtime-jobs] started in multi-tenant mode');
+
+  return {
+    started: true,
+    mode: 'multi-tenant',
+    stop() {
+      clearInterval(cleanupJob);
+      clearInterval(expirationJob);
+      clearInterval(otpCleanupTimer);
+      clearInterval(billingOverdueTimer);
+      clearInterval(meterReminderTimer);
+      clearInterval(slaOverdueTimer);
+      clearInterval(packageReminderTimer);
+      clearInterval(webhookDeliveryTimer);
+      clearInterval(photoRetentionTimer);
+      clearInterval(outboxRetentionTimer);
+    },
+  };
+}
+
+function startRuntimeJobsRunner({
+  platformDb = null,
+  getPool = null,
+  fallbackDb = null,
+}) {
+  if (platformDb && typeof getPool === 'function') {
+    return startMultiTenantRuntimeJobs({ platformDb, getPool });
+  }
+  if (fallbackDb) {
+    const jobs = startRuntimeJobs({ db: fallbackDb, property: null });
+    return {
+      ...jobs,
+      started: true,
+      mode: 'single-tenant',
+    };
+  }
+  logger.warn('[runtime-jobs] no database source provided; jobs not started');
+  return {
+    started: false,
+    mode: 'disabled',
+    reason: 'no_db',
+    stop() {},
+  };
+}
+
 module.exports = {
   startRuntimeJobs,
+  startRuntimeJobsRunner,
+  startMultiTenantRuntimeJobs,
+  listActiveProperties,
+  runForActiveProperties,
   checkBillingOverdue,
   sendMeterReminders,
   checkSlaOverdue,

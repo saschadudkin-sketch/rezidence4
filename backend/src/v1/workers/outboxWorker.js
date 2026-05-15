@@ -271,27 +271,32 @@ async function processRow(tx, row, tenant = null) {
  * lockBatch — атомарно забирает до `batchSize` eligible строк и помечает
  * их `in_flight`.  Возвращает массив строк (с полями, нужными для processRow).
  *
- * Почему UPDATE с подзапросом, а не SELECT ... FOR UPDATE SKIP LOCKED?
- * Потому что нам не нужна долгая блокировка между SELECT и UPDATE — одна
- * SQL команда выполняет и выбор, и мутацию атомарно.  Параллельные воркеры
- * на той же property уже отсечены advisory-lock'ом в runOnce(); это
- * второй эшелон защиты на случай race'а или отсутствия advisory-lock.
+ * Почему CTE + FOR UPDATE SKIP LOCKED?
+ * Одна SQL команда выполняет выбор и мутацию атомарно, но кандидатные строки
+ * дополнительно блокируются на уровне Postgres.  Параллельные воркеры на той
+ * же property уже отсечены advisory-lock'ом в runOnce(); это второй эшелон
+ * защиты на случай race'а или вызова processBatch без advisory-lock wrapper.
  *
  * ORDER BY next_attempt_at — FIFO-ish: старые pending уходят первыми.
  */
 async function lockBatch(db, batchSize = DEFAULT_BATCH_SIZE) {
   const { rows } = await db.query(
-    `UPDATE notifications_outbox
-       SET status='in_flight',
-           last_attempted_at=NOW()
-     WHERE id IN (
-       SELECT id FROM notifications_outbox
+    `WITH candidates AS (
+       SELECT id
+         FROM notifications_outbox
         WHERE status IN ('pending','failed')
           AND next_attempt_at <= NOW()
         ORDER BY next_attempt_at
         LIMIT $1
+        FOR UPDATE SKIP LOCKED
      )
-     RETURNING id, property_id, event_type, channel, recipient_type,
+     UPDATE notifications_outbox
+       SET status='in_flight',
+           last_attempted_at=NOW()
+      FROM candidates
+     WHERE notifications_outbox.id = candidates.id
+       AND notifications_outbox.status IN ('pending','failed')
+     RETURNING notifications_outbox.id, property_id, event_type, channel, recipient_type,
                recipient_id, recipient_address, payload,
                attempt_count, max_attempts, correlation_id`,
     [batchSize],

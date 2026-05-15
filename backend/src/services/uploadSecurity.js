@@ -56,6 +56,7 @@ function verifySignedUploadQuery(filename, query) {
   const sig = String(query?.sig || '');
   if (!exp || !sig) return false;
   if (exp < Math.floor(Date.now() / 1000)) return false;
+  if (process.env.NODE_ENV === 'production' && !getSignedUploadPropertySlug(query)) return false;
   const expected = signUploadAccess(filename, exp, getSignedUploadPropertySlug(query));
   // FIX [BUG]: crypto.timingSafeEqual бросает RangeError если буферы разной длины.
   // Malformed sig (не 64 hex-символа) → unhandled throw → 500 вместо 403.

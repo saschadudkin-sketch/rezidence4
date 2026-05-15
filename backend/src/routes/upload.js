@@ -171,6 +171,12 @@ router.post('/photo', rawUploadBody, async (req, res, next) => {
       });
     } catch (metadataErr) {
       logger.warn({ err: metadataErr, filename }, '[upload] failed to persist upload metadata');
+      await fs.promises.unlink(filepath).catch((unlinkErr) => {
+        if (unlinkErr?.code !== 'ENOENT') {
+          logger.warn({ err: unlinkErr, filename }, '[upload] failed to remove orphaned upload');
+        }
+      });
+      return res.status(503).json({ error: 'Upload metadata is temporarily unavailable' });
     }
 
     res.json({ url: `/uploads/${filename}` });

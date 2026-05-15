@@ -76,4 +76,17 @@ function shutdown() {
   // pub (shared singleton) закрывается через closeRedis() в index.js graceful shutdown
 }
 
-module.exports = { init, shutdown };
+function getStatus() {
+  if (!process.env.REDIS_URL) {
+    return { enabled: false, subscriber: 'unconfigured' };
+  }
+  if (!sub) {
+    return { enabled: true, subscriber: 'not_initialized' };
+  }
+  return {
+    enabled: true,
+    subscriber: sub.status === 'ready' ? 'ok' : sub.status,
+  };
+}
+
+module.exports = { init, shutdown, getStatus };

@@ -51,6 +51,13 @@ const {
 const router = express.Router();
 router.use(requireAuth);
 
+function unavailable(res) {
+  return res.status(503).json({
+    ok: false,
+    error: 'Outbox service temporarily unavailable',
+  });
+}
+
 // ─── Capability-middleware shortcuts ─────────────────────────────────────────
 // Сохраняем legacy error-message 'Admin only' для всех outbox endpoints
 // (было `if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' })`).
@@ -103,7 +110,7 @@ router.get('/metrics', requireOutboxRead, async (req, res) => {
     return res.json({ ok: true, ...snapshot });
   } catch (err) {
     logger.error({ err }, '[v1/admin/outbox] metrics query failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 
@@ -129,7 +136,7 @@ router.get('/sla', requireOutboxRead, async (req, res) => {
     return res.json({ ok: true, ...snapshot });
   } catch (err) {
     logger.error({ err }, '[v1/admin/outbox] sla query failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 
@@ -169,7 +176,7 @@ router.get('/', requireOutboxRead, async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, '[v1/admin/outbox] list query failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 
@@ -183,7 +190,7 @@ router.get('/:id', requireOutboxRead, async (req, res) => {
     return res.json({ ok: true, item: row });
   } catch (err) {
     logger.error({ err, id: req.params.id }, '[v1/admin/outbox] get failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 
@@ -217,7 +224,7 @@ router.post('/:id/requeue', requireOutboxRequeue, async (req, res) => {
     return res.status(500).json({ ok: false, error: 'unexpected conflict' });
   } catch (err) {
     logger.error({ err, id: req.params.id }, '[v1/admin/outbox] requeue failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 
@@ -244,7 +251,7 @@ router.post('/:id/cancel', requireOutboxCancel, async (req, res) => {
     return res.status(500).json({ ok: false, error: 'unexpected conflict' });
   } catch (err) {
     logger.error({ err, id: req.params.id }, '[v1/admin/outbox] cancel failed');
-    return res.status(503).json({ ok: false, error: err.message });
+    return unavailable(res);
   }
 });
 

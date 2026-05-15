@@ -348,7 +348,7 @@ describe('log_v2 recipient_type normalisation', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('lockBatch', () => {
-  test('atomic UPDATE...RETURNING with correct WHERE/ORDER/LIMIT', async () => {
+  test('atomic CTE UPDATE...RETURNING with correct WHERE/ORDER/LIMIT/locking', async () => {
     const db = {
       query: jestApi.fn().mockResolvedValue({
         rows: [{ id: 'ob-1' }, { id: 'ob-2' }],
@@ -360,8 +360,9 @@ describe('lockBatch', () => {
     expect(db.query).toHaveBeenCalledTimes(1);
     const [sql, params] = db.query.mock.calls[0];
 
-    // Atomic: single UPDATE that both selects rows and changes their status.
-    expect(sql).toMatch(/^\s*UPDATE notifications_outbox/);
+    // Atomic: one statement that selects and changes status defensively.
+    expect(sql).toMatch(/^\s*WITH candidates AS/);
+    expect(sql).toMatch(/UPDATE notifications_outbox/);
     expect(sql).toMatch(/SET status='in_flight'/);
     // Eligibility window:
     expect(sql).toMatch(/status IN \('pending','failed'\)/);
@@ -370,6 +371,8 @@ describe('lockBatch', () => {
     expect(sql).toMatch(/ORDER BY next_attempt_at/);
     // Batch cap:
     expect(sql).toMatch(/LIMIT \$1/);
+    expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/);
+    expect(sql).toMatch(/notifications_outbox\.status IN \('pending','failed'\)/);
     expect(sql).toMatch(/RETURNING/);
     expect(params).toEqual([25]);
   });
@@ -403,8 +406,8 @@ describe('processBatch', () => {
     };
     const db = {
       query: jestApi.fn(async (sql) => {
-        // The lockBatch SQL is an UPDATE ... RETURNING on the pool.
-        if (/^\s*UPDATE notifications_outbox/.test(sql)) {
+        // The lockBatch SQL is a CTE UPDATE ... RETURNING on the pool.
+        if (/UPDATE notifications_outbox/.test(sql)) {
           return { rows: lockedRows };
         }
         // Revival UPDATE (processBatch fallback) is also via pool.
@@ -521,7 +524,7 @@ describe('runOnce', () => {
     const db = {
       query: jestApi.fn(async (sql) => {
         // lockBatch SQL (via pool.query) — return no rows → processBatch early-outs.
-        if (/^\s*UPDATE notifications_outbox/.test(sql)) {
+        if (/UPDATE notifications_outbox/.test(sql)) {
           return { rows: [] };
         }
         return { rows: [] };
@@ -589,7 +592,7 @@ describe('runOnce', () => {
     };
     const db = {
       query: jestApi.fn(async (sql) => {
-        if (/^\s*UPDATE notifications_outbox/.test(sql)
+        if (/UPDATE notifications_outbox/.test(sql)
             && /SET status='in_flight'/.test(sql)) {
           throw new Error('batch_died');
         }

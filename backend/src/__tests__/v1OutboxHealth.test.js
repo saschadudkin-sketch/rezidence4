@@ -187,6 +187,6 @@ describe('GET /api/v1/notifications/outbox/health — errors', () => {
     const res = await supertest(app).get('/api/v1/notifications/outbox/health');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/notifications_outbox/);
+    expect(res.body.error).toMatch(/temporarily unavailable/);
   });
 });

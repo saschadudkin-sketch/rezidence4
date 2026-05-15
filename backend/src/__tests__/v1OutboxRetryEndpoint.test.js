@@ -153,6 +153,6 @@ describe('POST /api/v1/notifications/outbox/retry — errors', () => {
       .send({ status: 'dead' });
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/connection terminated/);
+    expect(res.body.error).toMatch(/temporarily unavailable/);
   });
 });

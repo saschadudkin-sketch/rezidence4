@@ -276,7 +276,7 @@ describe('GET /api/v1/admin/outbox — list', () => {
     const res = await supertest(buildApp()).get('/api/v1/admin/outbox');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/connection lost/);
+    expect(res.body.error).toMatch(/temporarily unavailable/);
   });
 });
 
@@ -405,7 +405,7 @@ describe('GET /api/v1/admin/outbox/metrics', () => {
     const res = await supertest(buildApp()).get('/api/v1/admin/outbox/metrics');
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/db down/);
+    expect(res.body.error).toMatch(/temporarily unavailable/);
   });
 
   test('префикс /metrics matchается ДО /:id (не в parse как id)', async () => {
@@ -723,7 +723,7 @@ describe('POST /api/v1/admin/outbox/:id/cancel', () => {
       .post(`/api/v1/admin/outbox/${UUID}/cancel`).send({});
     expect(res.status).toBe(503);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/connection reset/);
+    expect(res.body.error).toMatch(/temporarily unavailable/);
   });
 
   test('audit-ошибка не ломает 200-ответ', async () => {

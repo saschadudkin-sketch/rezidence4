@@ -17,6 +17,7 @@ jest.mock('fs', () => {
     promises: {
       ...real.promises,
       writeFile: jest.fn().mockResolvedValue(undefined),
+      unlink: jest.fn().mockResolvedValue(undefined),
     },
   };
 });
@@ -24,6 +25,7 @@ jest.mock('../db');
 
 const fileType = require('file-type');
 const fs       = require('fs');
+const db       = require('../db');
 
 const express        = require('express');
 const cookieParser   = require('cookie-parser');
@@ -61,6 +63,9 @@ const FAKE_JUNK = Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
 describe('POST /api/upload/photo', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    fs.promises.writeFile.mockResolvedValue(undefined);
+    fs.promises.unlink.mockResolvedValue(undefined);
+    db.query.mockResolvedValue({ rows: [{ cnt: 0 }], rowCount: 0 });
     const authMw = require('../middleware/auth');
     authMw.__clearUserActiveFallbackCache?.();
   });
@@ -164,6 +169,23 @@ describe('POST /api/upload/photo', () => {
     // writeFile вызван с буфером тела
     const [_path, body] = fs.promises.writeFile.mock.calls[0];
     expect(Buffer.isBuffer(body)).toBe(true);
+  });
+
+  it('503 и удаление файла, если metadata не сохранилась', async () => {
+    fileType.fromBuffer.mockResolvedValueOnce({ mime: 'image/gif', ext: 'gif' });
+    const token = mk({ uid: 'u-metadata', role: 'owner', name: 'Meta' });
+    db.query
+      .mockResolvedValueOnce({ rows: [{ cnt: 0 }], rowCount: 1 })
+      .mockRejectedValueOnce(new Error('metadata_down'));
+
+    const res = await request(app)
+      .post('/api/upload/photo').set('Cookie', `token=${token}`)
+      .send(FAKE_GIF);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/metadata/i);
+    expect(fs.promises.writeFile).toHaveBeenCalledTimes(1);
+    expect(fs.promises.unlink).toHaveBeenCalledTimes(1);
   });
 
   it('два запроса подряд дают разные имена файлов (нет коллизий)', async () => {

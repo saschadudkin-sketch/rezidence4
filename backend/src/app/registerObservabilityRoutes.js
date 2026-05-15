@@ -6,6 +6,7 @@ const requireAuth = require('../middleware/auth');
 const logger = require('../logger');
 const appMetrics = require('../metrics');
 const sse = require('../sse');
+const sseRedis = require('../sse-redis');
 const { getRedis } = require('../lib/redisClient');
 const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { fetchTenantOutboxHealth } = require('../v1/services/outboxHealth');
@@ -26,17 +27,31 @@ function registerObservabilityRoutes(app, { db }) {
     }
   });
 
-  app.get('/api/v1/events/health', requireAuth, (req, res) => {
+  app.get('/api/v1/events/health', requireAuth, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const { clients: sseClientsMap } = sse;
     const uniqueUsers = sseClientsMap.size;
     const totalConnections = [...sseClientsMap.values()].reduce((sum, set) => sum + set.size, 0);
+    const redis = getRedis();
+    let redisPublisher = redis ? 'configured' : 'unconfigured';
+    if (redis) {
+      try {
+        await redis.ping();
+        redisPublisher = 'ok';
+      } catch {
+        redisPublisher = 'error';
+      }
+    }
     res.json({
       ok: true,
       uniqueUsers,
       totalConnections,
       maxTotalConnections: 2000,
       saturated: totalConnections >= 1800,
+      redis: {
+        publisher: redisPublisher,
+        subscriber: sseRedis.getStatus().subscriber,
+      },
       ts: new Date().toISOString(),
     });
   });
@@ -76,7 +91,7 @@ function registerObservabilityRoutes(app, { db }) {
       });
     } catch (err) {
       logger.error({ err }, '[outbox-health] query failed');
-      res.status(503).json({ ok: false, error: err.message });
+      res.status(503).json({ ok: false, error: 'Outbox health temporarily unavailable' });
     }
   });
 
@@ -117,7 +132,7 @@ function registerObservabilityRoutes(app, { db }) {
         return res.status(400).json({ error: err.message });
       }
       logger.error({ err }, '[outbox-retry] update failed');
-      return res.status(503).json({ ok: false, error: err.message });
+      return res.status(503).json({ ok: false, error: 'Outbox retry temporarily unavailable' });
     }
   });
 
@@ -127,7 +142,7 @@ function registerObservabilityRoutes(app, { db }) {
       res.json({ ok: true, db: 'up', dbTs: rows[0].ts, serverTs: new Date() });
     } catch (err) {
       logger.error({ err }, '[health] db check failed');
-      res.status(503).json({ ok: false, db: 'down', error: err.message });
+      res.status(503).json({ ok: false, db: 'down', error: 'Database health check failed' });
     }
   });
 

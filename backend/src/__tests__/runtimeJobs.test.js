@@ -19,7 +19,11 @@ jest.mock('../services/webhookService', () => ({
   processPendingDeliveries: jest.fn().mockResolvedValue(undefined),
 }));
 
-const { startRuntimeJobs } = require('../server/runtimeJobs');
+const {
+  startRuntimeJobs,
+  startRuntimeJobsRunner,
+  runForActiveProperties,
+} = require('../server/runtimeJobs');
 
 /**
  * Build a db.query mock that routes by SQL fragment, so noisy background jobs
@@ -90,5 +94,60 @@ describe('runtimeJobs scheduled activation', () => {
     expect(broadcastRequestUpdate).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1', status: 'approved' }));
 
     jobs.stop();
+  });
+});
+
+describe('runtimeJobs multi-tenant runner', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
+  });
+
+  test('runForActiveProperties executes a job per active property pool', async () => {
+    const platformDb = {
+      query: jest.fn().mockResolvedValue({
+        rows: [
+          { id: 'p-a', slug: 'alpha', db_connection_url: 'pg://alpha' },
+          { id: 'p-b', slug: 'beta', db_connection_url: 'pg://beta' },
+        ],
+      }),
+    };
+    const poolA = makeDbMock();
+    const poolB = makeDbMock();
+    const getPool = jest.fn((property) => (property.slug === 'alpha' ? poolA : poolB));
+    const jobFn = jest.fn().mockResolvedValue(undefined);
+
+    const results = await runForActiveProperties({
+      platformDb,
+      getPool,
+      jobName: 'unit_test_job',
+      jobFn,
+    });
+
+    expect(platformDb.query).toHaveBeenCalledWith(expect.stringContaining('WHERE is_active = true'));
+    expect(getPool).toHaveBeenCalledTimes(2);
+    expect(jobFn).toHaveBeenNthCalledWith(1, poolA, expect.objectContaining({ slug: 'alpha' }));
+    expect(jobFn).toHaveBeenNthCalledWith(2, poolB, expect.objectContaining({ slug: 'beta' }));
+    expect(results).toEqual([
+      { slug: 'alpha', ok: true },
+      { slug: 'beta', ok: true },
+    ]);
+  });
+
+  test('startRuntimeJobsRunner uses multi-tenant mode when platform DB is available', () => {
+    const platformDb = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    const getPool = jest.fn();
+    const jobs = startRuntimeJobsRunner({ platformDb, getPool, fallbackDb: makeDbMock() });
+
+    try {
+      expect(jobs.started).toBe(true);
+      expect(jobs.mode).toBe('multi-tenant');
+    } finally {
+      jobs.stop();
+    }
   });
 });
