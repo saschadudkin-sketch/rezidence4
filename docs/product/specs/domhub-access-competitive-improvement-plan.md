@@ -462,3 +462,311 @@ Feature gating:
 
 - PIN credential, guard authorized devices and enriched admin pass management should be feature-gated until route, UI and audit coverage are complete.
 
+---
+
+## 6. Additional Competitive Findings
+
+These items were identified after a deeper review of comparable access, resident-app and visitor-management products. They should not interrupt Phases 1-3, but they are strong candidates for the backlog because they appear repeatedly across mature products.
+
+Reviewed public sources:
+
+- Ujin OS: https://ujin.tech/products/ujin-os-platform/
+- CtrlHome for УК: https://ctrlhome.app/for-uk
+- Domonap: https://domonap.ru/
+- ButterflyMX Visitor Passes: https://butterflymx.com/blog/visitor-passes/
+- ButterflyMX Delivery Pass: https://butterflymx.com/blog/delivery-pass/
+- VisitForm: https://visitform.com/
+- EntryZen: https://www.entryzen.com/
+- BuildingLink access control: https://www.buildinglink.io/features/building-access-control-system-software
+- BuildingLink KeyLink: https://www.buildinglink.io/solutions/additional-features/keylink/
+- NoBrokerHood Gatekeeper: https://www.nobrokerhood.com/solutions/gatekeeper-app
+- Gatezen: https://gatezen.app/
+- Avigilon Alta Visitor: https://www.avigilon.com/alta-visitor
+- Condo open-source docs: https://mintlify.wiki/open-condo-software/condo/introduction
+
+### 6.1 Gate-Initiated Resident Approval
+
+Pattern:
+
+- Guard enters visitor details at the gate.
+- Resident receives an approve/deny prompt.
+- The approval is time-boxed and becomes part of the visit log.
+
+Why it matters:
+
+- This is the missing counterpart to resident-precreated passes.
+- It handles real-world walk-ups: taxi, unexpected courier, guest forgot the link, elderly resident did not create a pass.
+
+Suggested DomHub model:
+
+- `POST /api/v1/security-workspace/approval-request`
+- `POST /api/v1/resident-access-approvals/:id/approve`
+- `POST /api/v1/resident-access-approvals/:id/deny`
+
+Required evidence:
+
+- guard actor;
+- resident actor;
+- access point;
+- visitor label/photo if collected;
+- timeout/expired state;
+- final visit log or denial incident.
+
+Priority:
+
+- P1 after Phase 3.
+
+### 6.2 Delivery Pass Micro-Flow
+
+Pattern:
+
+- Resident creates a one-time delivery code quickly.
+- Code can be pasted into delivery app instructions.
+- Entry is logged with time and access point.
+
+Why it matters:
+
+- Delivery is one of the highest-frequency guest-access scenarios.
+- It should be faster than full visitor creation.
+
+Suggested DomHub model:
+
+- Add `delivery_pass` preset on top of `pass_type='courier'` or a dedicated `courier` credential profile.
+- Generate short-lived single-use PIN or QR.
+- Include delivery instructions and allowed access points.
+- Support multi-point delivery paths later: gate plus package room, gate plus lobby, gate plus service entrance.
+
+Required guardrails:
+
+- single-use by default;
+- short TTL;
+- optional grace window;
+- no resident phone exposure;
+- incident on suspicious repeat attempts.
+
+Priority:
+
+- P1, paired with Phase 5 credential work.
+
+### 6.3 Resident Self-Access Credentials
+
+Pattern:
+
+- Resident access is in the same app as requests, packages, documents and payments.
+- Admin can issue/revoke mobile credentials, fobs, cards and PINs.
+- Move-in/offboarding drives automatic access grant/revoke.
+
+Why it matters:
+
+- DomHub currently focuses heavily on guest and guard access. Resident/staff credentials are also part of the access product.
+- This aligns with resident lifecycle/offboarding requirements already present in the master plan.
+
+Suggested DomHub model:
+
+- Extend the credential layer beyond guest passes:
+  - resident mobile credential;
+  - staff credential;
+  - fob/card external id;
+  - resident PIN where legally and operationally acceptable.
+- Link credentials to resident lifecycle:
+  - move-in activation;
+  - ownership/tenancy transfer;
+  - offboarding revoke;
+  - periodic access review.
+
+Out of scope for first implementation:
+
+- Apple Wallet / Google Wallet production support.
+- BLE production support.
+- Face recognition.
+
+Priority:
+
+- P2 after pass credential layer is stable.
+
+### 6.4 Video, Intercom And Snapshot Context
+
+Pattern:
+
+- Access events are linked to video/intercom history.
+- Guard/admin can see a camera snapshot or call history around a visit.
+- Some systems expose camera streams to residents and management.
+
+Why it matters:
+
+- It improves incident review without turning DomHub into a video platform.
+- DomHub already has video evidence and SKUD integration specs; the gap is productizing context in guard/admin views.
+
+Suggested DomHub model:
+
+- Add optional `video_context` projection to visit logs:
+  - provider;
+  - camera id;
+  - snapshot url;
+  - clip reference;
+  - retention status.
+- Show snapshot/context in guard recent events and incident detail.
+- Keep video provider secrets and raw config outside frontend responses.
+
+Priority:
+
+- P2, after Phase 1 guard console upgrade.
+
+### 6.5 Physical Key And Fob Chain Of Custody
+
+Pattern:
+
+- Mature building systems track physical key checkout, key fobs and staff handling.
+- Transactions include who took the key, for which unit, when returned, and supporting evidence.
+
+Why it matters:
+
+- Russian residential operations still rely on physical keys, fobs, remotes and cards.
+- This is a useful bridge before full digital access integration.
+
+Suggested DomHub model:
+
+- `physical_credentials`
+  - key/fob/card/remote;
+  - unit/resident/staff/vendor association;
+  - status;
+  - external tag id;
+  - current holder.
+- `credential_custody_events`
+  - checkout;
+  - return;
+  - lost;
+  - replaced;
+  - deactivated.
+
+Privacy/legal note:
+
+- Do not copy biometric checkout patterns by default. Use staff login, signature/photo evidence or admin confirmation first.
+
+Priority:
+
+- P2/P3, valuable for premium and high-control objects.
+
+### 6.6 Emergency / SOS-Linked Access
+
+Pattern:
+
+- Some gated-community products route fire/medical/security alerts to the right people.
+- Emergency vehicle access can be tied to an active SOS/emergency record to avoid uncontrolled bypass.
+
+Why it matters:
+
+- DomHub already has emergency dispatch readiness. Access should participate in that flow.
+
+Suggested DomHub model:
+
+- Link `emergency_dispatch` to `access_policy` and `manual_decision`.
+- Add emergency access mode:
+  - ambulance/fire/police/service vehicle;
+  - allowed point/zone;
+  - active emergency id required;
+  - automatic incident/audit linkage.
+
+Acceptance:
+
+- Emergency access cannot be created without an active emergency record or authorized staff override.
+- All emergency admits are visible in access analytics and audit reports.
+
+Priority:
+
+- P1/P2 for pilot hardening.
+
+### 6.7 Away Mode And Contact Routing
+
+Pattern:
+
+- Residents can update contact details, away status or visit preferences.
+- Gatehouse staff sees current routing data without using stale spreadsheets.
+
+Why it matters:
+
+- It reduces calls to wrong numbers and makes guard workflows more reliable.
+- It is especially useful for cottage communities and premium complexes with staffed КПП.
+
+Suggested DomHub model:
+
+- Add resident access preferences:
+  - away mode;
+  - preferred contact channel;
+  - temporary delegate/contact;
+  - visitor auto-deny/auto-review preference within policy limits.
+- Expose only guard-safe projections in security workspace.
+
+Priority:
+
+- P2 after gate-initiated approval.
+
+### 6.8 Material In/Out And Move Logistics
+
+Pattern:
+
+- Some residential gatekeeper products handle material in/out, move-in/move-out and service/vendor flows.
+
+Why it matters:
+
+- DomHub already separates access requests and service requests. Material movement is a natural bridge between security and operations.
+
+Suggested DomHub model:
+
+- Add `material_movement_request` or a subtype under service/access link:
+  - bring-in / take-out;
+  - item description;
+  - vehicle;
+  - contractor/resident;
+  - guard confirmation;
+  - photo evidence optional.
+
+Priority:
+
+- P3 unless a pilot object explicitly needs this.
+
+### 6.9 Amenity And Shared-Space Access
+
+Pattern:
+
+- Access systems increasingly control amenities: gyms, lounges, coworking rooms, rooftops, package rooms and parking.
+
+Why it matters:
+
+- DomHub already has legacy bookings/spaces and platform-v1 access topology. The product opportunity is to connect bookings to access credentials.
+
+Suggested DomHub model:
+
+- Booking creates time-limited access credential for a zone/point.
+- Access policy enforces booking window.
+- Visit log links back to booking id.
+
+Priority:
+
+- P3, after core residential access is stable.
+
+### 6.10 Extension / Mini-App Surface
+
+Pattern:
+
+- Condo emphasizes mini-app extensibility for property-management workflows.
+
+Why it matters:
+
+- DomHub should not build every local workflow directly into core.
+- A controlled extension surface would help with local УК-specific processes, vendor integrations and pilot-only features.
+
+Suggested DomHub model:
+
+- Keep out of first access MVP.
+- Later define:
+  - extension permissions;
+  - tenant/property scope;
+  - webhook/event contracts;
+  - safe UI embedding rules;
+  - audit requirements.
+
+Priority:
+
+- P4, platform maturity item.
+
