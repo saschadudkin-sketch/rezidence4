@@ -461,7 +461,7 @@ export const requestsProvider: Pick<RequestsService, 'resolvePhotos'> & {
     // 1) return page=1 immediately for fast first paint
     // 2) fetch remaining pages in background and push cumulative list via onPage callback
     // Supports either page-based or cursor-based pagination responses.
-    const PAGE_SIZE = 200;
+    const PAGE_SIZE = 100;
     const signal = opts?.signal;
     const onPage = typeof opts?.onPage === 'function' ? opts.onPage : null;
     const background = opts?.background !== false;

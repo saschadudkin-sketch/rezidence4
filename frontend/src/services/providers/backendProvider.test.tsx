@@ -167,7 +167,7 @@ describe('requestsProvider', () => {
   test('getAll → GET /api/v1/requests, возвращает массив из res.data', async () => {
     apiClient.get.mockResolvedValueOnce({ data: [{ id: 'r1' }], total: 1 });
     const result = await requestsProvider.getAll();
-    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/requests?limit=200&page=1');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/v1/requests?limit=100&page=1');
     expect(result).toEqual([expect.objectContaining({ id: 'r1' })]);
   });
 
@@ -191,6 +191,35 @@ describe('requestsProvider', () => {
       expect.objectContaining({ id: 'r1' }),
       expect.objectContaining({ id: 'r2' }),
     ]);
+  });
+
+  test('getAll uses backend-compatible page size and fetches all pages', async () => {
+    const rows = (prefix: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({ id: `${prefix}-${index + 1}` }));
+    const firstPage = rows('r1', 100);
+    const secondPage = rows('r2', 100);
+    const thirdPage = rows('r3', 50);
+    apiClient.get
+      .mockResolvedValueOnce({ data: firstPage, total: 250 })
+      .mockResolvedValueOnce({ data: secondPage, total: 250 })
+      .mockResolvedValueOnce({ data: thirdPage, total: 250 });
+
+    const onPage = vi.fn();
+    const result = await requestsProvider.getAll({ onPage });
+
+    expect(apiClient.get).toHaveBeenNthCalledWith(1, '/api/v1/requests?limit=100&page=1');
+    expect(result).toHaveLength(100);
+
+    await vi.waitFor(() => {
+      expect(apiClient.get).toHaveBeenNthCalledWith(2, '/api/v1/requests?limit=100&page=2');
+      expect(apiClient.get).toHaveBeenNthCalledWith(3, '/api/v1/requests?limit=100&page=3');
+      expect(onPage).toHaveBeenLastCalledWith(expect.arrayContaining([
+        expect.objectContaining({ id: 'r1-1' }),
+        expect.objectContaining({ id: 'r2-1' }),
+        expect.objectContaining({ id: 'r3-50' }),
+      ]));
+      expect(onPage.mock.calls.at(-1)?.[0]).toHaveLength(250);
+    });
   });
 
   test('create → POST /api/v1/requests, возвращает serverReq', async () => {
