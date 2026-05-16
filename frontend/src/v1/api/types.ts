@@ -1001,6 +1001,7 @@ export interface TrustedVisitor {
   allowed_point_id: UUID | null;
   is_active: boolean;
   last_used_at: IsoDateTime | null;
+  recent_access_requests: AccessRequest[];
   created_at: IsoDateTime;
   updated_at: IsoDateTime | null;
 }

@@ -31,7 +31,7 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/notification-log` | list | stub |
 | `/api/v1/admin/outbox` | list | stub |
 
-**Итого:** 300 paths, 97 schemas, 368 operations. Coverage проходит `npm run openapi:drift`, который проверяет не только mounted prefixes, но и операции внутри Express router'ов, смонтированных под `/api/v1/*`. Access-domain пилотные маршруты имеют явные path/schema anchors, включая stale-state 409, manual security decisions и trusted visitors.
+**Итого:** 300 paths, 98 schemas, 368 operations. Coverage проходит `npm run openapi:drift`, который проверяет не только mounted prefixes, но и операции внутри Express router'ов, смонтированных под `/api/v1/*`. Access-domain пилотные маршруты имеют явные path/schema anchors, включая stale-state 409, manual security decisions и trusted visitors.
 
 ## Что ещё нужно детализировать
 

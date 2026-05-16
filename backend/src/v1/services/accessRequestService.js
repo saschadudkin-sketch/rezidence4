@@ -34,6 +34,13 @@ const REQUEST_TO_PASS_TYPE = Object.freeze({
   temporary_resident_access: 'guest',
 });
 
+const TRUSTED_VISITOR_RETURNING = `
+  id, property_id, resident_id, name, phone, visitor_type,
+  default_vehicle_plate, default_instructions,
+  allowed_zone_id, allowed_point_id, is_active,
+  last_used_at, created_at, updated_at
+`;
+
 class AccessRequestServiceError extends Error {
   constructor(status, message, details = null) {
     super(message);
@@ -280,6 +287,7 @@ async function createAccessRequest({
   const client = await txPool.connect();
   let accessRequest;
   let pass = null;
+  let trustedVisitor = null;
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
@@ -288,15 +296,16 @@ async function createAccessRequest({
           created_by_resident_id, created_by_staff_id, created_by_contractor_user_id,
           request_type, visitor_name, visitor_phone, vehicle_id,
           target_zone_id, target_point_id, target_unit_id,
-          reason, guest_instructions, guard_notes, share_delivery_channels,
+          trusted_visitor_id, reason, guest_instructions, guard_notes, share_delivery_channels,
           starts_at, ends_at, approval_required, status, approved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,$18,$19,$20,$21)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18,$19,$20,$21,$22)
        RETURNING ${AR_COLS}`,
       [
         input.property_id, creator.created_by_type,
         creator.created_by_resident_id, creator.created_by_staff_id, creator.created_by_contractor_user_id,
         input.request_type, input.visitor_name, input.visitor_phone, input.vehicle_id,
         input.target_zone_id, input.target_point_id, input.target_unit_id,
+        input.trusted_visitor_id || null,
         input.reason, input.guest_instructions, input.guard_notes,
         JSON.stringify(input.share_delivery_channels || []),
         input.starts_at, input.ends_at, approvalRequired, initialStatus, approvedAt,
@@ -304,6 +313,25 @@ async function createAccessRequest({
     );
     accessRequest = rows[0];
     accessRequest.policy_id = policyDecision.matched_policy_id || null;
+    if (input.trusted_visitor_id) {
+      if (!creator.created_by_resident_id) {
+        throw serviceError(403, 'Trusted visitor pass creation requires resident identity');
+      }
+      const trustedVisitorResult = await client.query(
+        `UPDATE trusted_visitors
+            SET last_used_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+            AND property_id = $2
+            AND resident_id = $3
+            AND is_active = true
+          RETURNING ${TRUSTED_VISITOR_RETURNING}`,
+        [input.trusted_visitor_id, input.property_id, creator.created_by_resident_id],
+      );
+      if (!trustedVisitorResult.rows[0]) {
+        throw serviceError(409, 'Trusted visitor is unavailable for pass creation');
+      }
+      trustedVisitor = trustedVisitorResult.rows[0];
+    }
     if (input.request_id) {
       await client.query(
         `INSERT INTO request_access_links (request_id, access_request_id)
@@ -323,7 +351,12 @@ async function createAccessRequest({
     client.release();
   }
 
-  return { access_request: accessRequest, pass, approval_required: approvalRequired };
+  return {
+    access_request: accessRequest,
+    pass,
+    approval_required: approvalRequired,
+    trusted_visitor: trustedVisitor,
+  };
 }
 
 async function requireStaffId(client, user) {

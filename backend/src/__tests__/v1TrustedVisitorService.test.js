@@ -2,6 +2,7 @@
 
 const {
   createPassFromTrustedVisitor,
+  listTrustedVisitors,
   normalizeTrustedVisitorInput,
 } = require('../v1/services/trustedVisitorService');
 
@@ -95,6 +96,60 @@ describe('TrustedVisitorService validation', () => {
 });
 
 describe('TrustedVisitorService pass creation', () => {
+  test('lists trusted visitors with recent access request history', async () => {
+    const recentRequest = {
+      id: UUID_REQUEST,
+      property_id: UUID_PROPERTY,
+      created_by_type: 'resident',
+      created_by_resident_id: UUID_RESIDENT,
+      created_by_staff_id: null,
+      created_by_contractor_user_id: null,
+      request_type: 'guest_access',
+      visitor_name: 'Anna Cleaner',
+      visitor_phone: '+79990000000',
+      vehicle_id: null,
+      target_zone_id: null,
+      target_point_id: null,
+      target_unit_id: UUID_UNIT,
+      trusted_visitor_id: UUID_VISITOR,
+      reason: null,
+      guest_instructions: null,
+      guard_notes: null,
+      share_delivery_channels: [],
+      starts_at: '2026-05-05T10:00:00.000Z',
+      ends_at: '2026-05-05T12:00:00.000Z',
+      status: 'approved',
+      approval_required: false,
+      approved_at: '2026-05-05T08:00:00.000Z',
+      rejected_at: null,
+      cancelled_at: null,
+      created_at: '2026-05-05T08:00:00.000Z',
+      updated_at: '2026-05-05T08:00:00.000Z',
+      trusted_visitor_history_rank: '1',
+    };
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM trusted_visitors')) {
+          return Promise.resolve({ rows: [visitor()] });
+        }
+        if (sql.includes('FROM access_requests')) {
+          return Promise.resolve({ rows: [recentRequest] });
+        }
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const rows = await listTrustedVisitors(queryable, {
+      propertyId: UUID_PROPERTY,
+      residentId: UUID_RESIDENT,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].recent_access_requests).toHaveLength(1);
+    expect(rows[0].recent_access_requests[0]).not.toHaveProperty('trusted_visitor_history_rank');
+    expect(rows[0].recent_access_requests[0].trusted_visitor_id).toBe(UUID_VISITOR);
+  });
+
   test('deactivated visitor cannot create future passes', async () => {
     const queryable = {
       query: jest.fn((sql) => {
@@ -141,7 +196,7 @@ describe('TrustedVisitorService pass creation', () => {
       target_zone_id: null,
       target_point_id: null,
       target_unit_id: UUID_UNIT,
-      trusted_visitor_id: null,
+      trusted_visitor_id: UUID_VISITOR,
       reason: null,
       guest_instructions: 'Use north gate',
       guard_notes: null,
@@ -159,6 +214,9 @@ describe('TrustedVisitorService pass creation', () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [createdRequest] });
+      if (sql.includes('UPDATE trusted_visitors')) {
+        return Promise.resolve({ rows: [visitor({ last_used_at: '2026-05-05T08:05:00.000Z' })] });
+      }
       if (sql.includes('INSERT INTO passes')) {
         return Promise.resolve({
           rows: [{
@@ -180,12 +238,6 @@ describe('TrustedVisitorService pass creation', () => {
           return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
         }
         if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
-        if (sql.includes('UPDATE access_requests')) {
-          return Promise.resolve({ rows: [{ ...createdRequest, trusted_visitor_id: UUID_VISITOR }] });
-        }
-        if (sql.includes('UPDATE trusted_visitors')) {
-          return Promise.resolve({ rows: [visitor({ last_used_at: '2026-05-05T08:05:00.000Z' })] });
-        }
         throw new Error(`unexpected SQL: ${sql}`);
       }),
     };
@@ -211,7 +263,10 @@ describe('TrustedVisitorService pass creation', () => {
     const insertCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_requests'));
     expect(insertCall[1][5]).toBe('service_access');
     expect(insertCall[1][6]).toBe('Anna Cleaner');
-    expect(insertCall[1][13]).toBe('Use north gate');
+    expect(insertCall[1][12]).toBe(UUID_VISITOR);
+    expect(insertCall[1][14]).toBe('Use north gate');
+    expect(result.trusted_visitor.last_used_at).toBe('2026-05-05T08:05:00.000Z');
+    expect(result.trusted_visitor.recent_access_requests).toEqual([createdRequest]);
   });
 
   test('does not allow vehicle_access through trusted visitor shortcut without vehicle flow', async () => {

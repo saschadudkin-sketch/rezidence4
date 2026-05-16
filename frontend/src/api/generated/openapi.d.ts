@@ -28987,6 +28987,7 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string | null;
+            recent_access_requests: components["schemas"]["AccessRequest"][];
         };
         TrustedVisitorListResponse: {
             trusted_visitors: components["schemas"]["TrustedVisitor"][];
@@ -29044,7 +29045,27 @@ export interface components {
         TrustedVisitorPassCreateResponse: {
             trusted_visitor: components["schemas"]["TrustedVisitor"];
             access_request: components["schemas"]["AccessRequest"];
-            pass: components["schemas"]["Pass"] | null;
+            pass: components["schemas"]["PassSummary"] | null;
+        };
+        PassSummary: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            pass_type: "guest" | "vehicle" | "resident" | "staff" | "contractor" | "courier" | "service" | "emergency";
+            /** @enum {string} */
+            status: "active" | "used" | "expired" | "revoked" | "blocked";
+            /** Format: uuid */
+            zone_id?: string | null;
+            /** Format: uuid */
+            point_id?: string | null;
+            /** Format: uuid */
+            policy_id?: string | null;
+            /** Format: date-time */
+            valid_from: string;
+            /** Format: date-time */
+            valid_until: string;
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: never;

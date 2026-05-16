@@ -7,6 +7,7 @@ const express = require('express');
 const db = require('../../db');
 const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
+const idempotency = require('../../middleware/idempotency');
 const { can, canInPropertyScope } = require('../lib/authz');
 const { resolveResidentIdByUid } = require('../services/accessActorResolver');
 const {
@@ -205,7 +206,7 @@ router.post('/:id/deactivate', async (req, res, next) => {
   }
 });
 
-router.post('/:id/create-pass', async (req, res, next) => {
+router.post('/:id/create-pass', idempotency, async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const scope = await resolveResidentScope(req, res);

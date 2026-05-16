@@ -181,7 +181,7 @@ async function listTrustedVisitors(queryable, { propertyId, residentId, includeI
       ORDER BY is_active DESC, COALESCE(last_used_at, updated_at, created_at) DESC`,
     params,
   );
-  return rows;
+  return attachRecentAccessRequests(queryable, rows);
 }
 
 async function createTrustedVisitor(queryable, { propertyId, residentId, input }) {
@@ -212,7 +212,45 @@ async function createTrustedVisitor(queryable, { propertyId, residentId, input }
       normalized.allowed_point_id,
     ],
   );
-  return rows[0];
+  return withRecentAccessRequests(rows[0], []);
+}
+
+async function attachRecentAccessRequests(queryable, visitors, limit = 5) {
+  if (!Array.isArray(visitors) || visitors.length === 0) return [];
+  const ids = visitors.map((visitor) => visitor.id);
+  const { rows } = await queryable.query(
+    `SELECT *
+       FROM (
+         SELECT ${AR_COLS},
+                ROW_NUMBER() OVER (
+                  PARTITION BY trusted_visitor_id
+                  ORDER BY created_at DESC
+                ) AS trusted_visitor_history_rank
+           FROM access_requests
+          WHERE trusted_visitor_id = ANY($1::uuid[])
+       ) ranked
+      WHERE trusted_visitor_history_rank <= $2
+      ORDER BY trusted_visitor_id, created_at DESC`,
+    [ids, limit],
+  );
+  const byVisitorId = new Map();
+  for (const row of rows) {
+    const { trusted_visitor_history_rank: _rank, ...accessRequest } = row;
+    const list = byVisitorId.get(accessRequest.trusted_visitor_id) || [];
+    list.push(accessRequest);
+    byVisitorId.set(accessRequest.trusted_visitor_id, list);
+  }
+  return visitors.map((visitor) => withRecentAccessRequests(
+    visitor,
+    byVisitorId.get(visitor.id) || [],
+  ));
+}
+
+function withRecentAccessRequests(visitor, recentAccessRequests) {
+  return {
+    ...visitor,
+    recent_access_requests: recentAccessRequests,
+  };
 }
 
 async function loadTrustedVisitorForResident(queryable, { id, propertyId, residentId, requireActive = false }) {
@@ -262,7 +300,8 @@ async function updateTrustedVisitor(queryable, { id, propertyId, residentId, inp
     sets.push(`${field} = $${params.length}`);
   }
   if (!sets.length) {
-    return loadTrustedVisitorForResident(queryable, { id, propertyId, residentId });
+    const visitor = await loadTrustedVisitorForResident(queryable, { id, propertyId, residentId });
+    return (await attachRecentAccessRequests(queryable, [visitor]))[0];
   }
   params.push(id, propertyId, residentId);
   const { rows } = await queryable.query(
@@ -274,7 +313,7 @@ async function updateTrustedVisitor(queryable, { id, propertyId, residentId, inp
       RETURNING ${TRUSTED_VISITOR_COLS}`,
     params,
   );
-  return rows[0];
+  return (await attachRecentAccessRequests(queryable, rows))[0];
 }
 
 async function deactivateTrustedVisitor(queryable, { id, propertyId, residentId }) {
@@ -288,7 +327,7 @@ async function deactivateTrustedVisitor(queryable, { id, propertyId, residentId 
     [id, propertyId, residentId],
   );
   if (!rows[0]) throw serviceError(404, 'Trusted visitor not found');
-  return rows[0];
+  return (await attachRecentAccessRequests(queryable, rows))[0];
 }
 
 async function createPassFromTrustedVisitor({
@@ -359,6 +398,7 @@ async function createPassFromTrustedVisitor({
       target_zone_id: targetZoneId,
       target_point_id: targetPointId,
       request_id: input.request_id || null,
+      trusted_visitor_id: visitor.id,
       reason,
       guest_instructions: guestInstructions,
       guard_notes: guardNotes,
@@ -368,28 +408,11 @@ async function createPassFromTrustedVisitor({
     },
   });
 
-  const updated = await queryable.query(
-    `UPDATE access_requests
-        SET trusted_visitor_id = $1, updated_at = NOW()
-      WHERE id = $2
-      RETURNING ${AR_COLS}`,
-    [visitor.id, result.access_request.id],
-  );
-  result.access_request = updated.rows[0] || {
-    ...result.access_request,
-    trusted_visitor_id: visitor.id,
-  };
-
-  const visitorUpdate = await queryable.query(
-    `UPDATE trusted_visitors
-        SET last_used_at = NOW(), updated_at = NOW()
-      WHERE id = $1
-      RETURNING ${TRUSTED_VISITOR_COLS}`,
-    [visitor.id],
-  );
-
   return {
-    trusted_visitor: visitorUpdate.rows[0] || visitor,
+    trusted_visitor: withRecentAccessRequests(
+      result.trusted_visitor || visitor,
+      [result.access_request],
+    ),
     access_request: result.access_request,
     pass: result.pass,
   };

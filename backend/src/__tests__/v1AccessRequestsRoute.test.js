@@ -339,9 +339,10 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(insertCall[0]).toContain('guest_instructions');
     expect(insertCall[0]).toContain('guard_notes');
     expect(insertCall[0]).toContain('share_delivery_channels');
-    expect(insertCall[1][13]).toBe('Показать QR на северном КПП');
-    expect(insertCall[1][14]).toBe('Проверить паспорт');
-    expect(JSON.parse(insertCall[1][15])).toEqual(['link', 'qr']);
+    expect(insertCall[1][13]).toBeNull();
+    expect(insertCall[1][14]).toBe('Показать QR на северном КПП');
+    expect(insertCall[1][15]).toBe('Проверить паспорт');
+    expect(JSON.parse(insertCall[1][16])).toEqual(['link', 'qr']);
   });
 
   test('resident create rejects target_unit_id that is not linked to resident', async () => {

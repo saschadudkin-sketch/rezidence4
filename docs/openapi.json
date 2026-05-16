@@ -28479,6 +28479,7 @@
           "allowed_point_id",
           "is_active",
           "last_used_at",
+          "recent_access_requests",
           "created_at",
           "updated_at"
         ],
@@ -28548,6 +28549,12 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "recent_access_requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessRequest"
+            }
           }
         }
       },
@@ -28761,12 +28768,75 @@
           "pass": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Pass"
+                "$ref": "#/components/schemas/PassSummary"
               },
               {
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "PassSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "pass_type",
+          "status",
+          "valid_from",
+          "valid_until"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pass_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "vehicle",
+              "resident",
+              "staff",
+              "contractor",
+              "courier",
+              "service",
+              "emergency"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "used",
+              "expired",
+              "revoked",
+              "blocked"
+            ]
+          },
+          "zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "policy_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

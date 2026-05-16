@@ -664,7 +664,11 @@ function TrustedVisitorsPanel({
                 <strong>{visitor.name}</strong>
                 <span className={uiClasses.textMuted}>{TRUSTED_VISITOR_TYPE_LABELS[visitor.visitor_type]}</span>
                 {visitor.phone ? <span className={uiClasses.textMuted}>{visitor.phone}</span> : null}
-                {visitor.last_used_at ? (
+                {visitor.recent_access_requests.length > 0 ? (
+                  <span className={uiClasses.textMuted}>
+                    Последний пропуск: {formatTrustedVisitorHistoryItem(visitor.recent_access_requests[0])}
+                  </span>
+                ) : visitor.last_used_at ? (
                   <span className={uiClasses.textMuted}>
                     Последний пропуск: {new Date(visitor.last_used_at).toLocaleString()}
                   </span>
@@ -687,6 +691,18 @@ function TrustedVisitorsPanel({
                 </Button>
               </Inline>
             ))}
+            {visitors.some((visitor) => visitor.recent_access_requests.length > 1) ? (
+              <Stack>
+                {visitors.map((visitor) => (
+                  visitor.recent_access_requests.length > 1 ? (
+                    <div key={`${visitor.id}-history`} className={uiClasses.textMuted}>
+                      <strong>{visitor.name}:</strong>{' '}
+                      {visitor.recent_access_requests.slice(0, 3).map(formatTrustedVisitorHistoryItem).join(' · ')}
+                    </div>
+                  ) : null
+                ))}
+              </Stack>
+            ) : null}
           </Stack>
         )}
 
@@ -746,6 +762,10 @@ function TrustedVisitorsPanel({
       </Stack>
     </Card>
   );
+}
+
+function formatTrustedVisitorHistoryItem(request: AccessRequest): string {
+  return `${new Date(request.created_at).toLocaleString()} · ${request.status}`;
 }
 
 function ResidentRequestActions({

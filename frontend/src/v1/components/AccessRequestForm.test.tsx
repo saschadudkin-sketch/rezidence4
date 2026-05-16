@@ -50,6 +50,7 @@ function makeRequest(): AccessRequest {
     target_zone_id: ZONE_ID,
     target_point_id: POINT_ID,
     target_unit_id: UNIT_ID,
+    trusted_visitor_id: null,
     reason: 'Документы',
     guest_instructions: 'Вход через КПП Север',
     guard_notes: 'Проверить документы',
