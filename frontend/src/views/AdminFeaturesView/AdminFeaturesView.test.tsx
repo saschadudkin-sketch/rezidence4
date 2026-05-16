@@ -25,21 +25,29 @@ vi.mock('../../hooks/useAuth', () => ({
 // Schema-mock соответствует backend/src/config/featureFlags.js (registry — единый источник правды).
 const SCHEMA_RESPONSE = {
   flags: [
-    { key: 'chat',             label: 'Чат',                    description: 'Чат жильцов с управляющей компанией и охраной', category: 'core',           default: true,  locked: true  },
-    { key: 'announcements',    label: 'Объявления',             description: 'Новости и объявления от управляющей компании',  category: 'communication',  default: false, locked: false },
-    { key: 'documents',        label: 'Документы и правила',    description: 'Правила, инструкции, документы в открытом доступе', category: 'communication', default: false, locked: false },
-    { key: 'kiosk_mode',       label: 'Киоск-режим (холл)',     description: 'Публичный экран в холле для гостей (/info)',    category: 'communication',  default: false, locked: false },
-    { key: 'qr_pass',          label: 'QR-пропуска',            description: 'Автоматические QR-коды для гостевых пропусков', category: 'access',         default: false, locked: false },
-    { key: 'meter_readings',   label: 'Показания счётчиков',    description: 'Подача показаний счётчиков воды и электричества', category: 'resident',     default: false, locked: false },
-    { key: 'billing',          label: 'Финансы и начисления',   description: 'Начисления и оплата коммунальных услуг',        category: 'resident',       default: false, locked: false },
-    { key: 'space_booking',    label: 'Бронирование зон',       description: 'Бронирование переговорных, барбекю, спортзала', category: 'resident',       default: false, locked: false },
-    { key: 'packages',         label: 'Посылки и доставки',     description: 'Учёт посылок и уведомление о доставке',         category: 'concierge',      default: false, locked: false },
-    { key: 'telegram_bot',     label: 'Telegram-уведомления',   description: 'Уведомления жильцам и охране в Telegram',       category: 'notifications',  default: false, locked: false },
-    { key: 'webhooks',         label: 'Webhook-интеграции',     description: 'Интеграция с внешними системами через webhook', category: 'integrations',   default: false, locked: false },
-    { key: 'skud_integration', label: 'СКУД-интеграция',        description: 'Автоматическое управление СКУД при пропусках', category: 'integrations',   default: false, locked: false },
-    { key: 'video_evidence',   label: 'Видео-доказательства',   description: 'Привязка камер, клипов и снимков к событиям доступа и инцидентам', category: 'integrations', default: false, locked: false },
-    { key: 'analytics',        label: 'Аналитика',              description: 'Статистика посещений, заявок и работы объекта', category: 'admin',          default: false, locked: false },
-    { key: 'legacy_utilities_enabled', label: 'Устаревшие модули (legacy)', description: 'Разморозить показания, биллинг, бронирования и чат (временно, до пост-релиза)', category: 'admin', default: false, locked: false },
+    { key: 'chat', label: 'Чат', description: 'Базовый чат жильцов с управляющей компанией и охраной. Включён всегда.', category: 'core', default: true, locked: true },
+    { key: 'announcements', label: 'Объявления', description: 'Публикация новостей, уведомлений и объявлений для жильцов объекта.', category: 'communication', default: false, locked: false },
+    { key: 'documents', label: 'Документы и правила', description: 'Раздел с правилами, инструкциями и документами объекта для жильцов и гостей.', category: 'communication', default: false, locked: false },
+    { key: 'kiosk_mode', label: 'Киоск-режим (холл)', description: 'Публичный информационный экран для холла или стойки ресепшен.', category: 'communication', default: false, locked: false },
+    { key: 'qr_pass', label: 'QR-пропуска', description: 'Выпуск QR-кодов для гостевых и сервисных пропусков.', category: 'access', default: false, locked: false },
+    { key: 'manual_access_approval', label: 'Ручное согласование пропусков', description: 'Пропуск выпускается только после ручного решения охраны или консьержа.', category: 'access', default: false, locked: false },
+    { key: 'trusted_visitors', label: 'Постоянные гости', description: 'Жильцы могут сохранять частых гостей и быстро создавать для них аудируемые пропуска.', category: 'access', default: false, locked: false },
+    { key: 'pin_credentials', label: 'PIN-пропуска', description: 'Дополнительный PIN для пропусков с ограничением попыток и журналом безопасности.', category: 'access', default: false, locked: false },
+    { key: 'public_pass_v1', label: 'Публичная страница v1-пропуска', description: 'Безопасная публичная страница пропуска для гостя без внутренних данных объекта.', category: 'access', default: false, locked: false },
+    { key: 'security_workspace_enriched', label: 'Расширенное рабочее место охраны', description: 'Пульт охраны с поиском, сканированием, ручными решениями и загрузкой offline-событий.', category: 'access', default: false, locked: false },
+    { key: 'guard_authorized_devices', label: 'Авторизованные устройства охраны', description: 'Ограничивает ручные решения охраны только подтверждёнными устройствами КПП.', category: 'access', default: false, locked: false },
+    { key: 'meter_readings', label: 'Показания счётчиков', description: 'Жильцы передают показания счётчиков воды и электричества через приложение.', category: 'resident', default: false, locked: false },
+    { key: 'billing', label: 'Финансы и начисления', description: 'Просмотр начислений, счетов и статусов оплаты коммунальных услуг.', category: 'resident', default: false, locked: false },
+    { key: 'space_booking', label: 'Бронирование зон', description: 'Бронирование общих пространств: переговорных, барбекю-зон, спортзала и других помещений.', category: 'resident', default: false, locked: false },
+    { key: 'packages', label: 'Посылки и доставки', description: 'Учёт посылок на посту и уведомления жильцам о получении.', category: 'concierge', default: false, locked: false },
+    { key: 'telegram_bot', label: 'Telegram-уведомления', description: 'Доставка уведомлений жильцам, охране и персоналу через Telegram.', category: 'notifications', default: false, locked: false },
+    { key: 'webhooks', label: 'Вебхуки', description: 'Отправка событий DomHub во внешние системы через вебхук-подписки.', category: 'integrations', default: false, locked: false },
+    { key: 'skud_integration', label: 'СКУД-интеграция', description: 'Связь с контроллерами СКУД, провайдерами доступа и журналом отказов интеграции.', category: 'integrations', default: false, locked: false },
+    { key: 'video_evidence', label: 'Видео-доказательства', description: 'Привязка камер, снимков и видеоклипов к событиям доступа и инцидентам.', category: 'integrations', default: false, locked: false },
+    { key: 'erp_exchange', label: 'ERP / 1C обмен', description: 'Импорт справочников и экспорт операционных сводок для ERP, 1C и ЖКХ-систем.', category: 'integrations', default: false, locked: false },
+    { key: 'gis_oss_readiness', label: 'ГИС ЖКХ / ОСС: подготовка', description: 'Подготовка пакетов документов для ГИС ЖКХ и ОСС без юридически значимого голосования внутри DomHub.', category: 'integrations', default: false, locked: false },
+    { key: 'analytics', label: 'Аналитика', description: 'Операционные метрики по заявкам, доступу, инцидентам, уведомлениям и работе объекта.', category: 'admin', default: false, locked: false },
+    { key: 'legacy_utilities_enabled', label: 'Устаревшие модули (legacy)', description: 'Временно открывает старые модули показаний, биллинга, бронирований и чата до их полной миграции.', category: 'admin', default: false, locked: false },
   ],
   categories: [
     { key: 'core',           label: 'Основные',          order: 1 },
@@ -111,7 +119,7 @@ describe('AdminFeaturesView', () => {
 
     // Backend label = 'Чат' (категория 'Основные'); описание полностью совпадает с registry.
     await screen.findByText('Чат');
-    expect(screen.getByText('Чат жильцов с управляющей компанией и охраной')).toBeInTheDocument();
+    expect(screen.getByText('Базовый чат жильцов с управляющей компанией и охраной. Включён всегда.')).toBeInTheDocument();
   });
 
   test('switches have accessible names from backend labels', async () => {
