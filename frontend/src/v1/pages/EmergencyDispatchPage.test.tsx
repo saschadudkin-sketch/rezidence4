@@ -299,6 +299,19 @@ describe('EmergencyDispatchPage', () => {
     });
   });
 
+  test('rejects invalid provider latency before submitting evidence', async () => {
+    renderPage();
+
+    await screen.findByText('Smoke in lobby');
+    fireEvent.change(screen.getByLabelText('Latency, ms'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^записать evidence$/i }));
+
+    expect(await screen.findByText(/Latency должен быть целым числом/i)).toBeInTheDocument();
+    expect(recordProviderDeliveryEvidenceMock).not.toHaveBeenCalled();
+  });
+
   test('records drill evidence from the admin page', async () => {
     renderPage();
 

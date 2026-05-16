@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
@@ -106,6 +106,19 @@ function emergencyTypeLabel(type: EmergencyType): string {
 
 function targetLabel(target: EmergencyEscalationTarget): string {
   return TARGETS.find((item) => item.value === target)?.label ?? target;
+}
+
+function parseLatencyMsInput(value: string): { value?: number; error?: string } {
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+  if (!/^\d+$/.test(trimmed)) {
+    return { error: 'Latency должен быть целым числом 0 или больше.' };
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed)) {
+    return { error: 'Latency слишком большой.' };
+  }
+  return { value: parsed };
 }
 
 export function EmergencyDispatchPage() {
@@ -418,28 +431,47 @@ function ProviderDeliveryRecorder({
   const [status, setStatus] = useState<EmergencyProviderDeliveryStatus>('delivered');
   const [latencyMs, setLatencyMs] = useState('');
   const [requestId, setRequestId] = useState(queue[0]?.requestId ?? '');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRequestId((current) => {
+      if (!current || queue.some((row) => row.requestId === current)) return current;
+      return queue[0]?.requestId ?? '';
+    });
+  }, [queue]);
 
   const mutation = useMutation({
-    mutationFn: () => api.serviceRequests.recordProviderDeliveryEvidence({
+    mutationFn: (payload: { provider: string; latencyMs?: number }) => api.serviceRequests.recordProviderDeliveryEvidence({
       property_id: propertyId,
       requestId: requestId || undefined,
-      provider: provider.trim(),
+      provider: payload.provider,
       channel,
       status,
       scenarioType: 'other',
-      latencyMs: latencyMs.trim() ? Number(latencyMs) : undefined,
+      latencyMs: payload.latencyMs,
       payload: { recorded_from: 'emergency_dispatch_ui' },
     }),
     onSuccess: () => {
       setLatencyMs('');
+      setFormError(null);
       onRecorded();
     },
   });
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!provider.trim()) return;
-    mutation.mutate();
+    const providerName = provider.trim();
+    if (!providerName) {
+      setFormError('Укажите провайдера.');
+      return;
+    }
+    const parsedLatency = parseLatencyMsInput(latencyMs);
+    if (parsedLatency.error) {
+      setFormError(parsedLatency.error);
+      return;
+    }
+    setFormError(null);
+    mutation.mutate({ provider: providerName, latencyMs: parsedLatency.value });
   };
 
   return (
@@ -508,6 +540,7 @@ function ProviderDeliveryRecorder({
               Evidence не записан: {isV1ApiError(mutation.error) ? mutation.error.message : 'ошибка сети'}
             </Alert>
           ) : null}
+          {formError ? <Alert tone="error">{formError}</Alert> : null}
           {mutation.isSuccess ? <Alert tone="success">Evidence записан.</Alert> : null}
           <Button type="submit" loading={mutation.isPending}>Записать evidence</Button>
         </Stack>

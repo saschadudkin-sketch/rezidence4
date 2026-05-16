@@ -344,6 +344,10 @@ describe('StaffWorkspacePage', () => {
       expect.objectContaining({ queue: 'active', limit: 30, offset: 0 }),
       expect.any(Object),
     );
+    expect(listCategoriesMock).toHaveBeenCalledWith(
+      { propertyId: 'prop-1' },
+      expect.any(Object),
+    );
   });
 
   test('sends queue filters to the staff workspace API', async () => {
@@ -420,6 +424,28 @@ describe('StaffWorkspacePage', () => {
         'req-1',
         expect.objectContaining({ status: 'accepted', expectedCurrentStatus: 'pending' }),
       );
+    });
+  });
+
+  test('refreshes both detail and canonical lifecycle panels', async () => {
+    renderWithProviders(<StaffWorkspacePage />);
+    await screen.findByText('Вызвали сантехника');
+
+    getRequestDetailMock.mockClear();
+    getServiceRequestByIdMock.mockClear();
+    getRequestHistoryMock.mockClear();
+    getRequestAttachmentsMock.mockClear();
+    getRequestUpdatesMock.mockClear();
+
+    const refreshButtons = screen.getAllByRole('button', { name: /^обновить$/i });
+    fireEvent.click(refreshButtons[refreshButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(getRequestDetailMock).toHaveBeenCalledTimes(1);
+      expect(getServiceRequestByIdMock).toHaveBeenCalledTimes(1);
+      expect(getRequestHistoryMock).toHaveBeenCalledTimes(1);
+      expect(getRequestAttachmentsMock).toHaveBeenCalledTimes(1);
+      expect(getRequestUpdatesMock).toHaveBeenCalledTimes(1);
     });
   });
 });

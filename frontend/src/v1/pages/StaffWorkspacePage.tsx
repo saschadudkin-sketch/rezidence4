@@ -258,7 +258,7 @@ export function StaffWorkspacePage() {
   });
 
   const categoryParams = useMemo(() => (
-    user.property_id ? { property_id: user.property_id } : undefined
+    user.property_id ? { propertyId: user.property_id } : undefined
   ), [user.property_id]);
 
   const categoriesQuery = useQuery({
@@ -507,6 +507,10 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
     setActionError(formatActionError(error, fallback));
   };
 
+  const refetchDetail = () => {
+    void Promise.all([detail.refetch(), lifecycle.refetch()]);
+  };
+
   const noteMutation = useMutation({
     mutationFn: (body: string) => api.staffWorkspace.createInternalComment(requestId, { body }),
     onSuccess: () => {
@@ -661,7 +665,11 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
         }
         subtitle={`#${request.id.slice(0, 8)} · создана ${formatDateTime(request.createdAt)}`}
         actions={
-          <Button variant="ghost" onClick={() => void detail.refetch()} disabled={detail.isFetching}>
+          <Button
+            variant="ghost"
+            onClick={refetchDetail}
+            disabled={detail.isFetching || lifecycle.isFetching}
+          >
             Обновить
           </Button>
         }

@@ -36,12 +36,14 @@ export interface ListServiceRequestsParams extends PaginationParams {
 }
 
 export interface ListServiceRequestCategoriesParams {
+  /** @deprecated Use propertyId; backend /api/v1/requests reads propertyId. */
   property_id?: UUID;
   propertyId?: UUID;
 }
 
 export interface UpsertServiceRequestCategoryBody {
   propertyId?: UUID;
+  /** @deprecated Use propertyId; backend /api/v1/requests reads propertyId. */
   property_id?: UUID;
   name: string;
   domain?: ServiceRequestCategoryDomain | string;
@@ -107,7 +109,7 @@ export interface CreateServiceRequestUpdateBody {
 }
 
 export interface ServiceRequestRateBody {
-  score: number;
+  rating: number;
   comment?: string;
 }
 
@@ -159,6 +161,22 @@ function toQuery(params: object | undefined): string {
   return `?${qs.toString()}`;
 }
 
+function normalizeCategoryParams(
+  params: ListServiceRequestCategoriesParams | undefined,
+): ListServiceRequestCategoriesParams | undefined {
+  if (!params?.property_id) return params;
+  const { property_id, ...rest } = params;
+  return { ...rest, propertyId: rest.propertyId ?? property_id };
+}
+
+function normalizeCategoryBody(
+  body: UpsertServiceRequestCategoryBody,
+): UpsertServiceRequestCategoryBody {
+  if (!body.property_id) return body;
+  const { property_id, ...rest } = body;
+  return { ...rest, propertyId: rest.propertyId ?? property_id };
+}
+
 export const serviceRequestsApi = {
   list(params?: ListServiceRequestsParams, opts?: RequestOpts) {
     return v1Client.get<{
@@ -202,7 +220,7 @@ export const serviceRequestsApi = {
 
   listCategories(params?: ListServiceRequestCategoriesParams, opts?: RequestOpts) {
     return v1Client.get<{ data: ServiceRequestCategory[] }>(
-      `/requests/categories${toQuery(params)}`,
+      `/requests/categories${toQuery(normalizeCategoryParams(params))}`,
       opts,
     );
   },
@@ -210,7 +228,7 @@ export const serviceRequestsApi = {
   upsertCategory(code: string, body: UpsertServiceRequestCategoryBody, opts?: RequestOpts) {
     return v1Client.put<ServiceRequestCategory>(
       `/requests/categories/${encodeURIComponent(code)}`,
-      body,
+      normalizeCategoryBody(body),
       opts,
     );
   },
