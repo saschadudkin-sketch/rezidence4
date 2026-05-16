@@ -7,7 +7,7 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | Префикс | Routes | Уровень детализации |
 |---------|--------|---------------------|
 | `/api/v1/auth/*` | send-otp, refresh | response codes + base schemas |
-| `/api/v1/requests/*` | list, create, patch | response codes + RequestItem stub |
+| `/api/v1/requests/*` | list, create, patch | response codes + RequestItem schema |
 | `/api/v1/users/*` | list, restore | response codes + User schema |
 | `/api/v1/upload/*` | photo | UploadResponse |
 | `/api/v1/chat/*` | messages | ChatMessage stub |
@@ -35,7 +35,7 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 
 ## Что ещё нужно детализировать
 
-- **Generated operation anchors** — live route coverage полная, но 207 операций пока имеют generic `{ type: object }` request/response schemas. При следующем проходе по конкретному route нужно заменить generic schema на `*Create` / `*Update` / `*Response` schema.
+- **Generated operation anchors** — live route coverage полная; после уточнения `RequestItem` остался 1 mounted operation с generic `{ type: object }` request/response schema (`POST /api/v1/chat/messages`). При следующем проходе по конкретному route нужно заменить generic schema на `*Create` / `*Update` / `*Response` schema.
 - **Параметры query** — часть list endpoints принимает query (status filter, pagination), это нужно описать в endpoint-specific schemas.
 - **Pagination** — все list endpoints возвращают плоские массивы без cursor/page (см. audit gap про LIMIT 500). Когда введём pagination, обновить response schemas.
 - **Authentication details** — `securitySchemes` теперь фиксирует JWT cookie и `X-Property-Slug`; per-route capability matrix остаётся в markdown spec'ах и backend authz tests.

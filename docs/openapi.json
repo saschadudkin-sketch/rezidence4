@@ -26896,7 +26896,208 @@
         }
       },
       "RequestItem": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "category",
+          "status",
+          "createdByUid",
+          "createdByName",
+          "createdByRole",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "slaProfile": {
+            "type": "string"
+          },
+          "requestCategoryId": {
+            "type": "string",
+            "nullable": true
+          },
+          "targetType": {
+            "type": "string",
+            "nullable": true
+          },
+          "targetId": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstResponseDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolutionDueAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "emergencyMetadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "assignedToUid": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedToName": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedToRole": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "assignedContractorUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedContractorCompanyId": {
+            "type": "string",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "firstResponseAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "resolutionNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiresFollowUp": {
+            "type": "boolean"
+          },
+          "slaState": {
+            "type": "string"
+          },
+          "escalationLevel": {
+            "type": "integer"
+          },
+          "escalatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "escalationReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastSlaCheckAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdByUid": {
+            "type": "string"
+          },
+          "createdByName": {
+            "type": "string"
+          },
+          "createdByRole": {
+            "type": "string"
+          },
+          "createdByApt": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitorName": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitorPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "carPlate": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "passDuration": {
+            "type": "string",
+            "nullable": true
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "arrivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photo": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "emergencyProfile": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
       },
       "RequestsListResponse": {
         "oneOf": [
