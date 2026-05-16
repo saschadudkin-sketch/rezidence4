@@ -9,7 +9,7 @@
 import apiClient from './apiClient';
 import { resetRefreshState } from './apiClient';
 import { logger } from '../logger';
-import { API_BASE_URL } from '../../config/apiBaseUrl';
+import { apiV1Url } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
 import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse, type EntityRow } from '../http/contractParsers';
 import { emitSseActivity, emitSsePermanentError, emitSseRecoveredAfterGap, emitSseStatus } from '../../utils/events';
@@ -313,7 +313,7 @@ function createSSEManager() {
     const headers: Record<string, string> = {};
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/events`, {
+      const response = await fetch(apiV1Url('/events'), {
         credentials: 'include',
         signal,
         headers,

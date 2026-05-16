@@ -1,6 +1,8 @@
 /**
  * Centralized client logger.
  */
+import { apiV1Url } from '../config/apiBaseUrl';
+
 const RUNTIME_ENV = import.meta.env;
 const PROCESS_ENV = typeof process !== 'undefined' ? process.env : {};
 const MODE = RUNTIME_ENV.MODE ?? PROCESS_ENV.NODE_ENV;
@@ -9,6 +11,10 @@ const IS_TEST = MODE === 'test' || PROCESS_ENV.NODE_ENV === 'test' || Boolean(PR
 
 function isConsoleEnabled(): boolean {
   return IS_DEV && (!IS_TEST || PROCESS_ENV.VITEST_LOGGER_CONSOLE === '1');
+}
+
+export function clientLogsUrl(): string {
+  return apiV1Url('/client-logs');
 }
 
 export type LoggerContext = Record<string, unknown>;
@@ -39,8 +45,7 @@ export function createLogger() {
     if (errorBuffer.length === 0) return;
 
     const batch = errorBuffer.splice(0, MAX_BUFFER);
-    const baseUrl = RUNTIME_ENV.VITE_API_URL || '';
-    const url = `${baseUrl}/api/v1/client-logs`;
+    const url = clientLogsUrl();
     const body = JSON.stringify({ errors: batch });
 
     try {

@@ -179,3 +179,12 @@ describe('createLogger() — изоляция экземпляров (AUDIT-9)',
     expect(log.getContext().uid).toBe('u1');
   });
 });
+
+describe('createLogger() — API URL', () => {
+  test('clientLogsUrl uses shared v1 API base URL', async () => {
+    const { API_BASE_URL } = await import('../config/apiBaseUrl');
+    const { clientLogsUrl } = await import('./logger');
+
+    expect(clientLogsUrl()).toBe(`${API_BASE_URL}/api/v1/client-logs`);
+  });
+});
