@@ -201,6 +201,8 @@ export function invalidateTechnicianWorkspaceRequest(
     qc.invalidateQueries({ queryKey: qk.technicianWorkspace.request(id) }),
     qc.invalidateQueries({ queryKey: qk.technicianWorkspace.all }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.lifecycle(id) }),
   ]).then(() => undefined);
 }
 
@@ -212,6 +214,8 @@ export function invalidateContractorWorkspaceRequest(
     qc.invalidateQueries({ queryKey: qk.contractorWorkspace.request(id) }),
     qc.invalidateQueries({ queryKey: qk.contractorWorkspace.all }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.lifecycle(id) }),
   ]).then(() => undefined);
 }
 
