@@ -100,6 +100,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./053_pass_credentials'),
   // Access rollout Phase 7: guard authorized checkpoint devices
   require('./054_guard_authorized_devices'),
+  // Phase 7 hardening: pending approval, tenant FK, hashed fingerprints
+  require('./055_guard_authorized_devices_hardening'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

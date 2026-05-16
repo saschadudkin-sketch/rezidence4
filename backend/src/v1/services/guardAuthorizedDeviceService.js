@@ -1,10 +1,12 @@
 'use strict';
 
+const crypto = require('crypto');
 const { resolveStaffIdByUid } = require('./accessActorResolver');
 
 const DEVICE_COLS = `
   id, property_id, access_point_id, staff_user_id, device_fingerprint, label,
-  status, last_seen_at, revoked_at, created_at, updated_at
+  status, last_seen_at, approved_by_staff_id, approved_at, revoked_at,
+  created_at, updated_at
 `;
 
 class GuardAuthorizedDeviceServiceError extends Error {
@@ -43,6 +45,13 @@ function normalizeDeviceFingerprint(value) {
   return trimmed;
 }
 
+function hashDeviceFingerprint(value) {
+  return crypto
+    .createHash('sha256')
+    .update(`guard-device:v1:${value}`)
+    .digest('hex');
+}
+
 function normalizeLabel(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
   return normalizeText(value, 'label', 120);
@@ -77,6 +86,17 @@ function deviceContext(row) {
   };
 }
 
+function publicDevice(row) {
+  if (!row) return null;
+  const { device_fingerprint: fingerprintHash, ...rest } = row;
+  return {
+    ...rest,
+    device_fingerprint_preview: typeof fingerprintHash === 'string'
+      ? fingerprintHash.slice(-8)
+      : null,
+  };
+}
+
 async function writeAudit(queryable, {
   propertyId,
   actorUid,
@@ -108,8 +128,11 @@ async function enrollGuardAuthorizedDevice(queryable, input) {
   const propertyId = normalizeText(input.propertyId || input.property_id, 'property_id', 80);
   const accessPointId = normalizeNullableUuid(input.accessPointId || input.access_point_id, 'access_point_id');
   const deviceFingerprint = normalizeDeviceFingerprint(input.deviceFingerprint || input.device_fingerprint);
+  const deviceFingerprintHash = hashDeviceFingerprint(deviceFingerprint);
   const staffId = await ensureStaffId(queryable, input.user);
   await ensureAccessPoint(queryable, { propertyId, accessPointId });
+  const activate = input.activate === true || input.status === 'active';
+  const nextStatus = activate ? 'active' : 'pending';
 
   const label = normalizeLabel(
     input.label,
@@ -117,35 +140,51 @@ async function enrollGuardAuthorizedDevice(queryable, input) {
   );
 
   const { rows } = await queryable.query(
-    `INSERT INTO guard_authorized_devices
-       (property_id, access_point_id, staff_user_id, device_fingerprint,
-        label, status, last_seen_at)
-     VALUES ($1,$2,$3,$4,$5,'active',NOW())
+      `INSERT INTO guard_authorized_devices
+        (property_id, access_point_id, staff_user_id, device_fingerprint,
+         label, status, last_seen_at, approved_by_staff_id, approved_at)
+     VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7,CASE WHEN $6 = 'active' THEN NOW() ELSE NULL END)
      ON CONFLICT (property_id, device_fingerprint)
      DO UPDATE SET
         access_point_id = EXCLUDED.access_point_id,
         staff_user_id = EXCLUDED.staff_user_id,
         label = EXCLUDED.label,
-        status = 'active',
+        status = CASE
+          WHEN guard_authorized_devices.status = 'active' THEN 'active'
+          ELSE EXCLUDED.status
+        END,
         last_seen_at = NOW(),
-        revoked_at = NULL,
+        approved_by_staff_id = CASE
+          WHEN EXCLUDED.status = 'active' THEN EXCLUDED.approved_by_staff_id
+          ELSE guard_authorized_devices.approved_by_staff_id
+        END,
+        approved_at = CASE
+          WHEN EXCLUDED.status = 'active' THEN NOW()
+          ELSE guard_authorized_devices.approved_at
+        END,
         updated_at = NOW()
-     RETURNING ${DEVICE_COLS}`,
-    [propertyId, accessPointId, staffId, deviceFingerprint, label],
+      WHERE guard_authorized_devices.status <> 'revoked'
+      RETURNING ${DEVICE_COLS}`,
+    [propertyId, accessPointId, staffId, deviceFingerprintHash, label, nextStatus, activate ? staffId : null],
   );
   const device = rows[0];
+  if (!device) {
+    throw serviceError(409, 'Guard device was revoked and cannot be re-enrolled');
+  }
 
   await writeAudit(queryable, {
     propertyId,
     actorUid: input.user?.uid || null,
     actorRole: input.user?.role || null,
     deviceId: device.id,
-    action: 'guard_authorized_device.enrolled',
+    action: device.status === 'active'
+      ? 'guard_authorized_device.enrolled'
+      : 'guard_authorized_device.enrollment_requested',
     changes: deviceContext(device),
     ipAddress: input.ipAddress || input.ip_address || null,
   });
 
-  return device;
+  return publicDevice(device);
 }
 
 async function listGuardAuthorizedDevices(queryable, {
@@ -162,7 +201,7 @@ async function listGuardAuthorizedDevices(queryable, {
   }
   if (status) {
     const normalized = normalizeText(status, 'status', 20);
-    if (!['active', 'revoked'].includes(normalized)) throw serviceError(400, 'Invalid status');
+    if (!['pending', 'active', 'revoked'].includes(normalized)) throw serviceError(400, 'Invalid status');
     params.push(normalized);
     filters.push(`status = $${params.length}`);
   }
@@ -177,7 +216,38 @@ async function listGuardAuthorizedDevices(queryable, {
       LIMIT $${params.length}`,
     params,
   );
-  return rows;
+  return rows.map(publicDevice);
+}
+
+async function approveGuardAuthorizedDevice(queryable, input) {
+  const propertyId = normalizeText(input.propertyId || input.property_id, 'property_id', 80);
+  const deviceId = normalizeText(input.guardDeviceId || input.guard_device_id || input.deviceId || input.id, 'guard_device_id', 80);
+  const approverStaffId = await ensureStaffId(queryable, input.user);
+  const { rows } = await queryable.query(
+    `UPDATE guard_authorized_devices
+        SET status = 'active',
+            approved_by_staff_id = $3,
+            approved_at = COALESCE(approved_at, NOW()),
+            last_seen_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1 AND property_id = $2 AND status = 'pending'
+      RETURNING ${DEVICE_COLS}`,
+    [deviceId, propertyId, approverStaffId],
+  );
+  const device = rows[0];
+  if (!device) throw serviceError(404, 'Pending guard authorized device not found');
+
+  await writeAudit(queryable, {
+    propertyId,
+    actorUid: input.user?.uid || null,
+    actorRole: input.user?.role || null,
+    deviceId: device.id,
+    action: 'guard_authorized_device.approved',
+    changes: deviceContext(device),
+    ipAddress: input.ipAddress || input.ip_address || null,
+  });
+
+  return publicDevice(device);
 }
 
 async function revokeGuardAuthorizedDevice(queryable, input) {
@@ -208,7 +278,7 @@ async function revokeGuardAuthorizedDevice(queryable, input) {
     ipAddress: input.ipAddress || input.ip_address || null,
   });
 
-  return device;
+  return publicDevice(device);
 }
 
 async function assertGuardDeviceAuthorized(queryable, input) {
@@ -216,20 +286,22 @@ async function assertGuardDeviceAuthorized(queryable, input) {
   const accessPointId = normalizeNullableUuid(input.accessPointId || input.access_point_id, 'access_point_id');
   const deviceId = normalizeText(input.guardDeviceId || input.guard_device_id, 'guard_device_id', 80);
   const deviceFingerprint = normalizeDeviceFingerprint(input.deviceFingerprint || input.device_fingerprint);
+  const deviceFingerprintHash = hashDeviceFingerprint(deviceFingerprint);
   const staffId = await ensureStaffId(queryable, input.user);
 
   const { rows } = await queryable.query(
     `SELECT ${DEVICE_COLS}
-       FROM guard_authorized_devices
-      WHERE id = $1
-        AND property_id = $2
-        AND device_fingerprint = $3
-      LIMIT 1`,
-    [deviceId, propertyId, deviceFingerprint],
+         FROM guard_authorized_devices
+       WHERE id = $1
+         AND property_id = $2
+         AND device_fingerprint = $3
+       LIMIT 1`,
+    [deviceId, propertyId, deviceFingerprintHash],
   );
   const device = rows[0];
   if (!device) throw serviceError(403, 'Guard device is not authorized');
-  if (device.status !== 'active') throw serviceError(403, 'Guard device is revoked');
+  if (device.status === 'revoked') throw serviceError(403, 'Guard device is revoked');
+  if (device.status !== 'active') throw serviceError(403, 'Guard device is pending approval');
   if (device.staff_user_id && device.staff_user_id !== staffId) {
     throw serviceError(403, 'Guard device is not authorized for this staff user');
   }
@@ -249,6 +321,7 @@ async function assertGuardDeviceAuthorized(queryable, input) {
 
 module.exports = {
   GuardAuthorizedDeviceServiceError,
+  approveGuardAuthorizedDevice,
   assertGuardDeviceAuthorized,
   deviceContext,
   enrollGuardAuthorizedDevice,

@@ -26442,7 +26442,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/GuardAuthorizedDevicesResponse"
                 }
               }
             }
@@ -26501,8 +26501,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/EnrollGuardAuthorizedDeviceRequest"
               }
             }
           }
@@ -26513,7 +26512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/GuardAuthorizedDeviceResponse"
                 }
               }
             }
@@ -26540,6 +26539,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -26583,8 +26592,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/GuardAuthorizedDeviceDecisionRequest"
               }
             }
           }
@@ -26595,7 +26603,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/GuardAuthorizedDeviceResponse"
                 }
               }
             }
@@ -26643,177 +26651,12 @@
         }
       }
     },
-    "/api/v1/security/authorized-devices": {
-      "get": {
-        "tags": [
-          "security-workspace"
-        ],
-        "summary": "List guard authorized devices",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "property_id",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "access_point_id",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/security/authorized-devices/enroll": {
+    "/api/v1/security-workspace/authorized-devices/{guardDeviceId}/approve": {
       "post": {
         "tags": [
           "security-workspace"
         ],
-        "summary": "Enroll guard authorized device",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/security/authorized-devices/{guardDeviceId}/revoke": {
-      "post": {
-        "tags": [
-          "security-workspace"
-        ],
-        "summary": "Revoke guard authorized device",
+        "summary": "Approve guard authorized device",
         "parameters": [
           {
             "in": "path",
@@ -26830,8 +26673,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/GuardAuthorizedDeviceDecisionRequest"
               }
             }
           }
@@ -26842,7 +26684,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/GuardAuthorizedDeviceResponse"
                 }
               }
             }
@@ -26869,6 +26711,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -29657,6 +29509,162 @@
             "format": "date-time"
           }
         }
+      },
+      "GuardAuthorizedDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "access_point_id",
+          "staff_user_id",
+          "device_fingerprint_preview",
+          "label",
+          "status",
+          "last_seen_at",
+          "approved_by_staff_id",
+          "approved_at",
+          "revoked_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "access_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "staff_user_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "device_fingerprint_preview": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "revoked"
+            ]
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "approved_by_staff_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuardAuthorizedDeviceResponse": {
+        "type": "object",
+        "required": [
+          "guard_authorized_device"
+        ],
+        "properties": {
+          "guard_authorized_device": {
+            "$ref": "#/components/schemas/GuardAuthorizedDevice"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuardAuthorizedDevicesResponse": {
+        "type": "object",
+        "required": [
+          "guard_authorized_devices"
+        ],
+        "properties": {
+          "guard_authorized_devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuardAuthorizedDevice"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "EnrollGuardAuthorizedDeviceRequest": {
+        "type": "object",
+        "required": [
+          "property_id",
+          "device_fingerprint"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "access_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "device_fingerprint": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          },
+          "label": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 120
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuardAuthorizedDeviceDecisionRequest": {
+        "type": "object",
+        "required": [
+          "property_id"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

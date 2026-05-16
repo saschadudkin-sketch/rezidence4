@@ -22,9 +22,10 @@ function isSecurityOfflineReplayServiceError(err) {
 
 async function recordReplayEvent({ queryable, propertyId, staffId, event }) {
   const occurredAt = event.occurred_at || new Date().toISOString();
+  const { guard_device_id, guardDeviceId, device_fingerprint, deviceFingerprint, ...safeEvent } = event;
   const payload = {
-    ...event,
-    vehicle_plate: event.vehicle_plate ? normalizePlate(event.vehicle_plate) : event.vehicle_plate || null,
+    ...safeEvent,
+    vehicle_plate: safeEvent.vehicle_plate ? normalizePlate(safeEvent.vehicle_plate) : safeEvent.vehicle_plate || null,
   };
 
   const existing = await queryable.query(

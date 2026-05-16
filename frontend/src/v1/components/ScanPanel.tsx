@@ -365,7 +365,13 @@ export function ScanPanel({
       const buildOfflineEvent = (
         degradedReason: ManualDecisionDegradedReason,
       ): SecurityOfflineReplayEvent => ({
-        ...body,
+        property_id: propertyId,
+        access_point_id: selectedPointId || null,
+        decision: manualDecision,
+        direction,
+        reason,
+        person_label: personLabel || null,
+        vehicle_plate: plate || null,
         client_event_id: newClientEventId(),
         event_type: manualDecision,
         degraded_mode: true,

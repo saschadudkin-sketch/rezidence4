@@ -924,7 +924,8 @@ export type SecurityOfflineReplayEventType =
   | 'lookup_snapshot'
   | 'sync_error';
 
-export interface SecurityOfflineReplayEvent extends Partial<ManualSecurityDecisionRequest> {
+export interface SecurityOfflineReplayEvent
+  extends Partial<Omit<ManualSecurityDecisionRequest, 'guard_device_id' | 'device_fingerprint'>> {
   client_event_id: string;
   event_type: SecurityOfflineReplayEventType;
   occurred_at: IsoDateTime;
@@ -954,10 +955,12 @@ export interface GuardAuthorizedDevice {
   property_id: UUID;
   access_point_id: UUID | null;
   staff_user_id: UUID | null;
-  device_fingerprint: string;
+  device_fingerprint_preview?: string | null;
   label: string;
-  status: 'active' | 'revoked';
+  status: 'pending' | 'active' | 'revoked';
   last_seen_at: IsoDateTime | null;
+  approved_by_staff_id?: UUID | null;
+  approved_at?: IsoDateTime | null;
   revoked_at: IsoDateTime | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;

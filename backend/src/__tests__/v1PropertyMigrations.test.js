@@ -50,8 +50,8 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 access request product text fields
     // + 1 trusted visitors / frequent guests
     // + 1 pass credential layer
-    // + 1 guard authorized devices = 54
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(54);
+    // + 1 guard authorized devices + 1 guard device hardening = 55
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(55);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -138,13 +138,26 @@ describe('v1_054_guard_authorized_devices', () => {
     expect(tbl).toContain('access_point_id      UUID');
     expect(tbl).toContain('staff_user_id        UUID');
     expect(tbl).toContain('device_fingerprint   TEXT NOT NULL');
-    expect(tbl).toContain("CHECK (status IN ('active','revoked'))");
+    expect(tbl).toContain("CHECK (status IN ('pending','active','revoked'))");
+    expect(tbl).toContain('approved_by_staff_id UUID');
+    expect(tbl).toContain('approved_at          TIMESTAMPTZ');
     expect(tbl).toContain('REFERENCES access_points(property_id, id)');
-    expect(tbl).toContain('REFERENCES staff_users(id)');
+    expect(tbl).toContain('REFERENCES staff_users(property_id, id)');
     expect(sqls.find((s) => s.includes('uq_guard_authorized_devices_fingerprint')))
       .toContain('ON guard_authorized_devices(property_id, device_fingerprint)');
     expect(sqls.find((s) => s.includes('idx_guard_authorized_devices_access_point')))
       .toContain('WHERE access_point_id IS NOT NULL');
+  });
+
+  test('hardens existing guard devices forward-only', async () => {
+    await byId('v1_055_guard_authorized_devices_hardening').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    expect(sqls.find((s) => s.includes('ADD COLUMN IF NOT EXISTS approved_by_staff_id')))
+      .toContain('approved_at TIMESTAMPTZ');
+    expect(sqls.find((s) => s.includes('guard_authorized_devices_status_check')))
+      .toContain("CHECK (status IN ('pending','active','revoked'))");
+    expect(sqls.find((s) => s.includes('UPDATE guard_authorized_devices')))
+      .toContain("digest('guard-device:v1:' || device_fingerprint, 'sha256')");
   });
 });
 

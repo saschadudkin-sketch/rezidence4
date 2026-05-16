@@ -10,6 +10,11 @@ module.exports = {
   id: 'v1_054_guard_authorized_devices',
   async up(client) {
     await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_staff_users_property_id
+        ON staff_users(property_id, id)
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS guard_authorized_devices (
         id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         property_id          UUID NOT NULL,
@@ -17,9 +22,12 @@ module.exports = {
         staff_user_id        UUID,
         device_fingerprint   TEXT NOT NULL,
         label                VARCHAR(120) NOT NULL,
-        status               VARCHAR(20) NOT NULL DEFAULT 'active'
-                             CHECK (status IN ('active','revoked')),
+        status               VARCHAR(20) NOT NULL DEFAULT 'pending'
+                             CONSTRAINT guard_authorized_devices_status_check
+                             CHECK (status IN ('pending','active','revoked')),
         last_seen_at         TIMESTAMPTZ,
+        approved_by_staff_id UUID,
+        approved_at          TIMESTAMPTZ,
         revoked_at           TIMESTAMPTZ,
         created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -33,7 +41,11 @@ module.exports = {
           REFERENCES access_points(property_id, id)
           ON DELETE SET NULL,
         CONSTRAINT guard_authorized_devices_staff_fk
-          FOREIGN KEY (staff_user_id)
+          FOREIGN KEY (property_id, staff_user_id)
+          REFERENCES staff_users(property_id, id)
+          ON DELETE SET NULL (staff_user_id),
+        CONSTRAINT guard_authorized_devices_approved_by_staff_fk
+          FOREIGN KEY (approved_by_staff_id)
           REFERENCES staff_users(id)
           ON DELETE SET NULL
       )

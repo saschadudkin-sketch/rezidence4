@@ -28462,7 +28462,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OkResponse"];
+                        "application/json": components["schemas"]["GuardAuthorizedDevicesResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -28530,9 +28530,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EnrollGuardAuthorizedDeviceRequest"];
                 };
             };
             responses: {
@@ -28542,7 +28540,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OkResponse"];
+                        "application/json": components["schemas"]["GuardAuthorizedDeviceResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -28565,6 +28563,15 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -28610,9 +28617,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GuardAuthorizedDeviceDecisionRequest"];
                 };
             };
             responses: {
@@ -28622,7 +28627,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OkResponse"];
+                        "application/json": components["schemas"]["GuardAuthorizedDeviceResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -28669,84 +28674,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/security/authorized-devices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List guard authorized devices */
-        get: {
-            parameters: {
-                query?: {
-                    property_id?: string;
-                    access_point_id?: string;
-                    status?: string;
-                    limit?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OkResponse"];
-                    };
-                };
-                /** @description Bad request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Server error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/security/authorized-devices/enroll": {
+    "/api/v1/security-workspace/authorized-devices/{guardDeviceId}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -28755,85 +28683,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Enroll guard authorized device */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            responses: {
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OkResponse"];
-                    };
-                };
-                /** @description Bad request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Server error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/security/authorized-devices/{guardDeviceId}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Revoke guard authorized device */
+        /** Approve guard authorized device */
         post: {
             parameters: {
                 query?: never;
@@ -28845,9 +28695,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GuardAuthorizedDeviceDecisionRequest"];
                 };
             };
             responses: {
@@ -28857,7 +28705,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OkResponse"];
+                        "application/json": components["schemas"]["GuardAuthorizedDeviceResponse"];
                     };
                 };
                 /** @description Bad request */
@@ -28880,6 +28728,15 @@ export interface paths {
                 };
                 /** @description Forbidden */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -29720,6 +29577,51 @@ export interface components {
             valid_until: string;
         } & {
             [key: string]: unknown;
+        };
+        GuardAuthorizedDevice: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            property_id: string;
+            /** Format: uuid */
+            access_point_id: string | null;
+            /** Format: uuid */
+            staff_user_id: string | null;
+            device_fingerprint_preview: string | null;
+            label: string;
+            /** @enum {string} */
+            status: "pending" | "active" | "revoked";
+            /** Format: date-time */
+            last_seen_at: string | null;
+            /** Format: uuid */
+            approved_by_staff_id: string | null;
+            /** Format: date-time */
+            approved_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        GuardAuthorizedDeviceResponse: {
+            guard_authorized_device: components["schemas"]["GuardAuthorizedDevice"];
+        };
+        GuardAuthorizedDevicesResponse: {
+            guard_authorized_devices: components["schemas"]["GuardAuthorizedDevice"][];
+        };
+        EnrollGuardAuthorizedDeviceRequest: {
+            /** Format: uuid */
+            property_id: string;
+            /** Format: uuid */
+            access_point_id?: string | null;
+            device_fingerprint: string;
+            label?: string | null;
+        };
+        GuardAuthorizedDeviceDecisionRequest: {
+            /** Format: uuid */
+            property_id: string;
+            reason?: string | null;
         };
     };
     responses: never;

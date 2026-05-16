@@ -44,7 +44,7 @@ export interface EnrollGuardAuthorizedDeviceBody {
 }
 
 export interface ListGuardAuthorizedDevicesParams extends SecurityWorkspaceScopedParams {
-  status?: 'active' | 'revoked';
+  status?: 'pending' | 'active' | 'revoked';
 }
 
 export interface RevokeGuardAuthorizedDeviceBody {
@@ -117,6 +117,16 @@ export const securityWorkspaceApi = {
     return v1Client.get<GuardAuthorizedDevicesResponse>(
       `/security-workspace/authorized-devices${toQuery(params)}`,
       opts,
+    );
+  },
+  approveAuthorizedDevice(id: UUID, body: RevokeGuardAuthorizedDeviceBody, opts?: RequestOpts) {
+    return v1Client.post<GuardAuthorizedDeviceResponse>(
+      `/security-workspace/authorized-devices/${id}/approve`,
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
     );
   },
   revokeAuthorizedDevice(id: UUID, body: RevokeGuardAuthorizedDeviceBody, opts?: RequestOpts) {

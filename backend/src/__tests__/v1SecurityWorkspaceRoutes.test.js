@@ -290,7 +290,7 @@ describe('security workspace routes', () => {
     expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
-  test('POST /authorized-devices/enroll registers first-use guard console device', async () => {
+  test('POST /authorized-devices/enroll creates pending first-use guard console device', async () => {
     mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
     db.query.mockImplementation((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -302,9 +302,9 @@ describe('security workspace routes', () => {
             property_id: UUID_PROPERTY,
             access_point_id: UUID_POINT,
             staff_user_id: UUID_STAFF,
-            device_fingerprint: 'fingerprint-1234567890',
+            device_fingerprint: 'hashed-fingerprint',
             label: 'КПП Север планшет',
-            status: 'active',
+            status: 'pending',
           }],
         });
       }
@@ -323,8 +323,41 @@ describe('security workspace routes', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.guard_authorized_device.id).toBe(UUID_GUARD_DEVICE);
+    expect(res.body.guard_authorized_device.status).toBe('pending');
+    expect(res.body.guard_authorized_device.device_fingerprint).toBeUndefined();
     const audit = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
-    expect(audit[1][4]).toBe('guard_authorized_device.enrolled');
+    expect(audit[1][4]).toBe('guard_authorized_device.enrollment_requested');
+  });
+
+  test('POST /authorized-devices/:id/approve requires admin and activates pending device', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('UPDATE guard_authorized_devices')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_GUARD_DEVICE,
+            property_id: UUID_PROPERTY,
+            access_point_id: UUID_POINT,
+            staff_user_id: UUID_STAFF,
+            device_fingerprint: 'hashed-fingerprint',
+            label: 'КПП Север планшет',
+            status: 'active',
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/security-workspace/authorized-devices/${UUID_GUARD_DEVICE}/approve`)
+      .send({ property_id: UUID_PROPERTY });
+
+    expect(res.status).toBe(200);
+    expect(res.body.guard_authorized_device.status).toBe('active');
+    const audit = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(audit[1][4]).toBe('guard_authorized_device.approved');
   });
 
   test('POST /offline-replay links replay ledger to manual visit log', async () => {

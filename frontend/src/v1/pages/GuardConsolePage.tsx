@@ -150,6 +150,7 @@ export function GuardConsolePage() {
 
 interface StoredGuardDevice extends GuardAuthorizedDeviceContext {
   label?: string;
+  status?: 'pending' | 'active';
 }
 
 function guardDeviceStorageKey(propertyId: UUID, accessPointId: UUID | null): string {
@@ -174,6 +175,7 @@ function readStoredGuardDevice(propertyId: UUID, accessPointId: UUID | null): St
       guard_device_id: parsed.guard_device_id,
       device_fingerprint: parsed.device_fingerprint,
       label: parsed.label,
+      status: parsed.status === 'pending' ? 'pending' : 'active',
     };
   } catch {
     return null;
@@ -202,7 +204,7 @@ function GuardDeviceEnrollmentPanel({
   useEffect(() => {
     const next = readStoredGuardDevice(propertyId, accessPointId);
     setStored(next);
-    onDeviceReady(next);
+    onDeviceReady(next && next.status !== 'pending' ? next : null);
     setLabel(next?.label || '');
     setError(null);
   }, [accessPointId, onDeviceReady, propertyId]);
@@ -220,15 +222,16 @@ function GuardDeviceEnrollmentPanel({
         device_fingerprint: deviceFingerprint,
         label: resolvedLabel,
       });
-      const next = {
+      const next: StoredGuardDevice = {
         guard_device_id: res.guard_authorized_device.id,
-        device_fingerprint: res.guard_authorized_device.device_fingerprint,
+        device_fingerprint: deviceFingerprint,
         label: res.guard_authorized_device.label,
+        status: res.guard_authorized_device.status === 'active' ? 'active' : 'pending',
       };
       writeStoredGuardDevice(propertyId, accessPointId, next);
       setStored(next);
       setLabel(next.label || '');
-      onDeviceReady(next);
+      onDeviceReady(next.status === 'active' ? next : null);
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось авторизовать устройство охраны');
       onDeviceReady(null);
@@ -241,7 +244,11 @@ function GuardDeviceEnrollmentPanel({
     <Card
       title="Устройство поста"
       subtitle={accessPointId ? `Привязка к КПП ${accessPointId.slice(0, 8)}` : 'Выберите КПП для точной привязки'}
-      actions={stored ? <Badge tone="success">Авторизовано</Badge> : <Badge tone="warning">Требуется enrollment</Badge>}
+      actions={
+        stored
+          ? <Badge tone={stored.status === 'pending' ? 'warning' : 'success'}>{stored.status === 'pending' ? 'На подтверждении' : 'Авторизовано'}</Badge>
+          : <Badge tone="warning">Требуется enrollment</Badge>
+      }
     >
       {error ? <Alert tone="error">{error}</Alert> : null}
       {stored ? (
@@ -249,9 +256,14 @@ function GuardDeviceEnrollmentPanel({
           <p className={uiClasses.textMuted}>
             {stored.label || 'Пост охраны'} · ID {stored.guard_device_id.slice(0, 8)}
           </p>
+          {stored.status === 'pending' ? (
+            <Alert tone="warning">
+              Устройство ожидает подтверждения администратором. Ручные решения будут заблокированы до подтверждения.
+            </Alert>
+          ) : null}
           <Inline>
             <Button type="button" variant="secondary" loading={saving} onClick={() => void enroll()}>
-              Обновить привязку
+              {stored.status === 'pending' ? 'Проверить статус' : 'Обновить привязку'}
             </Button>
           </Inline>
         </Stack>
@@ -266,7 +278,7 @@ function GuardDeviceEnrollmentPanel({
             />
           </Field>
           <Button type="button" loading={saving} onClick={() => void enroll()}>
-            Авторизовать устройство
+            Запросить подтверждение
           </Button>
         </Stack>
       )}

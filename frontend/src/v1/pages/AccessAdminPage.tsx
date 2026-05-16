@@ -670,7 +670,7 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
 function GuardDevicesTab({ propertyId }: { propertyId: UUID }) {
   const [devices, setDevices] = useState<GuardAuthorizedDevice[]>([]);
   const [points, setPoints] = useState<AccessPoint[]>([]);
-  const [status, setStatus] = useState<'active' | 'revoked' | ''>('active');
+  const [status, setStatus] = useState<'pending' | 'active' | 'revoked' | ''>('pending');
   const [revokeReasons, setRevokeReasons] = useState<Record<UUID, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<UUID | null>(null);
@@ -724,6 +724,21 @@ function GuardDevicesTab({ propertyId }: { propertyId: UUID }) {
     }
   }
 
+  async function approveDevice(device: GuardAuthorizedDevice) {
+    setSavingId(device.id);
+    setError(null);
+    try {
+      await securityWorkspaceApi.approveAuthorizedDevice(device.id, {
+        property_id: propertyId,
+      });
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось подтвердить устройство');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <Stack>
       {error ? <Alert tone="error">{error}</Alert> : null}
@@ -733,8 +748,9 @@ function GuardDevicesTab({ propertyId }: { propertyId: UUID }) {
         actions={<Button variant="ghost" onClick={() => void load()} loading={loading}>Обновить</Button>}
       >
         <Field label="Статус">
-          <Select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'revoked' | '')}>
+          <Select value={status} onChange={(e) => setStatus(e.target.value as 'pending' | 'active' | 'revoked' | '')}>
             <option value="">Все</option>
+            <option value="pending">На подтверждении</option>
             <option value="active">Активные</option>
             <option value="revoked">Отозванные</option>
           </Select>
@@ -750,16 +766,29 @@ function GuardDevicesTab({ propertyId }: { propertyId: UUID }) {
                 <div className={uiClasses.resourceRowMain}>
                   <Inline>
                     <h3 className={uiClasses.resourceTitle}>{device.label}</h3>
-                    <Badge tone={device.status === 'active' ? 'success' : 'neutral'}>
-                      {device.status === 'active' ? 'Активно' : 'Отозвано'}
+                    <Badge tone={device.status === 'active' ? 'success' : (device.status === 'pending' ? 'warning' : 'neutral')}>
+                      {device.status === 'active' ? 'Активно' : (device.status === 'pending' ? 'На подтверждении' : 'Отозвано')}
                     </Badge>
                   </Inline>
                   <div className={uiClasses.resourceMeta}>
                     <span>{point ? point.name : 'Весь объект'}</span>
                     <span>ID {device.id.slice(0, 8)}</span>
+                    {device.device_fingerprint_preview ? <span>Fingerprint {device.device_fingerprint_preview}</span> : null}
                     <span>Последний раз: {formatDateTime(device.last_seen_at)}</span>
+                    {device.approved_at ? <span>Подтверждено: {formatDateTime(device.approved_at)}</span> : null}
                     {device.revoked_at ? <span>Отозвано: {formatDateTime(device.revoked_at)}</span> : null}
                   </div>
+                  {device.status === 'pending' ? (
+                    <Inline>
+                      <Button
+                        variant="primary"
+                        loading={savingId === device.id}
+                        onClick={() => void approveDevice(device)}
+                      >
+                        Подтвердить устройство
+                      </Button>
+                    </Inline>
+                  ) : null}
                   {device.status === 'active' ? (
                     <div className={uiClasses.formGrid}>
                       <Field label="Причина отзыва">

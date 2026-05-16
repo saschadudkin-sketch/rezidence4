@@ -296,7 +296,12 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1', v1AccessTopologyRouter);
   app.use('/api/v1', v1AccessPoliciesRouter);
   app.use('/api/v1/security-workspace', v1SecurityWorkspaceRouter);
-  app.use('/api/v1/security', v1SecurityWorkspaceRouter);
+  app.use('/api/v1/security', (req, res, next) => {
+    if (req.path === '/authorized-devices' || req.path.startsWith('/authorized-devices/')) {
+      return res.status(404).json({ error: 'Use /api/v1/security-workspace/authorized-devices' });
+    }
+    return next();
+  }, v1SecurityWorkspaceRouter);
   app.use('/api/v1/staff-workspace', v1StaffWorkspaceRouter);
   app.use('/api/v1/technician-workspace', v1TechnicianWorkspaceRouter);
   app.use('/api/v1/contractor-workspace', v1ContractorWorkspaceRouter);

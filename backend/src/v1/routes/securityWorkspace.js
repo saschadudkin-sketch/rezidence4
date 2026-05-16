@@ -29,6 +29,7 @@ const {
   replaySecurityOfflineEvents,
 } = require('../services/securityOfflineReplayService');
 const {
+  approveGuardAuthorizedDevice,
   assertGuardDeviceAuthorized,
   deviceContext,
   enrollGuardAuthorizedDevice,
@@ -349,6 +350,7 @@ router.post('/authorized-devices/enroll', async (req, res, next) => {
       accessPointId,
       deviceFingerprint: req.body?.device_fingerprint || req.body?.deviceFingerprint,
       label: req.body?.label,
+      activate: canInPropertyScope(req, 'hardware.device.write', propertyId),
       user: req.user,
       ipAddress: req.ip || null,
     });
@@ -377,6 +379,26 @@ router.get('/authorized-devices', async (req, res, next) => {
       limit: req.query.limit,
     });
     res.json({ guard_authorized_devices: devices });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/authorized-devices/:guardDeviceId/approve', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.guardDeviceId)) return res.status(400).json({ error: 'Invalid guardDeviceId' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canInPropertyScope(req, 'hardware.device.write', propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const device = await approveGuardAuthorizedDevice(getDb(req), {
+      propertyId,
+      guardDeviceId: req.params.guardDeviceId,
+      user: req.user,
+      ipAddress: req.ip || null,
+    });
+    res.json({ guard_authorized_device: device });
   } catch (err) {
     if (sendKnownError(res, err)) return;
     next(err);
