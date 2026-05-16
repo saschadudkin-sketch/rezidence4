@@ -35,6 +35,8 @@ import type {
   PropertyType,
   QrToken,
   RequestType,
+  TrustedVisitor,
+  TrustedVisitorType,
   UUID,
   Vehicle,
   VehicleKind,
@@ -58,6 +60,7 @@ import {
   Select,
   Spinner,
   Stack,
+  Textarea,
   Toolbar,
   uiClasses,
 } from '../components/ui';
@@ -77,6 +80,7 @@ interface LoadedState {
   resident: ResidentWithUnit;
   requests: AccessRequest[];
   vehicles: Vehicle[];
+  trustedVisitors: TrustedVisitor[];
   zones: AccessZone[];
   points: AccessPoint[];
 }
@@ -98,7 +102,7 @@ export function ResidentAccessPage() {
     try {
       const residentRes = await api.residents.getById(session.uid);
       const resident = residentRes.resident;
-      const [listRes, vehiclesRes, zonesRes, pointsRes] = await Promise.all([
+      const [listRes, vehiclesRes, trustedVisitorsRes, zonesRes, pointsRes] = await Promise.all([
         api.accessRequests.list({
           created_by_resident_id: resident.id,
           limit: 20,
@@ -110,6 +114,11 @@ export function ResidentAccessPage() {
             limit: 50,
           })
           : Promise.resolve({ vehicles: [] }),
+        resident.property_id
+          ? api.trustedVisitors.list({
+            property_id: resident.property_id,
+          }).catch(() => ({ trusted_visitors: [] }))
+          : Promise.resolve({ trusted_visitors: [] }),
         resident.property_id
           ? api.accessTopology.listZones({ property_id: resident.property_id, is_active: true, limit: 100 })
             .catch(() => ({ zones: [] }))
@@ -125,6 +134,7 @@ export function ResidentAccessPage() {
           resident,
           requests: listRes.access_requests,
           vehicles: vehiclesRes.vehicles,
+          trustedVisitors: trustedVisitorsRes.trusted_visitors,
           zones: zonesRes.zones,
           points: pointsRes.points,
         },
@@ -175,6 +185,22 @@ export function ResidentAccessPage() {
     });
   }, []);
 
+  const handleTrustedVisitorChanged = useCallback((visitor: TrustedVisitor) => {
+    setState((prev) => {
+      if (prev.kind !== 'ready') return prev;
+      const withoutCurrent = prev.data.trustedVisitors.filter((item) => item.id !== visitor.id);
+      return {
+        kind: 'ready',
+        data: {
+          ...prev.data,
+          trustedVisitors: visitor.is_active
+            ? [visitor, ...withoutCurrent]
+            : withoutCurrent,
+        },
+      };
+    });
+  }, []);
+
   const handleRequestUpdated = useCallback((request: AccessRequest) => {
     setState((prev) => {
       if (prev.kind !== 'ready') return prev;
@@ -220,6 +246,7 @@ export function ResidentAccessPage() {
           resident={state.data.resident}
           requests={state.data.requests}
           vehicles={state.data.vehicles}
+          trustedVisitors={state.data.trustedVisitors}
           zones={state.data.zones}
           points={state.data.points}
           apartmentLabel={session.apartment ?? null}
@@ -229,6 +256,7 @@ export function ResidentAccessPage() {
           onCancelForm={() => setFormOpen(false)}
           onCreated={handleCreated}
           onVehicleCreated={handleVehicleCreated}
+          onTrustedVisitorChanged={handleTrustedVisitorChanged}
           onRequestUpdated={handleRequestUpdated}
         />
       )}
@@ -240,6 +268,7 @@ interface ReadyProps {
   resident: ResidentWithUnit;
   requests: readonly AccessRequest[];
   vehicles: readonly Vehicle[];
+  trustedVisitors: readonly TrustedVisitor[];
   zones: readonly AccessZone[];
   points: readonly AccessPoint[];
   apartmentLabel: string | null;
@@ -249,6 +278,7 @@ interface ReadyProps {
   onCancelForm: () => void;
   onCreated: (request: AccessRequest) => void;
   onVehicleCreated: (vehicle: Vehicle) => void;
+  onTrustedVisitorChanged: (visitor: TrustedVisitor) => void;
   onRequestUpdated: (request: AccessRequest) => void;
 }
 
@@ -256,6 +286,7 @@ function ResidentAccessReady({
   resident,
   requests,
   vehicles,
+  trustedVisitors,
   zones,
   points,
   apartmentLabel,
@@ -265,6 +296,7 @@ function ResidentAccessReady({
   onCancelForm,
   onCreated,
   onVehicleCreated,
+  onTrustedVisitorChanged,
   onRequestUpdated,
 }: ReadyProps) {
   // Must have a unit_id AND a property_id to submit a request — otherwise
@@ -312,6 +344,16 @@ function ResidentAccessReady({
           residentId={resident.id}
           vehicles={vehicles}
           onCreated={onVehicleCreated}
+        />
+      ) : null}
+
+      {canCreate && resident.property_id ? (
+        <TrustedVisitorsPanel
+          propertyId={resident.property_id}
+          unitId={resident.unit_id as UUID}
+          visitors={trustedVisitors}
+          onChanged={onTrustedVisitorChanged}
+          onPassCreated={onCreated}
         />
       ) : null}
 
@@ -490,6 +532,209 @@ function ResidentVehiclesPanel({
               <Inline>
                 <Button type="submit" loading={submitting}>
                   Сохранить авто
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
+                  Отмена
+                </Button>
+              </Inline>
+            </Stack>
+          </form>
+        ) : null}
+      </Stack>
+    </Card>
+  );
+}
+
+const TRUSTED_VISITOR_TYPE_LABELS: Record<TrustedVisitorType, string> = {
+  guest: 'Гость',
+  relative: 'Родственник',
+  cleaner: 'Клининг',
+  courier: 'Курьер',
+  service: 'Сервис',
+  caregiver: 'Помощник',
+  other: 'Другое',
+};
+
+function TrustedVisitorsPanel({
+  propertyId,
+  unitId,
+  visitors,
+  onChanged,
+  onPassCreated,
+}: {
+  propertyId: UUID;
+  unitId: UUID;
+  visitors: readonly TrustedVisitor[];
+  onChanged: (visitor: TrustedVisitor) => void;
+  onPassCreated: (request: AccessRequest) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [visitorType, setVisitorType] = useState<TrustedVisitorType>('guest');
+  const [defaultInstructions, setDefaultInstructions] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [busyVisitorId, setBusyVisitorId] = useState<UUID | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError('Укажите имя');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await api.trustedVisitors.create({
+        property_id: propertyId,
+        name: name.trim(),
+        phone: phone.trim() || null,
+        visitor_type: visitorType,
+        default_instructions: defaultInstructions.trim() || null,
+      });
+      onChanged(res.trusted_visitor);
+      setName('');
+      setPhone('');
+      setVisitorType('guest');
+      setDefaultInstructions('');
+      setOpen(false);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось сохранить частого гостя');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function createPass(visitor: TrustedVisitor) {
+    setBusyVisitorId(visitor.id);
+    setError(null);
+    try {
+      const starts = new Date();
+      const ends = new Date(starts.getTime() + 4 * 60 * 60 * 1000);
+      const res = await api.trustedVisitors.createPass(visitor.id, {
+        property_id: propertyId,
+        target_unit_id: unitId,
+        starts_at: starts.toISOString(),
+        ends_at: ends.toISOString(),
+        share_delivery_channels: ['link', 'qr'],
+      });
+      onChanged(res.trusted_visitor);
+      onPassCreated(res.access_request);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось создать пропуск');
+    } finally {
+      setBusyVisitorId(null);
+    }
+  }
+
+  async function deactivate(visitor: TrustedVisitor) {
+    setBusyVisitorId(visitor.id);
+    setError(null);
+    try {
+      const res = await api.trustedVisitors.deactivate(visitor.id, { property_id: propertyId });
+      onChanged(res.trusted_visitor);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отключить гостя');
+    } finally {
+      setBusyVisitorId(null);
+    }
+  }
+
+  return (
+    <Card
+      title="Частые гости"
+      subtitle="Сохранённые гости и сервисные исполнители для быстрого выпуска пропуска."
+      actions={
+        <Button type="button" variant="secondary" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Скрыть' : 'Добавить'}
+        </Button>
+      }
+    >
+      <Stack>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+
+        {visitors.length === 0 ? (
+          <EmptyState>Добавьте частого гостя, чтобы оформлять повторный пропуск без заполнения формы.</EmptyState>
+        ) : (
+          <Stack>
+            {visitors.map((visitor) => (
+              <Inline key={visitor.id}>
+                <strong>{visitor.name}</strong>
+                <span className={uiClasses.textMuted}>{TRUSTED_VISITOR_TYPE_LABELS[visitor.visitor_type]}</span>
+                {visitor.phone ? <span className={uiClasses.textMuted}>{visitor.phone}</span> : null}
+                {visitor.last_used_at ? (
+                  <span className={uiClasses.textMuted}>
+                    Последний пропуск: {new Date(visitor.last_used_at).toLocaleString()}
+                  </span>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={busyVisitorId === visitor.id}
+                  onClick={() => void createPass(visitor)}
+                >
+                  Создать пропуск
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busyVisitorId === visitor.id}
+                  onClick={() => void deactivate(visitor)}
+                >
+                  Отключить
+                </Button>
+              </Inline>
+            ))}
+          </Stack>
+        )}
+
+        {open ? (
+          <form onSubmit={submit}>
+            <Stack>
+              <Inline>
+                <Field label="Имя" id="v1-trusted-visitor-name">
+                  <Input
+                    id="v1-trusted-visitor-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Телефон" id="v1-trusted-visitor-phone">
+                  <Input
+                    id="v1-trusted-visitor-phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Тип" id="v1-trusted-visitor-type">
+                  <Select
+                    id="v1-trusted-visitor-type"
+                    value={visitorType}
+                    onChange={(e) => setVisitorType(e.target.value as TrustedVisitorType)}
+                    disabled={submitting}
+                  >
+                    {Object.entries(TRUSTED_VISITOR_TYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </Inline>
+              <Field label="Инструкция гостю" id="v1-trusted-visitor-instructions">
+                <Textarea
+                  id="v1-trusted-visitor-instructions"
+                  rows={3}
+                  value={defaultInstructions}
+                  onChange={(e) => setDefaultInstructions(e.target.value)}
+                  disabled={submitting}
+                />
+              </Field>
+              <Inline>
+                <Button type="submit" loading={submitting}>
+                  Сохранить
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
                   Отмена

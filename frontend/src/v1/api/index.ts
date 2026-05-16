@@ -13,6 +13,7 @@ export { v1Client } from './client';
 export type { RequestOpts } from './client';
 
 import { accessRequestsApi } from './accessRequests';
+import { trustedVisitorsApi } from './trustedVisitors';
 import { passesApi } from './passes';
 import { vehiclesApi, normalizePlate } from './vehicles';
 import { accessTopologyApi } from './accessTopology';
@@ -38,6 +39,7 @@ import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
 
 export const api = {
   accessRequests: accessRequestsApi,
+  trustedVisitors: trustedVisitorsApi,
   passes: passesApi,
   vehicles: vehiclesApi,
   accessTopology: accessTopologyApi,
@@ -71,6 +73,13 @@ export type {
   ListAccessRequestsParams,
   CreateAccessRequestBody,
 } from './accessRequests';
+export type {
+  CreatePassFromTrustedVisitorBody,
+  CreateTrustedVisitorBody,
+  ListTrustedVisitorsParams,
+  TrustedVisitorPassRequestType,
+  UpdateTrustedVisitorBody,
+} from './trustedVisitors';
 export type { ListPassesParams } from './passes';
 export type {
   ListVehiclesParams,

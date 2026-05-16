@@ -20,7 +20,7 @@ const AR_COLS = `
   created_by_resident_id, created_by_staff_id, created_by_contractor_user_id,
   request_type, visitor_name, visitor_phone, vehicle_id,
   target_zone_id, target_point_id, target_unit_id,
-  reason, guest_instructions, guard_notes, share_delivery_channels,
+  trusted_visitor_id, reason, guest_instructions, guard_notes, share_delivery_channels,
   starts_at, ends_at, status, approval_required,
   approved_at, rejected_at, cancelled_at, created_at, updated_at
 `;

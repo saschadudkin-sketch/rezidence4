@@ -27918,6 +27918,378 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/trusted-visitors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List current resident trusted visitors */
+        get: {
+            parameters: {
+                query: {
+                    property_id: string;
+                    include_inactive?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Trusted visitors */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrustedVisitorListResponse"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConflictResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a resident trusted visitor */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateTrustedVisitorRequest"];
+                };
+            };
+            responses: {
+                /** @description Trusted visitor created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrustedVisitorResponse"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConflictResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trusted-visitors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a resident trusted visitor */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTrustedVisitorRequest"];
+                };
+            };
+            responses: {
+                /** @description Trusted visitor updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrustedVisitorResponse"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConflictResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/trusted-visitors/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate a resident trusted visitor */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        property_id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Trusted visitor deactivated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrustedVisitorResponse"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConflictResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trusted-visitors/{id}/create-pass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an access request/pass from a trusted visitor */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateTrustedVisitorPassRequest"];
+                };
+            };
+            responses: {
+                /** @description Access request created from trusted visitor */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrustedVisitorPassCreateResponse"];
+                    };
+                };
+                /** @description Bad request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ConflictResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -28172,6 +28544,11 @@ export interface components {
             guest_instructions?: string | null;
             guard_notes?: string | null;
             share_delivery_channels?: ("link" | "qr" | "sms" | "telegram" | "email")[];
+            /**
+             * Format: uuid
+             * @description Trusted visitor template that created this access request, if any.
+             */
+            trusted_visitor_id?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -28585,6 +28962,89 @@ export interface components {
         AccessRequestCreateResponse: {
             access_request: components["schemas"]["AccessRequest"];
             pass?: components["schemas"]["Pass"] | null;
+        };
+        TrustedVisitor: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            property_id: string;
+            /** Format: uuid */
+            resident_id: string;
+            name: string;
+            phone: string | null;
+            /** @enum {string} */
+            visitor_type: "guest" | "relative" | "cleaner" | "courier" | "service" | "caregiver" | "other";
+            default_vehicle_plate: string | null;
+            default_instructions: string | null;
+            /** Format: uuid */
+            allowed_zone_id: string | null;
+            /** Format: uuid */
+            allowed_point_id: string | null;
+            is_active: boolean;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        TrustedVisitorListResponse: {
+            trusted_visitors: components["schemas"]["TrustedVisitor"][];
+        };
+        TrustedVisitorResponse: {
+            trusted_visitor: components["schemas"]["TrustedVisitor"];
+        };
+        CreateTrustedVisitorRequest: {
+            /** Format: uuid */
+            property_id: string;
+            name: string;
+            phone?: string | null;
+            /** @enum {string} */
+            visitor_type?: "guest" | "relative" | "cleaner" | "courier" | "service" | "caregiver" | "other";
+            default_vehicle_plate?: string | null;
+            default_instructions?: string | null;
+            /** Format: uuid */
+            allowed_zone_id?: string | null;
+            /** Format: uuid */
+            allowed_point_id?: string | null;
+        };
+        UpdateTrustedVisitorRequest: {
+            name?: string;
+            phone?: string | null;
+            /** @enum {string} */
+            visitor_type?: "guest" | "relative" | "cleaner" | "courier" | "service" | "caregiver" | "other";
+            default_vehicle_plate?: string | null;
+            default_instructions?: string | null;
+            /** Format: uuid */
+            allowed_zone_id?: string | null;
+            /** Format: uuid */
+            allowed_point_id?: string | null;
+        };
+        CreateTrustedVisitorPassRequest: {
+            /** Format: uuid */
+            property_id: string;
+            /** Format: uuid */
+            target_unit_id: string;
+            /** Format: uuid */
+            target_zone_id?: string | null;
+            /** Format: uuid */
+            target_point_id?: string | null;
+            /** @enum {string} */
+            request_type?: "guest_access" | "contractor_access" | "courier_access" | "service_access" | "temporary_resident_access";
+            request_id?: string | null;
+            reason?: string | null;
+            guest_instructions?: string | null;
+            guard_notes?: string | null;
+            share_delivery_channels?: ("link" | "qr" | "sms" | "telegram" | "email")[];
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+        };
+        TrustedVisitorPassCreateResponse: {
+            trusted_visitor: components["schemas"]["TrustedVisitor"];
+            access_request: components["schemas"]["AccessRequest"];
+            pass: components["schemas"]["Pass"] | null;
         };
     };
     responses: never;

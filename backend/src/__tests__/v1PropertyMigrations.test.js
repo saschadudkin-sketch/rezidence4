@@ -47,8 +47,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers
     // + 1 DH-56 privacy compliance controls
     // + 1 access-control pilot readiness hardening
-    // + 1 access request product text fields = 51
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(51);
+    // + 1 access request product text fields
+    // + 1 trusted visitors / frequent guests = 52
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(52);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -87,6 +88,38 @@ describe('v1_051_access_request_product_text', () => {
     expect(sqls[0]).toContain("share_delivery_channels JSONB NOT NULL DEFAULT '[]'::jsonb");
     expect(sqls[2]).toContain('access_requests_share_delivery_channels_check');
     expect(sqls[2]).toContain("jsonb_typeof(share_delivery_channels) = 'array'");
+  });
+});
+
+describe('v1_052_trusted_visitors', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates resident-owned trusted visitors and links access history', async () => {
+    await byId('v1_052_trusted_visitors').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS trusted_visitors'));
+    const arAlter = sqls.find((s) => s.includes('ALTER TABLE access_requests')
+      && s.includes('trusted_visitor_id UUID'));
+    const fk = sqls.find((s) => s.includes('ADD CONSTRAINT access_requests_trusted_visitor_fk'));
+
+    expect(tbl).toBeDefined();
+    expect(tbl).toContain('resident_id            UUID NOT NULL REFERENCES residents(id) ON DELETE CASCADE');
+    expect(tbl).toContain('property_id            UUID NOT NULL');
+    expect(tbl).toContain("'guest','relative','cleaner','courier','service','caregiver','other'");
+    expect(arAlter).toContain('ADD COLUMN IF NOT EXISTS trusted_visitor_id UUID');
+    expect(fk).toContain('REFERENCES trusted_visitors(id)');
+    expect(fk).toContain('ON DELETE SET NULL');
+  });
+
+  test('indexes active resident list and trusted visitor history', async () => {
+    await byId('v1_052_trusted_visitors').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_trusted_visitors_resident_active')))
+      .toContain('(resident_id, is_active, updated_at DESC)');
+    expect(sqls.find((s) => s.includes('idx_access_requests_trusted_visitor')))
+      .toContain('WHERE trusted_visitor_id IS NOT NULL');
   });
 });
 

@@ -961,6 +961,7 @@ export interface SecurityWorkspaceExpectedGuest {
   target_zone_id: UUID | null;
   target_point_id: UUID | null;
   target_unit_id: UUID | null;
+  trusted_visitor_id: UUID | null;
   reason: string | null;
   guest_instructions: string | null;
   guard_notes: string | null;
@@ -974,6 +975,34 @@ export interface SecurityWorkspaceExpectedGuest {
   unit_type: UnitType | null;
   pass_id: UUID | null;
   pass_status: PassStatus | null;
+}
+
+// ─── Trusted Visitors ─────────────────────────────────────────────────────
+
+export type TrustedVisitorType =
+  | 'guest'
+  | 'relative'
+  | 'cleaner'
+  | 'courier'
+  | 'service'
+  | 'caregiver'
+  | 'other';
+
+export interface TrustedVisitor {
+  id: UUID;
+  property_id: UUID;
+  resident_id: UUID;
+  name: string;
+  phone: string | null;
+  visitor_type: TrustedVisitorType;
+  default_vehicle_plate: string | null;
+  default_instructions: string | null;
+  allowed_zone_id: UUID | null;
+  allowed_point_id: UUID | null;
+  is_active: boolean;
+  last_used_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
 }
 
 export interface SecurityWorkspaceRecentEvent {

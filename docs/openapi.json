@@ -25835,6 +25835,405 @@
           }
         }
       }
+    },
+    "/api/v1/trusted-visitors": {
+      "get": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "List current resident trusted visitors",
+        "parameters": [
+          {
+            "name": "property_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trusted visitors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedVisitorListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "Create a resident trusted visitor",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrustedVisitorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trusted visitor created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedVisitorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trusted-visitors/{id}": {
+      "patch": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "Update a resident trusted visitor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTrustedVisitorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trusted visitor updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedVisitorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trusted-visitors/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "Deactivate a resident trusted visitor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "property_id"
+                ],
+                "properties": {
+                  "property_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trusted visitor deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedVisitorResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trusted-visitors/{id}/create-pass": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "summary": "Create an access request/pass from a trusted visitor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrustedVisitorPassRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Access request created from trusted visitor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedVisitorPassCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -26737,6 +27136,12 @@
                 "email"
               ]
             }
+          },
+          "trusted_visitor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Trusted visitor template that created this access request, if any."
           }
         }
       },
@@ -28054,6 +28459,312 @@
             "oneOf": [
               {
                 "$ref": "#/components/schemas/Pass"
+              }
+            ]
+          }
+        }
+      },
+      "TrustedVisitor": {
+        "type": "object",
+        "required": [
+          "id",
+          "property_id",
+          "resident_id",
+          "name",
+          "phone",
+          "visitor_type",
+          "default_vehicle_plate",
+          "default_instructions",
+          "allowed_zone_id",
+          "allowed_point_id",
+          "is_active",
+          "last_used_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resident_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "relative",
+              "cleaner",
+              "courier",
+              "service",
+              "caregiver",
+              "other"
+            ]
+          },
+          "default_vehicle_plate": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowed_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "allowed_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "TrustedVisitorListResponse": {
+        "type": "object",
+        "required": [
+          "trusted_visitors"
+        ],
+        "properties": {
+          "trusted_visitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrustedVisitor"
+            }
+          }
+        }
+      },
+      "TrustedVisitorResponse": {
+        "type": "object",
+        "required": [
+          "trusted_visitor"
+        ],
+        "properties": {
+          "trusted_visitor": {
+            "$ref": "#/components/schemas/TrustedVisitor"
+          }
+        }
+      },
+      "CreateTrustedVisitorRequest": {
+        "type": "object",
+        "required": [
+          "property_id",
+          "name"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "relative",
+              "cleaner",
+              "courier",
+              "service",
+              "caregiver",
+              "other"
+            ]
+          },
+          "default_vehicle_plate": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowed_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "allowed_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateTrustedVisitorRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_type": {
+            "type": "string",
+            "enum": [
+              "guest",
+              "relative",
+              "cleaner",
+              "courier",
+              "service",
+              "caregiver",
+              "other"
+            ]
+          },
+          "default_vehicle_plate": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowed_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "allowed_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "CreateTrustedVisitorPassRequest": {
+        "type": "object",
+        "required": [
+          "property_id",
+          "target_unit_id",
+          "starts_at",
+          "ends_at"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_unit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "request_type": {
+            "type": "string",
+            "enum": [
+              "guest_access",
+              "contractor_access",
+              "courier_access",
+              "service_access",
+              "temporary_resident_access"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "guest_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "guard_notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "share_delivery_channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "link",
+                "qr",
+                "sms",
+                "telegram",
+                "email"
+              ]
+            }
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrustedVisitorPassCreateResponse": {
+        "type": "object",
+        "required": [
+          "trusted_visitor",
+          "access_request",
+          "pass"
+        ],
+        "properties": {
+          "trusted_visitor": {
+            "$ref": "#/components/schemas/TrustedVisitor"
+          },
+          "access_request": {
+            "$ref": "#/components/schemas/AccessRequest"
+          },
+          "pass": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Pass"
+              },
+              {
+                "type": "null"
               }
             ]
           }
