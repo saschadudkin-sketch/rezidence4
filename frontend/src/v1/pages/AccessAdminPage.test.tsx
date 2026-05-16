@@ -52,8 +52,8 @@ function makePass(overrides: Partial<AdminPassListItem> = {}): AdminPassListItem
     zone_id: null,
     point_id: null,
     policy_id: null,
-    valid_from: '2026-05-20T10:00:00.000Z',
-    valid_until: '2026-05-20T12:00:00.000Z',
+    valid_from: '2026-05-10T10:00:00.000Z',
+    valid_until: '2099-05-20T12:00:00.000Z',
     status: 'active',
     approved_by_staff_id: null,
     revoked_at: null,
@@ -109,8 +109,58 @@ describe('AccessAdminPage pass management', () => {
       status: 'active',
       pass_type: undefined,
       q: undefined,
-      limit: 100,
+      limit: 25,
+      offset: 0,
     });
+  });
+
+  test('shows future active passes as scheduled, not currently active', async () => {
+    listPassesMock.mockResolvedValue({
+      passes: [makePass({ valid_from: '2099-05-20T10:00:00.000Z' })],
+      page: { limit: 100, offset: 0, hasMore: false },
+    });
+
+    renderPage();
+
+    const title = await screen.findByText('Анна Гость');
+    const passRow = title.closest('li');
+    expect(passRow).not.toBeNull();
+    expect(within(passRow as HTMLElement).getByText(/Запланирован с/)).toBeInTheDocument();
+    expect(within(passRow as HTMLElement).queryByText('Активен')).not.toBeInTheDocument();
+    expect(within(passRow as HTMLElement).getByRole('button', { name: 'Отозвать' })).toBeInTheDocument();
+  });
+
+  test('loads next page when backend reports more passes', async () => {
+    const secondPassId = '33333333-3333-4333-8333-333333333333';
+    const firstPage = Array.from({ length: 25 }, (_, index) => makePass({
+      id: `22222222-2222-4222-8222-${String(index).padStart(12, '0')}`,
+      visitor_name: index === 0 ? 'Анна Гость' : `Гость ${index}`,
+    }));
+    listPassesMock
+      .mockResolvedValueOnce({
+        passes: firstPage,
+        page: { limit: 25, offset: 0, hasMore: true },
+      })
+      .mockResolvedValueOnce({
+        passes: [makePass({ id: secondPassId, visitor_name: 'Борис Курьер', pass_type: 'courier' })],
+        page: { limit: 25, offset: 25, hasMore: false },
+      });
+
+    renderPage();
+
+    expect(await screen.findByText('Анна Гость')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить ещё' }));
+
+    expect(await screen.findByText('Борис Курьер')).toBeInTheDocument();
+    expect(listPassesMock).toHaveBeenLastCalledWith({
+      property_id: UUID_PROPERTY,
+      status: 'active',
+      pass_type: undefined,
+      q: undefined,
+      limit: 25,
+      offset: 25,
+    });
+    expect(screen.queryByRole('button', { name: 'Загрузить ещё' })).not.toBeInTheDocument();
   });
 
   test('requires revoke reason and refreshes after successful revoke', async () => {

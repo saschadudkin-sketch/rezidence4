@@ -99,6 +99,7 @@ const SUBJECT_TYPES: AccessPolicySubjectType[] = [
 
 const PASS_STATUSES: Array<PassStatus | ''> = ['', 'active', 'used', 'expired', 'blocked', 'revoked'];
 const MANAGED_PASS_TYPES: Array<PassType | ''> = ['', 'guest', 'vehicle', 'courier', 'service', 'contractor', 'resident', 'staff', 'emergency'];
+const PASS_PAGE_LIMIT = 25;
 const POLICY_METHODS: AccessPolicyMethod[] = ['qr', 'manual', 'plate', 'ble', 'card', 'pin'];
 const POLICY_EFFECTS: AccessPolicyEffect[] = [
   'allow',
@@ -244,6 +245,25 @@ function passAccessLine(pass: AdminPassListItem): string {
   return parts.length ? parts.join(' · ') : 'Вся доступная зона';
 }
 
+function passAvailability(pass: AdminPassListItem): {
+  label: string;
+  tone: 'success' | 'error' | 'warning' | 'info' | 'neutral';
+} {
+  if (pass.status !== 'active') {
+    return { label: formatPassStatus(pass.status), tone: passStatusTone(pass.status) };
+  }
+  const now = Date.now();
+  const startsAt = Date.parse(pass.valid_from);
+  if (!Number.isNaN(startsAt) && startsAt > now) {
+    return { label: `Запланирован с ${formatDateTime(pass.valid_from)}`, tone: 'info' };
+  }
+  const endsAt = Date.parse(pass.valid_until);
+  if (!Number.isNaN(endsAt) && endsAt <= now) {
+    return { label: 'Окно истекло', tone: 'warning' };
+  }
+  return { label: formatPassStatus(pass.status), tone: 'success' };
+}
+
 function PassesTab({ propertyId }: { propertyId: UUID }) {
   const [passes, setPasses] = useState<AdminPassListItem[]>([]);
   const [status, setStatus] = useState<PassStatus | ''>('active');
@@ -251,11 +271,14 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
   const [query, setQuery] = useState('');
   const [revokeReasons, setRevokeReasons] = useState<Record<UUID, string>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [savingId, setSavingId] = useState<UUID | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ append = false, offset = 0 }: { append?: boolean; offset?: number } = {}) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
     try {
       const res = await passesApi.list({
@@ -263,18 +286,21 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
         status: status || undefined,
         pass_type: passType || undefined,
         q: query.trim() || undefined,
-        limit: 100,
+        limit: PASS_PAGE_LIMIT,
+        offset,
       });
-      setPasses(res.passes);
+      setPasses((prev) => (append ? [...prev, ...res.passes] : res.passes));
+      setHasMore(res.page?.hasMore ?? res.passes.length === PASS_PAGE_LIMIT);
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить пропуска');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
   }, [passType, propertyId, query, status]);
 
   useEffect(() => {
-    void load();
+    void load({ offset: 0 });
   }, [load]);
 
   async function revokePass(pass: AdminPassListItem) {
@@ -287,7 +313,7 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
     setError(null);
     try {
       await passesApi.revoke(pass.id, reason);
-      await load();
+      await load({ offset: 0 });
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось отозвать пропуск');
     } finally {
@@ -301,7 +327,7 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
     setError(null);
     try {
       await passesApi.block(pass.id, reason);
-      await load();
+      await load({ offset: 0 });
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось заблокировать пропуск');
     } finally {
@@ -315,7 +341,7 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
       <Card
         title="Управление пропусками"
         subtitle="Поиск по гостю, резиденту, юниту, авто или ID пропуска."
-        actions={<Button variant="ghost" onClick={() => void load()} loading={loading}>Обновить</Button>}
+        actions={<Button variant="ghost" onClick={() => void load({ offset: 0 })} loading={loading}>Обновить</Button>}
       >
         <div className={uiClasses.formGrid}>
           <Field label="Поиск">
@@ -348,68 +374,80 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
         {loading ? <LoadingLine>Загрузка пропусков…</LoadingLine> : null}
         {!loading && passes.length === 0 ? <EmptyState>Пропусков по фильтру нет.</EmptyState> : null}
         <ul className={uiClasses.resourceList}>
-          {passes.map((pass) => (
-            <li key={pass.id} className={uiClasses.resourceRow}>
-              <div className={uiClasses.resourceRowMain}>
-                <Inline>
-                  <h3 className={uiClasses.resourceTitle}>{passSubjectLabel(pass)}</h3>
-                  <Badge tone={passStatusTone(pass.status)}>{formatPassStatus(pass.status)}</Badge>
-                  <Badge tone="info">{formatPassType(pass.pass_type)}</Badge>
-                </Inline>
-                <div className={uiClasses.resourceMeta}>
-                  <span>{formatWindow(pass.valid_from, pass.valid_until)}</span>
-                  <span>{passResidentLine(pass)}</span>
-                  <span>{passAccessLine(pass)}</span>
-                  {pass.request_type ? <span>{pass.request_type}</span> : null}
-                  <span>ID {pass.id.slice(0, 8)}</span>
-                </div>
-                {pass.credential_types?.length ? (
+          {passes.map((pass) => {
+            const availability = passAvailability(pass);
+            return (
+              <li key={pass.id} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
                   <Inline>
-                    {pass.credential_types.map((type) => (
-                      <Badge key={type} tone="neutral">{CREDENTIAL_LABELS[type] ?? type}</Badge>
-                    ))}
+                    <h3 className={uiClasses.resourceTitle}>{passSubjectLabel(pass)}</h3>
+                    <Badge tone={availability.tone}>{availability.label}</Badge>
+                    <Badge tone="info">{formatPassType(pass.pass_type)}</Badge>
                   </Inline>
-                ) : null}
-                {pass.guest_instructions ? (
-                  <p className={uiClasses.textMuted}>Инструкция гостю: {pass.guest_instructions}</p>
-                ) : null}
-                {pass.guard_notes ? (
-                  <p className={uiClasses.textMuted}>Заметка охране: {pass.guard_notes}</p>
-                ) : null}
-                {pass.revoked_reason ? (
-                  <p className={uiClasses.textMuted}>Причина отзыва: {pass.revoked_reason}</p>
-                ) : null}
-                {pass.status === 'active' ? (
-                  <div className={uiClasses.formGrid}>
-                    <Field label="Причина">
-                      <Input
-                        value={revokeReasons[pass.id] ?? ''}
-                        onChange={(e) => setRevokeReasons((prev) => ({ ...prev, [pass.id]: e.target.value }))}
-                        placeholder="Например, отмена визита"
-                      />
-                    </Field>
-                    <Inline>
-                      <Button
-                        variant="danger"
-                        loading={savingId === pass.id}
-                        onClick={() => void revokePass(pass)}
-                      >
-                        Отозвать
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        loading={savingId === pass.id}
-                        onClick={() => void blockPass(pass)}
-                      >
-                        Заблокировать
-                      </Button>
-                    </Inline>
+                  <div className={uiClasses.resourceMeta}>
+                    <span>{formatWindow(pass.valid_from, pass.valid_until)}</span>
+                    <span>{passResidentLine(pass)}</span>
+                    <span>{passAccessLine(pass)}</span>
+                    {pass.request_type ? <span>{pass.request_type}</span> : null}
+                    <span>ID {pass.id.slice(0, 8)}</span>
                   </div>
-                ) : null}
-              </div>
-            </li>
-          ))}
+                  {pass.credential_types?.length ? (
+                    <Inline>
+                      {pass.credential_types.map((type) => (
+                        <Badge key={type} tone="neutral">{CREDENTIAL_LABELS[type] ?? type}</Badge>
+                      ))}
+                    </Inline>
+                  ) : null}
+                  {pass.guest_instructions ? (
+                    <p className={uiClasses.textMuted}>Инструкция гостю: {pass.guest_instructions}</p>
+                  ) : null}
+                  {pass.guard_notes ? (
+                    <p className={uiClasses.textMuted}>Заметка охране: {pass.guard_notes}</p>
+                  ) : null}
+                  {pass.revoked_reason ? (
+                    <p className={uiClasses.textMuted}>Причина отзыва: {pass.revoked_reason}</p>
+                  ) : null}
+                  {pass.status === 'active' ? (
+                    <div className={uiClasses.formGrid}>
+                      <Field label="Причина">
+                        <Input
+                          value={revokeReasons[pass.id] ?? ''}
+                          onChange={(e) => setRevokeReasons((prev) => ({ ...prev, [pass.id]: e.target.value }))}
+                          placeholder="Например, отмена визита"
+                        />
+                      </Field>
+                      <Inline>
+                        <Button
+                          variant="danger"
+                          loading={savingId === pass.id}
+                          onClick={() => void revokePass(pass)}
+                        >
+                          Отозвать
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          loading={savingId === pass.id}
+                          onClick={() => void blockPass(pass)}
+                        >
+                          Заблокировать
+                        </Button>
+                      </Inline>
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
+        {!loading && hasMore ? (
+          <Button
+            variant="secondary"
+            loading={loadingMore}
+            onClick={() => void load({ append: true, offset: passes.length })}
+          >
+            Загрузить ещё
+          </Button>
+        ) : null}
       </Card>
     </Stack>
   );

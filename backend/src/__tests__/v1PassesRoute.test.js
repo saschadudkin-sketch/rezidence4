@@ -111,4 +111,18 @@ describe('v1 passes route', () => {
     expect(res.body.error).toBe('Invalid status');
     expect(db.query).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ['pass_type', 'invalid', 'Invalid pass_type'],
+    ['subject_vehicle_id', 'not-a-uuid', 'Invalid subject_vehicle_id'],
+    ['subject_resident_id', 'not-a-uuid', 'Invalid subject_resident_id'],
+    ['access_request_id', 'not-a-uuid', 'Invalid access_request_id'],
+  ])('GET /api/v1/passes rejects invalid %s before querying', async (param, value, error) => {
+    const res = await supertest(buildApp())
+      .get(`/api/v1/passes?property_id=${UUID_PROPERTY}&${param}=${value}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(error);
+    expect(db.query).not.toHaveBeenCalled();
+  });
 });

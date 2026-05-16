@@ -28540,7 +28540,8 @@ export interface components {
             revoked_reason?: string | null;
             /** Format: date-time */
             created_at: string;
-            request_type?: string | null;
+            /** @enum {string|null} */
+            request_type?: "guest_access" | "vehicle_access" | "contractor_access" | "courier_access" | "service_access" | "temporary_resident_access" | null;
             visitor_name?: string | null;
             guest_instructions?: string | null;
             guard_notes?: string | null;
