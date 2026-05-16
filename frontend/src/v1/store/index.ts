@@ -22,6 +22,7 @@ export {
   invalidateDocument,
   invalidatePackage,
   invalidatePass,
+  invalidateServiceRequestLifecycle,
   invalidateStaffWorkspaceRequest,
   invalidateTechnicianWorkspaceRequest,
   invalidateContractorWorkspaceRequest,

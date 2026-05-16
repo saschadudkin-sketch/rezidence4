@@ -5,9 +5,16 @@ import type { UserMe } from '../api/types';
 import { V1SessionProvider } from '../store';
 import { EmergencyDispatchPage } from './EmergencyDispatchPage';
 
-const { readinessMock, createDrillMock } = vi.hoisted(() => ({
-  readinessMock: vi.fn(),
+const {
+  createDrillMock,
+  emergencyDispatchMock,
+  readinessMock,
+  recordProviderDeliveryEvidenceMock,
+} = vi.hoisted(() => ({
   createDrillMock: vi.fn(),
+  emergencyDispatchMock: vi.fn(),
+  readinessMock: vi.fn(),
+  recordProviderDeliveryEvidenceMock: vi.fn(),
 }));
 
 vi.mock('../api', async () => {
@@ -18,6 +25,10 @@ vi.mock('../api', async () => {
       emergencyDispatch: {
         readiness: readinessMock,
         createDrill: createDrillMock,
+      },
+      serviceRequests: {
+        emergencyDispatch: emergencyDispatchMock,
+        recordProviderDeliveryEvidence: recordProviderDeliveryEvidenceMock,
       },
     },
     isV1ApiError: () => false,
@@ -73,6 +84,7 @@ beforeEach(() => {
       notification_failed: 1,
       active_on_call_rows: 1,
       drill_records: 1,
+      provider_delivery_evidence_rows: 1,
     },
     queue: [{
       id: '22222222-2222-4222-8222-222222222222',
@@ -143,6 +155,22 @@ beforeEach(() => {
       createdAt: '2026-05-11T08:00:00.000Z',
       updatedAt: '2026-05-11T08:05:00.000Z',
     }],
+    live_provider_delivery_evidence: [{
+      id: '66666666-6666-4666-8666-666666666666',
+      propertyId: PROPERTY_ID,
+      requestId: 'request-emergency-1',
+      drillId: null,
+      provider: 'internal_roster',
+      channel: 'telegram',
+      scenarioType: 'other',
+      status: 'delivered',
+      latencyMs: 1200,
+      externalDeliveryId: null,
+      observedAt: '2026-05-11T10:03:00.000Z',
+      recordedByUid: 'admin-1',
+      payload: {},
+      createdAt: '2026-05-11T10:03:00.000Z',
+    }],
     evidence: {
       source_tables: [
         'emergency_request_profiles',
@@ -156,6 +184,7 @@ beforeEach(() => {
       returned_roster_rows: 1,
       returned_notification_rows: 1,
       returned_drill_rows: 1,
+      returned_provider_delivery_rows: 1,
       generated_at: '2026-05-11T10:00:00.000Z',
     },
   });
@@ -178,6 +207,48 @@ beforeEach(() => {
       updatedAt: '2026-05-11T10:35:00.000Z',
     },
   });
+  emergencyDispatchMock.mockResolvedValue({
+    emergencyProfile: {
+      id: '22222222-2222-4222-8222-222222222222',
+      propertyId: PROPERTY_ID,
+      requestId: 'request-emergency-1',
+      emergencyType: 'fire_smoke',
+      severity: 'P0',
+      dispatchStatus: 'acknowledged',
+      escalationTarget: 'security',
+      firstResponseDueAt: null,
+      resolutionDueAt: null,
+      acknowledgedAt: '2026-05-11T10:04:00.000Z',
+      acknowledgedByUid: 'admin-1',
+      dispatchedAt: null,
+      dispatchedByUid: null,
+      escalatedAt: null,
+      escalatedByUid: null,
+      resolvedAt: null,
+      notificationStatus: 'failed',
+      metadata: {},
+      createdAt: '2026-05-11T10:00:00.000Z',
+      updatedAt: '2026-05-11T10:04:00.000Z',
+    },
+  });
+  recordProviderDeliveryEvidenceMock.mockResolvedValue({
+    evidence: {
+      id: '77777777-7777-4777-8777-777777777777',
+      propertyId: PROPERTY_ID,
+      requestId: 'request-emergency-1',
+      drillId: null,
+      provider: 'internal_roster',
+      channel: 'telegram',
+      scenarioType: 'other',
+      status: 'delivered',
+      latencyMs: 900,
+      externalDeliveryId: null,
+      observedAt: '2026-05-11T10:06:00.000Z',
+      recordedByUid: 'admin-1',
+      payload: {},
+      createdAt: '2026-05-11T10:06:00.000Z',
+    },
+  });
 });
 
 describe('EmergencyDispatchPage', () => {
@@ -188,13 +259,44 @@ describe('EmergencyDispatchPage', () => {
     expect(await screen.findByText('Smoke in lobby')).toBeInTheDocument();
     expect(screen.getAllByText('Пожар / дым').length).toBeGreaterThan(0);
     expect(screen.getByText('Security on-call')).toBeInTheDocument();
-    expect(screen.getByText('telegram')).toBeInTheDocument();
+    expect(screen.getAllByText('telegram').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('internal_roster').length).toBeGreaterThan(0);
     expect(screen.getByText('Barrier fallback drill')).toBeInTheDocument();
     expect(screen.getByText(/Таблицы: emergency_request_profiles/)).toBeInTheDocument();
     expect(readinessMock).toHaveBeenCalledWith(
       { property_id: PROPERTY_ID, window_hours: 72, limit: 25 },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  test('records queue actions and provider delivery evidence', async () => {
+    renderPage();
+
+    await screen.findByText('Smoke in lobby');
+    fireEvent.click(screen.getByRole('button', { name: /подтвердить/i }));
+    await waitFor(() => {
+      expect(emergencyDispatchMock).toHaveBeenCalledWith(
+        'request-emergency-1',
+        expect.objectContaining({ action: 'acknowledge' }),
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText('Latency, ms'), {
+      target: { value: '900' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^записать evidence$/i }));
+    await waitFor(() => {
+      expect(recordProviderDeliveryEvidenceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          property_id: PROPERTY_ID,
+          requestId: 'request-emergency-1',
+          provider: 'internal_roster',
+          channel: 'telegram',
+          status: 'delivered',
+          latencyMs: 900,
+        }),
+      );
+    });
   });
 
   test('records drill evidence from the admin page', async () => {

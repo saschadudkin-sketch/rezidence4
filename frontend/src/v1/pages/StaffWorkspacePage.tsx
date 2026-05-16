@@ -14,14 +14,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
 import type {
   ListStaffWorkspaceInboxParams,
+  ServiceRequestAttachment,
+  ServiceRequestCategory,
+  ServiceRequestHistoryRow,
+  ServiceRequestUpdate,
   StaffRequestPriority,
   StaffRequestStatus,
   StaffWorkspaceQueue,
   StaffWorkspaceRequest,
-  StaffWorkspaceUpdate,
   UserMe,
 } from '../api';
 import {
+  invalidateServiceRequestLifecycle,
   invalidateStaffWorkspaceRequest,
   isStaffRole,
   normalizeUserRole,
@@ -189,6 +193,11 @@ function formatTarget(request: StaffWorkspaceRequest): string {
   return request.targetId ? `${type}: ${request.targetId.slice(0, 8)}` : type;
 }
 
+function formatCategoryLabel(category: ServiceRequestCategory): string {
+  const domain = category.isEmergency ? 'Авария' : category.domain;
+  return `${category.name} · ${domain}`;
+}
+
 function actionLabel(status: StaffRequestStatus): string {
   if (status === 'accepted') return 'Принята в работу';
   if (status === 'completed') return 'Завершена сотрудником';
@@ -225,6 +234,7 @@ export function StaffWorkspacePage() {
   const [queue, setQueue] = useState<StaffWorkspaceQueue>('active');
   const [status, setStatus] = useState<StaffRequestStatus | 'all'>('all');
   const [priority, setPriority] = useState<StaffRequestPriority | 'all'>('all');
+  const [category, setCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -235,10 +245,11 @@ export function StaffWorkspacePage() {
     queue,
     status: status === 'all' ? undefined : status,
     priority: priority === 'all' ? undefined : priority,
+    category: category === 'all' ? undefined : category,
     q: searchParam,
     limit: 30,
     offset: 0,
-  }), [queue, status, priority, searchParam]);
+  }), [queue, status, priority, category, searchParam]);
 
   const query = useQuery({
     queryKey: qk.staffWorkspace.inbox(filters),
@@ -246,7 +257,18 @@ export function StaffWorkspacePage() {
     staleTime: 15_000,
   });
 
+  const categoryParams = useMemo(() => (
+    user.property_id ? { property_id: user.property_id } : undefined
+  ), [user.property_id]);
+
+  const categoriesQuery = useQuery({
+    queryKey: qk.serviceRequests.categories(categoryParams),
+    queryFn: ({ signal }) => api.serviceRequests.listCategories(categoryParams, { signal }),
+    staleTime: 300_000,
+  });
+
   const requests = query.data?.requests ?? [];
+  const categories = categoriesQuery.data?.data ?? [];
   const selectedRequest = selectedId
     ? requests.find((request) => request.id === selectedId) ?? null
     : null;
@@ -309,6 +331,21 @@ export function StaffWorkspacePage() {
                 {PRIORITY_FILTERS.map((value) => (
                   <option key={value} value={value}>
                     {value === 'all' ? 'Все' : PRIORITY_LABELS[value]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="staff-category" label="Категория">
+              <Select
+                id="staff-category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                disabled={categoriesQuery.isLoading || categories.length === 0}
+              >
+                <option value="all">Все</option>
+                {categories.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {formatCategoryLabel(item)}
                   </option>
                 ))}
               </Select>
@@ -430,6 +467,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
   const user = useV1Session();
   const queryClient = useQueryClient();
   const [note, setNote] = useState('');
+  const [residentUpdate, setResidentUpdate] = useState('');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -439,9 +477,29 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
     staleTime: 10_000,
   });
 
+  const lifecycle = useQuery({
+    queryKey: qk.serviceRequests.lifecycle(requestId),
+    queryFn: async ({ signal }) => {
+      const [request, history, attachments, updates] = await Promise.all([
+        api.serviceRequests.getById(requestId, { signal }),
+        api.serviceRequests.getHistory(requestId, { signal }),
+        api.serviceRequests.listAttachments(requestId, { signal }),
+        api.serviceRequests.listUpdates(requestId, { signal }),
+      ]);
+      return {
+        request,
+        history,
+        attachments: attachments.data,
+        updates: updates.data,
+      };
+    },
+    staleTime: 10_000,
+  });
+
   const request = detail.data?.request ?? listRequest;
 
   const invalidate = () => invalidateStaffWorkspaceRequest(queryClient, requestId);
+  const invalidateLifecycle = () => invalidateServiceRequestLifecycle(queryClient, requestId);
 
   const handleActionError = (error: unknown, fallback: string) => {
     setActionMessage(null);
@@ -459,6 +517,19 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
     },
     onError: (error) => {
       handleActionError(error, 'Не удалось добавить заметку');
+    },
+  });
+
+  const residentUpdateMutation = useMutation({
+    mutationFn: (body: string) => api.serviceRequests.createUpdate(requestId, { body }),
+    onSuccess: () => {
+      setResidentUpdate('');
+      setActionError(null);
+      setActionMessage('Обновление отправлено резиденту');
+      void invalidateLifecycle();
+    },
+    onError: (error) => {
+      handleActionError(error, 'Не удалось отправить обновление резиденту');
     },
   });
 
@@ -521,6 +592,17 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
     noteMutation.mutate(body);
   };
 
+  const submitResidentUpdate = (event: FormEvent) => {
+    event.preventDefault();
+    const body = residentUpdate.trim();
+    if (!body) {
+      setActionMessage(null);
+      setActionError('Введите текст обновления для резидента');
+      return;
+    }
+    residentUpdateMutation.mutate(body);
+  };
+
   if (detail.isLoading && !request) {
     return (
       <Card>
@@ -541,6 +623,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
 
   const busy =
     noteMutation.isPending ||
+    residentUpdateMutation.isPending ||
     assignMutation.isPending ||
     firstResponseMutation.isPending ||
     statusMutation.isPending;
@@ -548,6 +631,10 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
   const statusActions = getStatusActions(request.status);
   const showAssign = request.assignedToUid !== user.uid && !TERMINAL_STATUSES.has(request.status);
   const showFirstResponse = !request.firstResponseAt && !TERMINAL_STATUSES.has(request.status);
+  const lifecycleRequest = lifecycle.data?.request ?? null;
+  const residentUpdates = lifecycle.data?.updates ?? detail.data?.residentUpdates ?? [];
+  const attachments = lifecycle.data?.attachments ?? detail.data?.attachments ?? [];
+  const history = lifecycle.data?.history ?? [];
 
   return (
     <Stack>
@@ -556,6 +643,11 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       {detail.isError ? (
         <Alert tone="warning">
           Детали могли устареть: {isV1ApiError(detail.error) ? detail.error.message : 'ошибка сети'}
+        </Alert>
+      ) : null}
+      {lifecycle.isError ? (
+        <Alert tone="warning">
+          Canonical lifecycle недоступен: {isV1ApiError(lifecycle.error) ? lifecycle.error.message : 'ошибка сети'}
         </Alert>
       ) : null}
 
@@ -581,6 +673,7 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
           <Meta label="Исполнитель" value={request.assignedToName || 'не назначен'} />
           <Meta label="Первый ответ" value={formatDateTime(request.firstResponseAt)} />
           <Meta label="Срок SLA" value={formatDateTime(request.dueAt)} danger={request.isOverdue} />
+          <Meta label="SLA state" value={lifecycleRequest?.slaState || request.slaState} />
         </dl>
         {request.comment ? (
           <p className={`${uiClasses.textBody} ${uiClasses.marginTop3}`}>{request.comment}</p>
@@ -650,10 +743,32 @@ function StaffRequestDetailPanel({ requestId, listRequest }: StaffRequestDetailP
       </Card>
 
       <Card title="Коммуникация с резидентом">
+        <form onSubmit={submitResidentUpdate}>
+          <Field id="resident-update" label="Новое обновление">
+            <Textarea
+              id="resident-update"
+              value={residentUpdate}
+              onChange={(event) => setResidentUpdate(event.target.value)}
+              placeholder="Сообщение увидит резидент"
+              disabled={busy}
+            />
+          </Field>
+          <Button type="submit" loading={residentUpdateMutation.isPending} disabled={busy}>
+            Отправить резиденту
+          </Button>
+        </form>
         <UpdateList
-          updates={detail.data?.residentUpdates ?? []}
+          updates={residentUpdates}
           empty="Резидентских обновлений пока нет."
         />
+      </Card>
+
+      <Card title="Вложения">
+        <AttachmentList attachments={attachments} />
+      </Card>
+
+      <Card title="История заявки">
+        <HistoryList history={history} loading={lifecycle.isLoading} />
       </Card>
 
       <Card title="SLA события">
@@ -700,7 +815,7 @@ function Meta({ label, value, danger }: { label: string; value: string; danger?:
   );
 }
 
-function UpdateList({ updates, empty }: { updates: StaffWorkspaceUpdate[]; empty: string }) {
+function UpdateList({ updates, empty }: { updates: ServiceRequestUpdate[]; empty: string }) {
   if (!updates.length) return <EmptyState>{empty}</EmptyState>;
   return (
     <ul className={`${uiClasses.timeline} ${uiClasses.marginTop3}`}>
@@ -711,6 +826,54 @@ function UpdateList({ updates, empty }: { updates: StaffWorkspaceUpdate[]; empty
             <strong>{update.actorName || update.actorRole || 'staff'}</strong>
             <br />
             {update.body}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AttachmentList({ attachments }: { attachments: ServiceRequestAttachment[] }) {
+  if (!attachments.length) return <EmptyState>Вложений пока нет.</EmptyState>;
+  return (
+    <ul className={uiClasses.resourceList}>
+      {attachments.map((attachment) => (
+        <li className={uiClasses.resourceRow} key={attachment.id}>
+          <div className={uiClasses.resourceRowMain}>
+            <Inline>
+              <p className={uiClasses.resourceTitle}>{attachment.fileKind || 'file'}</p>
+              <Badge tone="info">{attachment.visibility}</Badge>
+            </Inline>
+            <p className={uiClasses.resourceMeta}>
+              {formatDateTime(attachment.createdAt)} · {attachment.fileUrl}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function HistoryList({
+  history,
+  loading,
+}: {
+  history: ServiceRequestHistoryRow[];
+  loading: boolean;
+}) {
+  if (loading && !history.length) {
+    return <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка истории…</span></Inline>;
+  }
+  if (!history.length) return <EmptyState>История заявки пока пустая.</EmptyState>;
+  return (
+    <ul className={uiClasses.timeline}>
+      {history.map((item, index) => (
+        <li key={`${item.at}-${index}`} className={uiClasses.timelineItem}>
+          <span className={uiClasses.timelineTime}>{formatDateTime(item.at)}</span>
+          <span className={uiClasses.timelineBody}>
+            <strong>{item.byName || item.byRole || 'system'}</strong>
+            <br />
+            {item.action}
           </span>
         </li>
       ))}

@@ -1327,6 +1327,106 @@ export interface StaffWorkspaceRequest {
   };
 }
 
+export type ServiceRequestCategoryDomain =
+  | 'access'
+  | 'service'
+  | 'territory'
+  | 'emergency'
+  | 'security'
+  | 'contractor';
+
+export interface ServiceRequestCategory {
+  id: UUID | null;
+  code: string;
+  name: string;
+  domain: ServiceRequestCategoryDomain | string;
+  targetScope: StaffRequestTargetType | string;
+  priority: StaffRequestPriority;
+  slaProfile: StaffSlaProfile;
+  firstResponseMinutes: number | null;
+  resolutionMinutes: number | null;
+  isEmergency: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface ServiceRequest {
+  id: string;
+  type: StaffRequestType | (string & {});
+  category: string;
+  status: StaffRequestStatus | (string & {});
+  priority: StaffRequestPriority;
+  slaProfile: StaffSlaProfile;
+  requestCategoryId: UUID | null;
+  targetType: StaffRequestTargetType | string | null;
+  targetId: UUID | string | null;
+  firstResponseDueAt: IsoDateTime | null;
+  resolutionDueAt: IsoDateTime | null;
+  emergencyMetadata: Record<string, unknown>;
+  assignedToUid: string | null;
+  assignedToName: string | null;
+  assignedToRole: string | null;
+  assignedAt: IsoDateTime | null;
+  assignedContractorUserId: UUID | null;
+  assignedContractorCompanyId: UUID | null;
+  startedAt: IsoDateTime | null;
+  firstResponseAt: IsoDateTime | null;
+  resolvedAt: IsoDateTime | null;
+  completedAt: IsoDateTime | null;
+  resolutionNote: string | null;
+  requiresFollowUp: boolean;
+  slaState: StaffSlaState;
+  escalationLevel: number;
+  escalatedAt: IsoDateTime | null;
+  escalationReason: string | null;
+  lastSlaCheckAt: IsoDateTime | null;
+  createdByUid: string;
+  createdByName: string;
+  createdByRole: string;
+  createdByApt: string | null;
+  visitorName: string | null;
+  visitorPhone: string | null;
+  carPlate: string | null;
+  comment: string | null;
+  passDuration: string | null;
+  validUntil: IsoDateTime | null;
+  scheduledFor: IsoDateTime | null;
+  arrivedAt: IsoDateTime | null;
+  photos: string[];
+  photo: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime | null;
+}
+
+export interface ServiceRequestAttachment {
+  id: UUID;
+  requestId: string;
+  uploadedByUid: string | null;
+  fileUrl: string;
+  fileKind: 'photo' | 'document' | 'other' | string | null;
+  visibility: 'resident' | string;
+  metadata: Record<string, unknown>;
+  createdAt: IsoDateTime;
+}
+
+export interface ServiceRequestUpdate {
+  id: UUID;
+  requestId: string;
+  actorUid: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  body: string;
+  visibility: 'resident' | string;
+  attachmentIds: UUID[];
+  createdAt: IsoDateTime;
+}
+
+export interface ServiceRequestHistoryRow {
+  byName: string | null;
+  byRole: string | null;
+  action: string;
+  at: IsoDateTime;
+}
+
 // ─── Emergency Dispatch Readiness ─────────────────────────────────────────
 
 export type EmergencyType =
@@ -1429,6 +1529,25 @@ export interface EmergencyProviderDeliveryEvidence {
   payload: Record<string, unknown>;
   createdAt: IsoDateTime | null;
 }
+
+export type EmergencyProviderDeliveryChannel =
+  | 'web_push'
+  | 'sms'
+  | 'telegram'
+  | 'email'
+  | 'phone'
+  | 'webhook'
+  | 'external_dispatch'
+  | 'contractor_company'
+  | 'internal_roster';
+
+export type EmergencyProviderDeliveryStatus =
+  | 'sent'
+  | 'delivered'
+  | 'acknowledged'
+  | 'failed'
+  | 'timed_out'
+  | 'not_required';
 
 export interface EmergencyDispatchDrillRecord {
   id: UUID;

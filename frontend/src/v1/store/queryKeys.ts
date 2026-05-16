@@ -16,6 +16,7 @@ import type {
   ListDocumentsParams,
   ListIncidentsParams,
   ListStaffWorkspaceInboxParams,
+  ListServiceRequestCategoriesParams,
   ListTechnicianWorkspaceQueueParams,
   ListMinePackagesParams,
   ListOverridesParams,
@@ -72,6 +73,17 @@ export const qk = {
     request: (id: string) => ['v1', 'staff-workspace', 'request', id] as const,
     residentQuickView: (id: string) =>
       ['v1', 'staff-workspace', 'resident-quick-view', id] as const,
+  },
+  serviceRequests: {
+    all: ['v1', 'service-requests'] as const,
+    categories: (p?: ListServiceRequestCategoriesParams) =>
+      ['v1', 'service-requests', 'categories', p ?? null] as const,
+    byId: (id: string) => ['v1', 'service-requests', 'byId', id] as const,
+    attachments: (id: string) => ['v1', 'service-requests', 'attachments', id] as const,
+    updates: (id: string) => ['v1', 'service-requests', 'updates', id] as const,
+    history: (id: string) => ['v1', 'service-requests', 'history', id] as const,
+    lifecycle: (id: string) => ['v1', 'service-requests', 'lifecycle', id] as const,
+    emergencyQueue: (p?: object) => ['v1', 'service-requests', 'emergency-queue', p ?? null] as const,
   },
   technicianWorkspace: {
     all: ['v1', 'technician-workspace'] as const,
@@ -159,6 +171,23 @@ export function invalidateStaffWorkspaceRequest(
   id: string,
 ): Promise<void> {
   return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.request(id) }),
+    qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.lifecycle(id) }),
+  ]).then(() => undefined);
+}
+
+export function invalidateServiceRequestLifecycle(
+  qc: QueryClient,
+  id: string,
+): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.byId(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.attachments(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.updates(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.history(id) }),
+    qc.invalidateQueries({ queryKey: qk.serviceRequests.lifecycle(id) }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.request(id) }),
     qc.invalidateQueries({ queryKey: qk.staffWorkspace.all }),
   ]).then(() => undefined);

@@ -8,6 +8,9 @@ import type {
   EmergencyDispatchReadiness,
   EmergencyEscalationTarget,
   EmergencyOnCallRosterRow,
+  EmergencyProviderDeliveryChannel,
+  EmergencyProviderDeliveryEvidence,
+  EmergencyProviderDeliveryStatus,
   EmergencyProviderNotificationEvidence,
   EmergencySeverity,
   EmergencyType,
@@ -51,6 +54,25 @@ const EMERGENCY_TYPES: Array<{ value: EmergencyType; label: string }> = [
 ];
 
 const SEVERITIES: EmergencySeverity[] = ['P0', 'P1', 'P2'];
+const PROVIDER_CHANNELS: EmergencyProviderDeliveryChannel[] = [
+  'web_push',
+  'sms',
+  'telegram',
+  'email',
+  'phone',
+  'webhook',
+  'external_dispatch',
+  'contractor_company',
+  'internal_roster',
+];
+const PROVIDER_STATUSES: EmergencyProviderDeliveryStatus[] = [
+  'sent',
+  'delivered',
+  'acknowledged',
+  'failed',
+  'timed_out',
+  'not_required',
+];
 const TARGETS: Array<{ value: EmergencyEscalationTarget; label: string }> = [
   { value: 'security', label: 'Охрана' },
   { value: 'concierge', label: 'Консьерж' },
@@ -204,9 +226,15 @@ function DashboardContent({
         />
       </section>
 
-      <EmergencyQueue rows={readiness.queue} />
+      <EmergencyQueue rows={readiness.queue} onRefresh={onRefresh} />
       <OnCallRoster rows={readiness.on_call_roster} />
       <ProviderEvidence rows={readiness.provider_notification_evidence} />
+      <ProviderDeliveryRecorder
+        propertyId={propertyId}
+        queue={readiness.queue}
+        onRecorded={onRefresh}
+      />
+      <ProviderDeliveryEvidence rows={readiness.live_provider_delivery_evidence ?? []} />
       <DrillRecorder propertyId={propertyId} onRecorded={onRefresh} />
       <DrillRecords rows={readiness.drill_records} />
       <EvidencePanel readiness={readiness} />
@@ -233,7 +261,22 @@ function KpiTile({
   );
 }
 
-function EmergencyQueue({ rows }: { rows: EmergencyDispatchProfile[] }) {
+function EmergencyQueue({
+  rows,
+  onRefresh,
+}: {
+  rows: EmergencyDispatchProfile[];
+  onRefresh: () => void;
+}) {
+  const mutation = useMutation({
+    mutationFn: ({ requestId, action }: { requestId: string; action: 'acknowledge' | 'dispatch' | 'resolve' }) =>
+      api.serviceRequests.emergencyDispatch(requestId, {
+        action,
+        notificationStatus: action === 'resolve' ? 'not_required' : undefined,
+      }),
+    onSuccess: onRefresh,
+  });
+
   if (!rows.length) {
     return (
       <Card title="Аварийная очередь">
@@ -263,9 +306,37 @@ function EmergencyQueue({ rows }: { rows: EmergencyDispatchProfile[] }) {
               <Metric label="Решение" value={formatDateTime(row.resolutionDueAt)} />
               <Metric label="Уведомления" value={row.notificationStatus} />
             </dl>
+            <Inline>
+              <Button
+                variant="secondary"
+                loading={mutation.isPending}
+                onClick={() => mutation.mutate({ requestId: row.requestId, action: 'acknowledge' })}
+              >
+                Подтвердить
+              </Button>
+              <Button
+                variant="secondary"
+                loading={mutation.isPending}
+                onClick={() => mutation.mutate({ requestId: row.requestId, action: 'dispatch' })}
+              >
+                Отправить
+              </Button>
+              <Button
+                variant="primary"
+                loading={mutation.isPending}
+                onClick={() => mutation.mutate({ requestId: row.requestId, action: 'resolve' })}
+              >
+                Закрыть
+              </Button>
+            </Inline>
           </li>
         ))}
       </ul>
+      {mutation.isError ? (
+        <Alert tone="error">
+          Действие не записано: {isV1ApiError(mutation.error) ? mutation.error.message : 'ошибка сети'}
+        </Alert>
+      ) : null}
     </Card>
   );
 }
@@ -326,6 +397,148 @@ function ProviderEvidence({ rows }: { rows: EmergencyProviderNotificationEvidenc
               <Metric label="Всего" value={formatNumber(row.total)} />
               <Metric label="Ошибки" value={formatNumber(row.failed)} />
             </dl>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function ProviderDeliveryRecorder({
+  propertyId,
+  queue,
+  onRecorded,
+}: {
+  propertyId: string;
+  queue: EmergencyDispatchProfile[];
+  onRecorded: () => void;
+}) {
+  const [provider, setProvider] = useState('internal_roster');
+  const [channel, setChannel] = useState<EmergencyProviderDeliveryChannel>('telegram');
+  const [status, setStatus] = useState<EmergencyProviderDeliveryStatus>('delivered');
+  const [latencyMs, setLatencyMs] = useState('');
+  const [requestId, setRequestId] = useState(queue[0]?.requestId ?? '');
+
+  const mutation = useMutation({
+    mutationFn: () => api.serviceRequests.recordProviderDeliveryEvidence({
+      property_id: propertyId,
+      requestId: requestId || undefined,
+      provider: provider.trim(),
+      channel,
+      status,
+      scenarioType: 'other',
+      latencyMs: latencyMs.trim() ? Number(latencyMs) : undefined,
+      payload: { recorded_from: 'emergency_dispatch_ui' },
+    }),
+    onSuccess: () => {
+      setLatencyMs('');
+      onRecorded();
+    },
+  });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!provider.trim()) return;
+    mutation.mutate();
+  };
+
+  return (
+    <Card title="Записать provider delivery evidence">
+      <form onSubmit={submit}>
+        <Stack>
+          <Inline>
+            <Field id="provider-name" label="Провайдер">
+              <Input
+                id="provider-name"
+                value={provider}
+                onChange={(event) => setProvider(event.target.value)}
+                placeholder="internal_roster"
+              />
+            </Field>
+            <Field id="provider-channel" label="Канал">
+              <Select
+                id="provider-channel"
+                value={channel}
+                onChange={(event) => setChannel(event.target.value as EmergencyProviderDeliveryChannel)}
+              >
+                {PROVIDER_CHANNELS.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="provider-status" label="Статус">
+              <Select
+                id="provider-status"
+                value={status}
+                onChange={(event) => setStatus(event.target.value as EmergencyProviderDeliveryStatus)}
+              >
+                {PROVIDER_STATUSES.map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </Select>
+            </Field>
+          </Inline>
+          <Inline>
+            <Field id="provider-request" label="Заявка">
+              <Select
+                id="provider-request"
+                value={requestId}
+                onChange={(event) => setRequestId(event.target.value)}
+              >
+                <option value="">Без заявки</option>
+                {queue.map((row) => (
+                  <option key={row.requestId} value={row.requestId}>
+                    #{row.requestId.slice(0, 8)} · {row.request?.comment || row.emergencyType}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field id="provider-latency" label="Latency, ms">
+              <Input
+                id="provider-latency"
+                value={latencyMs}
+                inputMode="numeric"
+                onChange={(event) => setLatencyMs(event.target.value)}
+                placeholder="1200"
+              />
+            </Field>
+          </Inline>
+          {mutation.isError ? (
+            <Alert tone="error">
+              Evidence не записан: {isV1ApiError(mutation.error) ? mutation.error.message : 'ошибка сети'}
+            </Alert>
+          ) : null}
+          {mutation.isSuccess ? <Alert tone="success">Evidence записан.</Alert> : null}
+          <Button type="submit" loading={mutation.isPending}>Записать evidence</Button>
+        </Stack>
+      </form>
+    </Card>
+  );
+}
+
+function ProviderDeliveryEvidence({ rows }: { rows: EmergencyProviderDeliveryEvidence[] }) {
+  if (!rows.length) {
+    return (
+      <Card title="Live provider delivery evidence">
+        <EmptyState>Provider delivery evidence в выбранном окне не найден.</EmptyState>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Live provider delivery evidence">
+      <ul className={uiClasses.resourceList}>
+        {rows.map((row) => (
+          <li className={uiClasses.resourceRow} key={row.id}>
+            <div className={uiClasses.resourceRowMain}>
+              <Inline>
+                <p className={uiClasses.resourceTitle}>{row.provider}</p>
+                <Badge tone={statusTone(row.status)}>{row.status}</Badge>
+              </Inline>
+              <p className={uiClasses.resourceMeta}>
+                {row.channel} · {formatDateTime(row.observedAt)} · {row.latencyMs ?? '—'} ms
+              </p>
+            </div>
           </li>
         ))}
       </ul>

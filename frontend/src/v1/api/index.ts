@@ -37,6 +37,7 @@ import { gisOssReadinessApi } from './gisOssReadiness';
 import { skudIntegrationsApi } from './skudIntegrations';
 import { auditReviewsApi } from './auditReviews';
 import { emergencyDispatchApi } from './emergencyDispatch';
+import { serviceRequestsApi } from './serviceRequests';
 import { operationsDashboardApi } from './operationsDashboard';
 import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
 import { adminOutboxApi } from './adminOutbox';
@@ -68,6 +69,7 @@ export const api = {
   skudIntegrations: skudIntegrationsApi,
   auditReviews: auditReviewsApi,
   emergencyDispatch: emergencyDispatchApi,
+  serviceRequests: serviceRequestsApi,
   operationsDashboard: operationsDashboardApi,
   managementCompanyPortfolio: managementCompanyPortfolioApi,
   adminOutbox: adminOutboxApi,
@@ -177,6 +179,20 @@ export type {
   CreateEmergencyDrillBody,
   GetEmergencyDispatchReadinessParams,
 } from './emergencyDispatch';
+export type {
+  CreateEmergencyProviderDeliveryEvidenceBody,
+  CreateServiceRequestAttachmentBody,
+  CreateServiceRequestBody,
+  CreateServiceRequestUpdateBody,
+  ListServiceRequestCategoriesParams,
+  ListServiceRequestsParams,
+  ServiceRequestEmergencyDispatchAction,
+  ServiceRequestEmergencyDispatchBody,
+  ServiceRequestEmergencyQueueParams,
+  ServiceRequestRateBody,
+  UpdateServiceRequestBody,
+  UpsertServiceRequestCategoryBody,
+} from './serviceRequests';
 export type { GetOperationsDashboardParams } from './operationsDashboard';
 export type { GetManagementCompanyPortfolioParams } from './managementCompanyPortfolio';
 export type { ListAdminOutboxParams } from './adminOutbox';

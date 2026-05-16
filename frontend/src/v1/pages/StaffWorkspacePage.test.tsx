@@ -13,16 +13,28 @@ import type {
 const {
   assignRequestMock,
   createInternalCommentMock,
+  createServiceRequestUpdateMock,
+  getServiceRequestByIdMock,
   getQuickViewMock,
+  getRequestAttachmentsMock,
   getRequestDetailMock,
+  getRequestHistoryMock,
+  getRequestUpdatesMock,
+  listCategoriesMock,
   listInboxMock,
   markFirstResponseMock,
   updateStatusMock,
 } = vi.hoisted(() => ({
   assignRequestMock: vi.fn(),
   createInternalCommentMock: vi.fn(),
+  createServiceRequestUpdateMock: vi.fn(),
+  getServiceRequestByIdMock: vi.fn(),
   getQuickViewMock: vi.fn(),
+  getRequestAttachmentsMock: vi.fn(),
   getRequestDetailMock: vi.fn(),
+  getRequestHistoryMock: vi.fn(),
+  getRequestUpdatesMock: vi.fn(),
+  listCategoriesMock: vi.fn(),
   listInboxMock: vi.fn(),
   markFirstResponseMock: vi.fn(),
   updateStatusMock: vi.fn(),
@@ -41,6 +53,14 @@ vi.mock('../api', async () => {
         assignRequest: assignRequestMock,
         markFirstResponse: markFirstResponseMock,
         updateStatus: updateStatusMock,
+      },
+      serviceRequests: {
+        listCategories: listCategoriesMock,
+        getById: getServiceRequestByIdMock,
+        getHistory: getRequestHistoryMock,
+        listAttachments: getRequestAttachmentsMock,
+        listUpdates: getRequestUpdatesMock,
+        createUpdate: createServiceRequestUpdateMock,
       },
     },
     isV1ApiError: () => false,
@@ -237,7 +257,44 @@ beforeEach(() => {
     page: { limit: 30, offset: 0, hasMore: false },
     property: null,
   });
+  listCategoriesMock.mockResolvedValue({
+    data: [{
+      id: null,
+      code: 'plumber',
+      name: 'Plumber',
+      domain: 'service',
+      targetScope: 'unit',
+      priority: 'normal',
+      slaProfile: 'standard',
+      firstResponseMinutes: 60,
+      resolutionMinutes: 240,
+      isEmergency: false,
+      metadata: {},
+    }],
+  });
   getRequestDetailMock.mockResolvedValue(makeDetail(request));
+  getServiceRequestByIdMock.mockResolvedValue(request);
+  getRequestHistoryMock.mockResolvedValue([{
+    byName: 'Мария Консьерж',
+    byRole: 'concierge',
+    action: 'Заявка принята',
+    at: '2026-05-08T07:30:00Z',
+  }]);
+  getRequestAttachmentsMock.mockResolvedValue({
+    data: [{
+      id: '99999999-9999-4999-8999-999999999999',
+      requestId: request.id,
+      uploadedByUid: 'resident-user-1',
+      fileUrl: '/uploads/leak.jpg',
+      fileKind: 'photo',
+      visibility: 'resident',
+      metadata: {},
+      createdAt: '2026-05-08T07:05:00Z',
+    }],
+  });
+  getRequestUpdatesMock.mockResolvedValue({
+    data: makeDetail(request).residentUpdates,
+  });
   getQuickViewMock.mockResolvedValue(makeQuickView());
   createInternalCommentMock.mockResolvedValue({
     comment: {
@@ -255,6 +312,17 @@ beforeEach(() => {
   assignRequestMock.mockResolvedValue(makeRequest({ assignedToUid: 'staff-1' }));
   markFirstResponseMock.mockResolvedValue(makeRequest({ firstResponseAt: '2026-05-08T08:10:00Z' }));
   updateStatusMock.mockResolvedValue(makeRequest({ status: 'accepted' }));
+  createServiceRequestUpdateMock.mockResolvedValue({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    requestId: request.id,
+    actorUid: 'staff-1',
+    actorName: 'Мария Консьерж',
+    actorRole: 'concierge',
+    body: 'Мастер едет',
+    visibility: 'resident',
+    attachmentIds: [],
+    createdAt: '2026-05-08T08:15:00Z',
+  });
 });
 
 afterEach(() => {
@@ -268,6 +336,8 @@ describe('StaffWorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: /рабочее место staff/i })).toBeInTheDocument();
     expect(await screen.findByText('Вызвали сантехника')).toBeInTheDocument();
     expect(screen.getByText('Вода перекрыта')).toBeInTheDocument();
+    expect(screen.getByText(/\/uploads\/leak\.jpg/)).toBeInTheDocument();
+    expect(screen.getByText('Заявка принята')).toBeInTheDocument();
     expect(screen.getByText(/A001AA77/)).toBeInTheDocument();
     expect(getQuickViewMock).toHaveBeenCalledWith(RESIDENT_ID, expect.any(Object));
     expect(listInboxMock).toHaveBeenCalledWith(
@@ -295,6 +365,14 @@ describe('StaffWorkspacePage', () => {
         expect.any(Object),
       );
     });
+
+    fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'plumber' } });
+    await waitFor(() => {
+      expect(listInboxMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ queue: 'overdue', q: 'Ив', category: 'plumber' }),
+        expect.any(Object),
+      );
+    });
   });
 
   test('supports internal notes and request quick actions', async () => {
@@ -309,6 +387,17 @@ describe('StaffWorkspacePage', () => {
       expect(createInternalCommentMock).toHaveBeenCalledWith(
         'req-1',
         { body: 'Передали инженеру' },
+      );
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/сообщение увидит/i), {
+      target: { value: 'Мастер едет' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /отправить резиденту/i }));
+    await waitFor(() => {
+      expect(createServiceRequestUpdateMock).toHaveBeenCalledWith(
+        'req-1',
+        { body: 'Мастер едет' },
       );
     });
 
