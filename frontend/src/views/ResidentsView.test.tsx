@@ -3,7 +3,33 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import ResidentsView from './ResidentsView';
 
+const { mockState } = vi.hoisted(() => {
+  const users = {
+    u1: { uid: 'u1', name: 'Иван Петров', role: 'owner', phone: '+7 916 100-00-01', apartment: '12', parkingSpot: 'А1' },
+    u2: { uid: 'u2', name: 'Анна Соколова', role: 'tenant', phone: '+7 929 200-00-02', apartment: '34', parkingSpot: null },
+    u3: { uid: 'u3', name: 'Пётр Орлов', role: 'owner', phone: '+7 903 300-00-03', apartment: '12', parkingSpot: null },
+    g1: { uid: 'g1', name: 'Охранник', role: 'security', phone: '+7 917 000-00-00', apartment: null },
+  };
+  const garage = {
+    u1: [{ id: 'car1', plate: 'А123ВС77', brand: 'BMW', isMain: true }],
+    u2: [],
+    u3: [],
+    g1: [],
+  };
+  return {
+    mockState: {
+      reqState: { requests: [], history: {} },
+      chatState: { chat: [], chatLastSeen: {} },
+      usersState: { users, phoneDb: {}, avatars: {} },
+      permsState: { perms: {}, templates: {} },
+      blacklistState: { blacklist: [] },
+      garageState: { garage },
+    },
+  };
+});
+
 vi.mock('../store/AppStore', () => ({
+  useAppStoreSelector: (selector) => selector(mockState),
   useUsers: () => ({
     users: {
       u1: { uid: 'u1', name: 'Иван Петров', role: 'owner', phone: '+7 916 100-00-01', apartment: '12', parkingSpot: 'А1' },

@@ -116,11 +116,11 @@ describe('ResidentOffboardingReportPage', () => {
   test('renders offboarding evidence and vehicle review queue', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: /resident offboarding/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /вывод резидентов/i })).toBeInTheDocument();
     expect(await screen.findByText('Resident One')).toBeInTheDocument();
     expect(screen.getByText('A001AA77')).toBeInTheDocument();
     expect(screen.getAllByText(/ownership transfer/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Tables: resident_lifecycle_events/)).toBeInTheDocument();
+    expect(screen.getByText(/Таблицы: resident_lifecycle_events/)).toBeInTheDocument();
     expect(offboardingReportMock).toHaveBeenCalledWith(
       { property_id: PROPERTY_ID, limit: 25 },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),

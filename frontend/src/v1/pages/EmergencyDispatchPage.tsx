@@ -304,14 +304,14 @@ function OnCallRoster({ rows }: { rows: EmergencyOnCallRosterRow[] }) {
 function ProviderEvidence({ rows }: { rows: EmergencyProviderNotificationEvidence[] }) {
   if (!rows.length) {
     return (
-      <Card title="Provider notification evidence">
+      <Card title="Подтверждение уведомлений провайдера">
         <EmptyState>Нет записей отправки аварийных уведомлений в выбранном окне.</EmptyState>
       </Card>
     );
   }
 
   return (
-    <Card title="Provider notification evidence">
+    <Card title="Подтверждение уведомлений провайдера">
       <ul className={uiClasses.resourceList}>
         {rows.map((row) => (
           <li className={uiClasses.resourceRow} key={`${row.channel}-${row.status}`}>
@@ -320,11 +320,11 @@ function ProviderEvidence({ rows }: { rows: EmergencyProviderNotificationEvidenc
                 <p className={uiClasses.resourceTitle}>{row.channel}</p>
                 <Badge tone={statusTone(row.status)}>{row.status}</Badge>
               </Inline>
-              <p className={uiClasses.resourceMeta}>Last event: {formatDateTime(row.lastEventAt)}</p>
+              <p className={uiClasses.resourceMeta}>Последнее событие: {formatDateTime(row.lastEventAt)}</p>
             </div>
             <dl className={uiClasses.staffMetaGrid}>
-              <Metric label="Total" value={formatNumber(row.total)} />
-              <Metric label="Failed" value={formatNumber(row.failed)} />
+              <Metric label="Всего" value={formatNumber(row.total)} />
+              <Metric label="Ошибки" value={formatNumber(row.failed)} />
             </dl>
           </li>
         ))}
@@ -462,16 +462,16 @@ function DrillRecords({ rows }: { rows: EmergencyDispatchDrillRecord[] }) {
 function EvidencePanel({ readiness }: { readiness: EmergencyDispatchReadiness }) {
   return (
     <Card
-      title="Readiness evidence"
-      subtitle={`${formatNumber(readiness.evidence.returned_queue_rows)} queue rows, ${formatNumber(readiness.evidence.returned_drill_rows)} drill rows`}
+      title="Подтверждение готовности"
+      subtitle={`${formatNumber(readiness.evidence.returned_queue_rows)} строк очереди, ${formatNumber(readiness.evidence.returned_drill_rows)} строк учений`}
     >
       <dl className={uiClasses.staffMetaGrid}>
-        <Metric label="Event type" value={readiness.evidence.notification_event_type} />
-        <Metric label="Roster rows" value={formatNumber(readiness.evidence.returned_roster_rows)} />
-        <Metric label="Notify rows" value={formatNumber(readiness.evidence.returned_notification_rows)} />
+        <Metric label="Тип события" value={readiness.evidence.notification_event_type} />
+        <Metric label="Строки состава" value={formatNumber(readiness.evidence.returned_roster_rows)} />
+        <Metric label="Строки уведомлений" value={formatNumber(readiness.evidence.returned_notification_rows)} />
       </dl>
       <p className={uiClasses.resourceMeta}>
-        Tables: {readiness.evidence.source_tables.join(', ')}
+        Таблицы: {readiness.evidence.source_tables.join(', ')}
       </p>
     </Card>
   );

@@ -196,8 +196,9 @@ const VisitorFields = memo(function VisitorFields({
 
       {needsCarPlate(cat) && cat !== 'guest' && (
         <div className="field">
-          <label className="field-lbl">Марка и номер авто{['taxi', 'car'].includes(cat) ? ' *' : ''}</label>
+          <label className="field-lbl" htmlFor="request-car-plate">Марка и номер авто{['taxi', 'car'].includes(cat) ? ' *' : ''}</label>
           <input
+            id="request-car-plate"
             className="field-inp"
             placeholder="Toyota Camry А123БВ777"
             value={carPlate}
@@ -209,12 +210,14 @@ const VisitorFields = memo(function VisitorFields({
       )}
 
       {usesMultiVisitorNames && (
-        <div className="field">
-          <label className="field-lbl">Имена посетителей *</label>
+        <div className="field" role="group" aria-labelledby="request-visitor-names-label">
+          <span id="request-visitor-names-label" className="field-lbl">Имена посетителей *</span>
           {vNames.map((n, i) => (
             <div key={n.__id} className="vf-name-row">
               <input
+                id={`request-visitor-name-${n.__id}`}
                 className="field-inp vf-name-inp"
+                aria-label={`Имя посетителя ${i + 1}`}
                 placeholder={i === 0 ? 'Иван Иванов' : `Посетитель ${i + 1}`}
                 value={n.value}
                 onChange={(e) => {
@@ -390,8 +393,8 @@ const ScheduleSection = memo(function ScheduleSection({ showSchedule, setShowSch
       </button>
       {showSchedule && (
         <div className="schedule-block">
-          <label>Дата и время отправки</label>
-          <input type="datetime-local" className="schedule-datetime" value={scheduledFor} min={minDT} onChange={(e) => setScheduledFor(e.target.value)} />
+          <label htmlFor="request-scheduled-for">Дата и время отправки</label>
+          <input id="request-scheduled-for" type="datetime-local" className="schedule-datetime" value={scheduledFor} min={minDT} onChange={(e) => setScheduledFor(e.target.value)} />
           <div className="schedule-presets">
             {SCHEDULE_PRESETS.map((preset) => (
               <button key={preset.label} className="schedule-preset" onClick={() => applyPreset(preset)}>{preset.label}</button>
@@ -725,8 +728,9 @@ function ResidentPassWizard({
               </div>
             )}
             <div className="field">
-              <label className="field-lbl">Комментарий для охраны</label>
+              <label className="field-lbl" htmlFor="request-guard-comment">Комментарий для охраны</label>
               <textarea
+                id="request-guard-comment"
                 className="field-textarea"
                 rows={3}
                 placeholder="Например: встретить у КПП, позвонить перед проходом"

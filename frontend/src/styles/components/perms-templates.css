@@ -3,12 +3,17 @@
 .tpl-row{
   display:flex;align-items:center;gap:var(--space-sm);
   padding:11px 14px;background:var(--s2);border:1px solid var(--b1);
-  border-radius:var(--r);cursor:pointer;
+  border-radius:var(--r);
   transition:border-color .13s,background .13s;
   animation:riseUp .18s ease;
 }
 @media(hover:hover){.tpl-row:hover{background:var(--g-bg);border-color:var(--b2)}}
 .tpl-row:active{background:var(--g-bg);border-color:var(--b2)}
+.tpl-row-main{
+  display:flex;align-items:center;gap:var(--space-sm);flex:1;min-width:0;
+  color:inherit;text-align:left;background:none;border:0;padding:0;
+  font:inherit;cursor:pointer;
+}
 .tpl-ico{font-size:var(--fs-md);flex-shrink:0;opacity:.8}
 .tpl-info{flex:1;min-width:0}
 .tpl-name{font-size:var(--fs-sm);font-weight:500;color:var(--t1)}

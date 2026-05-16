@@ -134,6 +134,32 @@
   border-top:none;
   box-shadow:none;
 }
+.consent-overlay{
+  z-index:9999;
+  align-items:center;
+}
+.modal.modal--confirm.consent-modal{
+  width:min(560px, calc(100vw - 32px));
+  max-width:560px;
+}
+.consent-modal__body p{
+  margin:0 0 12px;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--t2);
+}
+.consent-modal__body a{
+  color:var(--g2);
+}
+.consent-modal__version{
+  color:var(--t4);
+  font-size:12px;
+}
+.consent-modal__error{
+  margin:0 18px 12px;
+  color:var(--err-t);
+  font-size:13px;
+}
 .confirm-dialog-message{
   margin:0;
   color:var(--t2);

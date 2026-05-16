@@ -5,12 +5,13 @@
  * does not match the current policy version.  Blocks the UI until the user
  * accepts.  On accept, POSTs to /api/v1/privacy/consent.
  *
- * We intentionally keep the UI minimal and CSS-module-free here; the modal
- * uses inline styles so it works even before design-system tokens are loaded
- * (the /legal deeplink in the body is styled through a plain link class).
+ * The modal uses the shared modal accessibility helper because it blocks the
+ * first authenticated UI until the resident accepts the current policy.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '../services/providers/apiClient';
+import { useModalAccessibility } from '../ui/useModalAccessibility';
+import { lockScroll, unlockScroll } from '../ui/scrollLock';
 
 type ConsentStatus = {
   currentVersion: string;
@@ -65,68 +66,85 @@ export default function ConsentModal({ enabled }: Props) {
   if (!enabled || !status || !status.needsAcceptance) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="consent-modal-title"
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: 'rgba(15, 23, 42, 0.55)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '16px',
-      }}
-    >
+    <ConsentDialog
+      status={status}
+      submitting={submitting}
+      error={error}
+      onAccept={handleAccept}
+    />
+  );
+}
+
+function ConsentDialog({
+  status,
+  submitting,
+  error,
+  onAccept,
+}: {
+  status: ConsentStatus;
+  submitting: boolean;
+  error: string | null;
+  onAccept: () => void;
+}) {
+  const { dialogRef, overlayProps } = useModalAccessibility({
+    onClose: () => {},
+    closeOnEsc: false,
+  });
+
+  useEffect(() => {
+    lockScroll();
+    return () => {
+      unlockScroll();
+    };
+  }, []);
+
+  return (
+    <div className="overlay consent-overlay" {...overlayProps}>
       <div
-        style={{
-          maxWidth: 560, width: '100%',
-          background: '#fff', borderRadius: 12,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
-          padding: '28px 28px 20px',
-          fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-          color: '#0f172a',
-        }}
+        className="modal modal--confirm consent-modal"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="consent-modal-title"
+        tabIndex={-1}
       >
-        <h2 id="consent-modal-title" style={{ margin: '0 0 12px', fontSize: 20, fontWeight: 600 }}>
-          Согласие на обработку персональных данных
-        </h2>
-        <p style={{ margin: '0 0 12px', lineHeight: 1.5, fontSize: 14 }}>
-          В соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных»
-          мы обрабатываем ваши данные (имя, телефон, номер квартиры, фотографии заявок)
-          для обеспечения работы сервиса управления жилым комплексом.
-        </p>
-        <p style={{ margin: '0 0 12px', lineHeight: 1.5, fontSize: 14 }}>
-          Вы можете отозвать согласие в любой момент через раздел «Настройки → Конфиденциальность»
-          или написав на <a href="mailto:privacy@domhub.su" style={{ color: '#2563eb' }}>privacy@domhub.su</a>.
-        </p>
-        <p style={{ margin: '0 0 20px', fontSize: 12, color: '#64748b' }}>
-          Версия политики: <code>{status.currentVersion}</code>
-        </p>
+        <div className="modal-head">
+          <div className="modal-head-main">
+            <h2 id="consent-modal-title" className="modal-title">Согласие на обработку персональных данных</h2>
+            <span className="modal-subtitle">Обязательное подтверждение для продолжения работы.</span>
+          </div>
+        </div>
+        <div className="modal-body consent-modal__body">
+          <p>
+            В соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных»
+            мы обрабатываем ваши данные (имя, телефон, номер квартиры, фотографии заявок)
+            для обеспечения работы сервиса управления жилым комплексом.
+          </p>
+          <p>
+            Вы можете отозвать согласие в любой момент через раздел «Настройки → Конфиденциальность»
+            или написав на <a href="mailto:privacy@domhub.su">privacy@domhub.su</a>.
+          </p>
+          <p className="consent-modal__version">
+            Версия политики: <code>{status.currentVersion}</code>
+          </p>
+        </div>
         {error ? (
-          <div style={{ color: '#b91c1c', marginBottom: 12, fontSize: 13 }} role="alert" aria-live="assertive">{error}</div>
+          <div className="consent-modal__error" role="alert" aria-live="assertive">{error}</div>
         ) : null}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="modal-foot">
           <a
             href="/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              padding: '10px 16px', border: '1px solid #cbd5e1',
-              borderRadius: 8, textDecoration: 'none', color: '#0f172a',
-              fontSize: 14,
-            }}
+            className="btn-outline"
           >
             Прочитать полностью
           </a>
           <button
             type="button"
-            onClick={handleAccept}
+            className="btn-gold"
+            onClick={onAccept}
             disabled={submitting}
-            style={{
-              padding: '10px 18px', border: 'none', borderRadius: 8,
-              background: submitting ? '#94a3b8' : '#2563eb',
-              color: '#fff', fontWeight: 600, fontSize: 14,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-            }}
           >
             {submitting ? 'Сохраняем…' : 'Принимаю'}
           </button>

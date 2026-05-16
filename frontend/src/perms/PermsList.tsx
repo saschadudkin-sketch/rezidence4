@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ROLES } from '../domain/permissions';
-import { useActions, usePerms, useTemplates } from '../store/AppStore';
+import { useActions, useAppStoreSelector, usePerms } from '../store/AppStore';
 import { CAT_LABEL } from '../constants/index';
 import { genId } from '../utils';
 import { toast } from '../ui/Toasts';
@@ -9,6 +9,7 @@ import { isLiveMode } from '../config/runtimeMode';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { makeSelectTemplatesByType } from '../store/selectors/requestsSelectors';
 import type { Template, PermEntry, UserPerms } from '../store/slices/permsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
 
@@ -235,7 +236,8 @@ export function PermsList({ user }: { user: AppUser }) {
 }
 
 export function MyTemplates({ user, onUse }: MyTemplatesProps) {
-  const templates = useTemplates(user.uid);
+  const templatesSelectorRef = useRef(makeSelectTemplatesByType());
+  const { templates, passes, tech } = useAppStoreSelector((state) => templatesSelectorRef.current(state, user.uid));
   const { deleteTemplate } = useActions();
   const templatesEmptyCopy = getViewStateCopy('templates', 'empty');
 
@@ -254,9 +256,6 @@ export function MyTemplates({ user, onUse }: MyTemplatesProps) {
     );
   }
 
-  const passes = templates.filter((template) => template.type === 'pass');
-  const tech = templates.filter((template) => template.type === 'tech');
-
   return (
     <div>
       {passes.length > 0 && (
@@ -264,13 +263,15 @@ export function MyTemplates({ user, onUse }: MyTemplatesProps) {
           <div className="tpl-section-hdr"><AppIcon name="ticket-line" className="u-inline-icon" /> Пропуска</div>
           <div className="tpl-list">
             {passes.map((template) => (
-              <div key={template.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.click()} onClick={() => onUse(template)}>
+              <div key={template.id} className="tpl-row">
+                <button type="button" className="tpl-row-main" onClick={() => onUse(template)}>
                 <span className="tpl-ico"><AppIcon name="ticket-line" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{template.name}</div>
                   <div className="tpl-meta">{getCategoryLabel(template.category)}{template.visitorName ? ' · ' + template.visitorName : ''}{template.comment ? ' · ' + template.comment : ''}</div>
                 </div>
-                <button className="tpl-del" onClick={(event) => { event.stopPropagation(); del(template.id); }} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
+                </button>
+                <button className="tpl-del" onClick={() => del(template.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
               </div>
             ))}
           </div>
@@ -281,13 +282,15 @@ export function MyTemplates({ user, onUse }: MyTemplatesProps) {
           <div className="tpl-section-hdr"><AppIcon name="tools-line" className="u-inline-icon" /> Техслужба</div>
           <div className="tpl-list">
             {tech.map((template) => (
-              <div key={template.id} className="tpl-row" role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.click()} onClick={() => onUse(template)}>
+              <div key={template.id} className="tpl-row">
+                <button type="button" className="tpl-row-main" onClick={() => onUse(template)}>
                 <span className="tpl-ico"><AppIcon name="tools-line" /></span>
                 <div className="tpl-info">
                   <div className="tpl-name">{template.name}</div>
                   <div className="tpl-meta">{getCategoryLabel(template.category)}{template.comment ? ' · ' + template.comment : ''}</div>
                 </div>
-                <button className="tpl-del" onClick={(event) => { event.stopPropagation(); del(template.id); }} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
+                </button>
+                <button className="tpl-del" onClick={() => del(template.id)} title="Удалить" aria-label="Удалить"><AppIcon name="close" /></button>
               </div>
             ))}
           </div>

@@ -47,7 +47,7 @@ export function ResidentOffboardingReportPage() {
     return (
       <div className={uiClasses.pageShell}>
         <header className={uiClasses.pageHeader}>
-          <h1 className={uiClasses.pageTitle}>Resident offboarding</h1>
+          <h1 className={uiClasses.pageTitle}>Вывод резидентов</h1>
         </header>
         <Alert tone="warning">Администратор не привязан к объекту.</Alert>
       </div>
@@ -59,9 +59,9 @@ export function ResidentOffboardingReportPage() {
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
-        <h1 className={uiClasses.pageTitle}>Resident offboarding</h1>
+        <h1 className={uiClasses.pageTitle}>Вывод резидентов</h1>
         <p className={uiClasses.pageSubtitle}>
-          Ownership transfer evidence, revoked access and vehicle review queue.
+          Подтверждения смены собственника, отозванные доступы и очередь проверки автомобилей.
         </p>
       </header>
 
@@ -87,15 +87,15 @@ export function ResidentOffboardingReportPage() {
 function ReportContent({ report }: { report: ResidentOffboardingReport }) {
   return (
     <Stack>
-      <section className={uiClasses.formGrid} aria-label="Resident offboarding KPIs">
-        <KpiTile title="Offboarded" value={report.summary.offboarded_residents} />
-        <KpiTile title="Last 30d" value={report.summary.offboarded_last_30d} />
+      <section className={uiClasses.formGrid} aria-label="Показатели вывода резидентов">
+        <KpiTile title="Выведено" value={report.summary.offboarded_residents} />
+        <KpiTile title="За 30 дней" value={report.summary.offboarded_last_30d} />
         <KpiTile
-          title="Vehicle review"
+          title="Проверка авто"
           value={report.summary.vehicles_pending_review}
           tone={report.summary.vehicles_pending_review > 0 ? 'warning' : 'success'}
         />
-        <KpiTile title="Recent rows" value={report.summary.recent_offboarding_rows} />
+        <KpiTile title="Недавние записи" value={report.summary.recent_offboarding_rows} />
       </section>
 
       <RecentOffboardings rows={report.recent_offboardings} />
@@ -107,7 +107,7 @@ function ReportContent({ report }: { report: ResidentOffboardingReport }) {
 
 function RecentOffboardings({ rows }: { rows: ResidentOffboardingRecord[] }) {
   return (
-    <Card title="Recent offboardings">
+    <Card title="Недавний вывод">
       {rows.length ? (
         <ul className={uiClasses.resourceList}>
           {rows.map((row) => (
@@ -115,13 +115,13 @@ function RecentOffboardings({ rows }: { rows: ResidentOffboardingRecord[] }) {
               <div className={uiClasses.resourceRowMain}>
                 <p className={uiClasses.resourceTitle}>{row.resident_name || row.resident_id}</p>
                 <p className={uiClasses.resourceMeta}>
-                  {row.reason || 'reason not set'} · {formatDateTime(row.created_at)} · actor {row.actor_uid || 'unknown'}
+                  {row.reason || 'причина не указана'} · {formatDateTime(row.created_at)} · инициатор {row.actor_uid || 'неизвестен'}
                 </p>
               </div>
               <dl className={uiClasses.staffMetaGrid}>
-                <Metric label="Passes" value={formatNumber(row.summary.revoked_passes)} />
-                <Metric label="Requests" value={formatNumber(row.summary.cancelled_access_requests)} />
-                <Metric label="Vehicles" value={formatNumber(row.summary.vehicles_marked_for_review)} />
+                <Metric label="Пропуска" value={formatNumber(row.summary.revoked_passes)} />
+                <Metric label="Заявки" value={formatNumber(row.summary.cancelled_access_requests)} />
+                <Metric label="Авто" value={formatNumber(row.summary.vehicles_marked_for_review)} />
               </dl>
             </li>
           ))}
@@ -135,7 +135,7 @@ function RecentOffboardings({ rows }: { rows: ResidentOffboardingRecord[] }) {
 
 function VehicleReviewQueue({ rows }: { rows: ResidentOffboardingVehicleReview[] }) {
   return (
-    <Card title="Vehicle review queue">
+    <Card title="Очередь проверки авто">
       {rows.length ? (
         <ul className={uiClasses.resourceList}>
           {rows.map((vehicle) => (
@@ -143,17 +143,17 @@ function VehicleReviewQueue({ rows }: { rows: ResidentOffboardingVehicleReview[]
               <div className={uiClasses.resourceRowMain}>
                 <p className={uiClasses.resourceTitle}>{vehicle.plate_number}</p>
                 <p className={uiClasses.resourceMeta}>
-                  {vehicle.offboarding_reason || 'reason not set'} · {formatDateTime(vehicle.offboarded_at || vehicle.updated_at)}
+                  {vehicle.offboarding_reason || 'причина не указана'} · {formatDateTime(vehicle.offboarded_at || vehicle.updated_at)}
                 </p>
               </div>
               <Badge tone={reviewTone(vehicle)}>
-                {vehicle.review_required ? 'review required' : 'clear'}
+                {vehicle.review_required ? 'требует проверки' : 'без замечаний'}
               </Badge>
             </li>
           ))}
         </ul>
       ) : (
-        <EmptyState>Нет авто в review queue.</EmptyState>
+        <EmptyState>Нет автомобилей в очереди проверки.</EmptyState>
       )}
     </Card>
   );
@@ -162,11 +162,11 @@ function VehicleReviewQueue({ rows }: { rows: ResidentOffboardingVehicleReview[]
 function EvidencePanel({ report }: { report: ResidentOffboardingReport }) {
   return (
     <Card
-      title="Evidence"
+      title="Подтверждения"
       subtitle={`${report.evidence.report_scope} · ${formatDateTime(report.evidence.generated_at)}`}
     >
       <p className={uiClasses.resourceMeta}>
-        Tables: {report.evidence.source_tables.join(', ')}
+        Таблицы: {report.evidence.source_tables.join(', ')}
       </p>
     </Card>
   );

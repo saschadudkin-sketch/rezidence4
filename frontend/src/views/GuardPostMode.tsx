@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useRequests, useBlacklist, useUsers } from '../store/AppStore';
-import type { AppRequest } from '../store/slices/requestsSlice';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAppStoreSelector, useBlacklist, useUsers } from '../store/AppStore';
 import type { AppUser } from '../store/slices/usersSlice';
-import { sortReqs, playAlert } from '../utils';
+import { playAlert } from '../utils';
 import { useDebounce } from '../hooks/useDebounce';
+import { makeSelectGuardCollections } from '../store/selectors/requestsSelectors';
 import { ScanQRModal } from '../requests/ScanQRModal';
 import ErrorBoundary from '../ui/ErrorBoundary';
 import { AppIcon } from '../ui/AppIcon';
@@ -20,95 +20,26 @@ type GuardPostModeProps = {
   onViewDetails?: (reqId: string) => void;
 };
 
-function hasOpenTemporaryWindow(req: AppRequest): req is AppRequest & { validUntil: string | Date } {
-  return Boolean(req.passDuration === 'temporary' && req.validUntil);
-}
-
-function matchesGuardSearch(req: AppRequest, query: string): boolean {
-  if (!query.trim()) return true;
-  const normalizedQuery = query.trim().toLowerCase();
-  return [
-    req.visitorName,
-    req.carPlate,
-    req.createdByName,
-    req.createdByApt,
-    req.comment,
-  ].some((value) => typeof value === 'string' && value.toLowerCase().includes(normalizedQuery));
-}
-
 export default function GuardPostMode({ user, onViewDetails }: GuardPostModeProps) {
-  const requests = useRequests();
   const blacklist = useBlacklist();
   const { users } = useUsers();
   const [subTab, setSubTab] = useState<'active' | 'temp' | 'tech'>('active');
   const [showScan, setShowScan] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const guardCollectionsSelectorRef = useRef(makeSelectGuardCollections());
   const securityPassesEmptyCopy = getViewStateCopy('security_passes', 'empty');
   const securityTechEmptyCopy = getViewStateCopy('security_tech', 'empty');
   const debouncedSearch = useDebounce(searchQuery, 250);
-
-  const matchSearch = useCallback(
-    (req: AppRequest) => matchesGuardSearch(req, debouncedSearch),
-    [debouncedSearch],
-  );
-
-  const { approved, temporary, techPending, techActive } = useMemo(() => {
-    const approvedRequests: AppRequest[] = [];
-    const temporaryRequests: Array<{ req: AppRequest & { validUntil: string | Date }; ts: number }> = [];
-    const pendingTechRequests: AppRequest[] = [];
-    const activeTechRequests: AppRequest[] = [];
-
-    for (const req of requests) {
-      if (req.type === 'pass') {
-        const isOpenForSecurity = req.status === 'pending' || req.status === 'approved';
-
-        if (hasOpenTemporaryWindow(req) && (isOpenForSecurity || req.status === 'arrived')) {
-          temporaryRequests.push({ req, ts: new Date(req.validUntil).getTime() });
-          continue;
-        }
-
-        if (isOpenForSecurity && req.passDuration !== 'temporary') {
-          approvedRequests.push(req);
-        }
-        continue;
-      }
-
-      if (req.type === 'tech' && (req.status === 'pending' || req.status === 'accepted')) {
-        if (req.status === 'pending') pendingTechRequests.push(req);
-        activeTechRequests.push(req);
-      }
-    }
-
-    temporaryRequests.sort((left, right) => left.ts - right.ts);
-
-    return {
-      approved: sortReqs(approvedRequests) as AppRequest[],
-      temporary: temporaryRequests.map(({ req }) => req),
-      techPending: sortReqs(pendingTechRequests) as AppRequest[],
-      techActive: sortReqs(activeTechRequests) as AppRequest[],
-    };
-  }, [requests]);
-
-  const { filteredApproved, filteredTemporary, filteredTechPending, filteredTechAccepted } = useMemo(() => {
-    const techPendingCards = techActive.filter((req) => req.status === 'pending');
-    const techAcceptedCards = techActive.filter((req) => req.status === 'accepted');
-
-    if (!debouncedSearch.trim()) {
-      return {
-        filteredApproved: approved,
-        filteredTemporary: temporary,
-        filteredTechPending: techPendingCards,
-        filteredTechAccepted: techAcceptedCards,
-      };
-    }
-
-    return {
-      filteredApproved: approved.filter(matchSearch),
-      filteredTemporary: temporary.filter(matchSearch),
-      filteredTechPending: techPendingCards.filter(matchSearch),
-      filteredTechAccepted: techAcceptedCards.filter(matchSearch),
-    };
-  }, [approved, temporary, techActive, matchSearch, debouncedSearch]);
+  const {
+    approved,
+    temporary,
+    techPending,
+    techActive,
+    filteredApproved,
+    filteredTemporary,
+    filteredTechPending,
+    filteredTechAccepted,
+  } = useAppStoreSelector((state) => guardCollectionsSelectorRef.current(state, debouncedSearch));
 
   const prevPassCount = useRef(approved.length);
   const prevTechCount = useRef(techPending.length);

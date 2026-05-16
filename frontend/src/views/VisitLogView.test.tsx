@@ -36,6 +36,15 @@ const mockRequests = [
 ];
 
 beforeEach(() => {
+  const mockState = {
+    reqState: { requests: mockRequests, history: {} },
+    chatState: { chat: [], chatLastSeen: {} },
+    usersState: { users: {}, phoneDb: {}, avatars: {} },
+    permsState: { perms: {}, templates: {} },
+    blacklistState: { blacklist: [] },
+    garageState: { garage: {} },
+  };
+  vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation((selector) => selector(mockState));
   vi.spyOn(AppStore, 'useRequests').mockReturnValue(mockRequests);
   vi.spyOn(passesApi, 'getVisitLogs').mockResolvedValue({
     data: [{ id: 'e1', requestId: 'r1', timestamp: new Date().toISOString(), result: 'allowed' }],

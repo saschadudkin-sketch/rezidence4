@@ -156,7 +156,7 @@ describe('SkudProviderFailuresPage', () => {
     expect(await screen.findByText('Main gate Hikvision')).toBeInTheDocument();
     expect(screen.getByText('provider_timeout')).toBeInTheDocument();
     expect(screen.getByText(/Controller did not respond/)).toBeInTheDocument();
-    expect(screen.getByText(/Tables: skud_provider_configs, skud_integration_events/)).toBeInTheDocument();
+    expect(screen.getByText(/Таблицы: skud_provider_configs, skud_integration_events/)).toBeInTheDocument();
     expect(getProviderFailuresMock).toHaveBeenCalledWith(
       { property_id: PROPERTY_ID, window_hours: 24, limit: 50 },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),

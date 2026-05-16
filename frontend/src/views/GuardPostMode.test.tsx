@@ -34,6 +34,15 @@ vi.mock('../utils', () => ({ sortReqs: v => v, playAlert: vi.fn(), sendNotif: vi
 
 beforeEach(() => {
   blacklistMatch = null;
+  const mockState = {
+    reqState: { requests: [mkReq()], history: {} },
+    chatState: { chat: [], chatLastSeen: {} },
+    usersState: { users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } }, phoneDb: {}, avatars: {} },
+    permsState: { perms: {}, templates: {} },
+    blacklistState: { blacklist: [] },
+    garageState: { garage: {} },
+  };
+  vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation((selector) => selector(mockState));
   vi.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq()]);
   vi.spyOn(AppStore, 'useActions').mockReturnValue({
     approveRequest: vi.fn(), rejectRequest: vi.fn(),
@@ -74,6 +83,14 @@ describe('GuardPostMode', () => {
   });
 
   test('автопринятый разовый пропуск даёт охране только проход или отказ', () => {
+    vi.spyOn(AppStore, 'useAppStoreSelector').mockImplementation((selector) => selector({
+      reqState: { requests: [mkReq({ status: 'approved', createdByRole: 'owner' })], history: {} },
+      chatState: { chat: [], chatLastSeen: {} },
+      usersState: { users: { u1: { uid:'u1', name:'Иван', role:'owner', phone:'+7' } }, phoneDb: {}, avatars: {} },
+      permsState: { perms: {}, templates: {} },
+      blacklistState: { blacklist: [] },
+      garageState: { garage: {} },
+    }));
     vi.spyOn(AppStore, 'useRequests').mockReturnValue([mkReq({ status: 'approved', createdByRole: 'owner' })]);
 
     render(<GuardPostMode user={user} highlightReqId={null} setHighlightReqId={vi.fn()} />);

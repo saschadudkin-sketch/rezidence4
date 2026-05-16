@@ -254,9 +254,9 @@ function NotificationsPanel({ dashboard }: { dashboard: OperationsDashboardSnaps
       subtitle={`${formatNumber(dashboard.notifications.sent)} доставлено, ${formatNumber(dashboard.notifications.failed)} ошибок`}
     >
       <dl className={uiClasses.staffMetaGrid}>
-        <Metric label="Pending" value={formatNumber(queue.pending)} />
-        <Metric label="Failed" value={formatNumber(queue.failed)} />
-        <Metric label="Dead" value={formatNumber(queue.dead)} />
+        <Metric label="В ожидании" value={formatNumber(queue.pending)} />
+        <Metric label="Ошибки" value={formatNumber(queue.failed)} />
+        <Metric label="Dead-letter" value={formatNumber(queue.dead)} />
       </dl>
       {dashboard.notifications.per_channel.length ? (
         <ul className={uiClasses.resourceList}>

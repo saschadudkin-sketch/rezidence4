@@ -31,11 +31,11 @@ const WINDOW_OPTIONS = [
 ] as const;
 
 const REASON_LABELS: Record<string, string> = {
-  provider_down: 'Провайдер down',
-  provider_degraded: 'Провайдер degraded',
-  failed_events: 'Failed events',
-  retrying_events: 'Retrying',
-  dead_lettered_events: 'Dead letter',
+  provider_down: 'Провайдер недоступен',
+  provider_degraded: 'Провайдер деградирует',
+  failed_events: 'Ошибки обмена',
+  retrying_events: 'Повторные попытки',
+  dead_lettered_events: 'Неразобранные ошибки',
   out_of_service_devices: 'Устройства вне работы',
   manual_control_events: 'Ручное управление',
 };
@@ -54,10 +54,10 @@ function healthTone(status: SkudHealthStatus, needsAttention: boolean): BadgeTon
 
 function healthLabel(status: SkudHealthStatus): string {
   const labels: Record<SkudHealthStatus, string> = {
-    unknown: 'Unknown',
-    healthy: 'Healthy',
-    degraded: 'Degraded',
-    down: 'Down',
+    unknown: 'Неизвестно',
+    healthy: 'Исправен',
+    degraded: 'Деградирует',
+    down: 'Недоступен',
   };
   return labels[status] ?? status;
 }
@@ -130,7 +130,7 @@ export function SkudProviderFailuresPage() {
 
         {query.isError ? (
           <Alert tone="error">
-            Не удалось загрузить SKUD dashboard: {isV1ApiError(query.error) ? query.error.message : 'неизвестная ошибка'}
+            Не удалось загрузить дашборд СКУД: {isV1ApiError(query.error) ? query.error.message : 'неизвестная ошибка'}
           </Alert>
         ) : null}
 
@@ -150,12 +150,12 @@ function DashboardContent({ dashboard }: { dashboard: SkudProviderFailureDashboa
           tone={dashboard.summary.providers_needing_attention > 0 ? 'warning' : 'success'}
         />
         <KpiTile
-          title="Failed"
+          title="Ошибки"
           value={dashboard.summary.failed_events}
           tone={dashboard.summary.failed_events > 0 ? 'error' : 'success'}
         />
         <KpiTile
-          title="Retrying / dead"
+          title="Повтор / dead-letter"
           value={dashboard.summary.retrying_events + dashboard.summary.dead_lettered_events}
           tone={dashboard.summary.retrying_events + dashboard.summary.dead_lettered_events > 0 ? 'warning' : 'success'}
         />
@@ -227,7 +227,7 @@ function ProviderRow({ row }: { row: SkudProviderFailureRow }) {
         </Inline>
         <p className={uiClasses.resourceMeta}>
           {provider.provider} · {provider.status} · {provider.sync_mode}
-          {provider.last_failure_at ? ` · last failure ${formatDateTime(provider.last_failure_at)}` : ''}
+          {provider.last_failure_at ? ` · последняя ошибка ${formatDateTime(provider.last_failure_at)}` : ''}
         </p>
         {provider.last_error ? (
           <p className={uiClasses.textMuted}>Ошибка: {provider.last_error}</p>
@@ -242,7 +242,7 @@ function ProviderRow({ row }: { row: SkudProviderFailureRow }) {
         ) : null}
 
         {row.top_errors.length ? (
-          <ul className={uiClasses.resourceList} aria-label={`${provider.display_name} errors`}>
+          <ul className={uiClasses.resourceList} aria-label={`Ошибки ${provider.display_name}`}>
             {row.top_errors.map((error) => (
               <li className={uiClasses.resourceRow} key={`${provider.id}-${error.error_code}`}>
                 <div className={uiClasses.resourceRowMain}>
@@ -259,15 +259,15 @@ function ProviderRow({ row }: { row: SkudProviderFailureRow }) {
       </div>
 
       <dl className={uiClasses.staffMetaGrid}>
-        <Metric label="Events" value={formatNumber(events.total_events)} />
-        <Metric label="Failed" value={formatNumber(events.failed_events)} />
-        <Metric label="Retrying" value={formatNumber(events.retrying_events)} />
-        <Metric label="Dead" value={formatNumber(events.dead_lettered_events)} />
-        <Metric label="Devices" value={formatNumber(devices.total_devices)} />
-        <Metric label="Out of service" value={formatNumber(devices.out_of_service_devices)} />
-        <Metric label="Manual guard" value={formatNumber(devices.manual_guard_devices)} />
-        <Metric label="Fail closed" value={formatNumber(devices.fail_closed_devices)} />
-        <Metric label="Manual events" value={formatNumber(manual.manual_control_events)} />
+        <Metric label="События" value={formatNumber(events.total_events)} />
+        <Metric label="Ошибки" value={formatNumber(events.failed_events)} />
+        <Metric label="Повтор" value={formatNumber(events.retrying_events)} />
+        <Metric label="Dead-letter" value={formatNumber(events.dead_lettered_events)} />
+        <Metric label="Устройства" value={formatNumber(devices.total_devices)} />
+        <Metric label="Вне работы" value={formatNumber(devices.out_of_service_devices)} />
+        <Metric label="Ручной пост" value={formatNumber(devices.manual_guard_devices)} />
+        <Metric label="Fail-closed" value={formatNumber(devices.fail_closed_devices)} />
+        <Metric label="Ручные события" value={formatNumber(manual.manual_control_events)} />
       </dl>
     </li>
   );
@@ -277,16 +277,16 @@ function EvidencePanel({ dashboard }: { dashboard: SkudProviderFailureDashboard 
   const evidence = dashboard.field_rollout_evidence;
   return (
     <Card
-      title="Field rollout evidence"
-      subtitle={`${formatNumber(evidence.returned_provider_configs)} providers, ${formatNumber(evidence.real_failure_rows)} failure rows`}
+      title="Подтверждение полевого запуска"
+      subtitle={`${formatNumber(evidence.returned_provider_configs)} провайдеров, ${formatNumber(evidence.real_failure_rows)} строк ошибок`}
     >
       <dl className={uiClasses.staffMetaGrid}>
         <Metric label="Окно" value={`${formatNumber(evidence.evidence_window_hours)} ч`} />
-        <Metric label="Active providers" value={formatNumber(evidence.active_provider_configs)} />
-        <Metric label="Manual rows" value={formatNumber(evidence.manual_control_event_rows)} />
+        <Metric label="Активные провайдеры" value={formatNumber(evidence.active_provider_configs)} />
+        <Metric label="Ручные строки" value={formatNumber(evidence.manual_control_event_rows)} />
       </dl>
       <p className={uiClasses.resourceMeta}>
-        Tables: {evidence.source_tables.join(', ')}
+        Таблицы: {evidence.source_tables.join(', ')}
       </p>
     </Card>
   );

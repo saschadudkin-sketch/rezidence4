@@ -332,7 +332,7 @@ describe('V1Router direct deep-links gate by role', () => {
     sessionMeMock.mockResolvedValue(baseUser('admin'));
     renderAt('/v1/admin/offboarding');
     expect(
-      await screen.findByRole('heading', { name: /resident offboarding/i }),
+      await screen.findByRole('heading', { name: /вывод резидентов/i }),
     ).toBeInTheDocument();
   });
 

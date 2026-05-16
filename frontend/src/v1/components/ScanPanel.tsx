@@ -53,12 +53,13 @@ const DIRECTION_LABELS: Record<VerifyDirection, string> = {
 
 const ACTION_LABELS: Record<GuardActionMode, string> = {
   qr: 'QR',
-  plate: 'Plate',
-  manual_admit: 'Manual admit',
-  manual_deny: 'Manual deny',
+  plate: 'Номер',
+  manual_admit: 'Ручной допуск',
+  manual_deny: 'Ручной отказ',
 };
 
 const OFFLINE_QUEUE_PREFIX = 'rz:v1:security-offline:';
+const OFFLINE_QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function offlineQueueKey(propertyId: UUID): string {
   return `${OFFLINE_QUEUE_PREFIX}${propertyId}`;
@@ -71,9 +72,12 @@ function readOfflineQueue(propertyId: UUID): SecurityOfflineReplayEvent[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is SecurityOfflineReplayEvent =>
-      Boolean(item && typeof item === 'object' && typeof item.client_event_id === 'string'),
-    );
+    const now = Date.now();
+    return parsed.filter((item): item is SecurityOfflineReplayEvent => {
+      if (!item || typeof item !== 'object' || typeof item.client_event_id !== 'string') return false;
+      const occurredAt = typeof item.occurred_at === 'string' ? new Date(item.occurred_at).getTime() : 0;
+      return Number.isFinite(occurredAt) && now - occurredAt <= OFFLINE_QUEUE_TTL_MS;
+    });
   } catch {
     return [];
   }
@@ -82,7 +86,12 @@ function readOfflineQueue(propertyId: UUID): SecurityOfflineReplayEvent[] {
 function writeOfflineQueue(propertyId: UUID, events: SecurityOfflineReplayEvent[]) {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(offlineQueueKey(propertyId), JSON.stringify(events.slice(0, 100)));
+    const now = Date.now();
+    const freshEvents = events.filter((event) => {
+      const occurredAt = new Date(event.occurred_at).getTime();
+      return Number.isFinite(occurredAt) && now - occurredAt <= OFFLINE_QUEUE_TTL_MS;
+    });
+    localStorage.setItem(offlineQueueKey(propertyId), JSON.stringify(freshEvents.slice(0, 100)));
   } catch {
     // Storage may be unavailable in private mode. Keep in-memory queue alive.
   }

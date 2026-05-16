@@ -458,7 +458,7 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
     }
     const parsedPriority = Number(priority);
     if (!Number.isInteger(parsedPriority)) {
-      setError('Priority должен быть целым числом');
+      setError('Приоритет должен быть целым числом');
       return;
     }
     const parsedDuration = duration.trim() ? Number(duration) : null;
@@ -529,12 +529,12 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
               {POLICY_EFFECTS.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
           </Field>
-          <Field label="Approval">
+          <Field label="Согласование">
             <Select value={approvalMode} onChange={(e) => setApprovalMode(e.target.value as AccessPolicyApprovalMode)}>
               {APPROVAL_MODES.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
           </Field>
-          <Field label="Priority">
+          <Field label="Приоритет">
             <Input value={priority} onChange={(e) => setPriority(e.target.value)} inputMode="numeric" />
           </Field>
           <Field label="Зона">

@@ -164,19 +164,22 @@ export default defineConfig(({ mode }) => {
         output: {
           // Explicit code-split boundaries to keep chunks under budget.
           // PF2: explicit chunk boundaries — keeps initial JS payload small.
-          // vendor-react  → react + react-dom + react-router (render engine, always needed)
+          // vendor-react  → react + react-dom (render engine, always needed)
+          // vendor-router → react-router packages (route graph, split from renderer)
           // vendor-query  → tanstack query + virtual (loaded with Dashboard chunk)
           // vendor-sentry → error monitoring (async, doesn't block first paint)
           // vendor-qr     → qrcode library (used only in QR modal, smallest chunk)
             manualChunks(id) {
               if (!id.includes('node_modules')) return;
               if (
+                id.includes('/react-router-dom/') ||
+                id.includes('/react-router/')
+              ) return 'vendor-router';
+              if (
                 id.includes('/react/') ||
                 id.includes('/react-dom/') ||
-                id.includes('/react-router-dom/') ||
-                id.includes('/react-router/') ||
                 id.includes('/scheduler/')
-              ) return 'vendor-framework';
+              ) return 'vendor-react';
               if (id.includes('@tanstack/react-query')) return 'vendor-query-core';
               if (id.includes('@tanstack/react-virtual')) return 'vendor-query-virtual';
               if (id.includes('@sentry/react')) return 'vendor-sentry';

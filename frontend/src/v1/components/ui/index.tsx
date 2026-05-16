@@ -15,6 +15,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from 'react';
+import { Children, cloneElement, isValidElement, useId } from 'react';
 import styles from './ui.module.css';
 
 function cx(...classes: Array<string | false | null | undefined>): string {
@@ -122,12 +123,27 @@ export interface FieldProps {
 }
 
 export function Field({ id, label, hint, error, children, className }: FieldProps) {
+  const generatedId = useId();
+  const childArray = Children.toArray(children);
+  const child = childArray.length === 1 ? childArray[0] : null;
+  const childId = isValidElement<{ id?: string }>(child) && typeof child.props.id === 'string'
+    ? child.props.id
+    : undefined;
+  const controlId = id ?? childId ?? (label ? generatedId : undefined);
+  const describedById = hint || error ? `${controlId ?? generatedId}-description` : undefined;
+  const control = isValidElement<{ id?: string; 'aria-describedby'?: string }>(child) && controlId && !child.props.id
+    ? cloneElement(child, {
+      id: controlId,
+      'aria-describedby': child.props['aria-describedby'] ?? describedById,
+    })
+    : children;
+
   return (
     <div className={cx(styles.field, className)}>
-      {label ? <Label htmlFor={id}>{label}</Label> : null}
-      {children}
-      {error ? <div className={styles.fieldError}>{error}</div> : null}
-      {!error && hint ? <div className={styles.fieldHint}>{hint}</div> : null}
+      {label ? <Label htmlFor={controlId}>{label}</Label> : null}
+      {control}
+      {error ? <div id={describedById} className={styles.fieldError}>{error}</div> : null}
+      {!error && hint ? <div id={describedById} className={styles.fieldHint}>{hint}</div> : null}
     </div>
   );
 }

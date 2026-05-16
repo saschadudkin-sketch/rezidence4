@@ -190,7 +190,7 @@ describe('EmergencyDispatchPage', () => {
     expect(screen.getByText('Security on-call')).toBeInTheDocument();
     expect(screen.getByText('telegram')).toBeInTheDocument();
     expect(screen.getByText('Barrier fallback drill')).toBeInTheDocument();
-    expect(screen.getByText(/Tables: emergency_request_profiles/)).toBeInTheDocument();
+    expect(screen.getByText(/Таблицы: emergency_request_profiles/)).toBeInTheDocument();
     expect(readinessMock).toHaveBeenCalledWith(
       { property_id: PROPERTY_ID, window_hours: 72, limit: 25 },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),

@@ -1,47 +1,28 @@
-import { useState, useMemo, memo, useDeferredValue } from 'react';
-import { useRequests } from '../store/AppStore';
+import { useState, useMemo, memo, useDeferredValue, useRef } from 'react';
+import { useAppStoreSelector } from '../store/AppStore';
 import { useDebounce } from '../hooks/useDebounce';
 import { CAT_ICON, CAT_LABEL, PASS_DURATION_LABEL, PASS_DURATION_ICON, ROLE_LABELS } from '../constants/index';
-import { getValidationReasonLabel } from '../constants/statusPresentation';
-import { isResident, canManageRequests } from '../domain/permissions';
+import { canManageRequests } from '../domain/permissions';
 import { fmtTime } from '../utils';
 import { useVisitLogs, useClearVisitLogs } from '../hooks/useVisitLogs';
 import { toast } from '../ui/Toasts';
 import { presentError } from '../ui/errorPresenter';
 import { AppIcon } from '../ui/AppIcon';
 import StateBlock from '../ui/StateBlock';
-import { MS_PER_DAY } from '../constants/limits';
 import { getViewStateCopy } from '../ui/viewStateContract';
+import { makeSelectVisitLogCollections } from '../store/selectors/requestsSelectors';
+import type { DecisionFilter, PeriodFilter, VisitLogSelectorRow } from '../store/selectors/requestsSelectors';
 import type { AppRequest, PassDuration, RequestStatus, RequestType } from '../store/slices/requestsSlice';
 import type { AppUser } from '../store/slices/usersSlice';
 import type { VisitLogPage } from '../services/http/visitLogs';
 
-type VisitLogRow = {
-  id: string;
+type VisitLogRow = VisitLogSelectorRow & {
   type: RequestType;
   status: RequestStatus;
   createdAt: string | Date;
-  category?: string;
-  createdByUid?: string | null;
-  createdByName?: string;
-  createdByApt?: string;
   passDuration?: PassDuration | null;
-  visitorName?: string | null;
-  carPlate?: string | null;
-  arrivedAt?: string | Date | null;
-  comment?: string;
-  result?: 'allowed' | 'denied' | string | null;
-  actorName?: string | null;
-  actorRole?: string | null;
-  requestId?: string | null;
-  timestamp?: string | Date;
   requestSnapshot?: Partial<AppRequest>;
-  reason?: string;
 };
-
-type GroupedVisitLogs = Array<{ label: string; items: VisitLogRow[] }>;
-type DecisionFilter = 'all' | 'allowed' | 'denied';
-type PeriodFilter = 'all' | 'today' | 'week' | 'month';
 type CategoryKey = keyof typeof CAT_LABEL;
 type RoleKey = keyof typeof ROLE_LABELS;
 
@@ -62,20 +43,6 @@ function normalizeDate(value: string | number | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-function fmtDateFull(value: string | number | Date): string {
-  const date = normalizeDate(value);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today.getTime() - MS_PER_DAY);
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (day.getTime() === today.getTime()) return 'Сегодня';
-  if (day.getTime() === yesterday.getTime()) return 'Вчера';
-  const sameYear = date.getFullYear() === now.getFullYear();
-  return date.toLocaleDateString('ru-RU', sameYear
-    ? { day: 'numeric', month: 'long', weekday: 'short' }
-    : { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
 function fmtDuration(from?: string | Date | null, to?: string | Date | null): string | null {
   if (!from || !to) return null;
   const ms = normalizeDate(to).getTime() - normalizeDate(from).getTime();
@@ -85,16 +52,6 @@ function fmtDuration(from?: string | Date | null, to?: string | Date | null): st
   const hours = Math.floor(mins / 60);
   const minutes = mins % 60;
   return minutes ? `${hours}ч ${minutes}мин` : `${hours}ч`;
-}
-
-function groupByDate(items: VisitLogRow[]): GroupedVisitLogs {
-  const map: Record<string, VisitLogRow[]> = {};
-  for (const item of items) {
-    const key = fmtDateFull(item.arrivedAt || item.createdAt);
-    if (!map[key]) map[key] = [];
-    map[key].push(item);
-  }
-  return Object.entries(map).map(([label, groupedItems]) => ({ label, items: groupedItems }));
 }
 
 const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
@@ -142,7 +99,6 @@ const VisitCard = memo(function VisitCard({ r }: { r: VisitLogRow }) {
 });
 
 export default function VisitLogView({ user }: { user: AppUser }) {
-  const requests = useRequests();
   const { data: visitLogsPage, isLoading, isError } = useVisitLogs() as {
     data?: VisitLogPage<VisitLogRow>;
     isLoading: boolean;
@@ -155,74 +111,14 @@ export default function VisitLogView({ user }: { user: AppUser }) {
   const [decision, setDecision] = useState<DecisionFilter>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const visitCollectionsSelectorRef = useRef(makeSelectVisitLogCollections());
   const debouncedQuery = useDebounce(query, 150);
   const deferredQuery = useDeferredValue(debouncedQuery);
   const q = deferredQuery.trim().toLowerCase();
   const canClearLogs = user.role === 'admin';
   const canExport = canManageRequests(user.role);
-
-  const requestsById = useMemo(
-    () => new Map<string, AppRequest>(requests.map((req) => [req.id, req])),
-    [requests],
-  );
-
-  const allVisits = useMemo(() => {
-    let rows: VisitLogRow[] = visitEvents.map((event) => {
-      const baseReq = event.requestSnapshot || (event.requestId ? requestsById.get(event.requestId) : undefined) || {};
-      const timestamp = event.timestamp || baseReq.arrivedAt || baseReq.createdAt || new Date().toISOString();
-      return {
-        id: event.id || event.requestId || `${String(timestamp)}_${event.result}`,
-        requestId: event.requestId || baseReq.id || null,
-        type: baseReq.type || 'pass',
-        category: event.category || baseReq.category || 'guest',
-        visitorName: event.visitorName || baseReq.visitorName || null,
-        carPlate: event.carPlate || baseReq.carPlate || null,
-        createdByUid: event.createdByUid || baseReq.createdByUid || null,
-        createdByName: event.createdByName || baseReq.createdByName || '—',
-        createdByApt: event.createdByApt || baseReq.createdByApt || '—',
-        passDuration: event.passDuration || baseReq.passDuration || null,
-        createdAt: baseReq.createdAt || timestamp,
-        arrivedAt: timestamp,
-        status: event.result === 'denied' ? 'rejected' : 'arrived',
-        result: event.result || null,
-        actorName: event.actorName || null,
-        actorRole: event.actorRole || null,
-        comment: event.reason ? `Проверка QR: ${getValidationReasonLabel(event.reason)}` : '',
-      };
-    });
-
-    if (isResident(user.role)) {
-      rows = rows.filter((row) => row.createdByUid === user.uid);
-    }
-
-    const withTs = rows.map((row) => ({
-      row,
-      ts: normalizeDate(row.arrivedAt || row.createdAt).getTime(),
-    }));
-    withTs.sort((left, right) => right.ts - left.ts);
-    return withTs.map(({ row }) => row);
-  }, [visitEvents, requestsById, user.role, user.uid]);
-
-  const visits = useMemo(() => {
-    let rows = allVisits;
-    if (period !== 'all') {
-      const ms = period === 'today' ? 86_400_000 : period === 'week' ? 7 * 86_400_000 : 30 * 86_400_000;
-      rows = rows.filter((row) => Date.now() - normalizeDate(row.arrivedAt || row.createdAt).getTime() < ms);
-    }
-    if (decision !== 'all') {
-      rows = rows.filter((row) => row.result === decision);
-    }
-    if (q) {
-      rows = rows.filter((row) =>
-        (row.visitorName || '').toLowerCase().includes(q)
-        || (row.carPlate || '').toLowerCase().includes(q)
-        || (row.createdByName || '').toLowerCase().includes(q)
-        || (row.createdByApt || '').includes(q)
-        || (row.comment || '').toLowerCase().includes(q),
-      );
-    }
-    return rows;
-  }, [allVisits, period, decision, q]);
+  const { visits, groups } = useAppStoreSelector((state) =>
+    visitCollectionsSelectorRef.current(state, visitEvents, user.role, user.uid, period, decision, q));
 
   const handleClearLogs = async () => {
     if (!confirmClear) {
@@ -263,7 +159,6 @@ export default function VisitLogView({ user }: { user: AppUser }) {
     setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
-  const groups = useMemo(() => groupByDate(visits), [visits]);
   const totalCount = visitLogsPage?.total ?? visits.length;
   const activeFilterCount = Number(period !== 'all') + Number(decision !== 'all');
   const loadingCopy = getViewStateCopy('visitlog', 'loading');

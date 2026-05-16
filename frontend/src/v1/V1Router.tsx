@@ -23,7 +23,7 @@
  * BrowserRouter itself) live in App.tsx and are shared with the legacy app.
  */
 
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import {
   Navigate,
   Route,
@@ -40,27 +40,6 @@ import {
   normalizeUserRole,
 } from './store';
 import { RoleGate } from './components/RoleGate';
-import { ResidentAccessPage } from './pages/ResidentAccessPage';
-import { ResidentPackagesPage } from './pages/ResidentPackagesPage';
-import { ResidentAnnouncementsFeedPage } from './pages/ResidentAnnouncementsFeedPage';
-import { ResidentDocumentsPage } from './pages/ResidentDocumentsPage';
-import { GuardConsolePage } from './pages/GuardConsolePage';
-import { ConciergeRequestDetailPage } from './pages/ConciergeRequestDetailPage';
-import { StaffWorkspacePage } from './pages/StaffWorkspacePage';
-import { TechnicianWorkspacePage } from './pages/TechnicianWorkspacePage';
-import { ContractorWorkspacePage } from './pages/ContractorWorkspacePage';
-import { AnnouncementsAdminPage } from './pages/AnnouncementsAdminPage';
-import { PackagesAdminPage } from './pages/PackagesAdminPage';
-import { DocumentsAdminPage } from './pages/DocumentsAdminPage';
-import { OnboardingAdminPage } from './pages/OnboardingAdminPage';
-import { AccessAdminPage } from './pages/AccessAdminPage';
-import { GisOssReadinessPage } from './pages/GisOssReadinessPage';
-import { SkudProviderFailuresPage } from './pages/SkudProviderFailuresPage';
-import { SensitiveActionsReviewPage } from './pages/SensitiveActionsReviewPage';
-import { ResidentOffboardingReportPage } from './pages/ResidentOffboardingReportPage';
-import { EmergencyDispatchPage } from './pages/EmergencyDispatchPage';
-import { OperationsDashboardPage } from './pages/OperationsDashboardPage';
-import { ManagementCompanyPortfolioPage } from './pages/ManagementCompanyPortfolioPage';
 import {
   Alert,
   Inline,
@@ -69,6 +48,28 @@ import {
 } from './components/ui';
 import { useAccessEvents } from './hooks/useAccessEvents';
 import { redirectUnauthenticatedV1 } from './lib/authRedirect';
+
+const ResidentAccessPage = lazy(() => import('./pages/ResidentAccessPage').then((m) => ({ default: m.ResidentAccessPage })));
+const ResidentPackagesPage = lazy(() => import('./pages/ResidentPackagesPage').then((m) => ({ default: m.ResidentPackagesPage })));
+const ResidentAnnouncementsFeedPage = lazy(() => import('./pages/ResidentAnnouncementsFeedPage').then((m) => ({ default: m.ResidentAnnouncementsFeedPage })));
+const ResidentDocumentsPage = lazy(() => import('./pages/ResidentDocumentsPage').then((m) => ({ default: m.ResidentDocumentsPage })));
+const GuardConsolePage = lazy(() => import('./pages/GuardConsolePage').then((m) => ({ default: m.GuardConsolePage })));
+const ConciergeRequestDetailPage = lazy(() => import('./pages/ConciergeRequestDetailPage').then((m) => ({ default: m.ConciergeRequestDetailPage })));
+const StaffWorkspacePage = lazy(() => import('./pages/StaffWorkspacePage').then((m) => ({ default: m.StaffWorkspacePage })));
+const TechnicianWorkspacePage = lazy(() => import('./pages/TechnicianWorkspacePage').then((m) => ({ default: m.TechnicianWorkspacePage })));
+const ContractorWorkspacePage = lazy(() => import('./pages/ContractorWorkspacePage').then((m) => ({ default: m.ContractorWorkspacePage })));
+const AnnouncementsAdminPage = lazy(() => import('./pages/AnnouncementsAdminPage').then((m) => ({ default: m.AnnouncementsAdminPage })));
+const PackagesAdminPage = lazy(() => import('./pages/PackagesAdminPage').then((m) => ({ default: m.PackagesAdminPage })));
+const DocumentsAdminPage = lazy(() => import('./pages/DocumentsAdminPage').then((m) => ({ default: m.DocumentsAdminPage })));
+const OnboardingAdminPage = lazy(() => import('./pages/OnboardingAdminPage').then((m) => ({ default: m.OnboardingAdminPage })));
+const AccessAdminPage = lazy(() => import('./pages/AccessAdminPage').then((m) => ({ default: m.AccessAdminPage })));
+const GisOssReadinessPage = lazy(() => import('./pages/GisOssReadinessPage').then((m) => ({ default: m.GisOssReadinessPage })));
+const SkudProviderFailuresPage = lazy(() => import('./pages/SkudProviderFailuresPage').then((m) => ({ default: m.SkudProviderFailuresPage })));
+const SensitiveActionsReviewPage = lazy(() => import('./pages/SensitiveActionsReviewPage').then((m) => ({ default: m.SensitiveActionsReviewPage })));
+const ResidentOffboardingReportPage = lazy(() => import('./pages/ResidentOffboardingReportPage').then((m) => ({ default: m.ResidentOffboardingReportPage })));
+const EmergencyDispatchPage = lazy(() => import('./pages/EmergencyDispatchPage').then((m) => ({ default: m.EmergencyDispatchPage })));
+const OperationsDashboardPage = lazy(() => import('./pages/OperationsDashboardPage').then((m) => ({ default: m.OperationsDashboardPage })));
+const ManagementCompanyPortfolioPage = lazy(() => import('./pages/ManagementCompanyPortfolioPage').then((m) => ({ default: m.ManagementCompanyPortfolioPage })));
 
 // Role sets mirror the final role model in store/session.tsx. Legacy aliases
 // stay listed where current sessions can still emit them.
@@ -115,16 +116,17 @@ export function V1Router() {
   return (
     <V1SessionProvider>
       <AccessEventBridge />
-      <Routes>
-        <Route index element={<V1IndexRedirect />} />
-        <Route
-          path="access"
-          element={
-            <RoleGate allow={RESIDENT_ALLOW}>
-              <ResidentAccessPage />
-            </RoleGate>
-          }
-        />
+      <Suspense fallback={<V1LoadingShell>Загрузка раздела…</V1LoadingShell>}>
+        <Routes>
+          <Route index element={<V1IndexRedirect />} />
+          <Route
+            path="access"
+            element={
+              <RoleGate allow={RESIDENT_ALLOW}>
+                <ResidentAccessPage />
+              </RoleGate>
+            }
+          />
         {/* Resident-facing views.  `/v1/my/*` namespace keeps them clearly
             separate from admin/staff endpoints that live at the root
             (`/v1/packages` is staff admin, `/v1/my/packages` is the
@@ -292,15 +294,23 @@ export function V1Router() {
         {/* Catch-all inside /v1 — kick back to the smart redirect so the role
             decides where to land.  Using Navigate to an empty string would
             loop; send to '.' (relative index) via absolute '/v1'. */}
-        <Route path="*" element={<Navigate to="/v1" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/v1" replace />} />
+        </Routes>
+      </Suspense>
     </V1SessionProvider>
   );
 }
 
 function AccessEventBridge() {
-  useAccessEvents();
-  return null;
+  const eventsState = useAccessEvents();
+  if (eventsState !== 'degraded' && eventsState !== 'unsupported') return null;
+  return (
+    <div className={uiClasses.pageShell}>
+      <Alert tone="warning">
+        Live-обновления доступа временно недоступны. Данные можно обновить вручную.
+      </Alert>
+    </div>
+  );
 }
 
 // ─── Smart role-based landing ───────────────────────────────────────────────
