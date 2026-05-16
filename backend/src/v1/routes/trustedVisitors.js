@@ -5,7 +5,6 @@
 
 const express = require('express');
 const db = require('../../db');
-const logger = require('../../logger');
 const requireAuth = require('../../middleware/auth');
 const idempotency = require('../../middleware/idempotency');
 const { can, canInPropertyScope } = require('../lib/authz');
@@ -58,13 +57,13 @@ function actorTypeForRole(role) {
   return 'staff';
 }
 
-function auditLog(req, {
+async function auditLog(req, {
   propertyId,
   action,
   resourceId,
   changes,
 }) {
-  getDb(req).query(
+  await getDb(req).query(
     `INSERT INTO property_audit_log
        (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
         action, resource_type, resource_id, changes, ip_address)
@@ -80,7 +79,7 @@ function auditLog(req, {
       changes ? JSON.stringify(changes) : null,
       req.ip || null,
     ],
-  ).catch((err) => logger.warn({ err, action }, '[v1/trusted-visitors] audit write failed'));
+  );
 }
 
 function sendKnownError(res, err) {
@@ -140,7 +139,7 @@ router.post('/', async (req, res, next) => {
       residentId: scope.residentId,
       input: req.body || {},
     });
-    auditLog(req, {
+    await auditLog(req, {
       propertyId: scope.propertyId,
       action: 'trusted_visitor.created',
       resourceId: visitor.id,
@@ -170,7 +169,7 @@ router.patch('/:id', async (req, res, next) => {
       residentId: scope.residentId,
       input: req.body || {},
     });
-    auditLog(req, {
+    await auditLog(req, {
       propertyId: scope.propertyId,
       action: 'trusted_visitor.updated',
       resourceId: visitor.id,
@@ -193,7 +192,7 @@ router.post('/:id/deactivate', async (req, res, next) => {
       propertyId: scope.propertyId,
       residentId: scope.residentId,
     });
-    auditLog(req, {
+    await auditLog(req, {
       propertyId: scope.propertyId,
       action: 'trusted_visitor.deactivated',
       resourceId: visitor.id,
@@ -221,7 +220,7 @@ router.post('/:id/create-pass', idempotency, async (req, res, next) => {
       residentId: scope.residentId,
       input: req.body || {},
     });
-    auditLog(req, {
+    await auditLog(req, {
       propertyId: scope.propertyId,
       action: 'trusted_visitor.pass_created',
       resourceId: result.trusted_visitor.id,

@@ -184,7 +184,11 @@ function readStoredGuardDevice(propertyId: UUID, accessPointId: UUID | null): St
 
 function writeStoredGuardDevice(propertyId: UUID, accessPointId: UUID | null, device: StoredGuardDevice) {
   if (typeof localStorage === 'undefined') return;
-  localStorage.setItem(guardDeviceStorageKey(propertyId, accessPointId), JSON.stringify(device));
+  try {
+    localStorage.setItem(guardDeviceStorageKey(propertyId, accessPointId), JSON.stringify(device));
+  } catch {
+    throw new Error('Браузер заблокировал локальное хранение устройства охраны');
+  }
 }
 
 function GuardDeviceEnrollmentPanel({

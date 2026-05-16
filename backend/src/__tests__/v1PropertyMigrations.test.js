@@ -50,8 +50,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 access request product text fields
     // + 1 trusted visitors / frequent guests
     // + 1 pass credential layer
-    // + 1 guard authorized devices + 1 guard device hardening = 55
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(55);
+    // + 1 guard authorized devices + 1 guard device hardening
+    // + 1 internal pass credential attempt table = 56
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(56);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -158,6 +159,25 @@ describe('v1_054_guard_authorized_devices', () => {
       .toContain("CHECK (status IN ('pending','active','revoked'))");
     expect(sqls.find((s) => s.includes('UPDATE guard_authorized_devices')))
       .toContain("digest('guard-device:v1:' || device_fingerprint, 'sha256')");
+  });
+});
+
+describe('v1_056_pass_credential_attempts', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates internal PIN attempt evidence table without visit/audit payload exposure', async () => {
+    await byId('v1_056_pass_credential_attempts').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS pass_credential_attempts'));
+
+    expect(tbl).toContain('property_id            UUID NOT NULL');
+    expect(tbl).toContain('credential_fingerprint TEXT NOT NULL');
+    expect(tbl).toContain("CHECK (credential_type IN ('pin'))");
+    expect(tbl).toContain('REFERENCES visit_logs_v2(id)');
+    expect(tbl).toContain('REFERENCES access_points(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_pass_credential_attempts_fingerprint_window')))
+      .toContain('(property_id, credential_type, credential_fingerprint, occurred_at DESC)');
   });
 });
 

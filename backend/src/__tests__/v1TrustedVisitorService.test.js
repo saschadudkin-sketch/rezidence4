@@ -128,11 +128,14 @@ describe('TrustedVisitorService pass creation', () => {
       trusted_visitor_history_rank: '1',
     };
     const queryable = {
-      query: jest.fn((sql) => {
+      query: jest.fn((sql, params) => {
         if (sql.includes('FROM trusted_visitors')) {
           return Promise.resolve({ rows: [visitor()] });
         }
         if (sql.includes('FROM access_requests')) {
+          expect(sql).toContain('AND property_id = $3');
+          expect(sql).toContain('AND created_by_resident_id = $4');
+          expect(params).toEqual([[UUID_VISITOR], 5, UUID_PROPERTY, UUID_RESIDENT]);
           return Promise.resolve({ rows: [recentRequest] });
         }
         throw new Error(`unexpected SQL: ${sql}`);

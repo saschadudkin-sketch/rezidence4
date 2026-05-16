@@ -176,6 +176,41 @@ describe('PassService QR and status transitions', () => {
     expect(mirrorCall[1]).toEqual([UUID_PROPERTY, UUID_PASS, 'tok-1', 2]);
   });
 
+  test('getOrCreateQr generates public-pass contract 64-hex tokens for new credentials', async () => {
+    const queryable = makeQueryable((sql, params) => {
+      if (sql.includes('FROM passes')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_PASS,
+            property_id: UUID_PROPERTY,
+            access_request_id: null,
+            subject_resident_id: null,
+            status: 'active',
+          }],
+        });
+      }
+      if (sql.includes('FROM pass_credentials')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM qr_passes_v2')) return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO pass_credentials')) {
+        expect(params[2]).toMatch(/^[a-f0-9]{64}$/);
+        return Promise.resolve({ rows: [{ id: 'cred-2', token: params[2], render_version: 1 }] });
+      }
+      if (sql.includes('INSERT INTO qr_passes_v2')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await getOrCreateQr({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      isStaffUser: true,
+      passId: UUID_PASS,
+    });
+
+    expect(result.qr.token).toMatch(/^[a-f0-9]{64}$/);
+    const mirrorCall = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO qr_passes_v2'));
+    expect(mirrorCall[1][2]).toBe(result.qr.token);
+  });
+
   test('regeneratePin stores hashed PIN material and returns one-time display value', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM passes')) {

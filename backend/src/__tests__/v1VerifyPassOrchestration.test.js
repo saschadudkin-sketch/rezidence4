@@ -76,6 +76,7 @@ function installTxClient({ incident = true } = {}) {
     if (sql.includes('INSERT INTO access_incidents')) {
       return Promise.resolve({ rows: incident ? [{ id: UUID_INCIDENT }] : [] });
     }
+    if (sql.includes('INSERT INTO pass_credential_attempts')) return Promise.resolve({ rows: [] });
     if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
     if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }], rowCount: 1 });
     if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
@@ -141,6 +142,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
       if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO visit_logs_v2')) return Promise.resolve({ rows: [{ id: UUID_VISIT_LOG }] });
       if (sql.includes('INSERT INTO access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
+      if (sql.includes('INSERT INTO pass_credential_attempts')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
@@ -349,8 +351,8 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     const txClient = installTxClient();
     const pinHash = hashPin('123456');
     db.query.mockImplementation((sql, params) => {
-      if (sql.includes('COUNT(*)::int AS n') && sql.includes("provider_payload->>'credential_fingerprint'")) {
-        expect(params[3]).toBe(credentialFingerprint(pinHash));
+      if (sql.includes('FROM pass_credential_attempts')) {
+        expect(params).toEqual([UUID_PROPERTY, expect.any(String), credentialFingerprint(pinHash)]);
         return Promise.resolve({ rows: [{ n: 0 }] });
       }
       if (sql.includes('COUNT(*)::int AS n') && sql.includes("provider_payload->>'mode' = 'pin'")) {
@@ -383,9 +385,20 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     expect(JSON.parse(visitCall[1][9])).toMatchObject({
       mode: 'pin',
       credential_type: 'pin',
-      credential_fingerprint: credentialFingerprint(pinHash),
       rate_limited: false,
     });
+    expect(JSON.parse(visitCall[1][9])).not.toHaveProperty('credential_fingerprint');
+    const attemptCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO pass_credential_attempts'));
+    expect(attemptCall[1]).toEqual([
+      UUID_PROPERTY,
+      credentialFingerprint(pinHash),
+      UUID_POINT,
+      UUID_STAFF,
+      UUID_VISIT_LOG,
+      NOW,
+    ]);
+    const auditCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(JSON.parse(auditCall[1][4])).not.toHaveProperty('credential_fingerprint');
   });
 
   test('PIN rate limit creates suspicious repeat evidence without exposing PIN', async () => {
@@ -495,6 +508,29 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     const incidentCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_incidents'));
     expect(visitCall[1][6]).toBe('B002BB77');
     expect(incidentCall[1][4]).toBe('unauthorized_vehicle');
+  });
+
+  test('suspicious repeat escalation is scoped to the current property', async () => {
+    const txClient = installTxClient();
+    mockPlateQueries({ vehicle: null, repeatCount: 3 });
+
+    await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'plate',
+      plate: 'B002BB77',
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    const repeatCall = db.query.mock.calls.find(([sql]) => (
+      sql.includes('FROM visit_logs_v2')
+      && sql.includes('COUNT(*)::int AS n')
+      && sql.includes('property_id = $5')
+    ));
+    expect(repeatCall).toBeDefined();
+    expect(repeatCall[1][4]).toBe(UUID_PROPERTY);
+    const incidentCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_incidents'));
+    expect(incidentCall[1][4]).toBe('suspicious_repeat_attempt');
   });
 
   test('invalid plate denies through visit log and incident pipeline', async () => {

@@ -181,7 +181,7 @@ async function listTrustedVisitors(queryable, { propertyId, residentId, includeI
       ORDER BY is_active DESC, COALESCE(last_used_at, updated_at, created_at) DESC`,
     params,
   );
-  return attachRecentAccessRequests(queryable, rows);
+  return attachRecentAccessRequests(queryable, rows, { propertyId, residentId });
 }
 
 async function createTrustedVisitor(queryable, { propertyId, residentId, input }) {
@@ -215,23 +215,29 @@ async function createTrustedVisitor(queryable, { propertyId, residentId, input }
   return withRecentAccessRequests(rows[0], []);
 }
 
-async function attachRecentAccessRequests(queryable, visitors, limit = 5) {
+async function attachRecentAccessRequests(queryable, visitors, {
+  propertyId,
+  residentId,
+  limit = 5,
+} = {}) {
   if (!Array.isArray(visitors) || visitors.length === 0) return [];
   const ids = visitors.map((visitor) => visitor.id);
   const { rows } = await queryable.query(
     `SELECT *
        FROM (
-         SELECT ${AR_COLS},
-                ROW_NUMBER() OVER (
-                  PARTITION BY trusted_visitor_id
-                  ORDER BY created_at DESC
-                ) AS trusted_visitor_history_rank
-           FROM access_requests
-          WHERE trusted_visitor_id = ANY($1::uuid[])
-       ) ranked
-      WHERE trusted_visitor_history_rank <= $2
-      ORDER BY trusted_visitor_id, created_at DESC`,
-    [ids, limit],
+          SELECT ${AR_COLS},
+                 ROW_NUMBER() OVER (
+                   PARTITION BY trusted_visitor_id
+                   ORDER BY created_at DESC
+                 ) AS trusted_visitor_history_rank
+            FROM access_requests
+           WHERE trusted_visitor_id = ANY($1::uuid[])
+             AND property_id = $3
+             AND created_by_resident_id = $4
+        ) ranked
+       WHERE trusted_visitor_history_rank <= $2
+       ORDER BY trusted_visitor_id, created_at DESC`,
+    [ids, limit, propertyId, residentId],
   );
   const byVisitorId = new Map();
   for (const row of rows) {
@@ -301,7 +307,7 @@ async function updateTrustedVisitor(queryable, { id, propertyId, residentId, inp
   }
   if (!sets.length) {
     const visitor = await loadTrustedVisitorForResident(queryable, { id, propertyId, residentId });
-    return (await attachRecentAccessRequests(queryable, [visitor]))[0];
+    return (await attachRecentAccessRequests(queryable, [visitor], { propertyId, residentId }))[0];
   }
   params.push(id, propertyId, residentId);
   const { rows } = await queryable.query(
@@ -313,7 +319,7 @@ async function updateTrustedVisitor(queryable, { id, propertyId, residentId, inp
       RETURNING ${TRUSTED_VISITOR_COLS}`,
     params,
   );
-  return (await attachRecentAccessRequests(queryable, rows))[0];
+  return (await attachRecentAccessRequests(queryable, rows, { propertyId, residentId }))[0];
 }
 
 async function deactivateTrustedVisitor(queryable, { id, propertyId, residentId }) {
@@ -327,7 +333,7 @@ async function deactivateTrustedVisitor(queryable, { id, propertyId, residentId 
     [id, propertyId, residentId],
   );
   if (!rows[0]) throw serviceError(404, 'Trusted visitor not found');
-  return (await attachRecentAccessRequests(queryable, rows))[0];
+  return (await attachRecentAccessRequests(queryable, rows, { propertyId, residentId }))[0];
 }
 
 async function createPassFromTrustedVisitor({

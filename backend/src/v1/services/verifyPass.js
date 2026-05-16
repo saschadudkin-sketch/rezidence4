@@ -246,13 +246,12 @@ async function verifyPass({
       pinFingerprint = credentialFingerprint(pinHash);
       const { rows: rateRows } = await db.query(
         `SELECT COUNT(*)::int AS n
-           FROM visit_logs_v2
+           FROM pass_credential_attempts
           WHERE property_id = $1
-            AND event_type = $2
-            AND occurred_at > $3
-            AND provider_payload->>'mode' = 'pin'
-            AND provider_payload->>'credential_fingerprint' = $4`,
-        [property_id, eventTypeFor(direction, false), cutoff, pinFingerprint],
+            AND credential_type = 'pin'
+            AND occurred_at > $2
+            AND credential_fingerprint = $3`,
+        [property_id, cutoff, pinFingerprint],
       );
       pinRateLimited = (rateRows[0]?.n || 0) >= PIN_RATE_LIMIT_THRESHOLD;
 
@@ -388,11 +387,12 @@ async function verifyPass({
     const cutoff = new Date(now.getTime() - SUSPICIOUS_REPEAT_WINDOW_MS).toISOString();
     const { rows } = await db.query(
       `SELECT COUNT(*)::int AS n FROM visit_logs_v2
-        WHERE event_type = $4
+        WHERE property_id = $5
+          AND event_type = $4
           AND occurred_at > $1
           AND ((pass_id = $2 AND $2 IS NOT NULL)
              OR (vehicle_plate = $3 AND $3 IS NOT NULL))`,
-      [cutoff, pass?.id || null, normalizedPlate || null, eventTypeFor(direction, false)],
+      [cutoff, pass?.id || null, normalizedPlate || null, eventTypeFor(direction, false), property_id],
     );
     if ((rows[0]?.n || 0) >= SUSPICIOUS_REPEAT_THRESHOLD) {
       verdict.incident_type = 'suspicious_repeat_attempt';
@@ -449,9 +449,6 @@ async function verifyPass({
         credential_type: 'pin',
         rate_limited: pinRateLimited,
       } : {}),
-      ...(pinFingerprint ? {
-        credential_fingerprint: pinFingerprint,
-      } : {}),
     };
     const { rows: vlRows } = await client.query(
       `INSERT INTO visit_logs_v2
@@ -465,6 +462,17 @@ async function verifyPass({
        provider_event_id, JSON.stringify(providerPayload), now.toISOString()],
     );
     const visitLogId = vlRows[0].id;
+
+    if (mode === 'pin' && pinFingerprint) {
+      await client.query(
+        `INSERT INTO pass_credential_attempts
+           (property_id, credential_type, credential_fingerprint, access_point_id,
+            performed_by_staff_id, visit_log_id, occurred_at)
+         VALUES ($1, 'pin', $2, $3, $4, $5, $6)`,
+        [property_id, pinFingerprint, access_point_id || null,
+         performed_by_staff_id || null, visitLogId, now.toISOString()],
+      );
+    }
 
     // Step 6: auto-create incident if deny + incident_type
     let incidentId = null;
@@ -494,7 +502,7 @@ async function verifyPass({
       }
     }
 
-    // Step 8: audit_log fire-and-forget (внутри транзакции, чтобы rollback был единым)
+    // Step 8: audit_log is written inside the transaction so rollback is unified.
     await client.query(
       `INSERT INTO property_audit_log
          (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
@@ -502,11 +510,10 @@ async function verifyPass({
        VALUES ($1, NULL, 'security', 'staff', 'staff', $2, $3, 'visit_log', $4, $5, NULL)`,
       [property_id, performed_by_staff_id || null, `visit.${verdict.event_type}`, visitLogId,
        JSON.stringify({
-         verdict: verdict.reason,
-         mode,
-         credential_fingerprint: pinFingerprint,
-         plate: normalizedPlate,
-         access_point_id: access_point_id || null,
+          verdict: verdict.reason,
+          mode,
+          plate: normalizedPlate,
+          access_point_id: access_point_id || null,
          direction,
          policy_decision: policyDecision,
        })],

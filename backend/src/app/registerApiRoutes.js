@@ -229,7 +229,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/admin/documents', requireFeature('documents'), v1DocumentsAdminRouter);
   app.use('/api/v1/public/:slug/documents', v1DocumentsPublicRouter);
   // publicPassRouter: no auth, rate-limited 30/min/IP
-  app.use('/api/v1/public/pass', publicPassLimiter, publicPassRouter);
+  app.use('/api/v1/public/pass', requireFeature('public_pass_v1'), publicPassLimiter, publicPassRouter);
 
   // Phase 3 — Resident Dashboard Expansion
   // packages_v2 (Phase 5) — v1 router fully owns /api/v1/packages.
@@ -295,18 +295,18 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/vehicles', v1VehiclesRouter);
   app.use('/api/v1', v1AccessTopologyRouter);
   app.use('/api/v1', v1AccessPoliciesRouter);
-  app.use('/api/v1/security-workspace', v1SecurityWorkspaceRouter);
+  app.use('/api/v1/security-workspace', requireFeature('security_workspace_enriched'), v1SecurityWorkspaceRouter);
   app.use('/api/v1/security', (req, res, next) => {
     if (req.path === '/authorized-devices' || req.path.startsWith('/authorized-devices/')) {
       return res.status(404).json({ error: 'Use /api/v1/security-workspace/authorized-devices' });
     }
     return next();
-  }, v1SecurityWorkspaceRouter);
+  }, requireFeature('security_workspace_enriched'), v1SecurityWorkspaceRouter);
   app.use('/api/v1/staff-workspace', v1StaffWorkspaceRouter);
   app.use('/api/v1/technician-workspace', v1TechnicianWorkspaceRouter);
   app.use('/api/v1/contractor-workspace', v1ContractorWorkspaceRouter);
   app.use('/api/v1/access-requests', v1AccessRequestsRouter);
-  app.use('/api/v1/trusted-visitors', v1TrustedVisitorsRouter);
+  app.use('/api/v1/trusted-visitors', requireFeature('trusted_visitors'), v1TrustedVisitorsRouter);
   app.use('/api/v1/passes', v1PassesRouter);
   app.use('/api/v1/visits', v1VisitsRouter);
   app.use('/api/v1/guard', v1VisitsRouter);
