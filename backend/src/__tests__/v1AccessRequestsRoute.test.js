@@ -75,6 +75,9 @@ function accessRequestRow(overrides = {}) {
     target_point_id: null,
     target_unit_id: null,
     reason: null,
+    guest_instructions: null,
+    guard_notes: null,
+    share_delivery_channels: [],
     starts_at: '2026-05-05T10:00:00.000Z',
     ends_at: '2026-05-05T12:00:00.000Z',
     status: 'new',
@@ -287,6 +290,57 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     const passCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO passes'));
     expect(passCall[1][6]).toBe(UUID_ZONE);
     expect(passCall[1][7]).toBe(UUID_POINT);
+  });
+
+  test('create stores resident guest instructions and guard notes as stable columns', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
+    const row = accessRequestRow({
+      status: 'approved',
+      approval_required: false,
+      guest_instructions: 'Показать QR на северном КПП',
+      guard_notes: 'Проверить паспорт',
+      share_delivery_channels: ['link', 'qr'],
+    });
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('INSERT INTO passes')) {
+        return Promise.resolve({ rows: [{
+          id: UUID_PASS,
+          pass_type: 'guest',
+          status: 'active',
+          policy_id: UUID_POLICY,
+          valid_from: row.starts_at,
+          valid_until: row.ends_at,
+        }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      return Promise.resolve({ rows: [] });
+    });
+    db.pool.connect.mockResolvedValue(txClient);
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-requests')
+      .send(validCreatePayload({
+        guest_instructions: '  Показать QR на северном КПП  ',
+        guard_notes: 'Проверить паспорт',
+        share_delivery_channels: ['link', 'qr', 'link'],
+      }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.access_request.guest_instructions).toBe('Показать QR на северном КПП');
+    expect(res.body.access_request.guard_notes).toBe('Проверить паспорт');
+    const insertCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_requests'));
+    expect(insertCall[0]).toContain('guest_instructions');
+    expect(insertCall[0]).toContain('guard_notes');
+    expect(insertCall[0]).toContain('share_delivery_channels');
+    expect(insertCall[1][13]).toBe('Показать QR на северном КПП');
+    expect(insertCall[1][14]).toBe('Проверить паспорт');
+    expect(JSON.parse(insertCall[1][15])).toEqual(['link', 'qr']);
   });
 
   test('resident vehicle_access can only use a vehicle owned by that resident', async () => {

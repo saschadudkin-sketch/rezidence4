@@ -92,6 +92,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./049_access_readiness_gaps'),
   // Access policy non-goal guard: no biometric identity matching in core
   require('./050_access_policy_biometric_method_freeze'),
+  // Access rollout Phase 3: stable guest/guard text fields on access_requests
+  require('./051_access_request_product_text'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

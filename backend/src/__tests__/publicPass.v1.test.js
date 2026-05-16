@@ -33,6 +33,7 @@ describe('publicPass route v1 cutover', () => {
             access_request_id: 'ar-1',
             request_type: 'guest_access',
             visitor_name: 'Анна Курьер',
+            guest_instructions: 'Вход через северный КПП',
             unit_number: '12',
             unit_type: 'apartment',
             access_point_name: 'КПП Север',
@@ -59,7 +60,7 @@ describe('publicPass route v1 cutover', () => {
       passType: 'guest',
       accessPointName: 'КПП Север',
       accessZoneName: 'Паркинг',
-      guestInstructions: null,
+      guestInstructions: 'Вход через северный КПП',
     }));
     expect(res.body).not.toHaveProperty('passId');
     expect(JSON.stringify(res.body)).not.toContain('must-not-leak');

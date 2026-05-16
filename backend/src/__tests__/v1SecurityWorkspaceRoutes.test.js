@@ -75,7 +75,14 @@ describe('security workspace routes', () => {
         return Promise.resolve({ rows: [{ id: 'pass-1', status: 'active', point_id: UUID_POINT }] });
       }
       if (sql.includes('FROM access_requests ar')) {
-        return Promise.resolve({ rows: [{ id: 'request-1', visitor_name: 'Guest' }] });
+        return Promise.resolve({
+          rows: [{
+            id: 'request-1',
+            visitor_name: 'Guest',
+            guest_instructions: 'Показать QR',
+            guard_notes: 'Проверить документы',
+          }],
+        });
       }
       if (sql.includes('FROM visit_logs_v2 vl')) {
         return Promise.resolve({ rows: [{ id: 'visit-1', event_type: 'entry_allowed' }] });
@@ -97,6 +104,8 @@ describe('security workspace routes', () => {
     expect(res.body.workspace.blacklist_hits).toHaveLength(1);
     const expectedGuestsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM access_requests ar'));
     expect(expectedGuestsCall[0]).toContain("ar.status = 'approved'");
+    expect(expectedGuestsCall[0]).toContain('ar.guest_instructions');
+    expect(expectedGuestsCall[0]).toContain('ar.guard_notes');
     expect(expectedGuestsCall[0]).not.toContain('pending_approval');
     expect(expectedGuestsCall[0]).not.toContain('escalated');
   });

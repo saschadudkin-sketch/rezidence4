@@ -40,7 +40,8 @@ Stable product fields:
 - `guard_notes` — staff/security-only заметка для решения на КПП.
 - `share_delivery_channels` — будущая настройка каналов доставки ссылки/QR.
 
-До добавления колонок эти поля не должны становиться постоянным UX-контрактом через `metadata`: metadata допустима только для экспериментальных или integration-only расширений.
+Эти поля реализованы как отдельные колонки в `v1_051_access_request_product_text`.
+`metadata` допустима только для экспериментальных или integration-only расширений.
 
 Out of scope for this module:
 - PIN/fallback credential хранится не в `access_requests`, а в credential layer для `passes`.
@@ -66,8 +67,9 @@ access_requests
   target_point_id                 UUID NULL → access_points
   target_unit_id                  UUID NULL → units
   reason                          TEXT NULL
-  guest_instructions              TEXT NULL  (planned stable UX field)
-  guard_notes                     TEXT NULL  (planned staff/security-only field)
+  guest_instructions              TEXT NULL
+  guard_notes                     TEXT NULL
+  share_delivery_channels         JSONB NOT NULL DEFAULT []
   starts_at                       TIMESTAMPTZ NOT NULL
   ends_at                         TIMESTAMPTZ NOT NULL
   status                          ENUM(new/pending_approval/approved/rejected/cancelled/expired) DEFAULT 'new'
@@ -164,7 +166,7 @@ access_approvals
 
 ## 7. Открытые вопросы
 
-1. **Авто-approval:** v1 использует `access_policies` как источник решения. `approval_mode='auto'` может выпустить pass сразу только при matched allow-policy и выключенном `manual_access_approval`; `required`/`security_only`/`admin_only`, отсутствие policy или policy deny переводят flow в review/deny согласно policy engine. `contractor_access` и `service_access` должны быть связаны с service request через `request_access_links`.
+1. **Авто-approval:** v1 использует `access_policies` как источник решения. `approval_mode='auto'` может выпустить pass сразу только при matched allow-policy и выключенном `manual_access_approval`; `required`/`security_only`/`admin_only`, отсутствие policy или policy deny переводят flow в review/deny согласно policy engine. `contractor_access` должен быть связан с service request через `request_access_links`; resident-created `service_access` разрешён как обычный разовый сервисный визит.
 2. **Multiple visitors на одной заявке:** 5 гостей резидента на ужин → **Не в v1.** Создаётся 5 заявок или одна с `visitor_name='Гости Ивановых (5 чел)'` + batch-issue QR. Полная multi-visitor модель — пост-релиз.
 3. **Повторяющиеся заявки:** клининг каждый вторник → **Не в v1.** Повторяющиеся — через `access_policies.is_recurring` (пост-релиз). В v1 — создавать вручную каждый раз.
 4. **Co-approval (муж+жена оба должны одобрить гостя):** `access_approvals.approver_resident_id` nullable оставляем schemaтически, но UX co-approval — пост-релиз.

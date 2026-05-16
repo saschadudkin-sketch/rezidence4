@@ -254,6 +254,12 @@ function ExpectedGuestsPanel({
                   {guest.visitor_phone ? <span>{guest.visitor_phone}</span> : null}
                 </div>
                 {guest.reason ? <p className={uiClasses.textMuted}>{guest.reason}</p> : null}
+                {guest.guest_instructions ? (
+                  <p className={uiClasses.textMuted}>Для гостя: {guest.guest_instructions}</p>
+                ) : null}
+                {guest.guard_notes ? (
+                  <p className={uiClasses.textBody}>Охране: {guest.guard_notes}</p>
+                ) : null}
               </div>
               <Badge tone={requestStatusTone(guest.status)}>{formatRequestStatus(guest.status)}</Badge>
             </li>
@@ -337,6 +343,12 @@ function ActivePassRow({
           ) : null}
           {pass.plate_number ? <span>{pass.plate_number}</span> : null}
         </div>
+        {pass.guest_instructions ? (
+          <p className={uiClasses.textMuted}>Для гостя: {pass.guest_instructions}</p>
+        ) : null}
+        {pass.guard_notes ? (
+          <p className={uiClasses.textBody}>Охране: {pass.guard_notes}</p>
+        ) : null}
         {showRevoke ? (
           <Stack className={uiClasses.marginTop3}>
             <Field label="Причина отзыва" error={error ?? undefined}>

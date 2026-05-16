@@ -505,6 +505,8 @@ export interface AccessRequest {
   target_point_id: UUID | null;
   target_unit_id: UUID | null;
   reason: string | null;
+  guest_instructions: string | null;
+  guard_notes: string | null;
   starts_at: IsoDateTime;
   ends_at: IsoDateTime;
   status: RequestStatus;
@@ -938,6 +940,8 @@ export interface SecurityWorkspaceActivePass {
   valid_from: IsoDateTime;
   valid_until: IsoDateTime;
   status: PassStatus;
+  guest_instructions: string | null;
+  guard_notes: string | null;
   plate_number: string | null;
   is_whitelisted: boolean | null;
   is_blacklisted: boolean | null;
@@ -958,6 +962,9 @@ export interface SecurityWorkspaceExpectedGuest {
   target_point_id: UUID | null;
   target_unit_id: UUID | null;
   reason: string | null;
+  guest_instructions: string | null;
+  guard_notes: string | null;
+  share_delivery_channels: string[] | null;
   starts_at: IsoDateTime;
   ends_at: IsoDateTime;
   status: RequestStatus;

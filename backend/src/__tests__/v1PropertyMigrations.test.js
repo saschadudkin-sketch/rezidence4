@@ -46,8 +46,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-57 emergency readiness evidence
     // + 1 DH-55/DH-57/DH-59/DH-60 live evidence and transfers
     // + 1 DH-56 privacy compliance controls
-    // + 1 access-control pilot readiness hardening = 49
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(50);
+    // + 1 access-control pilot readiness hardening
+    // + 1 access request product text fields = 51
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(51);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -71,6 +72,21 @@ describe('v1 property migrations — registry invariants', () => {
     expect(LATEST_V1_PROPERTY_MIGRATION_ID).toBe(
       V1_PROPERTY_MIGRATIONS[V1_PROPERTY_MIGRATIONS.length - 1].id,
     );
+  });
+});
+
+describe('v1_051_access_request_product_text', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds stable guest/guard text fields and array channel check', async () => {
+    await byId('v1_051_access_request_product_text').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    expect(sqls[0]).toContain('ADD COLUMN IF NOT EXISTS guest_instructions TEXT');
+    expect(sqls[0]).toContain('ADD COLUMN IF NOT EXISTS guard_notes TEXT');
+    expect(sqls[0]).toContain("share_delivery_channels JSONB NOT NULL DEFAULT '[]'::jsonb");
+    expect(sqls[2]).toContain('access_requests_share_delivery_channels_check');
+    expect(sqls[2]).toContain("jsonb_typeof(share_delivery_channels) = 'array'");
   });
 });
 

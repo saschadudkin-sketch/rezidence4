@@ -77,7 +77,7 @@ describe('AccessRequestService approval policy', () => {
 });
 
 describe('AccessRequestService state transitions', () => {
-  test('service and contractor access require a linked service request', async () => {
+  test('contractor access requires a linked service request', async () => {
     const queryable = {
       query: jest.fn((sql) => {
         if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -93,7 +93,7 @@ describe('AccessRequestService state transitions', () => {
       user: { uid: 'legacy-staff-1', role: 'security' },
       input: {
         property_id: UUID_PROPERTY,
-        request_type: 'service_access',
+        request_type: 'contractor_access',
         visitor_name: null,
         visitor_phone: null,
         vehicle_id: null,
@@ -107,7 +107,7 @@ describe('AccessRequestService state transitions', () => {
       },
     })).rejects.toMatchObject({
       status: 422,
-      message: 'service_access requires linked request_id',
+      message: 'contractor_access requires linked request_id',
     });
     expect(txPool.connect).not.toHaveBeenCalled();
   });
@@ -137,7 +137,7 @@ describe('AccessRequestService state transitions', () => {
     expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 
-  test('approve rejects service access when linked service request is missing', async () => {
+  test('approve rejects contractor access when linked service request is missing', async () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -146,7 +146,7 @@ describe('AccessRequestService state transitions', () => {
           rows: [{
             id: UUID_REQUEST,
             property_id: UUID_PROPERTY,
-            request_type: 'service_access',
+            request_type: 'contractor_access',
             vehicle_id: null,
             created_by_contractor_user_id: null,
             target_zone_id: UUID_ZONE,
@@ -168,7 +168,7 @@ describe('AccessRequestService state transitions', () => {
       comment: 'ok',
     })).rejects.toMatchObject({
       status: 409,
-      message: 'service_access requires linked service request',
+      message: 'contractor_access requires linked service request',
     });
 
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);

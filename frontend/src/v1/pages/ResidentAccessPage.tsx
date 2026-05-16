@@ -30,6 +30,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   AccessRequest,
+  AccessPoint,
+  AccessZone,
   PropertyType,
   QrToken,
   RequestType,
@@ -62,7 +64,7 @@ import {
 
 /**
  * Request types the resident can pick from their landing page.
- * `vehicle_access` is intentionally excluded — see file header.
+ * Labels stay product-facing; backend request_type values stay internal.
  */
 const RESIDENT_REQUEST_TYPES: ReadonlyArray<RequestType> = [
   'guest_access',
@@ -75,6 +77,8 @@ interface LoadedState {
   resident: ResidentWithUnit;
   requests: AccessRequest[];
   vehicles: Vehicle[];
+  zones: AccessZone[];
+  points: AccessPoint[];
 }
 
 type PageState =
@@ -94,20 +98,36 @@ export function ResidentAccessPage() {
     try {
       const residentRes = await api.residents.getById(session.uid);
       const resident = residentRes.resident;
-      const listRes = await api.accessRequests.list({
-        created_by_resident_id: resident.id,
-        limit: 20,
-      });
-      const vehiclesRes = resident.property_id
-        ? await api.vehicles.list({
-          property_id: resident.property_id,
-          owner_resident_id: resident.id,
-          limit: 50,
-        })
-        : { vehicles: [] };
+      const [listRes, vehiclesRes, zonesRes, pointsRes] = await Promise.all([
+        api.accessRequests.list({
+          created_by_resident_id: resident.id,
+          limit: 20,
+        }),
+        resident.property_id
+          ? api.vehicles.list({
+            property_id: resident.property_id,
+            owner_resident_id: resident.id,
+            limit: 50,
+          })
+          : Promise.resolve({ vehicles: [] }),
+        resident.property_id
+          ? api.accessTopology.listZones({ property_id: resident.property_id, is_active: true, limit: 100 })
+            .catch(() => ({ zones: [] }))
+          : Promise.resolve({ zones: [] }),
+        resident.property_id
+          ? api.accessTopology.listPoints({ property_id: resident.property_id, is_active: true, limit: 100 })
+            .catch(() => ({ points: [] }))
+          : Promise.resolve({ points: [] }),
+      ]);
       setState({
         kind: 'ready',
-        data: { resident, requests: listRes.access_requests, vehicles: vehiclesRes.vehicles },
+        data: {
+          resident,
+          requests: listRes.access_requests,
+          vehicles: vehiclesRes.vehicles,
+          zones: zonesRes.zones,
+          points: pointsRes.points,
+        },
       });
     } catch (err) {
       const message = isV1ApiError(err)
@@ -126,7 +146,6 @@ export function ResidentAccessPage() {
   }, [load, refreshToken]);
 
   const handleCreated = useCallback((request: AccessRequest) => {
-    setFormOpen(false);
     // Optimistic prepend — the refetch below will reconcile with the server
     // ordering (created_at DESC), but the resident sees their new card
     // immediately.
@@ -151,6 +170,19 @@ export function ResidentAccessPage() {
         data: {
           ...prev.data,
           vehicles: [vehicle, ...prev.data.vehicles.filter((item) => item.id !== vehicle.id)],
+        },
+      };
+    });
+  }, []);
+
+  const handleRequestUpdated = useCallback((request: AccessRequest) => {
+    setState((prev) => {
+      if (prev.kind !== 'ready') return prev;
+      return {
+        kind: 'ready',
+        data: {
+          ...prev.data,
+          requests: prev.data.requests.map((item) => (item.id === request.id ? request : item)),
         },
       };
     });
@@ -188,6 +220,8 @@ export function ResidentAccessPage() {
           resident={state.data.resident}
           requests={state.data.requests}
           vehicles={state.data.vehicles}
+          zones={state.data.zones}
+          points={state.data.points}
           apartmentLabel={session.apartment ?? null}
           propertyType={session.property_type ?? null}
           formOpen={formOpen}
@@ -195,6 +229,7 @@ export function ResidentAccessPage() {
           onCancelForm={() => setFormOpen(false)}
           onCreated={handleCreated}
           onVehicleCreated={handleVehicleCreated}
+          onRequestUpdated={handleRequestUpdated}
         />
       )}
     </div>
@@ -205,6 +240,8 @@ interface ReadyProps {
   resident: ResidentWithUnit;
   requests: readonly AccessRequest[];
   vehicles: readonly Vehicle[];
+  zones: readonly AccessZone[];
+  points: readonly AccessPoint[];
   apartmentLabel: string | null;
   propertyType: PropertyType | null;
   formOpen: boolean;
@@ -212,12 +249,15 @@ interface ReadyProps {
   onCancelForm: () => void;
   onCreated: (request: AccessRequest) => void;
   onVehicleCreated: (vehicle: Vehicle) => void;
+  onRequestUpdated: (request: AccessRequest) => void;
 }
 
 function ResidentAccessReady({
   resident,
   requests,
   vehicles,
+  zones,
+  points,
   apartmentLabel,
   propertyType,
   formOpen,
@@ -225,6 +265,7 @@ function ResidentAccessReady({
   onCancelForm,
   onCreated,
   onVehicleCreated,
+  onRequestUpdated,
 }: ReadyProps) {
   // Must have a unit_id AND a property_id to submit a request — otherwise
   // the form 400s on the backend and the UX is worse.
@@ -280,6 +321,8 @@ function ResidentAccessReady({
           propertyType={propertyType}
           units={units}
           vehicles={vehicles}
+          zones={zones}
+          points={points}
           allowedRequestTypes={RESIDENT_REQUEST_TYPES}
           onCreated={onCreated}
           onCancel={onCancelForm}
@@ -293,7 +336,11 @@ function ResidentAccessReady({
       ) : (
         <Stack>
           {requests.map((r) => (
-            <AccessRequestCard key={r.id} request={r}>
+            <AccessRequestCard
+              key={r.id}
+              request={r}
+              actions={<ResidentRequestActions request={r} onUpdated={onRequestUpdated} />}
+            >
               <ResidentQrPanel request={r} />
             </AccessRequestCard>
           ))}
@@ -456,10 +503,47 @@ function ResidentVehiclesPanel({
   );
 }
 
+function ResidentRequestActions({
+  request,
+  onUpdated,
+}: {
+  request: AccessRequest;
+  onUpdated: (request: AccessRequest) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canCancel = ['new', 'pending_approval', 'escalated'].includes(request.status);
+
+  async function cancel() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.accessRequests.cancel(request.id, { expectedCurrentStatus: request.status });
+      onUpdated(res.access_request);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отменить заявку');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!canCancel && !error) return null;
+  return (
+    <Inline>
+      {error ? <span className={uiClasses.textMuted}>{error}</span> : null}
+      {canCancel ? (
+        <Button type="button" variant="ghost" loading={loading} onClick={cancel}>
+          Отменить
+        </Button>
+      ) : null}
+    </Inline>
+  );
+}
+
 type QrState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'ready'; qr: QrToken; dataUrl: string | null }
+  | { kind: 'ready'; qr: QrToken; shareUrl: string; dataUrl: string | null }
   | { kind: 'error'; message: string };
 
 function ResidentQrPanel({ request }: { request: AccessRequest }) {
@@ -475,9 +559,10 @@ function ResidentQrPanel({ request }: { request: AccessRequest }) {
       }
       const { qr } = await api.passes.getQr(detail.pass.id);
       let dataUrl: string | null = null;
+      const shareUrl = `${window.location.origin}/p/${qr.token}`;
       try {
         const QRCode = (await import('qrcode')).default;
-        dataUrl = await QRCode.toDataURL(qr.token, {
+        dataUrl = await QRCode.toDataURL(shareUrl, {
           margin: 1,
           width: 168,
           color: { dark: '#13110E', light: '#FFFFFF' },
@@ -485,7 +570,7 @@ function ResidentQrPanel({ request }: { request: AccessRequest }) {
       } catch {
         dataUrl = null;
       }
-      setState({ kind: 'ready', qr, dataUrl });
+      setState({ kind: 'ready', qr, shareUrl, dataUrl });
     } catch (err) {
       setState({
         kind: 'error',
@@ -530,9 +615,12 @@ function ResidentQrPanel({ request }: { request: AccessRequest }) {
           <Stack>
             <span className={uiClasses.textMuted}>QR-токен</span>
             <span className={uiClasses.textMono} data-testid="v1-qr-token">
-              {state.qr.token}
+              {state.shareUrl}
             </span>
             <Inline>
+              <Button type="button" variant="secondary" onClick={() => window.open(state.shareUrl, '_blank', 'noopener,noreferrer')}>
+                Открыть ссылку
+              </Button>
               <Button type="button" variant="ghost" onClick={openQr}>
                 Обновить
               </Button>

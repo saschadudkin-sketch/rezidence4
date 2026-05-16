@@ -101,10 +101,12 @@ async function listActivePasses(queryable, { propertyId, station, now, limit }) 
             p.subject_contractor_user_id, p.subject_vehicle_id,
             p.zone_id, p.point_id, p.policy_id,
             p.valid_from, p.valid_until, p.status,
+            ar.guest_instructions, ar.guard_notes,
             v.plate_number, v.is_whitelisted, v.is_blacklisted,
             r.full_name AS resident_name, r.phone AS resident_phone,
             u.unit_number, u.unit_type
        FROM passes p
+       LEFT JOIN access_requests ar ON ar.id = p.access_request_id
        LEFT JOIN vehicles v ON v.id = p.subject_vehicle_id
        LEFT JOIN residents r
          ON r.id = p.subject_resident_id
@@ -133,6 +135,7 @@ async function listExpectedGuests(queryable, { propertyId, station, now, limit }
     `SELECT ar.id, ar.property_id, ar.request_type, ar.visitor_name,
             ar.visitor_phone, ar.vehicle_id, ar.target_zone_id,
             ar.target_point_id, ar.target_unit_id, ar.reason,
+            ar.guest_instructions, ar.guard_notes,
             ar.starts_at, ar.ends_at, ar.status, ar.approval_required,
             v.plate_number, u.unit_number, u.unit_type,
             p.id AS pass_id, p.status AS pass_status

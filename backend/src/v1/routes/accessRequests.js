@@ -72,6 +72,43 @@ function isPropertyAdmin(req, propertyId = null) {
 }
 function isValidIso(v) { return typeof v === 'string' && !Number.isNaN(Date.parse(v)); }
 
+function normalizeOptionalText(value, field, maxLength = 1000) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    const err = new Error(`${field} must be string or null`);
+    err.status = 400;
+    throw err;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > maxLength) {
+    const err = new Error(`${field} is too long`);
+    err.status = 400;
+    throw err;
+  }
+  return trimmed;
+}
+
+function normalizeShareDeliveryChannels(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > 5) {
+    const err = new Error('share_delivery_channels must be an array');
+    err.status = 400;
+    throw err;
+  }
+  const allowed = new Set(['link', 'qr', 'sms', 'telegram', 'email']);
+  const channels = [];
+  for (const channel of value) {
+    if (typeof channel !== 'string' || !allowed.has(channel)) {
+      const err = new Error('share_delivery_channels contains unsupported channel');
+      err.status = 400;
+      throw err;
+    }
+    if (!channels.includes(channel)) channels.push(channel);
+  }
+  return channels;
+}
+
 function resolvePropertyId(req) {
   return req.property?.id
     || req.property?.property_id
@@ -362,6 +399,9 @@ router.post('/', idempotency, async (req, res, next) => {
       target_unit_id = null, target_zone_id = null, target_point_id = null,
       request_id = null,
       reason = null,
+      guest_instructions = null,
+      guard_notes = null,
+      share_delivery_channels = [],
       starts_at, ends_at,
     } = req.body || {};
 
@@ -396,7 +436,18 @@ router.post('/', idempotency, async (req, res, next) => {
     // guest_access/courier_access: visitor_name рекомендуется (не enforce сейчас).
     if (visitor_name !== null && typeof visitor_name !== 'string') return res.status(400).json({ error: 'visitor_name must be string or null' });
     if (visitor_phone !== null && typeof visitor_phone !== 'string') return res.status(400).json({ error: 'visitor_phone must be string or null' });
-    if (reason !== null && typeof reason !== 'string') return res.status(400).json({ error: 'reason must be string or null' });
+    let normalizedReason;
+    let normalizedGuestInstructions;
+    let normalizedGuardNotes;
+    let normalizedShareDeliveryChannels;
+    try {
+      normalizedReason = normalizeOptionalText(reason, 'reason');
+      normalizedGuestInstructions = normalizeOptionalText(guest_instructions, 'guest_instructions');
+      normalizedGuardNotes = normalizeOptionalText(guard_notes, 'guard_notes');
+      normalizedShareDeliveryChannels = normalizeShareDeliveryChannels(share_delivery_channels);
+    } catch (validationErr) {
+      return res.status(validationErr.status || 400).json({ error: validationErr.message });
+    }
     if (request_id !== null && (typeof request_id !== 'string' || !request_id.trim() || request_id.length > 128)) {
       return res.status(400).json({ error: 'request_id must be a non-empty string or null' });
     }
@@ -416,7 +467,10 @@ router.post('/', idempotency, async (req, res, next) => {
         target_zone_id,
         target_point_id,
         request_id,
-        reason,
+        reason: normalizedReason,
+        guest_instructions: normalizedGuestInstructions,
+        guard_notes: normalizedGuardNotes,
+        share_delivery_channels: normalizedShareDeliveryChannels,
         starts_at,
         ends_at,
       },
@@ -431,6 +485,8 @@ router.post('/', idempotency, async (req, res, next) => {
         request_type,
         starts_at,
         ends_at,
+        guest_instructions: Boolean(normalizedGuestInstructions),
+        guard_notes: Boolean(normalizedGuardNotes),
         approval_required: result.approval_required,
         pass_id: result.pass?.id || null,
       },

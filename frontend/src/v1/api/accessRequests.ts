@@ -14,6 +14,7 @@ import type {
   IsoDateTime,
   PageMeta,
   PaginationParams,
+  PassSummary,
   RequestStatus,
   RequestType,
   UUID,
@@ -40,6 +41,9 @@ export interface CreateAccessRequestBody {
   visitor_phone?: string | null;
   vehicle_id?: UUID | null;
   reason?: string | null;
+  guest_instructions?: string | null;
+  guard_notes?: string | null;
+  share_delivery_channels?: string[];
   approval_required?: boolean;
 }
 
@@ -69,7 +73,11 @@ export const accessRequestsApi = {
     return v1Client.get<AccessRequestDetailResponse>(`/access-requests/${id}`, opts);
   },
   create(body: CreateAccessRequestBody, opts?: RequestOpts) {
-    return v1Client.post<{ access_request: AccessRequest }>(`/access-requests`, body, opts);
+    return v1Client.post<{ access_request: AccessRequest; pass?: PassSummary | null }>(
+      `/access-requests`,
+      body,
+      opts,
+    );
   },
   submit(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ access_request: AccessRequest }>(

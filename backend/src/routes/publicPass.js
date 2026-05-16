@@ -80,7 +80,7 @@ function publicV1Pass(row, propertyName) {
     passType: row.pass_type,
     accessPointName: row.access_point_name || null,
     accessZoneName: row.access_zone_name || null,
-    guestInstructions: null,
+    guestInstructions: row.guest_instructions || null,
   };
 }
 
@@ -115,6 +115,7 @@ async function lookupV1Pass(db, token) {
        ar.id AS access_request_id,
        ar.request_type,
        ar.visitor_name,
+       ar.guest_instructions,
        u.unit_number,
        u.unit_type,
        ap.name AS access_point_name,

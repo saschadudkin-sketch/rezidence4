@@ -20,7 +20,8 @@ const AR_COLS = `
   created_by_resident_id, created_by_staff_id, created_by_contractor_user_id,
   request_type, visitor_name, visitor_phone, vehicle_id,
   target_zone_id, target_point_id, target_unit_id,
-  reason, starts_at, ends_at, status, approval_required,
+  reason, guest_instructions, guard_notes, share_delivery_channels,
+  starts_at, ends_at, status, approval_required,
   approved_at, rejected_at, cancelled_at, created_at, updated_at
 `;
 
@@ -173,7 +174,7 @@ async function evaluateAccessRequestPolicy({ queryable, property, input, creator
   };
 }
 
-const LINKED_SERVICE_REQUEST_TYPES = new Set(['contractor_access', 'service_access']);
+const LINKED_SERVICE_REQUEST_TYPES = new Set(['contractor_access']);
 const LINKED_REQUEST_TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'rejected', 'expired']);
 
 function validateLinkedServiceRequestRow({ linkedRequest, input, creator }) {
@@ -287,15 +288,18 @@ async function createAccessRequest({
           created_by_resident_id, created_by_staff_id, created_by_contractor_user_id,
           request_type, visitor_name, visitor_phone, vehicle_id,
           target_zone_id, target_point_id, target_unit_id,
-          reason, starts_at, ends_at, approval_required, status, approved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+          reason, guest_instructions, guard_notes, share_delivery_channels,
+          starts_at, ends_at, approval_required, status, approved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17,$18,$19,$20,$21)
        RETURNING ${AR_COLS}`,
       [
         input.property_id, creator.created_by_type,
         creator.created_by_resident_id, creator.created_by_staff_id, creator.created_by_contractor_user_id,
         input.request_type, input.visitor_name, input.visitor_phone, input.vehicle_id,
         input.target_zone_id, input.target_point_id, input.target_unit_id,
-        input.reason, input.starts_at, input.ends_at, approvalRequired, initialStatus, approvedAt,
+        input.reason, input.guest_instructions, input.guard_notes,
+        JSON.stringify(input.share_delivery_channels || []),
+        input.starts_at, input.ends_at, approvalRequired, initialStatus, approvedAt,
       ],
     );
     accessRequest = rows[0];
