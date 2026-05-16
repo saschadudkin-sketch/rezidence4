@@ -37,6 +37,7 @@ function dashboard(overrides = {}) {
       allow_count: 31,
       denial_count: 4,
       vehicle_traffic_count: 18,
+      avg_decision_sample_count: 9,
       avg_decision_seconds: 22,
       active_passes: 22,
       used_passes: 9,
@@ -95,6 +96,11 @@ describe('analytics aggregation service', () => {
         metric_group: 'incidents',
         metric_key: 'incidents.blacklist_hits',
         value: 2,
+      }),
+      expect.objectContaining({
+        metric_group: 'access',
+        metric_key: 'access.avg_decision_sample_count',
+        value: 9,
       }),
       expect.objectContaining({
         metric_group: 'access',

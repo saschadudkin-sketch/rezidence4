@@ -86,6 +86,7 @@ function flattenOperationsDashboard(snapshot) {
   add('access', 'access.allow_count', access.allow_count);
   add('access', 'access.denial_count', access.denial_count);
   add('access', 'access.vehicle_traffic_count', access.vehicle_traffic_count);
+  add('access', 'access.avg_decision_sample_count', access.avg_decision_sample_count);
   add('access', 'access.avg_decision_seconds', access.avg_decision_seconds, 'seconds');
   add('access', 'access.active_passes', access.active_passes);
   add('access', 'access.used_passes', access.used_passes);

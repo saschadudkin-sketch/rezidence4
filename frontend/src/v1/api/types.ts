@@ -118,6 +118,7 @@ export interface OperationsDashboardSnapshot {
     allow_count: number;
     denial_count: number;
     vehicle_traffic_count: number;
+    avg_decision_sample_count: number;
     avg_decision_seconds: number | null;
     active_passes: number;
     used_passes: number;
@@ -480,6 +481,7 @@ export interface ManagementCompanyPortfolioSnapshot {
   formula_notes: {
     request_sla_compliance_rate: string;
     notification_success_rate: string;
+    access_avg_decision_seconds: string;
     hotspot_property_count: string;
   };
 }

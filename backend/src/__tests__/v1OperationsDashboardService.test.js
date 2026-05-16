@@ -83,6 +83,7 @@ describe('getOperationsDashboard', () => {
           allow_count: '31',
           denial_count: '4',
           vehicle_traffic_count: '18',
+          avg_decision_sample_count: '9',
           avg_decision_seconds: '22.5',
         }],
       }],
@@ -110,8 +111,10 @@ describe('getOperationsDashboard', () => {
       [/FROM security_offline_replay_events/s, {
         rows: [{ replay_status: 'accepted', total: 2 }],
       }],
-      [/FROM trusted_visitors tv/s, {
-        rows: [{ active: '7', passes_created: '4' }],
+      [/FROM trusted_visitors tv/s, (sql) => {
+        expect(sql).toMatch(/COUNT\(DISTINCT tv\.id\) FILTER \(WHERE tv\.is_active = true\)/);
+        expect(sql).toMatch(/COUNT\(DISTINCT ar\.id\) FILTER/);
+        return { rows: [{ active: '7', passes_created: '4' }] };
       }],
       [/FROM skud_integration_events sie/s, {
         rows: [{ failed_events: '3', manual_control_events: '6' }],
@@ -188,6 +191,7 @@ describe('getOperationsDashboard', () => {
       allow_count: 31,
       denial_count: 4,
       vehicle_traffic_count: 18,
+      avg_decision_sample_count: 9,
       avg_decision_seconds: 22.5,
       active_passes: 22,
       manual_override_count: 5,

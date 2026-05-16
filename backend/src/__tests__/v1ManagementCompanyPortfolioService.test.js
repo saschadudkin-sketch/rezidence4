@@ -62,6 +62,7 @@ function dashboard(overrides = {}) {
       allow_count: 0,
       denial_count: 0,
       vehicle_traffic_count: 0,
+      avg_decision_sample_count: 0,
       avg_decision_seconds: null,
       active_passes: 0,
       used_passes: 0,
@@ -147,6 +148,7 @@ describe('getManagementCompanyPortfolio', () => {
             allow_count: 20,
             denial_count: 2,
             vehicle_traffic_count: 12,
+            avg_decision_sample_count: 4,
             avg_decision_seconds: 20,
             active_passes: 7,
             manual_override_count: 4,
@@ -196,6 +198,7 @@ describe('getManagementCompanyPortfolio', () => {
             allow_count: 5,
             denial_count: 1,
             vehicle_traffic_count: 2,
+            avg_decision_sample_count: 8,
             avg_decision_seconds: 40,
             active_passes: 4,
             manual_override_count: 2,
@@ -244,6 +247,8 @@ describe('getManagementCompanyPortfolio', () => {
     expect(fetchPropertyDashboard).toHaveBeenCalledWith({ slug: 'alpha' }, {
       propertyId: alpha.id,
       period: '7d',
+      accessBreakdownLimit: null,
+      peakTrafficWindowLimit: null,
     });
     expect(out.rollup).toMatchObject({
       properties_total: 2,
@@ -265,6 +270,7 @@ describe('getManagementCompanyPortfolio', () => {
         allow_count: 25,
         denial_count: 3,
         vehicle_traffic_count: 14,
+        avg_decision_sample_count: 12,
         manual_override_count: 6,
         offline_replay_count: 4,
         trusted_visitors_active: 7,
@@ -292,6 +298,7 @@ describe('getManagementCompanyPortfolio', () => {
     });
     expect(out.rollup.requests.sla_compliance_rate).toBeCloseTo(4 / 6);
     expect(out.rollup.access.approval_rate).toBeCloseTo(4 / 6);
+    expect(out.rollup.access.avg_decision_seconds).toBeCloseTo(((20 * 4) + (40 * 8)) / 12);
     expect(out.rollup.notifications.success_rate).toBeCloseTo(135 / 150);
     expect(out.rollup.requests.by_status).toEqual([{ status: 'open', total: 4 }]);
     expect(out.rollup.notifications.per_channel).toEqual([

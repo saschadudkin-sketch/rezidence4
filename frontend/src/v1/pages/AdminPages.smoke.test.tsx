@@ -248,6 +248,7 @@ function makeOperationsDashboard(
       allow_count: 31,
       denial_count: 4,
       vehicle_traffic_count: 18,
+      avg_decision_sample_count: 9,
       avg_decision_seconds: 22,
       active_passes: 22,
       used_passes: 9,
@@ -317,6 +318,7 @@ function makeManagementCompanyPortfolio(
     allow_count: 31,
     denial_count: 4,
     vehicle_traffic_count: 18,
+    avg_decision_sample_count: 9,
     avg_decision_seconds: 22,
     active_passes: 22,
     used_passes: 9,
@@ -443,6 +445,7 @@ function makeManagementCompanyPortfolio(
     formula_notes: {
       request_sla_compliance_rate: 'Weighted by resolved_with_sla counts from DH-35 property snapshots.',
       notification_success_rate: 'Weighted by sent and failed notification log counts across included properties.',
+      access_avg_decision_seconds: 'Weighted by measured manual decision sample counts from DH-35 property snapshots.',
       hotspot_property_count: 'Counts properties with overdue backlog, high incident load, or notification delivery/queue risk.',
     },
     ...overrides,

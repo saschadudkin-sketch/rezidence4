@@ -130,6 +130,7 @@ Time scope: object-local timezone should be used once tenant timezone is persist
 - excludes rows where `created_at < occurred_at`.
 
 This is an operational recording/processing proxy, not a biometric or behavioral performance score.
+Dashboard and export payloads expose `avg_decision_sample_count`; portfolio rollups must weight the average by that measured sample count, not by override totals.
 
 ## 3.11 Offline Replay Count
 
@@ -146,6 +147,8 @@ This is an operational recording/processing proxy, not a biometric or behavioral
 Формула:
 - active templates = count `trusted_visitors.is_active = true`;
 - usage = count `access_requests` with `trusted_visitor_id is not null` created within period.
+
+Implementation note: active templates and usage are counted with distinct template/request ids so joins between templates and access requests cannot duplicate active-template totals.
 
 ## 3.13 SKUD Failure And Manual-Control Count
 
@@ -297,6 +300,7 @@ Count of active properties in the portfolio.
 ## 9.2 Portfolio Access Volume
 
 Sum of object-level access requests / visits across allowed properties.
+Portfolio access breakdowns should be aggregated from full per-property service output, not from UI top-N rows, so cross-property totals do not silently drop lower-ranked values from busy objects.
 
 ## 9.3 Portfolio Incident Load
 

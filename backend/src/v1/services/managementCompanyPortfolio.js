@@ -203,6 +203,8 @@ async function fetchPortfolioProperty(property, {
     const dashboard = await fetchPropertyDashboard(pool, {
       propertyId: property.id,
       period: periodKey,
+      accessBreakdownLimit: null,
+      peakTrafficWindowLimit: null,
     });
     return summarizeProperty(property, dashboard);
   } catch (err) {
@@ -255,6 +257,7 @@ function aggregateProperties(properties) {
       allow_count: 0,
       denial_count: 0,
       vehicle_traffic_count: 0,
+      avg_decision_sample_count: 0,
       avg_decision_seconds: null,
       active_passes: 0,
       used_passes: 0,
@@ -309,6 +312,7 @@ function aggregateProperties(properties) {
     rollup.access.allow_count += toInt(access.allow_count);
     rollup.access.denial_count += toInt(access.denial_count);
     rollup.access.vehicle_traffic_count += toInt(access.vehicle_traffic_count);
+    rollup.access.avg_decision_sample_count += toInt(access.avg_decision_sample_count);
     rollup.access.active_passes += toInt(access.active_passes);
     rollup.access.used_passes += toInt(access.used_passes);
     rollup.access.manual_override_count += toInt(access.manual_override_count);
@@ -318,9 +322,11 @@ function aggregateProperties(properties) {
     rollup.access.skud_failed_events += toInt(access.skud_failed_events);
     rollup.access.skud_manual_control_count += toInt(access.skud_manual_control_count);
     if (access.avg_decision_seconds !== null && access.avg_decision_seconds !== undefined) {
-      const weight = Math.max(1, toInt(access.manual_override_count));
-      decisionSecondsWeightedSum += Number(access.avg_decision_seconds) * weight;
-      decisionSecondsWeight += weight;
+      const weight = toInt(access.avg_decision_sample_count);
+      if (weight > 0) {
+        decisionSecondsWeightedSum += Number(access.avg_decision_seconds) * weight;
+        decisionSecondsWeight += weight;
+      }
     }
     for (const item of access.by_access_point || []) addAccessPointToMap(accessPointMap, item);
     for (const item of access.deny_reasons || []) addToMap(denyReasonMap, item.reason, item.total);
@@ -474,6 +480,8 @@ async function getManagementCompanyPortfolio({
         'Weighted by resolved_with_sla counts from DH-35 property snapshots.',
       notification_success_rate:
         'Weighted by sent and failed notification log counts across included properties.',
+      access_avg_decision_seconds:
+        'Weighted by measured manual decision sample counts from DH-35 property snapshots.',
       hotspot_property_count:
         'Counts properties with overdue backlog, high incident load, or notification delivery/queue risk.',
     },

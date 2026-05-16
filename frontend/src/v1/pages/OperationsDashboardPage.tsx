@@ -245,6 +245,11 @@ function AccessPanel({ dashboard }: { dashboard: OperationsDashboardSnapshot }) 
         labelKey="reason"
       />
       <BreakdownList
+        empty="Нет manual override за период."
+        rows={dashboard.access.manual_overrides_by_type}
+        labelKey="override_type"
+      />
+      <BreakdownList
         empty="Нет offline replay за период."
         rows={dashboard.access.offline_replay_by_status}
         labelKey="replay_status"
@@ -291,6 +296,7 @@ function IncidentsPanel({ dashboard }: { dashboard: OperationsDashboardSnapshot 
       <dl className={uiClasses.staffMetaGrid}>
         <Metric label="Высокий риск" value={formatNumber(dashboard.incidents.high_priority_open)} />
         <Metric label="Blacklist" value={formatNumber(dashboard.incidents.blacklist_hits)} />
+        <Metric label="Повторные попытки" value={formatNumber(dashboard.incidents.suspicious_attempts)} />
         <Metric label="Медиана" value={formatMinutes(dashboard.incidents.resolution_median_minutes)} />
       </dl>
       <BreakdownList

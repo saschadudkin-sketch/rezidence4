@@ -42,6 +42,17 @@ function ratio(numerator, denominator) {
   return toInt(numerator) / den;
 }
 
+function normalizeBreakdownLimit(value, fallback) {
+  if (value === null) return null;
+  const n = Number(value === undefined ? fallback : value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.trunc(n), 5000);
+}
+
+function limitClause(limit) {
+  return Number.isInteger(limit) && limit > 0 ? `LIMIT ${limit}` : '';
+}
+
 function mapBreakdown(rows, keyName) {
   return rows.map((row) => ({
     [keyName]: row[keyName],
@@ -147,7 +158,10 @@ async function getRequestKpis(db, period) {
   };
 }
 
-async function getAccessKpis(db, propertyId, period) {
+async function getAccessKpis(db, propertyId, period, options = {}) {
+  const accessBreakdownLimit = normalizeBreakdownLimit(options.accessBreakdownLimit, 8);
+  const peakTrafficWindowLimit = normalizeBreakdownLimit(options.peakTrafficWindowLimit, 6);
+
   const { rows: requestRows } = await db.query(
     `
       SELECT
@@ -177,6 +191,11 @@ async function getAccessKpis(db, propertyId, period) {
           WHERE occurred_at >= NOW() - $1::interval
             AND vehicle_plate IS NOT NULL
         ) AS vehicle_traffic_count,
+        COUNT(*) FILTER (
+          WHERE occurred_at >= NOW() - $1::interval
+            AND created_at >= occurred_at
+            AND event_type IN ('manual_admit','manual_deny','override')
+        ) AS avg_decision_sample_count,
         AVG(EXTRACT(EPOCH FROM (created_at - occurred_at))) FILTER (
           WHERE occurred_at >= NOW() - $1::interval
             AND created_at >= occurred_at
@@ -222,7 +241,7 @@ async function getAccessKpis(db, propertyId, period) {
         AND vl.occurred_at >= NOW() - $1::interval
       GROUP BY vl.access_point_id, ap.name
       ORDER BY total DESC, name ASC
-      LIMIT 8
+      ${limitClause(accessBreakdownLimit)}
     `,
     [period.interval, propertyId],
   );
@@ -242,7 +261,7 @@ async function getAccessKpis(db, propertyId, period) {
         AND event_type IN ('entry_denied','exit_denied','manual_deny')
       GROUP BY reason
       ORDER BY total DESC, reason ASC
-      LIMIT 8
+      ${limitClause(accessBreakdownLimit)}
     `,
     [period.interval, propertyId],
   );
@@ -256,7 +275,7 @@ async function getAccessKpis(db, propertyId, period) {
         AND occurred_at >= NOW() - $1::interval
       GROUP BY window_start
       ORDER BY total DESC, window_start ASC
-      LIMIT 6
+      ${limitClause(peakTrafficWindowLimit)}
     `,
     [period.interval, propertyId],
   );
@@ -288,8 +307,8 @@ async function getAccessKpis(db, propertyId, period) {
   const { rows: trustedRows } = await db.query(
     `
       SELECT
-        COUNT(*) FILTER (WHERE tv.is_active = true) AS active,
-        COUNT(ar.id) FILTER (WHERE ar.created_at >= NOW() - $1::interval) AS passes_created
+        COUNT(DISTINCT tv.id) FILTER (WHERE tv.is_active = true) AS active,
+        COUNT(DISTINCT ar.id) FILTER (WHERE ar.created_at >= NOW() - $1::interval) AS passes_created
       FROM trusted_visitors tv
       LEFT JOIN access_requests ar
         ON ar.property_id = tv.property_id
@@ -336,6 +355,7 @@ async function getAccessKpis(db, propertyId, period) {
     allow_count: toInt(visitAgg.allow_count),
     denial_count: toInt(visitAgg.denial_count),
     vehicle_traffic_count: toInt(visitAgg.vehicle_traffic_count),
+    avg_decision_sample_count: toInt(visitAgg.avg_decision_sample_count),
     avg_decision_seconds: toNullableNumber(visitAgg.avg_decision_seconds),
     active_passes: toInt(passAgg.active),
     used_passes: toInt(passAgg.used),
@@ -486,7 +506,10 @@ async function getOperationsDashboard(db, opts = {}) {
     notifications,
   ] = await Promise.all([
     getRequestKpis(db, period),
-    getAccessKpis(db, opts.propertyId, period),
+    getAccessKpis(db, opts.propertyId, period, {
+      accessBreakdownLimit: opts.accessBreakdownLimit,
+      peakTrafficWindowLimit: opts.peakTrafficWindowLimit,
+    }),
     getIncidentSummary(db, opts.propertyId, period),
     getNotificationHealth(db, period),
   ]);
