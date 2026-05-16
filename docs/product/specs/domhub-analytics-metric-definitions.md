@@ -87,6 +87,74 @@
 Формула:
 - count of visit_logs where `vehicle_plate is not null`
 
+## 3.7 Access Point Allow/Deny Count
+
+**Определение:** allow/deny события по физической точке доступа.
+
+Формула:
+- group `visit_logs_v2` by `access_point_id` within the selected dashboard period;
+- allow = `event_type in ('entry_allowed','exit_allowed','manual_admit','override')`;
+- deny = `event_type in ('entry_denied','exit_denied','manual_deny')`.
+
+Tenant scope: one property DB; management-company rollup sums only properties in the allowed portfolio.
+
+## 3.8 Deny Reasons
+
+**Определение:** причины отказов, видимые в операционном dashboard.
+
+Формула:
+- for deny events in `visit_logs_v2`, use first non-empty value from:
+  - `provider_payload.reason`;
+  - `provider_payload.degraded_reason`;
+  - fallback `event_type`.
+
+Null behavior: empty reason values are not shown as separate hidden buckets.
+
+## 3.9 Peak Traffic Windows
+
+**Определение:** часы с максимальной нагрузкой по access events.
+
+Формула:
+- count `visit_logs_v2` by `date_trunc('hour', occurred_at)` within the selected period;
+- dashboard shows the top windows by total count.
+
+Time scope: object-local timezone should be used once tenant timezone is persisted; current implementation stores ISO timestamps from PostgreSQL and documents the window start.
+
+## 3.10 Average Guard Decision Time
+
+**Определение:** средняя задержка записи manual guard decision where measurable.
+
+Формула:
+- average seconds between `visit_logs_v2.created_at` and `visit_logs_v2.occurred_at`;
+- includes only `manual_admit`, `manual_deny`, `override`;
+- excludes rows where `created_at < occurred_at`.
+
+This is an operational recording/processing proxy, not a biometric or behavioral performance score.
+
+## 3.11 Offline Replay Count
+
+**Определение:** количество replay events, которые пришли из degraded/offline guard flow.
+
+Формула:
+- count `security_offline_replay_events.occurred_at` within period;
+- breakdown by `replay_status`.
+
+## 3.12 Trusted Visitor Usage
+
+**Определение:** использование resident-owned trusted visitor templates.
+
+Формула:
+- active templates = count `trusted_visitors.is_active = true`;
+- usage = count `access_requests` with `trusted_visitor_id is not null` created within period.
+
+## 3.13 SKUD Failure And Manual-Control Count
+
+**Определение:** operational health of SKUD provider and manual fallback use.
+
+Формула:
+- provider failures = count `skud_integration_events.status in ('failed','retrying','dead_lettered')`;
+- manual control = count `hardware_manual_control_events.created_at` within period.
+
 ---
 
 ## 4. Incident and security metrics

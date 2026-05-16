@@ -55,6 +55,7 @@ Before inviting residents:
 Before checkpoint go-live:
 - checkpoint/access point names match the physical site;
 - guards know pass scan, plate lookup, vehicle direction and manual admit flows;
+- every checkpoint device is enrolled and approved before the `guard_authorized_devices` flag is enforced;
 - security lead has the escalation contacts;
 - training uses the same environment and role set as the pilot.
 
@@ -62,6 +63,7 @@ Before checkpoint go-live:
 
 Connectivity/provider outage procedure:
 - guard records manual decisions with access point, direction, plate/pass and reason;
+- offline replay queue is checked after recovery and reconciled in the security workspace;
 - support opens an incident when degraded mode lasts longer than the agreed threshold;
 - engineering verifies whether the issue is tenant DB, network, SKUD/VMS provider or frontend runtime;
 - reconciliation is completed after service recovery.
@@ -78,6 +80,7 @@ Emergency requests must be visibly distinct from normal service work:
 
 Daily for the first live week:
 - review access incidents, manual overrides and denied entries;
+- review operations dashboard access metrics: allow/deny by access point, deny reasons, offline replay, trusted visitor usage and SKUD manual-control/failure counts;
 - review notification failures and resident activation issues;
 - review import/data correction requests;
 - review guard/support feedback from the previous day;

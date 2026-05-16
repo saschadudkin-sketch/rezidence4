@@ -42,10 +42,30 @@ function addToMap(map, key, value) {
   map.set(normalizedKey, toInt(map.get(normalizedKey)) + toInt(value));
 }
 
+function addAccessPointToMap(map, item) {
+  const key = item.access_point_id || item.name || 'unknown';
+  const current = map.get(key) || {
+    access_point_id: item.access_point_id || null,
+    name: item.name || 'Без КПП',
+    allow_count: 0,
+    denial_count: 0,
+    total: 0,
+  };
+  current.allow_count += toInt(item.allow_count);
+  current.denial_count += toInt(item.denial_count);
+  current.total += toInt(item.total);
+  map.set(key, current);
+}
+
 function breakdownFromMap(map, keyName) {
   return [...map.entries()]
     .map(([key, total]) => ({ [keyName]: key, total }))
     .sort((a, b) => b.total - a.total || String(a[keyName]).localeCompare(String(b[keyName])));
+}
+
+function accessPointBreakdownFromMap(map) {
+  return [...map.values()]
+    .sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)));
 }
 
 function normalizePropertySlugs(propertySlugs = []) {
@@ -199,8 +219,15 @@ function aggregateProperties(properties) {
   const statusMap = new Map();
   const priorityMap = new Map();
   const incidentTypeMap = new Map();
+  const accessPointMap = new Map();
+  const denyReasonMap = new Map();
+  const peakWindowMap = new Map();
+  const overrideTypeMap = new Map();
+  const offlineStatusMap = new Map();
   const channelMap = new Map();
   const queue = {};
+  let decisionSecondsWeightedSum = 0;
+  let decisionSecondsWeight = 0;
 
   const rollup = {
     properties_total: properties.length,
@@ -228,8 +255,20 @@ function aggregateProperties(properties) {
       allow_count: 0,
       denial_count: 0,
       vehicle_traffic_count: 0,
+      avg_decision_seconds: null,
       active_passes: 0,
       used_passes: 0,
+      manual_override_count: 0,
+      offline_replay_count: 0,
+      trusted_visitors_active: 0,
+      trusted_visitor_passes_created: 0,
+      skud_failed_events: 0,
+      skud_manual_control_count: 0,
+      by_access_point: [],
+      deny_reasons: [],
+      peak_traffic_windows: [],
+      manual_overrides_by_type: [],
+      offline_replay_by_status: [],
     },
     incidents: {
       open: 0,
@@ -272,6 +311,22 @@ function aggregateProperties(properties) {
     rollup.access.vehicle_traffic_count += toInt(access.vehicle_traffic_count);
     rollup.access.active_passes += toInt(access.active_passes);
     rollup.access.used_passes += toInt(access.used_passes);
+    rollup.access.manual_override_count += toInt(access.manual_override_count);
+    rollup.access.offline_replay_count += toInt(access.offline_replay_count);
+    rollup.access.trusted_visitors_active += toInt(access.trusted_visitors_active);
+    rollup.access.trusted_visitor_passes_created += toInt(access.trusted_visitor_passes_created);
+    rollup.access.skud_failed_events += toInt(access.skud_failed_events);
+    rollup.access.skud_manual_control_count += toInt(access.skud_manual_control_count);
+    if (access.avg_decision_seconds !== null && access.avg_decision_seconds !== undefined) {
+      const weight = Math.max(1, toInt(access.manual_override_count));
+      decisionSecondsWeightedSum += Number(access.avg_decision_seconds) * weight;
+      decisionSecondsWeight += weight;
+    }
+    for (const item of access.by_access_point || []) addAccessPointToMap(accessPointMap, item);
+    for (const item of access.deny_reasons || []) addToMap(denyReasonMap, item.reason, item.total);
+    for (const item of access.peak_traffic_windows || []) addToMap(peakWindowMap, item.window_start, item.total);
+    for (const item of access.manual_overrides_by_type || []) addToMap(overrideTypeMap, item.override_type, item.total);
+    for (const item of access.offline_replay_by_status || []) addToMap(offlineStatusMap, item.replay_status, item.total);
 
     const incidents = property.incidents || {};
     rollup.incidents.open += toInt(incidents.open);
@@ -309,6 +364,14 @@ function aggregateProperties(properties) {
 
   const accessDecisions = rollup.access.requests_approved + rollup.access.requests_rejected;
   rollup.access.approval_rate = rate(rollup.access.requests_approved, accessDecisions);
+  rollup.access.avg_decision_seconds = decisionSecondsWeight > 0
+    ? decisionSecondsWeightedSum / decisionSecondsWeight
+    : null;
+  rollup.access.by_access_point = accessPointBreakdownFromMap(accessPointMap);
+  rollup.access.deny_reasons = breakdownFromMap(denyReasonMap, 'reason');
+  rollup.access.peak_traffic_windows = breakdownFromMap(peakWindowMap, 'window_start');
+  rollup.access.manual_overrides_by_type = breakdownFromMap(overrideTypeMap, 'override_type');
+  rollup.access.offline_replay_by_status = breakdownFromMap(offlineStatusMap, 'replay_status');
 
   rollup.incidents.by_type = breakdownFromMap(incidentTypeMap, 'incident_type');
 

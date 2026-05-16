@@ -49,6 +49,16 @@ function mapBreakdown(rows, keyName) {
   }));
 }
 
+function mapAccessPointBreakdown(rows) {
+  return rows.map((row) => ({
+    access_point_id: row.access_point_id || null,
+    name: row.name || 'Без КПП',
+    allow_count: toInt(row.allow_count),
+    denial_count: toInt(row.denial_count),
+    total: toInt(row.total),
+  }));
+}
+
 async function getRequestKpis(db, period) {
   const { rows: aggRows } = await db.query(
     `
@@ -166,7 +176,12 @@ async function getAccessKpis(db, propertyId, period) {
         COUNT(*) FILTER (
           WHERE occurred_at >= NOW() - $1::interval
             AND vehicle_plate IS NOT NULL
-        ) AS vehicle_traffic_count
+        ) AS vehicle_traffic_count,
+        AVG(EXTRACT(EPOCH FROM (created_at - occurred_at))) FILTER (
+          WHERE occurred_at >= NOW() - $1::interval
+            AND created_at >= occurred_at
+            AND event_type IN ('manual_admit','manual_deny','override')
+        ) AS avg_decision_seconds
       FROM visit_logs_v2
       WHERE property_id = $2
     `,
@@ -187,9 +202,127 @@ async function getAccessKpis(db, propertyId, period) {
     [period.interval, propertyId],
   );
 
+  const { rows: accessPointRows } = await db.query(
+    `
+      SELECT
+        vl.access_point_id::text AS access_point_id,
+        COALESCE(ap.name, 'Без КПП') AS name,
+        COUNT(*) FILTER (
+          WHERE vl.event_type IN ('entry_allowed','exit_allowed','manual_admit','override')
+        ) AS allow_count,
+        COUNT(*) FILTER (
+          WHERE vl.event_type IN ('entry_denied','exit_denied','manual_deny')
+        ) AS denial_count,
+        COUNT(*) AS total
+      FROM visit_logs_v2 vl
+      LEFT JOIN access_points ap
+        ON ap.property_id = vl.property_id
+       AND ap.id = vl.access_point_id
+      WHERE vl.property_id = $2
+        AND vl.occurred_at >= NOW() - $1::interval
+      GROUP BY vl.access_point_id, ap.name
+      ORDER BY total DESC, name ASC
+      LIMIT 8
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: denyReasonRows } = await db.query(
+    `
+      SELECT
+        COALESCE(
+          NULLIF(provider_payload->>'reason', ''),
+          NULLIF(provider_payload->>'degraded_reason', ''),
+          event_type
+        ) AS reason,
+        COUNT(*)::int AS total
+      FROM visit_logs_v2
+      WHERE property_id = $2
+        AND occurred_at >= NOW() - $1::interval
+        AND event_type IN ('entry_denied','exit_denied','manual_deny')
+      GROUP BY reason
+      ORDER BY total DESC, reason ASC
+      LIMIT 8
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: peakRows } = await db.query(
+    `
+      SELECT date_trunc('hour', occurred_at) AS window_start,
+             COUNT(*)::int AS total
+      FROM visit_logs_v2
+      WHERE property_id = $2
+        AND occurred_at >= NOW() - $1::interval
+      GROUP BY window_start
+      ORDER BY total DESC, window_start ASC
+      LIMIT 6
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: overrideRows } = await db.query(
+    `
+      SELECT override_type, COUNT(*)::int AS total
+      FROM access_overrides
+      WHERE property_id = $2
+        AND created_at >= NOW() - $1::interval
+      GROUP BY override_type
+      ORDER BY total DESC, override_type ASC
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: offlineRows } = await db.query(
+    `
+      SELECT replay_status, COUNT(*)::int AS total
+      FROM security_offline_replay_events
+      WHERE property_id = $2
+        AND occurred_at >= NOW() - $1::interval
+      GROUP BY replay_status
+      ORDER BY total DESC, replay_status ASC
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: trustedRows } = await db.query(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE tv.is_active = true) AS active,
+        COUNT(ar.id) FILTER (WHERE ar.created_at >= NOW() - $1::interval) AS passes_created
+      FROM trusted_visitors tv
+      LEFT JOIN access_requests ar
+        ON ar.property_id = tv.property_id
+       AND ar.trusted_visitor_id = tv.id
+      WHERE tv.property_id = $2
+    `,
+    [period.interval, propertyId],
+  );
+
+  const { rows: skudRows } = await db.query(
+    `
+      SELECT
+        COUNT(*) FILTER (
+          WHERE sie.status IN ('failed','retrying','dead_lettered')
+            AND sie.occurred_at >= NOW() - $1::interval
+        ) AS failed_events,
+        (
+          SELECT COUNT(*)
+          FROM hardware_manual_control_events hmce
+          WHERE hmce.property_id = $2
+            AND hmce.created_at >= NOW() - $1::interval
+        ) AS manual_control_events
+      FROM skud_integration_events sie
+      WHERE sie.property_id = $2
+    `,
+    [period.interval, propertyId],
+  );
+
   const reqAgg = requestRows[0] || {};
   const visitAgg = visitRows[0] || {};
   const passAgg = passRows[0] || {};
+  const trustedAgg = trustedRows[0] || {};
+  const skudAgg = skudRows[0] || {};
   const approved = toInt(reqAgg.approved);
   const rejected = toInt(reqAgg.rejected);
 
@@ -203,8 +336,23 @@ async function getAccessKpis(db, propertyId, period) {
     allow_count: toInt(visitAgg.allow_count),
     denial_count: toInt(visitAgg.denial_count),
     vehicle_traffic_count: toInt(visitAgg.vehicle_traffic_count),
+    avg_decision_seconds: toNullableNumber(visitAgg.avg_decision_seconds),
     active_passes: toInt(passAgg.active),
     used_passes: toInt(passAgg.used),
+    manual_override_count: overrideRows.reduce((sum, row) => sum + toInt(row.total), 0),
+    offline_replay_count: offlineRows.reduce((sum, row) => sum + toInt(row.total), 0),
+    trusted_visitors_active: toInt(trustedAgg.active),
+    trusted_visitor_passes_created: toInt(trustedAgg.passes_created),
+    skud_failed_events: toInt(skudAgg.failed_events),
+    skud_manual_control_count: toInt(skudAgg.manual_control_events),
+    by_access_point: mapAccessPointBreakdown(accessPointRows),
+    deny_reasons: mapBreakdown(denyReasonRows, 'reason'),
+    peak_traffic_windows: peakRows.map((row) => ({
+      window_start: row.window_start instanceof Date ? row.window_start.toISOString() : row.window_start,
+      total: toInt(row.total),
+    })),
+    manual_overrides_by_type: mapBreakdown(overrideRows, 'override_type'),
+    offline_replay_by_status: mapBreakdown(offlineRows, 'replay_status'),
   };
 }
 

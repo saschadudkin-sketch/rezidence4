@@ -78,15 +78,43 @@ describe('getOperationsDashboard', () => {
           }],
         };
       }],
-      [/FROM visit_logs_v2/s, {
+      [/SELECT\s+COUNT\(\*\) FILTER \([\s\S]*AVG\(EXTRACT\(EPOCH FROM \(created_at - occurred_at\)\)\)[\s\S]*FROM visit_logs_v2/s, {
         rows: [{
           allow_count: '31',
           denial_count: '4',
           vehicle_traffic_count: '18',
+          avg_decision_seconds: '22.5',
         }],
       }],
       [/FROM passes/s, {
         rows: [{ active: '22', used: '9' }],
+      }],
+      [/FROM visit_logs_v2 vl[\s\S]*LEFT JOIN access_points/s, {
+        rows: [{
+          access_point_id: 'point-1',
+          name: 'КПП Север',
+          allow_count: '12',
+          denial_count: '2',
+          total: '14',
+        }],
+      }],
+      [/provider_payload->>'reason'/s, {
+        rows: [{ reason: 'expired_pass', total: 3 }],
+      }],
+      [/date_trunc\('hour', occurred_at\)/s, {
+        rows: [{ window_start: '2026-05-16T08:00:00.000Z', total: 15 }],
+      }],
+      [/FROM access_overrides/s, {
+        rows: [{ override_type: 'manual_admit', total: 5 }],
+      }],
+      [/FROM security_offline_replay_events/s, {
+        rows: [{ replay_status: 'accepted', total: 2 }],
+      }],
+      [/FROM trusted_visitors tv/s, {
+        rows: [{ active: '7', passes_created: '4' }],
+      }],
+      [/FROM skud_integration_events sie/s, {
+        rows: [{ failed_events: '3', manual_control_events: '6' }],
       }],
       [/PERCENTILE_CONT\(0\.5\)[\s\S]*FROM access_incidents[\s\S]*WHERE property_id/s, {
         rows: [{
@@ -160,8 +188,26 @@ describe('getOperationsDashboard', () => {
       allow_count: 31,
       denial_count: 4,
       vehicle_traffic_count: 18,
+      avg_decision_seconds: 22.5,
       active_passes: 22,
+      manual_override_count: 5,
+      offline_replay_count: 2,
+      trusted_visitors_active: 7,
+      trusted_visitor_passes_created: 4,
+      skud_failed_events: 3,
+      skud_manual_control_count: 6,
     });
+    expect(out.access.by_access_point).toEqual([{
+      access_point_id: 'point-1',
+      name: 'КПП Север',
+      allow_count: 12,
+      denial_count: 2,
+      total: 14,
+    }]);
+    expect(out.access.deny_reasons).toEqual([{ reason: 'expired_pass', total: 3 }]);
+    expect(out.access.peak_traffic_windows).toEqual([{ window_start: '2026-05-16T08:00:00.000Z', total: 15 }]);
+    expect(out.access.manual_overrides_by_type).toEqual([{ override_type: 'manual_admit', total: 5 }]);
+    expect(out.access.offline_replay_by_status).toEqual([{ replay_status: 'accepted', total: 2 }]);
     expect(out.incidents).toMatchObject({
       open: 3,
       investigating: 2,

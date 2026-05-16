@@ -77,11 +77,13 @@ Training flow:
 4. Record a manual admit and a manual deny with reason.
 5. Simulate degraded connectivity procedure and document later reconciliation.
 6. Escalate a suspicious access event into an incident.
+7. Open the operations dashboard and verify the training actions appear in allow/deny by access point, deny reasons, offline replay and manual-control metrics.
 
 Expected evidence:
 - trainer, participants and environment;
 - pass/plate/manual-control examples;
 - degraded-mode threshold and escalation contact;
+- screenshot or exported snapshot of the access operations dashboard for the training period;
 - list of terms that guards must use consistently at the physical site.
 
 ## Emergency Drill

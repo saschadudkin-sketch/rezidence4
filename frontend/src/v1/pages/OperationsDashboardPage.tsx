@@ -47,6 +47,12 @@ function formatMinutes(value: number | null | undefined): string {
   return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(hours)} ч`;
 }
 
+function formatSeconds(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  if (value < 60) return `${Math.round(value)} сек`;
+  return formatMinutes(value / 60);
+}
+
 function healthTone(value: number | null): 'success' | 'warning' | 'error' | 'neutral' {
   if (value === null) return 'neutral';
   if (value >= 0.95) return 'success';
@@ -146,6 +152,11 @@ function DashboardContent({ dashboard }: { dashboard: OperationsDashboardSnapsho
         />
         <KpiTile title="Проходы и въезды" value={dashboard.access.allow_count} />
         <KpiTile
+          title="Оффлайн replay"
+          value={dashboard.access.offline_replay_count}
+          tone={dashboard.access.offline_replay_count > 0 ? 'warning' : 'success'}
+        />
+        <KpiTile
           title="Доставка уведомлений"
           value={formatPercent(dashboard.notifications.success_rate)}
           tone={healthTone(dashboard.notifications.success_rate)}
@@ -215,13 +226,58 @@ function AccessPanel({ dashboard }: { dashboard: OperationsDashboardSnapshot }) 
         <Metric label="Одобрение" value={formatPercent(dashboard.access.approval_rate)} />
         <Metric label="Отказы" value={formatNumber(dashboard.access.denial_count)} />
         <Metric label="Авто" value={formatNumber(dashboard.access.vehicle_traffic_count)} />
+        <Metric label="Manual override" value={formatNumber(dashboard.access.manual_override_count)} />
+        <Metric label="Среднее решение" value={formatSeconds(dashboard.access.avg_decision_seconds)} />
+        <Metric label="СКУД ошибки" value={formatNumber(dashboard.access.skud_failed_events)} />
       </dl>
       <ul className={uiClasses.resourceList}>
         <SimpleRow label="Активные пропуска" value={dashboard.access.active_passes} />
         <SimpleRow label="Ожидают решения" value={dashboard.access.pending} />
         <SimpleRow label="Истекли" value={dashboard.access.expired} />
+        <SimpleRow label="Trusted visitors" value={dashboard.access.trusted_visitors_active} />
+        <SimpleRow label="Trusted visitor passes" value={dashboard.access.trusted_visitor_passes_created} />
+        <SimpleRow label="Manual-control СКУД" value={dashboard.access.skud_manual_control_count} />
       </ul>
+      <AccessPointBreakdown rows={dashboard.access.by_access_point} />
+      <BreakdownList
+        empty="Нет deny reasons за период."
+        rows={dashboard.access.deny_reasons}
+        labelKey="reason"
+      />
+      <BreakdownList
+        empty="Нет offline replay за период."
+        rows={dashboard.access.offline_replay_by_status}
+        labelKey="replay_status"
+      />
+      <BreakdownList
+        empty="Нет пиковых окон за период."
+        rows={dashboard.access.peak_traffic_windows}
+        labelKey="window_start"
+      />
     </Card>
+  );
+}
+
+function AccessPointBreakdown({
+  rows,
+}: {
+  rows: OperationsDashboardSnapshot['access']['by_access_point'];
+}) {
+  if (!rows.length) return <EmptyState>Нет событий по КПП за период.</EmptyState>;
+  return (
+    <ul className={uiClasses.resourceList}>
+      {rows.map((row) => (
+        <li className={uiClasses.resourceRow} key={row.access_point_id || row.name}>
+          <div className={uiClasses.resourceRowMain}>
+            <p className={uiClasses.resourceTitle}>{row.name}</p>
+            <p className={uiClasses.resourceMeta}>
+              {formatNumber(row.allow_count)} allow · {formatNumber(row.denial_count)} deny
+            </p>
+          </div>
+          <Badge>{formatNumber(row.total)}</Badge>
+        </li>
+      ))}
+    </ul>
   );
 }
 

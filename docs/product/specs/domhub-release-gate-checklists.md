@@ -114,6 +114,9 @@ Required:
   platform/property migrations are missing or pending.
 - Pilot rollout evidence runs through `npm run pilot:readiness` and links the
   first-week support, checkpoint, emergency, correction and rollback procedures.
+- Access operations dashboard evidence covers allow/deny by checkpoint, deny
+  reasons, manual overrides, offline replay, trusted visitor usage and
+  SKUD failure/manual-control counts for the pilot window.
 - Release-blocking E2E covers resident, guard/security, staff, admin and company flows.
 - Pilot rollout runbooks exist.
 

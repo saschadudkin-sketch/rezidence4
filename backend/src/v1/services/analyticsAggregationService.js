@@ -86,8 +86,41 @@ function flattenOperationsDashboard(snapshot) {
   add('access', 'access.allow_count', access.allow_count);
   add('access', 'access.denial_count', access.denial_count);
   add('access', 'access.vehicle_traffic_count', access.vehicle_traffic_count);
+  add('access', 'access.avg_decision_seconds', access.avg_decision_seconds, 'seconds');
   add('access', 'access.active_passes', access.active_passes);
   add('access', 'access.used_passes', access.used_passes);
+  add('access', 'access.manual_override_count', access.manual_override_count);
+  add('access', 'access.offline_replay_count', access.offline_replay_count);
+  add('access', 'access.trusted_visitors_active', access.trusted_visitors_active);
+  add('access', 'access.trusted_visitor_passes_created', access.trusted_visitor_passes_created);
+  add('access', 'access.skud_failed_events', access.skud_failed_events);
+  add('access', 'access.skud_manual_control_count', access.skud_manual_control_count);
+  for (const item of access.by_access_point || []) {
+    add('access', 'access.by_access_point.total', item.total, 'count', {
+      access_point_id: item.access_point_id || null,
+      name: item.name,
+    });
+    add('access', 'access.by_access_point.allow_count', item.allow_count, 'count', {
+      access_point_id: item.access_point_id || null,
+      name: item.name,
+    });
+    add('access', 'access.by_access_point.denial_count', item.denial_count, 'count', {
+      access_point_id: item.access_point_id || null,
+      name: item.name,
+    });
+  }
+  for (const item of access.deny_reasons || []) {
+    add('access', 'access.deny_reasons', item.total, 'count', { reason: item.reason });
+  }
+  for (const item of access.peak_traffic_windows || []) {
+    add('access', 'access.peak_traffic_windows', item.total, 'count', { window_start: item.window_start });
+  }
+  for (const item of access.manual_overrides_by_type || []) {
+    add('access', 'access.manual_overrides_by_type', item.total, 'count', { override_type: item.override_type });
+  }
+  for (const item of access.offline_replay_by_status || []) {
+    add('access', 'access.offline_replay_by_status', item.total, 'count', { replay_status: item.replay_status });
+  }
 
   const incidents = snapshot.incidents || {};
   add('incidents', 'incidents.open', incidents.open);

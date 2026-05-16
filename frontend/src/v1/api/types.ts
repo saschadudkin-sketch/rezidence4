@@ -118,8 +118,26 @@ export interface OperationsDashboardSnapshot {
     allow_count: number;
     denial_count: number;
     vehicle_traffic_count: number;
+    avg_decision_seconds: number | null;
     active_passes: number;
     used_passes: number;
+    manual_override_count: number;
+    offline_replay_count: number;
+    trusted_visitors_active: number;
+    trusted_visitor_passes_created: number;
+    skud_failed_events: number;
+    skud_manual_control_count: number;
+    by_access_point: Array<{
+      access_point_id: UUID | null;
+      name: string;
+      allow_count: number;
+      denial_count: number;
+      total: number;
+    }>;
+    deny_reasons: Array<OperationsBreakdownItem<'reason'>>;
+    peak_traffic_windows: Array<OperationsBreakdownItem<'window_start'>>;
+    manual_overrides_by_type: Array<OperationsBreakdownItem<'override_type'>>;
+    offline_replay_by_status: Array<OperationsBreakdownItem<'replay_status'>>;
   };
   incidents: {
     open: number;
