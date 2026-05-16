@@ -16,7 +16,7 @@
  * в сеть за /auth/me и `useV1Session()` внутри страницы видит готового юзера.
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
@@ -26,6 +26,9 @@ import type {
   OperationsDashboardSnapshot,
   ManagementCompanyPortfolioSnapshot,
   Package,
+  AdminOutboxRow,
+  AdminOutboxMetrics,
+  NotificationLogMetrics,
   UserMe,
   V1Document,
 } from '../api/types';
@@ -43,6 +46,12 @@ const {
   listPackagesMock,
   getOperationsDashboardMock,
   getManagementCompanyPortfolioMock,
+  getAdminOutboxMetricsMock,
+  listAdminOutboxMock,
+  requeueAdminOutboxMock,
+  cancelAdminOutboxMock,
+  getNotificationLogMetricsMock,
+  listNotificationLogMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listAdminAnnouncementsMock: vi.fn(),
@@ -50,6 +59,12 @@ const {
   listPackagesMock: vi.fn(),
   getOperationsDashboardMock: vi.fn(),
   getManagementCompanyPortfolioMock: vi.fn(),
+  getAdminOutboxMetricsMock: vi.fn(),
+  listAdminOutboxMock: vi.fn(),
+  requeueAdminOutboxMock: vi.fn(),
+  cancelAdminOutboxMock: vi.fn(),
+  getNotificationLogMetricsMock: vi.fn(),
+  listNotificationLogMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -100,6 +115,16 @@ vi.mock('../api', async () => {
       managementCompanyPortfolio: {
         get: getManagementCompanyPortfolioMock,
       },
+      adminOutbox: {
+        metrics: getAdminOutboxMetricsMock,
+        list: listAdminOutboxMock,
+        requeue: requeueAdminOutboxMock,
+        cancel: cancelAdminOutboxMock,
+      },
+      notificationLog: {
+        metrics: getNotificationLogMetricsMock,
+        list: listNotificationLogMock,
+      },
       // Unused by admin pages; kept for barrel-shape safety.
       accessRequests: { list: neverResolves, getById: neverResolves },
       passes: { list: neverResolves, getById: neverResolves },
@@ -122,6 +147,7 @@ import { DocumentsAdminPage } from './DocumentsAdminPage';
 import { PackagesAdminPage } from './PackagesAdminPage';
 import { OperationsDashboardPage } from './OperationsDashboardPage';
 import { ManagementCompanyPortfolioPage } from './ManagementCompanyPortfolioPage';
+import { NotificationOperationsPage } from './NotificationOperationsPage';
 import { V1SessionProvider } from '../store';
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
@@ -448,6 +474,65 @@ function makeManagementCompanyPortfolio(
       access_avg_decision_seconds: 'Weighted by measured manual decision sample counts from DH-35 property snapshots.',
       hotspot_property_count: 'Counts properties with overdue backlog, high incident load, or notification delivery/queue risk.',
     },
+    ...overrides,
+  };
+}
+
+function makeAdminOutboxRow(overrides: Partial<AdminOutboxRow> = {}): AdminOutboxRow {
+  return {
+    id: '00000000-0000-0000-0000-0000000000f1',
+    property_id: '00000000-0000-0000-0000-000000000bbb',
+    event_type: 'access.request.created',
+    channel: 'web_push',
+    recipient_type: 'resident',
+    recipient_id: '00000000-0000-0000-0000-0000000000c1',
+    recipient_address: 'resident@example.test',
+    payload: { secret: 'visible only on demand' },
+    status: 'pending',
+    attempt_count: 0,
+    max_attempts: 3,
+    next_attempt_at: null,
+    last_attempted_at: null,
+    last_error: null,
+    sent_at: null,
+    correlation_id: '00000000-0000-0000-0000-0000000000d1',
+    created_at: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeAdminOutboxMetrics(
+  overrides: Partial<AdminOutboxMetrics> = {},
+): AdminOutboxMetrics {
+  return {
+    ok: true,
+    counts: { pending: 1, in_flight: 0, sent: 10, failed: 0, dead: 0 },
+    per_channel: [{
+      channel: 'web_push',
+      pending: 1,
+      in_flight: 0,
+      sent: 10,
+      failed: 0,
+      dead: 0,
+    }],
+    per_event_type: [{ event_type: 'access.request.created', total: 1 }],
+    oldest_pending_age_seconds: 30,
+    generated_at: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeNotificationLogMetrics(
+  overrides: Partial<NotificationLogMetrics> = {},
+): NotificationLogMetrics {
+  return {
+    ok: true,
+    period: '24h',
+    period_hours: 24,
+    generated_at: '2026-05-10T00:00:00.000Z',
+    channels: [{ channel: 'web_push', sent: 10, failed: 0, success_rate: 1 }],
+    top_events: [{ event_type: 'access.request.created', total: 10 }],
+    top_errors: [],
     ...overrides,
   };
 }
@@ -857,5 +942,64 @@ describe('ManagementCompanyPortfolioPage', () => {
       { period: '7d', propertySlugs: [], includeInactive: false },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+});
+
+// ─── NotificationOperationsPage ───────────────────────────────────────────
+
+describe('NotificationOperationsPage', () => {
+  beforeEach(() => {
+    getAdminOutboxMetricsMock.mockReset();
+    listAdminOutboxMock.mockReset();
+    requeueAdminOutboxMock.mockReset();
+    cancelAdminOutboxMock.mockReset();
+    getNotificationLogMetricsMock.mockReset();
+    listNotificationLogMock.mockReset();
+  });
+
+  test('property_id=null → предупреждение без запросов', () => {
+    renderWithProviders(<NotificationOperationsPage />, makeUser({ property_id: null }));
+
+    expect(screen.getByText(/администратор не привязан к объекту/i)).toBeInTheDocument();
+    expect(getAdminOutboxMetricsMock).not.toHaveBeenCalled();
+    expect(listAdminOutboxMock).not.toHaveBeenCalled();
+    expect(getNotificationLogMetricsMock).not.toHaveBeenCalled();
+    expect(listNotificationLogMock).not.toHaveBeenCalled();
+  });
+
+  test('payload скрыт по умолчанию, cancel требует подтверждения', async () => {
+    getAdminOutboxMetricsMock.mockResolvedValue(makeAdminOutboxMetrics());
+    listAdminOutboxMock.mockResolvedValue({
+      ok: true,
+      items: [makeAdminOutboxRow()],
+      count: 1,
+      limit: 50,
+      offset: 0,
+    });
+    getNotificationLogMetricsMock.mockResolvedValue(makeNotificationLogMetrics());
+    listNotificationLogMock.mockResolvedValue({
+      ok: true,
+      items: [],
+      count: 0,
+      limit: 50,
+      offset: 0,
+    });
+    cancelAdminOutboxMock.mockResolvedValue({ ok: true });
+
+    renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByText('access.request.created')).toBeInTheDocument();
+    expect(screen.queryByText(/visible only on demand/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Payload' }));
+    expect(screen.getByText(/visible only on demand/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(cancelAdminOutboxMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancel' }));
+
+    await waitFor(() => {
+      expect(cancelAdminOutboxMock).toHaveBeenCalledWith('00000000-0000-0000-0000-0000000000f1');
+    });
   });
 });

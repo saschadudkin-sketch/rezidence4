@@ -93,6 +93,16 @@ vi.mock('./api', () => {
       },
       operationsDashboard: { get: neverResolves },
       managementCompanyPortfolio: { get: neverResolves },
+      adminOutbox: {
+        metrics: neverResolves,
+        list: neverResolves,
+        requeue: neverResolves,
+        cancel: neverResolves,
+      },
+      notificationLog: {
+        metrics: neverResolves,
+        list: neverResolves,
+      },
       residents: { getById: neverResolves, offboardingReport: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
     },
@@ -298,7 +308,7 @@ describe('V1Router direct deep-links gate by role', () => {
     expect(
       await screen.findByRole('heading', { name: /настройки доступа/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /кпп и зоны/i })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: /пропуска/i })).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -349,6 +359,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/emergency-dispatch');
     expect(
       await screen.findByRole('heading', { name: /emergency dispatch/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/notifications reaches notifications operations', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/notifications');
+    expect(
+      await screen.findByRole('heading', { name: /уведомления и outbox/i }),
     ).toBeInTheDocument();
   });
 

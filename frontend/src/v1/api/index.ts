@@ -36,6 +36,8 @@ import { auditReviewsApi } from './auditReviews';
 import { emergencyDispatchApi } from './emergencyDispatch';
 import { operationsDashboardApi } from './operationsDashboard';
 import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
+import { adminOutboxApi } from './adminOutbox';
+import { notificationLogApi } from './notificationLog';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -62,6 +64,8 @@ export const api = {
   emergencyDispatch: emergencyDispatchApi,
   operationsDashboard: operationsDashboardApi,
   managementCompanyPortfolio: managementCompanyPortfolioApi,
+  adminOutbox: adminOutboxApi,
+  notificationLog: notificationLogApi,
 };
 
 export { normalizePlate };
@@ -163,3 +167,8 @@ export type {
 } from './emergencyDispatch';
 export type { GetOperationsDashboardParams } from './operationsDashboard';
 export type { GetManagementCompanyPortfolioParams } from './managementCompanyPortfolio';
+export type { ListAdminOutboxParams } from './adminOutbox';
+export type {
+  ListNotificationLogParams,
+  NotificationLogPeriod,
+} from './notificationLog';

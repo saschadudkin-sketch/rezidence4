@@ -2057,6 +2057,93 @@ export interface GisOssBoundaryResponse {
   out_of_scope: string[];
 }
 
+// ─── Notifications / outbox observability ─────────────────────────────────
+// Source: backend/src/v1/routes/adminOutbox.js and notificationLog.js.
+
+export type NotificationChannel = 'web_push' | 'sms' | 'telegram' | 'webhook' | 'email';
+export type OutboxStatus = 'pending' | 'in_flight' | 'sent' | 'failed' | 'dead';
+export type NotificationLogStatus = 'sent' | 'failed';
+export type NotificationRecipientType = 'resident' | 'staff' | 'contractor' | 'external';
+
+export interface AdminOutboxRow {
+  id: UUID;
+  property_id: UUID | null;
+  event_type: string;
+  channel: NotificationChannel;
+  recipient_type: NotificationRecipientType | string;
+  recipient_id: UUID | null;
+  recipient_address: string | null;
+  payload: Record<string, unknown> | null;
+  status: OutboxStatus;
+  attempt_count: number;
+  max_attempts: number;
+  next_attempt_at: IsoDateTime | null;
+  last_attempted_at: IsoDateTime | null;
+  last_error: string | null;
+  sent_at: IsoDateTime | null;
+  correlation_id: UUID | null;
+  created_at: IsoDateTime;
+}
+
+export interface AdminOutboxListResponse {
+  ok: true;
+  items: AdminOutboxRow[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminOutboxMetrics {
+  ok: true;
+  counts: Record<OutboxStatus, number>;
+  per_channel: Array<Record<OutboxStatus, number> & { channel: NotificationChannel }>;
+  per_event_type: Array<{ event_type: string; total: number }>;
+  oldest_pending_age_seconds: number | null;
+  generated_at: IsoDateTime;
+}
+
+export interface NotificationLogRow {
+  id: UUID;
+  property_id?: UUID | null;
+  outbox_id?: UUID | null;
+  recipient_type: NotificationRecipientType | string;
+  recipient_id: UUID | null;
+  recipient_address?: string | null;
+  channel: NotificationChannel;
+  event_type: string;
+  status: NotificationLogStatus;
+  payload: Record<string, unknown> | null;
+  error_code: string | null;
+  error_message?: string | null;
+  provider_message_id?: string | null;
+  attempt_count: number;
+  sent_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+}
+
+export interface NotificationLogListResponse {
+  ok: true;
+  items: NotificationLogRow[];
+  count: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface NotificationLogMetrics {
+  ok: true;
+  period: '24h' | '7d' | '30d';
+  period_hours: number;
+  generated_at: IsoDateTime;
+  channels: Array<{
+    channel: NotificationChannel;
+    sent: number;
+    failed: number;
+    success_rate: number | null;
+  }>;
+  top_events: Array<{ event_type: string; total: number }>;
+  top_errors: Array<{ error_code: string; total: number }>;
+}
+
 // ─── Composite response shapes (exactly what the backend returns) ──────────
 
 export interface AccessRequestDetailResponse {
