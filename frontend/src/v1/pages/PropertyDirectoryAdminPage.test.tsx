@@ -262,4 +262,87 @@ describe('PropertyDirectoryAdminPage', () => {
       );
     });
   });
+
+  test('догружает paged списки и не показывает незагруженные входы как ноль', async () => {
+    const buildings = Array.from({ length: 13 }, (_, index): Building => ({
+      id: `00000000-0000-0000-0000-${String(index + 101).padStart(12, '0')}`,
+      property_id: PROPERTY_ID,
+      code: String(index + 1),
+      name: `Корпус ${index + 1}`,
+      sort_order: index + 1,
+      created_at: '2026-05-01T00:00:00.000Z',
+    }));
+    const page = { limit: 50, offset: 0, hasMore: true };
+
+    listBuildingsMock.mockResolvedValue({ buildings });
+    listEntrancesMock.mockResolvedValue({ entrances: [] });
+    listUnitsMock.mockResolvedValue({ units: [], page });
+    listResidentsMock.mockResolvedValue({ residents: [], page });
+    listStaffMock.mockResolvedValue({ staff: [], page });
+    listCompaniesMock.mockResolvedValue({ companies: [], page });
+    listContractorUsersMock.mockResolvedValue({ users: [], page });
+    listMembershipsMock.mockResolvedValue({ memberships: [], page });
+
+    renderWithProviders(<PropertyDirectoryAdminPage />);
+
+    expect(await screen.findByText('Корпус 13')).toBeInTheDocument();
+    expect(screen.getByText(/не загружено/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить входы ещё' }));
+    await waitFor(() => {
+      expect(listEntrancesMock).toHaveBeenCalledWith(
+        buildings[12].id,
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показать ещё юниты' }));
+    await waitFor(() => {
+      expect(listUnitsMock).toHaveBeenCalledWith(
+        { is_active: true, limit: 100, q: undefined },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Жители' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать ещё жителей' }));
+    await waitFor(() => {
+      expect(listResidentsMock).toHaveBeenCalledWith(
+        { is_active: true, limit: 100, q: undefined },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Сотрудники' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать ещё сотрудников' }));
+    await waitFor(() => {
+      expect(listStaffMock).toHaveBeenCalledWith(
+        { is_active: true, limit: 100, q: undefined },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Подрядчики' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать ещё компании' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Показать ещё пользователей' }));
+    await waitFor(() => {
+      expect(listCompaniesMock).toHaveBeenCalledWith(
+        { status: 'active', limit: 100, q: undefined },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(listContractorUsersMock).toHaveBeenCalledWith(
+        { is_active: true, limit: 100 },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Членства' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать ещё членства' }));
+    await waitFor(() => {
+      expect(listMembershipsMock).toHaveBeenCalledWith(
+        { property_id: PROPERTY_ID, limit: 100 },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+  });
 });

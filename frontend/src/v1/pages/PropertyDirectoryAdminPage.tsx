@@ -20,6 +20,7 @@ import { formatDateTime } from '../components/formatters';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   EmptyState,
   Field,
@@ -33,6 +34,7 @@ import type { BadgeTone } from '../components/ui';
 import { formatUnitLabel, getPropertyLabels } from '../lib/propertyLabels';
 
 type DirectoryTab = 'structure' | 'residents' | 'staff' | 'contractors' | 'memberships';
+type LimitKey = 'units' | 'residents' | 'staff' | 'companies' | 'contractorUsers' | 'memberships';
 
 const TAB_LABELS: Record<DirectoryTab, string> = {
   structure: 'Структура',
@@ -70,6 +72,15 @@ const RESIDENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const LIMIT = 50;
+const ENTRANCE_BATCH_SIZE = 12;
+const INITIAL_LIMITS: Record<LimitKey, number> = {
+  units: LIMIT,
+  residents: LIMIT,
+  staff: LIMIT,
+  companies: LIMIT,
+  contractorUsers: LIMIT,
+  memberships: LIMIT,
+};
 
 function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
@@ -115,13 +126,25 @@ function pageHint(page: { hasMore: boolean } | undefined, loaded: number): strin
     : `${formatNumber(loaded)} строк`;
 }
 
+function matchesText(values: Array<string | null | undefined>, query: string): boolean {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return values.some((value) => value?.toLowerCase().includes(needle));
+}
+
 export function PropertyDirectoryAdminPage() {
   const session = useV1Session();
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
   const propertyId = session.property_id ?? null;
   const [tab, setTab] = useState<DirectoryTab>('structure');
   const [query, setQuery] = useState('');
+  const [limits, setLimits] = useState<Record<LimitKey, number>>(INITIAL_LIMITS);
+  const [entranceLimit, setEntranceLimit] = useState(ENTRANCE_BATCH_SIZE);
   const normalizedQuery = query.trim();
+
+  const increaseLimit = (key: LimitKey) => {
+    setLimits((current) => ({ ...current, [key]: current[key] + LIMIT }));
+  };
 
   const buildingsQuery = useQuery({
     queryKey: ['v1', 'directory', propertyId, 'buildings'],
@@ -130,66 +153,66 @@ export function PropertyDirectoryAdminPage() {
   });
 
   const unitsQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'units', normalizedQuery],
+    queryKey: ['v1', 'directory', propertyId, 'units', normalizedQuery, limits.units],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.units.list({
       is_active: true,
-      limit: LIMIT,
+      limit: limits.units,
       q: normalizedQuery || undefined,
     }, { signal }),
   });
 
   const residentsQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'residents', normalizedQuery],
+    queryKey: ['v1', 'directory', propertyId, 'residents', normalizedQuery, limits.residents],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.residents.list({
       is_active: true,
-      limit: LIMIT,
+      limit: limits.residents,
       q: normalizedQuery || undefined,
     }, { signal }),
   });
 
   const staffQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'staff', normalizedQuery],
+    queryKey: ['v1', 'directory', propertyId, 'staff', normalizedQuery, limits.staff],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.staff.list({
       is_active: true,
-      limit: LIMIT,
+      limit: limits.staff,
       q: normalizedQuery || undefined,
     }, { signal }),
   });
 
   const companiesQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'contractor-companies', normalizedQuery],
+    queryKey: ['v1', 'directory', propertyId, 'contractor-companies', normalizedQuery, limits.companies],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.contractors.listCompanies({
       status: 'active',
-      limit: LIMIT,
+      limit: limits.companies,
       q: normalizedQuery || undefined,
     }, { signal }),
   });
 
   const contractorUsersQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'contractor-users'],
+    queryKey: ['v1', 'directory', propertyId, 'contractor-users', limits.contractorUsers],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.contractors.listUsers({
       is_active: true,
-      limit: LIMIT,
+      limit: limits.contractorUsers,
     }, { signal }),
   });
 
   const membershipsQuery = useQuery({
-    queryKey: ['v1', 'directory', propertyId, 'memberships'],
+    queryKey: ['v1', 'directory', propertyId, 'memberships', limits.memberships],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.memberships.list({
       property_id: propertyId ?? '',
-      limit: LIMIT,
+      limit: limits.memberships,
     }, { signal }),
   });
 
   const buildings = buildingsQuery.data?.buildings ?? [];
   const entranceQueries = useQueries({
-    queries: buildings.slice(0, 12).map((building) => ({
+    queries: buildings.slice(0, entranceLimit).map((building) => ({
       queryKey: ['v1', 'directory', propertyId, 'building-entrances', building.id],
       enabled: Boolean(propertyId),
       queryFn: ({ signal }: { signal: AbortSignal }) => api.units.listEntrances(building.id, { signal }),
@@ -212,6 +235,26 @@ export function PropertyDirectoryAdminPage() {
     || companiesQuery.isLoading
     || contractorUsersQuery.isLoading
     || membershipsQuery.isLoading;
+
+  const contractorUsers = useMemo(() => (
+    (contractorUsersQuery.data?.users ?? []).filter((user) => matchesText([
+      user.full_name,
+      user.email,
+      user.phone,
+      user.specialization,
+    ], normalizedQuery))
+  ), [contractorUsersQuery.data?.users, normalizedQuery]);
+
+  const memberships = useMemo(() => (
+    (membershipsQuery.data?.memberships ?? []).filter((membership) => matchesText([
+      membershipSubjectLabel(membership),
+      membership.role,
+      membership.scope_level,
+      membership.scope_id,
+      membership.status,
+      membership.provisioned_from,
+    ], normalizedQuery))
+  ), [membershipsQuery.data?.memberships, normalizedQuery]);
 
   if (!propertyId) {
     return (
@@ -237,7 +280,7 @@ export function PropertyDirectoryAdminPage() {
           <Input
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
-            placeholder="ФИО, email, юнит или подрядчик"
+            placeholder="ФИО, email, юнит, компания, роль или scope"
           />
         </Field>
         <Inline>
@@ -282,8 +325,17 @@ export function PropertyDirectoryAdminPage() {
         <StructureTab
           buildings={buildings}
           entranceQueries={entranceQueries.map((item) => item.data?.entrances ?? [])}
+          loadedEntranceCount={Math.min(entranceLimit, buildings.length)}
+          onLoadMoreEntrances={
+            buildings.length > entranceLimit
+              ? () => setEntranceLimit((current) => current + ENTRANCE_BATCH_SIZE)
+              : undefined
+          }
           units={unitsQuery.data?.units ?? []}
           unitPageHint={pageHint(unitsQuery.data?.page, unitsQuery.data?.units.length ?? 0)}
+          unitHasMore={Boolean(unitsQuery.data?.page?.hasMore)}
+          unitLoadingMore={unitsQuery.isFetching && !unitsQuery.isLoading}
+          onLoadMoreUnits={() => increaseLimit('units')}
           propertyType={session.property_type}
         />
       ) : null}
@@ -291,26 +343,41 @@ export function PropertyDirectoryAdminPage() {
         <ResidentsTab
           residents={residentsQuery.data?.residents ?? []}
           pageHint={pageHint(residentsQuery.data?.page, residentsQuery.data?.residents.length ?? 0)}
+          hasMore={Boolean(residentsQuery.data?.page?.hasMore)}
+          loadingMore={residentsQuery.isFetching && !residentsQuery.isLoading}
+          onLoadMore={() => increaseLimit('residents')}
         />
       ) : null}
       {tab === 'staff' ? (
         <StaffTab
           staff={staffQuery.data?.staff ?? []}
           pageHint={pageHint(staffQuery.data?.page, staffQuery.data?.staff.length ?? 0)}
+          hasMore={Boolean(staffQuery.data?.page?.hasMore)}
+          loadingMore={staffQuery.isFetching && !staffQuery.isLoading}
+          onLoadMore={() => increaseLimit('staff')}
         />
       ) : null}
       {tab === 'contractors' ? (
         <ContractorsTab
           companies={companiesQuery.data?.companies ?? []}
-          users={contractorUsersQuery.data?.users ?? []}
+          users={contractorUsers}
           companyHint={pageHint(companiesQuery.data?.page, companiesQuery.data?.companies.length ?? 0)}
           userHint={pageHint(contractorUsersQuery.data?.page, contractorUsersQuery.data?.users.length ?? 0)}
+          companiesHasMore={Boolean(companiesQuery.data?.page?.hasMore)}
+          usersHasMore={Boolean(contractorUsersQuery.data?.page?.hasMore)}
+          companiesLoadingMore={companiesQuery.isFetching && !companiesQuery.isLoading}
+          usersLoadingMore={contractorUsersQuery.isFetching && !contractorUsersQuery.isLoading}
+          onLoadMoreCompanies={() => increaseLimit('companies')}
+          onLoadMoreUsers={() => increaseLimit('contractorUsers')}
         />
       ) : null}
       {tab === 'memberships' ? (
         <MembershipsTab
-          memberships={membershipsQuery.data?.memberships ?? []}
+          memberships={memberships}
           pageHint={pageHint(membershipsQuery.data?.page, membershipsQuery.data?.memberships.length ?? 0)}
+          hasMore={Boolean(membershipsQuery.data?.page?.hasMore)}
+          loadingMore={membershipsQuery.isFetching && !membershipsQuery.isLoading}
+          onLoadMore={() => increaseLimit('memberships')}
         />
       ) : null}
     </div>
@@ -325,17 +392,45 @@ function SummaryBadge({ label, value }: { label: string; value: number }) {
   );
 }
 
+function LoadMoreButton({
+  children,
+  loading,
+  onClick,
+}: {
+  children: string;
+  loading?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Inline className={uiClasses.marginTop3}>
+      <Button variant="secondary" loading={loading} onClick={onClick}>
+        {children}
+      </Button>
+    </Inline>
+  );
+}
+
 function StructureTab({
   buildings,
   entranceQueries,
+  loadedEntranceCount,
+  onLoadMoreEntrances,
   units,
   unitPageHint,
+  unitHasMore,
+  unitLoadingMore,
+  onLoadMoreUnits,
   propertyType,
 }: {
   buildings: Building[];
   entranceQueries: Entrance[][];
+  loadedEntranceCount: number;
+  onLoadMoreEntrances?: () => void;
   units: Unit[];
   unitPageHint: string;
+  unitHasMore: boolean;
+  unitLoadingMore: boolean;
+  onLoadMoreUnits: () => void;
   propertyType: unknown;
 }) {
   return (
@@ -350,7 +445,11 @@ function StructureTab({
                   <div className={uiClasses.resourceMeta}>
                     <span>код {building.code || '—'}</span>
                     <span>порядок {formatNumber(building.sort_order)}</span>
-                    <span>входов {formatNumber(entranceQueries[index]?.length ?? 0)}</span>
+                    <span>
+                      входов {index < loadedEntranceCount
+                        ? formatNumber(entranceQueries[index]?.length ?? 0)
+                        : 'не загружено'}
+                    </span>
                   </div>
                 </div>
                 <Badge>{idShort(building.id)}</Badge>
@@ -360,6 +459,11 @@ function StructureTab({
         ) : (
           <EmptyState>Корпуса не найдены.</EmptyState>
         )}
+        {onLoadMoreEntrances ? (
+          <LoadMoreButton onClick={onLoadMoreEntrances}>
+            Загрузить входы ещё
+          </LoadMoreButton>
+        ) : null}
       </Card>
 
       <Card title="Юниты" subtitle={unitPageHint}>
@@ -384,12 +488,29 @@ function StructureTab({
         ) : (
           <EmptyState>Юниты не найдены.</EmptyState>
         )}
+        {unitHasMore ? (
+          <LoadMoreButton loading={unitLoadingMore} onClick={onLoadMoreUnits}>
+            Показать ещё юниты
+          </LoadMoreButton>
+        ) : null}
       </Card>
     </div>
   );
 }
 
-function ResidentsTab({ residents, pageHint }: { residents: ResidentWithUnit[]; pageHint: string }) {
+function ResidentsTab({
+  residents,
+  pageHint,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+}: {
+  residents: ResidentWithUnit[];
+  pageHint: string;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) {
   return (
     <Card title="Жители" subtitle={pageHint}>
       {residents.length ? (
@@ -414,11 +535,28 @@ function ResidentsTab({ residents, pageHint }: { residents: ResidentWithUnit[]; 
       ) : (
         <EmptyState>Жители не найдены.</EmptyState>
       )}
+      {hasMore ? (
+        <LoadMoreButton loading={loadingMore} onClick={onLoadMore}>
+          Показать ещё жителей
+        </LoadMoreButton>
+      ) : null}
     </Card>
   );
 }
 
-function StaffTab({ staff, pageHint }: { staff: StaffUser[]; pageHint: string }) {
+function StaffTab({
+  staff,
+  pageHint,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+}: {
+  staff: StaffUser[];
+  pageHint: string;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) {
   return (
     <Card title="Сотрудники" subtitle={pageHint}>
       {staff.length ? (
@@ -444,6 +582,11 @@ function StaffTab({ staff, pageHint }: { staff: StaffUser[]; pageHint: string })
       ) : (
         <EmptyState>Сотрудники не найдены.</EmptyState>
       )}
+      {hasMore ? (
+        <LoadMoreButton loading={loadingMore} onClick={onLoadMore}>
+          Показать ещё сотрудников
+        </LoadMoreButton>
+      ) : null}
     </Card>
   );
 }
@@ -453,11 +596,23 @@ function ContractorsTab({
   users,
   companyHint,
   userHint,
+  companiesHasMore,
+  usersHasMore,
+  companiesLoadingMore,
+  usersLoadingMore,
+  onLoadMoreCompanies,
+  onLoadMoreUsers,
 }: {
   companies: ContractorCompany[];
   users: ContractorUser[];
   companyHint: string;
   userHint: string;
+  companiesHasMore: boolean;
+  usersHasMore: boolean;
+  companiesLoadingMore: boolean;
+  usersLoadingMore: boolean;
+  onLoadMoreCompanies: () => void;
+  onLoadMoreUsers: () => void;
 }) {
   return (
     <div className={uiClasses.twoColumn}>
@@ -482,6 +637,11 @@ function ContractorsTab({
         ) : (
           <EmptyState>Компании подрядчиков не найдены.</EmptyState>
         )}
+        {companiesHasMore ? (
+          <LoadMoreButton loading={companiesLoadingMore} onClick={onLoadMoreCompanies}>
+            Показать ещё компании
+          </LoadMoreButton>
+        ) : null}
       </Card>
 
       <Card title="Пользователи подрядчиков" subtitle={userHint}>
@@ -507,6 +667,11 @@ function ContractorsTab({
         ) : (
           <EmptyState>Пользователи подрядчиков не найдены.</EmptyState>
         )}
+        {usersHasMore ? (
+          <LoadMoreButton loading={usersLoadingMore} onClick={onLoadMoreUsers}>
+            Показать ещё пользователей
+          </LoadMoreButton>
+        ) : null}
       </Card>
     </div>
   );
@@ -515,9 +680,15 @@ function ContractorsTab({
 function MembershipsTab({
   memberships,
   pageHint,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: {
   memberships: RoleScopeMembership[];
   pageHint: string;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }) {
   return (
     <Card title="Role-scope членства" subtitle={pageHint}>
@@ -546,6 +717,11 @@ function MembershipsTab({
       ) : (
         <EmptyState>Членства не найдены.</EmptyState>
       )}
+      {hasMore ? (
+        <LoadMoreButton loading={loadingMore} onClick={onLoadMore}>
+          Показать ещё членства
+        </LoadMoreButton>
+      ) : null}
     </Card>
   );
 }
