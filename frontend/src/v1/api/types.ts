@@ -583,6 +583,22 @@ export interface Pass {
   created_at: IsoDateTime;
 }
 
+export type PassCredentialType = 'qr' | 'pin' | 'plate' | 'ble' | 'card';
+
+export interface AdminPassListItem extends Pass {
+  request_type?: RequestType | null;
+  visitor_name?: string | null;
+  guest_instructions?: string | null;
+  guard_notes?: string | null;
+  unit_number?: string | null;
+  unit_type?: string | null;
+  resident_name?: string | null;
+  vehicle_plate?: string | null;
+  access_point_name?: string | null;
+  access_zone_name?: string | null;
+  credential_types?: PassCredentialType[];
+}
+
 /**
  * Compact pass projection returned inside access-request detail and
  * verify response.  Backend deliberately drops sensitive columns here.

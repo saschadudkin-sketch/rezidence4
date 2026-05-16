@@ -825,10 +825,14 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    status?: string;
+                    property_id?: string;
+                    status?: "active" | "used" | "revoked" | "blocked" | "expired";
                     pass_type?: "guest" | "vehicle" | "resident" | "staff" | "contractor" | "courier" | "service" | "emergency";
                     subject_vehicle_id?: string;
+                    subject_resident_id?: string;
                     access_request_id?: string;
+                    /** @description Search pass id, visitor, resident, unit or vehicle plate. */
+                    q?: string;
                     /** @description Page size, 1..200 (default 50) */
                     limit?: number;
                     /** @description Skip first N rows, 0..100000 (default 0) */
@@ -28536,6 +28540,17 @@ export interface components {
             revoked_reason?: string | null;
             /** Format: date-time */
             created_at: string;
+            request_type?: string | null;
+            visitor_name?: string | null;
+            guest_instructions?: string | null;
+            guard_notes?: string | null;
+            unit_number?: string | null;
+            unit_type?: string | null;
+            resident_name?: string | null;
+            vehicle_plate?: string | null;
+            access_point_name?: string | null;
+            access_zone_name?: string | null;
+            credential_types?: ("qr" | "pin" | "plate" | "ble" | "card")[];
         };
         PassQR: {
             /** Format: uuid */

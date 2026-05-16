@@ -736,9 +736,24 @@
         "parameters": [
           {
             "in": "query",
+            "name": "property_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "active",
+                "used",
+                "revoked",
+                "blocked",
+                "expired"
+              ]
             }
           },
           {
@@ -768,10 +783,26 @@
           },
           {
             "in": "query",
+            "name": "subject_resident_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
             "name": "access_request_id",
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "description": "Search pass id, visitor, resident, unit or vehicle plate.",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -26752,6 +26783,59 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "request_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "guest_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "guard_notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit_number": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "resident_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicle_plate": {
+            "type": "string",
+            "nullable": true
+          },
+          "access_point_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "access_zone_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "credential_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "qr",
+                "pin",
+                "plate",
+                "ble",
+                "card"
+              ]
+            }
           }
         }
       },

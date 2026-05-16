@@ -18,13 +18,17 @@ import type {
   AccessPolicySubjectType,
   AccessZone,
   AccessZoneType,
+  AdminPassListItem,
   IncidentStatus,
+  PassStatus,
+  PassType,
   UUID,
   Vehicle,
 } from '../api/types';
 import { accessIncidentsApi } from '../api/accessIncidents';
 import { accessPoliciesApi } from '../api/accessPolicies';
 import { accessTopologyApi } from '../api/accessTopology';
+import { passesApi } from '../api/passes';
 import { normalizePlate, vehiclesApi } from '../api/vehicles';
 import { isV1ApiError } from '../api';
 import { useV1Session } from '../store';
@@ -32,7 +36,11 @@ import { getPropertyLabels } from '../lib/propertyLabels';
 import {
   formatDateTime,
   formatIncidentType,
+  formatPassStatus,
+  formatPassType,
   formatSeverity,
+  formatWindow,
+  passStatusTone,
   severityTone,
 } from '../components/formatters';
 import { VehicleCard } from '../components/VehicleCard';
@@ -52,7 +60,7 @@ import {
   uiClasses,
 } from '../components/ui';
 
-type AdminTab = 'topology' | 'policies' | 'vehicles' | 'incidents';
+type AdminTab = 'passes' | 'topology' | 'policies' | 'vehicles' | 'incidents';
 
 const ZONE_TYPES: AccessZoneType[] = [
   'perimeter',
@@ -89,6 +97,8 @@ const SUBJECT_TYPES: AccessPolicySubjectType[] = [
   'courier',
 ];
 
+const PASS_STATUSES: Array<PassStatus | ''> = ['', 'active', 'used', 'expired', 'blocked', 'revoked'];
+const MANAGED_PASS_TYPES: Array<PassType | ''> = ['', 'guest', 'vehicle', 'courier', 'service', 'contractor', 'resident', 'staff', 'emergency'];
 const POLICY_METHODS: AccessPolicyMethod[] = ['qr', 'manual', 'plate', 'ble', 'card', 'pin'];
 const POLICY_EFFECTS: AccessPolicyEffect[] = [
   'allow',
@@ -100,6 +110,7 @@ const POLICY_EFFECTS: AccessPolicyEffect[] = [
 const APPROVAL_MODES: AccessPolicyApprovalMode[] = ['auto', 'required', 'security_only', 'admin_only'];
 
 const TAB_LABELS: Record<AdminTab, string> = {
+  passes: 'Пропуска',
   topology: 'КПП и зоны',
   policies: 'Политики',
   vehicles: 'Авто',
@@ -131,6 +142,14 @@ const POINT_LABELS: Record<AccessPointType, string> = {
   service_gate: 'Сервисный въезд',
 };
 
+const CREDENTIAL_LABELS: Record<string, string> = {
+  qr: 'QR',
+  pin: 'PIN',
+  plate: 'Номер',
+  ble: 'BLE',
+  card: 'Карта',
+};
+
 function policyEffectTone(effect: AccessPolicyEffect): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
   if (effect === 'allow') return 'success';
   if (effect === 'deny') return 'error';
@@ -157,7 +176,7 @@ export function AccessAdminPage() {
   const session = useV1Session();
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
   const propertyId = session.property_id ?? null;
-  const [tab, setTab] = useState<AdminTab>('topology');
+  const [tab, setTab] = useState<AdminTab>('passes');
 
   if (!propertyId) {
     return (
@@ -174,7 +193,7 @@ export function AccessAdminPage() {
       <header className={uiClasses.pageHeader}>
         <h1 className={uiClasses.pageTitle}>Настройки доступа</h1>
         <p className={uiClasses.pageSubtitle}>
-          {labels.propertyKind}: КПП, правила допуска, автофлаги и инциденты.
+          {labels.propertyKind}: активные пропуска, КПП, правила допуска, автофлаги и инциденты.
         </p>
       </header>
 
@@ -193,11 +212,206 @@ export function AccessAdminPage() {
         ))}
       </div>
 
+      {tab === 'passes' ? <PassesTab propertyId={propertyId} /> : null}
       {tab === 'topology' ? <TopologyTab propertyId={propertyId} /> : null}
       {tab === 'policies' ? <PoliciesTab propertyId={propertyId} /> : null}
       {tab === 'vehicles' ? <VehicleFlagsTab /> : null}
       {tab === 'incidents' ? <IncidentsTab /> : null}
     </div>
+  );
+}
+
+function passSubjectLabel(pass: AdminPassListItem): string {
+  return pass.visitor_name
+    || pass.vehicle_plate
+    || pass.resident_name
+    || `${formatPassType(pass.pass_type)} ${pass.id.slice(0, 8)}`;
+}
+
+function passResidentLine(pass: AdminPassListItem): string {
+  const parts = [
+    pass.resident_name,
+    pass.unit_number ? `юнит ${pass.unit_number}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Резидент/юнит не указаны';
+}
+
+function passAccessLine(pass: AdminPassListItem): string {
+  const parts = [
+    pass.access_point_name ? `точка ${pass.access_point_name}` : null,
+    pass.access_zone_name ? `зона ${pass.access_zone_name}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Вся доступная зона';
+}
+
+function PassesTab({ propertyId }: { propertyId: UUID }) {
+  const [passes, setPasses] = useState<AdminPassListItem[]>([]);
+  const [status, setStatus] = useState<PassStatus | ''>('active');
+  const [passType, setPassType] = useState<PassType | ''>('');
+  const [query, setQuery] = useState('');
+  const [revokeReasons, setRevokeReasons] = useState<Record<UUID, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<UUID | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await passesApi.list({
+        property_id: propertyId,
+        status: status || undefined,
+        pass_type: passType || undefined,
+        q: query.trim() || undefined,
+        limit: 100,
+      });
+      setPasses(res.passes);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить пропуска');
+    } finally {
+      setLoading(false);
+    }
+  }, [passType, propertyId, query, status]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function revokePass(pass: AdminPassListItem) {
+    const reason = (revokeReasons[pass.id] || '').trim();
+    if (!reason) {
+      setError('Укажите причину отзыва пропуска');
+      return;
+    }
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      await passesApi.revoke(pass.id, reason);
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отозвать пропуск');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function blockPass(pass: AdminPassListItem) {
+    const reason = (revokeReasons[pass.id] || '').trim() || 'Blocked from access admin';
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      await passesApi.block(pass.id, reason);
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось заблокировать пропуск');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <Stack>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <Card
+        title="Управление пропусками"
+        subtitle="Поиск по гостю, резиденту, юниту, авто или ID пропуска."
+        actions={<Button variant="ghost" onClick={() => void load()} loading={loading}>Обновить</Button>}
+      >
+        <div className={uiClasses.formGrid}>
+          <Field label="Поиск">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Иванов, 125, A001AA77"
+            />
+          </Field>
+          <Field label="Статус">
+            <Select value={status} onChange={(e) => setStatus(e.target.value as PassStatus | '')}>
+              {PASS_STATUSES.map((item) => (
+                <option key={item || 'all'} value={item}>
+                  {item ? formatPassStatus(item) : 'Все статусы'}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Тип">
+            <Select value={passType} onChange={(e) => setPassType(e.target.value as PassType | '')}>
+              {MANAGED_PASS_TYPES.map((item) => (
+                <option key={item || 'all'} value={item}>
+                  {item ? formatPassType(item) : 'Все типы'}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+
+        {loading ? <LoadingLine>Загрузка пропусков…</LoadingLine> : null}
+        {!loading && passes.length === 0 ? <EmptyState>Пропусков по фильтру нет.</EmptyState> : null}
+        <ul className={uiClasses.resourceList}>
+          {passes.map((pass) => (
+            <li key={pass.id} className={uiClasses.resourceRow}>
+              <div className={uiClasses.resourceRowMain}>
+                <Inline>
+                  <h3 className={uiClasses.resourceTitle}>{passSubjectLabel(pass)}</h3>
+                  <Badge tone={passStatusTone(pass.status)}>{formatPassStatus(pass.status)}</Badge>
+                  <Badge tone="info">{formatPassType(pass.pass_type)}</Badge>
+                </Inline>
+                <div className={uiClasses.resourceMeta}>
+                  <span>{formatWindow(pass.valid_from, pass.valid_until)}</span>
+                  <span>{passResidentLine(pass)}</span>
+                  <span>{passAccessLine(pass)}</span>
+                  {pass.request_type ? <span>{pass.request_type}</span> : null}
+                  <span>ID {pass.id.slice(0, 8)}</span>
+                </div>
+                {pass.credential_types?.length ? (
+                  <Inline>
+                    {pass.credential_types.map((type) => (
+                      <Badge key={type} tone="neutral">{CREDENTIAL_LABELS[type] ?? type}</Badge>
+                    ))}
+                  </Inline>
+                ) : null}
+                {pass.guest_instructions ? (
+                  <p className={uiClasses.textMuted}>Инструкция гостю: {pass.guest_instructions}</p>
+                ) : null}
+                {pass.guard_notes ? (
+                  <p className={uiClasses.textMuted}>Заметка охране: {pass.guard_notes}</p>
+                ) : null}
+                {pass.revoked_reason ? (
+                  <p className={uiClasses.textMuted}>Причина отзыва: {pass.revoked_reason}</p>
+                ) : null}
+                {pass.status === 'active' ? (
+                  <div className={uiClasses.formGrid}>
+                    <Field label="Причина">
+                      <Input
+                        value={revokeReasons[pass.id] ?? ''}
+                        onChange={(e) => setRevokeReasons((prev) => ({ ...prev, [pass.id]: e.target.value }))}
+                        placeholder="Например, отмена визита"
+                      />
+                    </Field>
+                    <Inline>
+                      <Button
+                        variant="danger"
+                        loading={savingId === pass.id}
+                        onClick={() => void revokePass(pass)}
+                      >
+                        Отозвать
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        loading={savingId === pass.id}
+                        onClick={() => void blockPass(pass)}
+                      >
+                        Заблокировать
+                      </Button>
+                    </Inline>
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </Stack>
   );
 }
 

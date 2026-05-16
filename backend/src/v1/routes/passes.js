@@ -41,6 +41,7 @@ const {
   revokePass,
   unblockPass,
 } = require('../services/passService');
+const { listPassesForAdmin } = require('../services/passReadModelService');
 const {
   isAccessTopologyServiceError,
   validateAccessTopologyTarget,
@@ -57,6 +58,7 @@ const PASS_TYPES = new Set([
   'guest', 'vehicle', 'resident', 'staff',
   'contractor', 'courier', 'service', 'emergency',
 ]);
+const PASS_STATUSES = new Set(['active', 'used', 'revoked', 'blocked', 'expired']);
 const SUBJECT_TYPES = new Set([
   'resident', 'staff', 'contractor_user', 'vehicle', 'guest',
 ]);
@@ -202,38 +204,35 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = ['property_id = $1'];
-    const params = [propertyId];
+    const filters = {};
     if (req.query.status) {
-      params.push(String(req.query.status));
-      filters.push(`status = $${params.length}`);
+      if (!PASS_STATUSES.has(req.query.status)) return res.status(400).json({ error: 'Invalid status' });
+      filters.status = req.query.status;
     }
     if (req.query.pass_type) {
       if (!PASS_TYPES.has(req.query.pass_type)) return res.status(400).json({ error: 'Invalid pass_type' });
-      params.push(req.query.pass_type);
-      filters.push(`pass_type = $${params.length}`);
+      filters.pass_type = req.query.pass_type;
     }
     if (req.query.subject_vehicle_id) {
       if (!isValidUuid(req.query.subject_vehicle_id)) return res.status(400).json({ error: 'Invalid subject_vehicle_id' });
-      params.push(req.query.subject_vehicle_id);
-      filters.push(`subject_vehicle_id = $${params.length}`);
+      filters.subject_vehicle_id = req.query.subject_vehicle_id;
+    }
+    if (req.query.subject_resident_id) {
+      if (!isValidUuid(req.query.subject_resident_id)) return res.status(400).json({ error: 'Invalid subject_resident_id' });
+      filters.subject_resident_id = req.query.subject_resident_id;
     }
     if (req.query.access_request_id) {
       if (!isValidUuid(req.query.access_request_id)) return res.status(400).json({ error: 'Invalid access_request_id' });
-      params.push(req.query.access_request_id);
-      filters.push(`access_request_id = $${params.length}`);
+      filters.access_request_id = req.query.access_request_id;
     }
-    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    params.push(pagination.limit);
-    const limitIdx = params.length;
-    params.push(pagination.offset);
-    const offsetIdx = params.length;
+    if (req.query.q) filters.q = req.query.q;
 
-    const { rows } = await getDb(req).query(
-      `SELECT ${PASS_COLS} FROM passes ${where}
-        ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-      params,
-    );
+    const rows = await listPassesForAdmin({
+      queryable: getDb(req),
+      propertyId,
+      filters,
+      pagination,
+    });
     res.json({
       passes: rows,
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),

@@ -6,6 +6,7 @@
 
 import { v1Client, type RequestOpts } from './client';
 import type {
+  AdminPassListItem,
   PageMeta,
   PaginationParams,
   Pass,
@@ -17,11 +18,13 @@ import type {
 } from './types';
 
 export interface ListPassesParams extends PaginationParams {
+  property_id?: UUID;
   status?: PassStatus;
   pass_type?: PassType;
   access_request_id?: UUID;
   subject_vehicle_id?: UUID;
   subject_resident_id?: UUID;
+  q?: string;
 }
 
 function toQuery(params: object | undefined): string {
@@ -37,7 +40,7 @@ function toQuery(params: object | undefined): string {
 
 export const passesApi = {
   list(params?: ListPassesParams, opts?: RequestOpts) {
-    return v1Client.get<{ passes: Pass[]; page?: PageMeta }>(
+    return v1Client.get<{ passes: AdminPassListItem[]; page?: PageMeta }>(
       `/passes${toQuery(params)}`,
       opts,
     );
