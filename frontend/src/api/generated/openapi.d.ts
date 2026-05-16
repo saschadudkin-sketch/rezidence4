@@ -1898,14 +1898,18 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAccessRequestRequest"];
+                };
+            };
             responses: {
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AccessRequestResponse"];
+                        "application/json": components["schemas"]["AccessRequestCreateResponse"];
                     };
                 };
                 400: {
@@ -28165,6 +28169,9 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at?: string;
+            guest_instructions?: string | null;
+            guard_notes?: string | null;
+            share_delivery_channels?: ("link" | "qr" | "sms" | "telegram" | "email")[];
         } & {
             [key: string]: unknown;
         };
@@ -28549,6 +28556,35 @@ export interface components {
             }[];
         } & {
             [key: string]: unknown;
+        };
+        CreateAccessRequestRequest: {
+            /** Format: uuid */
+            property_id: string;
+            /** @enum {string} */
+            request_type: "guest_access" | "vehicle_access" | "contractor_access" | "courier_access" | "service_access" | "temporary_resident_access";
+            visitor_name?: string | null;
+            visitor_phone?: string | null;
+            /** Format: uuid */
+            vehicle_id?: string | null;
+            /** Format: uuid */
+            target_unit_id?: string | null;
+            /** Format: uuid */
+            target_zone_id?: string | null;
+            /** Format: uuid */
+            target_point_id?: string | null;
+            request_id?: string | null;
+            reason?: string | null;
+            guest_instructions?: string | null;
+            guard_notes?: string | null;
+            share_delivery_channels?: ("link" | "qr" | "sms" | "telegram" | "email")[];
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+        };
+        AccessRequestCreateResponse: {
+            access_request: components["schemas"]["AccessRequest"];
+            pass?: components["schemas"]["Pass"] | null;
         };
     };
     responses: never;

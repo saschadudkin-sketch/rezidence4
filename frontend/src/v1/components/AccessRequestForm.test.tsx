@@ -145,4 +145,29 @@ describe('AccessRequestForm Phase 3 UX payload', () => {
     expect(onCreated).toHaveBeenCalledWith(makeRequest(), expect.objectContaining({ id: PASS_ID }));
     expect(await screen.findByText(`${window.location.origin}/p/${'a'.repeat(32)}`)).toBeInTheDocument();
   });
+
+  test('shows retry when QR link fetch fails after auto-approval', async () => {
+    const onCreated = vi.fn();
+    getQrMock
+      .mockRejectedValueOnce(new Error('qr unavailable'))
+      .mockResolvedValueOnce({ qr: { id: 'qr-2', token: 'b'.repeat(32), render_version: 1, created_at: '2026-05-16T09:56:00.000Z' } });
+
+    render(
+      <AccessRequestForm
+        propertyId={PROPERTY_ID}
+        units={[{ id: UNIT_ID, unit_number: '12', unit_type: 'apartment' } as Pick<Unit, 'id' | 'unit_number' | 'unit_type'>]}
+        vehicles={[] as Vehicle[]}
+        onCreated={onCreated}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Имя посетителя'), { target: { value: 'Гость' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать заявку' }));
+
+    expect(await screen.findByText(/Не удалось получить ссылку\/QR/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Получить ссылку' }));
+
+    expect(await screen.findByText(`${window.location.origin}/p/${'b'.repeat(32)}`)).toBeInTheDocument();
+    expect(getQrMock).toHaveBeenCalledTimes(2);
+  });
 });

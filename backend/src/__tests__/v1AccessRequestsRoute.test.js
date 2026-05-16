@@ -30,6 +30,7 @@ const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 const UUID_VEHICLE = '99999999-9999-4999-8999-999999999999';
 const UUID_POLICY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const UUID_OTHER_UNIT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 function buildApp({ featureFlags = null } = {}) {
   const app = express();
@@ -341,6 +342,30 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(insertCall[1][13]).toBe('Показать QR на северном КПП');
     expect(insertCall[1][14]).toBe('Проверить паспорт');
     expect(JSON.parse(insertCall[1][15])).toEqual(['link', 'qr']);
+  });
+
+  test('resident create rejects target_unit_id that is not linked to resident', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM units')) {
+        return Promise.resolve({ rows: [{ id: UUID_OTHER_UNIT, property_id: UUID_PROPERTY }] });
+      }
+      if (sql.includes('external_uid')) {
+        return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      }
+      if (sql.includes('resident_unit_links')) {
+        return Promise.resolve({ rows: [] });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-requests')
+      .send(validCreatePayload({ target_unit_id: UUID_OTHER_UNIT }));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('target_unit_id does not belong to resident');
+    expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
   test('resident vehicle_access can only use a vehicle owned by that resident', async () => {

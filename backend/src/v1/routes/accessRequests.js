@@ -168,6 +168,52 @@ async function validateVehicleForRequest(req, res, { vehicleId, propertyId }) {
   return true;
 }
 
+async function validateUnitForRequest(req, res, { unitId, propertyId }) {
+  if (!unitId) return true;
+  const { rows } = await getDb(req).query(
+    `SELECT id, property_id
+       FROM units
+      WHERE id = $1`,
+    [unitId],
+  );
+  if (!rows[0]) {
+    res.status(400).json({ error: 'target_unit_id does not exist' });
+    return false;
+  }
+  if (rows[0].property_id !== propertyId) {
+    res.status(403).json({ error: 'target_unit_id belongs to another property' });
+    return false;
+  }
+  if (can(req.user, 'requests:read') || isContractorRole(req.user.role)) return true;
+
+  const residentId = await requireResidentId(req, res);
+  if (!residentId) return false;
+  const membership = await getDb(req).query(
+    `SELECT 1
+       FROM residents
+      WHERE id = $1
+        AND property_id = $2
+        AND unit_id = $3
+        AND is_active = true
+     UNION
+     SELECT 1
+       FROM resident_unit_links
+      WHERE resident_id = $1
+        AND property_id = $2
+        AND unit_id = $3
+        AND is_active = true
+        AND (starts_at IS NULL OR starts_at <= NOW())
+        AND (ends_at IS NULL OR ends_at > NOW())
+      LIMIT 1`,
+    [residentId, propertyId, unitId],
+  );
+  if (!membership.rows[0]) {
+    res.status(403).json({ error: 'target_unit_id does not belong to resident' });
+    return false;
+  }
+  return true;
+}
+
 function canReadRequests(req, propertyId) {
   return canInPropertyScope(req, 'requests:read', propertyId);
 }
@@ -431,6 +477,9 @@ router.post('/', idempotency, async (req, res, next) => {
       return res.status(400).json({ error: 'vehicle_access requires vehicle_id' });
     }
     if (!(await validateVehicleForRequest(req, res, { vehicleId: vehicle_id, propertyId: property_id }))) {
+      return;
+    }
+    if (!(await validateUnitForRequest(req, res, { unitId: target_unit_id, propertyId: property_id }))) {
       return;
     }
     // guest_access/courier_access: visitor_name рекомендуется (не enforce сейчас).

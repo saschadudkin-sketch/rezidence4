@@ -180,6 +180,7 @@ export function AccessRequestForm({
     request: AccessRequest;
     pass: PassSummary | null;
     shareUrl: string | null;
+    qrError: string | null;
   } | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -228,6 +229,29 @@ export function AccessRequestForm({
     return e;
   }
 
+  async function getShareUrl(passId: UUID): Promise<{ shareUrl: string | null; qrError: string | null }> {
+    try {
+      const qrRes = await passesApi.getQr(passId);
+      return {
+        shareUrl: `${window.location.origin}/p/${qrRes.qr.token}`,
+        qrError: null,
+      };
+    } catch {
+      return {
+        shareUrl: null,
+        qrError: 'Не удалось получить ссылку/QR. Попробуйте ещё раз.',
+      };
+    }
+  }
+
+  async function retryShareUrl() {
+    if (!lastCreated?.pass?.id) return;
+    setSubmitting(true);
+    const qrState = await getShareUrl(lastCreated.pass.id);
+    setLastCreated((prev) => (prev ? { ...prev, ...qrState } : prev));
+    setSubmitting(false);
+  }
+
   async function submit(ev: FormEvent) {
     ev.preventDefault();
     const v = validate();
@@ -253,16 +277,14 @@ export function AccessRequestForm({
         share_delivery_channels: ['link', 'qr'],
       };
       const res = await accessRequestsApi.create(body);
-      let shareUrl: string | null = null;
+      let qrState: { shareUrl: string | null; qrError: string | null } = {
+        shareUrl: null,
+        qrError: null,
+      };
       if (res.pass?.id) {
-        try {
-          const qrRes = await passesApi.getQr(res.pass.id);
-          shareUrl = `${window.location.origin}/p/${qrRes.qr.token}`;
-        } catch {
-          shareUrl = null;
-        }
+        qrState = await getShareUrl(res.pass.id);
       }
-      setLastCreated({ request: res.access_request, pass: res.pass ?? null, shareUrl });
+      setLastCreated({ request: res.access_request, pass: res.pass ?? null, ...qrState });
       onCreated(res.access_request, res.pass ?? null);
     } catch (err) {
       if (isV1ApiError(err)) {
@@ -294,6 +316,13 @@ export function AccessRequestForm({
             Заявка создана. {lastCreated.shareUrl ? (
               <>
                 Ссылка для гостя: <a href={lastCreated.shareUrl} target="_blank" rel="noreferrer">{lastCreated.shareUrl}</a>
+              </>
+            ) : lastCreated.qrError && lastCreated.pass?.id ? (
+              <>
+                {lastCreated.qrError}{' '}
+                <Button type="button" variant="ghost" onClick={retryShareUrl} disabled={submitting}>
+                  Получить ссылку
+                </Button>
               </>
             ) : lastCreated.request.status === 'approved' ? (
               'Пропуск одобрен, ссылка появится после выпуска QR.'

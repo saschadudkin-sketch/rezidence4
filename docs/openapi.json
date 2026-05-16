@@ -1736,7 +1736,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessRequestResponse"
+                  "$ref": "#/components/schemas/AccessRequestCreateResponse"
                 }
               }
             }
@@ -1747,6 +1747,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessRequestRequest"
               }
             }
           }
@@ -26706,6 +26716,27 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "guest_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "guard_notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "share_delivery_channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "link",
+                "qr",
+                "sms",
+                "telegram",
+                "email"
+              ]
+            }
           }
         }
       },
@@ -27914,6 +27945,117 @@
               "type": "object",
               "additionalProperties": true
             }
+          }
+        }
+      },
+      "CreateAccessRequestRequest": {
+        "type": "object",
+        "required": [
+          "property_id",
+          "request_type",
+          "starts_at",
+          "ends_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request_type": {
+            "type": "string",
+            "enum": [
+              "guest_access",
+              "vehicle_access",
+              "contractor_access",
+              "courier_access",
+              "service_access",
+              "temporary_resident_access"
+            ]
+          },
+          "visitor_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "visitor_phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "vehicle_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_unit_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_zone_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "target_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "guest_instructions": {
+            "type": "string",
+            "nullable": true
+          },
+          "guard_notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "share_delivery_channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "link",
+                "qr",
+                "sms",
+                "telegram",
+                "email"
+              ]
+            }
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AccessRequestCreateResponse": {
+        "type": "object",
+        "required": [
+          "access_request"
+        ],
+        "properties": {
+          "access_request": {
+            "$ref": "#/components/schemas/AccessRequest"
+          },
+          "pass": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Pass"
+              }
+            ]
           }
         }
       }
