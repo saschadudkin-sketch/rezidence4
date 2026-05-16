@@ -62,6 +62,24 @@ const ACTION_LABELS: Record<GuardActionMode, string> = {
 
 const OFFLINE_QUEUE_PREFIX = 'rz:v1:security-offline:';
 const OFFLINE_QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
+const PUBLIC_PASS_TOKEN_RE = /^[0-9a-f]{32}(?:[0-9a-f]{32})?$/i;
+
+export function extractQrTokenForVerify(rawValue: string): string {
+  const trimmed = rawValue.trim();
+  if (PUBLIC_PASS_TOKEN_RE.test(trimmed)) return trimmed;
+
+  try {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://domhub.local';
+    const url = new URL(trimmed, base);
+    const match = url.pathname.match(/\/p\/([0-9a-f]{32}(?:[0-9a-f]{32})?)(?:\/)?$/i);
+    if (match) return match[1];
+  } catch {
+    // Fall through to the loose path match so pasted URL fragments still work.
+  }
+
+  const match = trimmed.match(/\/p\/([0-9a-f]{32}(?:[0-9a-f]{32})?)(?:[/?#]|$)/i);
+  return match?.[1] ?? trimmed;
+}
 
 function offlineQueueKey(propertyId: UUID): string {
   return `${OFFLINE_QUEUE_PREFIX}${propertyId}`;
@@ -238,19 +256,20 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
     setSubmitting(true);
     setError(null);
     try {
+      const verifyValue = mode === 'qr' ? extractQrTokenForVerify(trimmed) : normalizePlate(trimmed);
       const body =
         mode === 'qr'
           ? {
             property_id: propertyId,
             mode,
-            token: trimmed,
+            token: verifyValue,
             access_point_id: selectedPointId || null,
             direction,
           }
           : {
             property_id: propertyId,
             mode,
-            plate: normalizePlate(trimmed),
+            plate: verifyValue,
             access_point_id: selectedPointId || null,
             direction,
           };
@@ -261,7 +280,7 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
           {
             at: new Date().toISOString(),
             mode,
-            value: mode === 'plate' ? normalizePlate(trimmed) : trimmed,
+            value: verifyValue,
             pointName: selectedPoint?.name,
             direction,
             allowed: res.allowed,
@@ -270,7 +289,7 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
           ...prev,
         ].slice(0, 20),
       );
-      onVerified?.(res, { mode, value: trimmed, access_point_id: selectedPointId || null, direction });
+      onVerified?.(res, { mode, value: verifyValue, access_point_id: selectedPointId || null, direction });
       setValue('');
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось выполнить проверку');
@@ -521,7 +540,7 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
             hint={
               mode === 'plate'
                 ? 'Ввод автоматически приводится к верхнему регистру'
-                : 'Токен — 32-значная hex-строка'
+                : 'Можно вставить токен или ссылку /p/<token>'
             }
           >
             <Input

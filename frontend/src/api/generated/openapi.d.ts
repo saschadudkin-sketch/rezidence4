@@ -28661,17 +28661,21 @@ export interface components {
             policy: components["schemas"]["AccessPolicy"];
         };
         PublicPassResponse: {
-            visitor_label?: string | null;
+            /** @enum {string} */
+            status?: "active" | "pending" | "used" | "expired" | "revoked" | "blocked" | "valid" | "invalid";
+            visitorName?: string | null;
+            propertyName?: string | null;
+            apartment?: string | null;
+            destinationLabel?: string | null;
             /** Format: date-time */
-            valid_from?: string | null;
+            validFrom?: string | null;
             /** Format: date-time */
-            valid_until?: string | null;
-            qr?: {
-                [key: string]: unknown;
-            } | null;
-            property?: {
-                [key: string]: unknown;
-            } | null;
+            validUntil?: string | null;
+            type?: string;
+            passType?: string | null;
+            accessPointName?: string | null;
+            accessZoneName?: string | null;
+            guestInstructions?: string | null;
         };
         AccessEventEnvelope: {
             event_id: string;

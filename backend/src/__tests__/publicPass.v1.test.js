@@ -27,7 +27,7 @@ describe('publicPass route v1 cutover', () => {
             pass_id: 'pass-1',
             pass_type: 'guest',
             subject_type: 'guest',
-            valid_from: '2026-05-16T10:00:00.000Z',
+            valid_from: '2020-05-16T10:00:00.000Z',
             valid_until: '2099-05-16T12:00:00.000Z',
             status: 'active',
             access_request_id: 'ar-1',
@@ -53,15 +53,15 @@ describe('publicPass route v1 cutover', () => {
       propertyName: 'ЖК Замоскворечье',
       apartment: '12',
       destinationLabel: 'Квартира 12',
-      validFrom: '2026-05-16T10:00:00.000Z',
+      validFrom: '2020-05-16T10:00:00.000Z',
       validUntil: '2099-05-16T12:00:00.000Z',
       type: 'Гостевой',
       passType: 'guest',
       accessPointName: 'КПП Север',
       accessZoneName: 'Паркинг',
       guestInstructions: null,
-      passId: 'pass-1',
     }));
+    expect(res.body).not.toHaveProperty('passId');
     expect(JSON.stringify(res.body)).not.toContain('must-not-leak');
     expect(JSON.stringify(res.body)).not.toContain('+79990001122');
     expect(db.query).toHaveBeenCalledTimes(1);
@@ -101,8 +101,8 @@ describe('publicPass route v1 cutover', () => {
       passType: 'delivery',
       accessPointName: null,
       accessZoneName: null,
-      passId: 'legacy-qr-1',
     }));
+    expect(res.body).not.toHaveProperty('passId');
     expect(db.query).toHaveBeenCalledTimes(2);
   });
 
@@ -129,6 +129,32 @@ describe('publicPass route v1 cutover', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('revoked');
+  });
+
+  test('marks future v1 pass as pending instead of active', async () => {
+    const db = {
+      query: jest.fn(async () => ({
+        rows: [{
+          pass_id: 'pass-future',
+          pass_type: 'guest',
+          valid_from: '2099-05-16T10:00:00.000Z',
+          valid_until: '2099-05-16T12:00:00.000Z',
+          status: 'active',
+          request_type: 'guest_access',
+          visitor_name: 'Будущий гость',
+          unit_number: '8',
+          unit_type: 'apartment',
+          access_point_name: null,
+          access_zone_name: null,
+        }],
+      })),
+    };
+
+    const res = await request(buildApp(db)).get(`/api/v1/public/pass/${'d'.repeat(32)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+    expect(res.body.validFrom).toBe('2099-05-16T10:00:00.000Z');
   });
 
   test('rejects unsupported token shapes as not found', async () => {

@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import styles from './GuestPassPage.module.css';
 
-type PassStatus = 'active' | 'used' | 'expired' | 'revoked' | 'blocked' | 'valid' | 'invalid';
+type PassStatus = 'active' | 'pending' | 'used' | 'expired' | 'revoked' | 'blocked' | 'valid' | 'invalid';
 
 type PublicPass = {
   status: PassStatus;
@@ -43,7 +43,6 @@ type PublicPass = {
   accessPointName?: string | null;
   accessZoneName?: string | null;
   guestInstructions?: string | null;
-  passId: string;
 };
 
 type FetchState =
@@ -66,6 +65,7 @@ function statusLabel(status: PassStatus): string {
   switch (status) {
     case 'active': return 'Действителен';
     case 'valid': return 'Действителен';
+    case 'pending': return 'Действует позже';
     case 'used': return 'Уже использован';
     case 'expired': return 'Срок истёк';
     case 'revoked': return 'Отозван';

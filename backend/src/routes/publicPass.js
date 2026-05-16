@@ -30,6 +30,7 @@ function passStatus(row) {
   if (row.status === 'used') return 'used';
   if (row.valid_until && new Date(row.valid_until).getTime() < now) return 'expired';
   if (row.status === 'expired') return 'expired';
+  if (row.valid_from && new Date(row.valid_from).getTime() > now) return 'pending';
   return 'active';
 }
 
@@ -80,7 +81,6 @@ function publicV1Pass(row, propertyName) {
     accessPointName: row.access_point_name || null,
     accessZoneName: row.access_zone_name || null,
     guestInstructions: null,
-    passId: row.pass_id,
   };
 }
 
@@ -98,7 +98,6 @@ function publicLegacyPass(row, propertyName) {
     accessPointName: null,
     accessZoneName: null,
     guestInstructions: null,
-    passId: row.pass_id,
   };
 }
 

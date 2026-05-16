@@ -27896,28 +27896,62 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "visitor_label": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "used",
+              "expired",
+              "revoked",
+              "blocked",
+              "valid",
+              "invalid"
+            ]
+          },
+          "visitorName": {
             "type": "string",
             "nullable": true
           },
-          "valid_from": {
+          "propertyName": {
+            "type": "string",
+            "nullable": true
+          },
+          "apartment": {
+            "type": "string",
+            "nullable": true
+          },
+          "destinationLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "validFrom": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "valid_until": {
+          "validUntil": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "qr": {
-            "type": "object",
-            "additionalProperties": true,
+          "type": {
+            "type": "string"
+          },
+          "passType": {
+            "type": "string",
             "nullable": true
           },
-          "property": {
-            "type": "object",
-            "additionalProperties": true,
+          "accessPointName": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessZoneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "guestInstructions": {
+            "type": "string",
             "nullable": true
           }
         }

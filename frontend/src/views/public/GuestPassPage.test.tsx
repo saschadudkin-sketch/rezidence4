@@ -46,7 +46,6 @@ describe('GuestPassPage', () => {
         accessPointName: 'КПП Север',
         accessZoneName: 'Паркинг',
         guestInstructions: null,
-        passId: 'pass-1',
       }),
     } as Response);
 
@@ -78,7 +77,6 @@ describe('GuestPassPage', () => {
         accessPointName: null,
         accessZoneName: null,
         guestInstructions: null,
-        passId: 'pass-1',
       }),
     } as Response);
 
@@ -103,7 +101,6 @@ describe('GuestPassPage', () => {
         accessPointName: null,
         accessZoneName: null,
         guestInstructions: null,
-        passId: 'legacy-pass-1',
       }),
     } as Response);
 
@@ -112,6 +109,31 @@ describe('GuestPassPage', () => {
     expect(await screen.findByText('Курьер')).toBeInTheDocument();
     expect(screen.getByText(/Доставка/)).toBeInTheDocument();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(`/api/v1/public/pass/${'c'.repeat(64)}`, expect.any(Object));
+  });
+
+  test('renders future pass as pending without active-pass chip', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'pending',
+        visitorName: 'Будущий гость',
+        propertyName: null,
+        apartment: '8',
+        destinationLabel: 'Квартира 8',
+        validFrom: '2099-05-16T10:00:00.000Z',
+        validUntil: '2099-05-16T12:00:00.000Z',
+        type: 'Гостевой',
+        passType: 'guest',
+        accessPointName: null,
+        accessZoneName: null,
+        guestInstructions: null,
+      }),
+    } as Response);
+
+    renderAt('d'.repeat(32));
+
+    expect(await screen.findByText('Действует позже')).toBeInTheDocument();
+    expect(screen.queryByText('Одноразовый проход')).not.toBeInTheDocument();
   });
 
   test('rejects invalid token without calling public endpoint', async () => {
