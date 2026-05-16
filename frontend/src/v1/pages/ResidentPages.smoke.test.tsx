@@ -562,8 +562,8 @@ describe('ResidentNotificationsPage', () => {
 
     renderWithProviders(<ResidentNotificationsPage />);
 
-    expect(await screen.findByText('package.received')).toBeInTheDocument();
-    expect(screen.getByText('announcement.published')).toBeInTheDocument();
+    expect(await screen.findByText('Принята посылка')).toBeInTheDocument();
+    expect(screen.getByText('Опубликовано объявление')).toBeInTheDocument();
     expect(screen.getByText('provider_timeout · timeout')).toBeInTheDocument();
     expect(screen.queryByText(/не показывать/)).not.toBeInTheDocument();
     expect(listMineNotificationsMock).toHaveBeenCalledWith(

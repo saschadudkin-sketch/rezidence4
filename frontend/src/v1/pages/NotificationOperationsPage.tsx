@@ -36,6 +36,29 @@ import type { BadgeTone } from '../components/ui';
 const CHANNELS: NotificationChannel[] = ['web_push', 'sms', 'telegram', 'webhook', 'email'];
 const OUTBOX_STATUSES: OutboxStatus[] = ['pending', 'in_flight', 'sent', 'failed', 'dead'];
 const LOG_STATUSES: NotificationLogStatus[] = ['sent', 'failed'];
+const CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  web_push: 'В приложении',
+  sms: 'SMS',
+  telegram: 'Telegram',
+  webhook: 'Webhook',
+  email: 'Email',
+};
+const STATUS_LABELS: Record<OutboxStatus | NotificationLogStatus, string> = {
+  pending: 'В очереди',
+  in_flight: 'Отправляется',
+  sent: 'Отправлено',
+  failed: 'Ошибка',
+  dead: 'Не доставлено',
+};
+const EVENT_LABELS: Record<string, string> = {
+  'access.request.created': 'Создана заявка на доступ',
+  'access.request.status_changed': 'Изменён статус заявки',
+  'announcement.published': 'Опубликовано объявление',
+  'package.received': 'Принята посылка',
+  'package.reminder': 'Напоминание о посылке',
+  'package.followup': 'Повторное напоминание о посылке',
+  'package.admin_alert': 'Эскалация по посылке',
+};
 const PERIODS: Array<{ value: NotificationLogPeriod; label: string; hours: number }> = [
   { value: '24h', label: '24 часа', hours: 24 },
   { value: '7d', label: '7 дней', hours: 24 * 7 },
@@ -66,6 +89,26 @@ function statusTone(status: OutboxStatus | NotificationLogStatus): BadgeTone {
   if (status === 'dead') return 'error';
   if (status === 'pending' || status === 'in_flight') return 'info';
   return 'neutral';
+}
+
+function statusLabel(status: OutboxStatus | NotificationLogStatus): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
+function channelLabel(channel: NotificationChannel): string {
+  return CHANNEL_LABELS[channel] ?? channel;
+}
+
+function recipientLabel(recipientType: string): string {
+  if (recipientType === 'resident') return 'Житель';
+  if (recipientType === 'staff') return 'Сотрудник';
+  if (recipientType === 'contractor') return 'Подрядчик';
+  if (recipientType === 'external') return 'Внешний адрес';
+  return recipientType;
+}
+
+function eventLabel(eventType: string): string {
+  return EVENT_LABELS[eventType] ?? 'Системное уведомление';
 }
 
 function payloadPreview(payload: Record<string, unknown> | null): string {
@@ -226,11 +269,11 @@ export function NotificationOperationsPage() {
               >
                 <option value="">Все каналы</option>
                 {CHANNELS.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>{channelLabel(item)}</option>
                 ))}
               </Select>
             </Field>
-            <Field id="outbox-status" label="Outbox status">
+            <Field id="outbox-status" label="Статус outbox">
               <Select
                 id="outbox-status"
                 value={outboxStatus}
@@ -238,11 +281,11 @@ export function NotificationOperationsPage() {
               >
                 <option value="">Все</option>
                 {OUTBOX_STATUSES.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>{statusLabel(item)}</option>
                 ))}
               </Select>
             </Field>
-            <Field id="log-status" label="Log status">
+            <Field id="log-status" label="Статус доставки">
               <Select
                 id="log-status"
                 value={logStatus}
@@ -250,7 +293,7 @@ export function NotificationOperationsPage() {
               >
                 <option value="">Все</option>
                 {LOG_STATUSES.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>{statusLabel(item)}</option>
                 ))}
               </Select>
             </Field>
@@ -259,7 +302,7 @@ export function NotificationOperationsPage() {
                 id="outbox-q"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="event, correlation, адрес"
+                placeholder="событие, correlation, адрес"
               />
             </Field>
           </Inline>
@@ -342,10 +385,10 @@ function MetricsSection({
   return (
     <Stack>
       <section className={uiClasses.formGrid} aria-label="Метрики уведомлений">
-        <KpiTile title="Pending" value={outbox?.counts.pending ?? 0} tone={(outbox?.counts.pending ?? 0) > 0 ? 'warning' : 'success'} />
-        <KpiTile title="Failed" value={outbox?.counts.failed ?? 0} tone={(outbox?.counts.failed ?? 0) > 0 ? 'warning' : 'success'} />
-        <KpiTile title="Dead" value={outbox?.counts.dead ?? 0} tone={(outbox?.counts.dead ?? 0) > 0 ? 'error' : 'success'} />
-        <KpiTile title="Success rate" value={formatPercent(successRate)} tone={successRate !== null && successRate < 0.95 ? 'warning' : 'success'} />
+        <KpiTile title="В очереди" value={outbox?.counts.pending ?? 0} tone={(outbox?.counts.pending ?? 0) > 0 ? 'warning' : 'success'} />
+        <KpiTile title="Ошибки" value={outbox?.counts.failed ?? 0} tone={(outbox?.counts.failed ?? 0) > 0 ? 'warning' : 'success'} />
+        <KpiTile title="Не доставлено" value={outbox?.counts.dead ?? 0} tone={(outbox?.counts.dead ?? 0) > 0 ? 'error' : 'success'} />
+        <KpiTile title="Успешность" value={formatPercent(successRate)} tone={successRate !== null && successRate < 0.95 ? 'warning' : 'success'} />
       </section>
 
       <Card
@@ -357,13 +400,13 @@ function MetricsSection({
             {outbox.per_channel.map((row) => (
               <li className={uiClasses.resourceRow} key={row.channel}>
                 <div className={uiClasses.resourceRowMain}>
-                  <p className={uiClasses.resourceTitle}>{row.channel}</p>
+                  <p className={uiClasses.resourceTitle}>{channelLabel(row.channel)}</p>
                   <p className={uiClasses.resourceMeta}>
-                    pending {formatNumber(row.pending)} · failed {formatNumber(row.failed)} · dead {formatNumber(row.dead)}
+                    в очереди {formatNumber(row.pending)} · ошибки {formatNumber(row.failed)} · не доставлено {formatNumber(row.dead)}
                   </p>
                 </div>
                 <Badge tone={row.pending + row.failed + row.dead > 0 ? 'warning' : 'success'}>
-                  sent {formatNumber(row.sent)}
+                  отправлено {formatNumber(row.sent)}
                 </Badge>
               </li>
             ))}
@@ -410,36 +453,36 @@ function OutboxHealthSection({
     <Stack>
       <section className={uiClasses.formGrid} aria-label="Health и SLA outbox">
         <KpiTile
-          title="Feature"
-          value={health?.feature_enabled ? 'enabled' : 'disabled'}
+          title="Outbox worker"
+          value={health?.feature_enabled ? 'включён' : 'выключен'}
           tone={health?.feature_enabled ? 'success' : 'warning'}
         />
         <KpiTile
-          title="Stuck"
+          title="Зависли"
           value={health?.stuck_in_flight ?? 0}
           tone={(health?.stuck_in_flight ?? 0) > 0 ? 'warning' : 'success'}
         />
         <KpiTile
-          title="Over 14d"
+          title="Старше 14д"
           value={sla?.awaiting_pickup_over_14d ?? 0}
           tone={(sla?.awaiting_pickup_over_14d ?? 0) > 0 ? 'warning' : 'success'}
         />
         <KpiTile
-          title="Admin alerts"
+          title="Эскалации"
           value={sla?.admin_alerts_sent_24h ?? 0}
           tone={(sla?.admin_alerts_sent_24h ?? 0) > 0 ? 'info' : 'neutral'}
         />
       </section>
 
       <Card
-        title="Outbox recovery"
-        subtitle={health?.ts ? `Health обновлён ${formatDateTime(health.ts)}` : undefined}
+        title="Восстановление outbox"
+        subtitle={health?.ts ? `Проверено ${formatDateTime(health.ts)}` : undefined}
       >
         <Stack>
           <p className={uiClasses.textMuted}>
-            pending {formatNumber(health?.counts.pending ?? 0)} · failed {formatNumber(failedCount)} · dead {formatNumber(deadCount)}
+            в очереди {formatNumber(health?.counts.pending ?? 0)} · ошибки {formatNumber(failedCount)} · не доставлено {formatNumber(deadCount)}
             {' · '}
-            oldest pending {health?.oldest_pending_age_seconds === null || health?.oldest_pending_age_seconds === undefined
+            старейшее ожидание {health?.oldest_pending_age_seconds === null || health?.oldest_pending_age_seconds === undefined
               ? '—'
               : `${formatNumber(Math.floor(health.oldest_pending_age_seconds / 60))} мин`}
           </p>
@@ -451,10 +494,10 @@ function OutboxHealthSection({
                   disabled={actionsDisabled}
                   onClick={() => onConfirmRetry('failed')}
                 >
-                  Confirm retry failed
+                  Подтвердить повтор ошибок
                 </Button>
                 <Button variant="ghost" disabled={actionsDisabled} onClick={onClearRetry}>
-                  Keep
+                  Оставить
                 </Button>
               </>
             ) : (
@@ -463,7 +506,7 @@ function OutboxHealthSection({
                 disabled={actionsDisabled || failedCount === 0}
                 onClick={() => onRequestRetry('failed')}
               >
-                Retry failed
+                Повторить ошибки
               </Button>
             )}
             {pendingBulkRetry === 'dead' ? (
@@ -473,10 +516,10 @@ function OutboxHealthSection({
                   disabled={actionsDisabled}
                   onClick={() => onConfirmRetry('dead')}
                 >
-                  Confirm retry dead
+                  Подтвердить повтор недоставленных
                 </Button>
                 <Button variant="ghost" disabled={actionsDisabled} onClick={onClearRetry}>
-                  Keep
+                  Оставить
                 </Button>
               </>
             ) : (
@@ -485,7 +528,7 @@ function OutboxHealthSection({
                 disabled={actionsDisabled || deadCount === 0}
                 onClick={() => onRequestRetry('dead')}
               >
-                Retry dead
+                Повторить недоставленные
               </Button>
             )}
           </Inline>
@@ -493,7 +536,7 @@ function OutboxHealthSection({
       </Card>
 
       <Card
-        title="Package notification SLA"
+        title="SLA по посылкам"
         subtitle={sla?.generated_at ? `SLA обновлён ${formatDateTime(sla.generated_at)}` : undefined}
       >
         <ul className={uiClasses.resourceList}>
@@ -501,28 +544,28 @@ function OutboxHealthSection({
             <div className={uiClasses.resourceRowMain}>
               <p className={uiClasses.resourceTitle}>Посылки ожидают выдачи</p>
               <p className={uiClasses.resourceMeta}>
-                всего {formatNumber(sla?.awaiting_pickup_total ?? 0)} · over 7d {formatNumber(sla?.awaiting_pickup_over_7d ?? 0)}
+                всего {formatNumber(sla?.awaiting_pickup_total ?? 0)} · старше 7д {formatNumber(sla?.awaiting_pickup_over_7d ?? 0)}
                 {' · '}
-                over 30d {formatNumber(sla?.awaiting_pickup_over_30d ?? 0)}
+                старше 30д {formatNumber(sla?.awaiting_pickup_over_30d ?? 0)}
               </p>
             </div>
             <Badge tone={(sla?.awaiting_pickup_over_14d ?? 0) > 0 ? 'warning' : 'success'}>
-              over 14d {formatNumber(sla?.awaiting_pickup_over_14d ?? 0)}
+              старше 14д {formatNumber(sla?.awaiting_pickup_over_14d ?? 0)}
             </Badge>
           </li>
           <li className={uiClasses.resourceRow}>
             <div className={uiClasses.resourceRowMain}>
               <p className={uiClasses.resourceTitle}>Уведомления за 24 часа</p>
               <p className={uiClasses.resourceMeta}>
-                reminders {formatNumber(sla?.reminders_sent_24h ?? 0)}
+                напоминания {formatNumber(sla?.reminders_sent_24h ?? 0)}
                 {' · '}
-                followups {formatNumber(sla?.followups_sent_24h ?? 0)}
+                повторы {formatNumber(sla?.followups_sent_24h ?? 0)}
                 {' · '}
-                received {formatNumber(sla?.received_24h ?? 0)}
+                принято {formatNumber(sla?.received_24h ?? 0)}
               </p>
             </div>
             <Badge tone="neutral">
-              thresholds {sla?.thresholds.remind_days ?? '—'}/{sla?.thresholds.followup_days ?? '—'}/{sla?.thresholds.admin_alert_days ?? '—'}d
+              пороги {sla?.thresholds.remind_days ?? '—'}/{sla?.thresholds.followup_days ?? '—'}/{sla?.thresholds.admin_alert_days ?? '—'}д
             </Badge>
           </li>
         </ul>
@@ -555,7 +598,7 @@ function OutboxSection({
   actionsDisabled: boolean;
 }) {
   return (
-    <Card title="Outbox queue">
+    <Card title="Очередь outbox">
       {loading ? <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка очереди…</span></Inline> : null}
       {!loading && rows.length === 0 ? <EmptyState>Нет строк по выбранным фильтрам.</EmptyState> : null}
       {rows.length ? (
@@ -564,15 +607,17 @@ function OutboxSection({
             <li className={uiClasses.resourceRow} key={row.id}>
               <div className={uiClasses.resourceRowMain}>
                 <Inline>
-                  <p className={uiClasses.resourceTitle}>{row.event_type}</p>
-                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
-                  <Badge tone="neutral">{row.channel}</Badge>
+                  <p className={uiClasses.resourceTitle}>{eventLabel(row.event_type)}</p>
+                  <Badge tone={statusTone(row.status)}>{statusLabel(row.status)}</Badge>
+                  <Badge tone="neutral">{channelLabel(row.channel)}</Badge>
                 </Inline>
                 <p className={uiClasses.resourceMeta}>
-                  {row.recipient_type} · {row.recipient_address || row.recipient_id || 'адрес не задан'} · {formatDateTime(row.created_at)}
+                  {recipientLabel(row.recipient_type)} · {row.recipient_address || row.recipient_id || 'адрес не задан'} · {formatDateTime(row.created_at)}
+                  {' · '}
+                  код {row.event_type}
                 </p>
                 <p className={uiClasses.textMuted}>
-                  attempts {row.attempt_count}/{row.max_attempts}
+                  попытки {row.attempt_count}/{row.max_attempts}
                   {row.last_error ? ` · ${row.last_error}` : ''}
                 </p>
                 {openPayloadIds.has(row.id) ? (
@@ -585,14 +630,14 @@ function OutboxSection({
                   disabled={!row.payload}
                   onClick={() => onTogglePayload(row.id)}
                 >
-                  {openPayloadIds.has(row.id) ? 'Hide payload' : 'Payload'}
+                  {openPayloadIds.has(row.id) ? 'Скрыть данные' : 'Показать данные'}
                 </Button>
                 <Button
                   variant="secondary"
                   disabled={actionsDisabled || (row.status !== 'failed' && row.status !== 'dead')}
                   onClick={() => onRequeue(row.id)}
                 >
-                  Requeue
+                  Вернуть в очередь
                 </Button>
                 {pendingCancelId === row.id ? (
                   <>
@@ -601,10 +646,10 @@ function OutboxSection({
                       disabled={actionsDisabled}
                       onClick={() => onConfirmCancel(row.id)}
                     >
-                      Confirm cancel
+                      Подтвердить отмену
                     </Button>
                     <Button variant="ghost" disabled={actionsDisabled} onClick={onClearCancel}>
-                      Keep
+                      Оставить
                     </Button>
                   </>
                 ) : (
@@ -613,7 +658,7 @@ function OutboxSection({
                     disabled={actionsDisabled || (row.status !== 'pending' && row.status !== 'failed')}
                     onClick={() => onRequestCancel(row.id)}
                   >
-                    Cancel
+                    Отменить
                   </Button>
                 )}
               </Inline>
@@ -636,23 +681,25 @@ function NotificationLogSection({
 }) {
   return (
     <Card
-      title="Notification log"
+      title="Лог доставки"
       subtitle={limitMax ? `Серверный лимит выборки: ${formatNumber(limitMax)}` : undefined}
     >
       {loading ? <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка лога…</span></Inline> : null}
-      {!loading && rows.length === 0 ? <EmptyState>Нет delivery-событий за выбранное окно.</EmptyState> : null}
+      {!loading && rows.length === 0 ? <EmptyState>Нет событий доставки за выбранное окно.</EmptyState> : null}
       {rows.length ? (
         <ul className={uiClasses.resourceList}>
           {rows.map((row) => (
             <li className={uiClasses.resourceRow} key={row.id}>
               <div className={uiClasses.resourceRowMain}>
                 <Inline>
-                  <p className={uiClasses.resourceTitle}>{row.event_type}</p>
-                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
-                  <Badge tone="neutral">{row.channel}</Badge>
+                  <p className={uiClasses.resourceTitle}>{eventLabel(row.event_type)}</p>
+                  <Badge tone={statusTone(row.status)}>{statusLabel(row.status)}</Badge>
+                  <Badge tone="neutral">{channelLabel(row.channel)}</Badge>
                 </Inline>
                 <p className={uiClasses.resourceMeta}>
-                  {row.recipient_type} · {row.recipient_address || row.recipient_id || 'адрес скрыт'} · {formatDateTime(row.created_at)}
+                  {recipientLabel(row.recipient_type)} · {row.recipient_address || row.recipient_id || 'адрес скрыт'} · {formatDateTime(row.created_at)}
+                  {' · '}
+                  код {row.event_type}
                 </p>
                 {row.error_code || row.error_message ? (
                   <p className={uiClasses.textMuted}>
@@ -661,7 +708,7 @@ function NotificationLogSection({
                 ) : null}
               </div>
               <Badge tone={row.status === 'sent' ? 'success' : 'warning'}>
-                attempts {formatNumber(row.attempt_count)}
+                попытки {formatNumber(row.attempt_count)}
               </Badge>
             </li>
           ))}

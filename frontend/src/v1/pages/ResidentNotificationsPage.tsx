@@ -17,9 +17,41 @@ import {
 import type { BadgeTone } from '../components/ui';
 
 const LIMIT = 50;
+const CHANNEL_LABELS: Record<NotificationLogRow['channel'], string> = {
+  web_push: 'В приложении',
+  sms: 'SMS',
+  telegram: 'Telegram',
+  webhook: 'Webhook',
+  email: 'Email',
+};
+const STATUS_LABELS: Record<NotificationLogRow['status'], string> = {
+  sent: 'Отправлено',
+  failed: 'Ошибка доставки',
+};
+const EVENT_LABELS: Record<string, string> = {
+  'access.request.created': 'Создана заявка на доступ',
+  'access.request.status_changed': 'Изменён статус заявки',
+  'announcement.published': 'Опубликовано объявление',
+  'package.received': 'Принята посылка',
+  'package.reminder': 'Напоминание о посылке',
+  'package.followup': 'Повторное напоминание о посылке',
+  'package.admin_alert': 'Сообщение управляющей компании о посылке',
+};
 
 function statusTone(status: NotificationLogRow['status']): BadgeTone {
   return status === 'sent' ? 'success' : 'warning';
+}
+
+function statusLabel(status: NotificationLogRow['status']): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
+function channelLabel(channel: NotificationLogRow['channel']): string {
+  return CHANNEL_LABELS[channel] ?? channel;
+}
+
+function eventLabel(eventType: string): string {
+  return EVENT_LABELS[eventType] ?? 'Системное уведомление';
 }
 
 function formatRecipient(row: NotificationLogRow): string {
@@ -42,7 +74,7 @@ export function ResidentNotificationsPage() {
         <ResidentNav />
         <h1 className={uiClasses.pageTitle}>Мои уведомления</h1>
         <p className={uiClasses.pageSubtitle}>
-          Последние delivery-события, отправленные на ваши каналы связи.
+          Последние сообщения, отправленные на ваши каналы связи.
         </p>
       </header>
 
@@ -72,9 +104,9 @@ export function ResidentNotificationsPage() {
                 <li className={uiClasses.resourceRow} key={row.id}>
                   <div className={uiClasses.resourceRowMain}>
                     <Inline>
-                      <p className={uiClasses.resourceTitle}>{row.event_type}</p>
-                      <Badge tone={statusTone(row.status)}>{row.status}</Badge>
-                      <Badge tone="neutral">{row.channel}</Badge>
+                      <p className={uiClasses.resourceTitle}>{eventLabel(row.event_type)}</p>
+                      <Badge tone={statusTone(row.status)}>{statusLabel(row.status)}</Badge>
+                      <Badge tone="neutral">{channelLabel(row.channel)}</Badge>
                     </Inline>
                     <p className={uiClasses.resourceMeta}>
                       {formatRecipient(row)} · {formatDateTime(row.created_at)}
@@ -90,7 +122,7 @@ export function ResidentNotificationsPage() {
                     ) : null}
                   </div>
                   <Badge tone={row.status === 'sent' ? 'success' : 'warning'}>
-                    attempts {row.attempt_count}
+                    попытки {row.attempt_count}
                   </Badge>
                 </li>
               ))}

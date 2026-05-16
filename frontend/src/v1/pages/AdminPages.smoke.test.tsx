@@ -1045,15 +1045,15 @@ describe('NotificationOperationsPage', () => {
 
     renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
 
-    expect(await screen.findByText('access.request.created')).toBeInTheDocument();
+    expect(await screen.findByText('Создана заявка на доступ')).toBeInTheDocument();
     expect(screen.queryByText(/visible only on demand/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Payload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Показать данные' }));
     expect(screen.getByText(/visible only on demand/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
     expect(cancelAdminOutboxMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отмену' }));
 
     await waitFor(() => {
       expect(cancelAdminOutboxMock).toHaveBeenCalledWith('00000000-0000-0000-0000-0000000000f1');
@@ -1090,13 +1090,13 @@ describe('NotificationOperationsPage', () => {
 
     renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
 
-    expect(await screen.findByText('Outbox recovery')).toBeInTheDocument();
-    expect(screen.getByText('Package notification SLA')).toBeInTheDocument();
+    expect(await screen.findByText('Восстановление outbox')).toBeInTheDocument();
+    expect(screen.getByText('SLA по посылкам')).toBeInTheDocument();
     expect(screen.getByText(/Серверный лимит выборки: 250/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить ошибки' }));
     expect(retryOutboxMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm retry failed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить повтор ошибок' }));
 
     await waitFor(() => {
       expect(retryOutboxMock).toHaveBeenCalledWith({ status: 'failed', limit: 100 });
