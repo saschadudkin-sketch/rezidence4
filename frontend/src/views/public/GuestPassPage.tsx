@@ -26,6 +26,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { apiV1Url } from '../../config/apiBaseUrl';
 import styles from './GuestPassPage.module.css';
 
 type PassStatus = 'active' | 'pending' | 'used' | 'expired' | 'revoked' | 'blocked' | 'valid' | 'invalid';
@@ -114,7 +115,7 @@ export default function GuestPassPage() {
         return;
       }
       try {
-        const res = await fetch(`/api/v1/public/pass/${token}`, {
+        const res = await fetch(apiV1Url(`/public/pass/${token}`), {
           headers: { Accept: 'application/json' },
           credentials: 'omit',
         });

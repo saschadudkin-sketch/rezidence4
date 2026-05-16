@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { apiV1Url } from '../../config/apiBaseUrl';
 import { api, isV1ApiError } from '../api';
 import { useV1Session } from '../store';
 import { getPropertyLabels } from '../lib/propertyLabels';
@@ -17,7 +18,7 @@ import type { UnitImportResponse } from '../api/units';
 
 function templateUrl(propertyType: string): string {
   const qs = new URLSearchParams({ property_type: propertyType });
-  return `/api/v1/units/import/template?${qs.toString()}`;
+  return apiV1Url(`/units/import/template?${qs.toString()}`);
 }
 
 export function OnboardingAdminPage() {

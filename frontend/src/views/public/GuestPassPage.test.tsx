@@ -13,6 +13,11 @@ vi.mock('qrcode', () => ({
   },
 }));
 
+vi.mock('../../config/apiBaseUrl', () => ({
+  API_BASE_URL: 'https://api.example.test',
+  apiV1Url: (path: string) => `https://api.example.test/api/v1${path.startsWith('/') ? path : `/${path}`}`,
+}));
+
 function renderAt(token: string) {
   render(
     <MemoryRouter initialEntries={[`/p/${token}`]}>
@@ -56,7 +61,7 @@ describe('GuestPassPage', () => {
     expect(screen.getByText('Квартира 12')).toBeInTheDocument();
     expect(screen.getByText('КПП Север · Паркинг')).toBeInTheDocument();
     expect(screen.getByAltText('QR-код пропуска')).toHaveAttribute('src', 'data:image/png;base64,qr');
-    expect(fetchMock).toHaveBeenCalledWith(`/api/v1/public/pass/${'a'.repeat(32)}`, {
+    expect(fetchMock).toHaveBeenCalledWith(`https://api.example.test/api/v1/public/pass/${'a'.repeat(32)}`, {
       headers: { Accept: 'application/json' },
       credentials: 'omit',
     });
@@ -108,7 +113,10 @@ describe('GuestPassPage', () => {
 
     expect(await screen.findByText('Курьер')).toBeInTheDocument();
     expect(screen.getByText(/Доставка/)).toBeInTheDocument();
-    expect(vi.mocked(fetch)).toHaveBeenCalledWith(`/api/v1/public/pass/${'c'.repeat(64)}`, expect.any(Object));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      `https://api.example.test/api/v1/public/pass/${'c'.repeat(64)}`,
+      expect.any(Object),
+    );
   });
 
   test('renders future pass as pending without active-pass chip', async () => {

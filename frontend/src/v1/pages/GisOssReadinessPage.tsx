@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiV1Url } from '../../config/apiBaseUrl';
 import { api, isV1ApiError } from '../api';
 import type { GisOssExportPackage, GisOssExportPayload, GisOssPackageType, UUID } from '../api';
 import { useV1Session } from '../store';
@@ -272,7 +273,8 @@ function PackageList({ rows }: { rows: GisOssExportPackage[] }) {
         const payload = asGisOssPayload(row.export_payload);
         const artifact = payload?.packaging;
         const digest = artifact?.manifest.package_payload_sha256;
-        const artifactHref = `/api/v1/gis-oss/export-packages/${row.id}/artifact?property_id=${row.property_id}`;
+        const qs = new URLSearchParams({ property_id: row.property_id });
+        const artifactHref = apiV1Url(`/gis-oss/export-packages/${encodeURIComponent(row.id)}/artifact?${qs.toString()}`);
         return (
           <li key={row.id} className={uiClasses.resourceRow}>
             <div className={uiClasses.resourceRowMain}>

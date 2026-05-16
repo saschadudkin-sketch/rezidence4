@@ -30,6 +30,11 @@ vi.mock('../api', async () => {
   };
 });
 
+vi.mock('../../config/apiBaseUrl', () => ({
+  API_BASE_URL: 'https://api.example.test',
+  apiV1Url: (path: string) => `https://api.example.test/api/v1${path.startsWith('/') ? path : `/${path}`}`,
+}));
+
 const PROPERTY_ID = '11111111-1111-4111-8111-111111111111';
 const PACKAGE_ID = '22222222-2222-4222-8222-222222222222';
 const DOCUMENT_ID = '33333333-3333-4333-8333-333333333333';
@@ -176,7 +181,7 @@ describe('GisOssReadinessPage', () => {
     expect(await screen.findByText('sha256 bbbbbbbbbbbb')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Скачать JSON' })).toHaveAttribute(
       'href',
-      `/api/v1/gis-oss/export-packages/${PACKAGE_ID}/artifact?property_id=${PROPERTY_ID}`,
+      `https://api.example.test/api/v1/gis-oss/export-packages/${PACKAGE_ID}/artifact?property_id=${PROPERTY_ID}`,
     );
     expect(listExportPackagesMock).toHaveBeenCalledWith(
       { property_id: PROPERTY_ID, limit: 25 },

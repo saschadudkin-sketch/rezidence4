@@ -7,3 +7,8 @@ export const API_CONFIG_ERROR =
   (RUNTIME_ENV.PROD === true) && !configuredApiUrl
     ? 'API URL не настроен. Обратитесь к администратору.'
     : null;
+
+export function apiV1Url(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}/api/v1${normalizedPath}`;
+}
