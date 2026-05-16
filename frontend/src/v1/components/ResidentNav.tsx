@@ -26,6 +26,7 @@ const ITEMS: ReadonlyArray<NavItem> = [
   { to: '/v1/my/packages', label: 'Посылки', aria: 'Мои посылки' },
   { to: '/v1/my/announcements', label: 'Объявления', aria: 'Лента объявлений' },
   { to: '/v1/my/documents', label: 'Документы', aria: 'Документы объекта' },
+  { to: '/v1/my/notifications', label: 'Уведомления', aria: 'Мои уведомления' },
 ];
 
 export function ResidentNav() {

@@ -2102,6 +2102,45 @@ export interface AdminOutboxMetrics {
   generated_at: IsoDateTime;
 }
 
+export interface AdminOutboxSla {
+  ok: true;
+  awaiting_pickup_total: number;
+  awaiting_pickup_over_7d: number;
+  awaiting_pickup_over_14d: number;
+  awaiting_pickup_over_30d: number;
+  reminders_sent_24h: number;
+  followups_sent_24h: number;
+  admin_alerts_sent_24h: number;
+  received_24h: number;
+  thresholds: {
+    remind_days: number;
+    followup_days: number;
+    admin_alert_days: number;
+  };
+  generated_at: IsoDateTime;
+}
+
+export interface OutboxHealthResponse {
+  ok: true;
+  feature_enabled: boolean;
+  counts: Record<OutboxStatus, number>;
+  stuck_in_flight: number;
+  oldest_pending_age_seconds: number | null;
+  ts: IsoDateTime;
+}
+
+export interface OutboxRetryBody {
+  ids?: UUID[];
+  status?: Extract<OutboxStatus, 'dead' | 'failed'>;
+  limit?: number;
+}
+
+export interface OutboxRetryResponse {
+  ok: true;
+  revived: number;
+  revivedIds: UUID[];
+}
+
 export interface NotificationLogRow {
   id: UUID;
   property_id?: UUID | null;
@@ -2142,6 +2181,11 @@ export interface NotificationLogMetrics {
   }>;
   top_events: Array<{ event_type: string; total: number }>;
   top_errors: Array<{ error_code: string; total: number }>;
+}
+
+export interface NotificationLogMetaResponse {
+  ok: true;
+  limit_max: number;
 }
 
 // ─── Composite response shapes (exactly what the backend returns) ──────────

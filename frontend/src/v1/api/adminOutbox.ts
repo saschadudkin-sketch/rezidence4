@@ -8,7 +8,11 @@ import type {
   AdminOutboxListResponse,
   AdminOutboxMetrics,
   AdminOutboxRow,
+  AdminOutboxSla,
   NotificationChannel,
+  OutboxHealthResponse,
+  OutboxRetryBody,
+  OutboxRetryResponse,
   OutboxStatus,
   UUID,
 } from './types';
@@ -41,6 +45,22 @@ export const adminOutboxApi = {
 
   metrics(opts?: RequestOpts) {
     return v1Client.get<AdminOutboxMetrics>('/admin/outbox/metrics', opts);
+  },
+
+  sla(opts?: RequestOpts) {
+    return v1Client.get<AdminOutboxSla>('/admin/outbox/sla', opts);
+  },
+
+  health(opts?: RequestOpts) {
+    return v1Client.get<OutboxHealthResponse>('/notifications/outbox/health', opts);
+  },
+
+  retry(body: OutboxRetryBody, opts?: RequestOpts) {
+    return v1Client.post<OutboxRetryResponse>(
+      '/notifications/outbox/retry',
+      body,
+      opts,
+    );
   },
 
   getById(id: UUID, opts?: RequestOpts) {

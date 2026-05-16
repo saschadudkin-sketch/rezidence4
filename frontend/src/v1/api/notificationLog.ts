@@ -7,6 +7,7 @@ import { v1Client, type RequestOpts } from './client';
 import type {
   NotificationChannel,
   NotificationLogListResponse,
+  NotificationLogMetaResponse,
   NotificationLogMetrics,
   NotificationLogRow,
   NotificationLogStatus,
@@ -52,6 +53,10 @@ export const notificationLogApi = {
       `/admin/notification-log/metrics${toQuery({ period })}`,
       opts,
     );
+  },
+
+  meta(opts?: RequestOpts) {
+    return v1Client.get<NotificationLogMetaResponse>('/notification-log/_meta', opts);
   },
 
   getById(id: UUID, opts?: RequestOpts) {

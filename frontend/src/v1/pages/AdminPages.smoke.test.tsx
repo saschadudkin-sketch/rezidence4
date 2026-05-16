@@ -28,6 +28,8 @@ import type {
   Package,
   AdminOutboxRow,
   AdminOutboxMetrics,
+  AdminOutboxSla,
+  OutboxHealthResponse,
   NotificationLogMetrics,
   UserMe,
   V1Document,
@@ -47,10 +49,14 @@ const {
   getOperationsDashboardMock,
   getManagementCompanyPortfolioMock,
   getAdminOutboxMetricsMock,
+  getAdminOutboxSlaMock,
+  getOutboxHealthMock,
+  retryOutboxMock,
   listAdminOutboxMock,
   requeueAdminOutboxMock,
   cancelAdminOutboxMock,
   getNotificationLogMetricsMock,
+  getNotificationLogMetaMock,
   listNotificationLogMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
@@ -60,10 +66,14 @@ const {
   getOperationsDashboardMock: vi.fn(),
   getManagementCompanyPortfolioMock: vi.fn(),
   getAdminOutboxMetricsMock: vi.fn(),
+  getAdminOutboxSlaMock: vi.fn(),
+  getOutboxHealthMock: vi.fn(),
+  retryOutboxMock: vi.fn(),
   listAdminOutboxMock: vi.fn(),
   requeueAdminOutboxMock: vi.fn(),
   cancelAdminOutboxMock: vi.fn(),
   getNotificationLogMetricsMock: vi.fn(),
+  getNotificationLogMetaMock: vi.fn(),
   listNotificationLogMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
@@ -117,12 +127,16 @@ vi.mock('../api', async () => {
       },
       adminOutbox: {
         metrics: getAdminOutboxMetricsMock,
+        sla: getAdminOutboxSlaMock,
+        health: getOutboxHealthMock,
+        retry: retryOutboxMock,
         list: listAdminOutboxMock,
         requeue: requeueAdminOutboxMock,
         cancel: cancelAdminOutboxMock,
       },
       notificationLog: {
         metrics: getNotificationLogMetricsMock,
+        meta: getNotificationLogMetaMock,
         list: listNotificationLogMock,
       },
       // Unused by admin pages; kept for barrel-shape safety.
@@ -518,6 +532,39 @@ function makeAdminOutboxMetrics(
     per_event_type: [{ event_type: 'access.request.created', total: 1 }],
     oldest_pending_age_seconds: 30,
     generated_at: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeAdminOutboxSla(overrides: Partial<AdminOutboxSla> = {}): AdminOutboxSla {
+  return {
+    ok: true,
+    awaiting_pickup_total: 5,
+    awaiting_pickup_over_7d: 2,
+    awaiting_pickup_over_14d: 1,
+    awaiting_pickup_over_30d: 0,
+    reminders_sent_24h: 3,
+    followups_sent_24h: 1,
+    admin_alerts_sent_24h: 1,
+    received_24h: 4,
+    thresholds: {
+      remind_days: 7,
+      followup_days: 14,
+      admin_alert_days: 30,
+    },
+    generated_at: '2026-05-10T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeOutboxHealth(overrides: Partial<OutboxHealthResponse> = {}): OutboxHealthResponse {
+  return {
+    ok: true,
+    feature_enabled: true,
+    counts: { pending: 1, in_flight: 0, sent: 10, failed: 1, dead: 1 },
+    stuck_in_flight: 0,
+    oldest_pending_age_seconds: 120,
+    ts: '2026-05-10T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -950,10 +997,14 @@ describe('ManagementCompanyPortfolioPage', () => {
 describe('NotificationOperationsPage', () => {
   beforeEach(() => {
     getAdminOutboxMetricsMock.mockReset();
+    getAdminOutboxSlaMock.mockReset();
+    getOutboxHealthMock.mockReset();
+    retryOutboxMock.mockReset();
     listAdminOutboxMock.mockReset();
     requeueAdminOutboxMock.mockReset();
     cancelAdminOutboxMock.mockReset();
     getNotificationLogMetricsMock.mockReset();
+    getNotificationLogMetaMock.mockReset();
     listNotificationLogMock.mockReset();
   });
 
@@ -962,13 +1013,18 @@ describe('NotificationOperationsPage', () => {
 
     expect(screen.getByText(/администратор не привязан к объекту/i)).toBeInTheDocument();
     expect(getAdminOutboxMetricsMock).not.toHaveBeenCalled();
+    expect(getAdminOutboxSlaMock).not.toHaveBeenCalled();
+    expect(getOutboxHealthMock).not.toHaveBeenCalled();
     expect(listAdminOutboxMock).not.toHaveBeenCalled();
     expect(getNotificationLogMetricsMock).not.toHaveBeenCalled();
+    expect(getNotificationLogMetaMock).not.toHaveBeenCalled();
     expect(listNotificationLogMock).not.toHaveBeenCalled();
   });
 
   test('payload скрыт по умолчанию, cancel требует подтверждения', async () => {
     getAdminOutboxMetricsMock.mockResolvedValue(makeAdminOutboxMetrics());
+    getAdminOutboxSlaMock.mockResolvedValue(makeAdminOutboxSla());
+    getOutboxHealthMock.mockResolvedValue(makeOutboxHealth());
     listAdminOutboxMock.mockResolvedValue({
       ok: true,
       items: [makeAdminOutboxRow()],
@@ -977,6 +1033,7 @@ describe('NotificationOperationsPage', () => {
       offset: 0,
     });
     getNotificationLogMetricsMock.mockResolvedValue(makeNotificationLogMetrics());
+    getNotificationLogMetaMock.mockResolvedValue({ ok: true, limit_max: 250 });
     listNotificationLogMock.mockResolvedValue({
       ok: true,
       items: [],
@@ -1000,6 +1057,49 @@ describe('NotificationOperationsPage', () => {
 
     await waitFor(() => {
       expect(cancelAdminOutboxMock).toHaveBeenCalledWith('00000000-0000-0000-0000-0000000000f1');
+    });
+  });
+
+  test('health/SLA рендерятся, bulk retry требует подтверждения', async () => {
+    getAdminOutboxMetricsMock.mockResolvedValue(makeAdminOutboxMetrics({
+      counts: { pending: 1, in_flight: 0, sent: 10, failed: 1, dead: 1 },
+    }));
+    getAdminOutboxSlaMock.mockResolvedValue(makeAdminOutboxSla());
+    getOutboxHealthMock.mockResolvedValue(makeOutboxHealth());
+    listAdminOutboxMock.mockResolvedValue({
+      ok: true,
+      items: [makeAdminOutboxRow({ status: 'failed', last_error: 'provider timeout' })],
+      count: 1,
+      limit: 50,
+      offset: 0,
+    });
+    getNotificationLogMetricsMock.mockResolvedValue(makeNotificationLogMetrics());
+    getNotificationLogMetaMock.mockResolvedValue({ ok: true, limit_max: 250 });
+    listNotificationLogMock.mockResolvedValue({
+      ok: true,
+      items: [],
+      count: 0,
+      limit: 50,
+      offset: 0,
+    });
+    retryOutboxMock.mockResolvedValue({
+      ok: true,
+      revived: 1,
+      revivedIds: ['00000000-0000-0000-0000-0000000000f1'],
+    });
+
+    renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByText('Outbox recovery')).toBeInTheDocument();
+    expect(screen.getByText('Package notification SLA')).toBeInTheDocument();
+    expect(screen.getByText(/Серверный лимит выборки: 250/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry failed' }));
+    expect(retryOutboxMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm retry failed' }));
+
+    await waitFor(() => {
+      expect(retryOutboxMock).toHaveBeenCalledWith({ status: 'failed', limit: 100 });
     });
   });
 });

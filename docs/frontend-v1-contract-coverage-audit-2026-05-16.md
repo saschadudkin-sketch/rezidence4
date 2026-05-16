@@ -14,12 +14,12 @@ Scope: `/api/v1/*` backend operations vs frontend usage in `frontend/src`.
 | Metric | Count |
 |---|---:|
 | Backend mounted `/api/v1` operations | 339 |
-| Frontend-used operations | 166 |
-| Uncovered operations | 174 |
-| Product gap operations after exclusions | 138 |
+| Frontend-used operations | 170 |
+| Uncovered operations | 170 |
+| Product gap operations after exclusions | 134 |
 | Intentionally excluded / non-product-UI operations | 36 |
 
-Verdict: frontend still materially lags backend. The core resident/security/staff happy paths exist, and the previous notifications/outbox slice closed one backend-only area, but property-admin configuration, integrations, privacy, analytics, and deeper incident/request workflows remain incomplete.
+Verdict: frontend still materially lags backend. The notifications/outbox operations slice is now covered, including resident notification history, but property-admin configuration, integrations, privacy, analytics, and deeper incident/request workflows remain incomplete.
 
 ## Priority Findings
 
@@ -90,39 +90,36 @@ Impact: incident handling remains partially read-only and cannot close the loop 
 
 Recommended slice: deepen `AccessAdminPage` incident tab before adding full video-provider management.
 
-### P2: Notification Slice Is Better, But Not Complete
+### P2: Notification Slice Is Now Covered
 
-The new notifications page covers:
+The notifications pages now cover:
 
 - `/api/v1/admin/outbox`
 - `/api/v1/admin/outbox/metrics`
+- `/api/v1/admin/outbox/sla`
 - `/api/v1/admin/outbox/:id`
 - `/api/v1/admin/outbox/:id/requeue`
 - `/api/v1/admin/outbox/:id/cancel`
 - `/api/v1/admin/notification-log`
 - `/api/v1/admin/notification-log/metrics`
 - `/api/v1/admin/notification-log/:id`
+- `/api/v1/notifications/outbox/health`
+- `/api/v1/notifications/outbox/retry`
+- `/api/v1/notification-log/_meta`
+- `/api/v1/notification-log/mine`
 
-Remaining gaps:
+Impact: operators can inspect queue/logs, see health and package-notification SLA, bulk retry failed/dead outbox rows with confirmation, and residents can view their own notification history at `/v1/my/notifications`.
 
-- `/api/v1/admin/outbox/sla`.
-- `/api/v1/notifications/outbox/health`.
-- `/api/v1/notifications/outbox/retry`.
-- `/api/v1/notification-log/_meta`.
-- `GET /api/v1/notification-log/mine` has a client but no resident notification center page.
-
-Impact: operations can inspect queue/logs, but health/SLA and resident notification center are still missing.
-
-Recommended slice: add health/SLA panel to `NotificationOperationsPage`, then add `/v1/my/notifications`.
+Residual risk: provider/channel preference management is still outside this slice because the current backend product surface does not expose a dedicated resident preference contract in the v1 coverage audit.
 
 ## Suggested Execution Order
 
-1. Notifications completion: outbox SLA/health/retry plus resident notification center.
-2. Property admin directory: structure, residents, memberships, staff, contractors.
-3. Request lifecycle depth: detail/history/attachments/emergency queue/evidence.
-4. Access incident workflow: mutation actions plus video evidence linkage.
-5. Integration operations: SKUD hardware, ERP, webhooks, video providers.
-6. Privacy compliance UI.
+1. Property admin directory: structure, residents, memberships, staff, contractors.
+2. Request lifecycle depth: detail/history/attachments/emergency queue/evidence.
+3. Access incident workflow: mutation actions plus video evidence linkage.
+4. Integration operations: SKUD hardware, ERP, webhooks, video providers.
+5. Privacy compliance UI.
+6. Analytics pages: packages, requests, SLA, traffic, snapshots.
 7. Analytics UI beyond operations dashboard, if still needed after dashboard/portfolio rollups.
 
 ## Repeatable Command

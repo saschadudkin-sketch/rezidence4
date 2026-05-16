@@ -21,7 +21,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { Announcement, Package, V1Document } from '../api/types';
+import type { Announcement, NotificationLogRow, Package, V1Document } from '../api/types';
 
 // ─── Module mocks ───────────────────────────────────────────────────────────
 //
@@ -34,12 +34,14 @@ const {
   listAnnouncementsMock,
   listDocumentsMock,
   getDocumentByIdMock,
+  listMineNotificationsMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listMineMock: vi.fn(),
   listAnnouncementsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
   getDocumentByIdMock: vi.fn(),
+  listMineNotificationsMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -57,6 +59,7 @@ vi.mock('../api', () => {
       packages: { listMine: listMineMock },
       announcements: { list: listAnnouncementsMock },
       documents: { list: listDocumentsMock, getById: getDocumentByIdMock },
+      notificationLog: { mine: listMineNotificationsMock },
       // Unused by these pages; kept as shims so accidental touches don't crash.
       accessRequests: { list: neverResolves, getById: neverResolves },
       passes: { list: neverResolves, getById: neverResolves },
@@ -79,6 +82,7 @@ vi.mock('../api', () => {
 import { ResidentPackagesPage } from './ResidentPackagesPage';
 import { ResidentAnnouncementsFeedPage } from './ResidentAnnouncementsFeedPage';
 import { ResidentDocumentsPage } from './ResidentDocumentsPage';
+import { ResidentNotificationsPage } from './ResidentNotificationsPage';
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -156,6 +160,28 @@ function makeDocument(overrides: Partial<V1Document> = {}): V1Document {
     created_at: '2026-04-01T00:00:00Z',
     updated_at: null,
     deleted_at: null,
+    ...overrides,
+  };
+}
+
+function makeNotification(overrides: Partial<NotificationLogRow> = {}): NotificationLogRow {
+  return {
+    id: '00000000-0000-0000-0000-000000000004',
+    property_id: 'prop-1',
+    outbox_id: 'outbox-1',
+    recipient_type: 'resident',
+    recipient_id: 'res-1',
+    recipient_address: 'resident@example.test',
+    channel: 'web_push',
+    event_type: 'package.received',
+    status: 'sent',
+    payload: null,
+    error_code: null,
+    error_message: null,
+    provider_message_id: 'provider-1',
+    attempt_count: 1,
+    sent_at: '2026-04-25T10:05:00Z',
+    created_at: '2026-04-25T10:00:00Z',
     ...overrides,
   };
 }
@@ -498,6 +524,61 @@ describe('ResidentDocumentsPage', () => {
 
     expect(
       await screen.findByText(/Документы пока не опубликованы/),
+    ).toBeInTheDocument();
+  });
+});
+
+// ─── ResidentNotificationsPage ─────────────────────────────────────────────
+
+describe('ResidentNotificationsPage', () => {
+  beforeEach(() => {
+    listMineNotificationsMock.mockReset();
+  });
+
+  test('показывает историю уведомлений без raw payload', async () => {
+    listMineNotificationsMock.mockResolvedValue({
+      ok: true,
+      count: 2,
+      items: [
+        makeNotification({
+          id: 'notif-sent',
+          event_type: 'package.received',
+          status: 'sent',
+          channel: 'web_push',
+          payload: { secret: 'не показывать' },
+        }),
+        makeNotification({
+          id: 'notif-failed',
+          event_type: 'announcement.published',
+          status: 'failed',
+          channel: 'email',
+          error_code: 'provider_timeout',
+          error_message: 'timeout',
+          sent_at: null,
+          attempt_count: 2,
+        }),
+      ],
+    });
+
+    renderWithProviders(<ResidentNotificationsPage />);
+
+    expect(await screen.findByText('package.received')).toBeInTheDocument();
+    expect(screen.getByText('announcement.published')).toBeInTheDocument();
+    expect(screen.getByText('provider_timeout · timeout')).toBeInTheDocument();
+    expect(screen.queryByText(/не показывать/)).not.toBeInTheDocument();
+    expect(listMineNotificationsMock).toHaveBeenCalledWith(
+      50,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  test('empty state — когда уведомлений ещё нет', async () => {
+    listMineNotificationsMock.mockResolvedValue({ ok: true, count: 0, items: [] });
+
+    renderWithProviders(<ResidentNotificationsPage />);
+
+    expect(
+      await screen.findByText(/У вас пока нет уведомлений/),
     ).toBeInTheDocument();
   });
 });

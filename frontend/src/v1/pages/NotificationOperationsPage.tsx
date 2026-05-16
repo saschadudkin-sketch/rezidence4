@@ -5,11 +5,13 @@ import {
   isV1ApiError,
   type AdminOutboxMetrics,
   type AdminOutboxRow,
+  type AdminOutboxSla,
   type NotificationChannel,
   type NotificationLogMetrics,
   type NotificationLogPeriod,
   type NotificationLogRow,
   type NotificationLogStatus,
+  type OutboxHealthResponse,
   type OutboxStatus,
 } from '../api';
 import { useV1Session } from '../store';
@@ -86,6 +88,7 @@ export function NotificationOperationsPage() {
   const [logStatus, setLogStatus] = useState<NotificationLogStatus | ''>('');
   const [period, setPeriod] = useState<NotificationLogPeriod>('24h');
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
+  const [pendingBulkRetry, setPendingBulkRetry] = useState<'failed' | 'dead' | null>(null);
   const [openPayloadIds, setOpenPayloadIds] = useState<Set<string>>(() => new Set());
   const queryClient = useQueryClient();
 
@@ -101,6 +104,16 @@ export function NotificationOperationsPage() {
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.adminOutbox.metrics({ signal }),
   });
+  const outboxSla = useQuery({
+    queryKey: ['v1', 'admin-outbox', 'sla', propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: ({ signal }) => api.adminOutbox.sla({ signal }),
+  });
+  const outboxHealth = useQuery({
+    queryKey: ['v1', 'notifications-outbox', 'health', propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: ({ signal }) => api.adminOutbox.health({ signal }),
+  });
   const outboxList = useQuery({
     queryKey: ['v1', 'admin-outbox', 'list', propertyId, outboxParams],
     enabled: Boolean(propertyId),
@@ -110,6 +123,11 @@ export function NotificationOperationsPage() {
     queryKey: ['v1', 'notification-log', 'metrics', propertyId, period],
     enabled: Boolean(propertyId),
     queryFn: ({ signal }) => api.notificationLog.metrics(period, { signal }),
+  });
+  const notificationMeta = useQuery({
+    queryKey: ['v1', 'notification-log', 'meta', propertyId],
+    enabled: Boolean(propertyId),
+    queryFn: ({ signal }) => api.notificationLog.meta({ signal }),
   });
   const notificationList = useQuery({
     queryKey: ['v1', 'notification-log', 'list', propertyId, period, channel, logStatus],
@@ -125,6 +143,7 @@ export function NotificationOperationsPage() {
   const invalidateOutbox = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['v1', 'admin-outbox'] }),
+      queryClient.invalidateQueries({ queryKey: ['v1', 'notifications-outbox'] }),
       queryClient.invalidateQueries({ queryKey: ['v1', 'notification-log'] }),
     ]);
   };
@@ -140,8 +159,21 @@ export function NotificationOperationsPage() {
       await invalidateOutbox();
     },
   });
+  const retryBulk = useMutation({
+    mutationFn: (status: 'failed' | 'dead') => api.adminOutbox.retry({ status, limit: 100 }),
+    onSuccess: async () => {
+      setPendingBulkRetry(null);
+      await invalidateOutbox();
+    },
+  });
 
-  const error = outboxMetrics.error || outboxList.error || notificationMetrics.error || notificationList.error;
+  const error = outboxMetrics.error
+    || outboxSla.error
+    || outboxHealth.error
+    || outboxList.error
+    || notificationMetrics.error
+    || notificationMeta.error
+    || notificationList.error;
 
   const togglePayload = (id: string) => {
     setOpenPayloadIds((prev) => {
@@ -242,11 +274,25 @@ export function NotificationOperationsPage() {
         {cancel.error ? (
           <Alert tone="error">Не удалось отменить строку: {errorMessage(cancel.error)}</Alert>
         ) : null}
+        {retryBulk.error ? (
+          <Alert tone="error">Не удалось восстановить outbox: {errorMessage(retryBulk.error)}</Alert>
+        ) : null}
 
         <MetricsSection
           outbox={outboxMetrics.data ?? null}
           notifications={notificationMetrics.data ?? null}
           loading={outboxMetrics.isLoading || notificationMetrics.isLoading}
+        />
+
+        <OutboxHealthSection
+          health={outboxHealth.data ?? null}
+          sla={outboxSla.data ?? null}
+          loading={outboxHealth.isLoading || outboxSla.isLoading}
+          pendingBulkRetry={pendingBulkRetry}
+          onRequestRetry={setPendingBulkRetry}
+          onConfirmRetry={(status) => retryBulk.mutate(status)}
+          onClearRetry={() => setPendingBulkRetry(null)}
+          actionsDisabled={retryBulk.isPending}
         />
 
         <OutboxSection
@@ -265,6 +311,7 @@ export function NotificationOperationsPage() {
         <NotificationLogSection
           rows={notificationList.data?.items ?? []}
           loading={notificationList.isLoading}
+          limitMax={notificationMeta.data?.limit_max ?? null}
         />
       </Stack>
     </div>
@@ -324,6 +371,161 @@ function MetricsSection({
         ) : (
           <EmptyState>Нет данных по каналам.</EmptyState>
         )}
+      </Card>
+    </Stack>
+  );
+}
+
+function OutboxHealthSection({
+  health,
+  sla,
+  loading,
+  pendingBulkRetry,
+  onRequestRetry,
+  onConfirmRetry,
+  onClearRetry,
+  actionsDisabled,
+}: {
+  health: OutboxHealthResponse | null;
+  sla: AdminOutboxSla | null;
+  loading: boolean;
+  pendingBulkRetry: 'failed' | 'dead' | null;
+  onRequestRetry: (status: 'failed' | 'dead') => void;
+  onConfirmRetry: (status: 'failed' | 'dead') => void;
+  onClearRetry: () => void;
+  actionsDisabled: boolean;
+}) {
+  const failedCount = health?.counts.failed ?? 0;
+  const deadCount = health?.counts.dead ?? 0;
+
+  if (loading) {
+    return (
+      <Card>
+        <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка health/SLA…</span></Inline>
+      </Card>
+    );
+  }
+
+  return (
+    <Stack>
+      <section className={uiClasses.formGrid} aria-label="Health и SLA outbox">
+        <KpiTile
+          title="Feature"
+          value={health?.feature_enabled ? 'enabled' : 'disabled'}
+          tone={health?.feature_enabled ? 'success' : 'warning'}
+        />
+        <KpiTile
+          title="Stuck"
+          value={health?.stuck_in_flight ?? 0}
+          tone={(health?.stuck_in_flight ?? 0) > 0 ? 'warning' : 'success'}
+        />
+        <KpiTile
+          title="Over 14d"
+          value={sla?.awaiting_pickup_over_14d ?? 0}
+          tone={(sla?.awaiting_pickup_over_14d ?? 0) > 0 ? 'warning' : 'success'}
+        />
+        <KpiTile
+          title="Admin alerts"
+          value={sla?.admin_alerts_sent_24h ?? 0}
+          tone={(sla?.admin_alerts_sent_24h ?? 0) > 0 ? 'info' : 'neutral'}
+        />
+      </section>
+
+      <Card
+        title="Outbox recovery"
+        subtitle={health?.ts ? `Health обновлён ${formatDateTime(health.ts)}` : undefined}
+      >
+        <Stack>
+          <p className={uiClasses.textMuted}>
+            pending {formatNumber(health?.counts.pending ?? 0)} · failed {formatNumber(failedCount)} · dead {formatNumber(deadCount)}
+            {' · '}
+            oldest pending {health?.oldest_pending_age_seconds === null || health?.oldest_pending_age_seconds === undefined
+              ? '—'
+              : `${formatNumber(Math.floor(health.oldest_pending_age_seconds / 60))} мин`}
+          </p>
+          <Inline>
+            {pendingBulkRetry === 'failed' ? (
+              <>
+                <Button
+                  variant="danger"
+                  disabled={actionsDisabled}
+                  onClick={() => onConfirmRetry('failed')}
+                >
+                  Confirm retry failed
+                </Button>
+                <Button variant="ghost" disabled={actionsDisabled} onClick={onClearRetry}>
+                  Keep
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                disabled={actionsDisabled || failedCount === 0}
+                onClick={() => onRequestRetry('failed')}
+              >
+                Retry failed
+              </Button>
+            )}
+            {pendingBulkRetry === 'dead' ? (
+              <>
+                <Button
+                  variant="danger"
+                  disabled={actionsDisabled}
+                  onClick={() => onConfirmRetry('dead')}
+                >
+                  Confirm retry dead
+                </Button>
+                <Button variant="ghost" disabled={actionsDisabled} onClick={onClearRetry}>
+                  Keep
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                disabled={actionsDisabled || deadCount === 0}
+                onClick={() => onRequestRetry('dead')}
+              >
+                Retry dead
+              </Button>
+            )}
+          </Inline>
+        </Stack>
+      </Card>
+
+      <Card
+        title="Package notification SLA"
+        subtitle={sla?.generated_at ? `SLA обновлён ${formatDateTime(sla.generated_at)}` : undefined}
+      >
+        <ul className={uiClasses.resourceList}>
+          <li className={uiClasses.resourceRow}>
+            <div className={uiClasses.resourceRowMain}>
+              <p className={uiClasses.resourceTitle}>Посылки ожидают выдачи</p>
+              <p className={uiClasses.resourceMeta}>
+                всего {formatNumber(sla?.awaiting_pickup_total ?? 0)} · over 7d {formatNumber(sla?.awaiting_pickup_over_7d ?? 0)}
+                {' · '}
+                over 30d {formatNumber(sla?.awaiting_pickup_over_30d ?? 0)}
+              </p>
+            </div>
+            <Badge tone={(sla?.awaiting_pickup_over_14d ?? 0) > 0 ? 'warning' : 'success'}>
+              over 14d {formatNumber(sla?.awaiting_pickup_over_14d ?? 0)}
+            </Badge>
+          </li>
+          <li className={uiClasses.resourceRow}>
+            <div className={uiClasses.resourceRowMain}>
+              <p className={uiClasses.resourceTitle}>Уведомления за 24 часа</p>
+              <p className={uiClasses.resourceMeta}>
+                reminders {formatNumber(sla?.reminders_sent_24h ?? 0)}
+                {' · '}
+                followups {formatNumber(sla?.followups_sent_24h ?? 0)}
+                {' · '}
+                received {formatNumber(sla?.received_24h ?? 0)}
+              </p>
+            </div>
+            <Badge tone="neutral">
+              thresholds {sla?.thresholds.remind_days ?? '—'}/{sla?.thresholds.followup_days ?? '—'}/{sla?.thresholds.admin_alert_days ?? '—'}d
+            </Badge>
+          </li>
+        </ul>
       </Card>
     </Stack>
   );
@@ -426,12 +628,17 @@ function OutboxSection({
 function NotificationLogSection({
   rows,
   loading,
+  limitMax,
 }: {
   rows: NotificationLogRow[];
   loading: boolean;
+  limitMax: number | null;
 }) {
   return (
-    <Card title="Notification log">
+    <Card
+      title="Notification log"
+      subtitle={limitMax ? `Серверный лимит выборки: ${formatNumber(limitMax)}` : undefined}
+    >
       {loading ? <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка лога…</span></Inline> : null}
       {!loading && rows.length === 0 ? <EmptyState>Нет delivery-событий за выбранное окно.</EmptyState> : null}
       {rows.length ? (

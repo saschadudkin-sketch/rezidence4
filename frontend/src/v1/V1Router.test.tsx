@@ -74,7 +74,7 @@ vi.mock('./api', () => {
         listQueue: neverResolves,
         getRequestDetail: neverResolves,
       },
-      packages: { list: neverResolves },
+      packages: { list: neverResolves, listMine: neverResolves },
       gisOssReadiness: {
         getBoundary: neverResolves,
         listExportPackages: neverResolves,
@@ -95,13 +95,18 @@ vi.mock('./api', () => {
       managementCompanyPortfolio: { get: neverResolves },
       adminOutbox: {
         metrics: neverResolves,
+        sla: neverResolves,
+        health: neverResolves,
+        retry: neverResolves,
         list: neverResolves,
         requeue: neverResolves,
         cancel: neverResolves,
       },
       notificationLog: {
         metrics: neverResolves,
+        meta: neverResolves,
         list: neverResolves,
+        mine: neverResolves,
       },
       residents: { getById: neverResolves, offboardingReport: neverResolves },
       units: { list: neverResolves, importRows: neverResolves },
@@ -367,6 +372,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/notifications');
     expect(
       await screen.findByRole('heading', { name: /уведомления и outbox/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('resident deep-linked to /v1/my/notifications reaches resident notifications', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('owner'));
+    renderAt('/v1/my/notifications');
+    expect(
+      await screen.findByRole('heading', { name: /мои уведомления/i }),
     ).toBeInTheDocument();
   });
 

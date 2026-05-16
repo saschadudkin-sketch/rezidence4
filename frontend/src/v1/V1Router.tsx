@@ -53,6 +53,7 @@ const ResidentAccessPage = lazy(() => import('./pages/ResidentAccessPage').then(
 const ResidentPackagesPage = lazy(() => import('./pages/ResidentPackagesPage').then((m) => ({ default: m.ResidentPackagesPage })));
 const ResidentAnnouncementsFeedPage = lazy(() => import('./pages/ResidentAnnouncementsFeedPage').then((m) => ({ default: m.ResidentAnnouncementsFeedPage })));
 const ResidentDocumentsPage = lazy(() => import('./pages/ResidentDocumentsPage').then((m) => ({ default: m.ResidentDocumentsPage })));
+const ResidentNotificationsPage = lazy(() => import('./pages/ResidentNotificationsPage').then((m) => ({ default: m.ResidentNotificationsPage })));
 const GuardConsolePage = lazy(() => import('./pages/GuardConsolePage').then((m) => ({ default: m.GuardConsolePage })));
 const ConciergeRequestDetailPage = lazy(() => import('./pages/ConciergeRequestDetailPage').then((m) => ({ default: m.ConciergeRequestDetailPage })));
 const StaffWorkspacePage = lazy(() => import('./pages/StaffWorkspacePage').then((m) => ({ default: m.StaffWorkspacePage })));
@@ -153,6 +154,14 @@ export function V1Router() {
           element={
             <RoleGate allow={RESIDENT_ALLOW}>
               <ResidentDocumentsPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="my/notifications"
+          element={
+            <RoleGate allow={RESIDENT_ALLOW}>
+              <ResidentNotificationsPage />
             </RoleGate>
           }
         />
