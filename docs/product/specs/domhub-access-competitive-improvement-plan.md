@@ -83,6 +83,11 @@ Frontend work:
   - `bootstrap()`;
   - `search()`;
   - `recentEvents()`.
+- Add explicit frontend DTO/types for:
+  - `SecurityWorkspaceBootstrap`;
+  - `SecurityWorkspaceSearchResult`;
+  - `SecurityWorkspaceRecentEvents`;
+  - expected guests, blacklist hits, station context and scoped search rows.
 - Upgrade `frontend/src/v1/pages/GuardConsolePage.tsx`:
   - expected guests/arrivals panel;
   - recent events panel;
@@ -118,6 +123,10 @@ Current gap:
 Backend work:
 
 - Move public lookup to `qr_passes_v2`, `passes`, `access_requests`, `vehicles`, `access_points`.
+- Standardize public pass token compatibility before cutover:
+  - current public page/route expects 64-hex tokens;
+  - current v1 QR generation may issue shorter hex tokens;
+  - the cutover must either support both token shapes or migrate v1 token generation to the public-pass token contract.
 - Preserve rate limiting and unauthenticated access.
 - Return only public-safe fields:
   - pass status;
@@ -138,6 +147,7 @@ Frontend work:
 Acceptance:
 
 - Public pass link works for v1 QR tokens.
+- Public pass link works for already-issued legacy-compatible tokens during the cutover window.
 - Legacy route compatibility is preserved or explicitly shimmed.
 - Public response excludes resident UID, internal notes and sensitive staff data.
 
@@ -167,10 +177,11 @@ Frontend work:
 
 Backend work:
 
-- Add or standardize fields through `access_requests.metadata` or explicit columns:
+- Add explicit `access_requests` fields for product-critical text that appears in guard/public flows:
   - `guest_instructions`;
   - `guard_notes`;
   - future `share_delivery_channels`.
+- Use metadata only for experimental or integration-only extensions that are not part of the stable resident/security UX.
 - Include these fields in security workspace feeds with role-safe visibility.
 
 Acceptance:
@@ -461,6 +472,12 @@ Testing:
 Feature gating:
 
 - PIN credential, guard authorized devices and enriched admin pass management should be feature-gated until route, UI and audit coverage are complete.
+- Add or reserve explicit feature flags before implementation begins:
+  - `trusted_visitors`;
+  - `pin_credentials`;
+  - `guard_authorized_devices`;
+  - `security_workspace_enriched`;
+  - `public_pass_v1`.
 
 ---
 
@@ -595,11 +612,11 @@ Pattern:
 Why it matters:
 
 - It improves incident review without turning DomHub into a video platform.
-- DomHub already has video evidence and SKUD integration specs; the gap is productizing context in guard/admin views.
+- DomHub already has backend video evidence references, camera mapping and SKUD integration specs; the gap is productizing context in guard/admin views.
 
 Suggested DomHub model:
 
-- Add optional `video_context` projection to visit logs:
+- Add optional `video_context` projection to visit logs by reusing existing video evidence references where possible:
   - provider;
   - camera id;
   - snapshot url;
@@ -769,4 +786,3 @@ Suggested DomHub model:
 Priority:
 
 - P4, platform maturity item.
-

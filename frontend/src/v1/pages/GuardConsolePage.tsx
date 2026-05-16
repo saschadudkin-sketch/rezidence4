@@ -1,43 +1,35 @@
 /**
- * GuardConsolePage — duty station for security / admin roles.
+ * GuardConsolePage - duty station for security / admin roles.
  *
- * Layout is a two-column grid:
- *   ┌──────────────┬──────────────────────────┐
- *   │              │  Tabs: Пропуски | Авто    │
- *   │  ScanPanel   │  ───────────────────────  │
- *   │              │  Active passes / vehicle │
- *   │              │  lookup with inline       │
- *   │              │  revoke / black-list.     │
- *   └──────────────┴──────────────────────────┘
- *
- * Data flow:
- *   - Scan verdict (<ScanPanel>) fires onVerified → we bump a refresh token
- *     so the right-hand tabs refetch.  Verify may flip a pass to `used`,
- *     open an incident, or produce a visit_log that affects downstream
- *     views — refetch is the cheapest correct thing to do.
- *   - Revoke (<PassCard>) replaces the pass in our local list without a
- *     refetch; server state is authoritative so we'll reconcile on the
- *     next tab switch.
- *   - Vehicle lookup is by-plate (getByPlate), a single-row response.
- *     Blacklist/whitelist flips from <VehicleCard> swap the row in place.
- *
- * Session requirements: role ∈ {security, admin}.  We read `property_id`
- * from /auth/me (now resolved server-side via properties.slug join) — if
- * the session lacks one, the page falls back to a guidance alert rather
- * than calling verify with null.
+ * The backend security-workspace API is the initial hydrate surface for this
+ * page. SSE and scan/manual-decision callbacks only trigger incremental
+ * refreshes; they do not own the initial feed shape.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Pass, PropertyType, Vehicle } from '../api/types';
+import type {
+  PropertyType,
+  SecurityWorkspaceActivePass,
+  SecurityWorkspaceBlacklistHit,
+  SecurityWorkspaceBootstrap,
+  SecurityWorkspaceExpectedGuest,
+  SecurityWorkspacePassSearchRow,
+  SecurityWorkspaceRecentEvent,
+  SecurityWorkspaceResidentSearchRow,
+  SecurityWorkspaceSearchResult,
+  SecurityWorkspaceUnitSearchRow,
+  SecurityWorkspaceVehicleSearchRow,
+  UUID,
+} from '../api/types';
 import { api, isV1ApiError } from '../api';
 import { useV1Session, isGuardRole, normalizeUserRole } from '../store';
 import { ScanPanel } from '../components/ScanPanel';
-import { PassCard } from '../components/PassCard';
-import { VehicleCard } from '../components/VehicleCard';
-import { getPropertyLabels, isCheckpointFirstProperty } from '../lib/propertyLabels';
+import { getPropertyLabels, formatUnitLabel } from '../lib/propertyLabels';
 import {
   Alert,
+  Badge,
   Button,
   Card,
   EmptyState,
@@ -48,9 +40,19 @@ import {
   Stack,
   uiClasses,
 } from '../components/ui';
-import { normalizePlate } from '../api';
-
-type RightTab = 'passes' | 'vehicles';
+import {
+  formatDateTime,
+  formatIncidentType,
+  formatPassStatus,
+  formatPassType,
+  formatRequestStatus,
+  formatRequestType,
+  formatSeverity,
+  formatWindow,
+  passStatusTone,
+  requestStatusTone,
+  severityTone,
+} from '../components/formatters';
 
 export function GuardConsolePage() {
   const session = useV1Session();
@@ -60,9 +62,12 @@ export function GuardConsolePage() {
     .includes(normalizeUserRole(session.role));
   const propertyId = session.property_id ?? null;
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
-  const checkpointFirst = isCheckpointFirstProperty(session.property_type);
-  const [tab, setTab] = useState<RightTab>(checkpointFirst ? 'vehicles' : 'passes');
+  const [selectedAccessPointId, setSelectedAccessPointId] = useState<UUID | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+
+  const refreshWorkspace = useCallback(() => {
+    setRefreshToken((t) => t + 1);
+  }, []);
 
   if (!canGuard) {
     return (
@@ -111,181 +116,386 @@ export function GuardConsolePage() {
       <div className={uiClasses.twoColumn}>
         <ScanPanel
           propertyId={propertyId}
-          onVerified={() => setRefreshToken((t) => t + 1)}
+          accessPointId={selectedAccessPointId}
+          onAccessPointChange={setSelectedAccessPointId}
+          onVerified={refreshWorkspace}
         />
 
-        <Stack>
-          <div className={uiClasses.tabs} role="tablist" aria-label="Содержимое консоли">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'passes'}
-              className={`${uiClasses.tab} ${tab === 'passes' ? uiClasses.tabActive : ''}`}
-              onClick={() => setTab('passes')}
-            >
-              {labels.guardPassesTab}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'vehicles'}
-              className={`${uiClasses.tab} ${tab === 'vehicles' ? uiClasses.tabActive : ''}`}
-              onClick={() => setTab('vehicles')}
-            >
-              {labels.guardVehiclesTab}
-            </button>
-          </div>
-
-          {tab === 'passes' ? <ActivePassesTab refreshToken={refreshToken} /> : null}
-          {tab === 'vehicles' ? <VehicleLookupTab propertyType={session.property_type ?? null} /> : null}
-        </Stack>
+        <SecurityWorkspacePane
+          propertyId={propertyId}
+          propertyType={session.property_type ?? null}
+          accessPointId={selectedAccessPointId}
+          refreshToken={refreshToken}
+          onRefresh={refreshWorkspace}
+        />
       </div>
     </div>
   );
 }
 
-// ─── Active passes tab ──────────────────────────────────────────────────────
-
-interface ActivePassesTabProps {
+interface SecurityWorkspacePaneProps {
+  propertyId: UUID;
+  propertyType: PropertyType | null;
+  accessPointId: UUID | null;
   refreshToken: number;
+  onRefresh: () => void;
 }
 
-function ActivePassesTab({ refreshToken }: ActivePassesTabProps) {
-  const [passes, setPasses] = useState<Pass[] | null>(null);
+function SecurityWorkspacePane({
+  propertyId,
+  propertyType,
+  accessPointId,
+  refreshToken,
+  onRefresh,
+}: SecurityWorkspacePaneProps) {
+  const [workspace, setWorkspace] = useState<SecurityWorkspaceBootstrap | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [localRefresh, setLocalRefresh] = useState(0);
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
-      const res = await api.passes.list({ status: 'active', limit: 30 });
-      setPasses(res.passes);
+      const res = await api.securityWorkspace.bootstrap({
+        property_id: propertyId,
+        access_point_id: accessPointId,
+        active_passes_limit: 12,
+        expected_guests_limit: 12,
+        recent_events_limit: 12,
+        blacklist_hits_limit: 8,
+      });
+      setWorkspace(res.workspace);
     } catch (err) {
-      setPasses(null);
-      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить пропуски');
+      setWorkspace(null);
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить рабочее место охраны');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [accessPointId, propertyId]);
 
   useEffect(() => {
     void load();
-  }, [load, refreshToken, localRefresh]);
+  }, [load, refreshToken]);
 
-  const handleRevoked = useCallback((updated: Pass) => {
-    setPasses((prev) => {
-      if (!prev) return prev;
-      // Replace the row; when the pass is no longer `active` it will fall
-      // out of view on next refresh.  We keep it in the list for one more
-      // render so the guard sees the transition and its revoked_reason.
-      return prev.map((p) => (p.id === updated.id ? updated : p));
-    });
-  }, []);
+  const station = workspace?.station_context;
+  const stationSubtitle = station?.access_point
+    ? `${station.access_point.name}${station.access_zone ? ` · ${station.access_zone.name}` : ''}`
+    : 'Без фильтра по КПП';
 
   return (
-    <Card
-      title="Активные пропуски"
-      actions={
-        <Button variant="ghost" onClick={() => setLocalRefresh((t) => t + 1)}>
-          Обновить
-        </Button>
-      }
-    >
-      {error ? <Alert tone="error">{error}</Alert> : null}
-      {passes === null && !error ? (
-        <Inline>
-          <Spinner />
-          <span className={uiClasses.textMuted}>Загрузка…</span>
-        </Inline>
-      ) : passes && passes.length === 0 ? (
-        <EmptyState>Активных пропусков нет.</EmptyState>
-      ) : passes ? (
-        <Stack>
-          {passes.map((p) => (
-            <PassCard key={p.id} pass={p} onRevoked={handleRevoked} />
-          ))}
-        </Stack>
+    <Stack>
+      <Card
+        title="Контекст КПП"
+        subtitle={stationSubtitle}
+        actions={
+          <Button variant="ghost" loading={loading} onClick={onRefresh}>
+            Обновить
+          </Button>
+        }
+      >
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        {!workspace && loading ? (
+          <Inline>
+            <Spinner />
+            <span className={uiClasses.textMuted}>Загрузка контекста…</span>
+          </Inline>
+        ) : workspace ? (
+          <Inline>
+            <Badge tone="info">Ожидаются: {workspace.expected_guests.length}</Badge>
+            <Badge tone="success">Активные: {workspace.active_passes.length}</Badge>
+            <Badge tone={workspace.blacklist_hits.length > 0 ? 'error' : 'neutral'}>
+              Риски: {workspace.blacklist_hits.length}
+            </Badge>
+            <span className={uiClasses.textDim}>Обновлено {formatDateTime(workspace.generated_at)}</span>
+          </Inline>
+        ) : null}
+      </Card>
+
+      <WorkspaceSearch propertyId={propertyId} propertyType={propertyType} accessPointId={accessPointId} />
+
+      {workspace ? (
+        <>
+          <ExpectedGuestsPanel guests={workspace.expected_guests} propertyType={propertyType} />
+          <RecentEventsPanel events={workspace.recent_events} />
+          <BlacklistHitsPanel hits={workspace.blacklist_hits} />
+          <ActivePassesPanel passes={workspace.active_passes} propertyType={propertyType} onRefresh={onRefresh} />
+        </>
       ) : null}
+    </Stack>
+  );
+}
+
+function ExpectedGuestsPanel({
+  guests,
+  propertyType,
+}: {
+  guests: SecurityWorkspaceExpectedGuest[];
+  propertyType: PropertyType | null;
+}) {
+  return (
+    <Card title="Ожидаемые гости">
+      {guests.length === 0 ? (
+        <EmptyState>На ближайшие 24 часа ожидаемых визитов нет.</EmptyState>
+      ) : (
+        <ul className={uiClasses.resourceList}>
+          {guests.map((guest) => (
+            <li key={guest.id} className={uiClasses.resourceRow}>
+              <div className={uiClasses.resourceRowMain}>
+                <p className={uiClasses.resourceTitle}>
+                  {guest.visitor_name || formatRequestType(guest.request_type)}
+                </p>
+                <div className={uiClasses.resourceMeta}>
+                  <span>{formatRequestType(guest.request_type)}</span>
+                  <span>{formatWindow(guest.starts_at, guest.ends_at)}</span>
+                  {guest.unit_number ? (
+                    <span>{formatUnitLabel({ unit_number: guest.unit_number, unit_type: guest.unit_type }, propertyType)}</span>
+                  ) : null}
+                  {guest.plate_number ? <span>{guest.plate_number}</span> : null}
+                  {guest.visitor_phone ? <span>{guest.visitor_phone}</span> : null}
+                </div>
+                {guest.reason ? <p className={uiClasses.textMuted}>{guest.reason}</p> : null}
+              </div>
+              <Badge tone={requestStatusTone(guest.status)}>{formatRequestStatus(guest.status)}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }
 
-// ─── Vehicle lookup tab ─────────────────────────────────────────────────────
-
-interface VehicleLookupTabProps {
-  propertyType?: PropertyType | null;
+function ActivePassesPanel({
+  passes,
+  propertyType,
+  onRefresh,
+}: {
+  passes: SecurityWorkspaceActivePass[];
+  propertyType: PropertyType | null;
+  onRefresh: () => void;
+}) {
+  return (
+    <Card title="Активные пропуски">
+      {passes.length === 0 ? (
+        <EmptyState>Активных пропусков для выбранного КПП нет.</EmptyState>
+      ) : (
+        <ul className={uiClasses.resourceList}>
+          {passes.map((pass) => (
+            <ActivePassRow key={pass.id} pass={pass} propertyType={propertyType} onRefresh={onRefresh} />
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
 }
 
-function VehicleLookupTab({ propertyType }: VehicleLookupTabProps) {
-  const labels = useMemo(() => getPropertyLabels(propertyType), [propertyType]);
-  const [input, setInput] = useState('');
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+function ActivePassRow({
+  pass,
+  propertyType,
+  onRefresh,
+}: {
+  pass: SecurityWorkspaceActivePass;
+  propertyType: PropertyType | null;
+  onRefresh: () => void;
+}) {
+  const [showRevoke, setShowRevoke] = useState(false);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canRevoke = pass.status === 'active' || pass.status === 'blocked';
+
+  async function submitRevoke() {
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setError('Укажите причину отзыва');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.passes.revoke(pass.id, trimmed);
+      setShowRevoke(false);
+      setReason('');
+      onRefresh();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отозвать пропуск');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <li className={uiClasses.resourceRow}>
+      <div className={uiClasses.resourceRowMain}>
+        <p className={uiClasses.resourceTitle}>
+          {pass.resident_name || pass.plate_number || formatPassType(pass.pass_type)}
+        </p>
+        <div className={uiClasses.resourceMeta}>
+          <span>{formatPassType(pass.pass_type)}</span>
+          <span>{formatWindow(pass.valid_from, pass.valid_until)}</span>
+          {pass.unit_number ? (
+            <span>{formatUnitLabel({ unit_number: pass.unit_number, unit_type: pass.unit_type }, propertyType)}</span>
+          ) : null}
+          {pass.plate_number ? <span>{pass.plate_number}</span> : null}
+        </div>
+        {showRevoke ? (
+          <Stack className={uiClasses.marginTop3}>
+            <Field label="Причина отзыва" error={error ?? undefined}>
+              <Input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Например, гость отменил визит"
+                disabled={submitting}
+              />
+            </Field>
+            <Inline>
+              <Button variant="danger" loading={submitting} onClick={submitRevoke}>
+                Подтвердить отзыв
+              </Button>
+              <Button variant="ghost" disabled={submitting} onClick={() => setShowRevoke(false)}>
+                Отмена
+              </Button>
+            </Inline>
+          </Stack>
+        ) : null}
+      </div>
+      <Inline>
+        <Badge tone={passStatusTone(pass.status)}>{formatPassStatus(pass.status)}</Badge>
+        {canRevoke && !showRevoke ? (
+          <Button variant="danger" onClick={() => setShowRevoke(true)}>
+            Отозвать
+          </Button>
+        ) : null}
+      </Inline>
+    </li>
+  );
+}
+
+function RecentEventsPanel({ events }: { events: SecurityWorkspaceRecentEvent[] }) {
+  return (
+    <Card title="Последние события">
+      {events.length === 0 ? (
+        <EmptyState>Событий прохода пока нет.</EmptyState>
+      ) : (
+        <ul className={uiClasses.timeline}>
+          {events.map((event) => (
+            <li key={event.id} className={uiClasses.timelineItem}>
+              <time className={uiClasses.timelineTime}>{formatDateTime(event.occurred_at)}</time>
+              <div className={uiClasses.timelineBody}>
+                <Inline>
+                  <Badge tone={event.event_type.includes('denied') || event.event_type === 'manual_deny' ? 'error' : 'success'}>
+                    {formatVisitEvent(event.event_type)}
+                  </Badge>
+                  {event.incident_type ? (
+                    <Badge tone={event.severity ? severityTone(event.severity) : 'warning'}>
+                      {formatIncidentType(event.incident_type)}
+                    </Badge>
+                  ) : null}
+                </Inline>
+                <p className={uiClasses.textBody}>
+                  {event.person_label || event.vehicle_plate || event.pass_id || 'Событие доступа'}
+                </p>
+                <p className={uiClasses.textDim}>
+                  {[event.access_point_name, event.access_zone_name].filter(Boolean).join(' · ') || 'КПП не указано'}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function BlacklistHitsPanel({ hits }: { hits: SecurityWorkspaceBlacklistHit[] }) {
+  return (
+    <Card title="Риски и blacklist">
+      {hits.length === 0 ? (
+        <EmptyState>Открытых blacklist/policy инцидентов нет.</EmptyState>
+      ) : (
+        <ul className={uiClasses.resourceList}>
+          {hits.map((hit) => (
+            <li key={hit.id} className={uiClasses.resourceRow}>
+              <div className={uiClasses.resourceRowMain}>
+                <p className={uiClasses.resourceTitle}>{hit.title || formatIncidentType(hit.incident_type)}</p>
+                <div className={uiClasses.resourceMeta}>
+                  <span>{formatIncidentType(hit.incident_type)}</span>
+                  <span>{formatDateTime(hit.created_at)}</span>
+                  {hit.plate_number ? <span>{hit.plate_number}</span> : null}
+                </div>
+              </div>
+              <Badge tone={severityTone(hit.severity)}>{formatSeverity(hit.severity)}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function WorkspaceSearch({
+  propertyId,
+  propertyType,
+  accessPointId,
+}: {
+  propertyId: UUID;
+  propertyType: PropertyType | null;
+  accessPointId: UUID | null;
+}) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SecurityWorkspaceSearchResult | null>(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const normalized = useMemo(() => (input ? normalizePlate(input) : ''), [input]);
-
-  const search = useCallback(async () => {
-    if (!normalized) {
-      setError('Введите номер авто');
+  const submit = useCallback(async (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q.length < 2) {
+      setError('Введите минимум 2 символа');
       return;
     }
     setSearching(true);
     setError(null);
-    setVehicle(null);
     try {
-      const res = await api.vehicles.getByPlate(normalized);
-      setVehicle(res.vehicle);
+      const res = await api.securityWorkspace.search({
+        property_id: propertyId,
+        access_point_id: accessPointId,
+        q,
+        limit: 8,
+      });
+      setResults(res.results);
     } catch (err) {
-      if (isV1ApiError(err) && err.kind === 'not_found') {
-        setError(`Авто «${normalized}» не найдено`);
-      } else {
-        setError(isV1ApiError(err) ? err.message : 'Не удалось выполнить поиск');
-      }
+      setResults(null);
+      setError(isV1ApiError(err) ? err.message : 'Не удалось выполнить поиск');
     } finally {
       setSearching(false);
     }
-  }, [normalized]);
-
-  const handleChanged = useCallback((updated: Vehicle) => {
-    setVehicle(updated);
-  }, []);
+  }, [accessPointId, propertyId, query]);
 
   return (
-    <Card title={labels.vehicleLookupTitle}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void search();
-        }}
-      >
-        <Field
-          label="Номер авто"
-          id="v1-guard-plate"
-          error={error ?? undefined}
-          hint={labels.vehicleLookupHint}
-        >
+    <Card title="Поиск по КПП" subtitle="Авто, житель, квартира или пропуск">
+      <form onSubmit={submit}>
+        <Field id="security-workspace-search" error={error ?? undefined}>
           <Input
-            id="v1-guard-plate"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="A001AA77"
+            id="security-workspace-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Номер, ФИО, квартира или pass id"
             autoComplete="off"
             disabled={searching}
           />
         </Field>
         <Inline>
-          <Button type="submit" loading={searching}>
-            Найти
-          </Button>
-          {vehicle || input ? (
+          <Button type="submit" loading={searching}>Найти</Button>
+          {results || query ? (
             <Button
               type="button"
               variant="ghost"
+              disabled={searching}
               onClick={() => {
-                setInput('');
-                setVehicle(null);
+                setQuery('');
+                setResults(null);
                 setError(null);
               }}
-              disabled={searching}
             >
               Сбросить
             </Button>
@@ -293,11 +503,253 @@ function VehicleLookupTab({ propertyType }: VehicleLookupTabProps) {
         </Inline>
       </form>
 
-      {vehicle ? (
-        <div className={uiClasses.marginTop3}>
-          <VehicleCard vehicle={vehicle} onChanged={handleChanged} />
-        </div>
+      {results ? (
+        <SearchResults results={results} propertyType={propertyType} />
       ) : null}
     </Card>
   );
+}
+
+function SearchResults({
+  results,
+  propertyType,
+}: {
+  results: SecurityWorkspaceSearchResult;
+  propertyType: PropertyType | null;
+}) {
+  const total = results.vehicles.length + results.residents.length + results.units.length + results.passes.length;
+  if (total === 0) {
+    return <EmptyState className={uiClasses.marginTop3}>Ничего не найдено.</EmptyState>;
+  }
+  return (
+    <Stack className={uiClasses.marginTop3}>
+      <VehicleSearchRows vehicles={results.vehicles} />
+      <ResidentSearchRows residents={results.residents} propertyType={propertyType} />
+      <UnitSearchRows units={results.units} propertyType={propertyType} />
+      <PassSearchRows passes={results.passes} propertyType={propertyType} />
+    </Stack>
+  );
+}
+
+function VehicleSearchRows({ vehicles }: { vehicles: SecurityWorkspaceVehicleSearchRow[] }) {
+  const [rows, setRows] = useState(vehicles);
+
+  useEffect(() => {
+    setRows(vehicles);
+  }, [vehicles]);
+
+  if (rows.length === 0) return null;
+  return (
+    <SearchSection title="Авто">
+      {rows.map((vehicle) => (
+        <li key={vehicle.id} className={uiClasses.resourceRow}>
+          <div className={uiClasses.resourceRowMain}>
+            <p className={uiClasses.resourceTitle}>{vehicle.plate_number}</p>
+            <div className={uiClasses.resourceMeta}>
+              {vehicle.brand ? <span>{vehicle.brand}</span> : null}
+              {vehicle.model ? <span>{vehicle.model}</span> : null}
+              {vehicle.color ? <span>{vehicle.color}</span> : null}
+            </div>
+          </div>
+          <Badge tone={vehicle.is_blacklisted ? 'error' : vehicle.is_whitelisted ? 'success' : 'neutral'}>
+            {vehicle.is_blacklisted ? 'Blacklist' : vehicle.is_whitelisted ? 'Whitelist' : 'Без статуса'}
+          </Badge>
+          <VehicleFlagActions
+            vehicle={vehicle}
+            onChanged={(next) => {
+              setRows((current) => current.map((row) => (row.id === next.id ? next : row)));
+            }}
+          />
+        </li>
+      ))}
+    </SearchSection>
+  );
+}
+
+function VehicleFlagActions({
+  vehicle,
+  onChanged,
+}: {
+  vehicle: SecurityWorkspaceVehicleSearchRow;
+  onChanged: (vehicle: SecurityWorkspaceVehicleSearchRow) => void;
+}) {
+  const [action, setAction] = useState<'blacklist' | null>(null);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(kind: 'whitelist' | 'blacklist' | 'clear') {
+    const trimmed = reason.trim();
+    if (kind === 'blacklist' && !trimmed) {
+      setError('Причина обязательна');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = kind === 'whitelist'
+        ? await api.vehicles.whitelist(vehicle.id)
+        : kind === 'blacklist'
+          ? await api.vehicles.blacklist(vehicle.id, trimmed)
+          : await api.vehicles.clearFlags(vehicle.id);
+      onChanged(res.vehicle);
+      setAction(null);
+      setReason('');
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить авто');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Stack>
+      {action === null ? (
+        <Inline>
+          {!vehicle.is_whitelisted ? (
+            <Button variant="secondary" loading={submitting} onClick={() => run('whitelist')}>
+              В белый список
+            </Button>
+          ) : null}
+          {!vehicle.is_blacklisted ? (
+            <Button variant="danger" disabled={submitting} onClick={() => setAction('blacklist')}>
+              В чёрный список
+            </Button>
+          ) : null}
+          {vehicle.is_whitelisted || vehicle.is_blacklisted ? (
+            <Button variant="ghost" loading={submitting} onClick={() => run('clear')}>
+              Сбросить флаги
+            </Button>
+          ) : null}
+        </Inline>
+      ) : (
+        <Stack>
+          <Field label="Причина занесения в ЧС" error={error ?? undefined}>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Например, повторные нарушения"
+              disabled={submitting}
+            />
+          </Field>
+          <Inline>
+            <Button variant="danger" loading={submitting} onClick={() => run('blacklist')}>
+              Подтвердить
+            </Button>
+            <Button variant="ghost" disabled={submitting} onClick={() => setAction(null)}>
+              Отмена
+            </Button>
+          </Inline>
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+function ResidentSearchRows({
+  residents,
+  propertyType,
+}: {
+  residents: SecurityWorkspaceResidentSearchRow[];
+  propertyType: PropertyType | null;
+}) {
+  if (residents.length === 0) return null;
+  return (
+    <SearchSection title="Жители">
+      {residents.map((resident) => (
+        <li key={resident.id} className={uiClasses.resourceRow}>
+          <div className={uiClasses.resourceRowMain}>
+            <p className={uiClasses.resourceTitle}>{resident.full_name}</p>
+            <div className={uiClasses.resourceMeta}>
+              <span>{formatUnitLabel({ unit_number: resident.unit_number, unit_type: resident.unit_type }, propertyType)}</span>
+              {resident.phone ? <span>{resident.phone}</span> : null}
+              {resident.email ? <span>{resident.email}</span> : null}
+            </div>
+          </div>
+          <Badge tone="info">{resident.resident_type || resident.role || 'resident'}</Badge>
+        </li>
+      ))}
+    </SearchSection>
+  );
+}
+
+function UnitSearchRows({
+  units,
+  propertyType,
+}: {
+  units: SecurityWorkspaceUnitSearchRow[];
+  propertyType: PropertyType | null;
+}) {
+  if (units.length === 0) return null;
+  return (
+    <SearchSection title="Адреса">
+      {units.map((unit) => (
+        <li key={unit.id} className={uiClasses.resourceRow}>
+          <div className={uiClasses.resourceRowMain}>
+            <p className={uiClasses.resourceTitle}>
+              {formatUnitLabel({ unit_number: unit.unit_number, unit_type: unit.unit_type }, propertyType)}
+            </p>
+            <div className={uiClasses.resourceMeta}>
+              {unit.floor !== null ? <span>Этаж {unit.floor}</span> : null}
+              <span>{unit.is_active ? 'active' : 'inactive'}</span>
+            </div>
+          </div>
+        </li>
+      ))}
+    </SearchSection>
+  );
+}
+
+function PassSearchRows({
+  passes,
+  propertyType,
+}: {
+  passes: SecurityWorkspacePassSearchRow[];
+  propertyType: PropertyType | null;
+}) {
+  if (passes.length === 0) return null;
+  return (
+    <SearchSection title="Пропуски">
+      {passes.map((pass) => (
+        <li key={pass.id} className={uiClasses.resourceRow}>
+          <div className={uiClasses.resourceRowMain}>
+            <p className={uiClasses.resourceTitle}>
+              {pass.resident_name || pass.plate_number || pass.id.slice(0, 8)}
+            </p>
+            <div className={uiClasses.resourceMeta}>
+              <span>{formatPassType(pass.pass_type)}</span>
+              <span>{formatWindow(pass.valid_from, pass.valid_until)}</span>
+              {pass.unit_number ? (
+                <span>{formatUnitLabel({ unit_number: pass.unit_number }, propertyType)}</span>
+              ) : null}
+              {pass.plate_number ? <span>{pass.plate_number}</span> : null}
+            </div>
+          </div>
+          <Badge tone={passStatusTone(pass.status)}>{formatPassStatus(pass.status)}</Badge>
+        </li>
+      ))}
+    </SearchSection>
+  );
+}
+
+function SearchSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h4 className={uiClasses.sectionHeading}>{title}</h4>
+      <ul className={uiClasses.resourceList}>{children}</ul>
+    </section>
+  );
+}
+
+function formatVisitEvent(eventType: SecurityWorkspaceRecentEvent['event_type']): string {
+  const labels: Record<SecurityWorkspaceRecentEvent['event_type'], string> = {
+    entry_allowed: 'Въезд разрешён',
+    entry_denied: 'Въезд запрещён',
+    exit_allowed: 'Выезд разрешён',
+    exit_denied: 'Выезд запрещён',
+    manual_admit: 'Ручной допуск',
+    manual_deny: 'Ручной отказ',
+    override: 'Override',
+  };
+  return labels[eventType] ?? eventType;
 }

@@ -28,6 +28,8 @@ import { normalizePlate } from '../api/vehicles';
 
 export interface ScanPanelProps {
   propertyId: UUID;
+  accessPointId?: UUID | null;
+  onAccessPointChange?: (accessPointId: UUID | null) => void;
   onVerified?: (
     result: VerifyResult,
     request: { mode: GuardActionMode; value: string; access_point_id: UUID | null; direction: VerifyDirection },
@@ -113,7 +115,7 @@ function shouldQueueOffline(err: unknown): boolean {
     || (isV1ApiError(err) && (err.kind === 'network' || err.kind === 'timeout'));
 }
 
-export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
+export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVerified }: ScanPanelProps) {
   const [mode, setMode] = useState<VerifyMode>('qr');
   const [direction, setDirection] = useState<VerifyDirection>('entry');
   const [value, setValue] = useState('');
@@ -122,7 +124,7 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [points, setPoints] = useState<AccessPoint[]>([]);
-  const [selectedPointId, setSelectedPointId] = useState<UUID | ''>('');
+  const [internalSelectedPointId, setInternalSelectedPointId] = useState<UUID | ''>('');
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [pointError, setPointError] = useState<string | null>(null);
   const [manualDecision, setManualDecision] = useState<ManualDecision>('manual_admit');
@@ -178,14 +180,17 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
         });
         if (cancelled) return;
         setPoints(res.points);
-        setSelectedPointId((prev) => {
+        setInternalSelectedPointId((prev) => {
           if (prev && res.points.some((point) => point.id === prev)) return prev;
-          return res.points[0]?.id ?? '';
+          const next = res.points[0]?.id ?? '';
+          onAccessPointChange?.(next || null);
+          return next;
         });
       } catch (err) {
         if (cancelled) return;
         setPoints([]);
-        setSelectedPointId('');
+        setInternalSelectedPointId('');
+        onAccessPointChange?.(null);
         setPointError(isV1ApiError(err) ? err.message : 'Не удалось загрузить КПП');
       } finally {
         if (!cancelled) setLoadingPoints(false);
@@ -196,7 +201,7 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [propertyId]);
+  }, [onAccessPointChange, propertyId]);
 
   useEffect(() => {
     persistOfflineQueue(readOfflineQueue(propertyId));
@@ -211,10 +216,17 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
     return () => window.removeEventListener('online', onOnline);
   }, [syncOfflineQueue]);
 
+  const selectedPointId = accessPointId !== undefined ? (accessPointId ?? '') : internalSelectedPointId;
+
   const selectedPoint = useMemo(
     () => points.find((point) => point.id === selectedPointId) ?? null,
     [points, selectedPointId],
   );
+
+  const updateSelectedPoint = useCallback((next: UUID | '') => {
+    setInternalSelectedPointId(next);
+    onAccessPointChange?.(next || null);
+  }, [onAccessPointChange]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -470,7 +482,7 @@ export function ScanPanel({ propertyId, onVerified }: ScanPanelProps) {
             <Select
               aria-label="КПП / точка доступа"
               value={selectedPointId}
-              onChange={(e) => setSelectedPointId(e.target.value as UUID | '')}
+              onChange={(e) => updateSelectedPoint(e.target.value as UUID | '')}
               disabled={loadingPoints || submitting}
             >
               {points.length === 0 ? <option value="">Без выбранной точки</option> : null}

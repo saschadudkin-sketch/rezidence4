@@ -11,7 +11,8 @@
  * We do NOT mock react-router here — the whole point is to verify the real
  * Navigate → Route chain.  We DO mock the v1 api barrel so pages don't
  * issue real HTTP on mount (ResidentAccessPage fetches the resident row
- * immediately, GuardConsolePage does not fetch at the outer level).
+ * immediately, GuardConsolePage hydrates the workspace after its header
+ * renders).
  *
  * The test uses `findBy*` (async) because V1SessionProvider's /auth/me is
  * an effect — the first render is <Spinner>.
@@ -53,6 +54,13 @@ vi.mock('./api', () => {
       vehicles: { getByPlate: neverResolves },
       visits: { list: neverResolves },
       incidents: { list: neverResolves },
+      securityWorkspace: {
+        bootstrap: neverResolves,
+        search: neverResolves,
+        recentEvents: neverResolves,
+        manualDecision: neverResolves,
+        offlineReplay: neverResolves,
+      },
       staffWorkspace: {
         listInbox: neverResolves,
         getRequestDetail: neverResolves,
@@ -210,7 +218,7 @@ describe('V1Router role redirects (from /v1 index)', () => {
     renderAt('/v1');
 
     expect(await screen.findByRole('heading', { name: /пост кпп/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /въезд авто/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('textbox', { name: /номер, фио, квартира или pass id/i })).toBeInTheDocument();
     expect(screen.getByText(/Vehicle-first режим/i)).toBeInTheDocument();
   });
 

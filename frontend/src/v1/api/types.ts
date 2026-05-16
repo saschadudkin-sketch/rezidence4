@@ -913,6 +913,173 @@ export interface SecurityOfflineReplayResponse {
   }>;
 }
 
+// ─── Security Workspace Hydrate/Search ─────────────────────────────────────
+
+export interface SecurityWorkspaceStationContext {
+  access_point: Pick<
+    AccessPoint,
+    'id' | 'property_id' | 'zone_id' | 'name' | 'point_type' | 'provider' | 'provider_external_id'
+  > | null;
+  access_zone: Pick<AccessZone, 'id' | 'name' | 'zone_type'> | null;
+}
+
+export interface SecurityWorkspaceActivePass {
+  id: UUID;
+  property_id: UUID;
+  pass_type: PassType;
+  subject_type: SubjectType;
+  subject_resident_id: UUID | null;
+  subject_staff_id: UUID | null;
+  subject_contractor_user_id: UUID | null;
+  subject_vehicle_id: UUID | null;
+  zone_id: UUID | null;
+  point_id: UUID | null;
+  policy_id: UUID | null;
+  valid_from: IsoDateTime;
+  valid_until: IsoDateTime;
+  status: PassStatus;
+  plate_number: string | null;
+  is_whitelisted: boolean | null;
+  is_blacklisted: boolean | null;
+  resident_name: string | null;
+  resident_phone: string | null;
+  unit_number: string | null;
+  unit_type: UnitType | null;
+}
+
+export interface SecurityWorkspaceExpectedGuest {
+  id: UUID;
+  property_id: UUID;
+  request_type: RequestType;
+  visitor_name: string | null;
+  visitor_phone: string | null;
+  vehicle_id: UUID | null;
+  target_zone_id: UUID | null;
+  target_point_id: UUID | null;
+  target_unit_id: UUID | null;
+  reason: string | null;
+  starts_at: IsoDateTime;
+  ends_at: IsoDateTime;
+  status: RequestStatus;
+  approval_required: boolean;
+  plate_number: string | null;
+  unit_number: string | null;
+  unit_type: UnitType | null;
+  pass_id: UUID | null;
+  pass_status: PassStatus | null;
+}
+
+export interface SecurityWorkspaceRecentEvent {
+  id: UUID;
+  property_id: UUID;
+  pass_id: UUID | null;
+  access_point_id: UUID | null;
+  event_type: VisitEventType;
+  event_source: VisitEventSource;
+  person_label: string | null;
+  vehicle_plate: string | null;
+  performed_by_staff_id: UUID | null;
+  occurred_at: IsoDateTime;
+  created_at: IsoDateTime;
+  access_point_name: string | null;
+  access_zone_name: string | null;
+  incident_id: UUID | null;
+  incident_type: IncidentType | null;
+  severity: Severity | null;
+  incident_status: IncidentStatus | null;
+}
+
+export interface SecurityWorkspaceBlacklistHit {
+  id: UUID;
+  property_id: UUID;
+  related_vehicle_id: UUID | null;
+  related_visit_log_id: UUID | null;
+  incident_type: IncidentType;
+  severity: Severity;
+  status: IncidentStatus;
+  title: string;
+  created_at: IsoDateTime;
+  plate_number: string | null;
+  owner_type: VehicleOwnerType | null;
+  is_blacklisted: boolean | null;
+}
+
+export interface SecurityWorkspaceBootstrap {
+  property_id: UUID;
+  generated_at: IsoDateTime;
+  station_context: SecurityWorkspaceStationContext;
+  active_passes: SecurityWorkspaceActivePass[];
+  expected_guests: SecurityWorkspaceExpectedGuest[];
+  recent_events: SecurityWorkspaceRecentEvent[];
+  blacklist_hits: SecurityWorkspaceBlacklistHit[];
+}
+
+export interface SecurityWorkspaceBootstrapResponse {
+  workspace: SecurityWorkspaceBootstrap;
+}
+
+export type SecurityWorkspaceVehicleSearchRow = Omit<Vehicle, 'created_at' | 'updated_at'>;
+
+export interface SecurityWorkspaceResidentSearchRow {
+  id: UUID;
+  property_id: UUID;
+  unit_id: UUID;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  role: string | null;
+  resident_type: string | null;
+  is_active: boolean;
+  unit_number: string;
+  unit_type: UnitType;
+}
+
+export interface SecurityWorkspaceUnitSearchRow {
+  id: UUID;
+  property_id: UUID;
+  building_id: UUID | null;
+  entrance_id: UUID | null;
+  unit_number: string;
+  unit_type: UnitType;
+  floor: number | null;
+  is_active: boolean;
+}
+
+export interface SecurityWorkspacePassSearchRow {
+  id: UUID;
+  property_id: UUID;
+  pass_type: PassType;
+  subject_type: SubjectType;
+  subject_resident_id: UUID | null;
+  subject_vehicle_id: UUID | null;
+  zone_id: UUID | null;
+  point_id: UUID | null;
+  valid_from: IsoDateTime;
+  valid_until: IsoDateTime;
+  status: PassStatus;
+  plate_number: string | null;
+  resident_name: string | null;
+  unit_number: string | null;
+}
+
+export interface SecurityWorkspaceSearchResult {
+  query: string;
+  normalized_plate: string | null;
+  vehicles: SecurityWorkspaceVehicleSearchRow[];
+  residents: SecurityWorkspaceResidentSearchRow[];
+  units: SecurityWorkspaceUnitSearchRow[];
+  passes: SecurityWorkspacePassSearchRow[];
+}
+
+export interface SecurityWorkspaceSearchResponse {
+  results: SecurityWorkspaceSearchResult;
+}
+
+export interface SecurityWorkspaceRecentEventsResponse {
+  visit_logs: SecurityWorkspaceRecentEvent[];
+  page?: PageMeta;
+}
+
 // ─── Staff Workspace / Service Requests ────────────────────────────────────
 
 export type StaffWorkspaceQueue =
