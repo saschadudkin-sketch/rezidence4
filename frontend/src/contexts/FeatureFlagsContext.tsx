@@ -33,6 +33,7 @@ export const FEATURE_KEYS = [
   'qr_pass',
   'manual_access_approval',
   'pin_credentials',
+  'guard_authorized_devices',
   'meter_readings',
   'billing',
   'space_booking',

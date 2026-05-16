@@ -28,6 +28,14 @@ const {
   isSecurityOfflineReplayServiceError,
   replaySecurityOfflineEvents,
 } = require('../services/securityOfflineReplayService');
+const {
+  assertGuardDeviceAuthorized,
+  deviceContext,
+  enrollGuardAuthorizedDevice,
+  isGuardAuthorizedDeviceServiceError,
+  listGuardAuthorizedDevices,
+  revokeGuardAuthorizedDevice,
+} = require('../services/guardAuthorizedDeviceService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -92,12 +100,42 @@ function sendKnownError(res, err) {
     res.status(err.status).json({ error: err.message });
     return true;
   }
+  if (isGuardAuthorizedDeviceServiceError(err)) {
+    res.status(err.status).json({ error: err.message });
+    return true;
+  }
   return false;
 }
 
 function parseAccessPointId(req) {
   const value = req.query.access_point_id || req.body?.access_point_id || null;
   return value === '' ? null : value;
+}
+
+function resolvedFlags(req) {
+  return req.property?.resolvedFlags || req.property?.feature_flags || {};
+}
+
+function guardAuthorizedDevicesEnabled(req) {
+  return resolvedFlags(req).guard_authorized_devices === true;
+}
+
+function extractGuardDeviceInput(req, source = req.body || {}) {
+  return {
+    guardDeviceId: source.guard_device_id || source.guardDeviceId || req.headers['x-guard-device-id'] || null,
+    deviceFingerprint: source.device_fingerprint || source.deviceFingerprint || req.headers['x-guard-device-fingerprint'] || null,
+  };
+}
+
+async function requireAuthorizedGuardDevice(req, { propertyId, accessPointId }) {
+  if (!guardAuthorizedDevicesEnabled(req)) return null;
+  const guardDevice = await assertGuardDeviceAuthorized(getDb(req), {
+    propertyId,
+    accessPointId,
+    user: req.user,
+    ...extractGuardDeviceInput(req),
+  });
+  return deviceContext(guardDevice);
 }
 
 async function validateCommon(req, res) {
@@ -296,6 +334,76 @@ router.get('/recent-events', async (req, res, next) => {
   }
 });
 
+router.post('/authorized-devices/enroll', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    const accessPointId = parseAccessPointId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (accessPointId !== null && !isValidUuid(accessPointId)) {
+      return res.status(400).json({ error: 'access_point_id must be UUID or omitted' });
+    }
+    if (!canReadSecurityWorkspace(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const device = await enrollGuardAuthorizedDevice(getDb(req), {
+      propertyId,
+      accessPointId,
+      deviceFingerprint: req.body?.device_fingerprint || req.body?.deviceFingerprint,
+      label: req.body?.label,
+      user: req.user,
+      ipAddress: req.ip || null,
+    });
+    res.status(201).json({ guard_authorized_device: device });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    if (err && err.code === '23503') return res.status(400).json({ error: 'referenced entity does not exist' });
+    next(err);
+  }
+});
+
+router.get('/authorized-devices', async (req, res, next) => {
+  try {
+    const propertyId = resolvePropertyId(req);
+    const accessPointId = parseAccessPointId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (accessPointId !== null && !isValidUuid(accessPointId)) {
+      return res.status(400).json({ error: 'access_point_id must be UUID or omitted' });
+    }
+    if (!canInPropertyScope(req, 'hardware.device.write', propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const devices = await listGuardAuthorizedDevices(getDb(req), {
+      propertyId,
+      accessPointId,
+      status: req.query.status || null,
+      limit: req.query.limit,
+    });
+    res.json({ guard_authorized_devices: devices });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    next(err);
+  }
+});
+
+router.post('/authorized-devices/:guardDeviceId/revoke', async (req, res, next) => {
+  try {
+    if (!isValidUuid(req.params.guardDeviceId)) return res.status(400).json({ error: 'Invalid guardDeviceId' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canInPropertyScope(req, 'hardware.device.write', propertyId)) return res.status(403).json({ error: 'Forbidden' });
+
+    const device = await revokeGuardAuthorizedDevice(getDb(req), {
+      propertyId,
+      guardDeviceId: req.params.guardDeviceId,
+      reason: req.body?.reason || null,
+      user: req.user,
+      ipAddress: req.ip || null,
+    });
+    res.json({ guard_authorized_device: device });
+  } catch (err) {
+    if (sendKnownError(res, err)) return;
+    next(err);
+  }
+});
+
 async function sendManualDecision(req, res, next, forcedDecision = null) {
   try {
     if (forcedDecision) req.body = { ...(req.body || {}), decision: forcedDecision };
@@ -312,6 +420,7 @@ async function sendManualDecision(req, res, next, forcedDecision = null) {
 
     const input = parseManualDecisionBody(req, res, propertyId, accessPointId);
     if (!input) return;
+    input.guard_device = await requireAuthorizedGuardDevice(req, { propertyId, accessPointId });
 
     const result = await createManualSecurityDecision({
       txPool: getTxPool(req),
@@ -359,12 +468,27 @@ router.post('/offline-replay', async (req, res, next) => {
       }
     }
 
+    let guardDevice = null;
+    if (guardAuthorizedDevicesEnabled(req)) {
+      const accessPointIds = new Set(events.map((event) => event?.access_point_id || null));
+      for (const accessPointId of accessPointIds) {
+        const checked = await assertGuardDeviceAuthorized(getDb(req), {
+          propertyId,
+          accessPointId,
+          user: req.user,
+          ...extractGuardDeviceInput(req),
+        });
+        guardDevice = deviceContext(checked);
+      }
+    }
+
     const results = await replaySecurityOfflineEvents({
       queryable: getDb(req),
       txPool: getTxPool(req),
       user: req.user,
       propertyId,
       events,
+      guardDevice,
     });
     res.status(202).json({ results });
   } catch (err) {

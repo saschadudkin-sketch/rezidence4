@@ -49,8 +49,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 access-control pilot readiness hardening
     // + 1 access request product text fields
     // + 1 trusted visitors / frequent guests
-    // + 1 pass credential layer = 53
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(53);
+    // + 1 pass credential layer
+    // + 1 guard authorized devices = 54
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(54);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -121,6 +122,29 @@ describe('v1_052_trusted_visitors', () => {
       .toContain('(resident_id, is_active, updated_at DESC)');
     expect(sqls.find((s) => s.includes('idx_access_requests_trusted_visitor')))
       .toContain('WHERE trusted_visitor_id IS NOT NULL');
+  });
+});
+
+describe('v1_054_guard_authorized_devices', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates guard device allow-list table with checkpoint and staff scope', async () => {
+    await byId('v1_054_guard_authorized_devices').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    const tbl = sqls.find((s) => s.includes('CREATE TABLE IF NOT EXISTS guard_authorized_devices'));
+
+    expect(tbl).toContain('property_id          UUID NOT NULL');
+    expect(tbl).toContain('access_point_id      UUID');
+    expect(tbl).toContain('staff_user_id        UUID');
+    expect(tbl).toContain('device_fingerprint   TEXT NOT NULL');
+    expect(tbl).toContain("CHECK (status IN ('active','revoked'))");
+    expect(tbl).toContain('REFERENCES access_points(property_id, id)');
+    expect(tbl).toContain('REFERENCES staff_users(id)');
+    expect(sqls.find((s) => s.includes('uq_guard_authorized_devices_fingerprint')))
+      .toContain('ON guard_authorized_devices(property_id, device_fingerprint)');
+    expect(sqls.find((s) => s.includes('idx_guard_authorized_devices_access_point')))
+      .toContain('WHERE access_point_id IS NOT NULL');
   });
 });
 

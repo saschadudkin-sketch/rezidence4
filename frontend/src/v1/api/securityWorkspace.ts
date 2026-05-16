@@ -7,6 +7,9 @@ import { v1Client, type RequestOpts } from './client';
 import type {
   ManualSecurityDecisionRequest,
   ManualSecurityDecisionResponse,
+  GuardAuthorizedDeviceContext,
+  GuardAuthorizedDeviceResponse,
+  GuardAuthorizedDevicesResponse,
   PaginationParams,
   SecurityOfflineReplayEvent,
   SecurityOfflineReplayResponse,
@@ -31,6 +34,22 @@ export interface SecurityWorkspaceBootstrapParams extends SecurityWorkspaceScope
 
 export interface SecurityWorkspaceSearchParams extends SecurityWorkspaceScopedParams {
   q: string;
+}
+
+export interface EnrollGuardAuthorizedDeviceBody {
+  property_id: UUID;
+  access_point_id?: UUID | null;
+  device_fingerprint: string;
+  label?: string | null;
+}
+
+export interface ListGuardAuthorizedDevicesParams extends SecurityWorkspaceScopedParams {
+  status?: 'active' | 'revoked';
+}
+
+export interface RevokeGuardAuthorizedDeviceBody {
+  property_id: UUID;
+  reason?: string | null;
 }
 
 function toQuery(params: object | undefined): string {
@@ -71,9 +90,38 @@ export const securityWorkspaceApi = {
       },
     );
   },
-  offlineReplay(body: { property_id: UUID; events: SecurityOfflineReplayEvent[] }, opts?: RequestOpts) {
+  offlineReplay(
+    body: { property_id: UUID; events: SecurityOfflineReplayEvent[] } & Partial<GuardAuthorizedDeviceContext>,
+    opts?: RequestOpts,
+  ) {
     return v1Client.post<SecurityOfflineReplayResponse>(
       '/security-workspace/offline-replay',
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
+    );
+  },
+  enrollAuthorizedDevice(body: EnrollGuardAuthorizedDeviceBody, opts?: RequestOpts) {
+    return v1Client.post<GuardAuthorizedDeviceResponse>(
+      '/security-workspace/authorized-devices/enroll',
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
+    );
+  },
+  listAuthorizedDevices(params: ListGuardAuthorizedDevicesParams, opts?: RequestOpts) {
+    return v1Client.get<GuardAuthorizedDevicesResponse>(
+      `/security-workspace/authorized-devices${toQuery(params)}`,
+      opts,
+    );
+  },
+  revokeAuthorizedDevice(id: UUID, body: RevokeGuardAuthorizedDeviceBody, opts?: RequestOpts) {
+    return v1Client.post<GuardAuthorizedDeviceResponse>(
+      `/security-workspace/authorized-devices/${id}/revoke`,
       body,
       {
         ...opts,

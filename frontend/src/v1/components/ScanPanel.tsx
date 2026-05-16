@@ -15,6 +15,7 @@ import type {
   ManualDecision,
   ManualDecisionDegradedReason,
   ManualDecisionLookupState,
+  GuardAuthorizedDeviceContext,
   SecurityOfflineReplayEvent,
   UUID,
   VerifyDirection,
@@ -30,6 +31,7 @@ export interface ScanPanelProps {
   propertyId: UUID;
   accessPointId?: UUID | null;
   pinEnabled?: boolean;
+  guardDevice?: GuardAuthorizedDeviceContext | null;
   onAccessPointChange?: (accessPointId: UUID | null) => void;
   onVerified?: (
     result: VerifyResult,
@@ -139,6 +141,7 @@ export function ScanPanel({
   propertyId,
   accessPointId,
   pinEnabled = false,
+  guardDevice = null,
   onAccessPointChange,
   onVerified,
 }: ScanPanelProps) {
@@ -181,6 +184,7 @@ export function ScanPanel({
     try {
       const res = await securityWorkspaceApi.offlineReplay({
         property_id: propertyId,
+        ...(guardDevice || {}),
         events: offlineQueue,
       });
       const acceptedIds = new Set(res.results.map((item) => item.replay_event.client_event_id));
@@ -190,7 +194,7 @@ export function ScanPanel({
     } finally {
       setOfflineSyncing(false);
     }
-  }, [offlineQueue, offlineSyncing, persistOfflineQueue, propertyId]);
+  }, [guardDevice, offlineQueue, offlineSyncing, persistOfflineQueue, propertyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -347,6 +351,7 @@ export function ScanPanel({
       const body = {
         property_id: propertyId,
         access_point_id: selectedPointId || null,
+        ...(guardDevice || {}),
         decision: manualDecision,
         direction,
         reason,

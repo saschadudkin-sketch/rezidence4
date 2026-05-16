@@ -76,6 +76,12 @@ const FEATURE_FLAGS = {
     description: 'Fallback PIN для пропусков с rate-limit и audit evidence',
     category: 'access',
   },
+  guard_authorized_devices: {
+    default: false,
+    label: 'Авторизованные устройства охраны',
+    description: 'Allow-list устройств КПП для ручных решений охраны и sensitive actions',
+    category: 'access',
+  },
   meter_readings: {
     default: false,
     label: 'Показания счётчиков',
@@ -191,6 +197,7 @@ const PLAN_FEATURES = {
     'qr_pass',
     'manual_access_approval',
     'pin_credentials',
+    'guard_authorized_devices',
   ]),
   operations: new Set([
     'chat',
@@ -200,6 +207,7 @@ const PLAN_FEATURES = {
     'qr_pass',
     'manual_access_approval',
     'pin_credentials',
+    'guard_authorized_devices',
     'packages',
     'analytics',
   ]),
@@ -211,6 +219,7 @@ const PLAN_FEATURES = {
     'qr_pass',
     'manual_access_approval',
     'pin_credentials',
+    'guard_authorized_devices',
     'packages',
     'analytics',
   ]),

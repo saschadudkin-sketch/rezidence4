@@ -42,9 +42,16 @@ function resolvePropertyId(req) {
 }
 
 function sendKnownError(res, err) {
-  if (!isSkudIntegrationServiceError(err)) return false;
-  res.status(err.status).json({ error: err.message });
-  return true;
+  if (isSkudIntegrationServiceError(err) || err?.name === 'GuardAuthorizedDeviceServiceError') {
+    res.status(err.status).json({ error: err.message });
+    return true;
+  }
+  return false;
+}
+
+function guardAuthorizedDevicesEnabled(req) {
+  const flags = req.property?.resolvedFlags || req.property?.feature_flags || {};
+  return flags.guard_authorized_devices === true;
 }
 
 // External provider endpoint: no user session, authenticated by provider secret.
@@ -194,6 +201,9 @@ router.post('/hardware-devices/:hardwareDeviceId/manual-control', async (req, re
       actorUid: req.user?.uid || null,
       actorRole: req.user?.role || null,
       ipAddress: req.ip || null,
+      guardDeviceId: req.body?.guard_device_id || req.body?.guardDeviceId || req.headers['x-guard-device-id'] || null,
+      deviceFingerprint: req.body?.device_fingerprint || req.body?.deviceFingerprint || req.headers['x-guard-device-fingerprint'] || null,
+      enforceGuardAuthorizedDevice: guardAuthorizedDevicesEnabled(req),
     });
     res.status(201).json(result);
   } catch (err) {

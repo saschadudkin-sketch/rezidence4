@@ -94,6 +94,11 @@ export type {
 } from './accessTopology';
 export type { CreateAccessPolicyBody, ListAccessPoliciesParams } from './accessPolicies';
 export type { ListVisitsParams } from './visits';
+export type {
+  EnrollGuardAuthorizedDeviceBody,
+  ListGuardAuthorizedDevicesParams,
+  RevokeGuardAuthorizedDeviceBody,
+} from './securityWorkspace';
 export type { ListIncidentsParams, ListOverridesParams } from './accessIncidents';
 export type {
   AssignStaffRequestBody,

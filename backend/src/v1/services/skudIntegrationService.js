@@ -2,6 +2,10 @@
 
 const crypto = require('crypto');
 const { createSkudAdapter, getRegisteredSkudProviders } = require('../../services/skud');
+const {
+  assertGuardDeviceAuthorized,
+  deviceContext,
+} = require('./guardAuthorizedDeviceService');
 
 const PROVIDERS = Object.freeze(getRegisteredSkudProviders());
 const PROVIDER_ALIASES = Object.freeze({
@@ -636,6 +640,17 @@ async function recordHardwareManualControl(queryable, input) {
   const actorUid = normalizeText(input.actorUid || input.actor_uid || input.user?.uid, 'actor_uid', 120);
   const actorRole = normalizeNullableText(input.actorRole || input.actor_role || input.user?.role, 'actor_role');
   const device = await ensureHardwareDevice(queryable, { propertyId, hardwareDeviceId });
+  let guardDevice = input.guardDevice || input.guard_device || null;
+  if (input.enforceGuardAuthorizedDevice === true || input.enforce_guard_authorized_device === true) {
+    const checkedDevice = await assertGuardDeviceAuthorized(queryable, {
+      propertyId,
+      accessPointId: device.access_point_id || null,
+      user: input.user,
+      guardDeviceId: input.guardDeviceId || input.guard_device_id,
+      deviceFingerprint: input.deviceFingerprint || input.device_fingerprint,
+    });
+    guardDevice = deviceContext(checkedDevice);
+  }
   assertManualControlAllowed(device, {
     user: input.user || { role: actorRole },
     action,
@@ -657,7 +672,10 @@ async function recordHardwareManualControl(queryable, input) {
       actorRole,
       reason,
       decisionSource,
-      JSON.stringify(metadata),
+      JSON.stringify({
+        ...metadata,
+        guard_device: guardDevice,
+      }),
     ],
   );
   const event = eventRows[0];
@@ -696,6 +714,7 @@ async function recordHardwareManualControl(queryable, input) {
         fail_safe_mode: device.fail_safe_mode,
         maintenance_status_before: device.maintenance_status,
         maintenance_status_after: nextMaintenanceStatus,
+        guard_device: guardDevice,
         metadata,
       }),
       input.ipAddress || input.ip_address || null,

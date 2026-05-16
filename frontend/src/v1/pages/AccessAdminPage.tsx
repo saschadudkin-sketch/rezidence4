@@ -19,6 +19,7 @@ import type {
   AccessZone,
   AccessZoneType,
   AdminPassListItem,
+  GuardAuthorizedDevice,
   IncidentStatus,
   PassStatus,
   PassType,
@@ -29,6 +30,7 @@ import { accessIncidentsApi } from '../api/accessIncidents';
 import { accessPoliciesApi } from '../api/accessPolicies';
 import { accessTopologyApi } from '../api/accessTopology';
 import { passesApi } from '../api/passes';
+import { securityWorkspaceApi } from '../api/securityWorkspace';
 import { normalizePlate, vehiclesApi } from '../api/vehicles';
 import { isV1ApiError } from '../api';
 import { useV1Session } from '../store';
@@ -60,7 +62,7 @@ import {
   uiClasses,
 } from '../components/ui';
 
-type AdminTab = 'passes' | 'topology' | 'policies' | 'vehicles' | 'incidents';
+type AdminTab = 'passes' | 'topology' | 'policies' | 'vehicles' | 'incidents' | 'devices';
 
 const ZONE_TYPES: AccessZoneType[] = [
   'perimeter',
@@ -116,6 +118,7 @@ const TAB_LABELS: Record<AdminTab, string> = {
   policies: 'Политики',
   vehicles: 'Авто',
   incidents: 'Инциденты',
+  devices: 'Устройства охраны',
 };
 
 const ZONE_LABELS: Record<AccessZoneType, string> = {
@@ -218,6 +221,7 @@ export function AccessAdminPage() {
       {tab === 'policies' ? <PoliciesTab propertyId={propertyId} /> : null}
       {tab === 'vehicles' ? <VehicleFlagsTab /> : null}
       {tab === 'incidents' ? <IncidentsTab /> : null}
+      {tab === 'devices' ? <GuardDevicesTab propertyId={propertyId} /> : null}
     </div>
   );
 }
@@ -652,6 +656,127 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
                         </li>
                       ))}
                     </ul>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+    </Stack>
+  );
+}
+
+function GuardDevicesTab({ propertyId }: { propertyId: UUID }) {
+  const [devices, setDevices] = useState<GuardAuthorizedDevice[]>([]);
+  const [points, setPoints] = useState<AccessPoint[]>([]);
+  const [status, setStatus] = useState<'active' | 'revoked' | ''>('active');
+  const [revokeReasons, setRevokeReasons] = useState<Record<UUID, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<UUID | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const pointById = useMemo(() => new Map(points.map((point) => [point.id, point])), [points]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [deviceRes, pointRes] = await Promise.all([
+        securityWorkspaceApi.listAuthorizedDevices({
+          property_id: propertyId,
+          status: status || undefined,
+          limit: 100,
+        }),
+        accessTopologyApi.listPoints({ property_id: propertyId, is_active: true, limit: 200 }),
+      ]);
+      setDevices(deviceRes.guard_authorized_devices);
+      setPoints(pointRes.points);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить устройства охраны');
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId, status]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function revokeDevice(device: GuardAuthorizedDevice) {
+    const reason = (revokeReasons[device.id] || '').trim();
+    if (!reason) {
+      setError('Укажите причину отзыва устройства');
+      return;
+    }
+    setSavingId(device.id);
+    setError(null);
+    try {
+      await securityWorkspaceApi.revokeAuthorizedDevice(device.id, {
+        property_id: propertyId,
+        reason,
+      });
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отозвать устройство');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <Stack>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <Card
+        title="Авторизованные устройства КПП"
+        subtitle="Allow-list устройств, которым разрешены ручные решения охраны при включенном флаге."
+        actions={<Button variant="ghost" onClick={() => void load()} loading={loading}>Обновить</Button>}
+      >
+        <Field label="Статус">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'revoked' | '')}>
+            <option value="">Все</option>
+            <option value="active">Активные</option>
+            <option value="revoked">Отозванные</option>
+          </Select>
+        </Field>
+
+        {loading ? <LoadingLine>Загрузка устройств…</LoadingLine> : null}
+        {!loading && devices.length === 0 ? <EmptyState>Устройства охраны ещё не авторизованы.</EmptyState> : null}
+        <ul className={uiClasses.resourceList}>
+          {devices.map((device) => {
+            const point = device.access_point_id ? pointById.get(device.access_point_id) : null;
+            return (
+              <li key={device.id} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
+                  <Inline>
+                    <h3 className={uiClasses.resourceTitle}>{device.label}</h3>
+                    <Badge tone={device.status === 'active' ? 'success' : 'neutral'}>
+                      {device.status === 'active' ? 'Активно' : 'Отозвано'}
+                    </Badge>
+                  </Inline>
+                  <div className={uiClasses.resourceMeta}>
+                    <span>{point ? point.name : 'Весь объект'}</span>
+                    <span>ID {device.id.slice(0, 8)}</span>
+                    <span>Последний раз: {formatDateTime(device.last_seen_at)}</span>
+                    {device.revoked_at ? <span>Отозвано: {formatDateTime(device.revoked_at)}</span> : null}
+                  </div>
+                  {device.status === 'active' ? (
+                    <div className={uiClasses.formGrid}>
+                      <Field label="Причина отзыва">
+                        <Input
+                          value={revokeReasons[device.id] ?? ''}
+                          onChange={(e) => setRevokeReasons((prev) => ({ ...prev, [device.id]: e.target.value }))}
+                          placeholder="Например, устройство потеряно"
+                        />
+                      </Field>
+                      <Button
+                        variant="danger"
+                        loading={savingId === device.id}
+                        onClick={() => void revokeDevice(device)}
+                      >
+                        Отозвать устройство
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               </li>

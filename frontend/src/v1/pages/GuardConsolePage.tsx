@@ -11,6 +11,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
   PropertyType,
+  GuardAuthorizedDeviceContext,
   SecurityWorkspaceActivePass,
   SecurityWorkspaceBlacklistHit,
   SecurityWorkspaceBootstrap,
@@ -63,8 +64,10 @@ export function GuardConsolePage() {
   const propertyId = session.property_id ?? null;
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
   const pinCredentialsEnabled = session.feature_flags?.pin_credentials === true;
+  const guardAuthorizedDevicesEnabled = session.feature_flags?.guard_authorized_devices === true;
   const [selectedAccessPointId, setSelectedAccessPointId] = useState<UUID | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [guardDevice, setGuardDevice] = useState<GuardAuthorizedDeviceContext | null>(null);
 
   const refreshWorkspace = useCallback(() => {
     setRefreshToken((t) => t + 1);
@@ -115,13 +118,23 @@ export function GuardConsolePage() {
       </header>
 
       <div className={uiClasses.twoColumn}>
-        <ScanPanel
-          propertyId={propertyId}
-          accessPointId={selectedAccessPointId}
-          pinEnabled={pinCredentialsEnabled}
-          onAccessPointChange={setSelectedAccessPointId}
-          onVerified={refreshWorkspace}
-        />
+        <Stack>
+          {guardAuthorizedDevicesEnabled ? (
+            <GuardDeviceEnrollmentPanel
+              propertyId={propertyId}
+              accessPointId={selectedAccessPointId}
+              onDeviceReady={setGuardDevice}
+            />
+          ) : null}
+          <ScanPanel
+            propertyId={propertyId}
+            accessPointId={selectedAccessPointId}
+            pinEnabled={pinCredentialsEnabled}
+            guardDevice={guardDevice}
+            onAccessPointChange={setSelectedAccessPointId}
+            onVerified={refreshWorkspace}
+          />
+        </Stack>
 
         <SecurityWorkspacePane
           propertyId={propertyId}
@@ -132,6 +145,132 @@ export function GuardConsolePage() {
         />
       </div>
     </div>
+  );
+}
+
+interface StoredGuardDevice extends GuardAuthorizedDeviceContext {
+  label?: string;
+}
+
+function guardDeviceStorageKey(propertyId: UUID, accessPointId: UUID | null): string {
+  return `rz:v1:guard-device:${propertyId}:${accessPointId || 'property'}`;
+}
+
+function generateDeviceFingerprint(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+  return `guard-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 18)}`;
+}
+
+function readStoredGuardDevice(propertyId: UUID, accessPointId: UUID | null): StoredGuardDevice | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(guardDeviceStorageKey(propertyId, accessPointId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredGuardDevice>;
+    if (!parsed.guard_device_id || !parsed.device_fingerprint) return null;
+    return {
+      guard_device_id: parsed.guard_device_id,
+      device_fingerprint: parsed.device_fingerprint,
+      label: parsed.label,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredGuardDevice(propertyId: UUID, accessPointId: UUID | null, device: StoredGuardDevice) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(guardDeviceStorageKey(propertyId, accessPointId), JSON.stringify(device));
+}
+
+function GuardDeviceEnrollmentPanel({
+  propertyId,
+  accessPointId,
+  onDeviceReady,
+}: {
+  propertyId: UUID;
+  accessPointId: UUID | null;
+  onDeviceReady: (device: GuardAuthorizedDeviceContext | null) => void;
+}) {
+  const [stored, setStored] = useState<StoredGuardDevice | null>(null);
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next = readStoredGuardDevice(propertyId, accessPointId);
+    setStored(next);
+    onDeviceReady(next);
+    setLabel(next?.label || '');
+    setError(null);
+  }, [accessPointId, onDeviceReady, propertyId]);
+
+  async function enroll() {
+    const deviceFingerprint = stored?.device_fingerprint || generateDeviceFingerprint();
+    const resolvedLabel = label.trim()
+      || (accessPointId ? `Пост охраны ${accessPointId.slice(0, 8)}` : 'Пост охраны');
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await api.securityWorkspace.enrollAuthorizedDevice({
+        property_id: propertyId,
+        access_point_id: accessPointId,
+        device_fingerprint: deviceFingerprint,
+        label: resolvedLabel,
+      });
+      const next = {
+        guard_device_id: res.guard_authorized_device.id,
+        device_fingerprint: res.guard_authorized_device.device_fingerprint,
+        label: res.guard_authorized_device.label,
+      };
+      writeStoredGuardDevice(propertyId, accessPointId, next);
+      setStored(next);
+      setLabel(next.label || '');
+      onDeviceReady(next);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось авторизовать устройство охраны');
+      onDeviceReady(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card
+      title="Устройство поста"
+      subtitle={accessPointId ? `Привязка к КПП ${accessPointId.slice(0, 8)}` : 'Выберите КПП для точной привязки'}
+      actions={stored ? <Badge tone="success">Авторизовано</Badge> : <Badge tone="warning">Требуется enrollment</Badge>}
+    >
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      {stored ? (
+        <Stack>
+          <p className={uiClasses.textMuted}>
+            {stored.label || 'Пост охраны'} · ID {stored.guard_device_id.slice(0, 8)}
+          </p>
+          <Inline>
+            <Button type="button" variant="secondary" loading={saving} onClick={() => void enroll()}>
+              Обновить привязку
+            </Button>
+          </Inline>
+        </Stack>
+      ) : (
+        <Stack>
+          <Field label="Метка устройства">
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Например, КПП Север планшет"
+              disabled={saving}
+            />
+          </Field>
+          <Button type="button" loading={saving} onClick={() => void enroll()}>
+            Авторизовать устройство
+          </Button>
+        </Stack>
+      )}
+    </Card>
   );
 }
 

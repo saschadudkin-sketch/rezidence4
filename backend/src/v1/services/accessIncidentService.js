@@ -256,6 +256,7 @@ async function createManualSecurityDecision({ txPool, user, input }) {
     degraded_reason: input.degraded_reason || null,
     lookup_state: input.lookup_state || null,
     reconciliation_state: input.degraded_mode ? 'pending' : 'not_required',
+    guard_device: input.guard_device || null,
   };
 
   try {
@@ -346,6 +347,7 @@ async function createManualSecurityDecision({ txPool, user, input }) {
           degraded_mode: input.degraded_mode === true,
           degraded_reason: input.degraded_reason || null,
           lookup_state: input.lookup_state || null,
+          guard_device: input.guard_device || null,
         }),
         input.ip_address || null,
       ],

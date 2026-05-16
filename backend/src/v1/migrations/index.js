@@ -98,6 +98,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./052_trusted_visitors'),
   // Access rollout Phase 5: canonical pass credential layer
   require('./053_pass_credentials'),
+  // Access rollout Phase 7: guard authorized checkpoint devices
+  require('./054_guard_authorized_devices'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

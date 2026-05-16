@@ -895,6 +895,8 @@ export interface AccessOverride {
 export interface ManualSecurityDecisionRequest {
   property_id: UUID;
   access_point_id?: UUID | null;
+  guard_device_id?: UUID | null;
+  device_fingerprint?: string | null;
   decision: ManualDecision;
   direction?: VerifyDirection;
   reason: string;
@@ -945,6 +947,33 @@ export interface SecurityOfflineReplayResponse {
     replay_event: SecurityOfflineReplayRecord;
     result: ManualSecurityDecisionResponse | null;
   }>;
+}
+
+export interface GuardAuthorizedDevice {
+  id: UUID;
+  property_id: UUID;
+  access_point_id: UUID | null;
+  staff_user_id: UUID | null;
+  device_fingerprint: string;
+  label: string;
+  status: 'active' | 'revoked';
+  last_seen_at: IsoDateTime | null;
+  revoked_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime;
+}
+
+export interface GuardAuthorizedDeviceContext {
+  guard_device_id: UUID;
+  device_fingerprint: string;
+}
+
+export interface GuardAuthorizedDeviceResponse {
+  guard_authorized_device: GuardAuthorizedDevice;
+}
+
+export interface GuardAuthorizedDevicesResponse {
+  guard_authorized_devices: GuardAuthorizedDevice[];
 }
 
 // ─── Security Workspace Hydrate/Search ─────────────────────────────────────

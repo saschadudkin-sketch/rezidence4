@@ -57,7 +57,7 @@ async function recordReplayEvent({ queryable, propertyId, staffId, event }) {
   return rows[0];
 }
 
-async function replaySecurityOfflineEvents({ queryable, txPool, user, propertyId, events }) {
+async function replaySecurityOfflineEvents({ queryable, txPool, user, propertyId, events, guardDevice = null }) {
   if (!Array.isArray(events) || events.length === 0) {
     throw serviceError(400, 'events must be a non-empty array');
   }
@@ -114,6 +114,7 @@ async function replaySecurityOfflineEvents({ queryable, txPool, user, propertyId
           severity: event.severity || (eventType === 'manual_deny' ? 'medium' : 'low'),
           ip_address: event.ip_address || null,
           offline_replay_event_id: replayEvent.id,
+          guard_device: guardDevice,
         },
       });
     }
