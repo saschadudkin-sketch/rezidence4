@@ -229,8 +229,6 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1/public/:slug/documents', v1DocumentsPublicRouter);
   // publicPassRouter: no auth, rate-limited 30/min/IP
   app.use('/api/v1/public/pass', publicPassLimiter, publicPassRouter);
-  // guardScanRouter: staff auth required (enforced inside the router)
-  app.use('/api/v1/guard', requireFeature('qr_pass'), guardScanRouter);
 
   // Phase 3 — Resident Dashboard Expansion
   // packages_v2 (Phase 5) — v1 router fully owns /api/v1/packages.
@@ -354,6 +352,9 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/upload', propertyDbMiddleware, deprecate, uploadLimiter, uploadRouter);
   app.use('/api/contracts', propertyDbMiddleware, deprecate, contractsRouter);
   app.use('/api/client-logs', propertyDbMiddleware, deprecate, clientLogsLimiter, clientLogsRouter);
+  // Deprecated legacy QR guard flow. v1 guard endpoints are owned by
+  // v1VisitsRouter at /api/v1/guard/*; this shim stays only for old clients.
+  app.use('/api/guard', propertyDbMiddleware, deprecate, requireFeature('qr_pass'), guardScanRouter);
 }
 
 module.exports = {

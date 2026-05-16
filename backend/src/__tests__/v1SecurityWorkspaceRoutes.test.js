@@ -95,6 +95,10 @@ describe('security workspace routes', () => {
     expect(res.body.workspace.expected_guests).toHaveLength(1);
     expect(res.body.workspace.recent_events).toHaveLength(1);
     expect(res.body.workspace.blacklist_hits).toHaveLength(1);
+    const expectedGuestsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM access_requests ar'));
+    expect(expectedGuestsCall[0]).toContain("ar.status = 'approved'");
+    expect(expectedGuestsCall[0]).not.toContain('pending_approval');
+    expect(expectedGuestsCall[0]).not.toContain('escalated');
   });
 
   test('GET /search runs scoped vehicle-first search for security users', async () => {

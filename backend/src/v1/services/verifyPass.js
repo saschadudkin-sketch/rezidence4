@@ -36,11 +36,15 @@ function eventTypeFor(direction, allowed) {
   return `${direction}_${allowed ? 'allowed' : 'denied'}`;
 }
 
-function computeVerdict({ mode, pass, vehicle, now, direction = 'entry' }) {
+function computeVerdict({ mode, pass, vehicle, now, direction = 'entry', inputInvalid = false }) {
   // Шаг 3: каскад причин отказа (первое совпадение побеждает).
   if (mode === 'qr' && !pass) {
     return { allowed: false, reason: 'invalid_qr', event_type: eventTypeFor(direction, false),
              incident_type: 'invalid_qr', severity: 'medium' };
+  }
+  if (mode === 'plate' && inputInvalid) {
+    return { allowed: false, reason: 'invalid_plate', event_type: eventTypeFor(direction, false),
+             incident_type: 'invalid_plate', severity: 'low' };
   }
   if (vehicle && vehicle.is_blacklisted) {
     return { allowed: false, reason: 'vehicle_blacklisted', event_type: eventTypeFor(direction, false),
@@ -141,6 +145,7 @@ async function verifyPass({
   let pass = null;
   let vehicle = null;
   let normalizedPlate = null;
+  let inputInvalid = false;
 
   if (mode === 'qr') {
     if (!token) throw new Error('token required for mode=qr');
@@ -167,35 +172,31 @@ async function verifyPass({
   } else if (mode === 'plate') {
     normalizedPlate = normalizePlate(plate);
     if (!normalizedPlate) {
-      // invalid input up front
-      return {
-        verdict: { allowed: false, reason: 'invalid_plate', event_type: 'entry_denied',
-                   incident_type: 'invalid_plate', severity: 'low' },
-        visit_log_id: null, pass_id: null, incident_id: null,
-        _inputInvalid: true,
-      };
-    }
-    const { rows: vRows } = await db.query(
-      `SELECT id, plate_number, owner_type, vehicle_type,
-              is_whitelisted, is_blacklisted
-         FROM vehicles
-        WHERE property_id = $1 AND plate_number = $2`,
-      [property_id, normalizedPlate],
-    );
-    vehicle = vRows[0] || null;
-    if (vehicle) {
-      const { rows: pRows } = await db.query(
-        `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
-                p.valid_from, p.valid_until, p.access_request_id,
-                p.zone_id, p.point_id, p.policy_id
-           FROM passes p
-          WHERE p.subject_vehicle_id = $1
-            AND p.property_id = $2
-            AND p.status IN ('active','used')
-          ORDER BY p.valid_until DESC LIMIT 1`,
-        [vehicle.id, property_id],
+      inputInvalid = true;
+      normalizedPlate = null;
+    } else {
+      const { rows: vRows } = await db.query(
+        `SELECT id, plate_number, owner_type, vehicle_type,
+                is_whitelisted, is_blacklisted
+           FROM vehicles
+          WHERE property_id = $1 AND plate_number = $2`,
+        [property_id, normalizedPlate],
       );
-      pass = pRows[0] || null;
+      vehicle = vRows[0] || null;
+      if (vehicle) {
+        const { rows: pRows } = await db.query(
+          `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
+                  p.valid_from, p.valid_until, p.access_request_id,
+                  p.zone_id, p.point_id, p.policy_id
+             FROM passes p
+            WHERE p.subject_vehicle_id = $1
+              AND p.property_id = $2
+              AND p.status IN ('active','used')
+            ORDER BY p.valid_until DESC LIMIT 1`,
+          [vehicle.id, property_id],
+        );
+        pass = pRows[0] || null;
+      }
     }
   }
 
@@ -223,7 +224,7 @@ async function verifyPass({
   }
 
   // ─── Step 3: verdict cascade ────────────────────────────────────────────
-  const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction });
+  const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction, inputInvalid });
   const verdict = { ...baseVerdict };
   const requiresVehiclePolicyDecision = mode === 'plate'
     && vehicle

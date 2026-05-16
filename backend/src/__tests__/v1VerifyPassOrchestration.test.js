@@ -418,6 +418,40 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     expect(incidentCall[1][4]).toBe('unauthorized_vehicle');
   });
 
+  test('invalid plate denies through visit log and incident pipeline', async () => {
+    const txClient = installTxClient();
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'plate',
+      plate: '!!!',
+      direction: 'exit',
+      access_point_id: UUID_POINT,
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(false);
+    expect(result.verdict.reason).toBe('invalid_plate');
+    expect(result.verdict.event_type).toBe('exit_denied');
+    expect(result.visit_log_id).toBe(UUID_VISIT_LOG);
+    expect(result.incident_id).toBe(UUID_INCIDENT);
+    expect(db.query).not.toHaveBeenCalled();
+
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    const incidentCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_incidents'));
+    const auditCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(visitCall[1]).toEqual([
+      UUID_PROPERTY, null, UUID_POINT, 'exit_denied', 'guard_console',
+      null, null, UUID_STAFF, null, NOW,
+    ]);
+    expect(incidentCall[1]).toEqual([
+      UUID_PROPERTY, null, UUID_VISIT_LOG, null,
+      'invalid_plate', 'low', 'invalid plate',
+    ]);
+    expect(auditCall[1][2]).toBe('visit.exit_denied');
+  });
+
   test('blacklisted plate denies with high-severity incident', async () => {
     const txClient = installTxClient();
     mockPlateQueries({ vehicle: makeVehicle({ is_blacklisted: true }) });

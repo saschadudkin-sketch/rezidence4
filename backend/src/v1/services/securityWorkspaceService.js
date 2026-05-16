@@ -141,7 +141,7 @@ async function listExpectedGuests(queryable, { propertyId, station, now, limit }
        LEFT JOIN units u ON u.id = ar.target_unit_id
        LEFT JOIN passes p ON p.access_request_id = ar.id
       WHERE ar.property_id = $1
-        AND ar.status IN ('approved','pending_approval','escalated')
+        AND ar.status = 'approved'
         AND ar.ends_at >= $2
         AND ar.starts_at <= $3
         ${scopeSql}

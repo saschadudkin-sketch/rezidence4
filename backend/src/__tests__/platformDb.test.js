@@ -551,6 +551,24 @@ describe('Property Database Middleware', () => {
       expect(mockNext).toHaveBeenCalled();
     });
 
+    test('resolves unauthenticated public pass route from hostname', async () => {
+      mockPlatformDb.query.mockImplementation((sql, params) => {
+        if (sql.includes('hostname') && params[0] === 'zamoskv.domhub.su') {
+          return Promise.resolve({ rows: [zamoskv] });
+        }
+        return Promise.resolve({ rows: [] });
+      });
+
+      mockReq.headers.host = 'zamoskv.domhub.su';
+      mockReq.path = '/api/v1/public/pass/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      await propertyDbMiddleware(mockReq, mockRes, mockNext);
+
+      expect(mockReq.propertySlug).toBe('zamoskv');
+      expect(mockReq.propertyResolvedBy).toBe('hostname');
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+
     test('attaches property via public content path slug', async () => {
       mockPlatformDb.query.mockImplementation((sql, params) => {
         if (sql.includes('hostname')) return Promise.resolve({ rows: [] });

@@ -25,7 +25,7 @@ const SCAN_ID = '11111111-1111-4111-8111-111111111111';
 function buildApp() {
   const app = express();
   app.use(express.json());
-  app.use('/api/v1/guard', guardScanRouter);
+  app.use('/api/guard', guardScanRouter);
   app.use((err, _req, res, _next) => res.status(500).json({ error: err.message }));
   return app;
 }
@@ -50,7 +50,7 @@ describe('legacy guard QR replay protections', () => {
     });
 
     const res = await supertest(buildApp())
-      .post('/api/v1/guard')
+      .post('/api/guard')
       .send({ token: TOKEN });
 
     expect(res.status).toBe(422);
@@ -65,7 +65,7 @@ describe('legacy guard QR replay protections', () => {
       .mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
     const res = await supertest(buildApp())
-      .post(`/api/v1/guard/${SCAN_ID}/admit`)
+      .post(`/api/guard/${SCAN_ID}/admit`)
       .send({});
 
     expect(res.status).toBe(409);
