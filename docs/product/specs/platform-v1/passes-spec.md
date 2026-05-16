@@ -4,6 +4,7 @@
 **Статус:** Draft — шаблон для остальных v1 module-specs
 **Схема-база:** `docs/product/specs/domhub-access-data-model-spec.md` §5.5
 **Миграция:** `backend/src/v1/migrations/011_passes.sql` + `012_qr_passes_v2.sql`
+**Product alignment:** `docs/product/specs/domhub-access-competitive-improvement-plan.md`
 
 ---
 
@@ -17,6 +18,26 @@
 - Один access_request может породить несколько пассов (серия визитов, основной + резервный QR).
 - Пропуск можно переиспользовать и формально отозвать (`status='revoked'` + audit-поля) — без отзыва родительской заявки.
 - `visit_logs.pass_id` даёт прямую связь события на конкретный пропуск, а не на заявку-монолит.
+
+### 1.1 Product Vocabulary And Canonical Contracts
+
+Эта спека участвует в Phase 0 alignment из `domhub-access-competitive-improvement-plan.md`.
+
+Canonical contract:
+- Новые pass, public pass и guard verification flows используют `/api/v1/passes`, `/api/v1/visits/verify` и `/api/v1/public/pass/:token`.
+- Legacy `qr_passes` / `requests` остаются compatibility-only до миграционного окна; они не являются source of truth для новых UX.
+- QR, PIN, plate и future wallet — это credentials одного `pass` lifecycle, а не отдельные бизнес-сущности.
+
+Credential vocabulary:
+- QR credential: текущий v1 `qr_passes_v2.token`; public pass page должна принимать v1 32-hex token и legacy 64-hex token во время cutover.
+- Plate credential: lookup через `vehicles` и pass policy/subject linkage.
+- PIN credential: будущий fallback credential, policy-controlled и auditable.
+- Wallet credential: out of first MVP.
+
+Security boundaries:
+- Public pass response не раскрывает resident UID, resident phone, staff notes, guard notes или internal audit data.
+- Guest-facing instructions приходят из `access_requests.guest_instructions`, когда это поле будет добавлено.
+- Guard-only notes остаются в security workspace / authenticated staff APIs.
 
 ---
 

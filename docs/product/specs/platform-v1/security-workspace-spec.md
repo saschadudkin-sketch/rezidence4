@@ -3,7 +3,7 @@
 **Фаза:** 3 (Access-core)
 **Статус:** Draft, backend baseline implemented
 **Тикет:** DH-15 Security Workspace API, DH-16 Manual Override And Incident Flow
-**Связанные спеки:** `access-topology-spec.md`, `access-policies-spec.md`, `visit-logs-spec.md`, `access-incidents-spec.md`
+**Связанные спеки:** `access-topology-spec.md`, `access-policies-spec.md`, `visit-logs-spec.md`, `access-incidents-spec.md`, `domhub-access-competitive-improvement-plan.md`
 
 ---
 
@@ -12,6 +12,27 @@
 `security-workspace` - backend API для рабочего места охраны. Он не заменяет CRUD ресурсов (`passes`, `visits`, `access-incidents`, `access-points`), а собирает guard-optimized feeds для быстрой первичной загрузки, поиска и последних событий.
 
 Главный принцип: initial hydrate и incremental updates остаются разными контурами. Этот API отвечает за hydrate/search; SSE остаётся отдельным механизмом обновлений.
+
+### 1.1 Product Vocabulary And Canonical Contracts
+
+Эта спека участвует в Phase 0 alignment из `domhub-access-competitive-improvement-plan.md`.
+
+Canonical contract:
+- Guard console hydrates from `/api/v1/security-workspace/bootstrap`; SSE only applies incremental updates.
+- Search, manual decisions and offline replay use `/api/v1/security-workspace/*` and `/api/v1/visits/verify`.
+- Deprecated `/api/*` guard aliases are compatibility-only and must not be target contracts for new guard UX.
+
+Guard vocabulary:
+- Expected guests / arrivals: upcoming approved access requests and active passes in the current checkpoint window.
+- Blacklist hits: open incidents and vehicle flags relevant to the selected property/access point.
+- Guard notes: staff/security-only operational notes; never returned to public pass.
+- Guest instructions: guest-facing text from the access request; safe to show on public pass and optionally in guard context.
+- Guard authorized devices: future allow-list of devices/stations permitted to perform manual decision or hardware-control actions.
+
+Out of first MVP:
+- Face recognition / biometric identity matching.
+- Wallet/BLE production credentials.
+- Direct hardware open commands outside audited manual-control boundaries.
 
 ---
 
@@ -24,6 +45,7 @@
 | `GET` | `/api/v1/security-workspace/recent-events?property_id=&access_point_id=` | Последние события прохода/проезда |
 | `POST` | `/api/v1/visits/verify` with `direction=entry|exit` | Verify с направлением въезд/выезд |
 | `POST` | `/api/v1/security-workspace/manual-decision` | Ручное решение охраны: admit/deny с visit log, incident, override и audit |
+| `POST` | `/api/v1/security-workspace/offline-replay` | Replay локально накопленных offline guard decisions с audit/reconciliation |
 
 `access_point_id` является optional, но если передан, должен принадлежать тому же property и быть active.
 

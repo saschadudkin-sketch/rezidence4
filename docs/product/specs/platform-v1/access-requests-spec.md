@@ -4,6 +4,7 @@
 **Статус:** Draft
 **Схема-база:** `docs/product/specs/domhub-access-data-model-spec.md` §5.5
 **Миграция:** `backend/src/v1/migrations/009_access_requests.sql` + `010_access_approvals.sql`
+**Product alignment:** `docs/product/specs/domhub-access-competitive-improvement-plan.md`
 
 ---
 
@@ -25,6 +26,26 @@
 - `service_requests` — отдельная спека (Фаза 6); для ЖКХ-заявок
 - Связь через `request_access_links` (Фаза 6): service-request может породить access-request (сантехник едет → нужен пропуск на авто)
 
+### 1.1 Product Vocabulary And Canonical Contracts
+
+Эта спека участвует в Phase 0 alignment из `domhub-access-competitive-improvement-plan.md`.
+
+Canonical contract:
+- Новые access UX flows используют `/api/v1/access-requests` как source of truth.
+- Deprecated `/api/*` и legacy `requests` aliases остаются только compatibility/shim surface до миграции.
+- Resident-facing creation UX должен оперировать продуктовым словарём: guest, courier, service, vehicle, trusted visitor / frequent guest.
+
+Stable product fields:
+- `guest_instructions` — текст для гостя на публичной странице пропуска.
+- `guard_notes` — staff/security-only заметка для решения на КПП.
+- `share_delivery_channels` — будущая настройка каналов доставки ссылки/QR.
+
+До добавления колонок эти поля не должны становиться постоянным UX-контрактом через `metadata`: metadata допустима только для экспериментальных или integration-only расширений.
+
+Out of scope for this module:
+- PIN/fallback credential хранится не в `access_requests`, а в credential layer для `passes`.
+- Wallet/BLE/face recognition не входят в v1 access-request flow без отдельного approval.
+
 ---
 
 ## 2. Схема
@@ -45,6 +66,8 @@ access_requests
   target_point_id                 UUID NULL → access_points
   target_unit_id                  UUID NULL → units
   reason                          TEXT NULL
+  guest_instructions              TEXT NULL  (planned stable UX field)
+  guard_notes                     TEXT NULL  (planned staff/security-only field)
   starts_at                       TIMESTAMPTZ NOT NULL
   ends_at                         TIMESTAMPTZ NOT NULL
   status                          ENUM(new/pending_approval/approved/rejected/cancelled/expired) DEFAULT 'new'
