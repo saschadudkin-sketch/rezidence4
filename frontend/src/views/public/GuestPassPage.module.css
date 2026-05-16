@@ -292,6 +292,32 @@
   flex-shrink: 0;
 }
 
+.instructionsPanel {
+  display: grid;
+  gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-5);
+  border: 1px solid var(--b1);
+  border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.instructionsLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t4);
+  margin-bottom: 3px;
+}
+
+.instructionsText {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--t2);
+  text-align: center;
+}
+
 .actionsRow {
   display: flex;
   justify-content: center;
@@ -371,6 +397,8 @@
   .validityValue { color: #0f172a; }
   .cardLabel,
   .validityLabel,
+  .instructionsLabel,
+  .instructionsText,
   .qrHint,
   .visitorDest,
   .propertyName,

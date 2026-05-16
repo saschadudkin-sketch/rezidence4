@@ -1,16 +1,17 @@
 /**
  * GuestPassPage — public, unauthenticated share page for a guest pass.
  *
- * URL: /p/:token  (domhub.su/p/<64-hex-token>)
+ * URL: /p/:token  (domhub.su/p/<token>)
  *
- * The resident creates a pass, DomHub mints a `qr_passes` row with a random
- * 32-byte token, and the resident shares https://domhub.su/p/<token> (or the
- * QR that encodes that URL).  When the guest opens the link:
+ * The resident creates a pass, DomHub mints a v1 `qr_passes_v2` row with a
+ * 16-byte token, and the resident shares https://domhub.su/p/<token> (or the
+ * QR that encodes that URL).  The backend also accepts already shared legacy
+ * 32-byte public tokens during the cutover window.  When the guest opens the link:
  *   1. We call GET /api/v1/public/pass/:token (no auth, rate-limited 30/min/IP)
  *    — see backend/src/routes/publicPass.js.  The response intentionally
  *      omits the resident UID, phone, and other PII.
  *   2. We render the card from docs/design-reference/guest-pass-card.html
- *      with the visitor's name, apartment, validity window, and a QR
+ *      with the visitor's name, destination, validity window, and a QR
  *      containing the same URL so the guard can scan it at the gate.
  *
  * Intentional design choices:
@@ -27,15 +28,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import styles from './GuestPassPage.module.css';
 
-type PassStatus = 'valid' | 'used' | 'expired' | 'invalid';
+type PassStatus = 'active' | 'used' | 'expired' | 'revoked' | 'blocked' | 'valid' | 'invalid';
 
 type PublicPass = {
   status: PassStatus;
   visitorName: string | null;
   propertyName: string | null;
   apartment: string | null;
+  destinationLabel?: string | null;
+  validFrom?: string | null;
   validUntil: string | null;
   type: string;
+  passType?: string | null;
+  accessPointName?: string | null;
+  accessZoneName?: string | null;
+  guestInstructions?: string | null;
   passId: string;
 };
 
@@ -44,7 +51,7 @@ type FetchState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; pass: PublicPass; qrDataUrl: string | null };
 
-const TOKEN_RE = /^[0-9a-f]{64}$/i;
+const TOKEN_RE = /^[0-9a-f]{32}(?:[0-9a-f]{32})?$/i;
 
 function formatValidUntil(iso: string | null): { date: string; time: string } | null {
   if (!iso) return null;
@@ -57,22 +64,36 @@ function formatValidUntil(iso: string | null): { date: string; time: string } | 
 
 function statusLabel(status: PassStatus): string {
   switch (status) {
+    case 'active': return 'Действителен';
     case 'valid': return 'Действителен';
     case 'used': return 'Уже использован';
     case 'expired': return 'Срок истёк';
+    case 'revoked': return 'Отозван';
+    case 'blocked': return 'Заблокирован';
     case 'invalid': return 'Недействителен';
   }
 }
 
 function typeLabel(type: string): string {
   switch (type) {
+    case 'guest': return 'Гостевой';
+    case 'vehicle': return 'Авто';
+    case 'resident': return 'Резидентский';
+    case 'staff': return 'Служебный';
+    case 'contractor': return 'Подрядчик';
+    case 'courier': return 'Доставка';
+    case 'emergency': return 'Экстренный';
     case 'pass': return 'Гостевой';
     case 'visit': return 'Гостевой';
     case 'delivery': return 'Доставка';
     case 'taxi': return 'Такси';
     case 'service': return 'Сервис';
-    default: return 'Разовый';
+    default: return type && /[А-Яа-яЁё]/.test(type) ? type : 'Разовый';
   }
+}
+
+function isActiveStatus(status: PassStatus): boolean {
+  return status === 'active' || status === 'valid';
 }
 
 export default function GuestPassPage() {
@@ -186,7 +207,7 @@ export default function GuestPassPage() {
           <>
             <div className={styles.statusRow}>
               <div
-                className={`${styles.statusPill} ${state.pass.status === 'valid' ? styles.statusPillValid : styles.statusPillInvalid}`}
+                className={`${styles.statusPill} ${isActiveStatus(state.pass.status) ? styles.statusPillValid : styles.statusPillInvalid}`}
                 aria-live="polite"
               >
                 <span className={styles.statusDot} />
@@ -200,9 +221,9 @@ export default function GuestPassPage() {
                 <div className={styles.visitorName}>
                   {state.pass.visitorName || 'Гость'}
                 </div>
-                {state.pass.apartment && (
+                {(state.pass.destinationLabel || state.pass.apartment) && (
                   <div className={styles.visitorDest}>
-                    Апартаменты {state.pass.apartment}
+                    {state.pass.destinationLabel || `Апартаменты ${state.pass.apartment}`}
                   </div>
                 )}
               </div>
@@ -241,7 +262,7 @@ export default function GuestPassPage() {
                 <div className={styles.validityCell}>
                   <div className={styles.validityLabel}>Тип</div>
                   <div className={styles.validityValue}>
-                    {typeLabel(state.pass.type)}
+                    {typeLabel(state.pass.passType || state.pass.type)}
                     <br />
                     пропуск
                   </div>
@@ -249,7 +270,26 @@ export default function GuestPassPage() {
               </div>
             </div>
 
-            {state.pass.status === 'valid' && (
+            {(state.pass.accessPointName || state.pass.accessZoneName || state.pass.guestInstructions) && (
+              <div className={styles.instructionsPanel}>
+                {state.pass.accessPointName || state.pass.accessZoneName ? (
+                  <div>
+                    <div className={styles.instructionsLabel}>Куда идти</div>
+                    <div className={styles.instructionsText}>
+                      {[state.pass.accessPointName, state.pass.accessZoneName].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                ) : null}
+                {state.pass.guestInstructions ? (
+                  <div>
+                    <div className={styles.instructionsLabel}>Инструкция</div>
+                    <div className={styles.instructionsText}>{state.pass.guestInstructions}</div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {isActiveStatus(state.pass.status) && (
               <div className={styles.metaChips} aria-label="Детали пропуска">
                 <div className={styles.metaChip}>
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
