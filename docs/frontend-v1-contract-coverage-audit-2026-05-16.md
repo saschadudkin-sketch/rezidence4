@@ -14,28 +14,29 @@ Scope: `/api/v1/*` backend operations vs frontend usage in `frontend/src`.
 | Metric | Count |
 |---|---:|
 | Backend mounted `/api/v1` operations | 339 |
-| Frontend-used operations | 170 |
-| Uncovered operations | 170 |
-| Product gap operations after exclusions | 134 |
+| Frontend-used operations | 179 |
+| Uncovered operations | 161 |
+| Product gap operations after exclusions | 125 |
 | Intentionally excluded / non-product-UI operations | 36 |
 
-Verdict: frontend still materially lags backend. The notifications/outbox operations slice is now covered, including resident notification history, but property-admin configuration, integrations, privacy, analytics, and deeper incident/request workflows remain incomplete.
+Verdict: frontend still materially lags backend. Notifications/outbox and the property-admin directory read layer are now covered, but write-depth for property administration, integrations, privacy, analytics, and deeper incident/request workflows remain incomplete.
 
 ## Priority Findings
 
-### P1: Property Admin Configuration Is Still Thin
+### P1: Property Admin Configuration Is Still Read-Heavy
 
-Backend has mature object administration surfaces, but frontend only exposes fragments:
+Backend has mature object administration surfaces. Frontend now exposes a read-only `/v1/admin/directory` baseline for structure, residents, staff, contractors, and memberships, but write-depth is still incomplete:
 
-- `/api/v1/staff`: list/detail/create/update/deactivate/import are backend-only in v1 UI.
-- `/api/v1/contractor-companies`, `/api/v1/contractor-users`, `/api/v1/contractors/import/*`: no admin management UI.
-- `/api/v1/memberships`: resident/unit membership lifecycle is not surfaced.
-- `/api/v1/units`, `/api/v1/buildings`, `/api/v1/entrances`: onboarding import exists, but structure CRUD is mostly missing.
+- `/api/v1/staff`: list/detail clients exist; create/update/deactivate/import are backend-only in v1 UI.
+- `/api/v1/contractor-companies`, `/api/v1/contractor-users`: read clients exist; create/update/deactivate are not surfaced.
+- `/api/v1/contractors/import/*`: no admin import UI beyond backend contracts.
+- `/api/v1/memberships`: list/me clients exist; provision/revoke flows are not surfaced.
+- `/api/v1/units`, `/api/v1/buildings`, `/api/v1/entrances`: list clients exist, but structure CRUD is mostly missing.
 - `/api/v1/residents`: list/detail/offboarding exists partially; create/update/deactivate/transfer/consent flows are not complete.
 
-Impact: admins cannot operate a property end-to-end from platform-v1 UI even though backend contracts exist.
+Impact: admins can inspect core directory data from platform-v1 UI, but cannot operate a property end-to-end without direct API calls for mutations/imports.
 
-Recommended next slice: build a `PropertyDirectoryAdminPage` covering structure, residents, memberships, staff, and contractors in phased tabs.
+Recommended next slice: add controlled mutation/import flows to `PropertyDirectoryAdminPage` after request lifecycle depth, starting with staff/contractor deactivation and membership revoke/provision.
 
 ### P1: Integration Operations Have Backend But Almost No UI
 
@@ -112,13 +113,19 @@ Impact: operators can inspect queue/logs, see health and package-notification SL
 
 Residual risk: provider/channel preference management is still outside this slice because the current backend product surface does not expose a dedicated resident preference contract in the v1 coverage audit.
 
+## Completed This Pass
+
+- Added `/v1/admin/directory` with read-only tabs for structure, residents, staff, contractors, and memberships.
+- Added frontend clients for `/api/v1/staff`, `/api/v1/contractor-companies`, `/api/v1/contractor-users`, `/api/v1/memberships`, `/api/v1/buildings`, and `/api/v1/buildings/:id/entrances`.
+- Added smoke coverage for the new page and router deep-link.
+
 ## Suggested Execution Order
 
-1. Property admin directory: structure, residents, memberships, staff, contractors.
-2. Request lifecycle depth: detail/history/attachments/emergency queue/evidence.
-3. Access incident workflow: mutation actions plus video evidence linkage.
-4. Integration operations: SKUD hardware, ERP, webhooks, video providers.
-5. Privacy compliance UI.
+1. Request lifecycle depth: detail/history/attachments/emergency queue/evidence.
+2. Access incident workflow: mutation actions plus video evidence linkage.
+3. Integration operations: SKUD hardware, ERP, webhooks, video providers.
+4. Privacy compliance UI.
+5. Property admin directory mutations/imports.
 6. Analytics pages: packages, requests, SLA, traffic, snapshots.
 7. Analytics UI beyond operations dashboard, if still needed after dashboard/portfolio rollups.
 

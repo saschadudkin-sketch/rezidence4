@@ -108,8 +108,20 @@ vi.mock('./api', () => {
         list: neverResolves,
         mine: neverResolves,
       },
-      residents: { getById: neverResolves, offboardingReport: neverResolves },
-      units: { list: neverResolves, importRows: neverResolves },
+      residents: { list: neverResolves, getById: neverResolves, offboardingReport: neverResolves },
+      units: {
+        list: neverResolves,
+        listBuildings: neverResolves,
+        listEntrances: neverResolves,
+        importRows: neverResolves,
+      },
+      staff: { list: neverResolves, getById: neverResolves },
+      contractors: {
+        listCompanies: neverResolves,
+        getCompanyById: neverResolves,
+        listUsers: neverResolves,
+      },
+      memberships: { list: neverResolves, listMine: neverResolves },
     },
     isV1ApiError: () => false,
     normalizePlate: (s: string) => s.toUpperCase().replace(/[\s-]+/g, ''),
@@ -324,6 +336,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/operations');
     expect(
       await screen.findByRole('heading', { name: /операционный обзор/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/directory reaches property directory', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/directory');
+    expect(
+      await screen.findByRole('heading', { name: /справочник объекта/i }),
     ).toBeInTheDocument();
   });
 

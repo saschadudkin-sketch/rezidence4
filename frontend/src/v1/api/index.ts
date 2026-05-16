@@ -26,6 +26,9 @@ import { technicianWorkspaceApi } from './technicianWorkspace';
 import { contractorWorkspaceApi } from './contractorWorkspace';
 import { unitsApi } from './units';
 import { residentsApi } from './residents';
+import { staffApi } from './staff';
+import { contractorsApi } from './contractors';
+import { membershipsApi } from './memberships';
 import { sessionApi } from './session';
 import { announcementsApi, deriveStatus as deriveAnnouncementStatus } from './announcements';
 import { packagesApi, packageStatusTone } from './packages';
@@ -54,6 +57,9 @@ export const api = {
   contractorWorkspace: contractorWorkspaceApi,
   units: unitsApi,
   residents: residentsApi,
+  staff: staffApi,
+  contractors: contractorsApi,
+  memberships: membershipsApi,
   session: sessionApi,
   announcements: announcementsApi,
   packages: packagesApi,
@@ -127,6 +133,12 @@ export type {
   ListResidentsParams,
   ResidentWithUnit,
 } from './residents';
+export type { ListStaffParams } from './staff';
+export type {
+  ListContractorCompaniesParams,
+  ListContractorUsersParams,
+} from './contractors';
+export type { ListMembershipsParams } from './memberships';
 export type {
   ListAnnouncementsParams,
   ListAdminAnnouncementsParams,

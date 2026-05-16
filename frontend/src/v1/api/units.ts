@@ -7,6 +7,8 @@ import { v1Client, type RequestOpts } from './client';
 import type {
   AccessPointType,
   AccessZoneType,
+  Building,
+  Entrance,
   PageMeta,
   PaginationParams,
   PropertyType,
@@ -76,6 +78,15 @@ function toQuery(params: object | undefined): string {
 }
 
 export const unitsApi = {
+  listBuildings(opts?: RequestOpts) {
+    return v1Client.get<{ buildings: Building[] }>('/buildings', opts);
+  },
+  listEntrances(buildingId: UUID, opts?: RequestOpts) {
+    return v1Client.get<{ entrances: Entrance[] }>(
+      `/buildings/${buildingId}/entrances`,
+      opts,
+    );
+  },
   list(params?: ListUnitsParams, opts?: RequestOpts) {
     return v1Client.get<{ units: Unit[]; page?: PageMeta }>(
       `/units${toQuery(params)}`,

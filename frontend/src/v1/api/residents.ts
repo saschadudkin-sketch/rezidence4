@@ -18,6 +18,7 @@ import type {
 
 export interface ListResidentsParams extends PaginationParams {
   unit_id?: UUID;
+  q?: string;
   is_active?: boolean;
 }
 

@@ -72,6 +72,7 @@ const EmergencyDispatchPage = lazy(() => import('./pages/EmergencyDispatchPage')
 const OperationsDashboardPage = lazy(() => import('./pages/OperationsDashboardPage').then((m) => ({ default: m.OperationsDashboardPage })));
 const ManagementCompanyPortfolioPage = lazy(() => import('./pages/ManagementCompanyPortfolioPage').then((m) => ({ default: m.ManagementCompanyPortfolioPage })));
 const NotificationOperationsPage = lazy(() => import('./pages/NotificationOperationsPage').then((m) => ({ default: m.NotificationOperationsPage })));
+const PropertyDirectoryAdminPage = lazy(() => import('./pages/PropertyDirectoryAdminPage').then((m) => ({ default: m.PropertyDirectoryAdminPage })));
 
 // Role sets mirror the final role model in store/session.tsx. Legacy aliases
 // stay listed where current sessions can still emit them.
@@ -250,6 +251,14 @@ export function V1Router() {
           element={
             <RoleGate allow={ADMIN_ALLOW}>
               <NotificationOperationsPage />
+            </RoleGate>
+          }
+        />
+        <Route
+          path="admin/directory"
+          element={
+            <RoleGate allow={ADMIN_ALLOW}>
+              <PropertyDirectoryAdminPage />
             </RoleGate>
           }
         />

@@ -1707,6 +1707,24 @@ export interface Unit {
   created_at: IsoDateTime;
 }
 
+export interface Building {
+  id: UUID;
+  property_id: UUID;
+  code: string | null;
+  name: string;
+  sort_order: number;
+  created_at: IsoDateTime;
+}
+
+export interface Entrance {
+  id: UUID;
+  building_id: UUID;
+  code: string | null;
+  name: string;
+  sort_order: number;
+  created_at: IsoDateTime;
+}
+
 // ─── Residents ──────────────────────────────────────────────────────────────
 
 export type ResidentType = 'owner' | 'tenant' | 'family_member';
@@ -1726,6 +1744,85 @@ export interface Resident {
   consent_version?: string | null;
   created_at?: IsoDateTime;
   updated_at?: IsoDateTime | null;
+}
+
+// ─── Property Admin Directory ──────────────────────────────────────────────
+
+export type StaffRole = 'security' | 'concierge' | 'technician' | 'property_admin';
+export type StaffSpecialization = 'plumbing' | 'electric' | 'cleaning' | 'general';
+
+export interface StaffUser {
+  id: UUID;
+  property_id: UUID;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  role: StaffRole;
+  specialization: StaffSpecialization | null;
+  can_view_resident_phone: boolean;
+  can_assign_requests: boolean;
+  external_uid: UUID | null;
+  is_active: boolean;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+export type ContractorCompanyStatus = 'active' | 'suspended' | 'terminated';
+
+export interface ContractorCompany {
+  id: UUID;
+  property_id: UUID;
+  name: string;
+  status: ContractorCompanyStatus;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  active_users_count?: number;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+export interface ContractorUser {
+  id: UUID;
+  contractor_company_id: UUID;
+  property_id: UUID;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  specialization: string | null;
+  access_expires_at: IsoDateTime | null;
+  external_uid: UUID | null;
+  is_active: boolean;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
+}
+
+export type MembershipSubjectType = 'resident' | 'staff' | 'contractor' | 'external';
+export type MembershipScopeLevel = 'property' | 'building' | 'entrance' | 'unit' | 'management_company' | 'platform';
+export type MembershipStatus = 'pending' | 'active' | 'suspended' | 'revoked' | 'ended';
+
+export interface RoleScopeMembership {
+  id: UUID;
+  property_id: UUID;
+  resident_id: UUID | null;
+  staff_user_id: UUID | null;
+  contractor_user_id: UUID | null;
+  external_subject_type: MembershipSubjectType | string | null;
+  external_subject_id: string | null;
+  management_company_id: UUID | null;
+  role: UserRole | string;
+  scope_level: MembershipScopeLevel | string;
+  scope_id: UUID | null;
+  status: MembershipStatus | string;
+  starts_at: IsoDateTime;
+  ends_at: IsoDateTime | null;
+  created_by_staff_id: UUID | null;
+  provisioned_from: string | null;
+  provisioned_at: IsoDateTime | null;
+  revoked_at: IsoDateTime | null;
+  revoked_reason: string | null;
+  created_at: IsoDateTime;
+  updated_at: IsoDateTime | null;
 }
 
 export interface ResidentOffboardingSummary {
