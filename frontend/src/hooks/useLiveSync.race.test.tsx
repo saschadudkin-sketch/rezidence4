@@ -18,6 +18,7 @@ vi.mock('./useNewRequestNotifier', () => ({ useNewRequestNotifier: () => vi.fn()
 vi.mock('./useStatusChangeNotifier', () => ({ useStatusChangeNotifier: () => vi.fn() }));
 
 const cleanupFns = [];
+let recoveredAfterGapHandler = null;
 const startSyncMock = vi.fn((_opts) => {
   const cleanup = vi.fn();
   cleanupFns.push(cleanup);
@@ -31,6 +32,7 @@ vi.mock('../services/providers/serviceContainer', () => ({
 vi.mock('../utils/events', () => ({
   onSseStatus: (fn) => { fn({ connected: true }); return () => {}; },
   onSsePermanentError: () => () => {},
+  onSseRecoveredAfterGap: (fn) => { recoveredAfterGapHandler = fn; return () => { recoveredAfterGapHandler = null; }; },
   onSseActivity: () => () => {},
   onRealtimeState: () => () => {},
   emitSseForceReconnect: vi.fn(),
@@ -49,6 +51,7 @@ const callbacks = {
 describe('useLiveSync — race conditions', () => {
   beforeEach(() => {
     cleanupFns.length = 0;
+    recoveredAfterGapHandler = null;
     startSyncMock.mockClear();
   });
 
@@ -89,5 +92,16 @@ describe('useLiveSync — race conditions', () => {
     expect(cleanupFns).toHaveLength(1);
     unmount();
     await waitFor(() => expect(cleanupFns[0]).toHaveBeenCalledTimes(1));
+  });
+
+  it('full-resyncs after SSE recovers from a reconnect gap', async () => {
+    renderHook(() => useLiveSync(user, { ...callbacks, retryKey: 0 }));
+    expect(startSyncMock).toHaveBeenCalledTimes(1);
+    expect(recoveredAfterGapHandler).toBeTypeOf('function');
+
+    act(() => recoveredAfterGapHandler());
+
+    await waitFor(() => expect(startSyncMock).toHaveBeenCalledTimes(2));
+    expect(cleanupFns[0]).toHaveBeenCalledTimes(1);
   });
 });

@@ -56,7 +56,7 @@
     "verify:design-governance": "node scripts/check-design-governance.js",
     "verify:architecture-governance": "node scripts/check-architecture-governance.js",
     "verify:mode-services": "npm run test:mode-services && npm run build",
-    "verify:all": "npm run verify:env && npm run verify:api-version && npm run verify:styles && npm run verify:ux-contract && npm run verify:visual-state-matrix && npm run verify:design-governance && npm run verify:architecture-governance && npm run verify:modal-a11y && npm run lint && npm run typecheck && node ./node_modules/vitest/vitest.mjs run && npm run build",
+    "verify:all": "node scripts/verify-all.js",
     "dev": "vite",
     "test:watch": "node ./node_modules/vitest/vitest.mjs",
     "preview": "vite preview",

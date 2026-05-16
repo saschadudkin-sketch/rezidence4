@@ -12,7 +12,7 @@ import { logger } from '../logger';
 import { API_BASE_URL } from '../../config/apiBaseUrl';
 import { createRealtimeStateMachine, REALTIME_STATES } from '../realtime/realtimeState';
 import { parseChatMessagesResponse, parseRequestsListResponse, parseUsersResponse, type EntityRow } from '../http/contractParsers';
-import { emitSseActivity, emitSsePermanentError, emitSseStatus } from '../../utils/events';
+import { emitSseActivity, emitSsePermanentError, emitSseRecoveredAfterGap, emitSseStatus } from '../../utils/events';
 import { canTransitionOnFrontend } from '../contracts/statusTransitions';
 import type {
   AuthService,
@@ -261,8 +261,10 @@ function createSSEManager() {
   // Max retries before giving up and dispatching 'rz:sse-permanent-error'
   let _retryCount = 0;
   const MAX_SSE_RETRIES = 10;
-  // Last-Event-ID: sent on reconnect so server can replay missed events.
+  // Backend SSE is a live stream, not a durable event log. After a disconnect
+  // the client reconnects the stream and separately triggers a full hydrate.
   let _lastEventId: string | null = null;
+  let _needsFullResyncAfterReconnect = false;
 
   const sseHandlers: { [K in SseEventName]: Array<(payload: SseEventMap[K]) => void> } = {
     message: [], message_update: [], message_delete: [], request_update: [],
@@ -274,6 +276,7 @@ function createSSEManager() {
   function scheduleReconnect(reason: string) {
     abortController = null;
     isConnected = false;
+    _needsFullResyncAfterReconnect = true;
     _retryCount += 1;
     emitSseStatus({ connected: false });
     realtimeState.transition(REALTIME_STATES.DEGRADED);
@@ -307,9 +310,7 @@ function createSSEManager() {
 
     abortController = new AbortController();
     const signal    = abortController.signal;
-    // Pass Last-Event-ID so the server can replay missed events after reconnect.
     const headers: Record<string, string> = {};
-    if (_lastEventId) headers['Last-Event-ID'] = _lastEventId;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/events`, {
@@ -326,6 +327,10 @@ function createSSEManager() {
       // FA-07: уведомляем React о восстановлении SSE-соединения
       emitSseStatus({ connected: true });
       realtimeState.transition(REALTIME_STATES.LIVE);
+      if (_needsFullResyncAfterReconnect) {
+        _needsFullResyncAfterReconnect = false;
+        emitSseRecoveredAfterGap();
+      }
 
       const reader  = response.body.getReader();
       const decoder = new TextDecoder();

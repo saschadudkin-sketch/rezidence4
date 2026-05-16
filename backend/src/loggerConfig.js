@@ -59,12 +59,13 @@ const REDACT_PATHS = Object.freeze([
 
 function buildLoggerConfig(env = process.env) {
   const isDevelopment = env.NODE_ENV === 'development';
+  const isJest = Boolean(env.JEST_WORKER_ID);
   const defaultLevel = env.NODE_ENV === 'test' ? 'warn' : 'info';
 
   return {
     level: env.LOG_LEVEL || defaultLevel,
     // В development — красивый вывод, в остальных режимах — JSON
-    transport: isDevelopment
+    transport: isDevelopment && !isJest
       ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:HH:MM:ss' } }
       : undefined,
     formatters: {

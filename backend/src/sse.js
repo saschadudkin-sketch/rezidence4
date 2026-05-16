@@ -11,7 +11,8 @@
  *    publish it to Redis instead of broadcasting locally
  * 3. Each instance receives the Redis message and broadcasts to its own SSE clients
  *
- * TODO: Implement Redis Pub/Sub for multi-instance SSE broadcast.
+ * The Redis Pub/Sub adapter in sse-redis.js wires this module for multi-instance
+ * broadcast when REDIS_URL is configured.
  * Reference: https://redis.io/docs/latest/develop/interact/pubsub/
  * Estimated effort: 2–3 days.
  */

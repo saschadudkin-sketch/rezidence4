@@ -7,6 +7,7 @@ export const AppEvents = {
   SSE_STATUS: 'rz:sse-status',
   SSE_FORCE_RECONNECT: 'rz:sse-force-reconnect',
   SSE_ACTIVITY: 'rz:sse-activity',
+  SSE_RECOVERED_AFTER_GAP: 'rz:sse-recovered-after-gap',
   SSE_PERMANENT_ERROR: 'rz:sse-permanent-error',
   REALTIME_STATE: 'rz:realtime-state',
 } as const;
@@ -36,6 +37,10 @@ export function emitSseForceReconnect(): void {
 
 export function emitSseActivity(): void {
   emitWindowEvent(AppEvents.SSE_ACTIVITY);
+}
+
+export function emitSseRecoveredAfterGap(): void {
+  emitWindowEvent(AppEvents.SSE_RECOVERED_AFTER_GAP);
 }
 
 export function emitSsePermanentError(): void {
@@ -68,6 +73,12 @@ export function onSseActivity(handler: () => void): () => void {
   const listener: EventListener = () => handler();
   window.addEventListener(AppEvents.SSE_ACTIVITY, listener);
   return () => window.removeEventListener(AppEvents.SSE_ACTIVITY, listener);
+}
+
+export function onSseRecoveredAfterGap(handler: () => void): () => void {
+  const listener: EventListener = () => handler();
+  window.addEventListener(AppEvents.SSE_RECOVERED_AFTER_GAP, listener);
+  return () => window.removeEventListener(AppEvents.SSE_RECOVERED_AFTER_GAP, listener);
 }
 
 export function onSsePermanentError(handler: () => void): () => void {

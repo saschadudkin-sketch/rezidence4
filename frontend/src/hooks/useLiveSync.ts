@@ -5,7 +5,7 @@ import { logger } from '../services/logger';
 import { useNewRequestNotifier } from './useNewRequestNotifier';
 import { useStatusChangeNotifier } from './useStatusChangeNotifier';
 // A-01: use centralized event registry instead of magic string literals
-import { onSseStatus, onSsePermanentError, onRealtimeState } from '../utils/events.js';
+import { onSseStatus, onSsePermanentError, onRealtimeState, onSseRecoveredAfterGap } from '../utils/events.js';
 // FIX [C-1]: sendNotif was called but not imported → ReferenceError on every incoming chat message
 import { sendNotif } from '../utils.js';
 import type { AppRequest } from '../store/slices/requestsSlice';
@@ -62,16 +62,21 @@ export function useLiveSync(user: Pick<AppUser, 'uid' | 'role'>, {
   // D-04: SSE достиг лимита попыток — требуется ручной retry
   const [ssePermanentError, setSsePermanentError] = useState(false);
   const [realtimeMode, setRealtimeMode] = useState<'healthy' | 'degraded' | 'open-circuit' | 'recovery'>('healthy');
+  const [reconnectResyncKey, setReconnectResyncKey] = useState(0);
 
   useEffect(() => {
     if (!liveSyncEnabled) return;
     // A-01: use typed helpers from centralized event registry
     const cleanupStatus   = onSseStatus(({ connected }) => setSseOnline(connected));
     const cleanupPermanent = onSsePermanentError(() => setSsePermanentError(true));
+    const cleanupRecovered = onSseRecoveredAfterGap(() => {
+      setIsLoading(true);
+      setReconnectResyncKey((value) => value + 1);
+    });
     const cleanupRealtime = onRealtimeState(({ from, to, durationMs }) => {
       logger.info('[realtime-state]', { from, to, durationMs });
     });
-    return () => { cleanupStatus(); cleanupPermanent(); cleanupRealtime(); };
+    return () => { cleanupStatus(); cleanupPermanent(); cleanupRecovered(); cleanupRealtime(); };
   }, [liveSyncEnabled]);
 
   // Стабильный ref — колбэки обновляются без перезапуска эффекта
@@ -203,6 +208,7 @@ export function useLiveSync(user: Pick<AppUser, 'uid' | 'role'>, {
     user.role,
     user.uid,
     retryKey,
+    reconnectResyncKey,
   ]);
 
   // DO-02: watchdog — if SSE reports online but no events for 60s, force a real reconnect.

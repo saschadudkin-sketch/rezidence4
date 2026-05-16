@@ -41,7 +41,7 @@ describe('db.migrate - versioned migrations', () => {
 
   test('creates schema_migrations table on first run', async () => {
     await db.migrate();
-    const createCall = mockQuery.mock.calls.find(
+    const createCall = mockClient.query.mock.calls.find(
       ([sql]) => sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations'),
     );
     expect(createCall).toBeDefined();
@@ -55,7 +55,10 @@ describe('db.migrate - versioned migrations', () => {
     const appliedMigrationIds = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS]
       .map((migration) => migration.id);
 
-    mockQuery.mockImplementation((sql) => {
+    mockClient.query.mockImplementation((sql) => {
+      if (String(sql).includes('pg_advisory_lock') || String(sql).includes('pg_advisory_unlock')) {
+        return Promise.resolve({ rows: [] });
+      }
       if (sql.includes('CREATE TABLE IF NOT EXISTS schema_migrations')) {
         return Promise.resolve({ rows: [] });
       }
@@ -66,7 +69,9 @@ describe('db.migrate - versioned migrations', () => {
     });
 
     await db.migrate();
-    expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockConnect).toHaveBeenCalledTimes(1);
+    const clientCalls = mockClient.query.mock.calls.map(([sql]) => sql.trim());
+    expect(clientCalls).not.toContain('BEGIN');
   });
 
   test('wraps each migration in a transaction (BEGIN/COMMIT)', async () => {

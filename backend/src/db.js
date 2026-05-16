@@ -20,6 +20,17 @@ async function query(sql, params) {
   return pool.query(sql, params);
 }
 
+async function withSessionAdvisoryLock(client, lockKey, fn) {
+  await client.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
+  try {
+    return await fn();
+  } finally {
+    await client.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch((err) => {
+      logger.error({ err, lockKey }, '[migrate] failed to release advisory lock');
+    });
+  }
+}
+
 const { MIGRATIONS, LATEST_MIGRATION_ID } = require('./dbMigrations');
 // platform-v1 property-DB migrations (Фаза 2+).  Run after the legacy array
 // so legacy tables exist before any v1 FK that might later reference them.
@@ -54,49 +65,54 @@ function getPlatformDb() {
 async function migrate() {
   logger.info('[db] running versioned migrations...');
 
-  // Создаём таблицу версий если не существует (единственная bootstrapping операция)
-  await query(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      id          TEXT PRIMARY KEY,
-      applied_at  TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
+  const client = await pool.connect();
+  try {
+    await withSessionAdvisoryLock(client, 'domhub:property:migrations', async () => {
+      // Создаём таблицу версий если не существует (единственная bootstrapping операция)
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          id          TEXT PRIMARY KEY,
+          applied_at  TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
 
-  const { rows: applied } = await query(`SELECT id FROM schema_migrations`);
-  const appliedIds = new Set(applied.map(r => r.id));
+      const { rows: applied } = await client.query(`SELECT id FROM schema_migrations`);
+      const appliedIds = new Set(applied.map(r => r.id));
 
-  let ran = 0;
-  // Legacy + v1 migrations share `schema_migrations` so idempotency is
-  // tracked uniformly; the v1 prefix guarantees no ID collision.
-  const ALL_MIGRATIONS = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS];
-  for (const migration of ALL_MIGRATIONS) {
-    if (appliedIds.has(migration.id)) {
-      logger.info(`[migrate] skip ${migration.id} (already applied)`);
-      continue;
-    }
+      let ran = 0;
+      // Legacy + v1 migrations share `schema_migrations` so idempotency is
+      // tracked uniformly; the v1 prefix guarantees no ID collision.
+      const ALL_MIGRATIONS = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS];
+      for (const migration of ALL_MIGRATIONS) {
+        if (appliedIds.has(migration.id)) {
+          logger.info(`[migrate] skip ${migration.id} (already applied)`);
+          continue;
+        }
 
-    // Каждая миграция — отдельная транзакция: всё или ничего
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await migration.up(client);
-      await client.query(
-        `INSERT INTO schema_migrations(id) VALUES($1)`,
-        [migration.id],
-      );
-      await client.query('COMMIT');
-      logger.info(`[migrate] applied ${migration.id}`);
-      ran++;
-    } catch (err) {
-      await client.query('ROLLBACK');
-      logger.fatal({ err }, `[migrate] FAILED at ${migration.id} — rolled back`);
-      throw err; // прерываем — не запускаем сервер с частичной схемой
-    } finally {
-      client.release();
-    }
+        // Каждая миграция — отдельная транзакция: всё или ничего
+        try {
+          await client.query('BEGIN');
+          await migration.up(client);
+          await client.query(
+            `INSERT INTO schema_migrations(id) VALUES($1)`,
+            [migration.id],
+          );
+          await client.query('COMMIT');
+          appliedIds.add(migration.id);
+          logger.info(`[migrate] applied ${migration.id}`);
+          ran++;
+        } catch (err) {
+          await client.query('ROLLBACK');
+          logger.fatal({ err }, `[migrate] FAILED at ${migration.id} — rolled back`);
+          throw err; // прерываем — не запускаем сервер с частичной схемой
+        }
+      }
+
+      logger.info(`[migrate] done (${ran} new, ${applied.length} skipped)`);
+    });
+  } finally {
+    client.release();
   }
-
-  logger.info(`[migrate] done (${ran} new, ${appliedIds.size} skipped)`);
 }
 
 // Platform database migrations
@@ -110,46 +126,51 @@ async function migratePlatform() {
 
   logger.info('[platform-migrate] running platform registry migrations...');
   const platformDb = getPlatformDb();
+  const client = await platformDb.connect();
 
-  // Create platform migrations tracking table
-  await platformDb.query(`
-    CREATE TABLE IF NOT EXISTS platform_schema_migrations (
-      id          TEXT PRIMARY KEY,
-      applied_at  TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
+  try {
+    await withSessionAdvisoryLock(client, 'domhub:platform:migrations', async () => {
+      // Create platform migrations tracking table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS platform_schema_migrations (
+          id          TEXT PRIMARY KEY,
+          applied_at  TIMESTAMPTZ DEFAULT NOW()
+        )
+      `);
 
-  const { rows: applied } = await platformDb.query(`SELECT id FROM platform_schema_migrations`);
-  const appliedIds = new Set(applied.map(r => r.id));
+      const { rows: applied } = await client.query(`SELECT id FROM platform_schema_migrations`);
+      const appliedIds = new Set(applied.map(r => r.id));
 
-  let ran = 0;
-  for (const migration of PLATFORM_MIGRATIONS) {
-    if (appliedIds.has(migration.id)) {
-      logger.info(`[platform-migrate] skip ${migration.id} (already applied)`);
-      continue;
-    }
+      let ran = 0;
+      for (const migration of PLATFORM_MIGRATIONS) {
+        if (appliedIds.has(migration.id)) {
+          logger.info(`[platform-migrate] skip ${migration.id} (already applied)`);
+          continue;
+        }
 
-    const client = await platformDb.connect();
-    try {
-      await client.query('BEGIN');
-      await migration.up(client);
-      await client.query(
-        `INSERT INTO platform_schema_migrations(id) VALUES($1)`,
-        [migration.id],
-      );
-      await client.query('COMMIT');
-      logger.info(`[platform-migrate] applied ${migration.id}`);
-      ran++;
-    } catch (err) {
-      await client.query('ROLLBACK');
-      logger.fatal({ err }, `[platform-migrate] FAILED at ${migration.id} — rolled back`);
-      throw err;
-    } finally {
-      client.release();
-    }
+        try {
+          await client.query('BEGIN');
+          await migration.up(client);
+          await client.query(
+            `INSERT INTO platform_schema_migrations(id) VALUES($1)`,
+            [migration.id],
+          );
+          await client.query('COMMIT');
+          appliedIds.add(migration.id);
+          logger.info(`[platform-migrate] applied ${migration.id}`);
+          ran++;
+        } catch (err) {
+          await client.query('ROLLBACK');
+          logger.fatal({ err }, `[platform-migrate] FAILED at ${migration.id} — rolled back`);
+          throw err;
+        }
+      }
+
+      logger.info(`[platform-migrate] done (${ran} new, ${applied.length} skipped)`);
+    });
+  } finally {
+    client.release();
   }
-
-  logger.info(`[platform-migrate] done (${ran} new, ${appliedIds.size} skipped)`);
 }
 
 async function assertSchemaCurrent() {

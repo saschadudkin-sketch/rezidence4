@@ -2,6 +2,22 @@
 const path = require('node:path');
 const { buildE2EEnv, repoRoot } = require('./e2e-env.cjs');
 
+function loadEnvFilesDefault() {
+  let dotenv;
+  try {
+    dotenv = require(path.join(repoRoot, 'backend', 'node_modules', 'dotenv'));
+  } catch {
+    return;
+  }
+
+  for (const envPath of [
+    path.join(repoRoot, '.env'),
+    path.join(repoRoot, 'backend', '.env'),
+  ]) {
+    dotenv.config({ path: envPath, override: false, quiet: true });
+  }
+}
+
 function parseArgs(argv) {
   return {
     e2eAccess: argv.includes('--e2e-access'),
@@ -265,6 +281,7 @@ function formatReport(result) {
 }
 
 async function main() {
+  loadEnvFilesDefault();
   const result = await runPreflight();
   if (parseArgs(process.argv.slice(2)).json) {
     const publicChecks = result.checks.map((check) => {
@@ -300,6 +317,7 @@ module.exports = {
   formatErrorMessage,
   formatMigrationSummary,
   formatReport,
+  loadEnvFilesDefault,
   parseArgs,
   redactConnectionString,
   readMigrationState,
