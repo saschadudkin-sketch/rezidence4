@@ -43,7 +43,7 @@ export const passesApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ pass: Pass }>(`/passes/${id}`, opts);
+    return v1Client.get<{ pass: Pass; qr: QrToken | null }>(`/passes/${id}`, opts);
   },
   getQr(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ qr: QrToken }>(`/passes/${id}/qr`, opts);

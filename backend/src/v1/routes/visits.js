@@ -55,6 +55,10 @@ function canVerifyInPropertyScope(req, propertyId) {
     || canInPropertyScope(req, 'access.plate.verify', propertyId);
 }
 
+function pinCredentialsEnabled(req) {
+  return req.property?.resolvedFlags?.pin_credentials === true;
+}
+
 function sendServiceError(res, err) {
   if (!isVisitServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
@@ -94,6 +98,14 @@ async function sendVerify(req, res, next, defaults = {}) {
     }
     if (mode === 'pin' && (typeof pin !== 'string' || !pin.trim())) {
       return res.status(400).json({ error: 'pin required for mode=pin' });
+    }
+    if (mode === 'pin' && !pinCredentialsEnabled(req)) {
+      return res.status(404).json({
+        error: {
+          code: 'FEATURE_DISABLED',
+          message: 'PIN credentials are disabled',
+        },
+      });
     }
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });

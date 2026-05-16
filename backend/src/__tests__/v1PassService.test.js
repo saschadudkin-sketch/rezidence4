@@ -188,11 +188,38 @@ describe('PassService QR and status transitions', () => {
             status: 'active',
             pass_type: 'guest',
             subject_type: 'guest',
+            zone_id: null,
+            point_id: null,
             policy_id: UUID_POLICY,
           }],
         });
       }
-      if (sql.includes('FROM access_policies')) {
+      if (sql.includes('FROM access_policies') && sql.includes('ORDER BY priority')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_POLICY,
+            property_id: UUID_PROPERTY,
+            name: 'Guest PIN',
+            subject_type: 'guest',
+            subject_role: null,
+            zone_id: null,
+            point_id: null,
+            access_method: 'pin',
+            approval_mode: 'auto',
+            effect: 'allow',
+            priority: 10,
+            schedule_json: null,
+            duration_minutes: null,
+            is_recurring: false,
+            is_active: true,
+            created_by: null,
+            metadata: { public_pin_display: true },
+            created_at: '2026-05-16T10:00:00.000Z',
+            updated_at: null,
+          }],
+        });
+      }
+      if (sql.includes('SELECT id, metadata')) {
         return Promise.resolve({
           rows: [{
             id: UUID_POLICY,

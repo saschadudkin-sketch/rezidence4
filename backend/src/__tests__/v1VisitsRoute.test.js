@@ -33,9 +33,13 @@ const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_POINT = '77777777-7777-4777-8777-777777777777';
 const UUID_ZONE = '88888888-8888-4888-8888-888888888888';
 
-function buildApp() {
+function buildApp({ pinCredentials = true } = {}) {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.property = { resolvedFlags: { pin_credentials: pinCredentials } };
+    next();
+  });
   app.use('/api/v1/visits', visitsRouter);
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
@@ -164,6 +168,20 @@ describe('v1 visits route access topology wiring', () => {
     expect(verifyVisit).toHaveBeenCalledWith(expect.objectContaining({
       input: expect.objectContaining({ mode: 'pin', pin: '123456', token: null }),
     }));
+  });
+
+  test('verify rejects PIN mode when tenant feature flag is disabled', async () => {
+    const res = await supertest(buildApp({ pinCredentials: false }))
+      .post('/api/v1/visits/verify')
+      .send({
+        property_id: UUID_PROPERTY,
+        mode: 'pin',
+        pin: '123456',
+      });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatchObject({ code: 'FEATURE_DISABLED' });
+    expect(verifyVisit).not.toHaveBeenCalled();
   });
 
   test('verify rejects PIN mode without pin value', async () => {

@@ -225,12 +225,25 @@ async function verifyPass({
     }
   } else if (mode === 'pin') {
     normalizedPin = normalizePin(pin);
+    const cutoff = new Date(now.getTime() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
+    const { rows: genericRateRows } = await db.query(
+      `SELECT COUNT(*)::int AS n
+         FROM visit_logs_v2
+        WHERE property_id = $1
+          AND event_type = $2
+          AND occurred_at > $3
+          AND provider_payload->>'mode' = 'pin'
+          AND ($4::uuid IS NULL OR access_point_id IS NOT DISTINCT FROM $4)
+          AND ($5::uuid IS NULL OR performed_by_staff_id IS NOT DISTINCT FROM $5)`,
+      [property_id, eventTypeFor(direction, false), cutoff, access_point_id || null, performed_by_staff_id || null],
+    );
+    pinRateLimited = (genericRateRows[0]?.n || 0) >= PIN_RATE_LIMIT_THRESHOLD;
+
     if (!normalizedPin) {
       inputInvalid = true;
-    } else {
+    } else if (!pinRateLimited) {
       pinHash = hashPin(normalizedPin);
       pinFingerprint = credentialFingerprint(pinHash);
-      const cutoff = new Date(now.getTime() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
       const { rows: rateRows } = await db.query(
         `SELECT COUNT(*)::int AS n
            FROM visit_logs_v2
@@ -243,23 +256,25 @@ async function verifyPass({
       );
       pinRateLimited = (rateRows[0]?.n || 0) >= PIN_RATE_LIMIT_THRESHOLD;
 
-      const { rows } = await db.query(
-        `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
-                p.valid_from, p.valid_until, p.subject_resident_id,
-                p.subject_vehicle_id, p.access_request_id,
-                p.zone_id, p.point_id, p.policy_id
-           FROM pass_credentials c
-           JOIN passes p ON p.id = c.pass_id
-          WHERE c.credential_type = 'pin'
-            AND c.credential_hash = $1
-            AND c.revoked_at IS NULL
-            AND c.used_at IS NULL
-            AND (c.expires_at IS NULL OR c.expires_at >= NOW())
-            AND p.property_id = $2
-          LIMIT 1`,
-        [pinHash, property_id],
-      );
-      pass = rows[0] || null;
+      if (!pinRateLimited) {
+        const { rows } = await db.query(
+          `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
+                  p.valid_from, p.valid_until, p.subject_resident_id,
+                  p.subject_vehicle_id, p.access_request_id,
+                  p.zone_id, p.point_id, p.policy_id
+             FROM pass_credentials c
+             JOIN passes p ON p.id = c.pass_id
+            WHERE c.credential_type = 'pin'
+              AND c.credential_hash = $1
+              AND c.revoked_at IS NULL
+              AND c.used_at IS NULL
+              AND (c.expires_at IS NULL OR c.expires_at >= NOW())
+              AND p.property_id = $2
+            LIMIT 1`,
+          [pinHash, property_id],
+        );
+        pass = rows[0] || null;
+      }
     }
   } else if (mode === 'plate') {
     normalizedPlate = normalizePlate(plate);
@@ -415,10 +430,9 @@ async function verifyPass({
                 SET used_at = COALESCE(used_at, NOW()),
                     updated_at = NOW()
               WHERE pass_id = $1
-                AND credential_type = $2
                 AND revoked_at IS NULL
                 AND used_at IS NULL`,
-            [pass.id, mode],
+            [pass.id],
           );
         }
       }
@@ -431,10 +445,12 @@ async function verifyPass({
       mode,
       access_point_id: access_point_id || null,
       direction,
-      ...(pinFingerprint ? {
+      ...(mode === 'pin' ? {
         credential_type: 'pin',
-        credential_fingerprint: pinFingerprint,
         rate_limited: pinRateLimited,
+      } : {}),
+      ...(pinFingerprint ? {
+        credential_fingerprint: pinFingerprint,
       } : {}),
     };
     const { rows: vlRows } = await client.query(

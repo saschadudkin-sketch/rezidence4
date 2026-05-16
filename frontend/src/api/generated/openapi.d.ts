@@ -1190,6 +1190,14 @@ export interface paths {
                         "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
             };
         };
         put?: never;
@@ -1247,6 +1255,14 @@ export interface paths {
                     };
                 };
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -28422,7 +28438,12 @@ export interface components {
             ok: boolean;
         };
         ErrorResponse: {
-            error: string;
+            error: string | ({
+                code: string;
+                message: string;
+            } & {
+                [key: string]: unknown;
+            });
         } & {
             [key: string]: unknown;
         };

@@ -15,6 +15,7 @@ const {
   generatePin,
   hashPin,
 } = require('./passCredentialService');
+const { evaluateAccessPolicy } = require('./accessPolicyService');
 
 const PASS_COLS = `
   id, property_id, access_request_id, pass_type, subject_type,
@@ -61,20 +62,28 @@ function passSubjectForPolicy(pass) {
 
 async function findPinPolicy(queryable, pass) {
   const subjectType = passSubjectForPolicy(pass);
+  const decision = await evaluateAccessPolicy({
+    queryable,
+    propertyId: pass.property_id,
+    subjectType,
+    passType: pass.pass_type,
+    accessMethod: 'pin',
+    pointId: pass.point_id || null,
+    pass,
+    now: new Date(),
+  });
+  if (!decision.allowed || !decision.matched_policy_id) return null;
+
   const { rows } = await queryable.query(
     `SELECT id, metadata
        FROM access_policies
-      WHERE property_id = $1
+      WHERE id = $1
+        AND property_id = $2
         AND is_active = true
         AND access_method = 'pin'
         AND effect = 'allow'
-        AND subject_type = $2
-      ORDER BY
-        CASE WHEN id = $3 THEN 0 ELSE 1 END,
-        priority ASC,
-        created_at ASC
       LIMIT 1`,
-    [pass.property_id, subjectType, pass.policy_id || null],
+    [decision.matched_policy_id, pass.property_id],
   );
   return rows[0] || null;
 }
@@ -227,7 +236,7 @@ async function regeneratePin({ queryable, user, isStaffUser, passId }) {
     user,
     isStaffUser,
     passId,
-    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, policy_id',
+    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, zone_id, point_id, policy_id',
   });
   assertPassAction(pass.status, 'regenerate_pin');
 
@@ -282,7 +291,7 @@ async function getCurrentPin({ queryable, user, isStaffUser, passId }) {
     user,
     isStaffUser,
     passId,
-    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, policy_id',
+    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, zone_id, point_id, policy_id',
   });
   assertPassAction(pass.status, 'pin');
 

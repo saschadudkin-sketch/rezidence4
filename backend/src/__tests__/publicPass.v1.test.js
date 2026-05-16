@@ -165,15 +165,89 @@ describe('publicPass route v1 cutover', () => {
   test('includes decrypted PIN only when public display is allowed by policy', async () => {
     const encrypted = encryptCredentialSecret('123456');
     const db = {
+      query: jest.fn(async (sql) => {
+        if (sql.includes('FROM pass_credentials')) {
+          return {
+            rows: [{
+              pass_id: 'pass-pin',
+              property_id: '11111111-1111-4111-8111-111111111111',
+              pass_type: 'guest',
+              subject_type: 'guest',
+              zone_id: null,
+              point_id: null,
+              policy_id: '99999999-9999-4999-8999-999999999999',
+              valid_from: '2020-05-16T10:00:00.000Z',
+              valid_until: '2099-05-16T12:00:00.000Z',
+              status: 'active',
+              request_type: 'guest_access',
+              visitor_name: 'Гость с PIN',
+              unit_number: '3',
+              unit_type: 'apartment',
+              access_point_name: null,
+              access_zone_name: null,
+              pin_render_version: 2,
+              pin_expires_at: null,
+              pin_credential_ciphertext: encrypted.credential_ciphertext,
+              pin_credential_iv: encrypted.credential_iv,
+              pin_credential_tag: encrypted.credential_tag,
+            }],
+          };
+        }
+        if (sql.includes('FROM access_policies') && sql.includes('ORDER BY priority')) {
+          return {
+            rows: [{
+              id: '99999999-9999-4999-8999-999999999999',
+              property_id: '11111111-1111-4111-8111-111111111111',
+              name: 'Guest PIN',
+              subject_type: 'guest',
+              subject_role: null,
+              zone_id: null,
+              point_id: null,
+              access_method: 'pin',
+              approval_mode: 'auto',
+              effect: 'allow',
+              priority: 10,
+              schedule_json: null,
+              duration_minutes: null,
+              is_recurring: false,
+              is_active: true,
+              created_by: null,
+              metadata: { public_pin_display: true },
+              created_at: '2026-05-16T10:00:00.000Z',
+              updated_at: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT metadata')) {
+          return { rows: [{ metadata: { public_pin_display: true } }] };
+        }
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const res = await request(buildApp(db)).get(`/api/v1/public/pass/${'e'.repeat(32)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.pinCredential).toEqual({
+      value: '123456',
+      publicDisplayAllowed: true,
+      renderVersion: 2,
+      expiresAt: null,
+    });
+  });
+
+  test('does not include PIN for a future pending pass even when policy allows display', async () => {
+    const encrypted = encryptCredentialSecret('123456');
+    const db = {
       query: jest.fn(async () => ({
         rows: [{
-          pass_id: 'pass-pin',
+          pass_id: 'pass-pin-future',
           pass_type: 'guest',
-          valid_from: '2020-05-16T10:00:00.000Z',
+          valid_from: '2099-05-16T10:00:00.000Z',
           valid_until: '2099-05-16T12:00:00.000Z',
           status: 'active',
           request_type: 'guest_access',
-          visitor_name: 'Гость с PIN',
+          visitor_name: 'Будущий гость',
           unit_number: '3',
           unit_type: 'apartment',
           access_point_name: null,
@@ -188,15 +262,11 @@ describe('publicPass route v1 cutover', () => {
       })),
     };
 
-    const res = await request(buildApp(db)).get(`/api/v1/public/pass/${'e'.repeat(32)}`);
+    const res = await request(buildApp(db)).get(`/api/v1/public/pass/${'f'.repeat(32)}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.pinCredential).toEqual({
-      value: '123456',
-      publicDisplayAllowed: true,
-      renderVersion: 2,
-      expiresAt: null,
-    });
+    expect(res.body.status).toBe('pending');
+    expect(res.body.pinCredential).toBeNull();
   });
 
   test('rejects unsupported token shapes as not found', async () => {
