@@ -42,6 +42,12 @@ const LEGACY_UTILITY_PREFIXES = new Set([
   '/api/v1/visit-logs',
 ]);
 
+const INTENTIONALLY_NO_FRONTEND_OPERATIONS = new Set([
+  // External provider webhook. It requires x-skud-secret / x-integration-secret
+  // headers and is not a browser product surface.
+  'post /api/v1/skud/providers/{param}/events',
+]);
+
 function lineAt(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
@@ -228,6 +234,22 @@ function extractFrontendOperations() {
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
 
+    for (const call of extractV1ClientCalls(file, path.join(repoRoot, 'frontend'))) {
+      operations.push({
+        method: call.method,
+        path: normalizeRoutePath(`/api/v1${call.path}`),
+        file: `frontend/${call.file}`,
+      });
+    }
+
+    for (const call of extractDirectApiV1Urls(file, path.join(repoRoot, 'frontend'))) {
+      operations.push({
+        method: call.method,
+        path: normalizeRoutePath(`/api/v1${call.path}`),
+        file: `frontend/${call.file}`,
+      });
+    }
+
     const v1ClientRegex = /v1Client\.(get|post|put|patch|delete)\s*<[^>]*>\s*\(\s*([`'"])([\s\S]*?)\2/g;
     let match;
     while ((match = v1ClientRegex.exec(source)) !== null) {
@@ -402,6 +424,13 @@ function operationKey(operation) {
   return `${operation.method} ${normalizeRoutePath(operation.path)}`;
 }
 
+function isIntentionallyNoFrontendOperation(operation) {
+  const prefix = prefixFor(operation.path);
+  return INTENTIONALLY_NO_FRONTEND_CLIENT.has(prefix)
+    || LEGACY_UTILITY_PREFIXES.has(prefix)
+    || INTENTIONALLY_NO_FRONTEND_OPERATIONS.has(operationKey(operation));
+}
+
 function bucketOperations(operations) {
   const buckets = new Map();
   for (const operation of operations) {
@@ -422,14 +451,8 @@ function audit() {
   const frontendOperations = extractFrontendOperations();
   const frontendKeys = new Set(frontendOperations.map(operationKey));
   const uncovered = backendOperations.filter((operation) => !frontendKeys.has(operationKey(operation)));
-  const ignored = uncovered.filter((operation) => {
-    const prefix = prefixFor(operation.path);
-    return INTENTIONALLY_NO_FRONTEND_CLIENT.has(prefix) || LEGACY_UTILITY_PREFIXES.has(prefix);
-  });
-  const productGaps = uncovered.filter((operation) => {
-    const prefix = prefixFor(operation.path);
-    return !INTENTIONALLY_NO_FRONTEND_CLIENT.has(prefix) && !LEGACY_UTILITY_PREFIXES.has(prefix);
-  });
+  const ignored = uncovered.filter(isIntentionallyNoFrontendOperation);
+  const productGaps = uncovered.filter((operation) => !isIntentionallyNoFrontendOperation(operation));
 
   return {
     generatedAt: new Date().toISOString(),

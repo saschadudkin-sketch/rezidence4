@@ -42,6 +42,8 @@ import { operationsDashboardApi } from './operationsDashboard';
 import { managementCompanyPortfolioApi } from './managementCompanyPortfolio';
 import { adminOutboxApi } from './adminOutbox';
 import { notificationLogApi } from './notificationLog';
+import { privacyComplianceApi } from './privacyCompliance';
+import { analyticsApi } from './analytics';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -74,6 +76,8 @@ export const api = {
   managementCompanyPortfolio: managementCompanyPortfolioApi,
   adminOutbox: adminOutboxApi,
   notificationLog: notificationLogApi,
+  privacyCompliance: privacyComplianceApi,
+  analytics: analyticsApi,
 };
 
 export { normalizePlate };
@@ -169,7 +173,15 @@ export type {
   CreateGisOssExportPackageBody,
   ListGisOssExportPackagesParams,
 } from './gisOssReadiness';
-export type { GetSkudProviderFailuresParams } from './skudIntegrations';
+export type {
+  GetSkudProviderFailuresParams,
+  ListSkudHardwareDevicesParams,
+  ListSkudManualControlEventsParams,
+  SkudFieldRolloutEvidenceBody,
+  SkudHardwareBoundaryBody,
+  SkudManualControlBody,
+  SkudSyncPassBody,
+} from './skudIntegrations';
 export type {
   SensitiveActionAntiAbuseParams,
   SensitiveActionListParams,
@@ -200,3 +212,30 @@ export type {
   ListNotificationLogParams,
   NotificationLogPeriod,
 } from './notificationLog';
+export type {
+  AcceptPrivacyConsentBody,
+  CompleteDataSubjectRequestBody,
+  CreateComplianceEvidenceBody,
+  CreateDataSubjectRequestBody,
+  DataSubjectExportParams,
+  DeleteAccountBody,
+  ListComplianceEvidenceParams,
+  ListDataSubjectRequestsParams,
+  PrivacyConsentStatus,
+} from './privacyCompliance';
+export type {
+  AnalyticsDateRangeParams,
+  AnalyticsGranularity,
+  AnalyticsPeriod,
+  AnalyticsSnapshot,
+  AnalyticsSnapshotParams,
+  CreateAnalyticsSnapshotResponse,
+  CreateAnalyticsSnapshotBody,
+  PackagesAnalyticsResponse,
+  RequestsAnalyticsResponse,
+  SlaAnalyticsResponse,
+  TopResidentsAnalyticsParams,
+  TopResidentsAnalyticsResponse,
+  TrafficAnalyticsParams,
+  TrafficAnalyticsResponse,
+} from './analytics';

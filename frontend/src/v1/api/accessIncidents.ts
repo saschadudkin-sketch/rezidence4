@@ -38,6 +38,65 @@ export interface ListOverridesParams extends PaginationParams {
   to?: IsoDateTime;
 }
 
+export interface CreateIncidentBody {
+  property_id: UUID;
+  incident_type: IncidentType;
+  severity?: Severity;
+  title: string;
+  description?: string | null;
+  related_pass_id?: UUID | null;
+  related_visit_log_id?: UUID | null;
+  related_vehicle_id?: UUID | null;
+}
+
+export interface PatchIncidentBody {
+  severity?: Severity;
+  title?: string;
+  description?: string | null;
+}
+
+export interface AssignIncidentBody {
+  assigned_to_staff_id: UUID;
+}
+
+export interface IncidentReasonBody {
+  reason: string;
+}
+
+export interface ResolveIncidentBody extends IncidentReasonBody {
+  create_override?: {
+    override_type: OverrideType;
+    reason: string;
+  } | null;
+}
+
+export interface UpdateIncidentStatusBody {
+  status: Exclude<IncidentStatus, 'open'>;
+  reason?: string;
+  comment?: string;
+  assigned_to_staff_id?: UUID;
+}
+
+export interface CreateIncidentVideoEvidenceBody {
+  property_id?: UUID;
+  provider_id?: UUID | null;
+  camera_device_id?: UUID | string | null;
+  evidence_url?: string;
+  clip_url?: string;
+  starts_at?: IsoDateTime | null;
+  ends_at?: IsoDateTime | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface FetchIncidentVideoEvidenceBody {
+  property_id?: UUID;
+  provider_id?: UUID | null;
+  camera_device_id?: UUID | string | null;
+  starts_at?: IsoDateTime | null;
+  ends_at?: IsoDateTime | null;
+  metadata?: Record<string, unknown>;
+}
+
 // Narrow interfaces like ListIncidentsParams don't have an index signature,
 // so accepting `object` keeps the helper assignable from every caller.
 function toQuery(params: object | undefined): string {
@@ -78,5 +137,70 @@ export const accessIncidentsApi = {
     opts?: RequestOpts,
   ) {
     return v1Client.post<{ override: AccessOverride }>(`/access-overrides`, body, opts);
+  },
+  create(body: CreateIncidentBody, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident }>('/access-incidents', body, opts);
+  },
+  patch(id: UUID, body: PatchIncidentBody, opts?: RequestOpts) {
+    return v1Client.patch<{ incident: AccessIncident }>(
+      `/access-incidents/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
+  assign(id: UUID, body: AssignIncidentBody, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident }>(
+      `/access-incidents/${encodeURIComponent(id)}/assign`,
+      body,
+      opts,
+    );
+  },
+  resolve(id: UUID, body: ResolveIncidentBody, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident; override?: AccessOverride | null }>(
+      `/access-incidents/${encodeURIComponent(id)}/resolve`,
+      body,
+      opts,
+    );
+  },
+  dismiss(id: UUID, body: IncidentReasonBody, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident }>(
+      `/access-incidents/${encodeURIComponent(id)}/dismiss`,
+      body,
+      opts,
+    );
+  },
+  reopen(id: UUID, body: IncidentReasonBody & Partial<AssignIncidentBody>, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident }>(
+      `/access-incidents/${encodeURIComponent(id)}/reopen`,
+      body,
+      opts,
+    );
+  },
+  updateStatus(id: UUID, body: UpdateIncidentStatusBody, opts?: RequestOpts) {
+    return v1Client.post<{ incident: AccessIncident }>(
+      `/access-incidents/${encodeURIComponent(id)}/status`,
+      body,
+      opts,
+    );
+  },
+  listVideoEvidence(id: UUID, opts?: RequestOpts) {
+    return v1Client.get<{ evidence: unknown[] }>(
+      `/access-incidents/${encodeURIComponent(id)}/video-evidence`,
+      opts,
+    );
+  },
+  createVideoEvidence(id: UUID, body: CreateIncidentVideoEvidenceBody, opts?: RequestOpts) {
+    return v1Client.post<{ evidence: unknown }>(
+      `/access-incidents/${encodeURIComponent(id)}/video-evidence`,
+      body,
+      opts,
+    );
+  },
+  fetchVideoEvidence(id: UUID, body: FetchIncidentVideoEvidenceBody, opts?: RequestOpts) {
+    return v1Client.post<{ evidence: unknown }>(
+      `/access-incidents/${encodeURIComponent(id)}/video-evidence/fetch`,
+      body,
+      opts,
+    );
   },
 };
