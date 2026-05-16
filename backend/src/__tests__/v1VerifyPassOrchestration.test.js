@@ -8,6 +8,7 @@ jest.mock('../logger', () => require('../__mocks__/logger'));
 
 const db = require('../db');
 const { verifyPass } = require('../v1/services/verifyPass');
+const { credentialFingerprint, hashPin } = require('../v1/services/passCredentialService');
 
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_PASS = '22222222-2222-4222-8222-222222222222';
@@ -75,6 +76,7 @@ function installTxClient({ incident = true } = {}) {
     if (sql.includes('INSERT INTO access_incidents')) {
       return Promise.resolve({ rows: incident ? [{ id: UUID_INCIDENT }] : [] });
     }
+    if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
     if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }], rowCount: 1 });
     if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
     throw new Error(`unexpected SQL: ${sql}`);
@@ -117,10 +119,14 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     const auditCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
     expect(visitCall[1]).toEqual([
       UUID_PROPERTY, UUID_PASS, UUID_POINT, 'entry_allowed', 'guard_console',
-      'Guest', null, UUID_STAFF, null, NOW,
+      'Guest', null, UUID_STAFF, null,
+      JSON.stringify({ mode: 'qr', access_point_id: UUID_POINT, direction: 'entry' }),
+      NOW,
     ]);
     expect(passUpdateCall[0]).toContain("status = 'used'");
     expect(passUpdateCall[1]).toEqual([UUID_PASS]);
+    const credentialUpdateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE pass_credentials'));
+    expect(credentialUpdateCall[1]).toEqual([UUID_PASS, 'qr']);
     expect(auditCall[0]).toContain('property_id');
     expect(auditCall[0]).toContain('entity_id');
     expect(auditCall[1][0]).toBe(UUID_PROPERTY);
@@ -132,6 +138,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     const txClient = makeTxClient((sql) => {
       if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
       if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [], rowCount: 0 });
+      if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO visit_logs_v2')) return Promise.resolve({ rows: [{ id: UUID_VISIT_LOG }] });
       if (sql.includes('INSERT INTO access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
       if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
@@ -337,6 +344,73 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
     expect(visitCall[1][5]).toBe('Plate A001AA77');
   });
+
+  test('valid PIN allows entry, rate-limit checks attempts, and marks PIN credential used', async () => {
+    const txClient = installTxClient();
+    const pinHash = hashPin('123456');
+    db.query.mockImplementation((sql, params) => {
+      if (sql.includes('COUNT(*)::int AS n') && sql.includes("provider_payload->>'mode' = 'pin'")) {
+        expect(params[3]).toBe(credentialFingerprint(pinHash));
+        return Promise.resolve({ rows: [{ n: 0 }] });
+      }
+      if (sql.includes("c.credential_type = 'pin'")) {
+        expect(params[0]).toBe(pinHash);
+        return Promise.resolve({ rows: [makePass()] });
+      }
+      if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({ rows: [allowPolicy({ access_method: 'pin' })] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'pin',
+      pin: '123 456',
+      access_point_id: UUID_POINT,
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(true);
+    const credentialUpdateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE pass_credentials'));
+    expect(credentialUpdateCall[1]).toEqual([UUID_PASS, 'pin']);
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    expect(JSON.parse(visitCall[1][9])).toMatchObject({
+      mode: 'pin',
+      credential_type: 'pin',
+      credential_fingerprint: credentialFingerprint(pinHash),
+      rate_limited: false,
+    });
+  });
+
+  test('PIN rate limit creates suspicious repeat evidence without exposing PIN', async () => {
+    const txClient = installTxClient();
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('COUNT(*)::int AS n') && sql.includes("provider_payload->>'mode' = 'pin'")) {
+        return Promise.resolve({ rows: [{ n: 5 }] });
+      }
+      if (sql.includes("c.credential_type = 'pin'")) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'pin',
+      pin: '123456',
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(false);
+    expect(result.verdict.reason).toBe('pin_rate_limited');
+    const incidentCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_incidents'));
+    expect(incidentCall[1][4]).toBe('suspicious_repeat_attempt');
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    expect(visitCall[1].join(' ')).not.toContain('123456');
+    expect(JSON.parse(visitCall[1][9]).rate_limited).toBe(true);
+  });
 });
 
 describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
@@ -391,7 +465,9 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
     expect(visitCall[1]).toEqual([
       UUID_PROPERTY, UUID_PASS, null, 'entry_allowed', 'guard_console',
-      'Plate A001AA77', 'A001AA77', UUID_STAFF, null, NOW,
+      'Plate A001AA77', 'A001AA77', UUID_STAFF, null,
+      JSON.stringify({ mode: 'plate', access_point_id: null, direction: 'entry' }),
+      NOW,
     ]);
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_incidents'))).toBe(false);
   });
@@ -443,7 +519,9 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     const auditCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
     expect(visitCall[1]).toEqual([
       UUID_PROPERTY, null, UUID_POINT, 'exit_denied', 'guard_console',
-      null, null, UUID_STAFF, null, NOW,
+      null, null, UUID_STAFF, null,
+      JSON.stringify({ mode: 'plate', access_point_id: UUID_POINT, direction: 'exit' }),
+      NOW,
     ]);
     expect(incidentCall[1]).toEqual([
       UUID_PROPERTY, null, UUID_VISIT_LOG, null,

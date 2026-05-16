@@ -1138,6 +1138,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/passes/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassPinResponse"];
+                    };
+                };
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passes/{id}/regenerate-pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassPinResponse"];
+                    };
+                };
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/announcements": {
         parameters: {
             query?: never;
@@ -28400,6 +28524,19 @@ export interface components {
             /** Format: date-time */
             created_at?: string;
         };
+        PassPIN: {
+            /** Format: uuid */
+            id: string;
+            value: string;
+            render_version: number;
+            /** Format: date-time */
+            expires_at?: string | null;
+            public_display_allowed: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
         PageMeta: {
             limit: number;
             offset: number;
@@ -28418,6 +28555,9 @@ export interface components {
         };
         PassQrResponse: {
             qr: components["schemas"]["PassQR"];
+        };
+        PassPinResponse: {
+            pin: components["schemas"]["PassPIN"];
         };
         Announcement: {
             /** Format: uuid */
@@ -28854,6 +28994,13 @@ export interface components {
             accessPointName?: string | null;
             accessZoneName?: string | null;
             guestInstructions?: string | null;
+            pinCredential?: {
+                value: string;
+                publicDisplayAllowed: boolean;
+                renderVersion?: number | null;
+                /** Format: date-time */
+                expiresAt?: string | null;
+            } | null;
         };
         AccessEventEnvelope: {
             event_id: string;

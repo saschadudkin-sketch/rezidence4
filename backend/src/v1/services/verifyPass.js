@@ -21,11 +21,18 @@ const logger = require('../../logger');
 const { normalizePlate } = require('../lib/normalizePlate');
 const { assertPassAction } = require('./accessStateMachine');
 const { evaluateAccessPolicy } = require('./accessPolicyService');
+const {
+  credentialFingerprint,
+  hashPin,
+  normalizePin,
+} = require('./passCredentialService');
 
 const ONE_SHOT_PASS_TYPES = new Set(['guest', 'courier', 'service']);
 const GUARD_IDEMPOTENCY_WINDOW_MS = 30_000;
 const SUSPICIOUS_REPEAT_WINDOW_MS = 10 * 60_000;
 const SUSPICIOUS_REPEAT_THRESHOLD = 2; // текущий = 3-й
+const PIN_RATE_LIMIT_WINDOW_MS = 10 * 60_000;
+const PIN_RATE_LIMIT_THRESHOLD = 5;
 
 /**
  * Internal: вычисляет verdict-каскад (шаги 3–4 spec'а).
@@ -36,11 +43,27 @@ function eventTypeFor(direction, allowed) {
   return `${direction}_${allowed ? 'allowed' : 'denied'}`;
 }
 
-function computeVerdict({ mode, pass, vehicle, now, direction = 'entry', inputInvalid = false }) {
+function computeVerdict({
+  mode,
+  pass,
+  vehicle,
+  now,
+  direction = 'entry',
+  inputInvalid = false,
+  pinRateLimited = false,
+}) {
   // Шаг 3: каскад причин отказа (первое совпадение побеждает).
   if (mode === 'qr' && !pass) {
     return { allowed: false, reason: 'invalid_qr', event_type: eventTypeFor(direction, false),
              incident_type: 'invalid_qr', severity: 'medium' };
+  }
+  if (mode === 'pin' && pinRateLimited) {
+    return { allowed: false, reason: 'pin_rate_limited', event_type: eventTypeFor(direction, false),
+             incident_type: 'suspicious_repeat_attempt', severity: 'high' };
+  }
+  if (mode === 'pin' && (!pass || inputInvalid)) {
+    return { allowed: false, reason: 'invalid_pin', event_type: eventTypeFor(direction, false),
+             incident_type: 'invalid_pin', severity: 'medium' };
   }
   if (mode === 'plate' && inputInvalid) {
     return { allowed: false, reason: 'invalid_plate', event_type: eventTypeFor(direction, false),
@@ -101,8 +124,9 @@ function resolvePersonLabel(pass, vehicle) {
  */
 async function verifyPass({
   property_id,
-  mode,                   // 'qr' | 'plate' | 'provider'
+  mode,                   // 'qr' | 'pin' | 'plate' | 'provider'
   token = null,
+  pin = null,
   plate = null,
   access_point_id = null,
   direction = 'entry',
@@ -119,7 +143,7 @@ async function verifyPass({
   const db = dbArg || defaultDb;
   const txPool = typeof dbArg?.connect === 'function' ? dbArg : defaultDb.pool;
   if (!property_id) throw new Error('property_id required');
-  if (!['qr', 'plate', 'provider'].includes(mode)) throw new Error(`Invalid mode '${mode}'`);
+  if (!['qr', 'pin', 'plate', 'provider'].includes(mode)) throw new Error(`Invalid mode '${mode}'`);
   if (!['entry', 'exit'].includes(direction)) throw new Error(`Invalid direction '${direction}'`);
   const now = occurred_at ? new Date(occurred_at) : new Date();
 
@@ -145,6 +169,10 @@ async function verifyPass({
   let pass = null;
   let vehicle = null;
   let normalizedPlate = null;
+  let normalizedPin = null;
+  let pinHash = null;
+  let pinFingerprint = null;
+  let pinRateLimited = false;
   let inputInvalid = false;
 
   if (mode === 'qr') {
@@ -154,9 +182,35 @@ async function verifyPass({
               p.valid_from, p.valid_until, p.subject_resident_id,
               p.subject_vehicle_id, p.access_request_id,
               p.zone_id, p.point_id, p.policy_id
-         FROM qr_passes_v2 q
-         JOIN passes p ON p.id = q.pass_id
-        WHERE q.token = $1 AND p.property_id = $2`,
+         FROM (
+           SELECT c.pass_id, c.revoked_at, c.used_at, c.expires_at
+             FROM pass_credentials c
+            WHERE c.credential_type = 'qr'
+              AND c.token = $1
+           UNION ALL
+           SELECT q.pass_id, NULL::timestamptz AS revoked_at,
+                  NULL::timestamptz AS used_at,
+                  NULL::timestamptz AS expires_at
+             FROM qr_passes_v2 q
+            WHERE q.token = $1
+              AND NOT EXISTS (
+                SELECT 1
+                  FROM pass_credentials c
+                 WHERE c.pass_id = q.pass_id
+                   AND c.credential_type = 'qr'
+              )
+         LIMIT 1
+         ) cred
+         JOIN passes p ON p.id = cred.pass_id
+        WHERE p.property_id = $2
+          AND (cred.revoked_at IS NULL OR p.status IN ('revoked','blocked'))
+          AND (cred.used_at IS NULL OR p.status = 'used')
+          AND (
+            cred.expires_at IS NULL
+            OR cred.expires_at >= NOW()
+            OR p.status = 'expired'
+            OR p.valid_until < NOW()
+          )`,
       [token, property_id],
     );
     pass = rows[0] || null;
@@ -168,6 +222,44 @@ async function verifyPass({
         [pass.subject_vehicle_id],
       );
       vehicle = vRows[0] || null;
+    }
+  } else if (mode === 'pin') {
+    normalizedPin = normalizePin(pin);
+    if (!normalizedPin) {
+      inputInvalid = true;
+    } else {
+      pinHash = hashPin(normalizedPin);
+      pinFingerprint = credentialFingerprint(pinHash);
+      const cutoff = new Date(now.getTime() - PIN_RATE_LIMIT_WINDOW_MS).toISOString();
+      const { rows: rateRows } = await db.query(
+        `SELECT COUNT(*)::int AS n
+           FROM visit_logs_v2
+          WHERE property_id = $1
+            AND event_type = $2
+            AND occurred_at > $3
+            AND provider_payload->>'mode' = 'pin'
+            AND provider_payload->>'credential_fingerprint' = $4`,
+        [property_id, eventTypeFor(direction, false), cutoff, pinFingerprint],
+      );
+      pinRateLimited = (rateRows[0]?.n || 0) >= PIN_RATE_LIMIT_THRESHOLD;
+
+      const { rows } = await db.query(
+        `SELECT p.id, p.property_id, p.pass_type, p.subject_type, p.status,
+                p.valid_from, p.valid_until, p.subject_resident_id,
+                p.subject_vehicle_id, p.access_request_id,
+                p.zone_id, p.point_id, p.policy_id
+           FROM pass_credentials c
+           JOIN passes p ON p.id = c.pass_id
+          WHERE c.credential_type = 'pin'
+            AND c.credential_hash = $1
+            AND c.revoked_at IS NULL
+            AND c.used_at IS NULL
+            AND (c.expires_at IS NULL OR c.expires_at >= NOW())
+            AND p.property_id = $2
+          LIMIT 1`,
+        [pinHash, property_id],
+      );
+      pass = rows[0] || null;
     }
   } else if (mode === 'plate') {
     normalizedPlate = normalizePlate(plate);
@@ -201,7 +293,7 @@ async function verifyPass({
   }
 
   // ─── Step 1b: guard-console 30s idempotency for allowed scans ─────────────
-  if (mode === 'qr' && pass && performed_by_staff_id) {
+  if ((mode === 'qr' || mode === 'pin') && pass && performed_by_staff_id) {
     const cutoff = new Date(now.getTime() - GUARD_IDEMPOTENCY_WINDOW_MS).toISOString();
     const { rows } = await db.query(
       `SELECT id, event_type
@@ -224,7 +316,7 @@ async function verifyPass({
   }
 
   // ─── Step 3: verdict cascade ────────────────────────────────────────────
-  const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction, inputInvalid });
+  const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction, inputInvalid, pinRateLimited });
   const verdict = { ...baseVerdict };
   const requiresVehiclePolicyDecision = mode === 'plate'
     && vehicle
@@ -238,7 +330,7 @@ async function verifyPass({
   // type, vehicle type, checkpoint and schedule. Without a matching policy the
   // legacy whitelist rule still denies.
   let policyDecision = null;
-  if ((verdict.allowed || requiresVehiclePolicyDecision) && ['qr', 'plate'].includes(mode)) {
+  if ((verdict.allowed || requiresVehiclePolicyDecision) && ['qr', 'pin', 'plate'].includes(mode)) {
     policyDecision = await evaluateAccessPolicy({
       queryable: db,
       propertyId: property_id,
@@ -316,22 +408,45 @@ async function verifyPass({
         verdict.event_type = eventTypeFor(direction, false);
         verdict.incident_type = 'expired_pass_attempt';
         verdict.severity = 'low';
+      } else {
+        if (mode === 'qr' || mode === 'pin') {
+          await client.query(
+            `UPDATE pass_credentials
+                SET used_at = COALESCE(used_at, NOW()),
+                    updated_at = NOW()
+              WHERE pass_id = $1
+                AND credential_type = $2
+                AND revoked_at IS NULL
+                AND used_at IS NULL`,
+            [pass.id, mode],
+          );
+        }
       }
     }
 
     // Step 5: visit_log INSERT
     const personLabel = resolvePersonLabel(pass, vehicle);
     const eventSource = mode === 'provider' ? 'skud' : 'guard_console';
+    const providerPayload = {
+      mode,
+      access_point_id: access_point_id || null,
+      direction,
+      ...(pinFingerprint ? {
+        credential_type: 'pin',
+        credential_fingerprint: pinFingerprint,
+        rate_limited: pinRateLimited,
+      } : {}),
+    };
     const { rows: vlRows } = await client.query(
       `INSERT INTO visit_logs_v2
          (property_id, pass_id, access_point_id, event_type, event_source,
           person_label, vehicle_plate, performed_by_staff_id,
-          provider_event_id, occurred_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+          provider_event_id, provider_payload, occurred_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11)
        RETURNING id`,
       [property_id, pass?.id || null, access_point_id || null, verdict.event_type, eventSource,
        personLabel, normalizedPlate, performed_by_staff_id,
-       provider_event_id, now.toISOString()],
+       provider_event_id, JSON.stringify(providerPayload), now.toISOString()],
     );
     const visitLogId = vlRows[0].id;
 
@@ -373,6 +488,7 @@ async function verifyPass({
        JSON.stringify({
          verdict: verdict.reason,
          mode,
+         credential_fingerprint: pinFingerprint,
          plate: normalizedPlate,
          access_point_id: access_point_id || null,
          direction,

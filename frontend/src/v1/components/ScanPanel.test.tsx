@@ -102,4 +102,33 @@ describe('ScanPanel QR input', () => {
       direction: 'entry',
     });
   });
+
+  test('hides PIN mode until the feature flag is enabled', async () => {
+    render(<ScanPanel propertyId={propertyId} />);
+
+    await waitFor(() => expect(listPointsMock).toHaveBeenCalled());
+    expect(screen.queryByRole('option', { name: 'PIN' })).not.toBeInTheDocument();
+  });
+
+  test('verifies PIN when feature flag enables PIN mode', async () => {
+    render(<ScanPanel propertyId={propertyId} pinEnabled />);
+
+    await waitFor(() => expect(listPointsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText('Режим сканирования'), {
+      target: { value: 'pin' },
+    });
+    fireEvent.change(screen.getByLabelText('PIN'), {
+      target: { value: '123 456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Проверить' }));
+
+    await waitFor(() => expect(verifyMock).toHaveBeenCalled());
+    expect(verifyMock).toHaveBeenCalledWith({
+      property_id: propertyId,
+      mode: 'pin',
+      pin: '123456',
+      access_point_id: accessPointId,
+      direction: 'entry',
+    });
+  });
 });

@@ -318,6 +318,24 @@
   text-align: center;
 }
 
+.pinPanel {
+  width: 100%;
+  padding: var(--sp-5);
+  border: 1px solid var(--b2);
+  border-radius: var(--r-lg);
+  background: var(--g-bg);
+  text-align: center;
+}
+
+.pinValue {
+  color: var(--g3);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
 .actionsRow {
   display: flex;
   justify-content: center;
@@ -399,6 +417,7 @@
   .validityLabel,
   .instructionsLabel,
   .instructionsText,
+  .pinValue,
   .qrHint,
   .visitorDest,
   .propertyName,

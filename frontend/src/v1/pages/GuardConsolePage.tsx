@@ -62,6 +62,7 @@ export function GuardConsolePage() {
     .includes(normalizeUserRole(session.role));
   const propertyId = session.property_id ?? null;
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
+  const pinCredentialsEnabled = session.feature_flags?.pin_credentials === true;
   const [selectedAccessPointId, setSelectedAccessPointId] = useState<UUID | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -117,6 +118,7 @@ export function GuardConsolePage() {
         <ScanPanel
           propertyId={propertyId}
           accessPointId={selectedAccessPointId}
+          pinEnabled={pinCredentialsEnabled}
           onAccessPointChange={setSelectedAccessPointId}
           onVerified={refreshWorkspace}
         />

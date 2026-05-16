@@ -135,6 +135,50 @@ describe('v1 visits route access topology wiring', () => {
     }));
   });
 
+  test('verify accepts PIN mode and forwards pin without treating it as QR token', async () => {
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) {
+        return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    verifyVisit.mockResolvedValue({
+      result: {
+        verdict: { allowed: true, reason: null },
+        visit_log_id: 'visit-pin',
+        incident_id: null,
+      },
+      pass: null,
+    });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/visits/verify')
+      .send({
+        property_id: UUID_PROPERTY,
+        mode: 'pin',
+        pin: '123456',
+        access_point_id: UUID_POINT,
+      });
+
+    expect(res.status).toBe(200);
+    expect(verifyVisit).toHaveBeenCalledWith(expect.objectContaining({
+      input: expect.objectContaining({ mode: 'pin', pin: '123456', token: null }),
+    }));
+  });
+
+  test('verify rejects PIN mode without pin value', async () => {
+    const res = await supertest(buildApp())
+      .post('/api/v1/visits/verify')
+      .send({
+        property_id: UUID_PROPERTY,
+        mode: 'pin',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/pin required/);
+    expect(verifyVisit).not.toHaveBeenCalled();
+  });
+
   test('direct visit insert rejects manual decisions before generic visit log write', async () => {
     const res = await supertest(buildApp())
       .post('/api/v1/visits')

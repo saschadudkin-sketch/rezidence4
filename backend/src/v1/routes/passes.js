@@ -33,8 +33,10 @@ const {
   blockPass,
   canReadPass,
   createPass,
+  getCurrentPin,
   getOrCreateQr,
   isPassServiceError,
+  regeneratePin,
   regenerateQr,
   revokePass,
   unblockPass,
@@ -96,6 +98,11 @@ function canRevokePassScope(req, propertyId) {
 
 function canBlockPassScope(req, propertyId) {
   return canInPropertyScope(req, 'access.pass.block', propertyId);
+}
+
+function pinCredentialsEnabled(req) {
+  const flags = req.property?.resolvedFlags || req.property?.feature_flags || {};
+  return flags.pin_credentials === true;
 }
 
 function actorTypeForRole(role) {
@@ -256,7 +263,11 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const { rows: qrRows } = await getDb(req).query(
-      `SELECT id, token, render_version, created_at FROM qr_passes_v2 WHERE pass_id = $1`,
+      `SELECT id, token, render_version, created_at
+         FROM pass_credentials
+        WHERE pass_id = $1
+          AND credential_type = 'qr'
+          AND revoked_at IS NULL`,
       [req.params.id],
     );
     res.json({ pass, qr: qrRows[0] || null });
@@ -314,6 +325,68 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
       changes: { render_version: result.qr.render_version },
     });
     res.json({ qr: result.qr });
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+// ─── GET /api/v1/passes/:id/pin ─────────────────────────────────────────────
+// Returns the current PIN only when the tenant feature flag and access policy
+// allow PIN credentials. The stored verifier remains a hash; display value is
+// decrypted only for this authorized response.
+router.get('/:id/pin', async (req, res, next) => {
+  try {
+    if (!pinCredentialsEnabled(req)) {
+      return res.status(404).json({ error: { code: 'FEATURE_DISABLED', message: 'PIN credentials are disabled' } });
+    }
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const result = await getCurrentPin({
+      queryable: getDb(req),
+      user: req.user,
+      isStaffUser: can(req.user, 'passes:read'),
+      passId: req.params.id,
+    });
+    res.json({ pin: result.pin });
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    if (sendServiceError(res, err)) return;
+    next(err);
+  }
+});
+
+// ─── POST /api/v1/passes/:id/regenerate-pin ─────────────────────────────────
+// Generates a fresh PIN, stores only hashed verifier material plus encrypted
+// display value, and invalidates the previous PIN by changing the hash.
+router.post('/:id/regenerate-pin', idempotency, async (req, res, next) => {
+  try {
+    if (!pinCredentialsEnabled(req)) {
+      return res.status(404).json({ error: { code: 'FEATURE_DISABLED', message: 'PIN credentials are disabled' } });
+    }
+    if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const propertyId = await loadPassProperty(req, req.params.id);
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, propertyId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const result = await regeneratePin({
+      queryable: getDb(req),
+      user: req.user,
+      isStaffUser: can(req.user, 'passes:read'),
+      passId: req.params.id,
+    });
+    auditLog(req, {
+      propertyId: result.pass.property_id,
+      action: 'pass.pin_regenerated',
+      resourceType: 'pass',
+      resourceId: result.pass.id,
+      changes: { render_version: result.pin.render_version, public_display_allowed: result.pin.public_display_allowed },
+    });
+    res.json({ pin: result.pin });
   } catch (err) {
     if (sendScopeError(res, err)) return;
     if (sendServiceError(res, err)) return;

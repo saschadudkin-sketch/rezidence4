@@ -74,6 +74,7 @@ async function sendVerify(req, res, next, defaults = {}) {
       property_id,
       mode = defaults.mode,
       token = null,
+      pin = null,
       plate = null,
       access_point_id = null,
       direction = 'entry',
@@ -83,13 +84,16 @@ async function sendVerify(req, res, next, defaults = {}) {
     if (access_point_id !== null && !isValidUuid(access_point_id)) {
       return res.status(400).json({ error: 'access_point_id must be UUID or null' });
     }
-    if (!['qr', 'plate'].includes(mode)) return res.status(400).json({ error: "mode must be 'qr' or 'plate'" });
+    if (!['qr', 'pin', 'plate'].includes(mode)) return res.status(400).json({ error: "mode must be 'qr', 'pin' or 'plate'" });
     if (!['entry', 'exit'].includes(direction)) return res.status(400).json({ error: "direction must be 'entry' or 'exit'" });
     if (mode === 'qr' && (typeof token !== 'string' || token.length < 16)) {
       return res.status(400).json({ error: 'token required for mode=qr' });
     }
     if (mode === 'plate' && (typeof plate !== 'string' || !plate.trim())) {
       return res.status(400).json({ error: 'plate required for mode=plate' });
+    }
+    if (mode === 'pin' && (typeof pin !== 'string' || !pin.trim())) {
+      return res.status(400).json({ error: 'pin required for mode=pin' });
     }
     if (occurred_at && !isValidIso(occurred_at)) {
       return res.status(400).json({ error: 'occurred_at must be ISO-8601 or omitted' });
@@ -100,7 +104,7 @@ async function sendVerify(req, res, next, defaults = {}) {
       queryable: getDb(req),
       verifyDb: req.db || null,
       user: req.user,
-      input: { property_id, mode, token, plate, access_point_id, direction, occurred_at },
+      input: { property_id, mode, token, pin, plate, access_point_id, direction, occurred_at },
     });
 
     res.json({

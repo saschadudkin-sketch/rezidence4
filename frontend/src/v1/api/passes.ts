@@ -9,6 +9,7 @@ import type {
   PageMeta,
   PaginationParams,
   Pass,
+  PinCredential,
   PassStatus,
   PassType,
   QrToken,
@@ -49,6 +50,12 @@ export const passesApi = {
   },
   regenerateQr(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ qr: QrToken }>(`/passes/${id}/regenerate-qr`, undefined, opts);
+  },
+  getPin(id: UUID, opts?: RequestOpts) {
+    return v1Client.get<{ pin: PinCredential }>(`/passes/${id}/pin`, opts);
+  },
+  regeneratePin(id: UUID, opts?: RequestOpts) {
+    return v1Client.post<{ pin: PinCredential }>(`/passes/${id}/regenerate-pin`, undefined, opts);
   },
   revoke(id: UUID, reason: string, opts?: RequestOpts) {
     return v1Client.post<{ pass: Pass }>(`/passes/${id}/revoke`, { reason }, opts);

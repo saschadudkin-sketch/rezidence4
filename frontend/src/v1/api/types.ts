@@ -80,6 +80,8 @@ export interface UserMe {
   property_id?: UUID | null;
   /** Resolved from the platform/local property registry; drives address labels. */
   property_type?: PropertyType | null;
+  /** Resolved tenant feature flags; used by non-admin role workspaces for gated UI. */
+  feature_flags?: Record<string, boolean> | null;
 }
 
 // ─── Property Admin Operations Dashboard ───────────────────────────────────
@@ -600,6 +602,16 @@ export interface QrToken {
   created_at?: IsoDateTime;
 }
 
+export interface PinCredential {
+  id: UUID;
+  value: string;
+  render_version: number;
+  expires_at?: IsoDateTime | null;
+  public_display_allowed: boolean;
+  created_at?: IsoDateTime;
+  updated_at?: IsoDateTime;
+}
+
 // ─── Vehicles ───────────────────────────────────────────────────────────────
 
 export type VehicleOwnerType = 'resident' | 'staff' | 'contractor' | 'guest';
@@ -723,7 +735,7 @@ export interface AccessPolicy {
 
 // ─── Visits (visit_logs_v2) + verify ────────────────────────────────────────
 
-export type VerifyMode = 'qr' | 'plate';
+export type VerifyMode = 'qr' | 'pin' | 'plate';
 export type VerifyDirection = 'entry' | 'exit';
 
 export type VisitEventType =
@@ -739,6 +751,8 @@ export type VisitEventSource = 'domhub' | 'skud' | 'guard_console' | 'import';
 
 export type DenyReason =
   | 'invalid_qr'
+  | 'invalid_pin'
+  | 'pin_rate_limited'
   | 'invalid_plate'
   | 'vehicle_blacklisted'
   | 'pass_revoked'
@@ -770,6 +784,7 @@ export interface VerifyRequest {
   property_id: UUID;
   mode: VerifyMode;
   token?: string;
+  pin?: string;
   plate?: string;
   access_point_id?: UUID | null;
   direction?: VerifyDirection;
@@ -791,6 +806,7 @@ export interface VerifyResult {
 export type IncidentType =
   | 'expired_pass_attempt'
   | 'invalid_qr'
+  | 'invalid_pin'
   | 'invalid_plate'
   | 'blacklist_hit'
   | 'outside_time_window'

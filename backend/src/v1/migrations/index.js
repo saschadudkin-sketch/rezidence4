@@ -96,6 +96,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./051_access_request_product_text'),
   // Access rollout Phase 4: resident-owned trusted visitors / frequent guests
   require('./052_trusted_visitors'),
+  // Access rollout Phase 5: canonical pass credential layer
+  require('./053_pass_credentials'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

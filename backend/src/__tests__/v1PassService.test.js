@@ -5,6 +5,7 @@ const {
   canReadPass,
   createPass,
   getOrCreateQr,
+  regeneratePin,
   revokePass,
   unblockPass,
 } = require('../v1/services/passService');
@@ -122,6 +123,8 @@ describe('PassService QR and status transitions', () => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
       if (sql.includes('SELECT status FROM passes')) return Promise.resolve({ rows: [{ status: 'active' }] });
       if (sql.includes('UPDATE passes SET')) return Promise.resolve({ rows: [{ id: UUID_PASS, status: 'revoked' }] });
+      if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
+      if (sql.includes('DELETE FROM qr_passes_v2')) return Promise.resolve({ rows: [] });
       if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
@@ -137,6 +140,92 @@ describe('PassService QR and status transitions', () => {
     const updateCall = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE passes SET'));
     expect(updateCall[1]).toEqual([UUID_STAFF, 'duplicate', UUID_PASS]);
     expect(updateCall[1]).not.toContain('legacy-staff-1');
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE pass_credentials'))).toBe(true);
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM qr_passes_v2'))).toBe(true);
+  });
+
+  test('getOrCreateQr uses pass_credentials as canonical source and mirrors qr_passes_v2', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM passes')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_PASS,
+            property_id: UUID_PROPERTY,
+            access_request_id: null,
+            subject_resident_id: null,
+            status: 'active',
+          }],
+        });
+      }
+      if (sql.includes('FROM pass_credentials')) {
+        return Promise.resolve({ rows: [{ id: 'cred-1', token: 'tok-1', render_version: 2 }] });
+      }
+      if (sql.includes('INSERT INTO qr_passes_v2')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await getOrCreateQr({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      isStaffUser: true,
+      passId: UUID_PASS,
+    });
+
+    expect(result.qr).toEqual({ id: 'cred-1', token: 'tok-1', render_version: 2 });
+    const mirrorCall = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO qr_passes_v2'));
+    expect(mirrorCall[1]).toEqual([UUID_PROPERTY, UUID_PASS, 'tok-1', 2]);
+  });
+
+  test('regeneratePin stores hashed PIN material and returns one-time display value', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM passes')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_PASS,
+            property_id: UUID_PROPERTY,
+            access_request_id: null,
+            subject_resident_id: null,
+            status: 'active',
+            pass_type: 'guest',
+            subject_type: 'guest',
+            policy_id: UUID_POLICY,
+          }],
+        });
+      }
+      if (sql.includes('FROM access_policies')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_POLICY,
+            metadata: { public_pin_display: true },
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO pass_credentials')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'pin-cred-1',
+            render_version: 1,
+            expires_at: null,
+            created_at: '2026-05-16T10:00:00.000Z',
+            updated_at: '2026-05-16T10:00:00.000Z',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await regeneratePin({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      isStaffUser: true,
+      passId: UUID_PASS,
+    });
+
+    expect(result.pin.value).toMatch(/^\d{6}$/);
+    expect(result.pin.public_display_allowed).toBe(true);
+    const insertCall = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO pass_credentials'));
+    expect(insertCall[1][2]).toMatch(/^[a-f0-9]{64}$/);
+    expect(insertCall[1]).not.toContain(result.pin.value);
   });
 
   test('blockPass rejects expired passes', async () => {

@@ -43,6 +43,12 @@ type PublicPass = {
   accessPointName?: string | null;
   accessZoneName?: string | null;
   guestInstructions?: string | null;
+  pinCredential?: {
+    value: string;
+    publicDisplayAllowed: boolean;
+    renderVersion?: number | null;
+    expiresAt?: string | null;
+  } | null;
 };
 
 type FetchState =
@@ -288,6 +294,13 @@ export default function GuestPassPage() {
                 ) : null}
               </div>
             )}
+
+            {isActiveStatus(state.pass.status) && state.pass.pinCredential?.publicDisplayAllowed ? (
+              <div className={styles.pinPanel} aria-label="PIN для охраны">
+                <div className={styles.instructionsLabel}>PIN для охраны</div>
+                <div className={styles.pinValue}>{state.pass.pinCredential.value}</div>
+              </div>
+            ) : null}
 
             {isActiveStatus(state.pass.status) && (
               <div className={styles.metaChips} aria-label="Детали пропуска">

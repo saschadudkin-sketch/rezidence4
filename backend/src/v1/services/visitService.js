@@ -39,6 +39,7 @@ async function verifyVisit({ queryable, verifyDb, user, input }) {
     property_id: input.property_id,
     mode: input.mode,
     token: input.token,
+    pin: input.pin,
     plate: input.plate,
     access_point_id: input.access_point_id,
     direction: input.direction,

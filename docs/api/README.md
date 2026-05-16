@@ -11,7 +11,7 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/users/*` | list, restore | response codes + User schema |
 | `/api/v1/upload/*` | photo | UploadResponse |
 | `/api/v1/chat/*` | messages | ChatMessage stub |
-| `/api/v1/passes/*` | list, create, get, qr, regenerate-qr, revoke/block/unblock | **полные схемы** (Pass, PassQR, transition commands) |
+| `/api/v1/passes/*` | list, create, get, qr, regenerate-qr, pin, regenerate-pin, revoke/block/unblock | **полные схемы** (Pass, PassQR, PassPIN, transition commands) |
 | `/api/v1/announcements/*` | list, create, get, patch, delete, publish, admin-list | **полные схемы** (Announcement) |
 | `/api/v1/packages/*` | list, create, get, patch | **полные схемы** (Package) |
 | `/api/v1/documents/*` | list, create, get, patch | полные схемы (Document) |
@@ -31,7 +31,7 @@ Source-of-truth для DomHub API contract — `docs/openapi.json` (OpenAPI 3.0.
 | `/api/v1/notification-log` | list | stub |
 | `/api/v1/admin/outbox` | list | stub |
 
-**Итого:** 300 paths, 98 schemas, 368 operations. Coverage проходит `npm run openapi:drift`, который проверяет не только mounted prefixes, но и операции внутри Express router'ов, смонтированных под `/api/v1/*`. Access-domain пилотные маршруты имеют явные path/schema anchors, включая stale-state 409, manual security decisions и trusted visitors.
+**Итого:** 302 paths, 100 schemas, 370 operations. Coverage проходит `npm run openapi:drift`, который проверяет не только mounted prefixes, но и операции внутри Express router'ов, смонтированных под `/api/v1/*`. Access-domain пилотные маршруты имеют явные path/schema anchors, включая stale-state 409, manual security decisions, trusted visitors и pass credentials.
 
 ## Что ещё нужно детализировать
 

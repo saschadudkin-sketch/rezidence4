@@ -23,6 +23,8 @@ const PASS_ACTION_ALLOWED = Object.freeze({
   expire: new Set(['active']),
   qr: new Set(['active']),
   regenerate_qr: new Set(['active']),
+  pin: new Set(['active']),
+  regenerate_pin: new Set(['active']),
 });
 
 const INCIDENT_ACTION_ALLOWED = Object.freeze({
@@ -56,9 +58,10 @@ function assertPassAction(status, action) {
     throw new StateTransitionError(`Pass is not blocked (status='${status}')`);
   }
 
-  if (action === 'qr' || action === 'regenerate_qr') {
-    const verb = action === 'qr' ? 'fetch' : 'regenerate';
-    throw new StateTransitionError(`Cannot ${verb} QR for pass in status '${status}'`);
+  if (action === 'qr' || action === 'regenerate_qr' || action === 'pin' || action === 'regenerate_pin') {
+    const credential = action.includes('pin') ? 'PIN' : 'QR';
+    const verb = action === 'qr' || action === 'pin' ? 'fetch' : 'regenerate';
+    throw new StateTransitionError(`Cannot ${verb} ${credential} for pass in status '${status}'`);
   }
 
   throw new StateTransitionError(`Cannot ${action} pass in status '${status}'`);

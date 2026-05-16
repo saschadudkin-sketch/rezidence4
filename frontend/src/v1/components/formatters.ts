@@ -59,6 +59,8 @@ const PASS_TYPE_RU: Record<PassType, string> = {
 
 const DENY_REASON_RU: Record<DenyReason, string> = {
   invalid_qr: 'Невалидный QR-код',
+  invalid_pin: 'Невалидный PIN',
+  pin_rate_limited: 'Слишком много PIN-попыток',
   invalid_plate: 'Невалидный номер',
   vehicle_blacklisted: 'Авто в чёрном списке',
   pass_revoked: 'Пропуск отозван',
@@ -73,6 +75,7 @@ const DENY_REASON_RU: Record<DenyReason, string> = {
 const INCIDENT_TYPE_RU: Record<IncidentType, string> = {
   expired_pass_attempt: 'Попытка по истекшему пропуску',
   invalid_qr: 'Невалидный QR',
+  invalid_pin: 'Невалидный PIN',
   invalid_plate: 'Невалидный номер',
   blacklist_hit: 'Чёрный список',
   outside_time_window: 'Вне окна',

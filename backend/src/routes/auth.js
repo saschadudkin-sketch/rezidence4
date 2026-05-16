@@ -14,6 +14,7 @@ const {
   clearAuthCookies,
   deleteRefreshTokensForUser,
 } = require('../services/authSessionService');
+const { resolveFlags } = require('../config/featureFlags');
 
 const smsService = require('../services/smsService');
 const sendSms = smsService.sendSms;
@@ -107,13 +108,17 @@ async function attachPropertyId(user, queryDb = db) {
 
   let propertyId = null;
   let propertyType = null;
+  let propertyFeatureFlags = null;
+  let propertyPlan = null;
   try {
     const { rows } = await queryDb.query(
-      `SELECT id, property_type FROM properties WHERE slug = $1 LIMIT 1`,
+      `SELECT id, property_type, feature_flags, plan FROM properties WHERE slug = $1 LIMIT 1`,
       [user.property_slug],
     );
     propertyId = rows[0]?.id || null;
     propertyType = rows[0]?.property_type || null;
+    propertyFeatureFlags = rows[0]?.feature_flags || null;
+    propertyPlan = rows[0]?.plan || null;
   } catch (err) {
     if (err?.code === '42703') {
       const { rows } = await queryDb.query(
@@ -135,7 +140,7 @@ async function attachPropertyId(user, queryDb = db) {
       let rows;
       try {
         ({ rows } = await platformDb.query(
-          `SELECT id, property_type FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
+          `SELECT id, property_type, feature_flags, plan FROM properties WHERE slug = $1 AND is_active = true LIMIT 1`,
           [user.property_slug],
         ));
       } catch (err) {
@@ -147,6 +152,8 @@ async function attachPropertyId(user, queryDb = db) {
       }
       propertyId = propertyId || rows[0]?.id || null;
       propertyType = propertyType || rows[0]?.property_type || null;
+      propertyFeatureFlags = propertyFeatureFlags || rows[0]?.feature_flags || null;
+      propertyPlan = propertyPlan || rows[0]?.plan || null;
     } catch (err) {
       logger.warn(
         { err: err.message, property_slug: user.property_slug },
@@ -159,6 +166,7 @@ async function attachPropertyId(user, queryDb = db) {
     ...user,
     property_id: user.property_id || propertyId,
     property_type: user.property_type || propertyType || 'residential_complex',
+    feature_flags: resolveFlags(propertyFeatureFlags, propertyPlan || 'core_access'),
   };
 }
 

@@ -29,6 +29,7 @@ import { normalizePlate } from '../api/vehicles';
 export interface ScanPanelProps {
   propertyId: UUID;
   accessPointId?: UUID | null;
+  pinEnabled?: boolean;
   onAccessPointChange?: (accessPointId: UUID | null) => void;
   onVerified?: (
     result: VerifyResult,
@@ -55,6 +56,7 @@ const DIRECTION_LABELS: Record<VerifyDirection, string> = {
 
 const ACTION_LABELS: Record<GuardActionMode, string> = {
   qr: 'QR',
+  pin: 'PIN',
   plate: 'Номер',
   manual_admit: 'Ручной допуск',
   manual_deny: 'Ручной отказ',
@@ -133,7 +135,13 @@ function shouldQueueOffline(err: unknown): boolean {
     || (isV1ApiError(err) && (err.kind === 'network' || err.kind === 'timeout'));
 }
 
-export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVerified }: ScanPanelProps) {
+export function ScanPanel({
+  propertyId,
+  accessPointId,
+  pinEnabled = false,
+  onAccessPointChange,
+  onVerified,
+}: ScanPanelProps) {
   const [mode, setMode] = useState<VerifyMode>('qr');
   const [direction, setDirection] = useState<VerifyDirection>('entry');
   const [value, setValue] = useState('');
@@ -226,6 +234,10 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
   }, [persistOfflineQueue, propertyId]);
 
   useEffect(() => {
+    if (!pinEnabled && mode === 'pin') setMode('qr');
+  }, [mode, pinEnabled]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const onOnline = () => {
       void syncOfflineQueue();
@@ -250,13 +262,17 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
     e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) {
-      setError(mode === 'qr' ? 'Введите QR-токен' : 'Введите номер авто');
+      setError(mode === 'qr' ? 'Введите QR-токен' : mode === 'pin' ? 'Введите PIN' : 'Введите номер авто');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const verifyValue = mode === 'qr' ? extractQrTokenForVerify(trimmed) : normalizePlate(trimmed);
+      const verifyValue = mode === 'qr'
+        ? extractQrTokenForVerify(trimmed)
+        : mode === 'plate'
+          ? normalizePlate(trimmed)
+          : trimmed.replace(/[\s-]/g, '');
       const body =
         mode === 'qr'
           ? {
@@ -266,6 +282,14 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
             access_point_id: selectedPointId || null,
             direction,
           }
+          : mode === 'pin'
+            ? {
+              property_id: propertyId,
+              mode,
+              pin: verifyValue,
+              access_point_id: selectedPointId || null,
+              direction,
+            }
           : {
             property_id: propertyId,
             mode,
@@ -528,26 +552,29 @@ export function ScanPanel({ propertyId, accessPointId, onAccessPointChange, onVe
               ))}
             </div>
           </Field>
-          <Field label="Режим" hint="QR-токен — для пропуска гостя. Plate — для въезда авто.">
+          <Field label="Режим" hint="QR-токен — для пропуска гостя. PIN доступен только при включенном флаге.">
             <Select aria-label="Режим сканирования" value={mode} onChange={(e) => setMode(e.target.value as VerifyMode)}>
               <option value="qr">QR-токен</option>
+              {pinEnabled ? <option value="pin">PIN</option> : null}
               <option value="plate">Гос. номер</option>
             </Select>
           </Field>
           <Field
-            label={mode === 'qr' ? 'QR-токен' : 'Гос. номер'}
+            label={mode === 'qr' ? 'QR-токен' : mode === 'pin' ? 'PIN' : 'Гос. номер'}
             error={error}
             hint={
               mode === 'plate'
                 ? 'Ввод автоматически приводится к верхнему регистру'
+                : mode === 'pin'
+                  ? 'Введите 4-8 цифр без пробелов'
                 : 'Можно вставить токен или ссылку /p/<token>'
             }
           >
             <Input
-              aria-label={mode === 'qr' ? 'QR-токен' : 'Гос. номер'}
+              aria-label={mode === 'qr' ? 'QR-токен' : mode === 'pin' ? 'PIN' : 'Гос. номер'}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={mode === 'qr' ? 'например, a7b8…' : 'например, A001AA77'}
+              placeholder={mode === 'qr' ? 'например, a7b8…' : mode === 'pin' ? '123456' : 'например, A001AA77'}
               disabled={submitting}
               autoFocus
             />

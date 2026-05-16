@@ -9,6 +9,12 @@ const {
   StateTransitionError,
   assertPassAction,
 } = require('./accessStateMachine');
+const {
+  decryptCredentialSecret,
+  encryptCredentialSecret,
+  generatePin,
+  hashPin,
+} = require('./passCredentialService');
 
 const PASS_COLS = `
   id, property_id, access_request_id, pass_type, subject_type,
@@ -36,6 +42,108 @@ function isPassServiceError(err) {
 
 function newToken() {
   return crypto.randomBytes(16).toString('hex');
+}
+
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch { return {}; }
+}
+
+function passSubjectForPolicy(pass) {
+  if (pass.pass_type === 'vehicle' || pass.subject_type === 'vehicle') return 'vehicle';
+  if (pass.pass_type === 'contractor' || pass.pass_type === 'service') return 'contractor';
+  if (pass.pass_type === 'courier') return 'courier';
+  if (pass.pass_type === 'resident' || pass.subject_type === 'resident') return 'resident';
+  if (pass.pass_type === 'staff' || pass.pass_type === 'emergency') return 'staff';
+  return 'guest';
+}
+
+async function findPinPolicy(queryable, pass) {
+  const subjectType = passSubjectForPolicy(pass);
+  const { rows } = await queryable.query(
+    `SELECT id, metadata
+       FROM access_policies
+      WHERE property_id = $1
+        AND is_active = true
+        AND access_method = 'pin'
+        AND effect = 'allow'
+        AND subject_type = $2
+      ORDER BY
+        CASE WHEN id = $3 THEN 0 ELSE 1 END,
+        priority ASC,
+        created_at ASC
+      LIMIT 1`,
+    [pass.property_id, subjectType, pass.policy_id || null],
+  );
+  return rows[0] || null;
+}
+
+function pinPolicyAllowsPublicDisplay(policy) {
+  const metadata = parseMetadata(policy?.metadata);
+  return metadata.public_pin_display === true || metadata.show_pin_on_public_pass === true;
+}
+
+async function getCurrentQrCredential(queryable, passId) {
+  const { rows } = await queryable.query(
+    `SELECT id, token, render_version
+       FROM pass_credentials
+      WHERE pass_id = $1
+        AND credential_type = 'qr'
+        AND revoked_at IS NULL`,
+    [passId],
+  );
+  if (rows[0]) return rows[0];
+
+  const { rows: legacyRows } = await queryable.query(
+    `SELECT id, token, render_version FROM qr_passes_v2 WHERE pass_id = $1`,
+    [passId],
+  );
+  return legacyRows[0] || null;
+}
+
+async function createQrCredential(queryable, pass) {
+  const token = newToken();
+  const { rows } = await queryable.query(
+    `INSERT INTO pass_credentials (property_id, pass_id, credential_type, token)
+     VALUES ($1, $2, 'qr', $3)
+     ON CONFLICT (pass_id, credential_type) WHERE revoked_at IS NULL
+     DO UPDATE SET token = EXCLUDED.token,
+                   render_version = pass_credentials.render_version + 1,
+                   revoked_at = NULL,
+                   updated_at = NOW()
+     RETURNING id, token, render_version`,
+    [pass.property_id, pass.id, token],
+  );
+  await upsertQrCompatibility(queryable, pass, rows[0]);
+  return rows[0];
+}
+
+async function upsertQrCompatibility(queryable, pass, qr) {
+  await queryable.query(
+    `INSERT INTO qr_passes_v2 (property_id, pass_id, token, render_version)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (pass_id)
+     DO UPDATE SET token = EXCLUDED.token,
+                   render_version = EXCLUDED.render_version,
+                   updated_at = NOW()`,
+    [pass.property_id, pass.id, qr.token, qr.render_version],
+  );
+}
+
+async function invalidatePassCredentials(queryable, passId) {
+  await queryable.query(
+    `UPDATE pass_credentials
+        SET revoked_at = COALESCE(revoked_at, NOW()),
+            updated_at = NOW()
+      WHERE pass_id = $1
+        AND revoked_at IS NULL`,
+    [passId],
+  );
+  await queryable.query(
+    `DELETE FROM qr_passes_v2 WHERE pass_id = $1`,
+    [passId],
+  );
 }
 
 async function canReadPass({ queryable, user, isStaffUser, pass }) {
@@ -79,19 +187,14 @@ async function getOrCreateQr({ queryable, user, isStaffUser, passId }) {
   });
   assertPassAction(pass.status, 'qr');
 
-  const { rows: existing } = await queryable.query(
-    `SELECT id, token, render_version FROM qr_passes_v2 WHERE pass_id = $1`,
-    [pass.id],
-  );
-  if (existing[0]) return { pass, qr: existing[0] };
+  const existing = await getCurrentQrCredential(queryable, pass.id);
+  if (existing) {
+    await upsertQrCompatibility(queryable, pass, existing);
+    return { pass, qr: existing };
+  }
 
-  const { rows: created } = await queryable.query(
-    `INSERT INTO qr_passes_v2 (property_id, pass_id, token)
-     VALUES ($1, $2, $3)
-     RETURNING id, token, render_version`,
-    [pass.property_id, pass.id, newToken()],
-  );
-  return { pass, qr: created[0] };
+  const qr = await createQrCredential(queryable, pass);
+  return { pass, qr };
 }
 
 async function regenerateQr({ queryable, user, isStaffUser, passId }) {
@@ -105,16 +208,114 @@ async function regenerateQr({ queryable, user, isStaffUser, passId }) {
   assertPassAction(pass.status, 'regenerate_qr');
 
   const { rows } = await queryable.query(
-    `INSERT INTO qr_passes_v2 (property_id, pass_id, token)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (pass_id)
+    `INSERT INTO pass_credentials (property_id, pass_id, credential_type, token)
+     VALUES ($1, $2, 'qr', $3)
+     ON CONFLICT (pass_id, credential_type) WHERE revoked_at IS NULL
      DO UPDATE SET token = EXCLUDED.token,
-                   render_version = qr_passes_v2.render_version + 1,
+                   render_version = pass_credentials.render_version + 1,
                    updated_at = NOW()
      RETURNING id, token, render_version`,
     [pass.property_id, pass.id, newToken()],
   );
+  await upsertQrCompatibility(queryable, pass, rows[0]);
   return { pass, qr: rows[0] };
+}
+
+async function regeneratePin({ queryable, user, isStaffUser, passId }) {
+  const pass = await requireReadablePass({
+    queryable,
+    user,
+    isStaffUser,
+    passId,
+    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, policy_id',
+  });
+  assertPassAction(pass.status, 'regenerate_pin');
+
+  const policy = await findPinPolicy(queryable, pass);
+  if (!policy) throw serviceError(422, 'PIN credentials are not allowed by policy');
+
+  const pin = generatePin();
+  const pinHash = hashPin(pin);
+  const encrypted = encryptCredentialSecret(pin);
+  const { rows } = await queryable.query(
+    `INSERT INTO pass_credentials
+       (property_id, pass_id, credential_type, credential_hash,
+        credential_ciphertext, credential_iv, credential_tag)
+     VALUES ($1, $2, 'pin', $3, $4, $5, $6)
+     ON CONFLICT (pass_id, credential_type) WHERE revoked_at IS NULL
+     DO UPDATE SET credential_hash = EXCLUDED.credential_hash,
+                   credential_ciphertext = EXCLUDED.credential_ciphertext,
+                   credential_iv = EXCLUDED.credential_iv,
+                   credential_tag = EXCLUDED.credential_tag,
+                   used_at = NULL,
+                   render_version = pass_credentials.render_version + 1,
+                   updated_at = NOW()
+     RETURNING id, render_version, expires_at, created_at, updated_at,
+               credential_ciphertext, credential_iv, credential_tag`,
+    [
+      pass.property_id,
+      pass.id,
+      pinHash,
+      encrypted.credential_ciphertext,
+      encrypted.credential_iv,
+      encrypted.credential_tag,
+    ],
+  );
+
+  return {
+    pass,
+    pin: {
+      id: rows[0].id,
+      render_version: rows[0].render_version,
+      expires_at: rows[0].expires_at,
+      created_at: rows[0].created_at,
+      updated_at: rows[0].updated_at,
+      value: pin,
+      public_display_allowed: pinPolicyAllowsPublicDisplay(policy),
+    },
+  };
+}
+
+async function getCurrentPin({ queryable, user, isStaffUser, passId }) {
+  const pass = await requireReadablePass({
+    queryable,
+    user,
+    isStaffUser,
+    passId,
+    selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, policy_id',
+  });
+  assertPassAction(pass.status, 'pin');
+
+  const policy = await findPinPolicy(queryable, pass);
+  if (!policy) throw serviceError(422, 'PIN credentials are not allowed by policy');
+
+  const { rows } = await queryable.query(
+    `SELECT id, render_version, expires_at, created_at, updated_at,
+            credential_ciphertext, credential_iv, credential_tag
+       FROM pass_credentials
+      WHERE pass_id = $1
+        AND credential_type = 'pin'
+        AND revoked_at IS NULL
+        AND used_at IS NULL
+        AND (expires_at IS NULL OR expires_at >= NOW())
+      LIMIT 1`,
+    [pass.id],
+  );
+  if (!rows[0]) throw serviceError(404, 'PIN credential not found');
+  const value = decryptCredentialSecret(rows[0]);
+  if (!value) throw serviceError(409, 'PIN credential cannot be displayed');
+  return {
+    pass,
+    pin: {
+      id: rows[0].id,
+      render_version: rows[0].render_version,
+      expires_at: rows[0].expires_at,
+      created_at: rows[0].created_at,
+      updated_at: rows[0].updated_at,
+      value,
+      public_display_allowed: pinPolicyAllowsPublicDisplay(policy),
+    },
+  };
 }
 
 async function createPass({ queryable, user, input }) {
@@ -160,6 +361,7 @@ async function revokePass({ queryable, user, passId, reason }) {
      RETURNING ${PASS_COLS}`,
     [staffId, reason, passId],
   );
+  await invalidatePassCredentials(queryable, passId);
   await queryable.query(
     `INSERT INTO notifications_outbox
        (property_id, event_type, channel, recipient_type, payload, correlation_id)
@@ -184,6 +386,7 @@ async function blockPass({ queryable, passId, reason = null }) {
     `UPDATE passes SET status = 'blocked' WHERE id = $1 RETURNING ${PASS_COLS}`,
     [passId],
   );
+  await invalidatePassCredentials(queryable, passId);
   await queryable.query(
     `INSERT INTO notifications_outbox
        (property_id, event_type, channel, recipient_type, payload, correlation_id)
@@ -253,9 +456,11 @@ module.exports = {
   blockPass,
   canReadPass,
   createPass,
+  getCurrentPin,
   getOrCreateQr,
   isPassServiceError,
   regenerateQr,
+  regeneratePin,
   revokePass,
   unblockPass,
 };

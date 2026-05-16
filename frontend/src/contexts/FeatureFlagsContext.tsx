@@ -32,6 +32,7 @@ export const FEATURE_KEYS = [
   'kiosk_mode',
   'qr_pass',
   'manual_access_approval',
+  'pin_credentials',
   'meter_readings',
   'billing',
   'space_booking',

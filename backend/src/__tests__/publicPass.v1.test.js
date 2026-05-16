@@ -3,6 +3,7 @@
 const express = require('express');
 const request = require('supertest');
 const publicPassRouter = require('../routes/publicPass');
+const { encryptCredentialSecret } = require('../v1/services/passCredentialService');
 
 function buildApp(db, property = { name: 'ЖК Замоскворечье' }) {
   const app = express();
@@ -16,9 +17,10 @@ function buildApp(db, property = { name: 'ЖК Замоскворечье' }) {
 }
 
 describe('publicPass route v1 cutover', () => {
-  test('serves platform-v1 qr_passes_v2 public-safe payload for 32-hex token', async () => {
+  test('serves platform-v1 credential public-safe payload for 32-hex token', async () => {
     const db = {
       query: jest.fn(async (sql) => {
+        expect(sql).toContain('FROM pass_credentials');
         expect(sql).toContain('FROM qr_passes_v2');
         return {
           rows: [{
@@ -38,6 +40,7 @@ describe('publicPass route v1 cutover', () => {
             unit_type: 'apartment',
             access_point_name: 'КПП Север',
             access_zone_name: 'Паркинг',
+            pin_public_display_allowed: false,
             resident_uid: 'must-not-leak',
             visitor_phone: '+79990001122',
           }],
@@ -63,6 +66,7 @@ describe('publicPass route v1 cutover', () => {
       guestInstructions: 'Вход через северный КПП',
     }));
     expect(res.body).not.toHaveProperty('passId');
+    expect(res.body.pinCredential).toBeNull();
     expect(JSON.stringify(res.body)).not.toContain('must-not-leak');
     expect(JSON.stringify(res.body)).not.toContain('+79990001122');
     expect(db.query).toHaveBeenCalledTimes(1);
@@ -156,6 +160,43 @@ describe('publicPass route v1 cutover', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('pending');
     expect(res.body.validFrom).toBe('2099-05-16T10:00:00.000Z');
+  });
+
+  test('includes decrypted PIN only when public display is allowed by policy', async () => {
+    const encrypted = encryptCredentialSecret('123456');
+    const db = {
+      query: jest.fn(async () => ({
+        rows: [{
+          pass_id: 'pass-pin',
+          pass_type: 'guest',
+          valid_from: '2020-05-16T10:00:00.000Z',
+          valid_until: '2099-05-16T12:00:00.000Z',
+          status: 'active',
+          request_type: 'guest_access',
+          visitor_name: 'Гость с PIN',
+          unit_number: '3',
+          unit_type: 'apartment',
+          access_point_name: null,
+          access_zone_name: null,
+          pin_public_display_allowed: true,
+          pin_render_version: 2,
+          pin_expires_at: null,
+          pin_credential_ciphertext: encrypted.credential_ciphertext,
+          pin_credential_iv: encrypted.credential_iv,
+          pin_credential_tag: encrypted.credential_tag,
+        }],
+      })),
+    };
+
+    const res = await request(buildApp(db)).get(`/api/v1/public/pass/${'e'.repeat(32)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.pinCredential).toEqual({
+      value: '123456',
+      publicDisplayAllowed: true,
+      renderVersion: 2,
+      expiresAt: null,
+    });
   });
 
   test('rejects unsupported token shapes as not found', async () => {

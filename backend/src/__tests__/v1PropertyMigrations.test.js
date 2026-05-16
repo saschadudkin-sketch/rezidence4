@@ -48,8 +48,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 DH-56 privacy compliance controls
     // + 1 access-control pilot readiness hardening
     // + 1 access request product text fields
-    // + 1 trusted visitors / frequent guests = 52
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(52);
+    // + 1 trusted visitors / frequent guests
+    // + 1 pass credential layer = 53
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(53);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -513,6 +514,46 @@ describe('v1_012_qr_passes_v2', () => {
     const tbl = client.query.mock.calls.map((c) => c[0])
       .find((s) => s.includes('CREATE TABLE IF NOT EXISTS qr_passes_v2'));
     expect(tbl).toContain('CONSTRAINT qr_passes_v2_render_positive CHECK (render_version >= 1)');
+  });
+});
+
+describe('v1_053_pass_credentials', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('creates canonical credential table with qr/pin/plate material shape', async () => {
+    await byId('v1_053_pass_credentials').up(client);
+    const tbl = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('CREATE TABLE IF NOT EXISTS pass_credentials'));
+    expect(tbl).toContain("CHECK (credential_type IN ('qr','pin','plate'))");
+    expect(tbl).toContain('CONSTRAINT pass_credentials_material_shape CHECK');
+    expect(tbl).toContain('credential_ciphertext TEXT');
+    expect(tbl).toContain('CONSTRAINT pass_credentials_display_secret_shape CHECK');
+    expect(tbl).toContain("credential_type = 'qr'");
+    expect(tbl).toContain("credential_type IN ('pin','plate')");
+  });
+
+  test('keeps one active credential per pass/type and unique public tokens', async () => {
+    await byId('v1_053_pass_credentials').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    expect(sqls.find((s) => s.includes('uq_pass_credentials_token'))).toContain('WHERE token IS NOT NULL');
+    expect(sqls.find((s) => s.includes('uq_pass_credentials_active_type'))).toContain('WHERE revoked_at IS NULL');
+  });
+
+  test('backfills existing qr_passes_v2 rows into credentials', async () => {
+    await byId('v1_053_pass_credentials').up(client);
+    const backfill = client.query.mock.calls.map((c) => c[0])
+      .find((s) => s.includes('INSERT INTO pass_credentials'));
+    expect(backfill).toContain('FROM qr_passes_v2');
+    expect(backfill).toContain("'qr'");
+    expect(backfill).toContain('ON CONFLICT DO NOTHING');
+  });
+
+  test('extends access incident enum with invalid_pin evidence', async () => {
+    await byId('v1_053_pass_credentials').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+    expect(sqls.find((s) => s.includes('DROP CONSTRAINT IF EXISTS access_incidents_incident_type_check'))).toBeDefined();
+    expect(sqls.find((s) => s.includes('ADD CONSTRAINT access_incidents_incident_type_check'))).toContain("'invalid_pin'");
   });
 });
 

@@ -70,6 +70,12 @@ const FEATURE_FLAGS = {
     description: 'Если включено, пропуска требуют решения консьержа перед выпуском QR',
     category: 'access',
   },
+  pin_credentials: {
+    default: false,
+    label: 'PIN-пропуска',
+    description: 'Fallback PIN для пропусков с rate-limit и audit evidence',
+    category: 'access',
+  },
   meter_readings: {
     default: false,
     label: 'Показания счётчиков',
@@ -184,6 +190,7 @@ const PLAN_FEATURES = {
     'kiosk_mode',
     'qr_pass',
     'manual_access_approval',
+    'pin_credentials',
   ]),
   operations: new Set([
     'chat',
@@ -192,6 +199,7 @@ const PLAN_FEATURES = {
     'kiosk_mode',
     'qr_pass',
     'manual_access_approval',
+    'pin_credentials',
     'packages',
     'analytics',
   ]),
@@ -202,6 +210,7 @@ const PLAN_FEATURES = {
     'kiosk_mode',
     'qr_pass',
     'manual_access_approval',
+    'pin_credentials',
     'packages',
     'analytics',
   ]),
