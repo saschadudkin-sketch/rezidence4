@@ -27,9 +27,13 @@ import type {
   IncidentStatus,
   IncidentType,
   OverrideType,
+  Pass,
+  PinCredential,
+  QrToken,
   PassStatus,
   PassType,
   Severity,
+  SubjectType,
   UUID,
   Vehicle,
 } from '../api/types';
@@ -108,6 +112,7 @@ const SUBJECT_TYPES: AccessPolicySubjectType[] = [
 
 const PASS_STATUSES: Array<PassStatus | ''> = ['', 'active', 'used', 'expired', 'blocked', 'revoked'];
 const MANAGED_PASS_TYPES: Array<PassType | ''> = ['', 'guest', 'vehicle', 'courier', 'service', 'contractor', 'resident', 'staff', 'emergency'];
+const PASS_SUBJECT_TYPES: SubjectType[] = ['guest', 'resident', 'staff', 'contractor_user', 'vehicle'];
 const PASS_PAGE_LIMIT = 25;
 const INCIDENT_TYPES: IncidentType[] = [
   'expired_pass_attempt',
@@ -298,6 +303,21 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
   const [passType, setPassType] = useState<PassType | ''>('');
   const [query, setQuery] = useState('');
   const [revokeReasons, setRevokeReasons] = useState<Record<UUID, string>>({});
+  const [createPassType, setCreatePassType] = useState<PassType>('guest');
+  const [createSubjectType, setCreateSubjectType] = useState<SubjectType>('guest');
+  const [subjectResidentId, setSubjectResidentId] = useState('');
+  const [subjectStaffId, setSubjectStaffId] = useState('');
+  const [subjectContractorUserId, setSubjectContractorUserId] = useState('');
+  const [subjectVehicleId, setSubjectVehicleId] = useState('');
+  const [accessRequestId, setAccessRequestId] = useState('');
+  const [passZoneId, setPassZoneId] = useState('');
+  const [passPointId, setPassPointId] = useState('');
+  const [validFrom, setValidFrom] = useState('');
+  const [validUntil, setValidUntil] = useState('');
+  const [detailPass, setDetailPass] = useState<Pass | null>(null);
+  const [qr, setQr] = useState<QrToken | null>(null);
+  const [pin, setPin] = useState<PinCredential | null>(null);
+  const [operationMessage, setOperationMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -331,6 +351,114 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
     void load({ offset: 0 });
   }, [load]);
 
+  async function createPass() {
+    if (!validFrom.trim() || !validUntil.trim()) {
+      setError('Укажите окно действия пропуска');
+      return;
+    }
+    setSavingId('create-pass' as UUID);
+    setError(null);
+    setOperationMessage(null);
+    try {
+      const res = await passesApi.create({
+        property_id: propertyId,
+        pass_type: createPassType,
+        subject_type: createSubjectType,
+        subject_resident_id: subjectResidentId.trim() || null,
+        subject_staff_id: subjectStaffId.trim() || null,
+        subject_contractor_user_id: subjectContractorUserId.trim() || null,
+        subject_vehicle_id: subjectVehicleId.trim() || null,
+        zone_id: passZoneId.trim() || null,
+        point_id: passPointId.trim() || null,
+        valid_from: validFrom.trim(),
+        valid_until: validUntil.trim(),
+        access_request_id: accessRequestId.trim() || null,
+      });
+      setDetailPass(res.pass);
+      setOperationMessage(`Пропуск создан: ${res.pass.id}`);
+      setValidFrom('');
+      setValidUntil('');
+      await load({ offset: 0 });
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось создать пропуск');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function loadPassDetail(pass: AdminPassListItem) {
+    setSavingId(pass.id);
+    setError(null);
+    setOperationMessage(null);
+    try {
+      const res = await passesApi.getById(pass.id);
+      setDetailPass(res.pass);
+      setQr(res.qr);
+      setPin(null);
+      setOperationMessage(`Загружен пропуск ${res.pass.id.slice(0, 8)}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить пропуск');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function loadQr(pass: AdminPassListItem) {
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      const res = await passesApi.getQr(pass.id);
+      setQr(res.qr);
+      setOperationMessage(`QR загружен для ${pass.id.slice(0, 8)}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить QR');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function regenerateQr(pass: AdminPassListItem) {
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      const res = await passesApi.regenerateQr(pass.id);
+      setQr(res.qr);
+      setOperationMessage(`QR перевыпущен для ${pass.id.slice(0, 8)}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось перевыпустить QR');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function loadPin(pass: AdminPassListItem) {
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      const res = await passesApi.getPin(pass.id);
+      setPin(res.pin);
+      setOperationMessage(`PIN загружен для ${pass.id.slice(0, 8)}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить PIN');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function regeneratePin(pass: AdminPassListItem) {
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      const res = await passesApi.regeneratePin(pass.id);
+      setPin(res.pin);
+      setOperationMessage(`PIN перевыпущен для ${pass.id.slice(0, 8)}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось перевыпустить PIN');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   async function revokePass(pass: AdminPassListItem) {
     const reason = (revokeReasons[pass.id] || '').trim();
     if (!reason) {
@@ -363,9 +491,74 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
     }
   }
 
+  async function unblockPass(pass: AdminPassListItem) {
+    const reason = (revokeReasons[pass.id] || '').trim();
+    if (!reason) {
+      setError('Укажите причину разблокировки пропуска');
+      return;
+    }
+    setSavingId(pass.id);
+    setError(null);
+    try {
+      await passesApi.unblock(pass.id, { reason });
+      await load({ offset: 0 });
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось разблокировать пропуск');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <Stack>
       {error ? <Alert tone="error">{error}</Alert> : null}
+      {operationMessage ? <Alert tone="success">{operationMessage}</Alert> : null}
+      <Card title="Новый пропуск" subtitle="Прямое создание /api/v1/passes для админских восстановительных сценариев.">
+        <div className={uiClasses.formGrid}>
+          <Field label="Тип пропуска">
+            <Select value={createPassType} onChange={(e) => setCreatePassType(e.target.value as PassType)}>
+              {MANAGED_PASS_TYPES.filter(Boolean).map((item) => (
+                <option key={item} value={item}>{formatPassType(item as PassType)}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Субъект">
+            <Select value={createSubjectType} onChange={(e) => setCreateSubjectType(e.target.value as SubjectType)}>
+              {PASS_SUBJECT_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </Select>
+          </Field>
+          <Field label="Resident ID">
+            <Input value={subjectResidentId} onChange={(e) => setSubjectResidentId(e.target.value)} placeholder="resident-uuid" />
+          </Field>
+          <Field label="Staff ID">
+            <Input value={subjectStaffId} onChange={(e) => setSubjectStaffId(e.target.value)} placeholder="staff-uuid" />
+          </Field>
+          <Field label="Contractor user ID">
+            <Input value={subjectContractorUserId} onChange={(e) => setSubjectContractorUserId(e.target.value)} placeholder="contractor-user-uuid" />
+          </Field>
+          <Field label="Vehicle ID">
+            <Input value={subjectVehicleId} onChange={(e) => setSubjectVehicleId(e.target.value)} placeholder="vehicle-uuid" />
+          </Field>
+          <Field label="Zone ID">
+            <Input value={passZoneId} onChange={(e) => setPassZoneId(e.target.value)} placeholder="zone-uuid" />
+          </Field>
+          <Field label="Point ID">
+            <Input value={passPointId} onChange={(e) => setPassPointId(e.target.value)} placeholder="point-uuid" />
+          </Field>
+          <Field label="Access request ID">
+            <Input value={accessRequestId} onChange={(e) => setAccessRequestId(e.target.value)} placeholder="request-uuid" />
+          </Field>
+          <Field label="Действует с">
+            <Input value={validFrom} onChange={(e) => setValidFrom(e.target.value)} placeholder="2026-05-17T09:00:00.000Z" />
+          </Field>
+          <Field label="Действует до">
+            <Input value={validUntil} onChange={(e) => setValidUntil(e.target.value)} placeholder="2026-05-17T18:00:00.000Z" />
+          </Field>
+        </div>
+        <Button loading={savingId === ('create-pass' as UUID)} onClick={() => void createPass()}>
+          Создать пропуск
+        </Button>
+      </Card>
       <Card
         title="Управление пропусками"
         subtitle="Поиск по гостю, резиденту, юниту, авто или ID пропуска."
@@ -435,7 +628,24 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
                   {pass.revoked_reason ? (
                     <p className={uiClasses.textMuted}>Причина отзыва: {pass.revoked_reason}</p>
                   ) : null}
-                  {pass.status === 'active' ? (
+                  <Inline>
+                    <Button variant="ghost" loading={savingId === pass.id} onClick={() => void loadPassDetail(pass)}>
+                      Деталь
+                    </Button>
+                    <Button variant="ghost" loading={savingId === pass.id} onClick={() => void loadQr(pass)}>
+                      QR
+                    </Button>
+                    <Button variant="ghost" loading={savingId === pass.id} onClick={() => void regenerateQr(pass)}>
+                      Перевыпустить QR
+                    </Button>
+                    <Button variant="ghost" loading={savingId === pass.id} onClick={() => void loadPin(pass)}>
+                      PIN
+                    </Button>
+                    <Button variant="ghost" loading={savingId === pass.id} onClick={() => void regeneratePin(pass)}>
+                      Перевыпустить PIN
+                    </Button>
+                  </Inline>
+                  {pass.status === 'active' || pass.status === 'blocked' ? (
                     <div className={uiClasses.formGrid}>
                       <Field label="Причина">
                         <Input
@@ -445,20 +655,33 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
                         />
                       </Field>
                       <Inline>
-                        <Button
-                          variant="danger"
-                          loading={savingId === pass.id}
-                          onClick={() => void revokePass(pass)}
-                        >
-                          Отозвать
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          loading={savingId === pass.id}
-                          onClick={() => void blockPass(pass)}
-                        >
-                          Заблокировать
-                        </Button>
+                        {pass.status === 'active' ? (
+                          <>
+                            <Button
+                              variant="danger"
+                              loading={savingId === pass.id}
+                              onClick={() => void revokePass(pass)}
+                            >
+                              Отозвать
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              loading={savingId === pass.id}
+                              onClick={() => void blockPass(pass)}
+                            >
+                              Заблокировать
+                            </Button>
+                          </>
+                        ) : null}
+                        {pass.status === 'blocked' ? (
+                          <Button
+                            variant="secondary"
+                            loading={savingId === pass.id}
+                            onClick={() => void unblockPass(pass)}
+                          >
+                            Разблокировать
+                          </Button>
+                        ) : null}
                       </Inline>
                     </div>
                   ) : null}
@@ -477,6 +700,27 @@ function PassesTab({ propertyId }: { propertyId: UUID }) {
           </Button>
         ) : null}
       </Card>
+      {detailPass || qr || pin ? (
+        <Card title="Деталь и credentials">
+          {detailPass ? (
+            <div className={uiClasses.resourceMeta}>
+              <span>ID {detailPass.id}</span>
+              <span>{formatPassStatus(detailPass.status)}</span>
+              <span>{formatWindow(detailPass.valid_from, detailPass.valid_until)}</span>
+            </div>
+          ) : null}
+          {qr ? (
+            <p className={uiClasses.textMuted}>
+              QR: {'token' in qr ? String(qr.token) : JSON.stringify(qr)}
+            </p>
+          ) : null}
+          {pin ? (
+            <p className={uiClasses.textMuted}>
+              PIN: {'value' in pin ? String(pin.value) : JSON.stringify(pin)}
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
     </Stack>
   );
 }

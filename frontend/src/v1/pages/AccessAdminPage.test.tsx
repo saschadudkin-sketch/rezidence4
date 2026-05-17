@@ -5,10 +5,28 @@ import type { AccessPolicyTemplate } from '../api/accessPolicies';
 import type { AccessIncident, AccessOverride, AccessPoint, AccessPolicy, AccessZone, AdminPassListItem, UserMe } from '../api/types';
 import { V1SessionProvider } from '../store';
 
-const { listPassesMock, revokePassMock, blockPassMock } = vi.hoisted(() => ({
+const {
+  listPassesMock,
+  getPassMock,
+  getQrMock,
+  regenerateQrMock,
+  getPinMock,
+  regeneratePinMock,
+  createPassMock,
+  revokePassMock,
+  blockPassMock,
+  unblockPassMock,
+} = vi.hoisted(() => ({
   listPassesMock: vi.fn(),
+  getPassMock: vi.fn(),
+  getQrMock: vi.fn(),
+  regenerateQrMock: vi.fn(),
+  getPinMock: vi.fn(),
+  regeneratePinMock: vi.fn(),
+  createPassMock: vi.fn(),
   revokePassMock: vi.fn(),
   blockPassMock: vi.fn(),
+  unblockPassMock: vi.fn(),
 }));
 const {
   listIncidentsMock,
@@ -83,8 +101,15 @@ const {
 vi.mock('../api/passes', () => ({
   passesApi: {
     list: listPassesMock,
+    getById: getPassMock,
+    getQr: getQrMock,
+    regenerateQr: regenerateQrMock,
+    getPin: getPinMock,
+    regeneratePin: regeneratePinMock,
+    create: createPassMock,
     revoke: revokePassMock,
     block: blockPassMock,
+    unblock: unblockPassMock,
   },
 }));
 
@@ -334,8 +359,8 @@ describe('AccessAdminPage pass management', () => {
     expect(within(passRow as HTMLElement).getByText('Гость')).toBeInTheDocument();
     expect(within(passRow as HTMLElement).getByText(/юнит 125/)).toBeInTheDocument();
     expect(within(passRow as HTMLElement).getByText(/точка КПП 1/)).toBeInTheDocument();
-    expect(within(passRow as HTMLElement).getByText('QR')).toBeInTheDocument();
-    expect(within(passRow as HTMLElement).getByText('PIN')).toBeInTheDocument();
+    expect(within(passRow as HTMLElement).getAllByText('QR').length).toBeGreaterThan(0);
+    expect(within(passRow as HTMLElement).getAllByText('PIN').length).toBeGreaterThan(0);
     expect(within(passRow as HTMLElement).getByText(/Показать QR/)).toBeInTheDocument();
     expect(within(passRow as HTMLElement).getByText(/Проверить документы/)).toBeInTheDocument();
     expect(listPassesMock).toHaveBeenCalledWith({
@@ -383,7 +408,7 @@ describe('AccessAdminPage pass management', () => {
     renderPage();
 
     expect(await screen.findByText('Анна Гость')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Загрузить ещё' }));
+    fireEvent.click(screen.getByText('Загрузить ещё'));
 
     expect(await screen.findByText('Борис Курьер')).toBeInTheDocument();
     expect(listPassesMock).toHaveBeenLastCalledWith({
@@ -394,7 +419,7 @@ describe('AccessAdminPage pass management', () => {
       limit: 25,
       offset: 25,
     });
-    expect(screen.queryByRole('button', { name: 'Загрузить ещё' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Загрузить ещё')).not.toBeInTheDocument();
   });
 
   test('requires revoke reason and refreshes after successful revoke', async () => {
@@ -417,6 +442,99 @@ describe('AccessAdminPage pass management', () => {
 
     await waitFor(() => expect(revokePassMock).toHaveBeenCalledWith(UUID_PASS, 'Визит отменён'));
     await waitFor(() => expect(listPassesMock).toHaveBeenCalledTimes(2));
+  });
+
+  test('creates passes and manages detail, credentials and unblock payloads', async () => {
+    const blockedPass = makePass({ status: 'blocked' });
+    const createdPassId = '22222222-2222-4222-8222-222222222299';
+    listPassesMock.mockResolvedValue({
+      passes: [blockedPass],
+      page: { limit: 25, offset: 0, hasMore: false },
+    });
+    createPassMock.mockResolvedValue({ pass: makePass({ id: createdPassId, pass_type: 'vehicle', subject_type: 'vehicle' }) });
+    getPassMock.mockResolvedValue({
+      pass: blockedPass,
+      qr: {
+        id: 'qr-1',
+        token: 'qr-token-current',
+        render_version: 1,
+      },
+    });
+    getQrMock.mockResolvedValue({ qr: { id: 'qr-2', token: 'qr-token-load', render_version: 1 } });
+    regenerateQrMock.mockResolvedValue({ qr: { id: 'qr-3', token: 'qr-token-new', render_version: 2 } });
+    getPinMock.mockResolvedValue({
+      pin: {
+        id: 'pin-1',
+        value: '123456',
+        render_version: 1,
+        public_display_allowed: true,
+      },
+    });
+    regeneratePinMock.mockResolvedValue({
+      pin: {
+        id: 'pin-2',
+        value: '654321',
+        render_version: 2,
+        public_display_allowed: true,
+      },
+    });
+    unblockPassMock.mockResolvedValue({ pass: makePass({ status: 'active' }) });
+
+    renderPage();
+
+    expect(await screen.findByText('Анна Гость')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Тип пропуска'), { target: { value: 'vehicle' } });
+    fireEvent.change(screen.getByLabelText('Субъект'), { target: { value: 'vehicle' } });
+    fireEvent.change(screen.getByLabelText('Vehicle ID'), { target: { value: 'vehicle-1' } });
+    fireEvent.change(screen.getByLabelText('Zone ID'), { target: { value: 'zone-1' } });
+    fireEvent.change(screen.getByLabelText('Point ID'), { target: { value: 'point-1' } });
+    fireEvent.change(screen.getByLabelText('Действует с'), { target: { value: '2026-05-17T09:00:00.000Z' } });
+    fireEvent.change(screen.getByLabelText('Действует до'), { target: { value: '2026-05-17T18:00:00.000Z' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать пропуск' }));
+
+    await waitFor(() => {
+      expect(createPassMock).toHaveBeenCalledWith({
+        property_id: UUID_PROPERTY,
+        pass_type: 'vehicle',
+        subject_type: 'vehicle',
+        subject_resident_id: null,
+        subject_staff_id: null,
+        subject_contractor_user_id: null,
+        subject_vehicle_id: 'vehicle-1',
+        zone_id: 'zone-1',
+        point_id: 'point-1',
+        valid_from: '2026-05-17T09:00:00.000Z',
+        valid_until: '2026-05-17T18:00:00.000Z',
+        access_request_id: null,
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Деталь' }));
+    await waitFor(() => expect(getPassMock).toHaveBeenCalledWith(UUID_PASS));
+    expect(await screen.findByText(/qr-token-current/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'QR' }));
+    await waitFor(() => expect(getQrMock).toHaveBeenCalledWith(UUID_PASS));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить QR' }));
+    await waitFor(() => expect(regenerateQrMock).toHaveBeenCalledWith(UUID_PASS));
+    expect(await screen.findByText(/qr-token-new/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'PIN' }));
+    await waitFor(() => expect(getPinMock).toHaveBeenCalledWith(UUID_PASS));
+    expect(await screen.findByText(/123456/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Перевыпустить PIN' }));
+    await waitFor(() => expect(regeneratePinMock).toHaveBeenCalledWith(UUID_PASS));
+    expect(await screen.findByText(/654321/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Например, отмена визита'), {
+      target: { value: 'Проверка завершена' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Разблокировать' }));
+    await waitFor(() => {
+      expect(unblockPassMock).toHaveBeenCalledWith(UUID_PASS, { reason: 'Проверка завершена' });
+    });
   });
 });
 
