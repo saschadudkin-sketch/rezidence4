@@ -116,7 +116,14 @@ export type {
   UpdateAccessPointBody,
   UpdateAccessZoneBody,
 } from './accessTopology';
-export type { CreateAccessPolicyBody, ListAccessPoliciesParams } from './accessPolicies';
+export type {
+  AccessPolicyDecision,
+  AccessPolicyTemplate,
+  CreateAccessPolicyBody,
+  EvaluateAccessPolicyBody,
+  ListAccessPoliciesParams,
+  UpdateAccessPolicyBody,
+} from './accessPolicies';
 export type {
   CreateVisitBody,
   ListVisitsParams,

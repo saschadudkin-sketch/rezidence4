@@ -42,6 +42,33 @@ export interface CreateAccessPolicyBody {
   metadata?: Record<string, unknown>;
 }
 
+export type UpdateAccessPolicyBody = Partial<Omit<CreateAccessPolicyBody, 'property_id'>>;
+
+export interface EvaluateAccessPolicyBody {
+  property_id: UUID;
+  subject_type?: AccessPolicySubjectType | null;
+  pass_type?: string | null;
+  access_method: AccessPolicyMethod;
+  zone_id?: UUID | null;
+  point_id?: UUID | null;
+  occurred_at?: string | null;
+}
+
+export interface AccessPolicyDecision {
+  allowed: boolean;
+  decision: AccessPolicyEffect | 'allow';
+  reason: string;
+  incident_type?: string;
+  severity?: string;
+  matched_policy_id: UUID | null;
+  matched_policy_name: string | null;
+  trace: Array<Record<string, unknown>>;
+}
+
+export interface AccessPolicyTemplate extends Omit<CreateAccessPolicyBody, 'property_id'> {
+  key: string;
+}
+
 function toQuery(params: object | undefined): string {
   if (!params) return '';
   const entries = Object.entries(params).filter(
@@ -54,16 +81,46 @@ function toQuery(params: object | undefined): string {
 }
 
 export const accessPoliciesApi = {
+  templates(params?: { property_id?: UUID }, opts?: RequestOpts) {
+    return v1Client.get<{ templates: AccessPolicyTemplate[] }>(
+      `/access-policy-templates${toQuery(params)}`,
+      opts,
+    );
+  },
   list(params: ListAccessPoliciesParams, opts?: RequestOpts) {
     return v1Client.get<{ policies: AccessPolicy[]; page?: PageMeta }>(
       `/access-policies${toQuery(params)}`,
       opts,
     );
   },
+  getById(id: UUID, opts?: RequestOpts) {
+    return v1Client.get<{ policy: AccessPolicy }>(
+      `/access-policies/${encodeURIComponent(id)}`,
+      opts,
+    );
+  },
   create(body: CreateAccessPolicyBody, opts?: RequestOpts) {
     return v1Client.post<{ policy: AccessPolicy }>('/access-policies', body, opts);
   },
+  update(id: UUID, body: UpdateAccessPolicyBody, opts?: RequestOpts) {
+    return v1Client.patch<{ policy: AccessPolicy }>(
+      `/access-policies/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
+  evaluate(body: EvaluateAccessPolicyBody, opts?: RequestOpts) {
+    return v1Client.post<{ decision: AccessPolicyDecision }>(
+      '/access-policies/evaluate',
+      body,
+      opts,
+    );
+  },
   deactivate(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<void>(`/access-policies/${id}/deactivate`, undefined, opts);
+    return v1Client.post<void>(
+      `/access-policies/${encodeURIComponent(id)}/deactivate`,
+      undefined,
+      opts,
+    );
   },
 };
