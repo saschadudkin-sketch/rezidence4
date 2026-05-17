@@ -24,6 +24,7 @@ import type {
 } from './types';
 
 export interface ListIncidentsParams extends PaginationParams {
+  property_id?: UUID;
   status?: IncidentStatus;
   severity?: Severity;
   incident_type?: IncidentType;
@@ -31,6 +32,7 @@ export interface ListIncidentsParams extends PaginationParams {
 }
 
 export interface ListOverridesParams extends PaginationParams {
+  property_id?: UUID;
   pass_id?: UUID;
   incident_id?: UUID;
   performed_by_staff_id?: UUID;

@@ -28,14 +28,23 @@ describe('accessIncidentsApi', () => {
   test('routes access incident and override reads through canonical v1 endpoints', async () => {
     getMock.mockResolvedValue({});
 
-    await accessIncidentsApi.list({ status: 'open', severity: 'high', limit: 10 });
+    await accessIncidentsApi.list({
+      property_id: 'property-1',
+      status: 'open',
+      severity: 'high',
+      limit: 10,
+    });
     await accessIncidentsApi.getById('incident/1');
-    await accessIncidentsApi.listOverrides({ incident_id: 'incident-1', limit: 5 });
+    await accessIncidentsApi.listOverrides({
+      property_id: 'property-1',
+      incident_id: 'incident-1',
+      limit: 5,
+    });
     await accessIncidentsApi.getOverride('override/1');
 
     expect(getMock).toHaveBeenNthCalledWith(
       1,
-      '/access-incidents?status=open&severity=high&limit=10',
+      '/access-incidents?property_id=property-1&status=open&severity=high&limit=10',
       undefined,
     );
     expect(getMock).toHaveBeenNthCalledWith(
@@ -45,7 +54,7 @@ describe('accessIncidentsApi', () => {
     );
     expect(getMock).toHaveBeenNthCalledWith(
       3,
-      '/access-overrides?incident_id=incident-1&limit=5',
+      '/access-overrides?property_id=property-1&incident_id=incident-1&limit=5',
       undefined,
     );
     expect(getMock).toHaveBeenNthCalledWith(

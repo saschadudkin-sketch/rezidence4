@@ -51,9 +51,10 @@ const getTxPool = (req) => (typeof req.db?.connect === 'function' ? req.db : db.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INCIDENT_TYPES = new Set([
-  'expired_pass_attempt', 'invalid_qr', 'blacklist_hit',
+  'expired_pass_attempt', 'invalid_qr', 'invalid_pin', 'invalid_plate', 'blacklist_hit',
   'outside_time_window', 'unauthorized_vehicle', 'manual_override',
   'provider_conflict', 'suspicious_repeat_attempt',
+  'policy_denied', 'policy_security_review_required',
 ]);
 const SEVERITIES = new Set(['low', 'medium', 'high', 'critical']);
 const INCIDENT_STATUSES = new Set(['open', 'investigating', 'resolved', 'dismissed']);

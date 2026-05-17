@@ -91,10 +91,11 @@ module.exports = {
       ALTER TABLE access_incidents
         ADD CONSTRAINT access_incidents_incident_type_check
         CHECK (incident_type IN (
-          'expired_pass_attempt','invalid_qr','invalid_pin','blacklist_hit',
+          'expired_pass_attempt','invalid_qr','invalid_pin','invalid_plate','blacklist_hit',
           'outside_time_window','unauthorized_vehicle',
           'manual_override','provider_conflict',
-          'suspicious_repeat_attempt'
+          'suspicious_repeat_attempt','policy_denied',
+          'policy_security_review_required'
         ))
     `);
   },

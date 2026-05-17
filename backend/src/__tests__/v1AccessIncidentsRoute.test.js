@@ -141,6 +141,45 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     expect(overrideMutations.some((route) => route.methods.includes('delete'))).toBe(false);
   });
 
+  test('manual incident creation accepts verify-flow incident types exposed to clients', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (s.includes('INSERT INTO access_incidents')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_INCIDENT,
+            property_id: UUID_PROPERTY,
+            incident_type: 'invalid_plate',
+            severity: 'low',
+            status: 'open',
+            title: 'Invalid plate',
+            description: null,
+            created_by_staff_id: UUID_STAFF,
+            assigned_to_staff_id: null,
+            resolved_at: null,
+            created_at: '2026-05-05T10:00:00.000Z',
+          }],
+        });
+      }
+      if (s.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-incidents')
+      .send({
+        property_id: UUID_PROPERTY,
+        incident_type: 'invalid_plate',
+        severity: 'low',
+        title: 'Invalid plate',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.incident.incident_type).toBe('invalid_plate');
+  });
+
   test('admin can reopen resolved incident with reason and scoped audit', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
     db.query.mockImplementation((sql) => {

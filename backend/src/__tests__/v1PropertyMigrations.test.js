@@ -609,8 +609,12 @@ describe('v1_053_pass_credentials', () => {
   test('extends access incident enum with invalid_pin evidence', async () => {
     await byId('v1_053_pass_credentials').up(client);
     const sqls = client.query.mock.calls.map((c) => c[0]);
+    const constraint = sqls.find((s) => s.includes('ADD CONSTRAINT access_incidents_incident_type_check'));
     expect(sqls.find((s) => s.includes('DROP CONSTRAINT IF EXISTS access_incidents_incident_type_check'))).toBeDefined();
-    expect(sqls.find((s) => s.includes('ADD CONSTRAINT access_incidents_incident_type_check'))).toContain("'invalid_pin'");
+    expect(constraint).toContain("'invalid_pin'");
+    expect(constraint).toContain("'invalid_plate'");
+    expect(constraint).toContain("'policy_denied'");
+    expect(constraint).toContain("'policy_security_review_required'");
   });
 });
 
