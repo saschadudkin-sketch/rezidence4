@@ -283,6 +283,7 @@ export type {
 } from './emergencyDispatch';
 export type {
   AssignServiceRequestBody,
+  AssignableServiceRequestRole,
   CreateEmergencyProviderDeliveryEvidenceBody,
   CreateServiceRequestAttachmentBody,
   CreateServiceRequestBody,

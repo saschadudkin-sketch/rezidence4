@@ -1339,8 +1339,8 @@ export interface ServiceRequestCategory {
   id: UUID | null;
   code: string;
   name: string;
-  domain: ServiceRequestCategoryDomain | string;
-  targetScope: StaffRequestTargetType | string;
+  domain: ServiceRequestCategoryDomain;
+  targetScope: StaffRequestTargetType;
   priority: StaffRequestPriority;
   slaProfile: StaffSlaProfile;
   firstResponseMinutes: number | null;
@@ -1357,7 +1357,7 @@ export interface ServiceRequest {
   priority: StaffRequestPriority;
   slaProfile: StaffSlaProfile;
   requestCategoryId: UUID | null;
-  targetType: StaffRequestTargetType | string | null;
+  targetType: StaffRequestTargetType | null;
   targetId: UUID | string | null;
   firstResponseDueAt: IsoDateTime | null;
   resolutionDueAt: IsoDateTime | null;

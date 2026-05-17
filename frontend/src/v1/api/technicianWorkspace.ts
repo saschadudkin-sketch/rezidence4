@@ -17,7 +17,7 @@ import type {
 
 export interface ListTechnicianWorkspaceQueueParams extends PaginationParams {
   queue?: TechnicianWorkspaceQueue;
-  status?: StaffRequestStatus | string;
+  status?: StaffRequestStatus;
   category?: string;
   priority?: StaffRequestPriority;
   target_type?: StaffRequestTargetType;

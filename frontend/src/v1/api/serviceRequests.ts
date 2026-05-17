@@ -27,9 +27,18 @@ import type {
   StaffRequestTargetType,
   StaffRequestType,
   StaffSlaProfile,
-  UserRole,
   UUID,
 } from './types';
+
+export type AssignableServiceRequestRole =
+  | 'security'
+  | 'concierge'
+  | 'technician'
+  | 'contractor'
+  | 'property_admin'
+  | 'management_company_admin'
+  | 'platform_admin'
+  | 'admin';
 
 export interface ListServiceRequestsParams extends PaginationParams {
   page?: number;
@@ -47,8 +56,8 @@ export interface UpsertServiceRequestCategoryBody {
   /** @deprecated Use propertyId; backend /api/v1/requests reads propertyId. */
   property_id?: UUID;
   name: string;
-  domain?: ServiceRequestCategoryDomain | string;
-  targetScope?: StaffRequestTargetType | string;
+  domain?: ServiceRequestCategoryDomain;
+  targetScope?: StaffRequestTargetType;
   priority?: StaffRequestPriority;
   slaProfile?: StaffSlaProfile;
   firstResponseMinutes?: number | null;
@@ -58,7 +67,7 @@ export interface UpsertServiceRequestCategoryBody {
 }
 
 export interface CreateServiceRequestBody {
-  type: StaffRequestType | string;
+  type: StaffRequestType;
   category: string;
   status?: StaffRequestStatus;
   createdByApt?: string;
@@ -70,7 +79,7 @@ export interface CreateServiceRequestBody {
   validUntil?: string | null;
   scheduledFor?: string | null;
   photos?: string[];
-  targetType?: StaffRequestTargetType | string;
+  targetType?: StaffRequestTargetType;
   targetId?: UUID | string;
   unitId?: UUID | string;
   homeId?: UUID | string;
@@ -83,7 +92,7 @@ export interface CreateServiceRequestBody {
 
 export interface UpdateServiceRequestBody {
   status?: StaffRequestStatus;
-  expectedCurrentStatus?: StaffRequestStatus | string;
+  expectedCurrentStatus?: StaffRequestStatus;
   historyLabel?: string;
   comment?: string;
   visitorName?: string;
@@ -101,14 +110,14 @@ type AssignServiceRequestUidInput =
   | { assigneeUid?: string; assignee_uid: string };
 
 type AssignServiceRequestRoleInput =
-  | { assigneeRole: UserRole | string; assignee_role?: UserRole | string }
-  | { assigneeRole?: UserRole | string; assignee_role: UserRole | string };
+  | { assigneeRole: AssignableServiceRequestRole; assignee_role?: AssignableServiceRequestRole }
+  | { assigneeRole?: AssignableServiceRequestRole; assignee_role: AssignableServiceRequestRole };
 
 export type AssignServiceRequestBody = AssignServiceRequestUidInput & AssignServiceRequestRoleInput & {
   assigneeName?: string;
   assignee_name?: string;
-  expectedCurrentStatus?: StaffRequestStatus | string;
-  expected_current_status?: StaffRequestStatus | string;
+  expectedCurrentStatus?: StaffRequestStatus;
+  expected_current_status?: StaffRequestStatus;
 };
 
 export interface CreateServiceRequestAttachmentBody {
@@ -132,7 +141,7 @@ export interface ServiceRequestRateBody {
 export interface ServiceRequestEmergencyQueueParams {
   property_id?: UUID;
   propertyId?: UUID;
-  status?: EmergencyDispatchStatus | string;
+  status?: EmergencyDispatchStatus;
   severity?: EmergencySeverity;
   limit?: number;
 }

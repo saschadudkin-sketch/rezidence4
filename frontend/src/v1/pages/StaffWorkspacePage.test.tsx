@@ -612,6 +612,22 @@ describe('StaffWorkspacePage', () => {
     });
   }, 10000);
 
+  test('uses a backend-valid category fallback for canonical request creation', async () => {
+    listCategoriesMock.mockResolvedValueOnce({ data: [] });
+
+    renderWithProviders(<StaffWorkspacePage />);
+    await screen.findByText('Canonical requests');
+
+    fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Операционный комментарий' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать canonical request' }));
+
+    await waitFor(() => {
+      expect(createServiceRequestMock).toHaveBeenCalledWith(expect.objectContaining({
+        category: 'plumber',
+      }));
+    });
+  });
+
   test('refreshes both detail and canonical lifecycle panels', async () => {
     renderWithProviders(<StaffWorkspacePage />);
     await screen.findByText('Вызвали сантехника');

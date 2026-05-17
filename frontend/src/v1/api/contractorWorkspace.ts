@@ -17,7 +17,7 @@ import type {
 
 export interface ListContractorWorkspaceQueueParams extends PaginationParams {
   queue?: ContractorWorkspaceQueue;
-  status?: StaffRequestStatus | string;
+  status?: StaffRequestStatus;
   contractor_user_id?: string;
   contractorUserId?: string;
   contractor_company_id?: string;

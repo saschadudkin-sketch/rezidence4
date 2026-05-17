@@ -4,6 +4,7 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
+import type { AssignableServiceRequestRole } from './serviceRequests';
 import type {
   PageMeta,
   PaginationParams,
@@ -16,12 +17,11 @@ import type {
   StaffWorkspaceRequest,
   StaffWorkspaceRequestDetail,
   StaffResidentQuickView,
-  UserRole,
 } from './types';
 
 export interface ListStaffWorkspaceInboxParams extends PaginationParams {
   queue?: StaffWorkspaceQueue;
-  status?: StaffRequestStatus | string;
+  status?: StaffRequestStatus;
   category?: string;
   priority?: StaffRequestPriority;
   sla_profile?: StaffSlaProfile;
@@ -42,7 +42,7 @@ export interface CreateInternalCommentBody {
 export interface AssignStaffRequestBody {
   assigneeUid: string;
   assigneeName: string;
-  assigneeRole: UserRole | string;
+  assigneeRole: AssignableServiceRequestRole;
 }
 
 export interface UpdateStaffRequestStatusBody {

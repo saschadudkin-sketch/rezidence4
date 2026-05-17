@@ -16,6 +16,7 @@ import type {
   EmergencyDispatchStatus,
   EmergencySeverity,
   ListStaffWorkspaceInboxParams,
+  AssignableServiceRequestRole,
   ServiceRequest,
   ServiceRequestAttachment,
   ServiceRequestCategory,
@@ -252,11 +253,14 @@ function requiredTrim(value: string, label: string): string {
   return trimmed;
 }
 
-function assigneeRoleFor(user: UserMe): string {
+function assigneeRoleFor(user: UserMe): AssignableServiceRequestRole {
   if (user.role === 'platform_admin' || user.role === 'management_company_admin') {
     return 'property_admin';
   }
-  return normalizeUserRole(user.role);
+  const role = normalizeUserRole(user.role);
+  return role === 'resident' || role === 'owner' || role === 'tenant' || role === 'user' || role === 'staff'
+    ? 'property_admin'
+    : role;
 }
 
 function canUseQuickActions(user: UserMe): boolean {
@@ -528,7 +532,7 @@ function CanonicalServiceRequestOperations({
   const [operationsError, setOperationsError] = useState<string | null>(null);
 
   const effectiveRequestId = requestId.trim() || activeRequestId || '';
-  const effectiveCategory = categoryCode.trim() || categories[0]?.code || 'general';
+  const effectiveCategory = categoryCode.trim() || categories[0]?.code || 'plumber';
   const hasRequestId = Boolean(effectiveRequestId);
 
   const reportMutationError = (error: unknown, fallback: string) => {
