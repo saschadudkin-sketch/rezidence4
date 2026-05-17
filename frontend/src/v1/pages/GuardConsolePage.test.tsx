@@ -474,11 +474,16 @@ describe('GuardConsolePage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Записать' }));
+    expect(await screen.findByText('Выберите КПП для guard_console/skud события')).toBeInTheDocument();
+    expect(guardVisitCreateMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать КПП' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Записать' }));
     await waitFor(() => {
       expect(guardVisitCreateMock).toHaveBeenCalledWith({
         property_id: PROPERTY_ID,
         pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-        access_point_id: null,
+        access_point_id: '33333333-3333-4333-8333-333333333333',
         event_type: 'entry_allowed',
         event_source: 'guard_console',
         person_label: 'Анна Курьер',
@@ -492,7 +497,7 @@ describe('GuardConsolePage', () => {
         property_id: PROPERTY_ID,
         mode: 'plate',
         plate: 'А001АА77',
-        access_point_id: null,
+        access_point_id: '33333333-3333-4333-8333-333333333333',
         direction: 'entry',
       });
     });
@@ -540,12 +545,13 @@ describe('GuardConsolePage', () => {
       expect(visitsListByPlateMock).toHaveBeenCalledWith('А001АА77', { limit: 10 });
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать КПП' }));
     fireEvent.click(screen.getByRole('button', { name: 'Записать' }));
     await waitFor(() => {
       expect(visitsCreateMock).toHaveBeenCalledWith({
         property_id: PROPERTY_ID,
         pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-        access_point_id: null,
+        access_point_id: '33333333-3333-4333-8333-333333333333',
         event_type: 'entry_allowed',
         event_source: 'guard_console',
         person_label: null,
@@ -558,7 +564,7 @@ describe('GuardConsolePage', () => {
       expect(visitsScanPassMock).toHaveBeenCalledWith({
         property_id: PROPERTY_ID,
         token: 'qr-token-1',
-        access_point_id: null,
+        access_point_id: '33333333-3333-4333-8333-333333333333',
         direction: 'entry',
       });
     });

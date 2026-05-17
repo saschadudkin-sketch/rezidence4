@@ -171,6 +171,8 @@ const VISIT_EVENT_TYPES: VisitEventType[] = [
 ];
 
 const VISIT_EVENT_SOURCES: VisitEventSource[] = ['guard_console', 'domhub', 'skud', 'import'];
+const MANUAL_VISIT_EVENT_TYPES = new Set<VisitEventType>(['manual_admit', 'manual_deny']);
+const ACCESS_POINT_REQUIRED_VISIT_SOURCES = new Set<VisitEventSource>(['guard_console', 'skud']);
 
 function VisitLogOpsPanel({
   propertyId,
@@ -278,6 +280,14 @@ function VisitLogOpsPanel({
   }
 
   async function createVisit() {
+    if (MANUAL_VISIT_EVENT_TYPES.has(eventType)) {
+      setError('Ручной допуск и отказ создаются через manual decision, не прямой visit-log');
+      return;
+    }
+    if (ACCESS_POINT_REQUIRED_VISIT_SOURCES.has(eventSource) && !accessPointId) {
+      setError('Выберите КПП для guard_console/skud события');
+      return;
+    }
     setBusy('create');
     setError(null);
     try {
