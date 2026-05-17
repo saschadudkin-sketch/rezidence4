@@ -33,7 +33,7 @@ describe('videoEvidenceApi', () => {
     await videoEvidenceApi.listProviders({ property_id: 'property-1', status: 'active' });
     await videoEvidenceApi.createProvider({
       property_id: 'property-1',
-      provider: 'rtsp',
+      provider: 'generic_link',
       display_name: 'Gate cameras',
       auth_ref: 'vault://video/gate',
       config_json: { retention_days: 7 },
@@ -52,7 +52,7 @@ describe('videoEvidenceApi', () => {
       '/video/providers',
       {
         property_id: 'property-1',
-        provider: 'rtsp',
+        provider: 'generic_link',
         display_name: 'Gate cameras',
         auth_ref: 'vault://video/gate',
         config_json: { retention_days: 7 },

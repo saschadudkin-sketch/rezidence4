@@ -20,7 +20,13 @@ import type {
   SkudManualControlPolicy,
   SkudSyncPassAction,
 } from '../api/skudIntegrations';
-import type { VideoEvidenceSensitivity, VideoEvidenceStatus, VideoEvidenceType, VideoProviderStatus } from '../api/videoEvidence';
+import type {
+  VideoEvidenceSensitivity,
+  VideoEvidenceStatus,
+  VideoEvidenceType,
+  VideoProviderKind,
+  VideoProviderStatus,
+} from '../api/videoEvidence';
 import { useV1Session } from '../store';
 import {
   Alert,
@@ -55,10 +61,11 @@ const SKUD_ROLLOUT_STAGES: SkudFieldRolloutStage[] = ['lab', 'staging', 'pilot',
 const SKUD_EVIDENCE_TYPES: SkudFieldRolloutEvidenceType[] = ['provider_delivery', 'field_drill', 'rollout_report', 'vendor_health_probe'];
 const SKUD_EVIDENCE_STATUSES: SkudFieldRolloutStatus[] = ['planned', 'running', 'passed', 'failed', 'blocked'];
 
-const VIDEO_STATUSES: Array<VideoProviderStatus | ''> = ['', 'active', 'inactive', 'degraded', 'down'];
+const VIDEO_PROVIDERS: VideoProviderKind[] = ['generic_link', 'trassir', 'macroscop', 'hikvision_nvr', 'dahua_nvr', 'axxon_next', 'devline_line'];
+const VIDEO_STATUSES: Array<VideoProviderStatus | ''> = ['', 'active', 'disabled', 'degraded'];
 const VIDEO_EVIDENCE_TYPES: VideoEvidenceType[] = ['clip', 'snapshot', 'event_reference', 'camera_context', 'unavailable'];
-const VIDEO_EVIDENCE_STATUSES: VideoEvidenceStatus[] = ['linked', 'pending', 'unavailable', 'failed'];
-const VIDEO_SENSITIVITY: VideoEvidenceSensitivity[] = ['internal', 'restricted', 'sensitive', 'public'];
+const VIDEO_EVIDENCE_STATUSES: VideoEvidenceStatus[] = ['linked', 'unavailable', 'expired', 'removed'];
+const VIDEO_SENSITIVITY: VideoEvidenceSensitivity[] = ['restricted', 'sensitive'];
 
 function parseJsonArray(value: string, fallback: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
   const trimmed = value.trim();
@@ -679,7 +686,7 @@ function VideoSection({
 }) {
   const [providerStatus, setProviderStatus] = useState<VideoProviderStatus | ''>('');
   const [providerName, setProviderName] = useState('');
-  const [providerKind, setProviderKind] = useState('rtsp');
+  const [providerKind, setProviderKind] = useState<VideoProviderKind>('generic_link');
   const [providerBaseUrl, setProviderBaseUrl] = useState('');
   const [providerAuthRef, setProviderAuthRef] = useState('');
   const [providerCapabilities, setProviderCapabilities] = useState('clips,snapshots');
@@ -692,7 +699,7 @@ function VideoSection({
   const [evidenceId, setEvidenceId] = useState('');
   const [evidenceType, setEvidenceType] = useState<VideoEvidenceType>('clip');
   const [evidenceStatus, setEvidenceStatus] = useState<VideoEvidenceStatus>('linked');
-  const [sensitivity, setSensitivity] = useState<VideoEvidenceSensitivity>('internal');
+  const [sensitivity, setSensitivity] = useState<VideoEvidenceSensitivity>('restricted');
   const [evidenceTitle, setEvidenceTitle] = useState('');
   const [clipUrl, setClipUrl] = useState('');
   const [metadataJson, setMetadataJson] = useState('{"source":"integration_operations_ui"}');
@@ -719,7 +726,7 @@ function VideoSection({
   const createProvider = useMutation({
     mutationFn: () => api.videoEvidence.createProvider({
       property_id: propertyId,
-      provider: requiredTrim(providerKind, 'video provider'),
+      provider: providerKind,
       display_name: requiredTrim(providerName, 'display name video provider'),
       status: 'active',
       base_url: providerBaseUrl.trim() || null,
@@ -786,13 +793,15 @@ function VideoSection({
           <h3 className={uiClasses.cardTitle}>Новый video provider</h3>
           <div className={uiClasses.formGrid}>
             <Field label="Provider">
-              <Input value={providerKind} onChange={(e) => setProviderKind(e.target.value)} placeholder="rtsp" />
+              <Select value={providerKind} onChange={(e) => setProviderKind(e.target.value as VideoProviderKind)}>
+                {VIDEO_PROVIDERS.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
             </Field>
             <Field label="Display name">
               <Input value={providerName} onChange={(e) => setProviderName(e.target.value)} placeholder="Gate cameras" />
             </Field>
             <Field label="Base URL">
-              <Input value={providerBaseUrl} onChange={(e) => setProviderBaseUrl(e.target.value)} placeholder="rtsp://gateway" />
+              <Input value={providerBaseUrl} onChange={(e) => setProviderBaseUrl(e.target.value)} placeholder="https://video-gateway.example" />
             </Field>
             <Field label="Auth ref">
               <Input value={providerAuthRef} onChange={(e) => setProviderAuthRef(e.target.value)} placeholder="vault://video/main" />

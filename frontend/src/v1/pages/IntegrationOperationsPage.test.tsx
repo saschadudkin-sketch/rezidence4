@@ -362,7 +362,7 @@ describe('IntegrationOperationsPage', () => {
     await waitFor(() => {
       expect(createVideoProviderMock).toHaveBeenCalledWith({
         property_id: PROPERTY_ID,
-        provider: 'rtsp',
+        provider: 'generic_link',
         display_name: 'Gate cameras new',
         status: 'active',
         base_url: null,
@@ -392,7 +392,7 @@ describe('IntegrationOperationsPage', () => {
         status: 'linked',
         title: 'Gate clip',
         clip_url: 'https://video.example/clip.mp4',
-        sensitivity: 'internal',
+        sensitivity: 'restricted',
         metadata: { source: 'integration_operations_ui' },
       });
     });

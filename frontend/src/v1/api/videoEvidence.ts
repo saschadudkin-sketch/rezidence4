@@ -6,11 +6,19 @@
 import { v1Client, type RequestOpts } from './client';
 import type { IsoDateTime, UUID } from './types';
 
-export type VideoProviderStatus = 'active' | 'inactive' | 'degraded' | 'down' | string;
+export type VideoProviderKind =
+  | 'trassir'
+  | 'macroscop'
+  | 'hikvision_nvr'
+  | 'dahua_nvr'
+  | 'axxon_next'
+  | 'devline_line'
+  | 'generic_link';
+export type VideoProviderStatus = 'active' | 'disabled' | 'degraded';
 export type VideoEvidenceType = 'clip' | 'snapshot' | 'event_reference' | 'camera_context' | 'unavailable';
-export type VideoEvidenceSource = 'manual' | 'provider' | 'skud' | 'incident' | string;
-export type VideoEvidenceStatus = 'linked' | 'unavailable' | 'pending' | 'failed' | string;
-export type VideoEvidenceSensitivity = 'public' | 'internal' | 'restricted' | 'sensitive' | string;
+export type VideoEvidenceSource = 'manual' | 'provider' | 'webhook' | 'system';
+export type VideoEvidenceStatus = 'linked' | 'unavailable' | 'expired' | 'removed';
+export type VideoEvidenceSensitivity = 'restricted' | 'sensitive';
 
 export interface ListVideoProviderParams {
   property_id: UUID;
@@ -19,7 +27,7 @@ export interface ListVideoProviderParams {
 
 export interface CreateVideoProviderBody {
   property_id: UUID;
-  provider: string;
+  provider: VideoProviderKind;
   display_name: string;
   status?: VideoProviderStatus;
   base_url?: string | null;
@@ -31,7 +39,7 @@ export interface CreateVideoProviderBody {
 export interface VideoProviderConfig {
   id: UUID;
   property_id: UUID;
-  provider: string;
+  provider: VideoProviderKind;
   display_name: string;
   status: VideoProviderStatus;
   base_url: string | null;
