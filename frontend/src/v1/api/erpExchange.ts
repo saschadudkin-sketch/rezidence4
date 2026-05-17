@@ -14,6 +14,15 @@ export type ErpProvider =
   | 'generic_csv'
   | 'generic_rest'
   | 'generic_webhook';
+export type ErpProviderInput =
+  | ErpProvider
+  | '1c'
+  | '1c_zhkh'
+  | '1c:zhkh'
+  | '1c_uk'
+  | 'csv'
+  | 'rest'
+  | 'webhook';
 
 export type ErpProviderStatus = 'active' | 'disabled' | 'degraded';
 export type ErpHealthStatus = 'unknown' | 'healthy' | 'degraded' | 'down';
@@ -73,16 +82,22 @@ export interface ListErpProvidersParams {
 export interface CreateErpProviderBody {
   property_id?: UUID;
   propertyId?: UUID;
-  provider: ErpProvider | '1c' | '1c_zhkh' | '1c:zhkh' | 'csv' | 'rest' | 'webhook' | string;
-  display_name: string;
+  provider: ErpProviderInput;
+  display_name?: string;
+  displayName?: string;
   status?: ErpProviderStatus;
   sync_mode?: ErpSyncMode;
+  syncMode?: ErpSyncMode;
   base_url?: string | null;
+  baseUrl?: string | null;
   auth_ref?: string | null;
+  authRef?: string | null;
   config_json?: Record<string, unknown>;
+  configJson?: Record<string, unknown>;
   config?: Record<string, unknown>;
   capabilities?: string[];
   health_status?: ErpHealthStatus;
+  healthStatus?: ErpHealthStatus;
 }
 
 export interface ErpSyncJob {
@@ -159,8 +174,10 @@ export interface ErpExportBody {
   source?: ErpSyncSource;
   from?: IsoDateTime;
   from_at?: IsoDateTime;
+  fromAt?: IsoDateTime;
   to?: IsoDateTime;
   to_at?: IsoDateTime;
+  toAt?: IsoDateTime;
   limit?: number;
 }
 

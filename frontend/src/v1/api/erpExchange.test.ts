@@ -30,8 +30,9 @@ describe('erpExchangeApi', () => {
     await erpExchangeApi.createProvider({
       property_id: 'property-1',
       provider: '1c_zhkh',
-      display_name: '1C ZHKH',
-      auth_ref: 'vault://erp/1c-main',
+      displayName: '1C ZHKH',
+      syncMode: 'hybrid',
+      authRef: 'vault://erp/1c-main',
     });
 
     expect(getMock).toHaveBeenCalledWith(
@@ -43,8 +44,9 @@ describe('erpExchangeApi', () => {
       {
         property_id: 'property-1',
         provider: '1c_zhkh',
-        display_name: '1C ZHKH',
-        auth_ref: 'vault://erp/1c-main',
+        displayName: '1C ZHKH',
+        syncMode: 'hybrid',
+        authRef: 'vault://erp/1c-main',
       },
       undefined,
     );
@@ -84,7 +86,7 @@ describe('erpExchangeApi', () => {
     await erpExchangeApi.exportDataset('provider/1', {
       property_id: 'property-1',
       dataset: 'request_summary',
-      from: '2026-05-01T00:00:00.000Z',
+      fromAt: '2026-05-01T00:00:00.000Z',
       limit: 100,
     });
     await erpExchangeApi.getSyncJob('job/1', { property_id: 'property-1' });
@@ -94,7 +96,7 @@ describe('erpExchangeApi', () => {
       {
         property_id: 'property-1',
         dataset: 'request_summary',
-        from: '2026-05-01T00:00:00.000Z',
+        fromAt: '2026-05-01T00:00:00.000Z',
         limit: 100,
       },
       undefined,

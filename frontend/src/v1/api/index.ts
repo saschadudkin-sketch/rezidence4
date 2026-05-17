@@ -343,6 +343,7 @@ export type {
   ErpImportSummary,
   ErpProvider,
   ErpProviderConfig,
+  ErpProviderInput,
   ErpProviderStatus,
   ErpSyncDirection,
   ErpSyncJob,
