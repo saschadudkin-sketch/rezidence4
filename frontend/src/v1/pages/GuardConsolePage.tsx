@@ -22,6 +22,10 @@ import type {
   SecurityWorkspaceSearchResult,
   SecurityWorkspaceUnitSearchRow,
   SecurityWorkspaceVehicleSearchRow,
+  VerifyResult,
+  VisitEventSource,
+  VisitEventType,
+  VisitLog,
   UUID,
 } from '../api/types';
 import { api, isV1ApiError } from '../api';
@@ -37,6 +41,7 @@ import {
   Field,
   Inline,
   Input,
+  Select,
   Spinner,
   Stack,
   uiClasses,
@@ -134,6 +139,11 @@ export function GuardConsolePage() {
             onAccessPointChange={setSelectedAccessPointId}
             onVerified={refreshWorkspace}
           />
+          <VisitLogOpsPanel
+            propertyId={propertyId}
+            accessPointId={selectedAccessPointId}
+            onChanged={refreshWorkspace}
+          />
         </Stack>
 
         <SecurityWorkspacePane
@@ -145,6 +155,286 @@ export function GuardConsolePage() {
         />
       </div>
     </div>
+  );
+}
+
+type VisitSurface = 'guard' | 'visits';
+
+const VISIT_EVENT_TYPES: VisitEventType[] = [
+  'entry_allowed',
+  'entry_denied',
+  'exit_allowed',
+  'exit_denied',
+  'manual_admit',
+  'manual_deny',
+  'override',
+];
+
+const VISIT_EVENT_SOURCES: VisitEventSource[] = ['guard_console', 'domhub', 'skud', 'import'];
+
+function VisitLogOpsPanel({
+  propertyId,
+  accessPointId,
+  onChanged,
+}: {
+  propertyId: UUID;
+  accessPointId: UUID | null;
+  onChanged: () => void;
+}) {
+  const [surface, setSurface] = useState<VisitSurface>('guard');
+  const [visitId, setVisitId] = useState('');
+  const [passId, setPassId] = useState('');
+  const [plate, setPlate] = useState('');
+  const [personLabel, setPersonLabel] = useState('');
+  const [eventType, setEventType] = useState<VisitEventType>('entry_allowed');
+  const [eventSource, setEventSource] = useState<VisitEventSource>('guard_console');
+  const [token, setToken] = useState('');
+  const [rows, setRows] = useState<VisitLog[]>([]);
+  const [detail, setDetail] = useState<VisitLog | null>(null);
+  const [incidents, setIncidents] = useState<Array<{ id: UUID; title: string; severity: string; status: string }>>([]);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const client = surface === 'guard' ? api.guardVisits : api.visits;
+
+  function params() {
+    return {
+      pass_id: passId.trim() || undefined,
+      vehicle_plate: plate.trim() || undefined,
+      event_type: eventType,
+      limit: 10,
+    };
+  }
+
+  async function loadList() {
+    setBusy('list');
+    setError(null);
+    try {
+      const res = await client.list(params());
+      setRows(res.visit_logs);
+      setDetail(null);
+      setIncidents([]);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить visit logs');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function loadDetail() {
+    const id = visitId.trim();
+    if (!id) {
+      setError('Укажите visit log ID');
+      return;
+    }
+    setBusy('detail');
+    setError(null);
+    try {
+      const res = await client.getById(id);
+      setDetail(res.visit_log);
+      setIncidents(res.incidents);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить visit log');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function loadByPass() {
+    const id = passId.trim();
+    if (!id) {
+      setError('Укажите pass ID');
+      return;
+    }
+    setBusy('pass');
+    setError(null);
+    try {
+      const res = await client.listByPass(id, { limit: 10 });
+      setRows(res.visit_logs);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить события по pass');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function loadByPlate() {
+    const value = plate.trim();
+    if (!value) {
+      setError('Укажите номер авто');
+      return;
+    }
+    setBusy('plate');
+    setError(null);
+    try {
+      const res = await client.listByPlate(value, { limit: 10 });
+      setRows(res.visit_logs);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить события по номеру');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createVisit() {
+    setBusy('create');
+    setError(null);
+    try {
+      const res = await client.create({
+        property_id: propertyId,
+        pass_id: passId.trim() || null,
+        access_point_id: accessPointId,
+        event_type: eventType,
+        event_source: eventSource,
+        person_label: personLabel.trim() || null,
+        vehicle_plate: plate.trim() || null,
+      });
+      setRows((current) => [res.visit_log, ...current.filter((row) => row.id !== res.visit_log.id)].slice(0, 10));
+      setDetail(res.visit_log);
+      onChanged();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось записать visit log');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runVerification() {
+    setBusy('verify');
+    setError(null);
+    setVerifyResult(null);
+    try {
+      const res = surface === 'guard'
+        ? await api.guardVisits.verify({
+          property_id: propertyId,
+          mode: 'plate',
+          plate: plate.trim(),
+          access_point_id: accessPointId,
+          direction: eventType.startsWith('exit') ? 'exit' : 'entry',
+        })
+        : await api.visits.scanPass({
+          property_id: propertyId,
+          token: token.trim(),
+          access_point_id: accessPointId,
+          direction: eventType.startsWith('exit') ? 'exit' : 'entry',
+        });
+      setVerifyResult(res);
+      onChanged();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось выполнить проверку');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card title="Visit-log операции" subtitle={surface === 'guard' ? '/api/v1/guard' : '/api/v1/visits'}>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <div className={uiClasses.formGrid}>
+        <Field label="Поверхность">
+          <Select
+            value={surface}
+            onChange={(e) => {
+              setSurface(e.target.value as VisitSurface);
+              setRows([]);
+              setDetail(null);
+              setVerifyResult(null);
+            }}
+          >
+            <option value="guard">Guard</option>
+            <option value="visits">Canonical visits</option>
+          </Select>
+        </Field>
+        <Field label="Visit log ID">
+          <Input value={visitId} onChange={(e) => setVisitId(e.target.value)} placeholder="visit-log-uuid" />
+        </Field>
+        <Field label="Pass ID">
+          <Input value={passId} onChange={(e) => setPassId(e.target.value)} placeholder="pass-uuid" />
+        </Field>
+        <Field label="Номер авто">
+          <Input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="A001AA77" />
+        </Field>
+        <Field label="Событие">
+          <Select value={eventType} onChange={(e) => setEventType(e.target.value as VisitEventType)}>
+            {VISIT_EVENT_TYPES.map((type) => (
+              <option key={type} value={type}>{formatVisitEvent(type)}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Источник">
+          <Select value={eventSource} onChange={(e) => setEventSource(e.target.value as VisitEventSource)}>
+            {VISIT_EVENT_SOURCES.map((source) => (
+              <option key={source} value={source}>{source}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Кто проходит">
+          <Input value={personLabel} onChange={(e) => setPersonLabel(e.target.value)} placeholder="Имя / авто / подрядчик" />
+        </Field>
+        {surface === 'visits' ? (
+          <Field label="QR token">
+            <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="qr-token" />
+          </Field>
+        ) : null}
+      </div>
+      <Inline>
+        <Button type="button" variant="secondary" loading={busy === 'list'} onClick={() => void loadList()}>
+          Список
+        </Button>
+        <Button type="button" variant="secondary" loading={busy === 'detail'} onClick={() => void loadDetail()}>
+          Деталь
+        </Button>
+        <Button type="button" variant="secondary" loading={busy === 'pass'} onClick={() => void loadByPass()}>
+          По pass
+        </Button>
+        <Button type="button" variant="secondary" loading={busy === 'plate'} onClick={() => void loadByPlate()}>
+          По номеру
+        </Button>
+        <Button type="button" loading={busy === 'create'} onClick={() => void createVisit()}>
+          Записать
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          loading={busy === 'verify'}
+          disabled={surface === 'guard' ? !plate.trim() : !token.trim()}
+          onClick={() => void runVerification()}
+        >
+          {surface === 'guard' ? 'Guard verify' : 'Scan pass'}
+        </Button>
+      </Inline>
+      {verifyResult ? (
+        <Alert tone={verifyResult.allowed ? 'success' : 'warning'}>
+          {verifyResult.allowed ? 'Разрешено' : 'Запрещено'}{verifyResult.reason ? ` · ${verifyResult.reason}` : ''}
+          {verifyResult.visit_log_id ? ` · visit ${verifyResult.visit_log_id}` : ''}
+        </Alert>
+      ) : null}
+      {detail ? (
+        <div className={`${uiClasses.resourceMeta} ${uiClasses.marginTop3}`}>
+          <span>{formatVisitEvent(detail.event_type)}</span>
+          <span>{formatDateTime(detail.occurred_at)}</span>
+          {detail.vehicle_plate ? <span>{detail.vehicle_plate}</span> : null}
+          {incidents.length ? <span>Инциденты: {incidents.length}</span> : null}
+        </div>
+      ) : null}
+      {rows.length > 0 ? (
+        <ul className={`${uiClasses.resourceList} ${uiClasses.marginTop3}`}>
+          {rows.map((row) => (
+            <li key={row.id} className={uiClasses.resourceRow}>
+              <div className={uiClasses.resourceRowMain}>
+                <p className={uiClasses.resourceTitle}>{row.person_label || row.vehicle_plate || row.id.slice(0, 8)}</p>
+                <div className={uiClasses.resourceMeta}>
+                  <span>{formatVisitEvent(row.event_type)}</span>
+                  <span>{row.event_source}</span>
+                  <span>{formatDateTime(row.occurred_at)}</span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Card>
   );
 }
 

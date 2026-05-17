@@ -5,13 +5,43 @@ import type {
   SecurityWorkspaceBootstrap,
   SecurityWorkspaceSearchResult,
   UserMe,
+  VisitLog,
 } from '../api/types';
 
-const { bootstrapMock, clearVehicleFlagsMock, revokePassMock, searchMock } = vi.hoisted(() => ({
+const {
+  bootstrapMock,
+  clearVehicleFlagsMock,
+  revokePassMock,
+  searchMock,
+  guardVisitsListMock,
+  guardVisitGetByIdMock,
+  guardVisitsListByPassMock,
+  guardVisitsListByPlateMock,
+  guardVisitCreateMock,
+  guardVisitVerifyMock,
+  visitsListMock,
+  visitsGetByIdMock,
+  visitsListByPassMock,
+  visitsListByPlateMock,
+  visitsCreateMock,
+  visitsScanPassMock,
+} = vi.hoisted(() => ({
   bootstrapMock: vi.fn(),
   clearVehicleFlagsMock: vi.fn(),
   revokePassMock: vi.fn(),
   searchMock: vi.fn(),
+  guardVisitsListMock: vi.fn(),
+  guardVisitGetByIdMock: vi.fn(),
+  guardVisitsListByPassMock: vi.fn(),
+  guardVisitsListByPlateMock: vi.fn(),
+  guardVisitCreateMock: vi.fn(),
+  guardVisitVerifyMock: vi.fn(),
+  visitsListMock: vi.fn(),
+  visitsGetByIdMock: vi.fn(),
+  visitsListByPassMock: vi.fn(),
+  visitsListByPlateMock: vi.fn(),
+  visitsCreateMock: vi.fn(),
+  visitsScanPassMock: vi.fn(),
 }));
 
 vi.mock('../api', async () => {
@@ -32,6 +62,23 @@ vi.mock('../api', async () => {
       vehicles: {
         ...actual.api.vehicles,
         clearFlags: clearVehicleFlagsMock,
+      },
+      guardVisits: {
+        list: guardVisitsListMock,
+        getById: guardVisitGetByIdMock,
+        listByPass: guardVisitsListByPassMock,
+        listByPlate: guardVisitsListByPlateMock,
+        create: guardVisitCreateMock,
+        verify: guardVisitVerifyMock,
+      },
+      visits: {
+        ...actual.api.visits,
+        list: visitsListMock,
+        getById: visitsGetByIdMock,
+        listByPass: visitsListByPassMock,
+        listByPlate: visitsListByPlateMock,
+        create: visitsCreateMock,
+        scanPass: visitsScanPassMock,
       },
     },
     isV1ApiError: () => false,
@@ -237,6 +284,25 @@ function makeSearchResults(): SecurityWorkspaceSearchResult {
   };
 }
 
+function makeVisitLog(overrides: Partial<VisitLog> = {}): VisitLog {
+  return {
+    id: '12121212-1212-4212-8212-121212121212',
+    property_id: PROPERTY_ID,
+    pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    access_point_id: '33333333-3333-4333-8333-333333333333',
+    event_type: 'entry_allowed',
+    event_source: 'guard_console',
+    person_label: 'Анна Курьер',
+    vehicle_plate: 'А001АА77',
+    performed_by_staff_id: null,
+    provider_event_id: null,
+    provider_payload: null,
+    occurred_at: '2026-05-16T07:25:00.000Z',
+    created_at: '2026-05-16T07:25:01.000Z',
+    ...overrides,
+  };
+}
+
 function renderPage(user = makeUser()) {
   render(
     <MemoryRouter>
@@ -261,6 +327,32 @@ beforeEach(() => {
   });
   revokePassMock.mockResolvedValue({ pass: { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' } });
   searchMock.mockResolvedValue({ results: makeSearchResults() });
+  guardVisitsListMock.mockResolvedValue({ visit_logs: [makeVisitLog()] });
+  guardVisitGetByIdMock.mockResolvedValue({
+    visit_log: makeVisitLog(),
+    incidents: [{ id: 'abababab-abab-4aba-8aba-abababababab', incident_type: 'manual_override', severity: 'medium', status: 'open', title: 'Manual review', created_at: '2026-05-16T07:26:00.000Z' }],
+  });
+  guardVisitsListByPassMock.mockResolvedValue({ visit_logs: [makeVisitLog({ id: '13131313-1313-4313-8313-131313131313' })] });
+  guardVisitsListByPlateMock.mockResolvedValue({ plate: 'А001АА77', visit_logs: [makeVisitLog({ id: '14141414-1414-4414-8414-141414141414' })] });
+  guardVisitCreateMock.mockResolvedValue({ visit_log: makeVisitLog({ id: '15151515-1515-4515-8515-151515151515' }) });
+  guardVisitVerifyMock.mockResolvedValue({
+    allowed: true,
+    visit_log_id: '16161616-1616-4616-8616-161616161616',
+    incident_id: null,
+    pass: null,
+  });
+  visitsListMock.mockResolvedValue({ visit_logs: [makeVisitLog({ id: '17171717-1717-4717-8717-171717171717' })] });
+  visitsGetByIdMock.mockResolvedValue({ visit_log: makeVisitLog(), incidents: [] });
+  visitsListByPassMock.mockResolvedValue({ visit_logs: [makeVisitLog()] });
+  visitsListByPlateMock.mockResolvedValue({ plate: 'А001АА77', visit_logs: [makeVisitLog()] });
+  visitsCreateMock.mockResolvedValue({ visit_log: makeVisitLog({ id: '18181818-1818-4818-8818-181818181818' }) });
+  visitsScanPassMock.mockResolvedValue({
+    allowed: false,
+    reason: 'invalid_qr',
+    visit_log_id: null,
+    incident_id: '19191919-1919-4919-8919-191919191919',
+    pass: null,
+  });
 });
 
 describe('GuardConsolePage', () => {
@@ -270,7 +362,7 @@ describe('GuardConsolePage', () => {
     expect((await screen.findAllByText('КПП Север · Паркинг')).length).toBeGreaterThan(0);
     expect(screen.getByText('Ожидаются: 1')).toBeInTheDocument();
     expect(screen.getAllByText('Анна Курьер').length).toBeGreaterThan(0);
-    expect(screen.getByText('Въезд разрешён')).toBeInTheDocument();
+    expect(screen.getAllByText('Въезд разрешён').length).toBeGreaterThan(0);
     expect(screen.getByText('Blacklist plate at barrier')).toBeInTheDocument();
 
     expect(bootstrapMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -338,5 +430,138 @@ describe('GuardConsolePage', () => {
     await waitFor(() => {
       expect(clearVehicleFlagsMock).toHaveBeenCalledWith('66666666-6666-4666-8666-666666666666');
     });
+  });
+
+  test('drives guard visit-log list, detail, indexed search, create and verify workflows', async () => {
+    renderPage();
+
+    await screen.findByText('Visit-log операции');
+    fireEvent.change(screen.getByLabelText('Visit log ID'), {
+      target: { value: '12121212-1212-4212-8212-121212121212' },
+    });
+    fireEvent.change(screen.getByLabelText('Pass ID'), {
+      target: { value: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
+    });
+    fireEvent.change(screen.getByLabelText('Номер авто'), {
+      target: { value: 'А001АА77' },
+    });
+    fireEvent.change(screen.getByLabelText('Кто проходит'), {
+      target: { value: 'Анна Курьер' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Список' }));
+    await waitFor(() => {
+      expect(guardVisitsListMock).toHaveBeenCalledWith({
+        pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        vehicle_plate: 'А001АА77',
+        event_type: 'entry_allowed',
+        limit: 10,
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Деталь' }));
+    await waitFor(() => expect(guardVisitGetByIdMock).toHaveBeenCalledWith('12121212-1212-4212-8212-121212121212'));
+    expect(await screen.findByText(/Инциденты: 1/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'По pass' }));
+    await waitFor(() => {
+      expect(guardVisitsListByPassMock).toHaveBeenCalledWith('cccccccc-cccc-4ccc-8ccc-cccccccccccc', { limit: 10 });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'По номеру' }));
+    await waitFor(() => {
+      expect(guardVisitsListByPlateMock).toHaveBeenCalledWith('А001АА77', { limit: 10 });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Записать' }));
+    await waitFor(() => {
+      expect(guardVisitCreateMock).toHaveBeenCalledWith({
+        property_id: PROPERTY_ID,
+        pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        access_point_id: null,
+        event_type: 'entry_allowed',
+        event_source: 'guard_console',
+        person_label: 'Анна Курьер',
+        vehicle_plate: 'А001АА77',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guard verify' }));
+    await waitFor(() => {
+      expect(guardVisitVerifyMock).toHaveBeenCalledWith({
+        property_id: PROPERTY_ID,
+        mode: 'plate',
+        plate: 'А001АА77',
+        access_point_id: null,
+        direction: 'entry',
+      });
+    });
+    expect(await screen.findByText(/Разрешено/)).toBeInTheDocument();
+  });
+
+  test('drives canonical visit-log list, create and scan-pass workflow', async () => {
+    renderPage();
+
+    await screen.findByText('Visit-log операции');
+    fireEvent.change(screen.getByLabelText('Поверхность'), { target: { value: 'visits' } });
+    fireEvent.change(screen.getByLabelText('Visit log ID'), {
+      target: { value: '17171717-1717-4717-8717-171717171717' },
+    });
+    fireEvent.change(screen.getByLabelText('Pass ID'), {
+      target: { value: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' },
+    });
+    fireEvent.change(screen.getByLabelText('Номер авто'), {
+      target: { value: 'А001АА77' },
+    });
+    fireEvent.change(screen.getByLabelText('QR token'), {
+      target: { value: 'qr-token-1' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Список' }));
+    await waitFor(() => {
+      expect(visitsListMock).toHaveBeenCalledWith({
+        pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        vehicle_plate: 'А001АА77',
+        event_type: 'entry_allowed',
+        limit: 10,
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Деталь' }));
+    await waitFor(() => expect(visitsGetByIdMock).toHaveBeenCalledWith('17171717-1717-4717-8717-171717171717'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'По pass' }));
+    await waitFor(() => {
+      expect(visitsListByPassMock).toHaveBeenCalledWith('cccccccc-cccc-4ccc-8ccc-cccccccccccc', { limit: 10 });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'По номеру' }));
+    await waitFor(() => {
+      expect(visitsListByPlateMock).toHaveBeenCalledWith('А001АА77', { limit: 10 });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Записать' }));
+    await waitFor(() => {
+      expect(visitsCreateMock).toHaveBeenCalledWith({
+        property_id: PROPERTY_ID,
+        pass_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        access_point_id: null,
+        event_type: 'entry_allowed',
+        event_source: 'guard_console',
+        person_label: null,
+        vehicle_plate: 'А001АА77',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan pass' }));
+    await waitFor(() => {
+      expect(visitsScanPassMock).toHaveBeenCalledWith({
+        property_id: PROPERTY_ID,
+        token: 'qr-token-1',
+        access_point_id: null,
+        direction: 'entry',
+      });
+    });
+    expect(await screen.findByText(/Запрещено · invalid_qr/)).toBeInTheDocument();
   });
 });
