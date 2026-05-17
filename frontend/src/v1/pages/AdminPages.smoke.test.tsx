@@ -47,6 +47,14 @@ const {
   listDocumentsMock,
   listPackagesMock,
   getOperationsDashboardMock,
+  getAnalyticsTrafficMock,
+  getAnalyticsTopResidentsMock,
+  getAnalyticsSlaMock,
+  getAnalyticsRequestsMock,
+  getAnalyticsPackagesMock,
+  listAnalyticsSnapshotsMock,
+  getLatestAnalyticsSnapshotMock,
+  createAnalyticsSnapshotMock,
   getManagementCompanyPortfolioMock,
   getAdminOutboxMetricsMock,
   getAdminOutboxSlaMock,
@@ -64,6 +72,14 @@ const {
   listDocumentsMock: vi.fn(),
   listPackagesMock: vi.fn(),
   getOperationsDashboardMock: vi.fn(),
+  getAnalyticsTrafficMock: vi.fn(),
+  getAnalyticsTopResidentsMock: vi.fn(),
+  getAnalyticsSlaMock: vi.fn(),
+  getAnalyticsRequestsMock: vi.fn(),
+  getAnalyticsPackagesMock: vi.fn(),
+  listAnalyticsSnapshotsMock: vi.fn(),
+  getLatestAnalyticsSnapshotMock: vi.fn(),
+  createAnalyticsSnapshotMock: vi.fn(),
   getManagementCompanyPortfolioMock: vi.fn(),
   getAdminOutboxMetricsMock: vi.fn(),
   getAdminOutboxSlaMock: vi.fn(),
@@ -121,6 +137,16 @@ vi.mock('../api', async () => {
       },
       operationsDashboard: {
         get: getOperationsDashboardMock,
+      },
+      analytics: {
+        traffic: getAnalyticsTrafficMock,
+        topResidents: getAnalyticsTopResidentsMock,
+        sla: getAnalyticsSlaMock,
+        requests: getAnalyticsRequestsMock,
+        packages: getAnalyticsPackagesMock,
+        listSnapshots: listAnalyticsSnapshotsMock,
+        latestSnapshot: getLatestAnalyticsSnapshotMock,
+        createSnapshot: createAnalyticsSnapshotMock,
       },
       managementCompanyPortfolio: {
         get: getManagementCompanyPortfolioMock,
@@ -920,6 +946,14 @@ describe('PackagesAdminPage', () => {
 describe('OperationsDashboardPage', () => {
   beforeEach(() => {
     getOperationsDashboardMock.mockReset();
+    getAnalyticsTrafficMock.mockReset();
+    getAnalyticsTopResidentsMock.mockReset();
+    getAnalyticsSlaMock.mockReset();
+    getAnalyticsRequestsMock.mockReset();
+    getAnalyticsPackagesMock.mockReset();
+    listAnalyticsSnapshotsMock.mockReset();
+    getLatestAnalyticsSnapshotMock.mockReset();
+    createAnalyticsSnapshotMock.mockReset();
   });
 
   test('property_id=null → предупреждение без запроса', () => {
@@ -933,6 +967,70 @@ describe('OperationsDashboardPage', () => {
       ok: true,
       dashboard: makeOperationsDashboard(),
     });
+    getAnalyticsTrafficMock.mockResolvedValue({
+      granularity: 'day',
+      from: '2026-05-01T00:00:00.000Z',
+      to: '2026-05-08T00:00:00.000Z',
+      labels: ['2026-05-01T00:00:00.000Z'],
+      series: { visits: [12], admitted: [10], denied: [2] },
+    });
+    getAnalyticsTopResidentsMock.mockResolvedValue({
+      residents: [{
+        uid: 'resident-1',
+        name: 'Иван Петров',
+        apartment: '42',
+        pass_count: 3,
+        guest_count: 2,
+      }],
+    });
+    getAnalyticsSlaMock.mockResolvedValue({
+      from: '2026-05-01T00:00:00.000Z',
+      to: '2026-05-08T00:00:00.000Z',
+      byType: [{
+        type: 'plumbing',
+        total: 5,
+        within_sla: 4,
+        overdue: 1,
+        avg_resolution_hours: 2,
+      }],
+    });
+    getAnalyticsRequestsMock.mockResolvedValue({
+      byStatus: { pending: 3, done: 7 },
+      byType: { plumbing: 5 },
+      byHour: [{ hour: 9, count: 2 }],
+    });
+    getAnalyticsPackagesMock.mockResolvedValue({
+      received: 8,
+      picked_up: 6,
+      pending: 2,
+      avg_pickup_hours: 1.5,
+    });
+    listAnalyticsSnapshotsMock.mockResolvedValue({
+      snapshots: [{
+        id: 'snapshot-1',
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        metric_group: 'operations',
+        period: '7d',
+        generated_at: '2026-05-08T00:00:00.000Z',
+      }],
+    });
+    getLatestAnalyticsSnapshotMock.mockResolvedValue({
+      snapshot: {
+        id: 'snapshot-1',
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        metric_group: 'operations',
+        period: '7d',
+        generated_at: '2026-05-08T00:00:00.000Z',
+      },
+    });
+    createAnalyticsSnapshotMock.mockResolvedValue({
+      snapshot: {
+        id: 'snapshot-2',
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        period: '7d',
+      },
+      metrics: [],
+    });
 
     renderWithProviders(<OperationsDashboardPage />, makeUser({ role: 'admin' }));
 
@@ -943,10 +1041,32 @@ describe('OperationsDashboardPage', () => {
     expect(screen.getByText('Проходы и въезды')).toBeInTheDocument();
     expect(screen.getByText('Доставка уведомлений')).toBeInTheDocument();
     expect(screen.getByText('web_push')).toBeInTheDocument();
+    expect(await screen.findByText('Детальная аналитика')).toBeInTheDocument();
+    expect(screen.getByText('Traffic visits')).toBeInTheDocument();
+    expect(screen.getByText('Иван Петров')).toBeInTheDocument();
+    expect(screen.getByText('plumbing')).toBeInTheDocument();
+    expect(screen.getByText('operations')).toBeInTheDocument();
     expect(getOperationsDashboardMock).toHaveBeenCalledWith(
       { period: '7d', property_id: '00000000-0000-0000-0000-000000000bbb' },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+    expect(getAnalyticsTrafficMock).toHaveBeenCalledWith(
+      { granularity: 'day' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(listAnalyticsSnapshotsMock).toHaveBeenCalledWith(
+      { limit: 5, period: '7d', property_id: '00000000-0000-0000-0000-000000000bbb' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать snapshot' }));
+
+    await waitFor(() => {
+      expect(createAnalyticsSnapshotMock).toHaveBeenCalledWith({
+        period: '7d',
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+      });
+    });
   });
 });
 

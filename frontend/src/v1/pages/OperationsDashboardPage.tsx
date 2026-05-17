@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
 import type {
+  AnalyticsPeriod,
   OperationsDashboardPeriod,
   OperationsDashboardSnapshot,
 } from '../api';
@@ -11,6 +12,7 @@ import { formatDateTime } from '../components/formatters';
 import {
   Alert,
   Badge,
+  Button,
   Card,
   EmptyState,
   Field,
@@ -138,9 +140,14 @@ export function OperationsDashboardPage() {
         ) : null}
 
         {dashboard ? <DashboardContent dashboard={dashboard} /> : null}
+        <AnalyticsDetailPanel propertyId={propertyId} period={period} />
       </Stack>
     </div>
   );
+}
+
+function analyticsQueryPeriod(period: OperationsDashboardPeriod): AnalyticsPeriod {
+  return period;
 }
 
 function DashboardContent({ dashboard }: { dashboard: OperationsDashboardSnapshot }) {
@@ -173,6 +180,219 @@ function DashboardContent({ dashboard }: { dashboard: OperationsDashboardSnapsho
         <NotificationsPanel dashboard={dashboard} />
       </section>
     </Stack>
+  );
+}
+
+function AnalyticsDetailPanel({
+  propertyId,
+  period,
+}: {
+  propertyId: string;
+  period: OperationsDashboardPeriod;
+}) {
+  const queryClient = useQueryClient();
+  const analyticsPeriod = analyticsQueryPeriod(period);
+  const trafficQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'traffic', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.traffic(
+      { granularity: period === '24h' ? 'hour' : 'day' },
+      { signal },
+    ),
+  });
+  const topResidentsQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'top-residents', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.topResidents({ limit: 5 }, { signal }),
+  });
+  const slaQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'sla', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.sla(undefined, { signal }),
+  });
+  const requestsQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'requests', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.requests(undefined, { signal }),
+  });
+  const packagesQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'packages', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.packages(undefined, { signal }),
+  });
+  const snapshotsQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'snapshots', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.listSnapshots(
+      { property_id: propertyId, period: analyticsPeriod, limit: 5 },
+      { signal },
+    ),
+  });
+  const latestSnapshotQuery = useQuery({
+    queryKey: ['v1', 'analytics', 'latest-snapshot', propertyId, period],
+    queryFn: ({ signal }) => api.analytics.latestSnapshot(
+      { property_id: propertyId, period: analyticsPeriod },
+      { signal },
+    ),
+  });
+  const createSnapshotMutation = useMutation({
+    mutationFn: () => api.analytics.createSnapshot({
+      property_id: propertyId,
+      period: analyticsPeriod,
+    }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['v1', 'analytics'] });
+    },
+  });
+
+  const traffic = trafficQuery.data ?? null;
+  const trafficTotal = traffic?.series.visits.reduce((sum, value) => sum + value, 0) ?? null;
+  const topResidents = topResidentsQuery.data?.residents ?? [];
+  const slaRows = slaQuery.data?.byType ?? [];
+  const requestStatuses = requestsQuery.data
+    ? Object.entries(requestsQuery.data.byStatus)
+    : [];
+  const packageAnalytics = packagesQuery.data ?? null;
+  const snapshots = snapshotsQuery.data?.snapshots ?? [];
+  const latestSnapshot = latestSnapshotQuery.data?.snapshot ?? null;
+  const isLoading = [
+    trafficQuery,
+    topResidentsQuery,
+    slaQuery,
+    requestsQuery,
+    packagesQuery,
+    snapshotsQuery,
+    latestSnapshotQuery,
+  ].some((query) => query.isLoading);
+  const error = [
+    trafficQuery,
+    topResidentsQuery,
+    slaQuery,
+    requestsQuery,
+    packagesQuery,
+    snapshotsQuery,
+    latestSnapshotQuery,
+  ].find((query) => query.isError)?.error;
+
+  return (
+    <Card
+      title="Детальная аналитика"
+      subtitle="Traffic, SLA, заявки, посылки и аналитические snapshots."
+      actions={(
+        <Button
+          variant="secondary"
+          loading={createSnapshotMutation.isPending}
+          onClick={() => createSnapshotMutation.mutate()}
+        >
+          Создать snapshot
+        </Button>
+      )}
+    >
+      <Stack>
+        {isLoading ? (
+          <Inline><Spinner /><span className={uiClasses.textMuted}>Загрузка аналитики…</span></Inline>
+        ) : null}
+        {error ? (
+          <Alert tone="error">
+            Не удалось загрузить аналитику: {isV1ApiError(error) ? error.message : 'неизвестная ошибка'}
+          </Alert>
+        ) : null}
+        {createSnapshotMutation.isError ? (
+          <Alert tone="error">
+            Не удалось создать snapshot: {isV1ApiError(createSnapshotMutation.error) ? createSnapshotMutation.error.message : 'неизвестная ошибка'}
+          </Alert>
+        ) : null}
+        {createSnapshotMutation.isSuccess ? (
+          <Alert tone="success">Snapshot создан.</Alert>
+        ) : null}
+
+        <section className={uiClasses.formGrid} aria-label="Детальные метрики аналитики">
+          <KpiTile title="Traffic visits" value={trafficTotal ?? '—'} />
+          <KpiTile title="Посылки ожидают" value={packageAnalytics?.pending ?? '—'} />
+          <KpiTile title="Посылки получены" value={packageAnalytics?.received ?? '—'} />
+          <KpiTile
+            title="Средняя выдача"
+            value={packageAnalytics ? formatMinutes(packageAnalytics.avg_pickup_hours === null ? null : packageAnalytics.avg_pickup_hours * 60) : '—'}
+          />
+        </section>
+
+        <section className={uiClasses.formGrid} aria-label="Аналитические разрезы">
+          <Card title="SLA по типам">
+            {slaRows.length ? (
+              <ul className={uiClasses.resourceList}>
+                {slaRows.map((row) => (
+                  <li className={uiClasses.resourceRow} key={row.type}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>{row.type}</p>
+                      <p className={uiClasses.resourceMeta}>
+                        {formatNumber(row.within_sla)} в SLA · {formatNumber(row.overdue)} просрочено
+                      </p>
+                    </div>
+                    <Badge>{formatNumber(row.total)}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Нет SLA-данных за период.</EmptyState>
+            )}
+          </Card>
+
+          <Card title="Статусы заявок">
+            {requestStatuses.length ? (
+              <ul className={uiClasses.resourceList}>
+                {requestStatuses.map(([status, total]) => (
+                  <li className={uiClasses.resourceRow} key={status}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>{status}</p>
+                    </div>
+                    <Badge>{formatNumber(total)}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Нет заявок за период.</EmptyState>
+            )}
+          </Card>
+
+          <Card title="Активные жители">
+            {topResidents.length ? (
+              <ul className={uiClasses.resourceList}>
+                {topResidents.map((resident) => (
+                  <li className={uiClasses.resourceRow} key={resident.uid}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>{resident.name ?? resident.uid}</p>
+                      <p className={uiClasses.resourceMeta}>
+                        {resident.apartment ?? 'без квартиры'} · {formatNumber(resident.pass_count)} пропусков
+                      </p>
+                    </div>
+                    <Badge>{formatNumber(resident.guest_count)}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Нет активности жителей.</EmptyState>
+            )}
+          </Card>
+
+          <Card
+            title="Snapshots"
+            subtitle={latestSnapshot?.generated_at ? `Последний: ${formatDateTime(latestSnapshot.generated_at)}` : undefined}
+          >
+            {snapshots.length ? (
+              <ul className={uiClasses.resourceList}>
+                {snapshots.map((snapshot) => (
+                  <li className={uiClasses.resourceRow} key={snapshot.id}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>{snapshot.metric_group ?? 'analytics'}</p>
+                      <p className={uiClasses.resourceMeta}>
+                        {snapshot.generated_at ? formatDateTime(snapshot.generated_at) : 'без даты'}
+                      </p>
+                    </div>
+                    <Badge>{snapshot.period}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Snapshots еще не создавались.</EmptyState>
+            )}
+          </Card>
+        </section>
+      </Stack>
+    </Card>
   );
 }
 
