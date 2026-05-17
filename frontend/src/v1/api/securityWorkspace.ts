@@ -7,15 +7,18 @@ import { v1Client, type RequestOpts } from './client';
 import type {
   ManualSecurityDecisionRequest,
   ManualSecurityDecisionResponse,
+  SecurityWorkspaceBootstrap,
   GuardAuthorizedDeviceContext,
   GuardAuthorizedDeviceResponse,
   GuardAuthorizedDevicesResponse,
+  SecurityWorkspaceRecentEvent,
   PaginationParams,
   SecurityOfflineReplayEvent,
   SecurityOfflineReplayResponse,
   SecurityWorkspaceBootstrapResponse,
   SecurityWorkspaceRecentEventsResponse,
   SecurityWorkspaceSearchResponse,
+  VisitLog,
   UUID,
 } from './types';
 
@@ -32,8 +35,29 @@ export interface SecurityWorkspaceBootstrapParams extends SecurityWorkspaceScope
   blacklist_hits_limit?: number;
 }
 
+export interface SecurityWorkspaceDashboardResponse {
+  expectedArrivals: number;
+  activePasses: number;
+  openIncidents: number;
+  recentEvents: SecurityWorkspaceRecentEvent[];
+  workspace: SecurityWorkspaceBootstrap;
+}
+
 export interface SecurityWorkspaceSearchParams extends SecurityWorkspaceScopedParams {
   q: string;
+}
+
+export type ManualSecurityDecisionAliasBody = Omit<
+  ManualSecurityDecisionRequest,
+  'decision'
+> & {
+  decision?: ManualSecurityDecisionRequest['decision'];
+};
+
+export interface ReconcileDegradedEventBody {
+  property_id: UUID;
+  reconciliation_state: 'matched' | 'discrepancy' | 'dismissed';
+  note?: string | null;
 }
 
 export interface EnrollGuardAuthorizedDeviceBody {
@@ -68,6 +92,12 @@ export const securityWorkspaceApi = {
       opts,
     );
   },
+  dashboard(params: SecurityWorkspaceBootstrapParams, opts?: RequestOpts) {
+    return v1Client.get<SecurityWorkspaceDashboardResponse>(
+      `/security-workspace/dashboard${toQuery(params)}`,
+      opts,
+    );
+  },
   search(params: SecurityWorkspaceSearchParams, opts?: RequestOpts) {
     return v1Client.get<SecurityWorkspaceSearchResponse>(
       `/security-workspace/search${toQuery(params)}`,
@@ -83,6 +113,26 @@ export const securityWorkspaceApi = {
   manualDecision(body: ManualSecurityDecisionRequest, opts?: RequestOpts) {
     return v1Client.post<ManualSecurityDecisionResponse>(
       '/security-workspace/manual-decision',
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
+    );
+  },
+  manualAdmit(body: ManualSecurityDecisionAliasBody, opts?: RequestOpts) {
+    return v1Client.post<ManualSecurityDecisionResponse>(
+      '/security-workspace/manual-admit',
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
+    );
+  },
+  manualDeny(body: ManualSecurityDecisionAliasBody, opts?: RequestOpts) {
+    return v1Client.post<ManualSecurityDecisionResponse>(
+      '/security-workspace/manual-deny',
       body,
       {
         ...opts,
@@ -121,7 +171,7 @@ export const securityWorkspaceApi = {
   },
   approveAuthorizedDevice(id: UUID, body: RevokeGuardAuthorizedDeviceBody, opts?: RequestOpts) {
     return v1Client.post<GuardAuthorizedDeviceResponse>(
-      `/security-workspace/authorized-devices/${id}/approve`,
+      `/security-workspace/authorized-devices/${encodeURIComponent(id)}/approve`,
       body,
       {
         ...opts,
@@ -131,7 +181,17 @@ export const securityWorkspaceApi = {
   },
   revokeAuthorizedDevice(id: UUID, body: RevokeGuardAuthorizedDeviceBody, opts?: RequestOpts) {
     return v1Client.post<GuardAuthorizedDeviceResponse>(
-      `/security-workspace/authorized-devices/${id}/revoke`,
+      `/security-workspace/authorized-devices/${encodeURIComponent(id)}/revoke`,
+      body,
+      {
+        ...opts,
+        skipRetry: true,
+      },
+    );
+  },
+  reconcileDegradedEvent(id: UUID, body: ReconcileDegradedEventBody, opts?: RequestOpts) {
+    return v1Client.post<{ visit_log: VisitLog }>(
+      `/security-workspace/degraded-events/${encodeURIComponent(id)}/reconcile`,
       body,
       {
         ...opts,

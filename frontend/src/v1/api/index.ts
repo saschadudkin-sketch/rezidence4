@@ -127,7 +127,10 @@ export type {
 export type {
   EnrollGuardAuthorizedDeviceBody,
   ListGuardAuthorizedDevicesParams,
+  ManualSecurityDecisionAliasBody,
+  ReconcileDegradedEventBody,
   RevokeGuardAuthorizedDeviceBody,
+  SecurityWorkspaceDashboardResponse,
 } from './securityWorkspace';
 export type { ListIncidentsParams, ListOverridesParams } from './accessIncidents';
 export type {
