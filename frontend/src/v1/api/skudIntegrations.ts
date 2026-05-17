@@ -4,10 +4,13 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
+import type { components } from '../../api/generated/openapi';
 import type {
   SkudProviderFailureDashboardResponse,
   UUID,
 } from './types';
+
+type Schemas = components['schemas'];
 
 export interface GetSkudProviderFailuresParams {
   property_id?: UUID;
@@ -17,6 +20,16 @@ export interface GetSkudProviderFailuresParams {
   limit?: number;
 }
 
+export type SkudHardwareBoundaryBody = Schemas['SkudHardwareBoundaryRequest'];
+export type SkudManualControlBody = Schemas['SkudManualControlRequest'];
+export type SkudSyncPassBody = Schemas['SkudSyncPassRequest'];
+type SkudFieldRolloutEvidenceGeneratedBody = Schemas['SkudFieldRolloutEvidenceRequest'];
+export type SkudHardwareDeviceResponse = Schemas['SkudHardwareDeviceResponse'];
+export type SkudHardwareDeviceListResponse = Schemas['SkudHardwareDeviceListResponse'];
+export type SkudManualControlResponse = Schemas['SkudManualControlResponse'];
+export type SkudManualControlEventListResponse = Schemas['SkudManualControlEventListResponse'];
+export type SkudSyncPassResponse = Schemas['SkudSyncPassResponse'];
+export type SkudFieldRolloutEvidenceResponse = Schemas['SkudFieldRolloutEvidenceResponse'];
 export type SkudManualControlPolicy =
   | 'guard_allowed'
   | 'admin_only'
@@ -50,6 +63,13 @@ export type SkudFieldRolloutEvidenceType =
   | 'vendor_health_probe';
 export type SkudFieldRolloutStatus = 'planned' | 'running' | 'passed' | 'failed' | 'blocked';
 
+type SkudFieldRolloutEvidenceTypeInput =
+  | { evidence_type: SkudFieldRolloutEvidenceType; evidenceType?: SkudFieldRolloutEvidenceType }
+  | { evidence_type?: SkudFieldRolloutEvidenceType; evidenceType: SkudFieldRolloutEvidenceType };
+
+export type SkudFieldRolloutEvidenceBody =
+  SkudFieldRolloutEvidenceGeneratedBody & SkudFieldRolloutEvidenceTypeInput;
+
 export interface ListSkudHardwareDevicesParams {
   property_id?: UUID;
   propertyId?: UUID;
@@ -62,62 +82,6 @@ export interface ListSkudManualControlEventsParams {
   propertyId?: UUID;
   limit?: number;
 }
-
-export interface SkudHardwareBoundaryBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  manual_control_policy?: SkudManualControlPolicy;
-  manualControlPolicy?: SkudManualControlPolicy;
-  fail_safe_mode?: SkudFailSafeMode;
-  failSafeMode?: SkudFailSafeMode;
-  maintenance_status?: SkudMaintenanceStatus;
-  maintenanceStatus?: SkudMaintenanceStatus;
-  manual_action_requires_reason?: boolean;
-  manualActionRequiresReason?: boolean;
-  manual_action_requires_approval?: boolean;
-  manualActionRequiresApproval?: boolean;
-}
-
-export interface SkudManualControlBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  action: SkudManualControlAction;
-  reason: string;
-  decision_source?: SkudManualControlDecisionSource;
-  decisionSource?: SkudManualControlDecisionSource;
-  guard_device_id?: UUID | null;
-  guardDeviceId?: UUID | null;
-  device_fingerprint?: string | null;
-  deviceFingerprint?: string | null;
-  metadata?: Record<string, unknown>;
-}
-
-export interface SkudSyncPassBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  pass_id: UUID;
-  action?: SkudSyncPassAction;
-}
-
-type SkudFieldRolloutEvidenceTypeInput =
-  | { evidence_type: SkudFieldRolloutEvidenceType; evidenceType?: SkudFieldRolloutEvidenceType }
-  | { evidence_type?: SkudFieldRolloutEvidenceType; evidenceType: SkudFieldRolloutEvidenceType };
-
-export type SkudFieldRolloutEvidenceBody = SkudFieldRolloutEvidenceTypeInput & {
-  property_id?: UUID;
-  propertyId?: UUID;
-  provider_config_id?: UUID | null;
-  providerConfigId?: UUID | null;
-  hardware_device_id?: UUID | null;
-  hardwareDeviceId?: UUID | null;
-  rollout_stage?: SkudFieldRolloutStage;
-  rolloutStage?: SkudFieldRolloutStage;
-  status?: SkudFieldRolloutStatus;
-  summary?: string | null;
-  metrics?: Record<string, unknown>;
-  observed_at?: string | null;
-  observedAt?: string | null;
-};
 
 function toQuery(params?: object): string {
   if (!params) return '';
@@ -138,20 +102,20 @@ export const skudIntegrationsApi = {
     );
   },
   listHardwareDevices(params?: ListSkudHardwareDevicesParams, opts?: RequestOpts) {
-    return v1Client.get<{ hardware_devices: Array<Record<string, unknown>> }>(
+    return v1Client.get<SkudHardwareDeviceListResponse>(
       `/skud/hardware-devices${toQuery(params)}`,
       opts,
     );
   },
   updateHardwareBoundary(hardwareDeviceId: UUID, body: SkudHardwareBoundaryBody, opts?: RequestOpts) {
-    return v1Client.patch<Record<string, unknown>>(
+    return v1Client.patch<SkudHardwareDeviceResponse>(
       `/skud/hardware-devices/${encodeURIComponent(hardwareDeviceId)}/boundary`,
       body,
       opts,
     );
   },
   manualControl(hardwareDeviceId: UUID, body: SkudManualControlBody, opts?: RequestOpts) {
-    return v1Client.post<Record<string, unknown>>(
+    return v1Client.post<SkudManualControlResponse>(
       `/skud/hardware-devices/${encodeURIComponent(hardwareDeviceId)}/manual-control`,
       body,
       opts,
@@ -162,24 +126,20 @@ export const skudIntegrationsApi = {
     params?: ListSkudManualControlEventsParams,
     opts?: RequestOpts,
   ) {
-    return v1Client.get<{ manual_control_events: Array<Record<string, unknown>> }>(
+    return v1Client.get<SkudManualControlEventListResponse>(
       `/skud/hardware-devices/${encodeURIComponent(hardwareDeviceId)}/manual-control-events${toQuery(params)}`,
       opts,
     );
   },
   recordFieldRolloutEvidence(body: SkudFieldRolloutEvidenceBody, opts?: RequestOpts) {
-    return v1Client.post<{ evidence: Record<string, unknown> }>(
+    return v1Client.post<SkudFieldRolloutEvidenceResponse>(
       '/skud/field-rollout-evidence',
       body,
       opts,
     );
   },
   syncPass(providerConfigId: UUID, body: SkudSyncPassBody, opts?: RequestOpts) {
-    return v1Client.post<{
-      pass_id: UUID;
-      provider_config_id: UUID;
-      integration_event: Record<string, unknown>;
-    }>(
+    return v1Client.post<SkudSyncPassResponse>(
       `/skud/providers/${encodeURIComponent(providerConfigId)}/sync-pass`,
       body,
       opts,

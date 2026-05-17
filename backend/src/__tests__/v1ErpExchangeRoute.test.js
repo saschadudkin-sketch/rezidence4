@@ -66,6 +66,26 @@ function jobRow(overrides = {}) {
   };
 }
 
+function recordRow(overrides = {}) {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    property_id: PROPERTY_ID,
+    sync_job_id: JOB_ID,
+    provider_config_id: PROVIDER_ID,
+    row_index: 0,
+    external_entity_type: 'resident',
+    external_id: 'r-1',
+    operation: 'preview_create',
+    status: 'valid',
+    domhub_entity_type: null,
+    domhub_entity_id: null,
+    validation_errors: [],
+    payload: {},
+    normalized_payload: {},
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockCurrentUser = null;
@@ -92,7 +112,7 @@ describe('v1 ERP exchange route', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.provider.id).toBe(PROVIDER_ID);
+    expect(res.body).toEqual({ provider: expect.objectContaining({ id: PROVIDER_ID }) });
   });
 
   test('property admin can preview resident import', async () => {
@@ -102,7 +122,7 @@ describe('v1 ERP exchange route', () => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: STAFF_ID }] });
       if (sql.includes('INSERT INTO erp_sync_jobs')) return Promise.resolve({ rows: [jobRow()] });
       if (sql.includes('FROM erp_external_mappings')) return Promise.resolve({ rows: [] });
-      if (sql.includes('INSERT INTO erp_sync_records')) return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO erp_sync_records')) return Promise.resolve({ rows: [recordRow()] });
       if (sql.includes('UPDATE erp_sync_jobs')) {
         return Promise.resolve({ rows: [jobRow({ status: 'completed', summary: { total: 1 } })] });
       }
@@ -120,10 +140,31 @@ describe('v1 ERP exchange route', () => {
       });
 
     expect(res.status).toBe(202);
+    expect(Object.keys(res.body).sort()).toEqual(['provider_config', 'records', 'summary', 'sync_job']);
+    expect(res.body.sync_job).toMatchObject({ id: JOB_ID, status: 'completed' });
+    expect(res.body.records).toEqual([expect.objectContaining({ id: recordRow().id })]);
     expect(res.body.summary).toMatchObject({
       total: 1,
       access_grants_created: 0,
       mapping_only: true,
+    });
+  });
+
+  test('property admin can read sync job with contract wrapper', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'property_admin', property_id: PROPERTY_ID };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM erp_sync_jobs')) return Promise.resolve({ rows: [jobRow({ status: 'completed' })] });
+      if (sql.includes('FROM erp_sync_records')) return Promise.resolve({ rows: [recordRow({ status: 'valid' })] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/erp/sync-jobs/${JOB_ID}?property_id=${PROPERTY_ID}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      sync_job: expect.objectContaining({ id: JOB_ID, status: 'completed' }),
+      records: [expect.objectContaining({ sync_job_id: JOB_ID })],
     });
   });
 

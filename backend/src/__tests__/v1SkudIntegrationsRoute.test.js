@@ -81,7 +81,12 @@ describe('v1 SKUD integration routes', () => {
       .send({ eventId: 'provider-event-1' });
 
     expect(res.status).toBe(201);
-    expect(res.body.visit_log.id).toBe('visit-1');
+    expect(res.body).toEqual({
+      idempotent: false,
+      normalized_event: { eventType: 'entry_allowed' },
+      integration_event: { id: 'event-1' },
+      visit_log: { id: 'visit-1' },
+    });
     expect(ingestProviderAccessEvent).toHaveBeenCalledWith(db, expect.objectContaining({
       propertyId: PROPERTY_ID,
       providerConfigId: PROVIDER_ID,
@@ -104,7 +109,11 @@ describe('v1 SKUD integration routes', () => {
       .send({ pass_id: PASS_ID, action: 'provision' });
 
     expect(res.status).toBe(202);
-    expect(res.body.integration_event.status).toBe('succeeded');
+    expect(res.body).toEqual({
+      pass_id: PASS_ID,
+      provider_config_id: PROVIDER_ID,
+      integration_event: { id: 'event-2', status: 'succeeded' },
+    });
     expect(syncPassAccess).toHaveBeenCalledWith(db, expect.objectContaining({
       propertyId: PROPERTY_ID,
       providerConfigId: PROVIDER_ID,
@@ -180,7 +189,14 @@ describe('v1 SKUD integration routes', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.evidence).toMatchObject({ evidence_type: 'field_drill', status: 'passed' });
+    expect(res.body).toEqual({
+      evidence: {
+        id: 'rollout-1',
+        property_id: PROPERTY_ID,
+        evidence_type: 'field_drill',
+        status: 'passed',
+      },
+    });
     expect(recordFieldRolloutEvidence).toHaveBeenCalledWith(db, expect.objectContaining({
       propertyId: PROPERTY_ID,
       provider_config_id: PROVIDER_ID,
@@ -258,7 +274,10 @@ describe('v1 SKUD integration routes', () => {
       .send({ action: 'manual_open', reason: 'verified manually' });
 
     expect(res.status).toBe(201);
-    expect(res.body.manual_control_event.action).toBe('manual_open');
+    expect(res.body).toEqual({
+      hardware_device: { id: DEVICE_ID },
+      manual_control_event: { id: 'event-1', action: 'manual_open' },
+    });
     expect(recordHardwareManualControl).toHaveBeenCalledWith(db, expect.objectContaining({
       propertyId: PROPERTY_ID,
       hardwareDeviceId: DEVICE_ID,

@@ -5,7 +5,10 @@
  */
 
 import { v1Client, type RequestOpts } from './client';
-import type { IsoDateTime, UUID } from './types';
+import type { components } from '../../api/generated/openapi';
+import type { UUID } from './types';
+
+type Schemas = components['schemas'];
 
 export type ErpProvider =
   | 'one_c'
@@ -23,10 +26,12 @@ export type ErpProviderInput =
   | 'csv'
   | 'rest'
   | 'webhook';
-
+export type ErpProviderConfig = Schemas['ErpProviderConfig'];
+export type CreateErpProviderBody = Schemas['CreateErpProviderRequest'];
 export type ErpProviderStatus = 'active' | 'disabled' | 'degraded';
 export type ErpHealthStatus = 'unknown' | 'healthy' | 'degraded' | 'down';
 export type ErpSyncMode = 'import_only' | 'export_only' | 'hybrid' | 'manual';
+export type ErpSyncJob = Schemas['ErpSyncJob'];
 export type ErpSyncSource = 'csv' | 'rest' | 'webhook' | 'manual';
 export type ErpImportDataset =
   | 'property_structure'
@@ -35,8 +40,8 @@ export type ErpImportDataset =
   | 'contractor_registry'
   | 'vehicle_registry';
 export type ErpExportDataset = 'access_events_summary' | 'incident_summary' | 'request_summary';
-export type ErpSyncDirection = 'import' | 'export';
-export type ErpSyncJobMode = 'dry_run' | 'apply';
+export type ErpSyncDirection = ErpSyncJob['direction'];
+export type ErpSyncJobMode = ErpSyncJob['mode'];
 export type ErpSyncJobStatus =
   | 'pending'
   | 'processing'
@@ -44,6 +49,7 @@ export type ErpSyncJobStatus =
   | 'partial'
   | 'failed'
   | 'dead_lettered';
+export type ErpSyncRecord = Schemas['ErpSyncRecord'];
 export type ErpSyncRecordStatus = 'valid' | 'invalid' | 'conflict' | 'applied' | 'failed' | 'skipped';
 export type ErpSyncRecordOperation =
   | 'preview_create'
@@ -54,152 +60,18 @@ export type ErpSyncRecordOperation =
   | 'applied_update'
   | 'failed'
   | 'skipped';
-
-export interface ErpProviderConfig {
-  id: UUID;
-  property_id: UUID;
-  provider: ErpProvider;
-  display_name: string;
-  status: ErpProviderStatus;
-  sync_mode: ErpSyncMode;
-  base_url: string | null;
-  auth_ref: string | null;
-  config_json: Record<string, unknown>;
-  capabilities: string[];
-  health_status: ErpHealthStatus;
-  last_success_at?: IsoDateTime | null;
-  last_failure_at?: IsoDateTime | null;
-  last_error?: string | null;
-  created_by: UUID | null;
-  created_at?: IsoDateTime;
-  updated_at?: IsoDateTime | null;
-}
+export type ErpImportSummary = Schemas['ErpImportSummary'];
+export type ErpExportSummary = Schemas['ErpExportSummary'];
+export type ErpImportBody = Schemas['ErpImportRequest'];
+export type ErpExportBody = Schemas['ErpExportRequest'];
+export type ErpImportResponse = Schemas['ErpImportResponse'];
+export type ErpExportResponse = Schemas['ErpExportResponse'];
+export type ErpSyncJobResponse = Schemas['ErpSyncJobResponse'];
 
 export interface ListErpProvidersParams {
   property_id?: UUID;
   propertyId?: UUID;
   status?: ErpProviderStatus;
-}
-
-export interface CreateErpProviderBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  provider: ErpProviderInput;
-  display_name?: string;
-  displayName?: string;
-  status?: ErpProviderStatus;
-  sync_mode?: ErpSyncMode;
-  syncMode?: ErpSyncMode;
-  base_url?: string | null;
-  baseUrl?: string | null;
-  auth_ref?: string | null;
-  authRef?: string | null;
-  config_json?: Record<string, unknown>;
-  configJson?: Record<string, unknown>;
-  config?: Record<string, unknown>;
-  capabilities?: string[];
-  health_status?: ErpHealthStatus;
-  healthStatus?: ErpHealthStatus;
-}
-
-export interface ErpSyncJob {
-  id: UUID;
-  property_id: UUID;
-  provider_config_id: UUID;
-  direction: ErpSyncDirection;
-  dataset: ErpImportDataset | ErpExportDataset;
-  source: ErpSyncSource;
-  mode: ErpSyncJobMode;
-  status: ErpSyncJobStatus;
-  summary: Record<string, unknown>;
-  error_message?: string | null;
-  created_by: UUID | null;
-  started_at?: IsoDateTime | null;
-  completed_at?: IsoDateTime | null;
-  created_at?: IsoDateTime;
-  updated_at?: IsoDateTime | null;
-}
-
-export interface ErpSyncRecord {
-  id?: UUID;
-  property_id?: UUID;
-  sync_job_id?: UUID;
-  provider_config_id?: UUID;
-  row_index: number;
-  external_entity_type: string | null;
-  external_id: string | null;
-  operation: ErpSyncRecordOperation;
-  status: ErpSyncRecordStatus;
-  domhub_entity_type: string | null;
-  domhub_entity_id: UUID | null;
-  validation_errors: string[];
-  payload: Record<string, unknown>;
-  normalized_payload: Record<string, unknown>;
-  created_at?: IsoDateTime;
-}
-
-export interface ErpImportSummary {
-  total: number;
-  valid: number;
-  invalid: number;
-  conflicts: number;
-  creates: number;
-  updates: number;
-  applied: number;
-  skipped: number;
-  mode: ErpSyncJobMode;
-  access_grants_created: 0;
-  mapping_only: true;
-}
-
-export interface ErpExportSummary {
-  dataset: ErpExportDataset;
-  total: number;
-  format: 'json';
-  delivered: boolean;
-  no_financial_payload: true;
-  access_grants_created: 0;
-}
-
-export interface ErpImportBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  dataset: ErpImportDataset;
-  source?: ErpSyncSource;
-  rows: Array<Record<string, unknown>>;
-}
-
-export interface ErpExportBody {
-  property_id?: UUID;
-  propertyId?: UUID;
-  dataset: ErpExportDataset;
-  source?: ErpSyncSource;
-  from?: IsoDateTime;
-  from_at?: IsoDateTime;
-  fromAt?: IsoDateTime;
-  to?: IsoDateTime;
-  to_at?: IsoDateTime;
-  toAt?: IsoDateTime;
-  limit?: number;
-}
-
-export interface ErpImportResponse {
-  provider_config: ErpProviderConfig;
-  sync_job: ErpSyncJob;
-  summary: ErpImportSummary;
-  records: ErpSyncRecord[];
-}
-
-export interface ErpExportResponse {
-  provider_config: ErpProviderConfig;
-  sync_job: ErpSyncJob;
-  summary: ErpExportSummary;
-  records: Array<Record<string, unknown>>;
-}
-
-export interface ErpSyncJobResponse {
-  sync_job: ErpSyncJob;
-  records: ErpSyncRecord[];
 }
 
 function toQuery(params?: object): string {
@@ -215,14 +87,14 @@ function toQuery(params?: object): string {
 
 export const erpExchangeApi = {
   listProviders(params?: ListErpProvidersParams, opts?: RequestOpts) {
-    return v1Client.get<{ providers: ErpProviderConfig[] }>(
+    return v1Client.get<Schemas['ErpProviderListResponse']>(
       `/erp/providers${toQuery(params)}`,
       opts,
     );
   },
 
   createProvider(body: CreateErpProviderBody, opts?: RequestOpts) {
-    return v1Client.post<{ provider: ErpProviderConfig }>(
+    return v1Client.post<Schemas['ErpProviderResponse']>(
       '/erp/providers',
       body,
       opts,
