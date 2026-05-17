@@ -50,6 +50,11 @@ const {
   removeAnnouncementMock,
   getAnnouncementMetricsMock,
   listDocumentsMock,
+  createDocumentMock,
+  publishDocumentMock,
+  unpublishDocumentMock,
+  removeDocumentMock,
+  listDocumentVersionsMock,
   listPackagesMock,
   createPackageMock,
   pickupPackageMock,
@@ -85,6 +90,11 @@ const {
   removeAnnouncementMock: vi.fn(),
   getAnnouncementMetricsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
+  createDocumentMock: vi.fn(),
+  publishDocumentMock: vi.fn(),
+  unpublishDocumentMock: vi.fn(),
+  removeDocumentMock: vi.fn(),
+  listDocumentVersionsMock: vi.fn(),
   listPackagesMock: vi.fn(),
   createPackageMock: vi.fn(),
   pickupPackageMock: vi.fn(),
@@ -141,11 +151,11 @@ vi.mock('../api', async () => {
       },
       documents: {
         list: listDocumentsMock,
-        create: neverResolves,
-        publish: neverResolves,
-        unpublish: neverResolves,
-        remove: neverResolves,
-        listVersions: neverResolves,
+        create: createDocumentMock,
+        publish: publishDocumentMock,
+        unpublish: unpublishDocumentMock,
+        remove: removeDocumentMock,
+        listVersions: listDocumentVersionsMock,
       },
       packages: {
         list: listPackagesMock,
@@ -882,6 +892,11 @@ describe('AnnouncementsAdminPage', () => {
 describe('DocumentsAdminPage', () => {
   beforeEach(() => {
     listDocumentsMock.mockReset();
+    createDocumentMock.mockReset();
+    publishDocumentMock.mockReset();
+    unpublishDocumentMock.mockReset();
+    removeDocumentMock.mockReset();
+    listDocumentVersionsMock.mockReset();
   });
 
   test('property_id=null → предупреждение', () => {
@@ -943,6 +958,109 @@ describe('DocumentsAdminPage', () => {
     expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeInTheDocument();
     // Admin видит «История».
     expect(screen.getAllByRole('button', { name: /История/ }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('creates document and sends publish/unpublish/delete/version requests', async () => {
+    const draft = makeDocument({ id: 'doc-draft', title: 'Памятка — черновик', published_at: null });
+    const published = makeDocument({
+      id: 'doc-published',
+      title: 'Памятка — опубликована',
+      published_at: '2026-04-10T00:00:00Z',
+    });
+    listDocumentsMock.mockResolvedValue({
+      ok: true,
+      count: 2,
+      documents: [draft, published],
+    });
+    createDocumentMock.mockResolvedValue({
+      ok: true,
+      document: makeDocument({
+        id: 'doc-created',
+        title: 'Регламент доступа',
+        category: 'rules',
+        tag: 'access',
+        body_md: 'Текст регламента',
+        file_url: '/uploads/docs/access.pdf',
+        is_public: true,
+        published_at: '2026-04-11T00:00:00Z',
+      }),
+    });
+    publishDocumentMock.mockResolvedValue({
+      ok: true,
+      document: makeDocument({ id: 'doc-draft', title: 'Памятка — черновик', published_at: '2026-04-11T00:00:00Z' }),
+      idempotent: true,
+    });
+    unpublishDocumentMock.mockResolvedValue({
+      ok: true,
+      document: makeDocument({ id: 'doc-published', title: 'Памятка — опубликована', published_at: null }),
+    });
+    removeDocumentMock.mockResolvedValue({
+      ok: true,
+      document: makeDocument({ id: 'doc-published', title: 'Памятка — опубликована', deleted_at: '2026-04-12T00:00:00Z' }),
+    });
+    listDocumentVersionsMock.mockResolvedValue({
+      ok: true,
+      count: 1,
+      versions: [{
+        id: 'version-1',
+        document_id: 'doc-published',
+        version: 2,
+        title: 'Памятка — опубликована',
+        category: 'rules',
+        tag: 'resident',
+        body_md: 'Версия 2',
+        file_url: null,
+        file_mime: null,
+        file_size_bytes: null,
+        is_public: false,
+        reason: 'Обновление текста',
+        created_by_staff_id: 'staff-1',
+        created_at: '2026-04-11T00:00:00Z',
+      }],
+    });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+
+    renderWithProviders(<DocumentsAdminPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByText('Памятка — черновик')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '+ Новый документ' }));
+    fireEvent.change(screen.getByLabelText('Заголовок'), { target: { value: 'Регламент доступа' } });
+    fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'rules' } });
+    fireEvent.change(screen.getByLabelText('Тег (опционально)'), { target: { value: 'access' } });
+    fireEvent.change(screen.getByLabelText('Текст (markdown)'), { target: { value: 'Текст регламента' } });
+    fireEvent.change(screen.getByLabelText('Ссылка на файл'), { target: { value: '/uploads/docs/access.pdf' } });
+    fireEvent.click(screen.getByLabelText('Показывать на публичной странице объекта'));
+    fireEvent.click(screen.getByLabelText('Опубликовать сразу (без черновика)'));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать и опубликовать' }));
+
+    await waitFor(() => {
+      expect(createDocumentMock).toHaveBeenCalledWith({
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        title: 'Регламент доступа',
+        category: 'rules',
+        tag: 'access',
+        body_md: 'Текст регламента',
+        file_url: '/uploads/docs/access.pdf',
+        is_public: true,
+        publish_now: true,
+      });
+    });
+    await waitFor(() => expect(listDocumentsMock.mock.calls.length).toBeGreaterThanOrEqual(2));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
+    await waitFor(() => expect(publishDocumentMock).toHaveBeenCalledWith('doc-draft'));
+    expect(await screen.findByText(/Уже был опубликован/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'История' })[1]);
+    await waitFor(() => expect(listDocumentVersionsMock).toHaveBeenCalledWith('doc-published', expect.any(Object)));
+    expect(await screen.findByText('История изменений (1)')).toBeInTheDocument();
+    expect(screen.getByText('Обновление текста')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять' }));
+    await waitFor(() => expect(unpublishDocumentMock).toHaveBeenCalledWith('doc-published'));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Удалить' })[1]);
+    await waitFor(() => expect(removeDocumentMock).toHaveBeenCalledWith('doc-published'));
   });
 
   test('file_url → ссылка «файл» в подзаголовке', async () => {
