@@ -65,14 +65,14 @@ export const adminOutboxApi = {
 
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; item: AdminOutboxRow }>(
-      `/admin/outbox/${id}`,
+      `/admin/outbox/${encodeURIComponent(id)}`,
       opts,
     );
   },
 
   requeue(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; id: UUID; previous_status: OutboxStatus }>(
-      `/admin/outbox/${id}/requeue`,
+      `/admin/outbox/${encodeURIComponent(id)}/requeue`,
       undefined,
       opts,
     );
@@ -80,7 +80,7 @@ export const adminOutboxApi = {
 
   cancel(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; item: AdminOutboxRow }>(
-      `/admin/outbox/${id}/cancel`,
+      `/admin/outbox/${encodeURIComponent(id)}/cancel`,
       undefined,
       opts,
     );
