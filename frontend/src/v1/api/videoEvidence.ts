@@ -65,7 +65,7 @@ export interface VideoEvidenceCamera {
 
 export interface LinkCameraVideoProviderBody {
   property_id: UUID;
-  video_provider_config_id?: UUID | null;
+  video_provider_config_id: UUID;
   camera_external_id?: string | null;
   provider_camera_id?: string | null;
   channel?: string | null;
@@ -101,11 +101,8 @@ export interface VideoEvidenceReference {
   updated_at: IsoDateTime | null;
 }
 
-export interface CreateVideoEvidenceBody {
+interface CreateVideoEvidenceBaseBody {
   property_id: UUID;
-  access_incident_id?: UUID | null;
-  visit_log_id?: UUID | null;
-  skud_integration_event_id?: UUID | null;
   camera_device_id?: UUID | null;
   provider_config_id?: UUID | null;
   video_provider_config_id?: UUID | null;
@@ -122,6 +119,25 @@ export interface CreateVideoEvidenceBody {
   sensitivity?: VideoEvidenceSensitivity;
   metadata?: Record<string, unknown>;
 }
+
+export type VideoEvidenceAnchor =
+  | {
+    access_incident_id: UUID;
+    visit_log_id?: UUID | null;
+    skud_integration_event_id?: UUID | null;
+  }
+  | {
+    access_incident_id?: UUID | null;
+    visit_log_id: UUID;
+    skud_integration_event_id?: UUID | null;
+  }
+  | {
+    access_incident_id?: UUID | null;
+    visit_log_id?: UUID | null;
+    skud_integration_event_id: UUID;
+  };
+
+export type CreateVideoEvidenceBody = CreateVideoEvidenceBaseBody & VideoEvidenceAnchor;
 
 function toQuery(params: object | undefined): string {
   if (!params) return '';

@@ -43,6 +43,12 @@ export interface CreatePassBody {
   access_request_id?: UUID | null;
 }
 
+export interface UnblockPassBody {
+  reason: string;
+  policy_id?: UUID | null;
+  override_id?: UUID | null;
+}
+
 function toQuery(params: object | undefined): string {
   if (!params) return '';
   const entries = Object.entries(params).filter(
@@ -104,10 +110,10 @@ export const passesApi = {
       opts,
     );
   },
-  unblock(id: UUID, opts?: RequestOpts) {
+  unblock(id: UUID, body: UnblockPassBody, opts?: RequestOpts) {
     return v1Client.post<{ pass: Pass }>(
       `/passes/${encodeURIComponent(id)}/unblock`,
-      undefined,
+      body,
       opts,
     );
   },

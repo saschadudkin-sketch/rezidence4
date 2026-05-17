@@ -55,7 +55,10 @@ describe('passesApi', () => {
     await passesApi.regeneratePin('pass/1');
     await passesApi.revoke('pass/1', 'expired access');
     await passesApi.block('pass/1', 'security review');
-    await passesApi.unblock('pass/1');
+    await passesApi.unblock('pass/1', {
+      reason: 'review cleared',
+      policy_id: 'policy-1',
+    });
 
     expect(postMock).toHaveBeenNthCalledWith(
       1,
@@ -97,7 +100,10 @@ describe('passesApi', () => {
     expect(postMock).toHaveBeenNthCalledWith(
       6,
       '/passes/pass%2F1/unblock',
-      undefined,
+      {
+        reason: 'review cleared',
+        policy_id: 'policy-1',
+      },
       undefined,
     );
   });

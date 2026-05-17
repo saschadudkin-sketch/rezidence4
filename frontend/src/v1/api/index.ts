@@ -107,6 +107,7 @@ export type {
 export type {
   CreatePassBody,
   ListPassesParams,
+  UnblockPassBody,
 } from './passes';
 export type {
   ListVehiclesParams,
@@ -370,6 +371,7 @@ export type {
   VideoEvidenceSource,
   VideoEvidenceStatus,
   VideoEvidenceType,
+  VideoEvidenceAnchor,
   VideoProviderConfig,
   VideoProviderStatus,
 } from './videoEvidence';
