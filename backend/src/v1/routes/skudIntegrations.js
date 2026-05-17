@@ -34,6 +34,7 @@ function resolvePropertyId(req) {
   return req.property?.id
     || req.property?.property_id
     || req.body?.property_id
+    || req.body?.propertyId
     || req.query?.property_id
     || req.query?.propertyId
     || req.user?.property_id

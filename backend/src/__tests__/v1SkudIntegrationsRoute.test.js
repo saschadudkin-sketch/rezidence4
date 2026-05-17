@@ -45,11 +45,11 @@ const PROVIDER_ID = '22222222-2222-4222-8222-222222222222';
 const PASS_ID = '33333333-3333-4333-8333-333333333333';
 const DEVICE_ID = '44444444-4444-4444-8444-444444444444';
 
-function buildApp() {
+function buildApp({ property = { id: PROPERTY_ID } } = {}) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    req.property = { id: PROPERTY_ID };
+    if (property) req.property = property;
     next();
   });
   app.use('/api/v1/skud', skudRouter);
@@ -185,6 +185,31 @@ describe('v1 SKUD integration routes', () => {
       propertyId: PROPERTY_ID,
       provider_config_id: PROVIDER_ID,
       evidence_type: 'field_drill',
+      actorUid: 'admin-1',
+    }));
+  });
+
+  test('POST /field-rollout-evidence resolves camelCase propertyId from body', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: null };
+    recordFieldRolloutEvidence.mockResolvedValue({
+      id: 'rollout-1',
+      property_id: PROPERTY_ID,
+      evidence_type: 'field_drill',
+      status: 'passed',
+    });
+
+    const res = await supertest(buildApp({ property: null }))
+      .post('/api/v1/skud/field-rollout-evidence')
+      .send({
+        propertyId: PROPERTY_ID,
+        evidenceType: 'field_drill',
+        status: 'passed',
+      });
+
+    expect(res.status).toBe(201);
+    expect(recordFieldRolloutEvidence).toHaveBeenCalledWith(db, expect.objectContaining({
+      propertyId: PROPERTY_ID,
+      evidenceType: 'field_drill',
       actorUid: 'admin-1',
     }));
   });
