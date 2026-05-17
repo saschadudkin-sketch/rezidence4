@@ -102,7 +102,10 @@ export type {
   TrustedVisitorPassRequestType,
   UpdateTrustedVisitorBody,
 } from './trustedVisitors';
-export type { ListPassesParams } from './passes';
+export type {
+  CreatePassBody,
+  ListPassesParams,
+} from './passes';
 export type {
   ListVehiclesParams,
   CreateVehicleBody,
@@ -204,7 +207,11 @@ export type {
   UpdateContractorCompanyBody,
   UpdateContractorUserBody,
 } from './contractors';
-export type { ListMembershipsParams } from './memberships';
+export type {
+  CreateMembershipBody,
+  ListMembershipsParams,
+  RevokeMembershipBody,
+} from './memberships';
 export type {
   ListAnnouncementsParams,
   ListAdminAnnouncementsParams,

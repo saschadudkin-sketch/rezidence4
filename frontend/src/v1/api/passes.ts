@@ -14,6 +14,7 @@ import type {
   PassStatus,
   PassType,
   QrToken,
+  SubjectType,
   UUID,
 } from './types';
 
@@ -25,6 +26,21 @@ export interface ListPassesParams extends PaginationParams {
   subject_vehicle_id?: UUID;
   subject_resident_id?: UUID;
   q?: string;
+}
+
+export interface CreatePassBody {
+  property_id: UUID;
+  pass_type: PassType;
+  subject_type: SubjectType;
+  subject_resident_id?: UUID | null;
+  subject_staff_id?: UUID | null;
+  subject_contractor_user_id?: UUID | null;
+  subject_vehicle_id?: UUID | null;
+  zone_id?: UUID | null;
+  point_id?: UUID | null;
+  valid_from: string;
+  valid_until: string;
+  access_request_id?: UUID | null;
 }
 
 function toQuery(params: object | undefined): string {
@@ -46,27 +62,53 @@ export const passesApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ pass: Pass; qr: QrToken | null }>(`/passes/${id}`, opts);
+    return v1Client.get<{ pass: Pass; qr: QrToken | null }>(
+      `/passes/${encodeURIComponent(id)}`,
+      opts,
+    );
   },
   getQr(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ qr: QrToken }>(`/passes/${id}/qr`, opts);
+    return v1Client.get<{ qr: QrToken }>(`/passes/${encodeURIComponent(id)}/qr`, opts);
   },
   regenerateQr(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<{ qr: QrToken }>(`/passes/${id}/regenerate-qr`, undefined, opts);
+    return v1Client.post<{ qr: QrToken }>(
+      `/passes/${encodeURIComponent(id)}/regenerate-qr`,
+      undefined,
+      opts,
+    );
   },
   getPin(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ pin: PinCredential }>(`/passes/${id}/pin`, opts);
+    return v1Client.get<{ pin: PinCredential }>(`/passes/${encodeURIComponent(id)}/pin`, opts);
   },
   regeneratePin(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<{ pin: PinCredential }>(`/passes/${id}/regenerate-pin`, undefined, opts);
+    return v1Client.post<{ pin: PinCredential }>(
+      `/passes/${encodeURIComponent(id)}/regenerate-pin`,
+      undefined,
+      opts,
+    );
+  },
+  create(body: CreatePassBody, opts?: RequestOpts) {
+    return v1Client.post<{ pass: Pass }>('/passes', body, opts);
   },
   revoke(id: UUID, reason: string, opts?: RequestOpts) {
-    return v1Client.post<{ pass: Pass }>(`/passes/${id}/revoke`, { reason }, opts);
+    return v1Client.post<{ pass: Pass }>(
+      `/passes/${encodeURIComponent(id)}/revoke`,
+      { reason },
+      opts,
+    );
   },
   block(id: UUID, reason: string, opts?: RequestOpts) {
-    return v1Client.post<{ pass: Pass }>(`/passes/${id}/block`, { reason }, opts);
+    return v1Client.post<{ pass: Pass }>(
+      `/passes/${encodeURIComponent(id)}/block`,
+      { reason },
+      opts,
+    );
   },
   unblock(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<{ pass: Pass }>(`/passes/${id}/unblock`, undefined, opts);
+    return v1Client.post<{ pass: Pass }>(
+      `/passes/${encodeURIComponent(id)}/unblock`,
+      undefined,
+      opts,
+    );
   },
 };
