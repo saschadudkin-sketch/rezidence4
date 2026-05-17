@@ -14,6 +14,16 @@ const {
   assignRequestMock,
   createInternalCommentMock,
   createServiceRequestUpdateMock,
+  createServiceRequestMock,
+  updateServiceRequestMock,
+  deleteServiceRequestMock,
+  assignServiceRequestMock,
+  markServiceRequestFirstResponseMock,
+  upsertServiceRequestCategoryMock,
+  createServiceRequestAttachmentMock,
+  rateServiceRequestMock,
+  listServiceRequestsMock,
+  emergencyQueueMock,
   getServiceRequestByIdMock,
   getQuickViewMock,
   getRequestAttachmentsMock,
@@ -28,6 +38,16 @@ const {
   assignRequestMock: vi.fn(),
   createInternalCommentMock: vi.fn(),
   createServiceRequestUpdateMock: vi.fn(),
+  createServiceRequestMock: vi.fn(),
+  updateServiceRequestMock: vi.fn(),
+  deleteServiceRequestMock: vi.fn(),
+  assignServiceRequestMock: vi.fn(),
+  markServiceRequestFirstResponseMock: vi.fn(),
+  upsertServiceRequestCategoryMock: vi.fn(),
+  createServiceRequestAttachmentMock: vi.fn(),
+  rateServiceRequestMock: vi.fn(),
+  listServiceRequestsMock: vi.fn(),
+  emergencyQueueMock: vi.fn(),
   getServiceRequestByIdMock: vi.fn(),
   getQuickViewMock: vi.fn(),
   getRequestAttachmentsMock: vi.fn(),
@@ -55,12 +75,22 @@ vi.mock('../api', async () => {
         updateStatus: updateStatusMock,
       },
       serviceRequests: {
+        list: listServiceRequestsMock,
+        create: createServiceRequestMock,
         listCategories: listCategoriesMock,
+        upsertCategory: upsertServiceRequestCategoryMock,
         getById: getServiceRequestByIdMock,
+        update: updateServiceRequestMock,
+        delete: deleteServiceRequestMock,
+        assign: assignServiceRequestMock,
+        markFirstResponse: markServiceRequestFirstResponseMock,
         getHistory: getRequestHistoryMock,
         listAttachments: getRequestAttachmentsMock,
+        createAttachment: createServiceRequestAttachmentMock,
         listUpdates: getRequestUpdatesMock,
         createUpdate: createServiceRequestUpdateMock,
+        rate: rateServiceRequestMock,
+        emergencyQueue: emergencyQueueMock,
       },
     },
     isV1ApiError: () => false,
@@ -272,6 +302,46 @@ beforeEach(() => {
       metadata: {},
     }],
   });
+  listServiceRequestsMock.mockResolvedValue({
+    data: [request],
+    total: 1,
+    page: 1,
+    limit: 10,
+    meta: { limit: 10, offset: 0, hasMore: false },
+  });
+  emergencyQueueMock.mockResolvedValue({
+    data: [{
+      id: 'emergency-1',
+      propertyId: 'prop-1',
+      requestId: request.id,
+      emergencyType: 'water',
+      severity: 'P1',
+      dispatchStatus: 'new',
+      escalationTarget: 'technician',
+      firstResponseDueAt: '2026-05-08T08:00:00Z',
+      resolutionDueAt: '2026-05-08T10:00:00Z',
+      acknowledgedAt: null,
+      acknowledgedByUid: null,
+      dispatchedAt: null,
+      dispatchedByUid: null,
+      escalatedAt: null,
+      escalatedByUid: null,
+      resolvedAt: null,
+      notificationStatus: 'pending',
+      metadata: {},
+      createdAt: '2026-05-08T07:00:00Z',
+      updatedAt: null,
+      request: {
+        type: 'service',
+        category: 'plumber',
+        status: 'pending',
+        createdByUid: 'resident-user-1',
+        createdByName: 'Иван Петров',
+        createdByRole: 'owner',
+        comment: 'Протечка в санузле',
+      },
+    }],
+  });
   getRequestDetailMock.mockResolvedValue(makeDetail(request));
   getServiceRequestByIdMock.mockResolvedValue(request);
   getRequestHistoryMock.mockResolvedValue([{
@@ -323,6 +393,35 @@ beforeEach(() => {
     attachmentIds: [],
     createdAt: '2026-05-08T08:15:00Z',
   });
+  createServiceRequestMock.mockResolvedValue(makeRequest({ id: 'req-new' }));
+  updateServiceRequestMock.mockResolvedValue(makeRequest({ status: 'in_progress' }));
+  deleteServiceRequestMock.mockResolvedValue({ ok: true });
+  assignServiceRequestMock.mockResolvedValue(makeRequest({ assignedToUid: 'staff-1' }));
+  markServiceRequestFirstResponseMock.mockResolvedValue(makeRequest({ firstResponseAt: '2026-05-08T08:20:00Z' }));
+  upsertServiceRequestCategoryMock.mockResolvedValue({
+    id: null,
+    code: 'plumber',
+    name: 'Plumber updated',
+    domain: 'service',
+    targetScope: 'unit',
+    priority: 'normal',
+    slaProfile: 'standard',
+    firstResponseMinutes: 60,
+    resolutionMinutes: 240,
+    isEmergency: false,
+    metadata: {},
+  });
+  createServiceRequestAttachmentMock.mockResolvedValue({
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    requestId: request.id,
+    uploadedByUid: 'staff-1',
+    fileUrl: '/uploads/evidence.jpg',
+    fileKind: 'photo',
+    visibility: 'resident',
+    metadata: {},
+    createdAt: '2026-05-08T08:25:00Z',
+  });
+  rateServiceRequestMock.mockResolvedValue({ ok: true, rating: { value: 5 } });
 });
 
 afterEach(() => {
@@ -413,7 +512,7 @@ describe('StaffWorkspacePage', () => {
       );
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /первый ответ/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^первый ответ$/i }));
     await waitFor(() => {
       expect(markFirstResponseMock).toHaveBeenCalledWith('req-1');
     });
@@ -426,6 +525,92 @@ describe('StaffWorkspacePage', () => {
       );
     });
   });
+
+  test('supports canonical service request operations', async () => {
+    renderWithProviders(<StaffWorkspacePage />);
+    await screen.findByText('Canonical requests');
+
+    expect(listServiceRequestsMock).toHaveBeenCalledWith(
+      { limit: 10, page: 1 },
+      expect.any(Object),
+    );
+    expect(emergencyQueueMock).toHaveBeenCalledWith(
+      { propertyId: 'prop-1', status: undefined, severity: undefined, limit: 10 },
+      expect.any(Object),
+    );
+
+    fireEvent.change(screen.getByLabelText('Request ID'), { target: { value: 'req-1' } });
+    fireEvent.change(screen.getByLabelText('Category code'), { target: { value: 'plumber' } });
+    fireEvent.change(screen.getByLabelText('Category name'), { target: { value: 'Plumber updated' } });
+    fireEvent.change(screen.getByLabelText('Target ID'), { target: { value: 'unit-1' } });
+    fireEvent.change(screen.getByLabelText('Assignee UID'), { target: { value: 'staff-2' } });
+    fireEvent.change(screen.getByLabelText('Attachment URL'), { target: { value: '/uploads/evidence.jpg' } });
+    fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Операционный комментарий' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать canonical request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Назначить canonical' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Первый ответ canonical' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upsert category' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить attachment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Оценить request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить request' }));
+
+    await waitFor(() => {
+      expect(createServiceRequestMock).toHaveBeenCalledWith({
+        type: 'service',
+        category: 'plumber',
+        status: 'new',
+        comment: 'Операционный комментарий',
+        targetType: 'unit',
+        targetId: 'unit-1',
+      });
+      expect(updateServiceRequestMock).toHaveBeenCalledWith('req-1', {
+        status: 'in_progress',
+        expectedCurrentStatus: undefined,
+        historyLabel: 'Статус изменён: Выполняется',
+        comment: 'Операционный комментарий',
+      });
+      expect(assignServiceRequestMock).toHaveBeenCalledWith('req-1', {
+        assigneeUid: 'staff-2',
+        assigneeRole: 'concierge',
+        assigneeName: 'Мария Консьерж',
+        expectedCurrentStatus: undefined,
+      });
+      expect(markServiceRequestFirstResponseMock).toHaveBeenCalledWith('req-1');
+      expect(upsertServiceRequestCategoryMock).toHaveBeenCalledWith('plumber', {
+        propertyId: 'prop-1',
+        name: 'Plumber updated',
+        domain: 'service',
+        targetScope: 'unit',
+        priority: 'normal',
+        slaProfile: 'standard',
+        firstResponseMinutes: 60,
+        resolutionMinutes: 240,
+        isEmergency: false,
+        metadata: { source: 'staff_workspace_ui' },
+      });
+      expect(createServiceRequestAttachmentMock).toHaveBeenCalledWith('req-1', {
+        fileUrl: '/uploads/evidence.jpg',
+        fileKind: 'photo',
+        visibility: 'resident',
+        metadata: { source: 'staff_workspace_ui' },
+      });
+      expect(rateServiceRequestMock).toHaveBeenCalledWith('req-1', {
+        rating: 5,
+        comment: 'Операционный комментарий',
+      });
+      expect(deleteServiceRequestMock).toHaveBeenCalledWith('req-1');
+    });
+
+    fireEvent.change(screen.getByLabelText('Emergency status'), { target: { value: 'resolved' } });
+    await waitFor(() => {
+      expect(emergencyQueueMock).toHaveBeenLastCalledWith(
+        { propertyId: 'prop-1', status: 'resolved', severity: undefined, limit: 10 },
+        expect.any(Object),
+      );
+    });
+  }, 10000);
 
   test('refreshes both detail and canonical lifecycle panels', async () => {
     renderWithProviders(<StaffWorkspacePage />);

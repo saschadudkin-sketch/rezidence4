@@ -8,12 +8,13 @@ Scope: production UI usage of `frontend/src/v1/api/*.ts` methods, excluding API 
 | Metric | Count |
 |---|---:|
 | v1 API client methods | 272 |
-| Methods without production UI usage | 63 |
+| Methods without production UI usage | 53 |
 | Analytics methods without production UI usage | 0 |
 | Access incident methods without production UI usage | 0 |
 | Privacy compliance methods without production UI usage | 0 |
 | Integration operations methods without production UI usage | 0 |
 | Property directory methods without production UI usage | 0 |
+| Request lifecycle methods without production UI usage | 0 |
 
 Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI workflow depth is still incomplete for several bounded contexts. This audit tracks the next layer: client methods that exist for backend parity but are not yet reachable from production UI pages.
 
@@ -47,12 +48,15 @@ Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI wo
   staff detail/create/update/deactivate/import, contractor company/user detail and mutations/import,
   and membership list-mine/create/revoke.
 - Added UI smoke coverage for property directory mutation payloads.
+- Extended `StaffWorkspacePage` with canonical `/api/v1/requests` operations:
+  request list/create/update/delete, assign, first response, category upsert,
+  attachment create, rating, and emergency queue filters.
+- Added UI smoke coverage for canonical request lifecycle payloads.
 
 ## Remaining UI Workflow Gaps By API Module
 
 | API module | Unused methods |
 |---|---:|
-| `serviceRequests.ts` | 10 |
 | `auditReviews.ts` | 6 |
 | `guardVisits.ts` | 6 |
 | `passes.ts` | 5 |
@@ -74,10 +78,10 @@ Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI wo
 
 ## Next Slices
 
-1. Request lifecycle UI gaps: standalone request create/update/delete, attachment create, rating, and emergency queue visibility.
-2. Access topology/policy edits: update/deactivate/evaluate flows beyond create/deactivate baseline.
-3. Guard visit and visit-log parity: list/detail/create/verify surfaces for security operations.
-4. Audit review operations: report evidence, sample/escalate/assign/review actions.
+1. Access topology/policy edits: update/deactivate/evaluate flows beyond create/deactivate baseline.
+2. Guard visit and visit-log parity: list/detail/create/verify surfaces for security operations.
+3. Audit review operations: report evidence, sample/escalate/assign/review actions.
+4. Pass/vehicle/document/package residual operations: detail/update/metrics and resident-facing submits.
 
 ## Verification
 
@@ -87,6 +91,7 @@ npm run test -- src/v1/pages/AccessAdminPage.test.tsx
 npm run test -- src/v1/pages/IntegrationOperationsPage.test.tsx src/v1/V1Router.test.tsx
 npm run test -- src/v1/pages/PropertyDirectoryAdminPage.test.tsx
 npm run test -- src/v1/pages/PrivacyCompliancePage.test.tsx src/v1/V1Router.test.tsx
+npm run test -- src/v1/pages/StaffWorkspacePage.test.tsx
 npm run typecheck
 npm run lint
 npm run frontend:v1-contract-coverage

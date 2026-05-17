@@ -13,13 +13,18 @@ import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
 import type {
+  EmergencyDispatchStatus,
+  EmergencySeverity,
   ListStaffWorkspaceInboxParams,
+  ServiceRequest,
   ServiceRequestAttachment,
   ServiceRequestCategory,
   ServiceRequestHistoryRow,
   ServiceRequestUpdate,
   StaffRequestPriority,
   StaffRequestStatus,
+  StaffRequestTargetType,
+  StaffRequestType,
   StaffWorkspaceQueue,
   StaffWorkspaceRequest,
   UserMe,
@@ -125,6 +130,20 @@ const PRIORITY_LABELS: Record<StaffRequestPriority, string> = {
   emergency: 'Аварийный',
 };
 
+const REQUEST_TYPES: StaffRequestType[] = [
+  'service',
+  'repair',
+  'cleaning',
+  'concierge',
+  'complaint',
+  'suggestion',
+  'territory',
+  'emergency',
+];
+const TARGET_TYPES: StaffRequestTargetType[] = ['unit', 'home', 'access_zone', 'access_point', 'common_territory', 'road', 'service_area'];
+const EMERGENCY_QUEUE_STATUSES: Array<EmergencyDispatchStatus | ''> = ['', 'new', 'acknowledged', 'dispatched', 'escalated', 'resolved', 'cancelled'];
+const EMERGENCY_SEVERITIES: Array<EmergencySeverity | ''> = ['', 'P0', 'P1', 'P2'];
+
 const TERMINAL_STATUSES = new Set<StaffRequestStatus>([
   'completed',
   'cancelled',
@@ -191,6 +210,18 @@ function formatTarget(request: StaffWorkspaceRequest): string {
   };
   const type = request.targetType ? labels[request.targetType] ?? request.targetType : 'Цель';
   return request.targetId ? `${type}: ${request.targetId.slice(0, 8)}` : type;
+}
+
+function dispatchStatusTone(status: EmergencyDispatchStatus) {
+  if (status === 'resolved') return 'success';
+  if (status === 'cancelled') return 'error';
+  if (status === 'dispatched' || status === 'escalated') return 'warning';
+  if (status === 'acknowledged') return 'info';
+  return 'neutral';
+}
+
+function requestTitle(request: Pick<ServiceRequest, 'id' | 'visitorName' | 'createdByName' | 'category'>): string {
+  return request.visitorName || request.createdByName || request.category || request.id;
 }
 
 function formatCategoryLabel(category: ServiceRequestCategory): string {
@@ -368,6 +399,13 @@ export function StaffWorkspacePage() {
           </Button>
         </Toolbar>
 
+        <CanonicalServiceRequestOperations
+          propertyId={user.property_id ?? null}
+          categories={categories}
+          activeRequestId={activeId}
+          user={user}
+        />
+
         {query.isError ? (
           <Alert tone="error">
             Не удалось загрузить очередь: {isV1ApiError(query.error) ? query.error.message : 'ошибка сети'}
@@ -453,6 +491,254 @@ function RequestListButton({ request, selected, onSelect }: RequestListButtonPro
         </span>
       </span>
     </button>
+  );
+}
+
+function CanonicalServiceRequestOperations({
+  propertyId,
+  categories,
+  activeRequestId,
+  user,
+}: {
+  propertyId: string | null;
+  categories: ServiceRequestCategory[];
+  activeRequestId: string | null;
+  user: UserMe;
+}) {
+  const queryClient = useQueryClient();
+  const [requestId, setRequestId] = useState(activeRequestId ?? '');
+  const [type, setType] = useState<StaffRequestType>('service');
+  const [categoryCode, setCategoryCode] = useState(categories[0]?.code ?? 'general');
+  const [targetType, setTargetType] = useState<StaffRequestTargetType>('unit');
+  const [targetId, setTargetId] = useState('');
+  const [comment, setComment] = useState('');
+  const [nextStatus, setNextStatus] = useState<StaffRequestStatus>('in_progress');
+  const [assigneeUid, setAssigneeUid] = useState(user.uid);
+  const [categoryName, setCategoryName] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [rating, setRating] = useState('5');
+  const [emergencyStatus, setEmergencyStatus] = useState<EmergencyDispatchStatus | ''>('');
+  const [emergencySeverity, setEmergencySeverity] = useState<EmergencySeverity | ''>('');
+
+  const effectiveRequestId = requestId.trim() || activeRequestId || '';
+  const effectiveCategory = categoryCode || categories[0]?.code || 'general';
+
+  const invalidateCanonical = () => {
+    void queryClient.invalidateQueries({ queryKey: qk.serviceRequests.all });
+    if (effectiveRequestId) void invalidateServiceRequestLifecycle(queryClient, effectiveRequestId);
+  };
+
+  const requestListQuery = useQuery({
+    queryKey: ['v1', 'service-requests', 'canonical-list', propertyId],
+    queryFn: ({ signal }) => api.serviceRequests.list({ limit: 10, page: 1 }, { signal }),
+    staleTime: 15_000,
+  });
+
+  const emergencyQueueQuery = useQuery({
+    queryKey: qk.serviceRequests.emergencyQueue({
+      propertyId,
+      status: emergencyStatus || undefined,
+      severity: emergencySeverity || undefined,
+    }),
+    enabled: Boolean(propertyId),
+    queryFn: ({ signal }) => api.serviceRequests.emergencyQueue({
+      propertyId: propertyId ?? undefined,
+      status: emergencyStatus || undefined,
+      severity: emergencySeverity || undefined,
+      limit: 10,
+    }, { signal }),
+    staleTime: 15_000,
+  });
+
+  const createRequest = useMutation({
+    mutationFn: () => api.serviceRequests.create({
+      type,
+      category: effectiveCategory,
+      status: 'new',
+      comment: comment.trim() || 'Создано из staff workspace',
+      targetType,
+      targetId: targetId.trim() || undefined,
+    }),
+    onSuccess: invalidateCanonical,
+  });
+
+  const updateRequest = useMutation({
+    mutationFn: () => api.serviceRequests.update(effectiveRequestId, {
+      status: nextStatus,
+      expectedCurrentStatus: undefined,
+      historyLabel: actionLabel(nextStatus),
+      comment: comment.trim() || undefined,
+    }),
+    onSuccess: invalidateCanonical,
+  });
+
+  const deleteRequest = useMutation({
+    mutationFn: () => api.serviceRequests.delete(effectiveRequestId),
+    onSuccess: invalidateCanonical,
+  });
+
+  const assignRequest = useMutation({
+    mutationFn: () => api.serviceRequests.assign(effectiveRequestId, {
+      assigneeUid: assigneeUid.trim() || user.uid,
+      assigneeRole: assigneeRoleFor(user),
+      assigneeName: user.name || user.uid,
+      expectedCurrentStatus: undefined,
+    }),
+    onSuccess: invalidateCanonical,
+  });
+
+  const firstResponse = useMutation({
+    mutationFn: () => api.serviceRequests.markFirstResponse(effectiveRequestId),
+    onSuccess: invalidateCanonical,
+  });
+
+  const upsertCategory = useMutation({
+    mutationFn: () => api.serviceRequests.upsertCategory(effectiveCategory, {
+      propertyId: propertyId ?? undefined,
+      name: categoryName.trim() || effectiveCategory,
+      domain: type === 'emergency' ? 'emergency' : 'service',
+      targetScope: targetType,
+      priority: type === 'emergency' ? 'emergency' : 'normal',
+      slaProfile: type === 'emergency' ? 'emergency' : 'standard',
+      firstResponseMinutes: type === 'emergency' ? 5 : 60,
+      resolutionMinutes: type === 'emergency' ? 60 : 240,
+      isEmergency: type === 'emergency',
+      metadata: { source: 'staff_workspace_ui' },
+    }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.serviceRequests.categories() });
+      invalidateCanonical();
+    },
+  });
+
+  const createAttachment = useMutation({
+    mutationFn: () => api.serviceRequests.createAttachment(effectiveRequestId, {
+      fileUrl: attachmentUrl.trim() || '/uploads/service-request-evidence.jpg',
+      fileKind: 'photo',
+      visibility: 'resident',
+      metadata: { source: 'staff_workspace_ui' },
+    }),
+    onSuccess: invalidateCanonical,
+  });
+
+  const rateRequest = useMutation({
+    mutationFn: () => api.serviceRequests.rate(effectiveRequestId, {
+      rating: Number(rating) || 5,
+      comment: comment.trim() || undefined,
+    }),
+    onSuccess: invalidateCanonical,
+  });
+
+  const requests = requestListQuery.data?.data ?? [];
+  const emergencyRows = emergencyQueueQuery.data?.data ?? [];
+
+  return (
+    <Card title="Canonical requests" subtitle="Прямые операции /api/v1/requests для lifecycle coverage.">
+      <Stack>
+        <div className={uiClasses.formGrid}>
+          <Field label="Request ID">
+            <Input value={requestId} onChange={(event) => setRequestId(event.currentTarget.value)} placeholder={activeRequestId ?? 'request-id'} />
+          </Field>
+          <Field label="Type">
+            <Select value={type} onChange={(event) => setType(event.currentTarget.value as StaffRequestType)}>
+              {REQUEST_TYPES.map((item) => <option key={item} value={item}>{formatType(item)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Category code">
+            <Input value={categoryCode} onChange={(event) => setCategoryCode(event.currentTarget.value)} placeholder="plumber" />
+          </Field>
+          <Field label="Category name">
+            <Input value={categoryName} onChange={(event) => setCategoryName(event.currentTarget.value)} placeholder="Plumber" />
+          </Field>
+          <Field label="Target type">
+            <Select value={targetType} onChange={(event) => setTargetType(event.currentTarget.value as StaffRequestTargetType)}>
+              {TARGET_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </Select>
+          </Field>
+          <Field label="Target ID">
+            <Input value={targetId} onChange={(event) => setTargetId(event.currentTarget.value)} placeholder="target-uuid" />
+          </Field>
+          <Field label="Next status">
+            <Select value={nextStatus} onChange={(event) => setNextStatus(event.currentTarget.value as StaffRequestStatus)}>
+              {STATUS_FILTERS.filter((item): item is StaffRequestStatus => item !== 'all').map((item) => (
+                <option key={item} value={item}>{formatStatus(item)}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Assignee UID">
+            <Input value={assigneeUid} onChange={(event) => setAssigneeUid(event.currentTarget.value)} placeholder="staff-uid" />
+          </Field>
+          <Field label="Attachment URL">
+            <Input value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.currentTarget.value)} placeholder="/uploads/service-request-evidence.jpg" />
+          </Field>
+          <Field label="Rating">
+            <Input value={rating} onChange={(event) => setRating(event.currentTarget.value)} inputMode="numeric" placeholder="5" />
+          </Field>
+        </div>
+        <Field label="Comment">
+          <Textarea value={comment} onChange={(event) => setComment(event.currentTarget.value)} rows={3} placeholder="Операционный комментарий" />
+        </Field>
+        <Inline>
+          <Button loading={requestListQuery.isFetching} variant="ghost" onClick={() => void requestListQuery.refetch()}>Обновить canonical list</Button>
+          <Button loading={createRequest.isPending} onClick={() => createRequest.mutate()}>Создать canonical request</Button>
+          <Button loading={updateRequest.isPending} variant="secondary" onClick={() => updateRequest.mutate()}>Обновить request</Button>
+          <Button loading={deleteRequest.isPending} variant="danger" onClick={() => deleteRequest.mutate()}>Удалить request</Button>
+          <Button loading={assignRequest.isPending} variant="secondary" onClick={() => assignRequest.mutate()}>Назначить canonical</Button>
+          <Button loading={firstResponse.isPending} variant="secondary" onClick={() => firstResponse.mutate()}>Первый ответ canonical</Button>
+          <Button loading={upsertCategory.isPending} variant="secondary" onClick={() => upsertCategory.mutate()}>Upsert category</Button>
+          <Button loading={createAttachment.isPending} variant="secondary" onClick={() => createAttachment.mutate()}>Добавить attachment</Button>
+          <Button loading={rateRequest.isPending} variant="secondary" onClick={() => rateRequest.mutate()}>Оценить request</Button>
+        </Inline>
+
+        {requestListQuery.isError ? (
+          <Alert tone="warning">
+            Canonical list недоступен: {isV1ApiError(requestListQuery.error) ? requestListQuery.error.message : 'ошибка сети'}
+          </Alert>
+        ) : null}
+        {requests.length ? (
+          <ul className={uiClasses.resourceList}>
+            {requests.map((request) => (
+              <li key={request.id} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
+                  <p className={uiClasses.resourceTitle}>{requestTitle(request)}</p>
+                  <p className={uiClasses.resourceMeta}>{request.category} · {request.status}</p>
+                </div>
+                <Button variant="ghost" onClick={() => setRequestId(request.id)}>Выбрать</Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className={uiClasses.formGrid}>
+          <Field label="Emergency status">
+            <Select value={emergencyStatus} onChange={(event) => setEmergencyStatus(event.currentTarget.value as EmergencyDispatchStatus | '')}>
+              {EMERGENCY_QUEUE_STATUSES.map((item) => <option key={item || 'all'} value={item}>{item || 'Все'}</option>)}
+            </Select>
+          </Field>
+          <Field label="Emergency severity">
+            <Select value={emergencySeverity} onChange={(event) => setEmergencySeverity(event.currentTarget.value as EmergencySeverity | '')}>
+              {EMERGENCY_SEVERITIES.map((item) => <option key={item || 'all'} value={item}>{item || 'Все'}</option>)}
+            </Select>
+          </Field>
+          <Button loading={emergencyQueueQuery.isFetching} variant="ghost" onClick={() => void emergencyQueueQuery.refetch()}>
+            Обновить emergency queue
+          </Button>
+        </div>
+        {emergencyRows.length ? (
+          <ul className={uiClasses.resourceList}>
+            {emergencyRows.map((row) => (
+              <li key={row.id} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
+                  <p className={uiClasses.resourceTitle}>{row.emergencyType}</p>
+                  <p className={uiClasses.resourceMeta}>{row.dispatchStatus} · {row.severity}</p>
+                </div>
+                <Badge tone={dispatchStatusTone(row.dispatchStatus)}>{row.notificationStatus}</Badge>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Stack>
+    </Card>
   );
 }
 
