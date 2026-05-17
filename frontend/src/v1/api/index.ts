@@ -186,6 +186,7 @@ export type {
   UpdateResidentBody,
 } from './residents';
 export type {
+  StaffImportAction,
   CreateStaffBody,
   ListStaffParams,
   StaffImportApplyResponse,
@@ -197,8 +198,10 @@ export type {
   UpdateStaffBody,
 } from './staff';
 export type {
+  ContractorImportAction,
   ContractorImportApplyResponse,
   ContractorImportChecklist,
+  ContractorImportCounts,
   ContractorImportPayload,
   ContractorImportPreviewResponse,
   ContractorImportPreviewRow,

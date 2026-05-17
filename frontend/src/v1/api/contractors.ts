@@ -88,9 +88,23 @@ export interface ContractorImportPayload {
   rows?: ContractorImportRowInput[];
 }
 
+export type ContractorImportAction =
+  | 'ready'
+  | 'invalid'
+  | 'created'
+  | 'skipped_existing'
+  | 'company_created'
+  | 'company_existing'
+  | 'skipped_inactive_company';
+
+export interface ContractorImportCounts {
+  contractor_companies: number;
+  contractor_users: number;
+}
+
 export interface ContractorImportPreviewRow {
   row_number: number;
-  action: 'ready' | 'invalid' | 'created' | 'skipped_existing' | string;
+  action: ContractorImportAction;
   errors: string[];
   company: Omit<CreateContractorCompanyBody, 'property_id'> | ContractorCompany | null;
   contractor_user?: Omit<CreateContractorUserBody, 'property_id' | 'contractor_company_id'> | ContractorUser | null;
@@ -103,8 +117,8 @@ export interface ContractorImportChecklist {
   launch_ready: boolean;
   valid_count: number;
   invalid_count: number;
-  imported?: { companies: number; contractor_users: number } | null;
-  skipped?: { companies: number; contractor_users: number } | null;
+  imported?: ContractorImportCounts | null;
+  skipped?: ContractorImportCounts | null;
 }
 
 export interface ContractorImportPreviewResponse {
@@ -119,8 +133,8 @@ export interface ContractorImportPreviewResponse {
 export interface ContractorImportApplyResponse {
   mode: 'apply';
   resource: 'contractors';
-  imported: { companies: number; contractor_users: number };
-  skipped: { companies: number; contractor_users: number };
+  imported: ContractorImportCounts;
+  skipped: ContractorImportCounts;
   rows: ContractorImportPreviewRow[];
   checklist: ContractorImportChecklist;
 }

@@ -63,9 +63,11 @@ export interface StaffImportPayload {
   rows?: StaffImportRowInput[];
 }
 
+export type StaffImportAction = 'ready' | 'invalid' | 'created' | 'skipped_existing';
+
 export interface StaffImportPreviewRow {
   row_number: number;
-  action: 'ready' | 'invalid' | 'created' | 'skipped_existing' | string;
+  action: StaffImportAction;
   errors: string[];
   staff: Omit<CreateStaffBody, 'property_id'> | StaffUser | null;
   existing_id?: UUID;
