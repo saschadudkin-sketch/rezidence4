@@ -143,7 +143,7 @@ export const documentsApi = {
 
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; document: V1Document }>(
-      `/documents/${id}`,
+      `/documents/${encodeURIComponent(id)}`,
       opts,
     );
   },
@@ -158,7 +158,7 @@ export const documentsApi = {
 
   update(id: UUID, patch: UpdateDocumentBody, opts?: RequestOpts) {
     return v1Client.patch<{ ok: true; document: V1Document }>(
-      `/documents/${id}`,
+      `/documents/${encodeURIComponent(id)}`,
       patch,
       opts,
     );
@@ -170,12 +170,12 @@ export const documentsApi = {
       document: V1Document;
       /** True if the document was already published. */
       idempotent?: boolean;
-    }>(`/documents/${id}/publish`, undefined, opts);
+    }>(`/documents/${encodeURIComponent(id)}/publish`, undefined, opts);
   },
 
   unpublish(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; document: V1Document }>(
-      `/documents/${id}/unpublish`,
+      `/documents/${encodeURIComponent(id)}/unpublish`,
       undefined,
       opts,
     );
@@ -183,7 +183,7 @@ export const documentsApi = {
 
   remove(id: UUID, opts?: RequestOpts) {
     return v1Client.delete<{ ok: true; document: V1Document }>(
-      `/documents/${id}`,
+      `/documents/${encodeURIComponent(id)}`,
       opts,
     );
   },
@@ -197,12 +197,12 @@ export const documentsApi = {
       ok: true;
       versions: DocumentVersion[];
       count: number;
-    }>(`/admin/documents/${id}/versions`, opts);
+    }>(`/admin/documents/${encodeURIComponent(id)}/versions`, opts);
   },
 
   getVersion(id: UUID, version: number, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; version: DocumentVersion }>(
-      `/admin/documents/${id}/versions/${version}`,
+      `/admin/documents/${encodeURIComponent(id)}/versions/${version}`,
       opts,
     );
   },

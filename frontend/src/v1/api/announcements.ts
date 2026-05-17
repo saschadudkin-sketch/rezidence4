@@ -135,7 +135,7 @@ export const announcementsApi = {
 
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; announcement: Announcement }>(
-      `/announcements/${id}`,
+      `/announcements/${encodeURIComponent(id)}`,
       opts,
     );
   },
@@ -150,7 +150,7 @@ export const announcementsApi = {
 
   update(id: UUID, patch: UpdateAnnouncementBody, opts?: RequestOpts) {
     return v1Client.patch<{ ok: true; announcement: Announcement }>(
-      `/announcements/${id}`,
+      `/announcements/${encodeURIComponent(id)}`,
       patch,
       opts,
     );
@@ -161,12 +161,12 @@ export const announcementsApi = {
       ok: true;
       announcement: Announcement;
       outbox_fanout: number;
-    }>(`/announcements/${id}/publish`, undefined, opts);
+    }>(`/announcements/${encodeURIComponent(id)}/publish`, undefined, opts);
   },
 
   unpublish(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; announcement: Announcement }>(
-      `/announcements/${id}/unpublish`,
+      `/announcements/${encodeURIComponent(id)}/unpublish`,
       undefined,
       opts,
     );
@@ -174,14 +174,14 @@ export const announcementsApi = {
 
   remove(id: UUID, opts?: RequestOpts) {
     return v1Client.delete<{ ok: true; announcement: Announcement }>(
-      `/announcements/${id}`,
+      `/announcements/${encodeURIComponent(id)}`,
       opts,
     );
   },
 
   getMetrics(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; metrics: AnnouncementReachMetrics }>(
-      `/admin/announcements/${id}/metrics`,
+      `/admin/announcements/${encodeURIComponent(id)}/metrics`,
       opts,
     );
   },
