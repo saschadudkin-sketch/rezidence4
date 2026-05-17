@@ -37,6 +37,16 @@ export interface CreateAccessZoneBody {
   metadata?: Record<string, unknown>;
 }
 
+export interface UpdateAccessZoneBody {
+  building_id?: UUID | null;
+  name?: string;
+  zone_type?: AccessZoneType;
+  description?: string | null;
+  is_active?: boolean;
+  sort_order?: number;
+  metadata?: Record<string, unknown>;
+}
+
 export interface CreateAccessPointBody {
   property_id: UUID;
   zone_id: UUID;
@@ -45,6 +55,18 @@ export interface CreateAccessPointBody {
   provider?: string | null;
   provider_external_id?: string | null;
   description?: string | null;
+  sort_order?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateAccessPointBody {
+  zone_id?: UUID;
+  name?: string;
+  point_type?: AccessPointType;
+  provider?: string | null;
+  provider_external_id?: string | null;
+  description?: string | null;
+  is_active?: boolean;
   sort_order?: number;
   metadata?: Record<string, unknown>;
 }
@@ -76,13 +98,35 @@ export const accessTopologyApi = {
   createZone(body: CreateAccessZoneBody, opts?: RequestOpts) {
     return v1Client.post<{ zone: AccessZone }>('/access-zones', body, opts);
   },
+  updateZone(id: UUID, body: UpdateAccessZoneBody, opts?: RequestOpts) {
+    return v1Client.patch<{ zone: AccessZone }>(
+      `/access-zones/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
   createPoint(body: CreateAccessPointBody, opts?: RequestOpts) {
     return v1Client.post<{ point: AccessPoint }>('/access-points', body, opts);
   },
+  updatePoint(id: UUID, body: UpdateAccessPointBody, opts?: RequestOpts) {
+    return v1Client.patch<{ point: AccessPoint }>(
+      `/access-points/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
   deactivateZone(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<void>(`/access-zones/${id}/deactivate`, undefined, opts);
+    return v1Client.post<void>(
+      `/access-zones/${encodeURIComponent(id)}/deactivate`,
+      undefined,
+      opts,
+    );
   },
   deactivatePoint(id: UUID, opts?: RequestOpts) {
-    return v1Client.post<void>(`/access-points/${id}/deactivate`, undefined, opts);
+    return v1Client.post<void>(
+      `/access-points/${encodeURIComponent(id)}/deactivate`,
+      undefined,
+      opts,
+    );
   },
 };

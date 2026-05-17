@@ -113,6 +113,8 @@ export type {
   CreateAccessZoneBody,
   ListAccessZonesParams,
   ListAccessPointsParams,
+  UpdateAccessPointBody,
+  UpdateAccessZoneBody,
 } from './accessTopology';
 export type { CreateAccessPolicyBody, ListAccessPoliciesParams } from './accessPolicies';
 export type { ListVisitsParams } from './visits';
