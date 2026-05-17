@@ -80,7 +80,16 @@ vi.mock('./api', () => {
         listExportPackages: neverResolves,
         createExportPackage: neverResolves,
       },
-      skudIntegrations: { getProviderFailures: neverResolves },
+      erpExchange: { listProviders: neverResolves },
+      skudIntegrations: {
+        getProviderFailures: neverResolves,
+        listHardwareDevices: neverResolves,
+      },
+      webhooks: { list: neverResolves },
+      videoEvidence: {
+        listProviders: neverResolves,
+        listCameras: neverResolves,
+      },
       auditReviews: {
         meta: neverResolves,
         summary: neverResolves,
@@ -398,6 +407,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/notifications');
     expect(
       await screen.findByRole('heading', { name: /уведомления и outbox/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/integrations reaches integration operations', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/integrations');
+    expect(
+      await screen.findByRole('heading', { name: /интеграции/i }),
     ).toBeInTheDocument();
   });
 
