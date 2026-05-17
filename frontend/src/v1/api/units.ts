@@ -1,5 +1,5 @@
 /**
- * platform-v1 units client (subset for Phase 4).
+ * platform-v1 units client.
  * Backend: backend/src/v1/routes/structure.js  (mounted at /api/v1 root)
  */
 
@@ -24,6 +24,21 @@ export interface ListUnitsParams extends PaginationParams {
   unit_type?: UnitType;
   q?: string;
   is_active?: boolean;
+}
+
+export interface CreateUnitBody {
+  property_id: UUID;
+  building_id: UUID;
+  entrance_id: UUID;
+  unit_number: string;
+  unit_type?: UnitType;
+  floor?: number | null;
+}
+
+export interface UpdateUnitBody {
+  unit_number?: string;
+  unit_type?: UnitType;
+  floor?: number | null;
 }
 
 export interface UnitImportPayload {
@@ -83,7 +98,7 @@ export const unitsApi = {
   },
   listEntrances(buildingId: UUID, opts?: RequestOpts) {
     return v1Client.get<{ entrances: Entrance[] }>(
-      `/buildings/${buildingId}/entrances`,
+      `/buildings/${encodeURIComponent(buildingId)}/entrances`,
       opts,
     );
   },
@@ -94,7 +109,24 @@ export const unitsApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<UnitDetailResponse>(`/units/${id}`, opts);
+    return v1Client.get<UnitDetailResponse>(`/units/${encodeURIComponent(id)}`, opts);
+  },
+  create(body: CreateUnitBody, opts?: RequestOpts) {
+    return v1Client.post<{ unit: Unit }>('/units', body, opts);
+  },
+  update(id: UUID, body: UpdateUnitBody, opts?: RequestOpts) {
+    return v1Client.patch<{ unit: Unit }>(
+      `/units/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
+  deactivate(id: UUID, opts?: RequestOpts) {
+    return v1Client.post<void>(
+      `/units/${encodeURIComponent(id)}/deactivate`,
+      undefined,
+      opts,
+    );
   },
   importRows(payload: UnitImportPayload, opts?: RequestOpts) {
     return v1Client.post<UnitImportResponse>('/units/import', payload, opts);

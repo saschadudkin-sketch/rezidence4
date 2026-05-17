@@ -141,7 +141,13 @@ export type {
   ResolveContractorRequestBody,
   SetContractorWaitingBody,
 } from './contractorWorkspace';
-export type { ListUnitsParams } from './units';
+export type {
+  CreateUnitBody,
+  ListUnitsParams,
+  UnitImportPayload,
+  UnitImportResponse,
+  UpdateUnitBody,
+} from './units';
 export type {
   CreateResidentBody,
   DeactivateResidentBody,
