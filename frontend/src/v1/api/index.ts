@@ -142,6 +142,8 @@ export type {
   SetContractorWaitingBody,
 } from './contractorWorkspace';
 export type {
+  CreateBuildingBody,
+  CreateEntranceBody,
   CreateUnitBody,
   ListUnitsParams,
   UnitImportPayload,

@@ -71,6 +71,18 @@ describe('unitsApi', () => {
       floor: null,
     });
     await unitsApi.deactivate('unit/1');
+    await unitsApi.createBuilding({
+      property_id: 'property-1',
+      name: 'Building A',
+      code: 'A',
+      sort_order: 1,
+    });
+    await unitsApi.createEntrance({
+      building_id: 'building-1',
+      name: 'Entrance 1',
+      code: '1',
+      sort_order: 2,
+    });
     await unitsApi.importRows({
       property_id: 'property-1',
       property_type: 'residential_complex',
@@ -106,6 +118,28 @@ describe('unitsApi', () => {
     );
     expect(postMock).toHaveBeenNthCalledWith(
       3,
+      '/buildings',
+      {
+        property_id: 'property-1',
+        name: 'Building A',
+        code: 'A',
+        sort_order: 1,
+      },
+      undefined,
+    );
+    expect(postMock).toHaveBeenNthCalledWith(
+      4,
+      '/entrances',
+      {
+        building_id: 'building-1',
+        name: 'Entrance 1',
+        code: '1',
+        sort_order: 2,
+      },
+      undefined,
+    );
+    expect(postMock).toHaveBeenNthCalledWith(
+      5,
       '/units/import',
       {
         property_id: 'property-1',

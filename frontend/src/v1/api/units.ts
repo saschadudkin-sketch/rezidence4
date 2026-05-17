@@ -26,6 +26,20 @@ export interface ListUnitsParams extends PaginationParams {
   is_active?: boolean;
 }
 
+export interface CreateBuildingBody {
+  property_id: UUID;
+  name: string;
+  code?: string | null;
+  sort_order?: number;
+}
+
+export interface CreateEntranceBody {
+  building_id: UUID;
+  name: string;
+  code?: string | null;
+  sort_order?: number;
+}
+
 export interface CreateUnitBody {
   property_id: UUID;
   building_id: UUID;
@@ -96,11 +110,17 @@ export const unitsApi = {
   listBuildings(opts?: RequestOpts) {
     return v1Client.get<{ buildings: Building[] }>('/buildings', opts);
   },
+  createBuilding(body: CreateBuildingBody, opts?: RequestOpts) {
+    return v1Client.post<{ building: Building }>('/buildings', body, opts);
+  },
   listEntrances(buildingId: UUID, opts?: RequestOpts) {
     return v1Client.get<{ entrances: Entrance[] }>(
       `/buildings/${encodeURIComponent(buildingId)}/entrances`,
       opts,
     );
+  },
+  createEntrance(body: CreateEntranceBody, opts?: RequestOpts) {
+    return v1Client.post<{ entrance: Entrance }>('/entrances', body, opts);
   },
   list(params?: ListUnitsParams, opts?: RequestOpts) {
     return v1Client.get<{ units: Unit[]; page?: PageMeta }>(
