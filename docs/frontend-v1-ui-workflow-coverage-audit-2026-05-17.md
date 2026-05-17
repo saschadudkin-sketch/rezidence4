@@ -8,9 +8,10 @@ Scope: production UI usage of `frontend/src/v1/api/*.ts` methods, excluding API 
 | Metric | Count |
 |---|---:|
 | v1 API client methods | 272 |
-| Methods without production UI usage | 127 |
+| Methods without production UI usage | 117 |
 | Analytics methods without production UI usage | 0 |
 | Access incident methods without production UI usage | 0 |
+| Privacy compliance methods without production UI usage | 0 |
 
 Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI workflow depth is still incomplete for several bounded contexts. This audit tracks the next layer: client methods that exist for backend parity but are not yet reachable from production UI pages.
 
@@ -32,12 +33,14 @@ Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI wo
   - standalone override creation and override detail check
   - video evidence list, manual link, and provider fetch
 - Added UI smoke coverage for incident management payloads.
+- Added `/v1/admin/privacy` with privacy readiness, consent, DSAR list/create/complete,
+  data-subject export, compliance evidence list/create, and guarded account deletion.
+- Added route and UI smoke coverage for privacy compliance payloads.
 
 ## Remaining UI Workflow Gaps By API Module
 
 | API module | Unused methods |
 |---|---:|
-| `privacyCompliance.ts` | 10 |
 | `serviceRequests.ts` | 10 |
 | `contractors.ts` | 9 |
 | `staff.ts` | 7 |
@@ -69,9 +72,9 @@ Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI wo
 
 ## Next Slices
 
-1. Privacy compliance UI: readiness, DSAR/export, evidence, deletion, and completion actions.
-2. Integration operations UI: ERP, SKUD hardware/manual control, webhooks, and video provider/evidence workflows.
-3. Property directory mutations: staff, contractors, memberships, residents, units, and imports.
+1. Integration operations UI: ERP, SKUD hardware/manual control, webhooks, and video provider/evidence workflows.
+2. Property directory mutations: staff, contractors, memberships, residents, units, and imports.
+3. Request lifecycle UI gaps: standalone request create/update/delete, attachment create, rating, and emergency queue visibility.
 4. Access topology/policy edits: update/deactivate/evaluate flows beyond create/deactivate baseline.
 
 ## Verification
@@ -79,6 +82,7 @@ Verdict: frontend no longer has known `/api/v1` contract gaps, but product UI wo
 ```bash
 npm run test -- src/v1/pages/AdminPages.smoke.test.tsx
 npm run test -- src/v1/pages/AccessAdminPage.test.tsx
+npm run test -- src/v1/pages/PrivacyCompliancePage.test.tsx src/v1/V1Router.test.tsx
 npm run typecheck
 npm run lint
 npm run frontend:v1-contract-coverage

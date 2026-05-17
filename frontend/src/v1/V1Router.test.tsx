@@ -108,6 +108,12 @@ vi.mock('./api', () => {
         list: neverResolves,
         mine: neverResolves,
       },
+      privacyCompliance: {
+        getReadiness: neverResolves,
+        getConsent: neverResolves,
+        listDataSubjectRequests: neverResolves,
+        listComplianceEvidence: neverResolves,
+      },
       residents: { list: neverResolves, getById: neverResolves, offboardingReport: neverResolves },
       units: {
         list: neverResolves,
@@ -392,6 +398,14 @@ describe('V1Router direct deep-links gate by role', () => {
     renderAt('/v1/admin/notifications');
     expect(
       await screen.findByRole('heading', { name: /уведомления и outbox/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('admin deep-linked to /v1/admin/privacy reaches privacy compliance', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('admin'));
+    renderAt('/v1/admin/privacy');
+    expect(
+      await screen.findByRole('heading', { name: /privacy compliance/i }),
     ).toBeInTheDocument();
   });
 
