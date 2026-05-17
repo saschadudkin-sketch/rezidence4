@@ -457,6 +457,10 @@ function CreateAnnouncementForm({ propertyId, propertyType, onCreated }: CreateF
       setError('Выберите хотя бы один канал уведомлений');
       return;
     }
+    if (audienceType !== 'all') {
+      setError('Для MVP выберите аудиторию «все»: таргетинг по корпусу/подъезду/типу жильца требует расширенной формы.');
+      return;
+    }
     create.mutate({
       property_id: propertyId,
       title: title.trim(),
@@ -522,9 +526,9 @@ function CreateAnnouncementForm({ propertyId, propertyType, onCreated }: CreateF
           {audienceType !== 'all' ? (
             <Alert tone="info">
               Для аудиторий «{audienceLabels.building} / {audienceLabels.entrance} / тип жильца» нужна расширенная форма
-              (она планируется следующей итерацией). Сейчас создаётся объявление
-              с audience_type=«{audienceType}», но без привязки — на бэкенде
-              это вызовет 400. Выберите «все» для MVP.
+              (она планируется следующей итерацией). Сейчас отправка с
+              audience_type=«{audienceType}» заблокирована, чтобы не создать
+              backend-invalid payload. Выберите «все» для MVP.
             </Alert>
           ) : null}
 

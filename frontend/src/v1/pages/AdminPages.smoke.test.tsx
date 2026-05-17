@@ -774,6 +774,13 @@ describe('AnnouncementsAdminPage', () => {
     fireEvent.click(screen.getByLabelText('sms'));
     fireEvent.click(screen.getByLabelText('Срочное (только admin может публиковать)'));
     fireEvent.click(screen.getByLabelText('Закрепить'));
+    fireEvent.change(screen.getByLabelText('Аудитория'), { target: { value: 'building' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать черновик' }));
+
+    expect(await screen.findByText(/таргетинг по корпусу/)).toBeInTheDocument();
+    expect(createAnnouncementMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Аудитория'), { target: { value: 'all' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать черновик' }));
 
     await waitFor(() => {
