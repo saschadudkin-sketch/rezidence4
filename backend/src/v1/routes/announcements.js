@@ -43,6 +43,7 @@ const {
   isAdmin,
   isResidentUser,
   normalizeRole,
+  canInPropertyScope,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -88,6 +89,22 @@ function isAnnouncementAdminReader(req) {
 function isAnnouncementWriter(req) {
   const role = announcementRole(req);
   return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
+
+function canReadAnnouncementProperty(req, propertyId) {
+  return canInPropertyScope(req, 'announcements:read', propertyId);
+}
+
+function canWriteAnnouncementProperty(req, propertyId) {
+  return isAnnouncementWriter(req) && canReadAnnouncementProperty(req, propertyId);
+}
+
+function canArchiveAnnouncementProperty(req, propertyId) {
+  return canInPropertyScope(req, 'announcements:archive', propertyId);
+}
+
+function canPublishAnnouncementProperty(req, propertyId) {
+  return canInPropertyScope(req, 'announcements:publish', propertyId);
 }
 
 // ─── Rate limiters (§4) ──────────────────────────────────────────────────────
@@ -197,7 +214,9 @@ router.get('/:id', async (req, res) => {
 
     // Staff видит всё.  Резидент — только опубликованное и попадающее в
     // audience (+ временное окно).
-    if (!isAnnouncementReader(req)) {
+    if (isAnnouncementReader(req)) {
+      if (!canReadAnnouncementProperty(req, row.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    } else {
       if (!isResident(req)) return res.status(403).json({ error: 'Forbidden' });
       if (!row.published_at) return res.status(404).json({ error: 'Not found' });
       const ctx = await resolveResidentContextByUid(pool, req.user.uid);
@@ -228,6 +247,8 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
   const b = req.body || {};
 
   if (!b.property_id) return res.status(400).json({ error: 'property_id required' });
+  if (!isValidUuid(b.property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+  if (!canWriteAnnouncementProperty(req, b.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
@@ -291,8 +312,21 @@ router.patch('/:id', async (req, res) => {
   for (const [httpKey, jsKey] of keyMap) {
     if (httpKey in b) patch[jsKey] = b[httpKey];
   }
+  if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  if ('notifyChannels' in patch) {
+    const channels = Array.isArray(patch.notifyChannels) ? patch.notifyChannels : [];
+    const invalid = channels.find((channel) => !ALLOWED_CHANNELS.includes(channel));
+    if (!Array.isArray(patch.notifyChannels) || invalid) {
+      return res.status(400).json({ error: `invalid notify_channels (allowed: ${ALLOWED_CHANNELS.join(', ')})` });
+    }
+  }
 
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canWriteAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { row, conflict } = await updateAnnouncement(pool, req.params.id, patch);
     if (conflict === 'noop') return res.status(400).json({ error: 'No fields to update' });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
@@ -325,6 +359,7 @@ router.post('/:id/publish', async (req, res, next) => {
     const existing = await getById(pool, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canWriteAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
     if (existing.is_urgent && !isAdmin(req)) {
       return res.status(403).json({ error: 'Admin only for urgent announcements' });
@@ -375,6 +410,11 @@ router.post('/:id/unpublish',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canPublishAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { row, conflict } = await unpublishAnnouncement(pool, req.params.id);
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -396,6 +436,11 @@ router.delete('/:id',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(409).json({ error: 'Already deleted' });
+    if (!canArchiveAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { row, conflict } = await softDeleteAnnouncement(pool, req.params.id);
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'already_deleted') {
@@ -432,6 +477,7 @@ adminRouter.get('/', async (req, res) => {
   if (!propertyId || !isValidUuid(propertyId)) {
     return res.status(400).json({ error: 'property_id query param required (UUID)' });
   }
+  if (!canReadAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
   try {
     const { rows, count } = await listForAdmin(pool, propertyId, {
       status: req.query.status,
@@ -455,6 +501,9 @@ adminRouter.get('/:id/metrics',
   try {
     const metrics = await getReachMetrics(pool, req.params.id);
     if (!metrics) return res.status(404).json({ error: 'Not found' });
+    if (metrics.property_id && !canPublishAnnouncementProperty(req, metrics.property_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     return res.json({ ok: true, metrics });
   } catch (err) {
     logger.error({ err, id: req.params.id }, '[v1/admin/announcements] metrics failed');

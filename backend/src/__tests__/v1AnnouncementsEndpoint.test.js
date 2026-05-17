@@ -34,7 +34,7 @@ jest.mock('express-rate-limit', () => {
 let mockCurrentUser = null;
 jest.mock('../middleware/auth', () => (req, res, next) => {
   if (!mockCurrentUser) return res.status(401).json({ error: 'unauth' });
-  req.user = mockCurrentUser;
+  req.user = { property_id: UUID, ...mockCurrentUser };
   next();
 });
 
@@ -435,6 +435,9 @@ describe('PATCH /api/v1/announcements/:id', () => {
 
   test('409 when already published', async () => {
     dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, published_at: new Date(), deleted_at: null,
+      }] })],
       [/UPDATE announcements_v2/, () => ({ rows: [] })],
       [/SELECT id, published_at, deleted_at/, () => ({ rows: [{
         id: UUID, published_at: new Date(), deleted_at: null,
@@ -447,6 +450,9 @@ describe('PATCH /api/v1/announcements/:id', () => {
 
   test('200 happy patch', async () => {
     dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, title: 'old', published_at: null, deleted_at: null,
+      }] })],
       [/UPDATE announcements_v2/, () => ({ rows: [{
         id: UUID, title: 'new', published_at: null,
       }] })],
@@ -508,7 +514,7 @@ describe('POST /:id/publish', () => {
   });
 
   test('admin can publish urgent happy path', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID2 };
     // getById pre-check + pool.query + client.query for transaction.
     const draft = {
       id: UUID, property_id: UUID2, title: 't', body_md: 'b',
@@ -545,7 +551,7 @@ describe('POST /:id/publish', () => {
   });
 
   test('concierge can publish non-urgent', async () => {
-    mockCurrentUser = { uid: 's1', role: 'concierge' };
+    mockCurrentUser = { uid: 's1', role: 'concierge', property_id: UUID2 };
     const draft = {
       id: UUID, property_id: UUID2, is_urgent: false,
       audience_type: 'all', starts_at: new Date(Date.now() - 1000).toISOString(),
@@ -612,13 +618,21 @@ describe('POST /:id/unpublish', () => {
   });
   test('200 admin happy', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
-    dispatch([[/UPDATE announcements_v2/, () => ({ rows: [{ id: UUID, published_at: null }] })]], 'pool');
+    dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, published_at: new Date(), deleted_at: null,
+      }] })],
+      [/UPDATE announcements_v2/, () => ({ rows: [{ id: UUID, published_at: null }] })],
+    ], 'pool');
     const res = await supertest(buildApp()).post(`/api/v1/announcements/${UUID}/unpublish`);
     expect(res.status).toBe(200);
   });
   test('409 when not published', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, published_at: null, deleted_at: null,
+      }] })],
       [/UPDATE announcements_v2/, () => ({ rows: [] })],
       [/SELECT id, published_at, deleted_at/, () => ({ rows: [{
         id: UUID, published_at: null, deleted_at: null,
@@ -641,7 +655,12 @@ describe('DELETE /:id', () => {
   });
   test('200 admin happy', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
-    dispatch([[/UPDATE announcements_v2/, () => ({ rows: [{ id: UUID, deleted_at: new Date() }] })]], 'pool');
+    dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, deleted_at: null,
+      }] })],
+      [/UPDATE announcements_v2/, () => ({ rows: [{ id: UUID, deleted_at: new Date() }] })],
+    ], 'pool');
     const res = await supertest(buildApp()).delete(`/api/v1/announcements/${UUID}`);
     expect(res.status).toBe(200);
   });
@@ -657,6 +676,9 @@ describe('DELETE /:id', () => {
   test('409 when already deleted', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
+      [/FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, deleted_at: new Date(),
+      }] })],
       [/UPDATE announcements_v2/, () => ({ rows: [] })],
       [/SELECT id, deleted_at FROM announcements_v2/, () => ({ rows: [{
         id: UUID, deleted_at: new Date(),
@@ -687,6 +709,12 @@ describe('GET /api/v1/admin/announcements', () => {
     mockCurrentUser = { uid: 's1', role: 'concierge' };
     const res = await supertest(buildApp()).get('/api/v1/admin/announcements');
     expect(res.status).toBe(400);
+  });
+  test('403 on cross-property admin list scope', async () => {
+    mockCurrentUser = { uid: 's1', role: 'concierge', property_id: UUID };
+    const res = await supertest(buildApp()).get(`/api/v1/admin/announcements?property_id=${UUID2}`);
+    expect(res.status).toBe(403);
+    expect(mockPool.query).not.toHaveBeenCalled();
   });
   test('400 on non-UUID property_id', async () => {
     mockCurrentUser = { uid: 's1', role: 'concierge' };

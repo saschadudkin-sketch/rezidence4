@@ -37,7 +37,7 @@ jest.mock('express-rate-limit', () => {
 let mockCurrentUser = null;
 jest.mock('../middleware/auth', () => (req, res, next) => {
   if (!mockCurrentUser) return res.status(401).json({ error: 'unauth' });
-  req.user = mockCurrentUser;
+  req.user = { property_id: UUID, ...mockCurrentUser };
   next();
 });
 
@@ -176,8 +176,16 @@ describe('GET /api/v1/documents', () => {
     expect(res.body.error).toMatch(/property_id/);
   });
 
+  test('staff: rejects cross-property list scope', async () => {
+    mockCurrentUser = { uid: 's1', role: 'concierge', property_id: UUID };
+    const res = await supertest(buildApp())
+      .get(`/api/v1/documents?property_id=${UUID2}`);
+    expect(res.status).toBe(403);
+    expect(mockPool.query).not.toHaveBeenCalled();
+  });
+
   test('staff: with property_id lists (default hides draft + deleted)', async () => {
-    mockCurrentUser = { uid: 's1', role: 'concierge' };
+    mockCurrentUser = { uid: 's1', role: 'concierge', property_id: UUID2 };
     let gotSql = '';
     dispatch([
       [/FROM documents_v2/, (sql) => {
@@ -193,7 +201,7 @@ describe('GET /api/v1/documents', () => {
   });
 
   test('staff: ?include_draft=1 turns off published filter', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID2 };
     let gotSql = '';
     dispatch([
       [/FROM documents_v2/, (sql) => { gotSql = sql; return { rows: [] }; }],
@@ -203,7 +211,7 @@ describe('GET /api/v1/documents', () => {
   });
 
   test('staff: ?include_deleted=1 turns off deleted filter', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID2 };
     let gotSql = '';
     dispatch([
       [/FROM documents_v2/, (sql) => { gotSql = sql; return { rows: [] }; }],
@@ -483,7 +491,7 @@ describe('PATCH /api/v1/documents/:id', () => {
       ['BEGIN', () => ({})],
       [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [] })],
       ['ROLLBACK', () => ({})],
-    ], 'client');
+    ]);
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
@@ -495,7 +503,7 @@ describe('PATCH /api/v1/documents/:id', () => {
       ['BEGIN', () => ({})],
       [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [cur] })],
       ['ROLLBACK', () => ({})],
-    ], 'client');
+    ]);
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({ title: 'x' });
     expect(res.status).toBe(404);
   });
@@ -509,7 +517,7 @@ describe('PATCH /api/v1/documents/:id', () => {
       [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [cur] })],
       [/UPDATE documents_v2/, () => ({ rows: [upd] })],
       ['COMMIT', () => ({})],
-    ], 'client');
+    ]);
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({ tag: 'fire' });
     expect(res.status).toBe(200);
     expect(res.body.document.tag).toBe('fire');
@@ -527,7 +535,7 @@ describe('PATCH /api/v1/documents/:id', () => {
       [/INSERT INTO document_versions/, () => { insertedVersion = true; return { rows: [] }; }],
       [/UPDATE documents_v2/, () => ({ rows: [upd] })],
       ['COMMIT', () => ({})],
-    ], 'client');
+    ]);
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({
       title: 'NEW', reason: 'typo fix',
     });
@@ -560,7 +568,7 @@ describe('PATCH /api/v1/documents/:id', () => {
       ['BEGIN', () => ({})],
       [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [cur] })],
       ['ROLLBACK', () => ({})],
-    ], 'client');
+    ]);
     const res = await supertest(buildApp()).patch(`/api/v1/documents/${UUID}`).send({
       title: 'новое название',
     });
@@ -694,6 +702,9 @@ describe('POST /:id/unpublish', () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
       [/FROM staff_users/, () => ({ rows: [{ id: UUID2 }] })],
+      [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, category: 'rules', deleted_at: null, published_at: null,
+      }] })],
       [/UPDATE documents_v2/, () => ({ rows: [] })],
       [/SELECT id, published_at, deleted_at FROM documents_v2/, () => ({ rows: [{
         id: UUID, published_at: null, deleted_at: null,
@@ -707,6 +718,9 @@ describe('POST /:id/unpublish', () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
       [/FROM staff_users/, () => ({ rows: [{ id: UUID2 }] })],
+      [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, category: 'rules', deleted_at: null, published_at: new Date(),
+      }] })],
       [/UPDATE documents_v2/, () => ({ rows: [{ id: UUID, published_at: null }] })],
     ], 'pool');
     const res = await supertest(buildApp()).post(`/api/v1/documents/${UUID}/unpublish`).send({});
@@ -751,6 +765,9 @@ describe('DELETE /:id', () => {
   test('409 already_deleted', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
+      [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, deleted_at: new Date(),
+      }] })],
       [/UPDATE documents_v2/, () => ({ rows: [] })],
       [/SELECT id, deleted_at FROM documents_v2/, () => ({ rows: [{
         id: UUID, deleted_at: new Date(),
@@ -763,6 +780,9 @@ describe('DELETE /:id', () => {
   test('200 happy', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     dispatch([
+      [/FROM documents_v2 WHERE id = \$1/, () => ({ rows: [{
+        id: UUID, deleted_at: null,
+      }] })],
       [/UPDATE documents_v2/, () => ({ rows: [{ id: UUID, deleted_at: new Date() }] })],
     ], 'pool');
     const res = await supertest(buildApp()).delete(`/api/v1/documents/${UUID}`);

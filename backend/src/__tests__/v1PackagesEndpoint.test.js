@@ -36,7 +36,7 @@ jest.mock('express-rate-limit', () => {
 let mockCurrentUser = null;
 jest.mock('../middleware/auth', () => (req, res, next) => {
   if (!mockCurrentUser) return res.status(401).json({ error: 'unauth' });
-  req.user = mockCurrentUser;
+  req.user = { property_id: UUID, ...mockCurrentUser };
   next();
 });
 
@@ -376,6 +376,15 @@ describe('POST /api/v1/packages', () => {
     expect(res.body.error).toMatch(/unit_id/);
   });
 
+  test('403 on cross-property intake scope', async () => {
+    mockCurrentUser = { uid: 's1', role: 'security', property_id: UUID2 };
+    const res = await supertest(buildApp()).post('/api/v1/packages').send({
+      property_id: UUID, unit_id: UUID2,
+    });
+    expect(res.status).toBe(403);
+    expect(mockPool.query).not.toHaveBeenCalled();
+  });
+
   test('400 when staff not registered in staff_users', async () => {
     dispatch([
       [/FROM staff_users WHERE external_uid/, () => ({ rows: [] })],
@@ -456,6 +465,7 @@ describe('PATCH /api/v1/packages/:id', () => {
 
   test('200 happy patch', async () => {
     dispatch([
+      [/FROM packages_v2 WHERE id/, () => ({ rows: [{ id: UUID, property_id: UUID }] })],
       [/UPDATE packages_v2/, () => ({ rows: [{ id: UUID, carrier: 'CDEK' }] })],
     ], 'pool');
     const res = await supertest(buildApp()).patch(`/api/v1/packages/${UUID}`).send({
@@ -519,6 +529,9 @@ describe('POST /:id/pickup', () => {
   test('409 when status already terminal', async () => {
     dispatch([
       [/FROM staff_users WHERE external_uid/, () => ({ rows: [{ id: UUID3 }] })],
+      [/FROM packages_v2 WHERE id/, () => ({ rows: [{
+        id: UUID, property_id: UUID, status: 'picked_up',
+      }] })],
     ], 'pool');
     mockClient.query.mockImplementation((sql) => {
       if (sql.includes('BEGIN')) return Promise.resolve({});
@@ -538,11 +551,14 @@ describe('POST /:id/pickup', () => {
   test('200 happy with resident pickup', async () => {
     dispatch([
       [/FROM staff_users WHERE external_uid/, () => ({ rows: [{ id: UUID3 }] })],
+      [/FROM packages_v2 WHERE id/, () => ({ rows: [{
+        id: UUID, property_id: UUID, status: 'awaiting_pickup',
+      }] })],
     ], 'pool');
     mockClient.query.mockImplementation((sql) => {
       if (sql.includes('BEGIN')) return Promise.resolve({});
       if (sql.includes('FOR UPDATE')) return Promise.resolve({ rows: [{
-        id: UUID, property_id: UUID4, status: 'awaiting_pickup',
+        id: UUID, property_id: UUID, status: 'awaiting_pickup',
       }] });
       if (sql.includes('UPDATE packages_v2')) return Promise.resolve({ rows: [{
         id: UUID, status: 'picked_up', picked_up_by_resident_id: UUID2,
@@ -648,11 +664,18 @@ describe('POST /:id/remind', () => {
   beforeEach(() => { mockCurrentUser = { uid: 's1', role: 'concierge' }; });
 
   test('409 on wrong status', async () => {
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM packages_v2 WHERE id')) return Promise.resolve({ rows: [{
+        id: UUID, status: 'picked_up', received_at: '2026-01-01',
+        property_id: UUID, unit_id: UUID2, recipient_resident_id: UUID3,
+      }] });
+      return Promise.resolve({ rows: [] });
+    });
     mockClient.query.mockImplementation((sql) => {
       if (sql.includes('BEGIN')) return Promise.resolve({});
       if (sql.includes('FROM packages_v2 WHERE id')) return Promise.resolve({ rows: [{
         id: UUID, status: 'picked_up', received_at: '2026-01-01',
-        property_id: UUID4, unit_id: UUID2, recipient_resident_id: UUID3,
+        property_id: UUID, unit_id: UUID2, recipient_resident_id: UUID3,
       }] });
       if (sql.includes('ROLLBACK')) return Promise.resolve({});
       return Promise.resolve({ rows: [] });
@@ -662,11 +685,18 @@ describe('POST /:id/remind', () => {
   });
 
   test('200 happy with fan-out count', async () => {
+    mockPool.query.mockImplementation((sql) => {
+      if (sql.includes('FROM packages_v2 WHERE id')) return Promise.resolve({ rows: [{
+        id: UUID, status: 'awaiting_pickup', received_at: new Date().toISOString(),
+        property_id: UUID, unit_id: UUID2, recipient_resident_id: UUID3,
+      }] });
+      return Promise.resolve({ rows: [] });
+    });
     mockClient.query.mockImplementation((sql) => {
       if (sql.includes('BEGIN')) return Promise.resolve({});
       if (sql.includes('FROM packages_v2 WHERE id')) return Promise.resolve({ rows: [{
         id: UUID, status: 'awaiting_pickup', received_at: new Date().toISOString(),
-        property_id: UUID4, unit_id: UUID2, recipient_resident_id: UUID3,
+        property_id: UUID, unit_id: UUID2, recipient_resident_id: UUID3,
       }] });
       if (sql.includes('FROM notification_templates_v2')) return Promise.resolve({ rows: [{
         template_key: 'package.pickup_reminder', channel: null, locale: 'ru',

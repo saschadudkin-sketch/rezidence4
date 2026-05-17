@@ -38,6 +38,7 @@ const {
   isAdmin,
   isResidentUser,
   normalizeRole,
+  canInPropertyScope,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -82,6 +83,34 @@ function isPackageIntake(req) {
 function isPackageOperator(req) {
   const role = packageRole(req);
   return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
+
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.query?.propertyId
+    || req.body?.property_id
+    || req.body?.propertyId
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
+function canReadPackageProperty(req, propertyId) {
+  return canInPropertyScope(req, 'packages:read', propertyId);
+}
+
+function canManagePackageProperty(req, propertyId) {
+  return canInPropertyScope(req, 'packages:manage', propertyId);
+}
+
+function canIntakePackageProperty(req, propertyId) {
+  return isPackageIntake(req) && canReadPackageProperty(req, propertyId);
+}
+
+function canOperatePackageProperty(req, propertyId) {
+  return isPackageOperator(req) && canReadPackageProperty(req, propertyId);
 }
 
 // ─── Rate limiters (spec §4) ─────────────────────────────────────────────────
@@ -161,6 +190,9 @@ router.get('/metrics',
 // ─── GET /api/v1/packages (security, concierge, admin) ───────────────────────
 router.get('/', async (req, res) => {
   if (!isPackageReader(req)) return res.status(403).json({ error: 'Package staff or admin required' });
+  const propertyId = resolvePropertyId(req);
+  if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+  if (!canReadPackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
   const pool = req.db || db.pool;
   try {
     const result = await listForTenant(pool, {
@@ -211,6 +243,8 @@ router.get('/:id', async (req, res) => {
           return res.status(403).json({ error: 'Forbidden' });
         }
       }
+    } else if (!canReadPackageProperty(req, pkg.property_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
     return res.json({ ok: true, package: pkg });
   } catch (err) {
@@ -227,6 +261,7 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
   const b = req.body || {};
   if (!isValidUuid(b.property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
   if (!isValidUuid(b.unit_id)) return res.status(400).json({ error: 'unit_id must be UUID' });
+  if (!canIntakePackageProperty(req, b.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
   const pool = req.db || db.pool;
   try {
@@ -272,8 +307,17 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
 router.patch('/:id', async (req, res) => {
   if (!isPackageOperator(req)) return res.status(403).json({ error: 'Concierge or admin required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  if (req.body?.photo_url !== undefined
+      && req.body.photo_url !== null
+      && (typeof req.body.photo_url !== 'string' || !req.body.photo_url.startsWith('/uploads/'))) {
+    return res.status(400).json({ error: 'photo_url must start with /uploads/' });
+  }
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const pkg = await updatePackage(pool, req.params.id, req.body || {});
     if (!pkg) return res.status(404).json({ error: 'Not found' });
     audit(req, 'package.updated', pkg.id, req.body || null);
@@ -292,8 +336,16 @@ router.post('/:id/pickup', async (req, res) => {
   if (!isPackageIntake(req)) return res.status(403).json({ error: 'Package intake role required' });
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const b = req.body || {};
+  const hasResident = Boolean(b.picked_up_by_resident_id);
+  const hasName = Boolean(b.picked_up_by_name);
+  if (!hasResident && !hasName) return res.status(400).json({ error: 'either picked_up_by_resident_id or picked_up_by_name required' });
+  if (hasResident && hasName) return res.status(400).json({ error: 'picked_up_by_resident_id and picked_up_by_name are mutually exclusive' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!canIntakePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     if (!staffId) {
       return res.status(400).json({ error: 'staff user not registered in staff_users' });
@@ -328,6 +380,10 @@ router.post('/:id/return', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { package: pkg, conflict } = await returnPackage(pool, req.params.id, req.body || {});
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -346,8 +402,16 @@ router.post('/:id/mark-lost',
   requireCapability('packages:manage', { message: 'Admin only' }),
   async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  if (req.body?.confirm !== true) return res.status(400).json({ error: 'confirm:true required' });
+  if (!req.body?.reason || typeof req.body.reason !== 'string' || req.body.reason.trim() === '') {
+    return res.status(400).json({ error: 'reason required' });
+  }
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!canManagePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { package: pkg, conflict } = await markLostPackage(pool, req.params.id, req.body || {});
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -373,6 +437,10 @@ router.post('/:id/remind', remindLimiter, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { package: pkg, outboxRows, conflict } = await remindPackage(pool, req.params.id);
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {

@@ -41,6 +41,7 @@ const {
   isAdmin,
   isResidentUser,
   normalizeRole,
+  canInPropertyScope,
   requireCapability,
 } = require('../lib/authz');
 const {
@@ -81,6 +82,22 @@ function isDocumentReader(req) {
 function isDocumentWriter(req) {
   const role = documentRole(req);
   return role === FINAL_ROLES.CONCIERGE || isAdmin(req);
+}
+
+function canReadDocumentProperty(req, propertyId) {
+  return canInPropertyScope(req, 'documents:read', propertyId);
+}
+
+function canWriteDocumentProperty(req, propertyId) {
+  return isDocumentWriter(req) && canReadDocumentProperty(req, propertyId);
+}
+
+function canArchiveDocumentProperty(req, propertyId) {
+  return canInPropertyScope(req, 'documents:archive', propertyId);
+}
+
+function canDeleteDocumentProperty(req, propertyId) {
+  return canInPropertyScope(req, 'documents:delete', propertyId);
 }
 
 // ─── Rate limiters ──────────────────────────────────────────────────────────
@@ -152,6 +169,7 @@ router.get('/', async (req, res) => {
     if (!propertyId || !isValidUuid(propertyId)) {
       return res.status(400).json({ error: 'property_id query param required for staff (UUID)' });
     }
+    if (!canReadDocumentProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows, count } = await listForStaff(pool, propertyId, {
       category: req.query.category,
       tag: req.query.tag,
@@ -180,6 +198,7 @@ router.get('/:id', async (req, res) => {
 
     // Staff видит всё (кроме soft-deleted).
     if (isDocumentReader(req)) {
+      if (!canReadDocumentProperty(req, row.property_id)) return res.status(403).json({ error: 'Forbidden' });
       return res.json({ ok: true, document: row });
     }
     // Resident — только published + в пределах своего property.
@@ -204,6 +223,8 @@ router.post('/', createLimiter, idempotency, async (req, res) => {
   const pool = req.db || db.pool;
   const b = req.body || {};
   if (!b.property_id) return res.status(400).json({ error: 'property_id required' });
+  if (!isValidUuid(b.property_id)) return res.status(400).json({ error: 'property_id must be UUID' });
+  if (!canWriteDocumentProperty(req, b.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
@@ -268,8 +289,22 @@ router.patch('/:id', async (req, res) => {
   for (const [httpKey, jsKey] of keyMap) {
     if (httpKey in b) patch[jsKey] = b[httpKey];
   }
+  if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  if ('category' in patch && !ALLOWED_CATEGORIES.includes(patch.category)) {
+    return res.status(400).json({ error: `invalid category '${patch.category}'` });
+  }
+  if ('fileUrl' in patch && patch.fileUrl !== null && patch.fileUrl !== undefined) {
+    if (typeof patch.fileUrl !== 'string' || !patch.fileUrl.startsWith('/uploads/')) {
+      return res.status(400).json({ error: 'invalid file_url: must start with /uploads/ (external URLs rejected)' });
+    }
+  }
 
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canWriteDocumentProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     const { row, conflict } = await updateDocument(pool, req.params.id, patch, {
       role: req.user.role,
@@ -296,6 +331,11 @@ router.post('/:id/publish', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canWriteDocumentProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     const { row, conflict } = await publishDocument(pool, req.params.id, {
       role: req.user.role,
@@ -325,6 +365,11 @@ router.post('/:id/unpublish',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
+    if (!canArchiveDocumentProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     const { row, conflict } = await unpublishDocument(pool, req.params.id, {
       updatedByStaffId: staffId,
@@ -349,6 +394,11 @@ router.delete('/:id',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
+    const existing = await getById(pool, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (existing.deleted_at) return res.status(409).json({ error: 'Already deleted' });
+    if (!canDeleteDocumentProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+
     const { row, conflict } = await softDeleteDocument(pool, req.params.id);
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'already_deleted') {
@@ -380,6 +430,7 @@ adminRouter.get('/:id/versions',
     // Убедимся, что документ существует (даже если deleted).
     const doc = await getById(pool, req.params.id);
     if (!doc) return res.status(404).json({ error: 'Not found' });
+    if (!canArchiveDocumentProperty(req, doc.property_id)) return res.status(403).json({ error: 'Forbidden' });
     const { rows, count } = await listVersions(pool, req.params.id);
     return res.json({ ok: true, versions: rows, count });
   } catch (err) {
@@ -398,6 +449,7 @@ adminRouter.get('/:id/versions/:version',
   try {
     const doc = await getById(pool, req.params.id);
     if (!doc) return res.status(404).json({ error: 'Not found' });
+    if (!canArchiveDocumentProperty(req, doc.property_id)) return res.status(403).json({ error: 'Forbidden' });
     const snap = await getVersion(pool, req.params.id, v);
     if (!snap) return res.status(404).json({ error: 'Version not found' });
     return res.json({ ok: true, version: snap });
