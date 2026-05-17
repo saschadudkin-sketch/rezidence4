@@ -247,9 +247,18 @@ export type {
   GetSkudProviderFailuresParams,
   ListSkudHardwareDevicesParams,
   ListSkudManualControlEventsParams,
+  SkudFailSafeMode,
   SkudFieldRolloutEvidenceBody,
+  SkudFieldRolloutEvidenceType,
+  SkudFieldRolloutStage,
+  SkudFieldRolloutStatus,
   SkudHardwareBoundaryBody,
+  SkudMaintenanceStatus,
+  SkudManualControlAction,
   SkudManualControlBody,
+  SkudManualControlDecisionSource,
+  SkudManualControlPolicy,
+  SkudSyncPassAction,
   SkudSyncPassBody,
 } from './skudIntegrations';
 export type {

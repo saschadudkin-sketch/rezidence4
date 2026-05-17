@@ -31,8 +31,11 @@ describe('skudIntegrationsApi', () => {
     postMock.mockResolvedValue({});
 
     await skudIntegrationsApi.listHardwareDevices({ provider_config_id: 'provider-1' });
-    await skudIntegrationsApi.updateHardwareBoundary('device/1', { fail_mode: 'manual' });
-    await skudIntegrationsApi.manualControl('device/1', { action: 'open', reason: 'test' });
+    await skudIntegrationsApi.updateHardwareBoundary('device/1', {
+      fail_safe_mode: 'manual_guard',
+      manual_control_policy: 'guard_allowed',
+    });
+    await skudIntegrationsApi.manualControl('device/1', { action: 'manual_open', reason: 'test' });
     await skudIntegrationsApi.listManualControlEvents('device/1', { limit: 10 });
 
     expect(getMock).toHaveBeenNthCalledWith(
@@ -42,12 +45,12 @@ describe('skudIntegrationsApi', () => {
     );
     expect(patchMock).toHaveBeenCalledWith(
       '/skud/hardware-devices/device%2F1/boundary',
-      { fail_mode: 'manual' },
+      { fail_safe_mode: 'manual_guard', manual_control_policy: 'guard_allowed' },
       undefined,
     );
     expect(postMock).toHaveBeenCalledWith(
       '/skud/hardware-devices/device%2F1/manual-control',
-      { action: 'open', reason: 'test' },
+      { action: 'manual_open', reason: 'test' },
       undefined,
     );
     expect(getMock).toHaveBeenNthCalledWith(
@@ -60,13 +63,16 @@ describe('skudIntegrationsApi', () => {
   test('routes provider rollout and sync calls through canonical v1 endpoints', async () => {
     postMock.mockResolvedValue({});
 
-    await skudIntegrationsApi.recordFieldRolloutEvidence({ rollout_stage: 'pilot' });
+    await skudIntegrationsApi.recordFieldRolloutEvidence({
+      rollout_stage: 'pilot',
+      evidence_type: 'field_drill',
+    });
     await skudIntegrationsApi.syncPass('provider/1', { pass_id: 'pass-1', action: 'provision' });
 
     expect(postMock).toHaveBeenNthCalledWith(
       1,
       '/skud/field-rollout-evidence',
-      { rollout_stage: 'pilot' },
+      { rollout_stage: 'pilot', evidence_type: 'field_drill' },
       undefined,
     );
     expect(postMock).toHaveBeenNthCalledWith(
