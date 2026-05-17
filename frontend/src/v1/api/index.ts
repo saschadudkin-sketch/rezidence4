@@ -145,7 +145,17 @@ export type {
   ListResidentsParams,
   ResidentWithUnit,
 } from './residents';
-export type { ListStaffParams } from './staff';
+export type {
+  CreateStaffBody,
+  ListStaffParams,
+  StaffImportApplyResponse,
+  StaffImportChecklist,
+  StaffImportPayload,
+  StaffImportPreviewResponse,
+  StaffImportPreviewRow,
+  StaffImportRowInput,
+  UpdateStaffBody,
+} from './staff';
 export type {
   ListContractorCompaniesParams,
   ListContractorUsersParams,
