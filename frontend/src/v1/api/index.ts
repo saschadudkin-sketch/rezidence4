@@ -191,8 +191,18 @@ export type {
   UpdateStaffBody,
 } from './staff';
 export type {
+  ContractorImportApplyResponse,
+  ContractorImportChecklist,
+  ContractorImportPayload,
+  ContractorImportPreviewResponse,
+  ContractorImportPreviewRow,
+  ContractorImportRowInput,
+  CreateContractorCompanyBody,
+  CreateContractorUserBody,
   ListContractorCompaniesParams,
   ListContractorUsersParams,
+  UpdateContractorCompanyBody,
+  UpdateContractorUserBody,
 } from './contractors';
 export type { ListMembershipsParams } from './memberships';
 export type {
