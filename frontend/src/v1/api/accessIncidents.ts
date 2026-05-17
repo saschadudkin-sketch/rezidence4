@@ -10,6 +10,13 @@
 
 import { v1Client, type RequestOpts } from './client';
 import type {
+  VideoEvidenceReference,
+  VideoEvidenceSensitivity,
+  VideoEvidenceSource,
+  VideoEvidenceStatus,
+  VideoEvidenceType,
+} from './videoEvidence';
+import type {
   AccessIncident,
   AccessOverride,
   IncidentDetailResponse,
@@ -81,21 +88,35 @@ export interface UpdateIncidentStatusBody {
 
 export interface CreateIncidentVideoEvidenceBody {
   property_id?: UUID;
-  provider_id?: UUID | null;
   camera_device_id?: UUID | string | null;
-  evidence_url?: string;
-  clip_url?: string;
-  starts_at?: IsoDateTime | null;
-  ends_at?: IsoDateTime | null;
+  provider_config_id?: UUID | null;
+  video_provider_config_id?: UUID | null;
+  evidence_type?: VideoEvidenceType;
+  source?: VideoEvidenceSource;
+  status?: VideoEvidenceStatus;
+  title?: string | null;
+  clip_url?: string | null;
+  snapshot_url?: string | null;
+  external_ref?: string | null;
+  video_provider_event_id?: string | null;
+  video_timestamp_from?: IsoDateTime | null;
+  video_timestamp_to?: IsoDateTime | null;
+  sensitivity?: VideoEvidenceSensitivity;
   metadata?: Record<string, unknown>;
 }
 
 export interface FetchIncidentVideoEvidenceBody {
   property_id?: UUID;
-  provider_id?: UUID | null;
   camera_device_id?: UUID | string | null;
-  starts_at?: IsoDateTime | null;
-  ends_at?: IsoDateTime | null;
+  video_provider_config_id?: UUID | null;
+  occurred_at?: IsoDateTime | null;
+  window_before_seconds?: number | null;
+  window_after_seconds?: number | null;
+  title?: string | null;
+  sensitivity?: VideoEvidenceSensitivity;
+  camera_external_id?: string | null;
+  channel?: string | null;
+  stream?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -195,20 +216,20 @@ export const accessIncidentsApi = {
     );
   },
   listVideoEvidence(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ evidence: unknown[] }>(
+    return v1Client.get<{ evidence: VideoEvidenceReference[] }>(
       `/access-incidents/${encodeURIComponent(id)}/video-evidence`,
       opts,
     );
   },
   createVideoEvidence(id: UUID, body: CreateIncidentVideoEvidenceBody, opts?: RequestOpts) {
-    return v1Client.post<{ evidence: unknown }>(
+    return v1Client.post<{ evidence: VideoEvidenceReference }>(
       `/access-incidents/${encodeURIComponent(id)}/video-evidence`,
       body,
       opts,
     );
   },
   fetchVideoEvidence(id: UUID, body: FetchIncidentVideoEvidenceBody, opts?: RequestOpts) {
-    return v1Client.post<{ evidence: unknown }>(
+    return v1Client.post<{ evidence: VideoEvidenceReference }>(
       `/access-incidents/${encodeURIComponent(id)}/video-evidence/fetch`,
       body,
       opts,

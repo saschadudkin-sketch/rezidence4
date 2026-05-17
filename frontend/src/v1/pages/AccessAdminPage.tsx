@@ -39,6 +39,7 @@ import type {
   VehicleKind,
   VehicleOwnerType,
 } from '../api/types';
+import type { VideoEvidenceReference } from '../api/videoEvidence';
 import { accessIncidentsApi } from '../api/accessIncidents';
 import { accessPoliciesApi } from '../api/accessPolicies';
 import { accessTopologyApi } from '../api/accessTopology';
@@ -1902,7 +1903,7 @@ function IncidentsTab({ propertyId }: { propertyId: UUID }) {
   const [detail, setDetail] = useState<AccessIncident | null>(null);
   const [overrides, setOverrides] = useState<Array<{ id: UUID; override_type: OverrideType; reason: string; created_at: string }>>([]);
   const [overridePreview, setOverridePreview] = useState<string | null>(null);
-  const [videoEvidence, setVideoEvidence] = useState<unknown[]>([]);
+  const [videoEvidence, setVideoEvidence] = useState<VideoEvidenceReference[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<IncidentType>('manual_override');
   const [newSeverity, setNewSeverity] = useState<Severity>('medium');
@@ -2065,12 +2066,17 @@ function IncidentsTab({ propertyId }: { propertyId: UUID }) {
 
   async function updateIncidentStatus() {
     if (!selectedId) return;
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setError('Укажите причину смены статуса');
+      return;
+    }
     setSaving('status');
     setError(null);
     try {
       await accessIncidentsApi.updateStatus(selectedId, {
         status: statusAction,
-        reason: reason.trim() || undefined,
+        reason: trimmed,
         assigned_to_staff_id: assigneeId.trim() || undefined,
       });
       await load();
@@ -2133,7 +2139,7 @@ function IncidentsTab({ propertyId }: { propertyId: UUID }) {
     try {
       await accessIncidentsApi.createVideoEvidence(selectedId, {
         property_id: propertyId,
-        evidence_url: trimmed,
+        clip_url: trimmed,
       });
       await loadDetail(selectedId);
       setVideoUrl('');

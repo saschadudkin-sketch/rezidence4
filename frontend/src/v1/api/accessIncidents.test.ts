@@ -142,7 +142,7 @@ describe('accessIncidentsApi', () => {
 
     await accessIncidentsApi.listVideoEvidence('incident/1');
     await accessIncidentsApi.createVideoEvidence('incident/1', {
-      evidence_url: 'https://example.test/clip.mp4',
+      clip_url: 'https://example.test/clip.mp4',
     });
     await accessIncidentsApi.fetchVideoEvidence('incident/1', { camera_device_id: 'camera-1' });
 
@@ -153,7 +153,7 @@ describe('accessIncidentsApi', () => {
     expect(postMock).toHaveBeenNthCalledWith(
       1,
       '/access-incidents/incident%2F1/video-evidence',
-      { evidence_url: 'https://example.test/clip.mp4' },
+      { clip_url: 'https://example.test/clip.mp4' },
       undefined,
     );
     expect(postMock).toHaveBeenNthCalledWith(

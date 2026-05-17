@@ -850,7 +850,7 @@ describe('AccessAdminPage incident workflow', () => {
     listIncidentsMock.mockResolvedValue({ incidents: [incident, createdIncident], page: { limit: 100, offset: 0, hasMore: false } });
     getIncidentMock.mockResolvedValue({ incident });
     listOverridesMock.mockResolvedValue({ overrides: [override], page: { limit: 20, offset: 0, hasMore: false } });
-    listVideoEvidenceMock.mockResolvedValue({ evidence: [{ id: 'video-1', evidence_url: 'https://video.test/clip.mp4' }] });
+    listVideoEvidenceMock.mockResolvedValue({ evidence: [{ id: 'video-1', clip_url: 'https://video.test/clip.mp4' }] });
     createIncidentMock.mockResolvedValue({ incident: createdIncident });
     patchIncidentMock.mockResolvedValue({ incident: makeIncident({ title: 'Обновленный инцидент' }) });
     assignIncidentMock.mockResolvedValue({ incident: makeIncident({ assigned_to_staff_id: 'staff-1' }) });
@@ -921,6 +921,10 @@ describe('AccessAdminPage incident workflow', () => {
       });
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить статус' }));
+    expect(await screen.findByText('Укажите причину смены статуса')).toBeInTheDocument();
+    expect(updateIncidentStatusMock).not.toHaveBeenCalled();
+
     fireEvent.change(screen.getByPlaceholderText('Основание решения'), {
       target: { value: 'Разбор начат' },
     });
@@ -976,7 +980,7 @@ describe('AccessAdminPage incident workflow', () => {
     await waitFor(() => {
       expect(createVideoEvidenceMock).toHaveBeenCalledWith(UUID_CREATED_INCIDENT, {
         property_id: UUID_PROPERTY,
-        evidence_url: 'https://video.test/manual.mp4',
+        clip_url: 'https://video.test/manual.mp4',
       });
     });
 
