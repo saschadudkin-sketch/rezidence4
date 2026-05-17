@@ -29,7 +29,11 @@ describe('privacyComplianceApi', () => {
     await privacyComplianceApi.getConsent();
     await privacyComplianceApi.acceptConsent({ version: '2026-04-01' });
     await privacyComplianceApi.getDataSubjectExport({ subject_resident_id: 'resident-1' });
-    await privacyComplianceApi.listDataSubjectRequests({ status: 'pending', limit: 20 });
+    await privacyComplianceApi.listDataSubjectRequests({
+      status: 'pending',
+      requestType: 'delete',
+      limit: 20,
+    });
     await privacyComplianceApi.createDataSubjectRequest({ request_type: 'export' });
     await privacyComplianceApi.completeDataSubjectRequest('request/1', { status: 'completed' });
 
@@ -47,7 +51,7 @@ describe('privacyComplianceApi', () => {
     );
     expect(getMock).toHaveBeenNthCalledWith(
       3,
-      '/privacy/data-subject-requests?status=pending&limit=20',
+      '/privacy/data-subject-requests?status=pending&limit=20&request_type=delete',
       undefined,
     );
     expect(postMock).toHaveBeenNthCalledWith(
@@ -68,20 +72,26 @@ describe('privacyComplianceApi', () => {
     getMock.mockResolvedValue({});
     postMock.mockResolvedValue({});
 
-    await privacyComplianceApi.listComplianceEvidence({ control: 'fz-152' });
-    await privacyComplianceApi.createComplianceEvidence({ control: 'fz-152', status: 'ready' });
+    await privacyComplianceApi.listComplianceEvidence({
+      evidenceType: 'retention_sweep',
+      status: 'ready',
+    });
+    await privacyComplianceApi.createComplianceEvidence({
+      evidence_type: 'no_biometrics_release_guard',
+      status: 'ready',
+    });
     await privacyComplianceApi.getReadiness({ property_id: 'property-1' });
     await privacyComplianceApi.deleteAccount({ reason: 'resident request' });
 
     expect(getMock).toHaveBeenNthCalledWith(
       1,
-      '/privacy/compliance-evidence?control=fz-152',
+      '/privacy/compliance-evidence?status=ready&evidence_type=retention_sweep',
       undefined,
     );
     expect(postMock).toHaveBeenNthCalledWith(
       1,
       '/privacy/compliance-evidence',
-      { control: 'fz-152', status: 'ready' },
+      { evidence_type: 'no_biometrics_release_guard', status: 'ready' },
       undefined,
     );
     expect(getMock).toHaveBeenNthCalledWith(

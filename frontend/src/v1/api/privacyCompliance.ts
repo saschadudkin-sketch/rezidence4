@@ -7,7 +7,29 @@ import { v1Client, type RequestOpts } from './client';
 import type { IsoDateTime, UUID } from './types';
 
 export type DataSubjectRequestType = 'export' | 'delete' | 'correct' | 'restrict' | (string & {});
-export type DataSubjectRequestStatus = 'pending' | 'completed' | 'rejected' | (string & {});
+export type DataSubjectRequestStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'rejected'
+  | 'cancelled'
+  | (string & {});
+export type DataSubjectRequestCompletionStatus =
+  | 'in_progress'
+  | 'completed'
+  | 'rejected'
+  | 'cancelled'
+  | (string & {});
+export type ComplianceEvidenceType =
+  | 'dsar_workflow'
+  | 'retention_sweep'
+  | 'data_localization'
+  | 'ispdn_readiness'
+  | 'no_biometrics_release_guard'
+  | 'consent_history'
+  | 'deletion_procedure'
+  | (string & {});
+export type ComplianceEvidenceStatus = 'draft' | 'ready' | 'reviewed' | 'blocked' | (string & {});
 
 export interface PrivacyConsentStatus {
   currentVersion: string;
@@ -33,10 +55,6 @@ export interface ListDataSubjectRequestsParams {
   status?: DataSubjectRequestStatus;
   request_type?: DataSubjectRequestType;
   requestType?: DataSubjectRequestType;
-  subject_uid?: string;
-  subjectUid?: string;
-  subject_resident_id?: UUID;
-  subjectResidentId?: UUID;
   limit?: number;
 }
 
@@ -54,7 +72,7 @@ export interface CreateDataSubjectRequestBody {
 }
 
 export interface CompleteDataSubjectRequestBody {
-  status?: DataSubjectRequestStatus;
+  status?: DataSubjectRequestCompletionStatus;
   decision?: string;
   evidence?: Record<string, unknown>;
   export_payload?: Record<string, unknown>;
@@ -66,22 +84,26 @@ export interface CompleteDataSubjectRequestBody {
 export interface ListComplianceEvidenceParams {
   property_id?: UUID;
   propertyId?: UUID;
-  control?: string;
-  evidence_type?: string;
-  evidenceType?: string;
+  evidence_type?: ComplianceEvidenceType;
+  evidenceType?: ComplianceEvidenceType;
+  status?: ComplianceEvidenceStatus;
   limit?: number;
 }
 
-export interface CreateComplianceEvidenceBody {
+type ComplianceEvidenceTypeInput =
+  | { evidence_type: ComplianceEvidenceType; evidenceType?: ComplianceEvidenceType; type?: ComplianceEvidenceType }
+  | { evidence_type?: ComplianceEvidenceType; evidenceType: ComplianceEvidenceType; type?: ComplianceEvidenceType }
+  | { evidence_type?: ComplianceEvidenceType; evidenceType?: ComplianceEvidenceType; type: ComplianceEvidenceType };
+
+export type CreateComplianceEvidenceBody = ComplianceEvidenceTypeInput & {
   property_id?: UUID;
   propertyId?: UUID;
-  control: string;
-  evidence_type?: string;
-  evidenceType?: string;
-  status?: string;
-  payload?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-}
+  status?: ComplianceEvidenceStatus;
+  summary?: string | null;
+  artifact_uri?: string | null;
+  artifactUri?: string | null;
+  evidence?: Record<string, unknown>;
+};
 
 export interface DeleteAccountBody {
   reason?: string | null;
@@ -96,6 +118,30 @@ function toQuery(params?: object): string {
   const qs = new URLSearchParams();
   for (const [key, value] of entries) qs.set(key, String(value));
   return `?${qs.toString()}`;
+}
+
+function normalizeDataSubjectRequestParams(
+  params?: ListDataSubjectRequestsParams,
+): Record<string, unknown> | undefined {
+  if (!params) return undefined;
+  const normalized: Record<string, unknown> = { ...params };
+  if (normalized.request_type === undefined && normalized.requestType !== undefined) {
+    normalized.request_type = normalized.requestType;
+  }
+  delete normalized.requestType;
+  return normalized;
+}
+
+function normalizeComplianceEvidenceParams(
+  params?: ListComplianceEvidenceParams,
+): Record<string, unknown> | undefined {
+  if (!params) return undefined;
+  const normalized: Record<string, unknown> = { ...params };
+  if (normalized.evidence_type === undefined && normalized.evidenceType !== undefined) {
+    normalized.evidence_type = normalized.evidenceType;
+  }
+  delete normalized.evidenceType;
+  return normalized;
 }
 
 export const privacyComplianceApi = {
@@ -120,7 +166,7 @@ export const privacyComplianceApi = {
 
   listDataSubjectRequests(params?: ListDataSubjectRequestsParams, opts?: RequestOpts) {
     return v1Client.get<{ requests: Array<Record<string, unknown>> }>(
-      `/privacy/data-subject-requests${toQuery(params)}`,
+      `/privacy/data-subject-requests${toQuery(normalizeDataSubjectRequestParams(params))}`,
       opts,
     );
   },
@@ -143,7 +189,7 @@ export const privacyComplianceApi = {
 
   listComplianceEvidence(params?: ListComplianceEvidenceParams, opts?: RequestOpts) {
     return v1Client.get<{ evidence: Array<Record<string, unknown>> }>(
-      `/privacy/compliance-evidence${toQuery(params)}`,
+      `/privacy/compliance-evidence${toQuery(normalizeComplianceEvidenceParams(params))}`,
       opts,
     );
   },
