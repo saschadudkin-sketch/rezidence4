@@ -13,6 +13,12 @@ const { V1_PROPERTY_MIGRATIONS } = require('../v1/migrations');
 const PROPERTY_SLUG = process.env.E2E_PROPERTY_SLUG || 'zamoskv';
 const PROPERTY_NAME = 'E2E Резиденции Замоскворечья';
 const PROPERTY_TYPE = process.env.E2E_PROPERTY_TYPE || 'residential_complex';
+const REQUIRED_FEATURE_FLAGS = {
+  qr_pass: true,
+  public_pass_v1: true,
+  security_workspace_enriched: true,
+  guard_authorized_devices: false,
+};
 
 const USERS = {
   resident: {
@@ -96,14 +102,15 @@ async function runMigrations(pool, tableName, migrations) {
 
 async function upsertPlatformProperty(platformPool, tenantDbUrl) {
   const { rows } = await platformPool.query(
-    `INSERT INTO properties (slug, name, address, db_connection_url, is_active, plan, contact_email, property_type)
-     VALUES ($1, $2, $3, $4, true, 'operations', 'e2e@domhub.local', $5)
+    `INSERT INTO properties (slug, name, address, db_connection_url, is_active, plan, contact_email, property_type, feature_flags)
+     VALUES ($1, $2, $3, $4, true, 'operations', 'e2e@domhub.local', $5, $6::jsonb)
      ON CONFLICT (slug) DO UPDATE SET
        name = EXCLUDED.name,
        db_connection_url = EXCLUDED.db_connection_url,
        is_active = true,
        plan = EXCLUDED.plan,
        property_type = EXCLUDED.property_type,
+       feature_flags = COALESCE(properties.feature_flags, '{}'::jsonb) || EXCLUDED.feature_flags,
        updated_at = NOW()
      RETURNING id, slug, db_connection_url, property_type`,
     [
@@ -112,6 +119,7 @@ async function upsertPlatformProperty(platformPool, tenantDbUrl) {
       'E2E tenant property',
       tenantDbUrl,
       PROPERTY_TYPE,
+      JSON.stringify(REQUIRED_FEATURE_FLAGS),
     ],
   );
   return rows[0];

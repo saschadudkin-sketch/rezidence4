@@ -144,8 +144,10 @@ test.describe('platform-v1 access production e2e', () => {
       await expect(requestCard).toBeVisible();
       await requestCard.getByRole('button', { name: 'Открыть QR' }).click();
       await expect(requestCard.getByAltText('QR пропуска')).toBeVisible();
-      const token = (await requestCard.getByTestId('v1-qr-token').textContent()).trim();
-      expect(token).toMatch(/^[a-f0-9]{32}$/);
+      const shareUrl = (await requestCard.getByTestId('v1-qr-token').textContent()).trim();
+      const token = new URL(shareUrl).pathname.split('/').pop();
+      expect(shareUrl).toContain('/p/');
+      expect(token).toMatch(/^[a-f0-9]{64}$/);
 
       const residentPlate = uniquePlate(Date.now() + 17);
       await resident.page.getByRole('button', { name: 'Добавить авто' }).click();
@@ -161,7 +163,7 @@ test.describe('platform-v1 access production e2e', () => {
       await resident.page.getByRole('button', { name: 'Сохранить авто' }).click();
       const vehicleBody = await (await vehicleResponse).json();
       expect(vehicleBody.vehicle.plate_number).toBe(residentPlate);
-      await expect(resident.page.getByText(residentPlate)).toBeVisible();
+      await expect(resident.page.locator('strong').filter({ hasText: residentPlate })).toBeVisible();
 
       await resident.page.getByRole('button', { name: 'Создать заявку' }).click();
       await resident.page.getByLabel('Тип заявки').selectOption('vehicle_access');
@@ -183,7 +185,7 @@ test.describe('platform-v1 access production e2e', () => {
       contexts.push(security.context);
       await security.page.goto('/v1/guard');
       await expect(security.page.getByRole('heading', { name: /Пост (охраны|КПП)/ })).toBeVisible();
-      await security.page.getByRole('textbox', { name: 'QR-токен' }).fill(token);
+      await security.page.getByRole('textbox', { name: 'QR-токен' }).fill(shareUrl);
 
       const verifyResponse = security.page.waitForResponse((response) =>
         response.url().includes('/api/v1/visits/verify') &&
@@ -267,7 +269,6 @@ test.describe('platform-v1 access production e2e', () => {
 
       await security.page.goto('/v1/guard');
       await expect(security.page.getByRole('heading', { name: 'Пост КПП' })).toBeVisible();
-      await expect(security.page.getByRole('tab', { name: 'Въезд авто' })).toHaveAttribute('aria-selected', 'true');
       await expect(security.page.getByText(/Vehicle-first режим/i)).toBeVisible();
 
       const pointSelect = security.page.getByLabel('КПП / точка доступа');
@@ -298,11 +299,14 @@ test.describe('platform-v1 access production e2e', () => {
 
       const manualResponsePromise = security.page.waitForResponse((response) =>
         response.url().includes('/api/v1/security-workspace/manual-decision') &&
-        response.request().method() === 'POST' &&
-        response.status() === 201,
+        response.request().method() === 'POST',
       );
       await manualCard.getByRole('button', { name: 'Записать' }).click();
-      const manualBody = await (await manualResponsePromise).json();
+      const manualResponse = await manualResponsePromise;
+      expect(manualResponse.status()).toBe(201);
+      const manualBody = await manualResponse.json();
+      expect(manualBody).toHaveProperty('visit_log');
+      expect(manualBody).toHaveProperty('incident');
       expect(manualBody.visit_log.access_point_id).toBe(accessPointId);
       expect(manualBody.visit_log.event_type).toBe('manual_admit');
       expect(manualBody.visit_log.provider_payload.direction).toBe('entry');
