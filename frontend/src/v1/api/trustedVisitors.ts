@@ -77,14 +77,14 @@ export const trustedVisitorsApi = {
   },
   update(id: UUID, body: UpdateTrustedVisitorBody, opts?: RequestOpts) {
     return v1Client.patch<{ trusted_visitor: TrustedVisitor }>(
-      `/trusted-visitors/${id}`,
+      `/trusted-visitors/${encodeURIComponent(id)}`,
       body,
       opts,
     );
   },
   deactivate(id: UUID, body: { property_id: UUID }, opts?: RequestOpts) {
     return v1Client.post<{ trusted_visitor: TrustedVisitor }>(
-      `/trusted-visitors/${id}/deactivate`,
+      `/trusted-visitors/${encodeURIComponent(id)}/deactivate`,
       body,
       opts,
     );
@@ -95,7 +95,7 @@ export const trustedVisitorsApi = {
       access_request: AccessRequest;
       pass?: PassSummary | null;
     }>(
-      `/trusted-visitors/${id}/create-pass`,
+      `/trusted-visitors/${encodeURIComponent(id)}/create-pass`,
       body,
       opts,
     );

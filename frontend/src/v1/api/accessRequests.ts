@@ -21,12 +21,11 @@ import type {
 } from './types';
 
 export interface ListAccessRequestsParams extends PaginationParams {
+  property_id?: UUID;
   status?: RequestStatus;
   request_type?: RequestType;
-  target_unit_id?: UUID;
   created_by_resident_id?: UUID;
-  from?: IsoDateTime;
-  to?: IsoDateTime;
+  created_by_contractor_user_id?: UUID;
 }
 
 export interface CreateAccessRequestBody {
@@ -35,6 +34,7 @@ export interface CreateAccessRequestBody {
   target_zone_id?: UUID | null;
   target_point_id?: UUID | null;
   request_type: RequestType;
+  request_id?: string | null;
   starts_at: IsoDateTime;
   ends_at: IsoDateTime;
   visitor_name?: string | null;
@@ -70,7 +70,7 @@ export const accessRequestsApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<AccessRequestDetailResponse>(`/access-requests/${id}`, opts);
+    return v1Client.get<AccessRequestDetailResponse>(`/access-requests/${encodeURIComponent(id)}`, opts);
   },
   create(body: CreateAccessRequestBody, opts?: RequestOpts) {
     return v1Client.post<{ access_request: AccessRequest; pass?: PassSummary | null }>(
@@ -81,7 +81,7 @@ export const accessRequestsApi = {
   },
   submit(id: UUID, opts?: RequestOpts) {
     return v1Client.post<{ access_request: AccessRequest }>(
-      `/access-requests/${id}/submit`,
+      `/access-requests/${encodeURIComponent(id)}/submit`,
       undefined,
       opts,
     );
@@ -89,7 +89,7 @@ export const accessRequestsApi = {
   approve(id: UUID, comment?: string, opts?: TransitionOpts) {
     const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest; pass: unknown }>(
-      `/access-requests/${id}/approve`,
+      `/access-requests/${encodeURIComponent(id)}/approve`,
       { ...(comment !== undefined ? { comment } : {}), ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
       requestOpts,
     );
@@ -97,7 +97,7 @@ export const accessRequestsApi = {
   reject(id: UUID, reason: string, opts?: TransitionOpts) {
     const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest }>(
-      `/access-requests/${id}/reject`,
+      `/access-requests/${encodeURIComponent(id)}/reject`,
       { reason, ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
       requestOpts,
     );
@@ -105,7 +105,7 @@ export const accessRequestsApi = {
   cancel(id: UUID, opts?: TransitionOpts) {
     const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ access_request: AccessRequest }>(
-      `/access-requests/${id}/cancel`,
+      `/access-requests/${encodeURIComponent(id)}/cancel`,
       expectedCurrentStatus ? { expectedCurrentStatus } : undefined,
       requestOpts,
     );
@@ -113,7 +113,7 @@ export const accessRequestsApi = {
   escalate(id: UUID, comment?: string, opts?: TransitionOpts) {
     const { expectedCurrentStatus, ...requestOpts } = opts ?? {};
     return v1Client.post<{ ok: true; access_request_id: UUID }>(
-      `/access-requests/${id}/escalate`,
+      `/access-requests/${encodeURIComponent(id)}/escalate`,
       { ...(comment !== undefined ? { comment } : {}), ...(expectedCurrentStatus ? { expectedCurrentStatus } : {}) },
       requestOpts,
     );

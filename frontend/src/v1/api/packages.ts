@@ -173,7 +173,7 @@ export const packagesApi = {
 
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; package: Package }>(
-      `/packages/${id}`,
+      `/packages/${encodeURIComponent(id)}`,
       opts,
     );
   },
@@ -193,7 +193,7 @@ export const packagesApi = {
 
   update(id: UUID, patch: UpdatePackageBody, opts?: RequestOpts) {
     return v1Client.patch<{ ok: true; package: Package }>(
-      `/packages/${id}`,
+      `/packages/${encodeURIComponent(id)}`,
       patch,
       opts,
     );
@@ -204,12 +204,12 @@ export const packagesApi = {
       ok: true;
       package: Package;
       outbox_fanout: number;
-    }>(`/packages/${id}/pickup`, body, opts);
+    }>(`/packages/${encodeURIComponent(id)}/pickup`, body, opts);
   },
 
   return(id: UUID, body?: ReturnPackageBody, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; package: Package }>(
-      `/packages/${id}/return`,
+      `/packages/${encodeURIComponent(id)}/return`,
       body ?? {},
       opts,
     );
@@ -217,7 +217,7 @@ export const packagesApi = {
 
   markLost(id: UUID, body: MarkLostPackageBody, opts?: RequestOpts) {
     return v1Client.post<{ ok: true; package: Package }>(
-      `/packages/${id}/mark-lost`,
+      `/packages/${encodeURIComponent(id)}/mark-lost`,
       body,
       opts,
     );
@@ -232,6 +232,6 @@ export const packagesApi = {
       ok: true;
       package: Package;
       outbox_fanout: number;
-    }>(`/packages/${id}/remind`, undefined, opts);
+    }>(`/packages/${encodeURIComponent(id)}/remind`, undefined, opts);
   },
 };
