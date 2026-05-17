@@ -16,37 +16,57 @@ const API_MODULE_IGNORE = new Set([
   'types.ts',
 ]);
 
-const INTENTIONALLY_NO_FRONTEND_CLIENT = new Set([
-  '/api/v1/events',
-  '/api/v1/events/health',
-  '/api/v1/client-logs',
-  '/api/v1/upload',
-  '/api/v1/public',
-  '/api/v1/push-subscriptions',
-  '/api/v1/telegram',
-  '/api/v1/auth',
-]);
+const LEGACY_UTILITIES_FREEZE_REASON = 'legacy_utilities_enabled freeze: legacy module is feature-gated and deferred to post-release expansion';
+const LOW_LEVEL_PLUMBING_REASON = 'low-level runtime plumbing: not a product v1 API client surface';
+const LEGACY_RUNTIME_REASON = 'legacy runtime/admin surface: platform-v1 product flow uses newer bounded contracts instead';
+const EXTERNAL_INTEGRATION_REASON = 'external/provider integration surface: invoked by backend jobs or provider webhooks, not browser UI';
 
-const LEGACY_UTILITY_PREFIXES = new Set([
-  '/api/v1/billing',
-  '/api/v1/blacklist',
-  '/api/v1/bookings',
-  '/api/v1/chat',
-  '/api/v1/contracts',
-  '/api/v1/integrations',
-  '/api/v1/meter-readings',
-  '/api/v1/perms',
-  '/api/v1/spaces',
-  '/api/v1/templates',
-  '/api/v1/users',
-  '/api/v1/visit-logs',
-]);
+const INTENTIONALLY_NO_FRONTEND_OPERATION_REASONS = Object.freeze({
+  'get /api/v1/billing': LEGACY_UTILITIES_FREEZE_REASON,
+  'get /api/v1/billing/{param}': LEGACY_UTILITIES_FREEZE_REASON,
+  'patch /api/v1/billing/{param}': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/billing': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/billing/{param}/mark-paid': LEGACY_UTILITIES_FREEZE_REASON,
 
-const INTENTIONALLY_NO_FRONTEND_OPERATIONS = new Set([
-  // External provider webhook. It requires x-skud-secret / x-integration-secret
-  // headers and is not a browser product surface.
-  'post /api/v1/skud/providers/{param}/events',
-]);
+  'get /api/v1/meter-readings': LEGACY_UTILITIES_FREEZE_REASON,
+  'get /api/v1/meter-readings/history': LEGACY_UTILITIES_FREEZE_REASON,
+  'patch /api/v1/meter-readings/{param}/review': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/meter-readings': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/meter-readings/ocr-hint': LEGACY_UTILITIES_FREEZE_REASON,
+
+  'get /api/v1/spaces': LEGACY_UTILITIES_FREEZE_REASON,
+  'get /api/v1/spaces/{param}': LEGACY_UTILITIES_FREEZE_REASON,
+  'get /api/v1/spaces/{param}/availability': LEGACY_UTILITIES_FREEZE_REASON,
+  'patch /api/v1/spaces/{param}': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/spaces': LEGACY_UTILITIES_FREEZE_REASON,
+
+  'get /api/v1/bookings': LEGACY_UTILITIES_FREEZE_REASON,
+  'patch /api/v1/bookings/{param}/cancel': LEGACY_UTILITIES_FREEZE_REASON,
+  'post /api/v1/bookings/spaces/{param}/bookings': LEGACY_UTILITIES_FREEZE_REASON,
+
+  'get /api/v1/chat/messages': LEGACY_UTILITIES_FREEZE_REASON,
+  'get /api/v1/chat/stream': LEGACY_UTILITIES_FREEZE_REASON,
+
+  'post /api/v1/integrations/billing-sync': EXTERNAL_INTEGRATION_REASON,
+  'post /api/v1/integrations/visit-clip': EXTERNAL_INTEGRATION_REASON,
+  'post /api/v1/skud/providers/{param}/events': EXTERNAL_INTEGRATION_REASON,
+
+  'post /api/v1/auth/refresh': LOW_LEVEL_PLUMBING_REASON,
+  'post /api/v1/client-logs': LOW_LEVEL_PLUMBING_REASON,
+  'get /api/v1/events/health': LOW_LEVEL_PLUMBING_REASON,
+  'post /api/v1/upload/photo': LOW_LEVEL_PLUMBING_REASON,
+  'post /api/v1/upload/sign': LOW_LEVEL_PLUMBING_REASON,
+  'delete /api/v1/push-subscriptions/telegram': LOW_LEVEL_PLUMBING_REASON,
+  'post /api/v1/push-subscriptions/link-token': LOW_LEVEL_PLUMBING_REASON,
+  'delete /api/v1/telegram/telegram': LOW_LEVEL_PLUMBING_REASON,
+  'post /api/v1/telegram/link-token': LOW_LEVEL_PLUMBING_REASON,
+  'get /api/v1/public/{param}/announcements': LOW_LEVEL_PLUMBING_REASON,
+
+  'patch /api/v1/users/{param}/restore': LEGACY_RUNTIME_REASON,
+  'post /api/v1/users': LEGACY_RUNTIME_REASON,
+  'get /api/v1/visit-logs': LEGACY_RUNTIME_REASON,
+  'get /api/v1/visit-logs/{param}': LEGACY_RUNTIME_REASON,
+});
 
 function lineAt(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
@@ -424,11 +444,12 @@ function operationKey(operation) {
   return `${operation.method} ${normalizeRoutePath(operation.path)}`;
 }
 
+function intentionallyNoFrontendReason(operation) {
+  return INTENTIONALLY_NO_FRONTEND_OPERATION_REASONS[operationKey(operation)] || null;
+}
+
 function isIntentionallyNoFrontendOperation(operation) {
-  const prefix = prefixFor(operation.path);
-  return INTENTIONALLY_NO_FRONTEND_CLIENT.has(prefix)
-    || LEGACY_UTILITY_PREFIXES.has(prefix)
-    || INTENTIONALLY_NO_FRONTEND_OPERATIONS.has(operationKey(operation));
+  return intentionallyNoFrontendReason(operation) !== null;
 }
 
 function bucketOperations(operations) {
@@ -451,7 +472,12 @@ function audit() {
   const frontendOperations = extractFrontendOperations();
   const frontendKeys = new Set(frontendOperations.map(operationKey));
   const uncovered = backendOperations.filter((operation) => !frontendKeys.has(operationKey(operation)));
-  const ignored = uncovered.filter(isIntentionallyNoFrontendOperation);
+  const ignored = uncovered
+    .filter(isIntentionallyNoFrontendOperation)
+    .map((operation) => ({
+      ...operation,
+      reason: intentionallyNoFrontendReason(operation),
+    }));
   const productGaps = uncovered.filter((operation) => !isIntentionallyNoFrontendOperation(operation));
 
   return {
@@ -489,7 +515,8 @@ function printMarkdown(result) {
   for (const bucket of result.ignoredBuckets) {
     console.log(`### ${bucket.prefix} (${bucket.operations.length})`);
     for (const operation of bucket.operations) {
-      console.log(`- ${operation.method.toUpperCase()} ${operation.path}`);
+      const suffix = operation.reason ? ` - ${operation.reason}` : '';
+      console.log(`- ${operation.method.toUpperCase()} ${operation.path}${suffix}`);
     }
     console.log('');
   }

@@ -12,8 +12,24 @@ interface CoverageResult {
   thresholdFailures: string[];
 }
 
+interface AuditOperation {
+  method: string;
+  path: string;
+  reason?: string;
+}
+
+interface AuditResult {
+  totals: {
+    productGapOperations: number;
+    intentionallyNoFrontendClientOperations: number;
+  };
+  productGapBuckets: Array<{ operations: AuditOperation[] }>;
+  ignoredBuckets: Array<{ operations: AuditOperation[] }>;
+}
+
 const require = createRequire(import.meta.url);
-const { collectCoverage } = require('../../../../scripts/frontend-v1-contract-coverage.cjs') as {
+const { audit, collectCoverage } = require('../../../../scripts/frontend-v1-contract-coverage.cjs') as {
+  audit: () => AuditResult;
   collectCoverage: () => CoverageResult;
 };
 
@@ -27,5 +43,16 @@ describe('frontend v1 API contract coverage', () => {
     expect(result.genericResponses).toEqual([]);
     expect(result.thresholdFailures).toEqual([]);
     expect(result.ok).toBe(true);
+  });
+
+  test('keeps backend operations without frontend clients either covered or explicitly justified', () => {
+    const result = audit();
+    const ignoredOperations = result.ignoredBuckets.flatMap((bucket) => bucket.operations);
+
+    expect(result.totals.productGapOperations).toBe(0);
+    expect(result.productGapBuckets).toEqual([]);
+    expect(result.totals.intentionallyNoFrontendClientOperations).toBe(ignoredOperations.length);
+    expect(ignoredOperations.length).toBeGreaterThan(0);
+    expect(ignoredOperations.every((operation) => Boolean(operation.reason))).toBe(true);
   });
 });
