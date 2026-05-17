@@ -4983,7 +4983,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["OkResponse"];
+                        "application/json": components["schemas"]["WebhookListResponse"];
                     };
                 };
             };
@@ -5000,23 +5000,19 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CreateWebhookRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["WebhookResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -10776,9 +10772,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["WebhookDeactivateResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -10852,11 +10846,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UpdateWebhookRequest"];
                 };
             };
             responses: {
@@ -10866,9 +10858,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["WebhookResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -14490,9 +14480,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpProviderListResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -14563,23 +14551,19 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CreateErpProviderRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpProviderResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -14672,9 +14656,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpSyncJobResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -18432,9 +18414,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudHardwareDeviceListResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -18529,9 +18509,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudManualControlEventListResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -18624,9 +18602,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudProviderFailureDashboardResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -20801,9 +20777,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["WebhookDeliveryListResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -21411,11 +21385,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SkudHardwareBoundaryRequest"];
                 };
             };
             responses: {
@@ -21425,9 +21397,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudHardwareDeviceResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -23455,23 +23425,19 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ErpExportRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpExportResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -23558,23 +23524,19 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ErpImportRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpImportResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -23661,23 +23623,19 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ErpImportRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["ErpImportResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -26109,23 +26067,19 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SkudFieldRolloutEvidenceRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudFieldRolloutEvidenceResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -26212,23 +26166,19 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SkudManualControlRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudManualControlResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -26315,11 +26265,9 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SkudProviderAccessEventRequest"];
                 };
             };
             responses: {
@@ -26329,9 +26277,16 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudProviderAccessEventResponse"];
+                    };
+                };
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SkudProviderAccessEventResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -26418,23 +26373,19 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SkudSyncPassRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SkudSyncPassResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -27852,21 +27803,17 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WebhookTestDeliveryRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["WebhookTestDeliveryResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -29786,6 +29733,443 @@ export interface components {
             metrics: {
                 [key: string]: unknown;
             }[];
+        };
+        ErpProviderConfig: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            property_id: string;
+            /** @enum {string} */
+            provider: "one_c" | "one_c_zhkh" | "housing_erp" | "generic_csv" | "generic_rest" | "generic_webhook";
+            display_name: string;
+            /** @enum {string} */
+            status: "active" | "disabled" | "degraded";
+            /** @enum {string} */
+            sync_mode: "import_only" | "export_only" | "hybrid" | "manual";
+            base_url: string | null;
+            auth_ref: string | null;
+            config_json: {
+                [key: string]: unknown;
+            };
+            capabilities: string[];
+            /** @enum {string} */
+            health_status: "unknown" | "healthy" | "degraded" | "down";
+            /** Format: date-time */
+            last_success_at?: string | null;
+            /** Format: date-time */
+            last_failure_at?: string | null;
+            last_error?: string | null;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        CreateErpProviderRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            provider: "one_c" | "one_c_zhkh" | "housing_erp" | "generic_csv" | "generic_rest" | "generic_webhook" | "1c" | "1c_zhkh" | "1c:zhkh" | "1c_uk" | "csv" | "rest" | "webhook";
+            display_name?: string;
+            displayName?: string;
+            /** @enum {string} */
+            status?: "active" | "disabled" | "degraded";
+            /** @enum {string} */
+            sync_mode?: "import_only" | "export_only" | "hybrid" | "manual";
+            /** @enum {string} */
+            syncMode?: "import_only" | "export_only" | "hybrid" | "manual";
+            base_url?: string | null;
+            baseUrl?: string | null;
+            auth_ref?: string | null;
+            authRef?: string | null;
+            config_json?: {
+                [key: string]: unknown;
+            };
+            configJson?: {
+                [key: string]: unknown;
+            };
+            config?: {
+                [key: string]: unknown;
+            };
+            capabilities?: string[];
+            /** @enum {string} */
+            health_status?: "unknown" | "healthy" | "degraded" | "down";
+            /** @enum {string} */
+            healthStatus?: "unknown" | "healthy" | "degraded" | "down";
+        };
+        ErpProviderListResponse: {
+            providers: components["schemas"]["ErpProviderConfig"][];
+        };
+        ErpProviderResponse: {
+            provider: components["schemas"]["ErpProviderConfig"];
+        };
+        ErpSyncJob: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            property_id: string;
+            /** Format: uuid */
+            provider_config_id: string;
+            /** @enum {string} */
+            direction: "import" | "export";
+            /** @enum {string} */
+            dataset: "property_structure" | "resident_registry" | "staff_registry" | "contractor_registry" | "vehicle_registry" | "access_events_summary" | "incident_summary" | "request_summary";
+            /** @enum {string} */
+            source: "csv" | "rest" | "webhook" | "manual";
+            /** @enum {string} */
+            mode: "dry_run" | "apply";
+            /** @enum {string} */
+            status: "pending" | "processing" | "completed" | "partial" | "failed" | "dead_lettered";
+            summary: {
+                [key: string]: unknown;
+            };
+            error_message?: string | null;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        ErpSyncRecord: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            sync_job_id?: string;
+            /** Format: uuid */
+            provider_config_id?: string;
+            row_index: number;
+            external_entity_type: string | null;
+            external_id: string | null;
+            /** @enum {string} */
+            operation: "preview_create" | "preview_update" | "preview_conflict" | "preview_ignore" | "applied_create" | "applied_update" | "failed" | "skipped";
+            /** @enum {string} */
+            status: "valid" | "invalid" | "conflict" | "applied" | "failed" | "skipped";
+            domhub_entity_type: string | null;
+            /** Format: uuid */
+            domhub_entity_id: string | null;
+            validation_errors: string[];
+            payload: {
+                [key: string]: unknown;
+            };
+            normalized_payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at?: string;
+        };
+        ErpImportSummary: {
+            total: number;
+            valid: number;
+            invalid: number;
+            conflicts: number;
+            creates: number;
+            updates: number;
+            applied: number;
+            skipped: number;
+            /** @enum {string} */
+            mode: "dry_run" | "apply";
+            access_grants_created: number;
+            mapping_only: boolean;
+        };
+        ErpExportSummary: {
+            /** @enum {string} */
+            dataset: "access_events_summary" | "incident_summary" | "request_summary";
+            total: number;
+            /** @enum {string} */
+            format: "json";
+            delivered: boolean;
+            no_financial_payload: boolean;
+            access_grants_created: number;
+        };
+        ErpImportRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            dataset: "property_structure" | "resident_registry" | "staff_registry" | "contractor_registry" | "vehicle_registry";
+            /** @enum {string} */
+            source?: "csv" | "rest" | "webhook" | "manual";
+            rows: {
+                [key: string]: unknown;
+            }[];
+        };
+        ErpExportRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            dataset: "access_events_summary" | "incident_summary" | "request_summary";
+            /** @enum {string} */
+            source?: "csv" | "rest" | "webhook" | "manual";
+            /** Format: date-time */
+            from?: string;
+            /** Format: date-time */
+            from_at?: string;
+            /** Format: date-time */
+            fromAt?: string;
+            /** Format: date-time */
+            to?: string;
+            /** Format: date-time */
+            to_at?: string;
+            /** Format: date-time */
+            toAt?: string;
+            limit?: number;
+        };
+        ErpImportResponse: {
+            provider_config: components["schemas"]["ErpProviderConfig"];
+            sync_job: components["schemas"]["ErpSyncJob"];
+            summary: components["schemas"]["ErpImportSummary"];
+            records: components["schemas"]["ErpSyncRecord"][];
+        };
+        ErpExportResponse: {
+            provider_config: components["schemas"]["ErpProviderConfig"];
+            sync_job: components["schemas"]["ErpSyncJob"];
+            summary: components["schemas"]["ErpExportSummary"];
+            records: {
+                [key: string]: unknown;
+            }[];
+        };
+        ErpSyncJobResponse: {
+            sync_job: components["schemas"]["ErpSyncJob"];
+            records: components["schemas"]["ErpSyncRecord"][];
+        };
+        SkudHardwareDevice: {
+            [key: string]: unknown;
+        };
+        SkudManualControlEvent: {
+            [key: string]: unknown;
+        };
+        SkudFieldRolloutEvidence: {
+            [key: string]: unknown;
+        };
+        SkudIntegrationEvent: {
+            [key: string]: unknown;
+        };
+        SkudProviderFailureDashboardResponse: {
+            dashboard: {
+                [key: string]: unknown;
+            };
+        };
+        SkudProviderAccessEventRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            external_event_id?: string;
+            externalEventId?: string;
+            event_type?: string;
+            eventType?: string;
+            /** Format: date-time */
+            occurred_at?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            payload?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        SkudProviderAccessEventResponse: {
+            idempotent: boolean;
+            normalized_event: {
+                [key: string]: unknown;
+            };
+            integration_event: components["schemas"]["SkudIntegrationEvent"];
+            visit_log: {
+                [key: string]: unknown;
+            } | null;
+        };
+        SkudHardwareDeviceListResponse: {
+            hardware_devices: components["schemas"]["SkudHardwareDevice"][];
+        };
+        SkudHardwareBoundaryRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            manual_control_policy?: "guard_allowed" | "admin_only" | "provider_only" | "prohibited";
+            /** @enum {string} */
+            manualControlPolicy?: "guard_allowed" | "admin_only" | "provider_only" | "prohibited";
+            /** @enum {string} */
+            fail_safe_mode?: "fail_closed" | "fail_open_guarded" | "provider_default" | "manual_guard";
+            /** @enum {string} */
+            failSafeMode?: "fail_closed" | "fail_open_guarded" | "provider_default" | "manual_guard";
+            /** @enum {string} */
+            maintenance_status?: "normal" | "maintenance" | "out_of_service";
+            /** @enum {string} */
+            maintenanceStatus?: "normal" | "maintenance" | "out_of_service";
+            manual_action_requires_reason?: boolean;
+            manualActionRequiresReason?: boolean;
+            manual_action_requires_approval?: boolean;
+            manualActionRequiresApproval?: boolean;
+        };
+        SkudHardwareDeviceResponse: {
+            hardware_device: components["schemas"]["SkudHardwareDevice"];
+        };
+        SkudManualControlRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            action: "manual_open" | "manual_close" | "manual_block" | "manual_unblock" | "manual_reset" | "mark_degraded" | "mark_restored";
+            reason: string;
+            /** @enum {string} */
+            decision_source?: "guard" | "admin" | "incident" | "provider_fallback";
+            /** @enum {string} */
+            decisionSource?: "guard" | "admin" | "incident" | "provider_fallback";
+            /** Format: uuid */
+            guard_device_id?: string | null;
+            /** Format: uuid */
+            guardDeviceId?: string | null;
+            device_fingerprint?: string | null;
+            deviceFingerprint?: string | null;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        SkudManualControlResponse: {
+            hardware_device: components["schemas"]["SkudHardwareDevice"];
+            manual_control_event: components["schemas"]["SkudManualControlEvent"];
+        };
+        SkudManualControlEventListResponse: {
+            manual_control_events: components["schemas"]["SkudManualControlEvent"][];
+        };
+        SkudSyncPassRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** Format: uuid */
+            pass_id: string;
+            /** @enum {string} */
+            action?: "provision" | "revoke";
+        };
+        SkudSyncPassResponse: {
+            /** Format: uuid */
+            pass_id: string;
+            /** Format: uuid */
+            provider_config_id: string;
+            integration_event: components["schemas"]["SkudIntegrationEvent"];
+        };
+        SkudFieldRolloutEvidenceRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** Format: uuid */
+            provider_config_id?: string | null;
+            /** Format: uuid */
+            providerConfigId?: string | null;
+            /** Format: uuid */
+            hardware_device_id?: string | null;
+            /** Format: uuid */
+            hardwareDeviceId?: string | null;
+            /** @enum {string} */
+            evidence_type?: "provider_delivery" | "field_drill" | "rollout_report" | "vendor_health_probe";
+            /** @enum {string} */
+            evidenceType?: "provider_delivery" | "field_drill" | "rollout_report" | "vendor_health_probe";
+            /** @enum {string} */
+            rollout_stage?: "lab" | "staging" | "pilot" | "production";
+            /** @enum {string} */
+            rolloutStage?: "lab" | "staging" | "pilot" | "production";
+            /** @enum {string} */
+            status?: "planned" | "running" | "passed" | "failed" | "blocked";
+            summary?: string | null;
+            metrics?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            observed_at?: string | null;
+            /** Format: date-time */
+            observedAt?: string | null;
+        };
+        SkudFieldRolloutEvidenceResponse: {
+            evidence: components["schemas"]["SkudFieldRolloutEvidence"];
+        };
+        Webhook: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uri */
+            url: string;
+            events: string[];
+            is_active: boolean;
+            retry_count: number;
+            /** Format: date-time */
+            last_attempt_at: string | null;
+            /** Format: date-time */
+            last_success_at: string | null;
+            last_error: string | null;
+            /** Format: uuid */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        CreateWebhookRequest: {
+            name: string;
+            /** Format: uri */
+            url: string;
+            secret: string;
+            events: string[];
+        };
+        UpdateWebhookRequest: {
+            name?: string;
+            /** Format: uri */
+            url?: string;
+            secret?: string;
+            events?: string[];
+            is_active?: boolean;
+        };
+        WebhookResponse: {
+            webhook: components["schemas"]["Webhook"];
+        };
+        WebhookListResponse: {
+            webhooks: components["schemas"]["Webhook"][];
+        };
+        WebhookDeactivateResponse: {
+            /** @enum {boolean} */
+            ok: true;
+        };
+        WebhookTestDeliveryRequest: Record<string, never>;
+        WebhookTestDeliveryResponse: {
+            /** Format: uuid */
+            deliveryId: string;
+        };
+        WebhookDelivery: {
+            /** Format: uuid */
+            id: string;
+            event_type: string;
+            /** @enum {string} */
+            status: "pending" | "retrying" | "success" | "failed";
+            attempt_count: number;
+            /** Format: date-time */
+            next_attempt_at: string | null;
+            response_status: number | null;
+            response_body: string | null;
+            error_message: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        WebhookDeliveryListResponse: {
+            deliveries: components["schemas"]["WebhookDelivery"][];
         };
     };
     responses: never;

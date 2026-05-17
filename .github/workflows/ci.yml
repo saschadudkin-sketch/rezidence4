@@ -164,6 +164,8 @@ jobs:
         run: npm run frontend:v1-contract-coverage
       - name: Frontend v1 enum drift
         run: npm run frontend:v1-enum-drift
+      - name: Frontend v1 OpenAPI schema drift
+        run: npm run frontend:v1-openapi-schema-drift
       - name: Generated OpenAPI types are fresh
         run: |
           npm run openapi:types

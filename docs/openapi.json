@@ -4120,7 +4120,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
+                  "$ref": "#/components/schemas/WebhookListResponse"
                 }
               }
             }
@@ -4134,13 +4134,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/webhooks",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             }
@@ -4207,12 +4206,11 @@
           }
         },
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CreateWebhookRequest"
               }
             }
           }
@@ -9512,8 +9510,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/WebhookDeactivateResponse"
                 }
               }
             }
@@ -9602,8 +9599,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             }
@@ -9680,12 +9676,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/UpdateWebhookRequest"
               }
             }
           }
@@ -13002,8 +12997,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpProviderListResponse"
                 }
               }
             }
@@ -13077,13 +13071,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/erp/providers",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpProviderResponse"
                 }
               }
             }
@@ -13150,12 +13143,11 @@
           }
         },
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CreateErpProviderRequest"
               }
             }
           }
@@ -13175,8 +13167,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpSyncJobResponse"
                 }
               }
             }
@@ -16678,8 +16669,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudHardwareDeviceListResponse"
                 }
               }
             }
@@ -16760,8 +16750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudManualControlEventListResponse"
                 }
               }
             }
@@ -16852,8 +16841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudProviderFailureDashboardResponse"
                 }
               }
             }
@@ -18924,8 +18912,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/WebhookDeliveryListResponse"
                 }
               }
             }
@@ -19531,8 +19518,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudHardwareDeviceResponse"
                 }
               }
             }
@@ -19609,12 +19595,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SkudHardwareBoundaryRequest"
               }
             }
           }
@@ -21526,13 +21511,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/erp/providers/{providerConfigId}/export",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpExportResponse"
                 }
               }
             }
@@ -21609,12 +21593,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/ErpExportRequest"
               }
             }
           }
@@ -21629,13 +21612,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/erp/providers/{providerConfigId}/import/apply",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpImportResponse"
                 }
               }
             }
@@ -21712,12 +21694,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/ErpImportRequest"
               }
             }
           }
@@ -21732,13 +21713,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/erp/providers/{providerConfigId}/import/preview",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/ErpImportResponse"
                 }
               }
             }
@@ -21815,12 +21795,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/ErpImportRequest"
               }
             }
           }
@@ -24094,13 +24073,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/skud/field-rollout-evidence",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudFieldRolloutEvidenceResponse"
                 }
               }
             }
@@ -24167,12 +24145,11 @@
           }
         },
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SkudFieldRolloutEvidenceRequest"
               }
             }
           }
@@ -24187,13 +24164,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/skud/hardware-devices/{hardwareDeviceId}/manual-control",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudManualControlResponse"
                 }
               }
             }
@@ -24270,12 +24246,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SkudManualControlRequest"
               }
             }
           }
@@ -24295,8 +24270,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudProviderAccessEventResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkudProviderAccessEventResponse"
                 }
               }
             }
@@ -24373,12 +24357,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SkudProviderAccessEventRequest"
               }
             }
           }
@@ -24393,13 +24376,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/skud/providers/{providerConfigId}/sync-pass",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SkudSyncPassResponse"
                 }
               }
             }
@@ -24476,12 +24458,11 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/SkudSyncPassRequest"
               }
             }
           }
@@ -25785,13 +25766,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/webhooks/{id}/test",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "202": {
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/WebhookTestDeliveryResponse"
                 }
               }
             }
@@ -25872,8 +25852,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/WebhookTestDeliveryRequest"
               }
             }
           }
@@ -30300,6 +30279,1471 @@
             "items": {
               "type": "object",
               "additionalProperties": true
+            }
+          }
+        }
+      },
+      "ErpProviderConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "property_id",
+          "provider",
+          "display_name",
+          "status",
+          "sync_mode",
+          "base_url",
+          "auth_ref",
+          "config_json",
+          "capabilities",
+          "health_status",
+          "created_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "one_c",
+              "one_c_zhkh",
+              "housing_erp",
+              "generic_csv",
+              "generic_rest",
+              "generic_webhook"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "degraded"
+            ]
+          },
+          "sync_mode": {
+            "type": "string",
+            "enum": [
+              "import_only",
+              "export_only",
+              "hybrid",
+              "manual"
+            ]
+          },
+          "base_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "auth_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "config_json": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "health_status": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "healthy",
+              "degraded",
+              "down"
+            ]
+          },
+          "last_success_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_failure_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateErpProviderRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "one_c",
+              "one_c_zhkh",
+              "housing_erp",
+              "generic_csv",
+              "generic_rest",
+              "generic_webhook",
+              "1c",
+              "1c_zhkh",
+              "1c:zhkh",
+              "1c_uk",
+              "csv",
+              "rest",
+              "webhook"
+            ]
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "degraded"
+            ]
+          },
+          "sync_mode": {
+            "type": "string",
+            "enum": [
+              "import_only",
+              "export_only",
+              "hybrid",
+              "manual"
+            ]
+          },
+          "syncMode": {
+            "type": "string",
+            "enum": [
+              "import_only",
+              "export_only",
+              "hybrid",
+              "manual"
+            ]
+          },
+          "base_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "auth_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "authRef": {
+            "type": "string",
+            "nullable": true
+          },
+          "config_json": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "configJson": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "health_status": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "healthy",
+              "degraded",
+              "down"
+            ]
+          },
+          "healthStatus": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "healthy",
+              "degraded",
+              "down"
+            ]
+          }
+        }
+      },
+      "ErpProviderListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "providers"
+        ],
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErpProviderConfig"
+            }
+          }
+        }
+      },
+      "ErpProviderResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ErpProviderConfig"
+          }
+        }
+      },
+      "ErpSyncJob": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "property_id",
+          "provider_config_id",
+          "direction",
+          "dataset",
+          "source",
+          "mode",
+          "status",
+          "summary",
+          "created_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_config_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "import",
+              "export"
+            ]
+          },
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "property_structure",
+              "resident_registry",
+              "staff_registry",
+              "contractor_registry",
+              "vehicle_registry",
+              "access_events_summary",
+              "incident_summary",
+              "request_summary"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "rest",
+              "webhook",
+              "manual"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "dry_run",
+              "apply"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "partial",
+              "failed",
+              "dead_lettered"
+            ]
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ErpSyncRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "row_index",
+          "external_entity_type",
+          "external_id",
+          "operation",
+          "status",
+          "domhub_entity_type",
+          "domhub_entity_id",
+          "validation_errors",
+          "payload",
+          "normalized_payload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sync_job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_config_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "row_index": {
+            "type": "integer"
+          },
+          "external_entity_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "external_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "preview_create",
+              "preview_update",
+              "preview_conflict",
+              "preview_ignore",
+              "applied_create",
+              "applied_update",
+              "failed",
+              "skipped"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "invalid",
+              "conflict",
+              "applied",
+              "failed",
+              "skipped"
+            ]
+          },
+          "domhub_entity_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "domhub_entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "validation_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "normalized_payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErpImportSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "total",
+          "valid",
+          "invalid",
+          "conflicts",
+          "creates",
+          "updates",
+          "applied",
+          "skipped",
+          "mode",
+          "access_grants_created",
+          "mapping_only"
+        ],
+        "properties": {
+          "total": {
+            "type": "number"
+          },
+          "valid": {
+            "type": "number"
+          },
+          "invalid": {
+            "type": "number"
+          },
+          "conflicts": {
+            "type": "number"
+          },
+          "creates": {
+            "type": "number"
+          },
+          "updates": {
+            "type": "number"
+          },
+          "applied": {
+            "type": "number"
+          },
+          "skipped": {
+            "type": "number"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "dry_run",
+              "apply"
+            ]
+          },
+          "access_grants_created": {
+            "type": "number"
+          },
+          "mapping_only": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ErpExportSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dataset",
+          "total",
+          "format",
+          "delivered",
+          "no_financial_payload",
+          "access_grants_created"
+        ],
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "access_events_summary",
+              "incident_summary",
+              "request_summary"
+            ]
+          },
+          "total": {
+            "type": "number"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "delivered": {
+            "type": "boolean"
+          },
+          "no_financial_payload": {
+            "type": "boolean"
+          },
+          "access_grants_created": {
+            "type": "number"
+          }
+        }
+      },
+      "ErpImportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dataset",
+          "rows"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "property_structure",
+              "resident_registry",
+              "staff_registry",
+              "contractor_registry",
+              "vehicle_registry"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "rest",
+              "webhook",
+              "manual"
+            ]
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "ErpExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dataset"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dataset": {
+            "type": "string",
+            "enum": [
+              "access_events_summary",
+              "incident_summary",
+              "request_summary"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "rest",
+              "webhook",
+              "manual"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fromAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "toAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        }
+      },
+      "ErpImportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider_config",
+          "sync_job",
+          "summary",
+          "records"
+        ],
+        "properties": {
+          "provider_config": {
+            "$ref": "#/components/schemas/ErpProviderConfig"
+          },
+          "sync_job": {
+            "$ref": "#/components/schemas/ErpSyncJob"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ErpImportSummary"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErpSyncRecord"
+            }
+          }
+        }
+      },
+      "ErpExportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider_config",
+          "sync_job",
+          "summary",
+          "records"
+        ],
+        "properties": {
+          "provider_config": {
+            "$ref": "#/components/schemas/ErpProviderConfig"
+          },
+          "sync_job": {
+            "$ref": "#/components/schemas/ErpSyncJob"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ErpExportSummary"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "ErpSyncJobResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sync_job",
+          "records"
+        ],
+        "properties": {
+          "sync_job": {
+            "$ref": "#/components/schemas/ErpSyncJob"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErpSyncRecord"
+            }
+          }
+        }
+      },
+      "SkudHardwareDevice": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "SkudManualControlEvent": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "SkudFieldRolloutEvidence": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "SkudIntegrationEvent": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "SkudProviderFailureDashboardResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dashboard"
+        ],
+        "properties": {
+          "dashboard": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "SkudProviderAccessEventRequest": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "external_event_id": {
+            "type": "string"
+          },
+          "externalEventId": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "SkudProviderAccessEventResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "idempotent",
+          "normalized_event",
+          "integration_event",
+          "visit_log"
+        ],
+        "properties": {
+          "idempotent": {
+            "type": "boolean"
+          },
+          "normalized_event": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "integration_event": {
+            "$ref": "#/components/schemas/SkudIntegrationEvent"
+          },
+          "visit_log": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "SkudHardwareDeviceListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hardware_devices"
+        ],
+        "properties": {
+          "hardware_devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkudHardwareDevice"
+            }
+          }
+        }
+      },
+      "SkudHardwareBoundaryRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "manual_control_policy": {
+            "type": "string",
+            "enum": [
+              "guard_allowed",
+              "admin_only",
+              "provider_only",
+              "prohibited"
+            ]
+          },
+          "manualControlPolicy": {
+            "type": "string",
+            "enum": [
+              "guard_allowed",
+              "admin_only",
+              "provider_only",
+              "prohibited"
+            ]
+          },
+          "fail_safe_mode": {
+            "type": "string",
+            "enum": [
+              "fail_closed",
+              "fail_open_guarded",
+              "provider_default",
+              "manual_guard"
+            ]
+          },
+          "failSafeMode": {
+            "type": "string",
+            "enum": [
+              "fail_closed",
+              "fail_open_guarded",
+              "provider_default",
+              "manual_guard"
+            ]
+          },
+          "maintenance_status": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "maintenance",
+              "out_of_service"
+            ]
+          },
+          "maintenanceStatus": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "maintenance",
+              "out_of_service"
+            ]
+          },
+          "manual_action_requires_reason": {
+            "type": "boolean"
+          },
+          "manualActionRequiresReason": {
+            "type": "boolean"
+          },
+          "manual_action_requires_approval": {
+            "type": "boolean"
+          },
+          "manualActionRequiresApproval": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SkudHardwareDeviceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hardware_device"
+        ],
+        "properties": {
+          "hardware_device": {
+            "$ref": "#/components/schemas/SkudHardwareDevice"
+          }
+        }
+      },
+      "SkudManualControlRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "reason"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "manual_open",
+              "manual_close",
+              "manual_block",
+              "manual_unblock",
+              "manual_reset",
+              "mark_degraded",
+              "mark_restored"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "decision_source": {
+            "type": "string",
+            "enum": [
+              "guard",
+              "admin",
+              "incident",
+              "provider_fallback"
+            ]
+          },
+          "decisionSource": {
+            "type": "string",
+            "enum": [
+              "guard",
+              "admin",
+              "incident",
+              "provider_fallback"
+            ]
+          },
+          "guard_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "guardDeviceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "device_fingerprint": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceFingerprint": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "SkudManualControlResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hardware_device",
+          "manual_control_event"
+        ],
+        "properties": {
+          "hardware_device": {
+            "$ref": "#/components/schemas/SkudHardwareDevice"
+          },
+          "manual_control_event": {
+            "$ref": "#/components/schemas/SkudManualControlEvent"
+          }
+        }
+      },
+      "SkudManualControlEventListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "manual_control_events"
+        ],
+        "properties": {
+          "manual_control_events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkudManualControlEvent"
+            }
+          }
+        }
+      },
+      "SkudSyncPassRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pass_id"
+        ],
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pass_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "provision",
+              "revoke"
+            ]
+          }
+        }
+      },
+      "SkudSyncPassResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pass_id",
+          "provider_config_id",
+          "integration_event"
+        ],
+        "properties": {
+          "pass_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_config_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "integration_event": {
+            "$ref": "#/components/schemas/SkudIntegrationEvent"
+          }
+        }
+      },
+      "SkudFieldRolloutEvidenceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_config_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "providerConfigId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "hardware_device_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "hardwareDeviceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "evidence_type": {
+            "type": "string",
+            "enum": [
+              "provider_delivery",
+              "field_drill",
+              "rollout_report",
+              "vendor_health_probe"
+            ]
+          },
+          "evidenceType": {
+            "type": "string",
+            "enum": [
+              "provider_delivery",
+              "field_drill",
+              "rollout_report",
+              "vendor_health_probe"
+            ]
+          },
+          "rollout_stage": {
+            "type": "string",
+            "enum": [
+              "lab",
+              "staging",
+              "pilot",
+              "production"
+            ]
+          },
+          "rolloutStage": {
+            "type": "string",
+            "enum": [
+              "lab",
+              "staging",
+              "pilot",
+              "production"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "running",
+              "passed",
+              "failed",
+              "blocked"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "SkudFieldRolloutEvidenceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence"
+        ],
+        "properties": {
+          "evidence": {
+            "$ref": "#/components/schemas/SkudFieldRolloutEvidence"
+          }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "url",
+          "events",
+          "is_active",
+          "retry_count",
+          "last_attempt_at",
+          "last_success_at",
+          "last_error",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "retry_count": {
+            "type": "integer"
+          },
+          "last_attempt_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_success_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CreateWebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "url",
+          "secret",
+          "events"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "secret": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateWebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "secret": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WebhookResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "webhook"
+        ],
+        "properties": {
+          "webhook": {
+            "$ref": "#/components/schemas/Webhook"
+          }
+        }
+      },
+      "WebhookListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "webhooks"
+        ],
+        "properties": {
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Webhook"
+            }
+          }
+        }
+      },
+      "WebhookDeactivateResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "WebhookTestDeliveryRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "WebhookTestDeliveryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deliveryId"
+        ],
+        "properties": {
+          "deliveryId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "event_type",
+          "status",
+          "attempt_count",
+          "next_attempt_at",
+          "response_status",
+          "response_body",
+          "error_message",
+          "created_at",
+          "completed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "retrying",
+              "success",
+              "failed"
+            ]
+          },
+          "attempt_count": {
+            "type": "integer"
+          },
+          "next_attempt_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "response_status": {
+            "type": "integer",
+            "nullable": true
+          },
+          "response_body": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "WebhookDeliveryListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "deliveries"
+        ],
+        "properties": {
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookDelivery"
             }
           }
         }

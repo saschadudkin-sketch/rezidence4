@@ -15,6 +15,7 @@ const profiles = {
     { label: 'frontend typecheck', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'typecheck:ci'] },
     { label: 'frontend v1 contract coverage', cwd: rootDir, args: ['scripts/frontend-v1-contract-coverage.cjs', '--gate'] },
     { label: 'frontend v1 enum drift', cwd: rootDir, args: ['scripts/frontend-v1-enum-drift.cjs'] },
+    { label: 'frontend v1 OpenAPI schema drift', cwd: rootDir, args: ['scripts/frontend-v1-openapi-schema-drift.cjs'] },
     { label: 'frontend tests', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'test'] },
     { label: 'frontend build', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'build'] },
   ],

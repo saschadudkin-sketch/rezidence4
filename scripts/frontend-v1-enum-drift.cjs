@@ -32,6 +32,28 @@ function valuesFromConstArray(source, constName) {
   return [...block.matchAll(/'([^']+)'/g)].map((match) => match[1]);
 }
 
+function valuesFromSqlInCheck(source, marker) {
+  const start = source.indexOf(marker);
+  if (start === -1) return null;
+  const inStart = source.indexOf('IN', start);
+  if (inStart === -1) return null;
+  const open = source.indexOf('(', inStart);
+  if (open === -1) return null;
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '(') depth += 1;
+    if (char === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        const block = source.slice(open, index + 1);
+        return [...block.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+      }
+    }
+  }
+  return null;
+}
+
 function valuesFromObjectValues(source, constName) {
   const start = source.search(new RegExp(`const\\s+${constName}\\b`));
   if (start === -1) return null;
@@ -59,6 +81,11 @@ function backendConstValues(relPath, constName) {
 function backendObjectValues(relPath, constName) {
   const source = `${relPath} ${constName}`;
   return requireSourceValues(valuesFromObjectValues(read(relPath), constName), source);
+}
+
+function migrationCheckValues(relPath, marker) {
+  const source = `${relPath} ${marker}`;
+  return requireSourceValues(valuesFromSqlInCheck(read(relPath), marker), source);
 }
 
 function sortedUnique(values) {
@@ -202,97 +229,11 @@ function assertBroadTypeAllowlist(failures) {
   });
 }
 
-function getOpenApiResponseSchema(openApi, pathname, method, status = '200') {
-  return openApi.paths?.[pathname]?.[method]?.responses?.[status]?.content?.['application/json']?.schema || null;
-}
-
-function getOpenApiRequestSchema(openApi, pathname, method) {
-  return openApi.paths?.[pathname]?.[method]?.requestBody?.content?.['application/json']?.schema || null;
-}
-
-function isGenericOpenApiObject(schema) {
-  return Boolean(schema && schema.type === 'object' && schema.additionalProperties === true);
-}
-
-function assertOpenApiRef({ failures, openApi, pathname, method, kind, expectedRef, status = '200' }) {
-  const schema = kind === 'request'
-    ? getOpenApiRequestSchema(openApi, pathname, method)
-    : getOpenApiResponseSchema(openApi, pathname, method, status);
-  if (schema?.$ref === expectedRef) return;
-  failures.push([
-    `docs/openapi.json: ${method.toUpperCase()} ${pathname} ${kind}${kind === 'response' ? ` ${status}` : ''} schema drift`,
-    `  expected: ${expectedRef}`,
-    schema ? `  actual: ${schema.$ref || JSON.stringify(schema)}` : '  actual: missing schema',
-  ].join('\n'));
-}
-
-function assertOpenApiEnum({ failures, openApi, schemaName, property, expected, source }) {
-  const schema = openApi.components?.schemas?.[schemaName]?.properties?.[property];
-  const actual = schema?.enum || null;
-  assertValues({
-    failures,
-    source,
-    relPath: 'docs/openapi.json',
-    name: `${schemaName}.${property}`,
-    actual,
-    expected,
-  });
-}
-
-function assertOpenApiContracts({ failures, expected }) {
-  const openApi = JSON.parse(read('docs/openapi.json'));
-  const requestRefs = [
-    ['/api/v1/access-incidents/{id}/assign', 'post', '#/components/schemas/AssignAccessIncidentRequest'],
-    ['/api/v1/access-incidents/{id}/resolve', 'post', '#/components/schemas/ResolveAccessIncidentRequest'],
-    ['/api/v1/access-incidents/{id}/dismiss', 'post', '#/components/schemas/IncidentReasonRequest'],
-    ['/api/v1/access-incidents/{id}/reopen', 'post', '#/components/schemas/ReopenAccessIncidentRequest'],
-    ['/api/v1/access-incidents/{id}/status', 'post', '#/components/schemas/UpdateAccessIncidentStatusRequest'],
-  ];
-  for (const [pathname, method, expectedRef] of requestRefs) {
-    assertOpenApiRef({ failures, openApi, pathname, method, kind: 'request', expectedRef });
-  }
-
-  const responseRefs = [
-    ['/api/v1/analytics/traffic', 'get', '#/components/schemas/TrafficAnalyticsResponse'],
-    ['/api/v1/analytics/top-residents', 'get', '#/components/schemas/TopResidentsAnalyticsResponse'],
-    ['/api/v1/analytics/sla', 'get', '#/components/schemas/SlaAnalyticsResponse'],
-    ['/api/v1/analytics/requests', 'get', '#/components/schemas/RequestsAnalyticsResponse'],
-    ['/api/v1/analytics/packages', 'get', '#/components/schemas/PackagesAnalyticsResponse'],
-    ['/api/v1/analytics/snapshots', 'get', '#/components/schemas/AnalyticsSnapshotListResponse'],
-    ['/api/v1/analytics/snapshots/latest', 'get', '#/components/schemas/AnalyticsSnapshotResponse'],
-    ['/api/v1/analytics/snapshots', 'post', '#/components/schemas/CreateAnalyticsSnapshotResponse', '201'],
-  ];
-  for (const [pathname, method, expectedRef, status = '200'] of responseRefs) {
-    assertOpenApiRef({ failures, openApi, pathname, method, kind: 'response', expectedRef, status });
-    const schema = getOpenApiResponseSchema(openApi, pathname, method, status);
-    if (isGenericOpenApiObject(schema)) {
-      failures.push(`docs/openapi.json: ${method.toUpperCase()} ${pathname} response ${status} schema must not be generic`);
-    }
-  }
-
-  assertOpenApiEnum({
-    failures,
-    openApi,
-    schemaName: 'AccessIncident',
-    property: 'severity',
-    expected: expected.accessIncidentSeverities,
-    source: 'frontend/src/v1/api/types.ts Severity + backend/src/v1/routes/accessIncidents.js SEVERITIES',
-  });
-  assertOpenApiEnum({
-    failures,
-    openApi,
-    schemaName: 'AccessIncident',
-    property: 'status',
-    expected: expected.accessIncidentStatuses,
-    source: 'frontend/src/v1/api/types.ts IncidentStatus + backend/src/v1/routes/accessIncidents.js INCIDENT_STATUSES',
-  });
-}
-
 const expected = Object.freeze({
   finalRoles: backendObjectValues('backend/src/v1/lib/authz.js', 'FINAL_ROLES'),
   membershipScopeLevels: backendConstValues('backend/src/v1/lib/authz.js', 'SCOPE_LEVELS'),
-  membershipStatuses: ['active', 'suspended', 'revoked', 'expired'],
-  membershipProvisionedFrom: ['manual', 'api', 'import', 'bootstrap', 'platform_sync'],
+  membershipStatuses: migrationCheckValues('backend/src/v1/migrations/040_membership_review_lifecycle.js', 'ADD CONSTRAINT role_scope_memberships_status_check'),
+  membershipProvisionedFrom: migrationCheckValues('backend/src/v1/migrations/040_membership_review_lifecycle.js', 'ADD CONSTRAINT role_scope_memberships_provisioned_from_check'),
 
   erpProviders: backendConstValues('backend/src/v1/services/erpExchangeService.js', 'ERP_PROVIDERS'),
   erpProviderStatuses: backendConstValues('backend/src/v1/services/erpExchangeService.js', 'PROVIDER_STATUSES'),
@@ -301,18 +242,9 @@ const expected = Object.freeze({
   erpSources: backendConstValues('backend/src/v1/services/erpExchangeService.js', 'SOURCES'),
   erpImportDatasets: backendConstValues('backend/src/v1/services/erpExchangeService.js', 'IMPORT_DATASETS'),
   erpExportDatasets: backendConstValues('backend/src/v1/services/erpExchangeService.js', 'EXPORT_DATASETS'),
-  erpSyncJobStatuses: ['pending', 'processing', 'completed', 'partial', 'failed', 'dead_lettered'],
-  erpRecordOperations: [
-    'preview_create',
-    'preview_update',
-    'preview_conflict',
-    'preview_ignore',
-    'applied_create',
-    'applied_update',
-    'failed',
-    'skipped',
-  ],
-  erpRecordStatuses: ['valid', 'invalid', 'conflict', 'applied', 'failed', 'skipped'],
+  erpSyncJobStatuses: migrationCheckValues('backend/src/v1/migrations/038_erp_exchange_baseline.js', "status                 VARCHAR(20) NOT NULL DEFAULT 'pending'"),
+  erpRecordOperations: migrationCheckValues('backend/src/v1/migrations/038_erp_exchange_baseline.js', 'operation              VARCHAR(30) NOT NULL'),
+  erpRecordStatuses: migrationCheckValues('backend/src/v1/migrations/038_erp_exchange_baseline.js', "CHECK (status IN ('valid','invalid'"),
 
   skudManualControlPolicies: backendConstValues('backend/src/v1/services/skudIntegrationService.js', 'MANUAL_CONTROL_POLICIES'),
   skudFailSafeModes: backendConstValues('backend/src/v1/services/skudIntegrationService.js', 'FAIL_SAFE_MODES'),
@@ -358,14 +290,14 @@ const expected = Object.freeze({
     'rejected',
   ],
   staffRequestTypes: backendConstValues('backend/src/services/requests/RequestValidator.js', 'VALID_TYPES'),
-  staffRequestTargetTypes: ['unit', 'home', 'access_zone', 'access_point', 'common_territory', 'road', 'service_area'],
-  staffSlaStates: ['on_track', 'responded', 'escalated', 'emergency_escalated', 'resolved'],
+  staffRequestTargetTypes: migrationCheckValues('backend/src/v1/migrations/029_service_request_core.js', 'requests_target_type_check'),
+  staffSlaStates: migrationCheckValues('backend/src/v1/migrations/031_request_assignment_sla.js', 'requests_sla_state_check'),
   requestAttachmentFileKinds: backendConstValues('backend/src/services/requests/RequestUpdatesService.js', 'VALID_FILE_KINDS'),
-  requestCommunicationVisibilities: ['resident', 'internal'],
-  requestSlaEventTypes: ['first_response_overdue', 'resolution_overdue', 'emergency_escalated', 'manual_escalation'],
-  requestSlaEventSeverities: ['warning', 'breach', 'emergency'],
-  technicianWorkspaceEventTypes: ['claimed', 'started', 'resumed', 'waiting_resident', 'waiting_parts', 'resolved'],
-  contractorWorkspaceEventTypes: ['assigned', 'started', 'resumed', 'waiting_parts', 'resolved'],
+  requestCommunicationVisibilities: migrationCheckValues('backend/src/v1/migrations/030_request_attachments_updates.js', "visibility        VARCHAR(20) NOT NULL DEFAULT 'resident'"),
+  requestSlaEventTypes: migrationCheckValues('backend/src/v1/migrations/031_request_assignment_sla.js', 'event_type    VARCHAR(40) NOT NULL'),
+  requestSlaEventSeverities: migrationCheckValues('backend/src/v1/migrations/031_request_assignment_sla.js', 'severity      VARCHAR(20) NOT NULL'),
+  technicianWorkspaceEventTypes: migrationCheckValues('backend/src/v1/migrations/032_technician_workflow.js', 'event_type      VARCHAR(40) NOT NULL'),
+  contractorWorkspaceEventTypes: migrationCheckValues('backend/src/v1/migrations/033_contractor_workflow.js', 'event_type                     VARCHAR(40) NOT NULL'),
   emergencyDispatchActions: backendConstValues('backend/src/services/requests/EmergencyDispatchService.js', 'DISPATCH_ACTIONS'),
   emergencyTypes: backendConstValues('backend/src/services/requests/EmergencyDispatchService.js', 'EMERGENCY_TYPES'),
   emergencySeverities: backendConstValues('backend/src/services/requests/EmergencyDispatchService.js', 'SEVERITIES'),
@@ -540,7 +472,6 @@ for (const [relPath, rules] of [
 }
 
 assertBroadTypeAllowlist(failures);
-assertOpenApiContracts({ failures, expected });
 
 if (failures.length) {
   console.error('[frontend-v1-enum-drift] failed');
