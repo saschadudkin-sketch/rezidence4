@@ -944,7 +944,7 @@ describe('OperationsDashboardPage', () => {
     expect(screen.getByText('Доставка уведомлений')).toBeInTheDocument();
     expect(screen.getByText('web_push')).toBeInTheDocument();
     expect(getOperationsDashboardMock).toHaveBeenCalledWith(
-      { period: '7d' },
+      { period: '7d', property_id: '00000000-0000-0000-0000-000000000bbb' },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

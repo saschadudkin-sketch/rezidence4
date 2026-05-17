@@ -64,6 +64,7 @@ function isRetryablePlaywrightInfrastructureFailure(result) {
       || output.includes('browserContext.newPage: Test timeout of 60000ms exceeded')
       || output.includes('exitCode=3221225477')
       || output.includes('worker process exited unexpectedly (code=3221225477')
+      || output.includes('Error: spawn EPERM')
     )
   );
 }
