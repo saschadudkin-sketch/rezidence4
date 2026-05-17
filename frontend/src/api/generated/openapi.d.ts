@@ -6872,9 +6872,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AssignAccessIncidentRequest"];
                 };
             };
             responses: {
@@ -6945,9 +6943,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ResolveAccessIncidentRequest"];
                 };
             };
             responses: {
@@ -7018,9 +7014,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["IncidentReasonRequest"];
                 };
             };
             responses: {
@@ -7091,9 +7085,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["UpdateAccessIncidentStatusRequest"];
                 };
             };
             responses: {
@@ -7164,9 +7156,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ReopenAccessIncidentRequest"];
                 };
             };
             responses: {
@@ -12106,9 +12096,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["PackagesAnalyticsResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12201,9 +12189,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["RequestsAnalyticsResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12296,9 +12282,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["SlaAnalyticsResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12391,9 +12375,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["AnalyticsSnapshotListResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12466,21 +12448,17 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["CreateAnalyticsSnapshotRequest"];
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["CreateAnalyticsSnapshotResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12571,9 +12549,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["AnalyticsSnapshotResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12666,9 +12642,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["TopResidentsAnalyticsResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -12761,9 +12735,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            [key: string]: unknown;
-                        };
+                        "application/json": components["schemas"]["TrafficAnalyticsResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -28807,7 +28779,74 @@ export interface components {
         AuthRefreshSuccess: {
             user: components["schemas"]["User"];
         };
-        RequestItem: Record<string, never>;
+        RequestItem: {
+            id: string;
+            type: string;
+            category: string;
+            status: string;
+            priority?: string;
+            slaProfile?: string;
+            requestCategoryId?: string | null;
+            targetType?: string | null;
+            targetId?: string | null;
+            /** Format: date-time */
+            firstResponseDueAt?: string | null;
+            /** Format: date-time */
+            resolutionDueAt?: string | null;
+            emergencyMetadata?: {
+                [key: string]: unknown;
+            };
+            assignedToUid?: string | null;
+            assignedToName?: string | null;
+            assignedToRole?: string | null;
+            /** Format: date-time */
+            assignedAt?: string | null;
+            assignedContractorUserId?: string | null;
+            assignedContractorCompanyId?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            /** Format: date-time */
+            firstResponseAt?: string | null;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            /** Format: date-time */
+            completedAt?: string | null;
+            resolutionNote?: string | null;
+            requiresFollowUp?: boolean;
+            slaState?: string;
+            escalationLevel?: number;
+            /** Format: date-time */
+            escalatedAt?: string | null;
+            escalationReason?: string | null;
+            /** Format: date-time */
+            lastSlaCheckAt?: string | null;
+            createdByUid: string;
+            createdByName: string;
+            createdByRole: string;
+            createdByApt?: string | null;
+            visitorName?: string | null;
+            visitorPhone?: string | null;
+            carPlate?: string | null;
+            comment?: string | null;
+            passDuration?: string | null;
+            /** Format: date-time */
+            validUntil?: string | null;
+            /** Format: date-time */
+            scheduledFor?: string | null;
+            /** Format: date-time */
+            arrivedAt?: string | null;
+            photos?: string[];
+            photo?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string | null;
+            emergencyProfile?: {
+                [key: string]: unknown;
+            } | null;
+        } & {
+            [key: string]: unknown;
+        };
         RequestsListResponse: components["schemas"]["RequestItem"][] | {
             data: components["schemas"]["RequestItem"][];
             total: number;
@@ -29622,6 +29661,131 @@ export interface components {
             /** Format: uuid */
             property_id: string;
             reason?: string | null;
+        };
+        AssignAccessIncidentRequest: {
+            /** Format: uuid */
+            assigned_to_staff_id: string;
+        };
+        IncidentReasonRequest: {
+            reason: string;
+        };
+        ResolveAccessIncidentRequest: {
+            reason: string;
+            create_override?: {
+                /** @enum {string} */
+                override_type: "manual_admit" | "manual_deny" | "temporary_whitelist" | "temporary_block";
+                reason: string;
+            } | null;
+        };
+        ReopenAccessIncidentRequest: {
+            reason: string;
+            /** Format: uuid */
+            assigned_to_staff_id?: string;
+        };
+        UpdateAccessIncidentStatusRequest: {
+            /** @enum {string} */
+            status: "investigating" | "resolved" | "dismissed";
+            reason?: string;
+            comment?: string;
+            /** Format: uuid */
+            assigned_to_staff_id?: string;
+        };
+        TrafficAnalyticsResponse: {
+            /** @enum {string} */
+            granularity: "hour" | "day";
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            labels: string[];
+            series: {
+                visits: number[];
+                admitted: number[];
+                denied: number[];
+            };
+        };
+        TopResidentsAnalyticsResponse: {
+            residents: {
+                uid: string;
+                name: string | null;
+                apartment: string | null;
+                pass_count: number;
+                guest_count: number;
+            }[];
+        };
+        SlaAnalyticsResponse: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            byType: {
+                type: string;
+                total: number;
+                within_sla: number;
+                overdue: number;
+                avg_resolution_hours: number | null;
+            }[];
+        };
+        RequestsAnalyticsResponse: {
+            byStatus: {
+                [key: string]: number;
+            };
+            byType: {
+                [key: string]: number;
+            };
+            byHour: {
+                hour: number;
+                count: number;
+            }[];
+        };
+        PackagesAnalyticsResponse: {
+            received: number;
+            picked_up: number;
+            pending: number;
+            avg_pickup_hours: number | null;
+        };
+        AnalyticsSnapshot: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            property_id: string;
+            metric_group?: string;
+            /** @enum {string} */
+            period: "24h" | "7d" | "30d";
+            payload?: {
+                [key: string]: unknown;
+            };
+            flat_rows?: {
+                [key: string]: unknown;
+            }[];
+            /** Format: date-time */
+            generated_at?: string;
+            /** Format: date-time */
+            window_started_at?: string | null;
+            /** Format: date-time */
+            window_ended_at?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        AnalyticsSnapshotListResponse: {
+            snapshots: components["schemas"]["AnalyticsSnapshot"][];
+        };
+        AnalyticsSnapshotResponse: {
+            snapshot: components["schemas"]["AnalyticsSnapshot"];
+        };
+        CreateAnalyticsSnapshotRequest: {
+            /** Format: uuid */
+            property_id?: string;
+            /** Format: uuid */
+            propertyId?: string;
+            /** @enum {string} */
+            period?: "24h" | "7d" | "30d";
+        };
+        CreateAnalyticsSnapshotResponse: {
+            snapshot: components["schemas"]["AnalyticsSnapshot"];
+            metrics: {
+                [key: string]: unknown;
+            }[];
         };
     };
     responses: never;

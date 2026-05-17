@@ -5984,8 +5984,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/AssignAccessIncidentRequest"
               }
             }
           }
@@ -6056,8 +6055,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/ResolveAccessIncidentRequest"
               }
             }
           }
@@ -6128,8 +6126,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/IncidentReasonRequest"
               }
             }
           }
@@ -6200,8 +6197,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/UpdateAccessIncidentStatusRequest"
               }
             }
           }
@@ -6272,8 +6268,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/ReopenAccessIncidentRequest"
               }
             }
           }
@@ -10761,8 +10756,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/PackagesAnalyticsResponse"
                 }
               }
             }
@@ -10843,8 +10837,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/RequestsAnalyticsResponse"
                 }
               }
             }
@@ -10925,8 +10918,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/SlaAnalyticsResponse"
                 }
               }
             }
@@ -11007,8 +10999,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/AnalyticsSnapshotListResponse"
                 }
               }
             }
@@ -11082,13 +11073,12 @@
         "summary": "Mounted v1 route operation: POST /api/v1/analytics/snapshots",
         "description": "Route-level OpenAPI anchor generated from the mounted Express router inventory. Replace the generic request/response schemas with module-specific schemas when the endpoint contract is refined.",
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/CreateAnalyticsSnapshotResponse"
                 }
               }
             }
@@ -11159,8 +11149,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "additionalProperties": true
+                "$ref": "#/components/schemas/CreateAnalyticsSnapshotRequest"
               }
             }
           }
@@ -11180,8 +11169,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/AnalyticsSnapshotResponse"
                 }
               }
             }
@@ -11262,8 +11250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/TopResidentsAnalyticsResponse"
                 }
               }
             }
@@ -11344,8 +11331,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/TrafficAnalyticsResponse"
                 }
               }
             }
@@ -29866,6 +29852,457 @@
           }
         },
         "additionalProperties": false
+      },
+      "AssignAccessIncidentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assigned_to_staff_id"
+        ],
+        "properties": {
+          "assigned_to_staff_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "IncidentReasonRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ResolveAccessIncidentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "create_override": {
+            "nullable": true,
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "override_type",
+              "reason"
+            ],
+            "properties": {
+              "override_type": {
+                "type": "string",
+                "enum": [
+                  "manual_admit",
+                  "manual_deny",
+                  "temporary_whitelist",
+                  "temporary_block"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ReopenAccessIncidentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "assigned_to_staff_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "UpdateAccessIncidentStatusRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "investigating",
+              "resolved",
+              "dismissed"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "assigned_to_staff_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TrafficAnalyticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "granularity",
+          "from",
+          "to",
+          "labels",
+          "series"
+        ],
+        "properties": {
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "series": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "visits",
+              "admitted",
+              "denied"
+            ],
+            "properties": {
+              "visits": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "admitted": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "denied": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TopResidentsAnalyticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "residents"
+        ],
+        "properties": {
+          "residents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "uid",
+                "name",
+                "apartment",
+                "pass_count",
+                "guest_count"
+              ],
+              "properties": {
+                "uid": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "apartment": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "pass_count": {
+                  "type": "number"
+                },
+                "guest_count": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SlaAnalyticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "byType"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "byType": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "total",
+                "within_sla",
+                "overdue",
+                "avg_resolution_hours"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "within_sla": {
+                  "type": "number"
+                },
+                "overdue": {
+                  "type": "number"
+                },
+                "avg_resolution_hours": {
+                  "type": "number",
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "RequestsAnalyticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "byStatus",
+          "byType",
+          "byHour"
+        ],
+        "properties": {
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "byType": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "byHour": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "hour",
+                "count"
+              ],
+              "properties": {
+                "hour": {
+                  "type": "integer"
+                },
+                "count": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PackagesAnalyticsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "received",
+          "picked_up",
+          "pending",
+          "avg_pickup_hours"
+        ],
+        "properties": {
+          "received": {
+            "type": "number"
+          },
+          "picked_up": {
+            "type": "number"
+          },
+          "pending": {
+            "type": "number"
+          },
+          "avg_pickup_hours": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "AnalyticsSnapshot": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "property_id",
+          "period"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metric_group": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "flat_rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "window_started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "window_ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "AnalyticsSnapshotListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "snapshots"
+        ],
+        "properties": {
+          "snapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsSnapshot"
+            }
+          }
+        }
+      },
+      "AnalyticsSnapshotResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "snapshot"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/AnalyticsSnapshot"
+          }
+        }
+      },
+      "CreateAnalyticsSnapshotRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "property_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "propertyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          }
+        }
+      },
+      "CreateAnalyticsSnapshotResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "snapshot",
+          "metrics"
+        ],
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/AnalyticsSnapshot"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
