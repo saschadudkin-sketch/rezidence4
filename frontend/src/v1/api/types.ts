@@ -1274,12 +1274,33 @@ export type StaffSlaState =
   | 'responded'
   | 'escalated'
   | 'emergency_escalated'
-  | 'resolved'
-  | (string & {});
+  | 'resolved';
+
+export type RequestAttachmentFileKind = 'photo' | 'document' | 'other';
+export type RequestCommunicationVisibility = 'resident' | 'internal';
+export type RequestSlaEventType =
+  | 'first_response_overdue'
+  | 'resolution_overdue'
+  | 'emergency_escalated'
+  | 'manual_escalation';
+export type RequestSlaEventSeverity = 'warning' | 'breach' | 'emergency';
+export type TechnicianWorkspaceEventType =
+  | 'claimed'
+  | 'started'
+  | 'resumed'
+  | 'waiting_resident'
+  | 'waiting_parts'
+  | 'resolved';
+export type ContractorWorkspaceEventType =
+  | 'assigned'
+  | 'started'
+  | 'resumed'
+  | 'waiting_parts'
+  | 'resolved';
 
 export interface StaffWorkspaceRequest {
   id: string;
-  type: StaffRequestType | (string & {});
+  type: StaffRequestType;
   category: string;
   status: StaffRequestStatus;
   priority: StaffRequestPriority;
@@ -1362,14 +1383,14 @@ export interface ServiceRequestCategory {
 
 export interface ServiceRequest {
   id: string;
-  type: StaffRequestType | (string & {});
+  type: StaffRequestType;
   category: string;
-  status: StaffRequestStatus | (string & {});
+  status: StaffRequestStatus;
   priority: StaffRequestPriority;
   slaProfile: StaffSlaProfile;
   requestCategoryId: UUID | null;
   targetType: StaffRequestTargetType | null;
-  targetId: UUID | string | null;
+  targetId: UUID | null;
   firstResponseDueAt: IsoDateTime | null;
   resolutionDueAt: IsoDateTime | null;
   emergencyMetadata: Record<string, unknown>;
@@ -1413,8 +1434,8 @@ export interface ServiceRequestAttachment {
   requestId: string;
   uploadedByUid: string | null;
   fileUrl: string;
-  fileKind: 'photo' | 'document' | 'other' | string | null;
-  visibility: 'resident' | string;
+  fileKind: RequestAttachmentFileKind;
+  visibility: RequestCommunicationVisibility;
   metadata: Record<string, unknown>;
   createdAt: IsoDateTime;
 }
@@ -1426,7 +1447,7 @@ export interface ServiceRequestUpdate {
   actorName: string | null;
   actorRole: string | null;
   body: string;
-  visibility: 'resident' | string;
+  visibility: RequestCommunicationVisibility;
   attachmentIds: UUID[];
   createdAt: IsoDateTime;
 }
@@ -1600,7 +1621,7 @@ export interface EmergencyDispatchReadiness {
   live_provider_delivery_evidence?: EmergencyProviderDeliveryEvidence[];
   evidence: {
     source_tables: string[];
-    notification_event_type: 'request.emergency_created' | string;
+    notification_event_type: 'request.emergency_created';
     returned_queue_rows: number;
     returned_roster_rows: number;
     returned_notification_rows: number;
@@ -1653,8 +1674,8 @@ export interface StaffWorkspaceAttachment {
   requestId: string;
   uploadedByUid: string | null;
   fileUrl: string;
-  fileKind: string | null;
-  visibility: 'resident' | 'internal' | (string & {});
+  fileKind: RequestAttachmentFileKind;
+  visibility: RequestCommunicationVisibility;
   metadata: Record<string, unknown>;
   createdAt: IsoDateTime;
 }
@@ -1666,7 +1687,7 @@ export interface StaffWorkspaceUpdate {
   actorName: string | null;
   actorRole: string | null;
   body: string;
-  visibility: 'resident' | 'internal' | (string & {});
+  visibility: RequestCommunicationVisibility;
   attachmentIds: UUID[];
   createdAt: IsoDateTime;
 }
@@ -1675,8 +1696,8 @@ export interface StaffWorkspaceSlaEvent {
   id: UUID;
   requestId: string;
   eventKey: string;
-  eventType: string;
-  severity: string;
+  eventType: RequestSlaEventType;
+  severity: RequestSlaEventSeverity;
   dueAt: IsoDateTime | null;
   detectedAt: IsoDateTime | null;
   metadata: Record<string, unknown>;
@@ -1698,9 +1719,9 @@ export interface TechnicianWorkspaceEvent {
   actorUid: string | null;
   actorName: string | null;
   actorRole: string | null;
-  eventType: string;
-  fromStatus: StaffRequestStatus | string | null;
-  toStatus: StaffRequestStatus | string;
+  eventType: TechnicianWorkspaceEventType;
+  fromStatus: StaffRequestStatus | null;
+  toStatus: StaffRequestStatus;
   metadata: Record<string, unknown>;
   createdAt: IsoDateTime;
 }
@@ -1760,9 +1781,9 @@ export interface ContractorWorkspaceEvent {
   actorUid: string | null;
   actorName: string | null;
   actorRole: string | null;
-  eventType: string;
-  fromStatus: StaffRequestStatus | string | null;
-  toStatus: StaffRequestStatus | string;
+  eventType: ContractorWorkspaceEventType;
+  fromStatus: StaffRequestStatus | null;
+  toStatus: StaffRequestStatus;
   metadata: Record<string, unknown>;
   createdAt: IsoDateTime;
 }
@@ -1812,7 +1833,7 @@ export interface StaffResidentQuickView {
     | 'is_whitelisted'
     | 'is_blacklisted'
   >>;
-  requestCounts: Partial<Record<StaffRequestStatus | string, number>>;
+  requestCounts: Partial<Record<StaffRequestStatus, number>>;
   recentRequests: StaffWorkspaceRequest[];
 }
 
@@ -2214,7 +2235,7 @@ export interface GisOssProtocolFile {
   label: string;
   file_url: string;
   file_mime?: string | null;
-  signed_at?: IsoDateTime | string | null;
+  signed_at?: IsoDateTime | null;
 }
 
 export interface GisOssOperationalRef {
@@ -2246,9 +2267,9 @@ export interface GisOssArtifactManifest {
 }
 
 export interface GisOssExportPayload {
-  format_version: 'gis_oss_readiness.v1' | string;
+  format_version: 'gis_oss_readiness.v1';
   packaging?: {
-    format_version: 'gis_oss_artifact_manifest.v1' | string;
+    format_version: 'gis_oss_artifact_manifest.v1';
     artifact_filename: string;
     artifact_content_type: string;
     manifest: GisOssArtifactManifest;
@@ -2308,7 +2329,7 @@ export interface AdminOutboxRow {
   property_id: UUID | null;
   event_type: string;
   channel: NotificationChannel;
-  recipient_type: NotificationRecipientType | string;
+  recipient_type: NotificationRecipientType;
   recipient_id: UUID | null;
   recipient_address: string | null;
   payload: Record<string, unknown> | null;
@@ -2383,7 +2404,7 @@ export interface NotificationLogRow {
   id: UUID;
   property_id?: UUID | null;
   outbox_id?: UUID | null;
-  recipient_type: NotificationRecipientType | string;
+  recipient_type: NotificationRecipientType;
   recipient_id: UUID | null;
   recipient_address?: string | null;
   channel: NotificationChannel;

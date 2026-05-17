@@ -16,7 +16,7 @@ export interface Webhook {
   last_attempt_at: IsoDateTime | null;
   last_success_at: IsoDateTime | null;
   last_error: string | null;
-  created_by: UUID | string | null;
+  created_by: UUID | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime | null;
 }

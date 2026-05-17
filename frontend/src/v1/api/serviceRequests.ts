@@ -80,11 +80,11 @@ export interface CreateServiceRequestBody {
   scheduledFor?: string | null;
   photos?: string[];
   targetType?: StaffRequestTargetType;
-  targetId?: UUID | string;
-  unitId?: UUID | string;
-  homeId?: UUID | string;
-  accessZoneId?: UUID | string;
-  accessPointId?: UUID | string;
+  targetId?: UUID;
+  unitId?: UUID;
+  homeId?: UUID;
+  accessZoneId?: UUID;
+  accessPointId?: UUID;
   emergencyType?: EmergencyType;
   severity?: EmergencySeverity;
   escalationTarget?: EmergencyEscalationTarget;

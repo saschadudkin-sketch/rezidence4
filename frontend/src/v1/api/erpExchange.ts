@@ -70,7 +70,7 @@ export interface ErpProviderConfig {
   last_success_at?: IsoDateTime | null;
   last_failure_at?: IsoDateTime | null;
   last_error?: string | null;
-  created_by: UUID | string | null;
+  created_by: UUID | null;
   created_at?: IsoDateTime;
   updated_at?: IsoDateTime | null;
 }
@@ -113,7 +113,7 @@ export interface ErpSyncJob {
   status: ErpSyncJobStatus;
   summary: Record<string, unknown>;
   error_message?: string | null;
-  created_by: UUID | string | null;
+  created_by: UUID | null;
   started_at?: IsoDateTime | null;
   completed_at?: IsoDateTime | null;
   created_at?: IsoDateTime;
@@ -131,7 +131,7 @@ export interface ErpSyncRecord {
   operation: ErpSyncRecordOperation;
   status: ErpSyncRecordStatus;
   domhub_entity_type: string | null;
-  domhub_entity_id: UUID | string | null;
+  domhub_entity_id: UUID | null;
   validation_errors: string[];
   payload: Record<string, unknown>;
   normalized_payload: Record<string, unknown>;

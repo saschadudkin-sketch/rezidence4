@@ -10,8 +10,8 @@ export type AnalyticsGranularity = 'hour' | 'day';
 export type AnalyticsPeriod = '24h' | '7d' | '30d';
 
 export interface AnalyticsDateRangeParams {
-  from?: IsoDateTime | string;
-  to?: IsoDateTime | string;
+  from?: IsoDateTime;
+  to?: IsoDateTime;
 }
 
 export interface TrafficAnalyticsParams extends AnalyticsDateRangeParams {

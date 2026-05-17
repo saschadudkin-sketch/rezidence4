@@ -23,7 +23,7 @@ export interface ListMembershipsParams extends PaginationParams {
 export interface CreateMembershipBody {
   property_id: UUID;
   subject_type: MembershipSubjectType;
-  subject_id?: UUID | string | null;
+  subject_id?: UUID | null;
   resident_id?: UUID | null;
   staff_user_id?: UUID | null;
   contractor_user_id?: UUID | null;

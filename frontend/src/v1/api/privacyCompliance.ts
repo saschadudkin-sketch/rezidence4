@@ -179,7 +179,7 @@ export const privacyComplianceApi = {
     );
   },
 
-  completeDataSubjectRequest(id: UUID | string, body: CompleteDataSubjectRequestBody, opts?: RequestOpts) {
+  completeDataSubjectRequest(id: UUID, body: CompleteDataSubjectRequestBody, opts?: RequestOpts) {
     return v1Client.post<{ request: Record<string, unknown> }>(
       `/privacy/data-subject-requests/${encodeURIComponent(id)}/complete`,
       body,
@@ -210,7 +210,7 @@ export const privacyComplianceApi = {
   },
 
   deleteAccount(body: DeleteAccountBody = {}, opts?: RequestOpts) {
-    return v1Client.post<{ ok: true; auditId: UUID | string }>(
+    return v1Client.post<{ ok: true; auditId: UUID }>(
       '/privacy/delete-account',
       body,
       opts,

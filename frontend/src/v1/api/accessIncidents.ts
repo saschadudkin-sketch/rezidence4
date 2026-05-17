@@ -88,7 +88,7 @@ export interface UpdateIncidentStatusBody {
 
 export interface CreateIncidentVideoEvidenceBody {
   property_id?: UUID;
-  camera_device_id?: UUID | string | null;
+  camera_device_id?: UUID | null;
   provider_config_id?: UUID | null;
   video_provider_config_id?: UUID | null;
   evidence_type?: VideoEvidenceType;
@@ -107,7 +107,7 @@ export interface CreateIncidentVideoEvidenceBody {
 
 export interface FetchIncidentVideoEvidenceBody {
   property_id?: UUID;
-  camera_device_id?: UUID | string | null;
+  camera_device_id?: UUID | null;
   video_provider_config_id?: UUID | null;
   occurred_at?: IsoDateTime | null;
   window_before_seconds?: number | null;
