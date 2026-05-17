@@ -209,6 +209,12 @@ export function NotificationOperationsPage() {
       await invalidateOutbox();
     },
   });
+  const outboxDetail = useMutation({
+    mutationFn: (id: string) => api.adminOutbox.getById(id),
+  });
+  const notificationDetail = useMutation({
+    mutationFn: (id: string) => api.notificationLog.getById(id),
+  });
 
   const error = outboxMetrics.error
     || outboxSla.error
@@ -320,6 +326,12 @@ export function NotificationOperationsPage() {
         {retryBulk.error ? (
           <Alert tone="error">Не удалось восстановить outbox: {errorMessage(retryBulk.error)}</Alert>
         ) : null}
+        {outboxDetail.error ? (
+          <Alert tone="error">Не удалось загрузить строку outbox: {errorMessage(outboxDetail.error)}</Alert>
+        ) : null}
+        {notificationDetail.error ? (
+          <Alert tone="error">Не удалось загрузить событие доставки: {errorMessage(notificationDetail.error)}</Alert>
+        ) : null}
 
         <MetricsSection
           outbox={outboxMetrics.data ?? null}
@@ -346,6 +358,9 @@ export function NotificationOperationsPage() {
           onConfirmCancel={(id) => cancel.mutate(id)}
           onClearCancel={() => setPendingCancelId(null)}
           pendingCancelId={pendingCancelId}
+          detail={outboxDetail.data?.item ?? null}
+          detailLoading={outboxDetail.isPending}
+          onLoadDetail={(id) => outboxDetail.mutate(id)}
           openPayloadIds={openPayloadIds}
           onTogglePayload={togglePayload}
           actionsDisabled={requeue.isPending || cancel.isPending}
@@ -355,6 +370,9 @@ export function NotificationOperationsPage() {
           rows={notificationList.data?.items ?? []}
           loading={notificationList.isLoading}
           limitMax={notificationMeta.data?.limit_max ?? null}
+          detail={notificationDetail.data?.item ?? null}
+          detailLoading={notificationDetail.isPending}
+          onLoadDetail={(id) => notificationDetail.mutate(id)}
         />
       </Stack>
     </div>
@@ -582,6 +600,9 @@ function OutboxSection({
   onConfirmCancel,
   onClearCancel,
   pendingCancelId,
+  detail,
+  detailLoading,
+  onLoadDetail,
   openPayloadIds,
   onTogglePayload,
   actionsDisabled,
@@ -593,6 +614,9 @@ function OutboxSection({
   onConfirmCancel: (id: string) => void;
   onClearCancel: () => void;
   pendingCancelId: string | null;
+  detail: AdminOutboxRow | null;
+  detailLoading: boolean;
+  onLoadDetail: (id: string) => void;
   openPayloadIds: Set<string>;
   onTogglePayload: (id: string) => void;
   actionsDisabled: boolean;
@@ -633,6 +657,14 @@ function OutboxSection({
                   {openPayloadIds.has(row.id) ? 'Скрыть данные' : 'Показать данные'}
                 </Button>
                 <Button
+                  variant="ghost"
+                  loading={detailLoading}
+                  disabled={detailLoading}
+                  onClick={() => onLoadDetail(row.id)}
+                >
+                  Деталь
+                </Button>
+                <Button
                   variant="secondary"
                   disabled={actionsDisabled || (row.status !== 'failed' && row.status !== 'dead')}
                   onClick={() => onRequeue(row.id)}
@@ -666,6 +698,22 @@ function OutboxSection({
           ))}
         </ul>
       ) : null}
+      {detail ? (
+        <Card elevated title="Деталь outbox">
+          <Stack>
+            <Inline>
+              <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
+              <Badge tone="neutral">{channelLabel(detail.channel)}</Badge>
+              <span className={uiClasses.textMuted}>{detail.id}</span>
+            </Inline>
+            <p className={uiClasses.textMuted}>
+              correlation {detail.correlation_id ?? '—'} · attempts {detail.attempt_count}/{detail.max_attempts}
+            </p>
+            <p className={uiClasses.textMuted}>{payloadPreview(detail.payload)}</p>
+            {detail.last_error ? <p className={uiClasses.textMuted}>{detail.last_error}</p> : null}
+          </Stack>
+        </Card>
+      ) : null}
     </Card>
   );
 }
@@ -674,10 +722,16 @@ function NotificationLogSection({
   rows,
   loading,
   limitMax,
+  detail,
+  detailLoading,
+  onLoadDetail,
 }: {
   rows: NotificationLogRow[];
   loading: boolean;
   limitMax: number | null;
+  detail: NotificationLogRow | null;
+  detailLoading: boolean;
+  onLoadDetail: (id: string) => void;
 }) {
   return (
     <Card
@@ -707,12 +761,42 @@ function NotificationLogSection({
                   </p>
                 ) : null}
               </div>
-              <Badge tone={row.status === 'sent' ? 'success' : 'warning'}>
-                попытки {formatNumber(row.attempt_count)}
-              </Badge>
+              <Inline>
+                <Button
+                  variant="ghost"
+                  loading={detailLoading}
+                  disabled={detailLoading}
+                  onClick={() => onLoadDetail(row.id)}
+                >
+                  Деталь
+                </Button>
+                <Badge tone={row.status === 'sent' ? 'success' : 'warning'}>
+                  попытки {formatNumber(row.attempt_count)}
+                </Badge>
+              </Inline>
             </li>
           ))}
         </ul>
+      ) : null}
+      {detail ? (
+        <Card elevated title="Деталь доставки">
+          <Stack>
+            <Inline>
+              <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
+              <Badge tone="neutral">{channelLabel(detail.channel)}</Badge>
+              <span className={uiClasses.textMuted}>{detail.id}</span>
+            </Inline>
+            <p className={uiClasses.textMuted}>
+              outbox {detail.outbox_id ?? '—'} · provider {detail.provider_message_id ?? '—'}
+            </p>
+            <p className={uiClasses.textMuted}>{payloadPreview(detail.payload)}</p>
+            {detail.error_code || detail.error_message ? (
+              <p className={uiClasses.textMuted}>
+                {detail.error_code || 'provider_error'}{detail.error_message ? ` · ${detail.error_message}` : ''}
+              </p>
+            ) : null}
+          </Stack>
+        </Card>
       ) : null}
     </Card>
   );

@@ -31,6 +31,7 @@ import type {
   AdminOutboxSla,
   OutboxHealthResponse,
   NotificationLogMetrics,
+  NotificationLogRow,
   UserMe,
   V1Document,
 } from '../api/types';
@@ -76,11 +77,13 @@ const {
   getOutboxHealthMock,
   retryOutboxMock,
   listAdminOutboxMock,
+  getAdminOutboxByIdMock,
   requeueAdminOutboxMock,
   cancelAdminOutboxMock,
   getNotificationLogMetricsMock,
   getNotificationLogMetaMock,
   listNotificationLogMock,
+  getNotificationLogByIdMock,
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listAdminAnnouncementsMock: vi.fn(),
@@ -116,11 +119,13 @@ const {
   getOutboxHealthMock: vi.fn(),
   retryOutboxMock: vi.fn(),
   listAdminOutboxMock: vi.fn(),
+  getAdminOutboxByIdMock: vi.fn(),
   requeueAdminOutboxMock: vi.fn(),
   cancelAdminOutboxMock: vi.fn(),
   getNotificationLogMetricsMock: vi.fn(),
   getNotificationLogMetaMock: vi.fn(),
   listNotificationLogMock: vi.fn(),
+  getNotificationLogByIdMock: vi.fn(),
   packageStatusToneMock: vi.fn(
     (status: string): 'success' | 'warning' | 'neutral' | 'error' => {
       if (status === 'awaiting_pickup') return 'warning';
@@ -188,6 +193,7 @@ vi.mock('../api', async () => {
         health: getOutboxHealthMock,
         retry: retryOutboxMock,
         list: listAdminOutboxMock,
+        getById: getAdminOutboxByIdMock,
         requeue: requeueAdminOutboxMock,
         cancel: cancelAdminOutboxMock,
       },
@@ -195,6 +201,7 @@ vi.mock('../api', async () => {
         metrics: getNotificationLogMetricsMock,
         meta: getNotificationLogMetaMock,
         list: listNotificationLogMock,
+        getById: getNotificationLogByIdMock,
       },
       // Unused by admin pages; kept for barrel-shape safety.
       accessRequests: { list: neverResolves, getById: neverResolves },
@@ -637,6 +644,28 @@ function makeNotificationLogMetrics(
     channels: [{ channel: 'web_push', sent: 10, failed: 0, success_rate: 1 }],
     top_events: [{ event_type: 'access.request.created', total: 10 }],
     top_errors: [],
+    ...overrides,
+  };
+}
+
+function makeNotificationLogRow(overrides: Partial<NotificationLogRow> = {}): NotificationLogRow {
+  return {
+    id: '00000000-0000-0000-0000-0000000000e1',
+    property_id: '00000000-0000-0000-0000-000000000bbb',
+    outbox_id: '00000000-0000-0000-0000-0000000000f1',
+    recipient_type: 'resident',
+    recipient_id: '00000000-0000-0000-0000-0000000000c1',
+    recipient_address: 'resident@example.test',
+    channel: 'web_push',
+    event_type: 'package.received',
+    status: 'sent',
+    payload: { public: 'delivery detail' },
+    error_code: null,
+    error_message: null,
+    provider_message_id: 'provider-1',
+    attempt_count: 1,
+    sent_at: '2026-05-10T00:01:00.000Z',
+    created_at: '2026-05-10T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -1509,11 +1538,13 @@ describe('NotificationOperationsPage', () => {
     getOutboxHealthMock.mockReset();
     retryOutboxMock.mockReset();
     listAdminOutboxMock.mockReset();
+    getAdminOutboxByIdMock.mockReset();
     requeueAdminOutboxMock.mockReset();
     cancelAdminOutboxMock.mockReset();
     getNotificationLogMetricsMock.mockReset();
     getNotificationLogMetaMock.mockReset();
     listNotificationLogMock.mockReset();
+    getNotificationLogByIdMock.mockReset();
   });
 
   test('property_id=null → предупреждение без запросов', () => {
@@ -1524,9 +1555,11 @@ describe('NotificationOperationsPage', () => {
     expect(getAdminOutboxSlaMock).not.toHaveBeenCalled();
     expect(getOutboxHealthMock).not.toHaveBeenCalled();
     expect(listAdminOutboxMock).not.toHaveBeenCalled();
+    expect(getAdminOutboxByIdMock).not.toHaveBeenCalled();
     expect(getNotificationLogMetricsMock).not.toHaveBeenCalled();
     expect(getNotificationLogMetaMock).not.toHaveBeenCalled();
     expect(listNotificationLogMock).not.toHaveBeenCalled();
+    expect(getNotificationLogByIdMock).not.toHaveBeenCalled();
   });
 
   test('payload скрыт по умолчанию, cancel требует подтверждения', async () => {
@@ -1550,14 +1583,32 @@ describe('NotificationOperationsPage', () => {
       offset: 0,
     });
     cancelAdminOutboxMock.mockResolvedValue({ ok: true });
+    getAdminOutboxByIdMock.mockResolvedValue({
+      ok: true,
+      item: makeAdminOutboxRow({ payload: { secret: 'loaded detail' }, attempt_count: 1 }),
+    });
 
     renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
 
     expect(await screen.findByText('Создана заявка на доступ')).toBeInTheDocument();
+    expect(listAdminOutboxMock).toHaveBeenCalledWith(
+      { status: 'pending', channel: undefined, q: undefined, limit: 50 },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(listNotificationLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({ since: expect.any(String), channel: undefined, status: undefined, limit: 50 }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(screen.queryByText(/visible only on demand/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Показать данные' }));
     expect(screen.getByText(/visible only on demand/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Деталь' }));
+    await waitFor(() => {
+      expect(getAdminOutboxByIdMock).toHaveBeenCalledWith('00000000-0000-0000-0000-0000000000f1');
+    });
+    expect(await screen.findByText(/loaded detail/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Отменить' }));
     expect(cancelAdminOutboxMock).not.toHaveBeenCalled();
@@ -1566,6 +1617,75 @@ describe('NotificationOperationsPage', () => {
     await waitFor(() => {
       expect(cancelAdminOutboxMock).toHaveBeenCalledWith('00000000-0000-0000-0000-0000000000f1');
     });
+  });
+
+  test('filters notification operations, requeues failed outbox and loads log detail', async () => {
+    const outboxRow = makeAdminOutboxRow({
+      status: 'failed',
+      channel: 'sms',
+      event_type: 'access.request.status_changed',
+      last_error: 'provider timeout',
+    });
+    const logRow = makeNotificationLogRow({
+      id: '00000000-0000-0000-0000-0000000000e2',
+      channel: 'sms',
+      status: 'failed',
+      event_type: 'package.received',
+      error_code: 'provider_timeout',
+      error_message: 'SMS gateway timeout',
+      payload: { detail: 'log detail payload' },
+    });
+    getAdminOutboxMetricsMock.mockResolvedValue(makeAdminOutboxMetrics({
+      counts: { pending: 0, in_flight: 0, sent: 10, failed: 1, dead: 0 },
+    }));
+    getAdminOutboxSlaMock.mockResolvedValue(makeAdminOutboxSla());
+    getOutboxHealthMock.mockResolvedValue(makeOutboxHealth({
+      counts: { pending: 0, in_flight: 0, sent: 10, failed: 1, dead: 0 },
+    }));
+    listAdminOutboxMock.mockResolvedValue({ ok: true, items: [outboxRow], count: 1, limit: 50, offset: 0 });
+    getNotificationLogMetricsMock.mockResolvedValue(makeNotificationLogMetrics({
+      channels: [{ channel: 'sms', sent: 4, failed: 1, success_rate: 0.8 }],
+    }));
+    getNotificationLogMetaMock.mockResolvedValue({ ok: true, limit_max: 250 });
+    listNotificationLogMock.mockResolvedValue({ ok: true, items: [logRow], count: 1, limit: 50, offset: 0 });
+    requeueAdminOutboxMock.mockResolvedValue({
+      ok: true,
+      id: outboxRow.id,
+      previous_status: 'failed',
+    });
+    getNotificationLogByIdMock.mockResolvedValue({ ok: true, item: logRow });
+
+    renderWithProviders(<NotificationOperationsPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByText('Изменён статус заявки')).toBeInTheDocument();
+    expect(await screen.findByText('Принята посылка')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Канал'), { target: { value: 'sms' } });
+    fireEvent.change(screen.getByLabelText('Статус outbox'), { target: { value: 'failed' } });
+    fireEvent.change(screen.getByLabelText('Статус доставки'), { target: { value: 'failed' } });
+    fireEvent.change(screen.getByLabelText('Поиск outbox'), { target: { value: 'provider timeout' } });
+
+    await waitFor(() => {
+      expect(listAdminOutboxMock).toHaveBeenLastCalledWith(
+        { status: 'failed', channel: 'sms', q: 'provider timeout', limit: 50 },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+    await waitFor(() => {
+      expect(listNotificationLogMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ channel: 'sms', status: 'failed', limit: 50 }),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    const outboxItem = screen.getByText('Изменён статус заявки').closest('li') as HTMLElement;
+    fireEvent.click(within(outboxItem).getByRole('button', { name: 'Вернуть в очередь' }));
+    await waitFor(() => expect(requeueAdminOutboxMock).toHaveBeenCalledWith(outboxRow.id));
+
+    const logItem = screen.getByText('Принята посылка').closest('li') as HTMLElement;
+    fireEvent.click(within(logItem).getByRole('button', { name: 'Деталь' }));
+    await waitFor(() => expect(getNotificationLogByIdMock).toHaveBeenCalledWith(logRow.id));
+    expect(await screen.findByText(/log detail payload/)).toBeInTheDocument();
   });
 
   test('health/SLA рендерятся, bulk retry требует подтверждения', async () => {
