@@ -36,7 +36,7 @@ export interface UpdateWebhookBody {
   is_active?: boolean;
 }
 
-export type WebhookDeliveryStatus = 'pending' | 'retrying' | 'success' | 'failed' | string;
+export type WebhookDeliveryStatus = 'pending' | 'retrying' | 'success' | 'failed';
 
 export interface WebhookDelivery {
   id: UUID;
