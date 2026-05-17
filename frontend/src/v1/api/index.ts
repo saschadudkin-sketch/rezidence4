@@ -46,6 +46,7 @@ import { privacyComplianceApi } from './privacyCompliance';
 import { analyticsApi } from './analytics';
 import { erpExchangeApi } from './erpExchange';
 import { webhooksApi } from './webhooks';
+import { guardVisitsApi } from './guardVisits';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -82,6 +83,7 @@ export const api = {
   analytics: analyticsApi,
   erpExchange: erpExchangeApi,
   webhooks: webhooksApi,
+  guardVisits: guardVisitsApi,
 };
 
 export { normalizePlate };
@@ -287,3 +289,9 @@ export type {
   WebhookDelivery,
   WebhookDeliveryStatus,
 } from './webhooks';
+export type {
+  CreateGuardVisitBody,
+  GuardVisitDetailResponse,
+  GuardVisitIncidentSummary,
+  ListGuardVisitsParams,
+} from './guardVisits';
