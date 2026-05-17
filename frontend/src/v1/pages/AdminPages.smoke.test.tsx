@@ -1051,7 +1051,27 @@ describe('OperationsDashboardPage', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(getAnalyticsTrafficMock).toHaveBeenCalledWith(
-      { granularity: 'day' },
+      expect.objectContaining({
+        granularity: 'day',
+        from: expect.any(String),
+        to: expect.any(String),
+      }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(getAnalyticsTopResidentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 5, from: expect.any(String), to: expect.any(String) }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(getAnalyticsSlaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(getAnalyticsRequestsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(getAnalyticsPackagesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(listAnalyticsSnapshotsMock).toHaveBeenCalledWith(

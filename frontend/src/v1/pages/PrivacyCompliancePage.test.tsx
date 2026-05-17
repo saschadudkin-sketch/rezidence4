@@ -247,4 +247,25 @@ describe('PrivacyCompliancePage', () => {
     expect(listDataSubjectRequestsMock).not.toHaveBeenCalled();
     expect(listComplianceEvidenceMock).not.toHaveBeenCalled();
   });
+
+  test('blocks DSAR creation without an explicit subject', async () => {
+    getReadinessMock.mockResolvedValue({ readiness: { status: 'ready' } });
+    getConsentMock.mockResolvedValue({
+      currentVersion: '2026-05-01',
+      acceptedVersion: null,
+      acceptedAt: null,
+      needsAcceptance: false,
+    });
+    listDataSubjectRequestsMock.mockResolvedValue({ requests: [] });
+    listComplianceEvidenceMock.mockResolvedValue({ evidence: [] });
+
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: /privacy compliance/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать DSAR' }));
+
+    expect(await screen.findByText('Укажите Subject UID или Resident ID')).toBeInTheDocument();
+    expect(createDataSubjectRequestMock).not.toHaveBeenCalled();
+  });
 });

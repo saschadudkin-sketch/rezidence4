@@ -100,6 +100,20 @@ function summarizeRecord(record: Record<string, unknown>): string {
   return parts.length ? parts.join(' · ') : JSON.stringify(record);
 }
 
+function requiredTrim(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`Укажите ${label}`);
+  return trimmed;
+}
+
+function requiredList(value: string, label: string): string[] {
+  const list = splitList(value);
+  if (!list.length) throw new Error(`Укажите ${label}`);
+  return list;
+}
+
+type ReportApiError = (error: unknown, fallback: string) => void;
+
 export function IntegrationOperationsPage() {
   const session = useV1Session();
   const propertyId = session.property_id ?? null;
@@ -130,6 +144,9 @@ function IntegrationOperationsContent({ propertyId }: { propertyId: string }) {
       setFormError(err instanceof Error ? err.message : 'Некорректные данные формы');
     }
   }
+  const reportError: ReportApiError = (error, fallback) => {
+    setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : fallback);
+  };
 
   const invalidateIntegrations = () => {
     void queryClient.invalidateQueries({ queryKey: ['v1', 'integrations'] });
@@ -146,10 +163,10 @@ function IntegrationOperationsContent({ propertyId }: { propertyId: string }) {
 
       <Stack>
         {formError ? <Alert tone="error">{formError}</Alert> : null}
-        <ErpSection propertyId={propertyId} invalidate={invalidateIntegrations} run={run} />
-        <SkudSection propertyId={propertyId} invalidate={invalidateIntegrations} run={run} />
-        <WebhooksSection invalidate={invalidateIntegrations} />
-        <VideoSection propertyId={propertyId} invalidate={invalidateIntegrations} run={run} />
+        <ErpSection propertyId={propertyId} invalidate={invalidateIntegrations} reportError={reportError} run={run} />
+        <SkudSection propertyId={propertyId} invalidate={invalidateIntegrations} reportError={reportError} run={run} />
+        <WebhooksSection invalidate={invalidateIntegrations} reportError={reportError} run={run} />
+        <VideoSection propertyId={propertyId} invalidate={invalidateIntegrations} reportError={reportError} run={run} />
       </Stack>
     </div>
   );
@@ -158,10 +175,12 @@ function IntegrationOperationsContent({ propertyId }: { propertyId: string }) {
 function ErpSection({
   propertyId,
   invalidate,
+  reportError,
   run,
 }: {
   propertyId: string;
   invalidate: () => void;
+  reportError: ReportApiError;
   run: (action: () => void) => void;
 }) {
   const [status, setStatus] = useState<ErpProviderStatus | ''>('');
@@ -189,48 +208,52 @@ function ErpSection({
   const syncJobQuery = useQuery({
     queryKey: ['v1', 'integrations', 'erp', 'sync-job', propertyId, syncJobId],
     enabled: false,
-    queryFn: ({ signal }) => api.erpExchange.getSyncJob(syncJobId.trim(), { property_id: propertyId }, { signal }),
+    queryFn: ({ signal }) => api.erpExchange.getSyncJob(requiredTrim(syncJobId, 'sync job ID'), { property_id: propertyId }, { signal }),
   });
 
   const createProvider = useMutation({
     mutationFn: () => api.erpExchange.createProvider({
       property_id: propertyId,
       provider,
-      display_name: displayName.trim() || `${provider} provider`,
+      display_name: requiredTrim(displayName, 'название ERP provider'),
       status: 'active',
       sync_mode: syncMode,
       base_url: baseUrl.trim() || null,
       auth_ref: authRef.trim() || null,
-      capabilities: splitList(capabilities),
+      capabilities: requiredList(capabilities, 'capabilities'),
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось создать ERP provider'),
   });
   const previewImport = useMutation({
-    mutationFn: () => api.erpExchange.previewImport(selectedProviderId.trim(), {
+    mutationFn: () => api.erpExchange.previewImport(requiredTrim(selectedProviderId, 'provider ID'), {
       property_id: propertyId,
       dataset: importDataset,
       source: syncSource,
       rows: parseJsonArray(importRowsJson, []),
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось preview ERP import'),
   });
   const applyImport = useMutation({
-    mutationFn: () => api.erpExchange.applyImport(selectedProviderId.trim(), {
+    mutationFn: () => api.erpExchange.applyImport(requiredTrim(selectedProviderId, 'provider ID'), {
       property_id: propertyId,
       dataset: importDataset,
       source: syncSource,
       rows: parseJsonArray(importRowsJson, []),
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось apply ERP import'),
   });
   const exportMutation = useMutation({
-    mutationFn: () => api.erpExchange.exportDataset(selectedProviderId.trim(), {
+    mutationFn: () => api.erpExchange.exportDataset(requiredTrim(selectedProviderId, 'provider ID'), {
       property_id: propertyId,
       dataset: exportDataset,
       source: syncSource,
       limit: Number(exportLimit) || 100,
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось export ERP dataset'),
   });
 
   const providers = providersQuery.data?.providers ?? [];
@@ -320,10 +343,14 @@ function ErpSection({
             <Field label="Sync job ID">
               <Input value={syncJobId} onChange={(e) => setSyncJobId(e.target.value)} placeholder="job-uuid" />
             </Field>
-            <Button variant="ghost" loading={syncJobQuery.isFetching} onClick={() => void syncJobQuery.refetch()}>
+            <Button variant="ghost" loading={syncJobQuery.isFetching} onClick={() => run(() => {
+              requiredTrim(syncJobId, 'sync job ID');
+              void syncJobQuery.refetch();
+            })}>
               Загрузить sync job
             </Button>
           </div>
+          {syncJobQuery.isError ? <QueryAlert error={syncJobQuery.error} /> : null}
           {syncJobQuery.data ? <RecordList rows={[syncJobQuery.data.sync_job as unknown as Record<string, unknown>]} empty="" /> : null}
         </section>
       </Stack>
@@ -334,10 +361,12 @@ function ErpSection({
 function SkudSection({
   propertyId,
   invalidate,
+  reportError,
   run,
 }: {
   propertyId: string;
   invalidate: () => void;
+  reportError: ReportApiError;
   run: (action: () => void) => void;
 }) {
   const [deviceId, setDeviceId] = useState('');
@@ -369,13 +398,13 @@ function SkudSection({
     queryKey: ['v1', 'integrations', 'skud', 'manual-events', propertyId, deviceId],
     enabled: false,
     queryFn: ({ signal }) => api.skudIntegrations.listManualControlEvents(
-      deviceId.trim(),
+      requiredTrim(deviceId, 'hardware device ID'),
       { property_id: propertyId, limit: 20 },
       { signal },
     ),
   });
   const updateBoundary = useMutation({
-    mutationFn: () => api.skudIntegrations.updateHardwareBoundary(deviceId.trim(), {
+    mutationFn: () => api.skudIntegrations.updateHardwareBoundary(requiredTrim(deviceId, 'hardware device ID'), {
       property_id: propertyId,
       manual_control_policy: manualPolicy,
       fail_safe_mode: failSafe,
@@ -383,16 +412,18 @@ function SkudSection({
       manual_action_requires_reason: true,
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось сохранить SKUD boundary'),
   });
   const manualControl = useMutation({
-    mutationFn: () => api.skudIntegrations.manualControl(deviceId.trim(), {
+    mutationFn: () => api.skudIntegrations.manualControl(requiredTrim(deviceId, 'hardware device ID'), {
       property_id: propertyId,
       action: manualAction,
-      reason: manualReason.trim() || 'admin action',
+      reason: requiredTrim(manualReason, 'reason для manual control'),
       decision_source: decisionSource,
       metadata: { source: 'integration_operations_ui' },
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось выполнить manual control'),
   });
   const rolloutEvidence = useMutation({
     mutationFn: () => api.skudIntegrations.recordFieldRolloutEvidence({
@@ -402,18 +433,20 @@ function SkudSection({
       rollout_stage: rolloutStage,
       evidence_type: evidenceType,
       status: evidenceStatus,
-      summary: evidenceSummary.trim() || null,
+      summary: requiredTrim(evidenceSummary, 'summary evidence'),
       metrics: parseJsonObject(metricsJson, { source: 'integration_operations_ui' }),
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось записать SKUD rollout evidence'),
   });
   const syncPass = useMutation({
-    mutationFn: () => api.skudIntegrations.syncPass(providerConfigId.trim(), {
+    mutationFn: () => api.skudIntegrations.syncPass(requiredTrim(providerConfigId, 'provider config ID'), {
       property_id: propertyId,
-      pass_id: passId.trim(),
+      pass_id: requiredTrim(passId, 'pass ID'),
       action: syncAction,
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось sync pass'),
   });
 
   const devices = devicesQuery.data?.hardware_devices ?? [];
@@ -475,8 +508,12 @@ function SkudSection({
           <Inline>
             <Button variant="secondary" loading={updateBoundary.isPending} onClick={() => updateBoundary.mutate()}>Сохранить boundary</Button>
             <Button variant="secondary" loading={manualControl.isPending} onClick={() => manualControl.mutate()}>Manual control</Button>
-            <Button variant="ghost" loading={eventsQuery.isFetching} onClick={() => void eventsQuery.refetch()}>История manual</Button>
+            <Button variant="ghost" loading={eventsQuery.isFetching} onClick={() => run(() => {
+              requiredTrim(deviceId, 'hardware device ID');
+              void eventsQuery.refetch();
+            })}>История manual</Button>
           </Inline>
+          {eventsQuery.isError ? <QueryAlert error={eventsQuery.error} /> : null}
           <RecordList rows={events} empty="Manual-control событий нет." />
         </section>
 
@@ -523,7 +560,15 @@ function SkudSection({
   );
 }
 
-function WebhooksSection({ invalidate }: { invalidate: () => void }) {
+function WebhooksSection({
+  invalidate,
+  reportError,
+  run,
+}: {
+  invalidate: () => void;
+  reportError: ReportApiError;
+  run: (action: () => void) => void;
+}) {
   const [webhookId, setWebhookId] = useState('');
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -538,34 +583,38 @@ function WebhooksSection({ invalidate }: { invalidate: () => void }) {
   const deliveriesQuery = useQuery({
     queryKey: ['v1', 'integrations', 'webhooks', webhookId, 'deliveries'],
     enabled: false,
-    queryFn: ({ signal }) => api.webhooks.listDeliveries(webhookId.trim(), { signal }),
+    queryFn: ({ signal }) => api.webhooks.listDeliveries(requiredTrim(webhookId, 'webhook ID'), { signal }),
   });
   const createWebhook = useMutation({
     mutationFn: () => api.webhooks.create({
-      name: name.trim() || 'DomHub integration',
-      url: url.trim() || 'https://example.test/webhook',
-      secret: secret.trim() || 'secret-ref',
-      events: splitList(events),
+      name: requiredTrim(name, 'webhook name'),
+      url: requiredTrim(url, 'webhook URL'),
+      secret: requiredTrim(secret, 'webhook secret'),
+      events: requiredList(events, 'webhook events'),
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось создать webhook'),
   });
   const updateWebhook = useMutation({
-    mutationFn: () => api.webhooks.update(webhookId.trim(), {
+    mutationFn: () => api.webhooks.update(requiredTrim(webhookId, 'webhook ID'), {
       name: name.trim() || undefined,
       url: url.trim() || undefined,
       secret: secret.trim() || undefined,
-      events: splitList(events),
+      events: requiredList(events, 'webhook events'),
       is_active: active === 'true',
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось обновить webhook'),
   });
   const deactivateWebhook = useMutation({
-    mutationFn: () => api.webhooks.deactivate(webhookId.trim()),
+    mutationFn: () => api.webhooks.deactivate(requiredTrim(webhookId, 'webhook ID')),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось отключить webhook'),
   });
   const testDelivery = useMutation({
-    mutationFn: () => api.webhooks.testDelivery(webhookId.trim()),
+    mutationFn: () => api.webhooks.testDelivery(requiredTrim(webhookId, 'webhook ID')),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось выполнить test delivery'),
   });
 
   const webhooks = webhooksQuery.data?.webhooks ?? [];
@@ -605,8 +654,12 @@ function WebhooksSection({ invalidate }: { invalidate: () => void }) {
           <Button variant="secondary" loading={updateWebhook.isPending} onClick={() => updateWebhook.mutate()}>Обновить webhook</Button>
           <Button variant="danger" loading={deactivateWebhook.isPending} onClick={() => deactivateWebhook.mutate()}>Отключить webhook</Button>
           <Button variant="secondary" loading={testDelivery.isPending} onClick={() => testDelivery.mutate()}>Test delivery</Button>
-          <Button variant="ghost" loading={deliveriesQuery.isFetching} onClick={() => void deliveriesQuery.refetch()}>История delivery</Button>
+          <Button variant="ghost" loading={deliveriesQuery.isFetching} onClick={() => run(() => {
+            requiredTrim(webhookId, 'webhook ID');
+            void deliveriesQuery.refetch();
+          })}>История delivery</Button>
         </Inline>
+        {deliveriesQuery.isError ? <QueryAlert error={deliveriesQuery.error} /> : null}
         <RecordList rows={deliveries as unknown as Array<Record<string, unknown>>} empty="Delivery history не загружена." />
       </Stack>
     </Card>
@@ -616,10 +669,12 @@ function WebhooksSection({ invalidate }: { invalidate: () => void }) {
 function VideoSection({
   propertyId,
   invalidate,
+  reportError,
   run,
 }: {
   propertyId: string;
   invalidate: () => void;
+  reportError: ReportApiError;
   run: (action: () => void) => void;
 }) {
   const [providerStatus, setProviderStatus] = useState<VideoProviderStatus | ''>('');
@@ -659,34 +714,36 @@ function VideoSection({
   const evidenceQuery = useQuery({
     queryKey: ['v1', 'integrations', 'video', 'evidence', propertyId, evidenceId],
     enabled: false,
-    queryFn: ({ signal }) => api.videoEvidence.getById(evidenceId.trim(), { property_id: propertyId }, { signal }),
+    queryFn: ({ signal }) => api.videoEvidence.getById(requiredTrim(evidenceId, 'evidence ID'), { property_id: propertyId }, { signal }),
   });
   const createProvider = useMutation({
     mutationFn: () => api.videoEvidence.createProvider({
       property_id: propertyId,
-      provider: providerKind.trim() || 'rtsp',
-      display_name: providerName.trim() || 'Gate cameras',
+      provider: requiredTrim(providerKind, 'video provider'),
+      display_name: requiredTrim(providerName, 'display name video provider'),
       status: 'active',
       base_url: providerBaseUrl.trim() || null,
       auth_ref: providerAuthRef.trim() || null,
-      capabilities: splitList(providerCapabilities),
+      capabilities: requiredList(providerCapabilities, 'video capabilities'),
       config_json: { source: 'integration_operations_ui' },
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось создать video provider'),
   });
   const linkCamera = useMutation({
-    mutationFn: () => api.videoEvidence.linkCameraProvider(cameraId.trim(), {
+    mutationFn: () => api.videoEvidence.linkCameraProvider(requiredTrim(cameraId, 'camera ID'), {
       property_id: propertyId,
-      video_provider_config_id: videoProviderId.trim(),
+      video_provider_config_id: requiredTrim(videoProviderId, 'video provider ID'),
       provider_camera_id: providerCameraId.trim() || null,
     }),
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось связать camera provider'),
   });
   const createEvidence = useMutation({
     mutationFn: () => {
       const anchor = incidentId.trim()
         ? { access_incident_id: incidentId.trim() }
-        : { visit_log_id: visitLogId.trim() || 'visit-log-required' };
+        : { visit_log_id: requiredTrim(visitLogId, 'incident ID или visit log ID') };
       return api.videoEvidence.create({
         property_id: propertyId,
         ...anchor,
@@ -702,6 +759,7 @@ function VideoSection({
       });
     },
     onSuccess: invalidate,
+    onError: (error) => reportError(error, 'Не удалось создать video evidence'),
   });
 
   const providers = providersQuery.data?.providers ?? [];
@@ -810,8 +868,12 @@ function VideoSection({
             <Field label="Evidence ID">
               <Input value={evidenceId} onChange={(e) => setEvidenceId(e.target.value)} placeholder="evidence-uuid" />
             </Field>
-            <Button variant="ghost" loading={evidenceQuery.isFetching} onClick={() => void evidenceQuery.refetch()}>Загрузить evidence</Button>
+            <Button variant="ghost" loading={evidenceQuery.isFetching} onClick={() => run(() => {
+              requiredTrim(evidenceId, 'evidence ID');
+              void evidenceQuery.refetch();
+            })}>Загрузить evidence</Button>
           </Inline>
+          {evidenceQuery.isError ? <QueryAlert error={evidenceQuery.error} /> : null}
           {evidenceQuery.data ? <RecordList rows={[evidenceQuery.data.evidence as unknown as Record<string, unknown>]} empty="" /> : null}
         </section>
       </Stack>

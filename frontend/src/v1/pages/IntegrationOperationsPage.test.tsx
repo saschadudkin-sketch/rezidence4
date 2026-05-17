@@ -417,4 +417,22 @@ describe('IntegrationOperationsPage', () => {
     expect(listWebhooksMock).not.toHaveBeenCalled();
     expect(listVideoProvidersMock).not.toHaveBeenCalled();
   });
+
+  test('blocks required integration ids before sending mutations', async () => {
+    setupMocks();
+
+    renderWithProviders(<IntegrationOperationsPage />);
+
+    expect(await screen.findByRole('heading', { name: /интеграции/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview import' }));
+
+    expect(await screen.findByText('Укажите provider ID')).toBeInTheDocument();
+    expect(previewImportMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manual control' }));
+
+    expect(await screen.findByText('Укажите hardware device ID')).toBeInTheDocument();
+    expect(manualControlMock).not.toHaveBeenCalled();
+  });
 });

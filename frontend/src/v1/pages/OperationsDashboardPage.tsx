@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
 import type {
+  AnalyticsDateRangeParams,
   AnalyticsPeriod,
   OperationsDashboardPeriod,
   OperationsDashboardSnapshot,
@@ -150,6 +151,19 @@ function analyticsQueryPeriod(period: OperationsDashboardPeriod): AnalyticsPerio
   return period;
 }
 
+function analyticsDateRange(period: OperationsDashboardPeriod): AnalyticsDateRangeParams {
+  const to = new Date();
+  const from = new Date(to);
+  if (period === '24h') {
+    from.setHours(from.getHours() - 24);
+  } else if (period === '7d') {
+    from.setDate(from.getDate() - 7);
+  } else {
+    from.setDate(from.getDate() - 30);
+  }
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 function DashboardContent({ dashboard }: { dashboard: OperationsDashboardSnapshot }) {
   return (
     <Stack>
@@ -192,28 +206,29 @@ function AnalyticsDetailPanel({
 }) {
   const queryClient = useQueryClient();
   const analyticsPeriod = analyticsQueryPeriod(period);
+  const dateRange = useMemo(() => analyticsDateRange(period), [period]);
   const trafficQuery = useQuery({
     queryKey: ['v1', 'analytics', 'traffic', propertyId, period],
     queryFn: ({ signal }) => api.analytics.traffic(
-      { granularity: period === '24h' ? 'hour' : 'day' },
+      { ...dateRange, granularity: period === '24h' ? 'hour' : 'day' },
       { signal },
     ),
   });
   const topResidentsQuery = useQuery({
     queryKey: ['v1', 'analytics', 'top-residents', propertyId, period],
-    queryFn: ({ signal }) => api.analytics.topResidents({ limit: 5 }, { signal }),
+    queryFn: ({ signal }) => api.analytics.topResidents({ ...dateRange, limit: 5 }, { signal }),
   });
   const slaQuery = useQuery({
     queryKey: ['v1', 'analytics', 'sla', propertyId, period],
-    queryFn: ({ signal }) => api.analytics.sla(undefined, { signal }),
+    queryFn: ({ signal }) => api.analytics.sla(dateRange, { signal }),
   });
   const requestsQuery = useQuery({
     queryKey: ['v1', 'analytics', 'requests', propertyId, period],
-    queryFn: ({ signal }) => api.analytics.requests(undefined, { signal }),
+    queryFn: ({ signal }) => api.analytics.requests(dateRange, { signal }),
   });
   const packagesQuery = useQuery({
     queryKey: ['v1', 'analytics', 'packages', propertyId, period],
-    queryFn: ({ signal }) => api.analytics.packages(undefined, { signal }),
+    queryFn: ({ signal }) => api.analytics.packages(dateRange, { signal }),
   });
   const snapshotsQuery = useQuery({
     queryKey: ['v1', 'analytics', 'snapshots', propertyId, period],

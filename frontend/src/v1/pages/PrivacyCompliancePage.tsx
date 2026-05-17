@@ -66,6 +66,12 @@ function parseJsonObject(value: string, fallback: Record<string, unknown>): Reco
   return parsed as Record<string, unknown>;
 }
 
+function requiredTrim(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`Укажите ${label}`);
+  return trimmed;
+}
+
 export function PrivacyCompliancePage() {
   const session = useV1Session();
   const propertyId = session.property_id ?? null;
@@ -127,7 +133,7 @@ export function PrivacyCompliancePage() {
     enabled: false,
     queryFn: ({ signal }) => api.privacyCompliance.getDataSubjectExport({
       property_id: propertyId ?? undefined,
-      subject_resident_id: exportResidentId.trim() || undefined,
+      subject_resident_id: requiredTrim(exportResidentId, 'resident ID для export'),
     }, { signal }),
   });
 
@@ -136,30 +142,38 @@ export function PrivacyCompliancePage() {
   };
 
   const acceptConsentMutation = useMutation({
-    mutationFn: () => api.privacyCompliance.acceptConsent({ version: consentVersion.trim() }),
+    mutationFn: () => api.privacyCompliance.acceptConsent({ version: requiredTrim(consentVersion, 'версию согласия') }),
     onSuccess: invalidatePrivacy,
+    onError: (error) => setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : 'Не удалось зафиксировать consent'),
   });
   const createRequestMutation = useMutation({
-    mutationFn: () => api.privacyCompliance.createDataSubjectRequest({
-      property_id: propertyId ?? undefined,
-      request_type: requestType,
-      subject_uid: subjectUid.trim() || undefined,
-      subject_resident_id: subjectResidentId.trim() || null,
-      reason: requestReason.trim() || null,
-      metadata: { source: 'privacy_compliance_ui' },
-    }),
+    mutationFn: () => {
+      const uid = subjectUid.trim();
+      const residentId = subjectResidentId.trim();
+      if (!uid && !residentId) throw new Error('Укажите Subject UID или Resident ID');
+      return api.privacyCompliance.createDataSubjectRequest({
+        property_id: propertyId ?? undefined,
+        request_type: requestType,
+        subject_uid: uid || undefined,
+        subject_resident_id: residentId || null,
+        reason: requestReason.trim() || null,
+        metadata: { source: 'privacy_compliance_ui' },
+      });
+    },
     onSuccess: invalidatePrivacy,
+    onError: (error) => setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : 'Не удалось создать DSAR'),
   });
   const completeRequestMutation = useMutation({
     mutationFn: () => {
       const evidence = parseJsonObject(completionEvidenceJson, { source: 'privacy_compliance_ui' });
-      return api.privacyCompliance.completeDataSubjectRequest(completeRequestId.trim(), {
+      return api.privacyCompliance.completeDataSubjectRequest(requiredTrim(completeRequestId, 'request ID'), {
         status: completionStatus,
         decision: completionDecision.trim() || undefined,
         evidence,
       });
     },
     onSuccess: invalidatePrivacy,
+    onError: (error) => setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : 'Не удалось завершить DSAR'),
   });
   const createEvidenceMutation = useMutation({
     mutationFn: () => {
@@ -168,16 +182,18 @@ export function PrivacyCompliancePage() {
         property_id: propertyId ?? undefined,
         evidence_type: evidenceType,
         status: evidenceCreateStatus,
-        summary: evidenceSummary.trim() || null,
+        summary: requiredTrim(evidenceSummary, 'summary evidence'),
         artifact_uri: evidenceArtifactUri.trim() || null,
         evidence,
       });
     },
     onSuccess: invalidatePrivacy,
+    onError: (error) => setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : 'Не удалось создать evidence'),
   });
   const deleteAccountMutation = useMutation({
-    mutationFn: () => api.privacyCompliance.deleteAccount({ reason: deleteReason.trim() || null }),
+    mutationFn: () => api.privacyCompliance.deleteAccount({ reason: requiredTrim(deleteReason, 'причину удаления') }),
     onSuccess: invalidatePrivacy,
+    onError: (error) => setFormError(isV1ApiError(error) ? error.message : error instanceof Error ? error.message : 'Не удалось удалить аккаунт'),
   });
 
   if (!propertyId) {
@@ -336,10 +352,18 @@ export function PrivacyCompliancePage() {
             <Field label="Resident ID">
               <Input value={exportResidentId} onChange={(e) => setExportResidentId(e.target.value)} placeholder="resident-uuid" />
             </Field>
-            <Button variant="secondary" loading={exportQuery.isFetching} onClick={() => void exportQuery.refetch()}>
+            <Button variant="secondary" loading={exportQuery.isFetching} onClick={() => run(() => {
+              requiredTrim(exportResidentId, 'resident ID для export');
+              void exportQuery.refetch();
+            })}>
               Получить export
             </Button>
           </div>
+          {exportQuery.isError ? (
+            <Alert tone="error">
+              Не удалось получить export: {isV1ApiError(exportQuery.error) ? exportQuery.error.message : 'неизвестная ошибка'}
+            </Alert>
+          ) : null}
           {exportPayload ? (
             <pre className={uiClasses.codeBlock}>{JSON.stringify(exportPayload, null, 2)}</pre>
           ) : (

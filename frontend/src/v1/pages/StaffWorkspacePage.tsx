@@ -246,6 +246,12 @@ function formatActionError(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function requiredTrim(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`Укажите ${label}`);
+  return trimmed;
+}
+
 function assigneeRoleFor(user: UserMe): string {
   if (user.role === 'platform_admin' || user.role === 'management_company_admin') {
     return 'property_admin';
@@ -508,7 +514,7 @@ function CanonicalServiceRequestOperations({
   const queryClient = useQueryClient();
   const [requestId, setRequestId] = useState(activeRequestId ?? '');
   const [type, setType] = useState<StaffRequestType>('service');
-  const [categoryCode, setCategoryCode] = useState(categories[0]?.code ?? 'general');
+  const [categoryCode, setCategoryCode] = useState('');
   const [targetType, setTargetType] = useState<StaffRequestTargetType>('unit');
   const [targetId, setTargetId] = useState('');
   const [comment, setComment] = useState('');
@@ -519,11 +525,18 @@ function CanonicalServiceRequestOperations({
   const [rating, setRating] = useState('5');
   const [emergencyStatus, setEmergencyStatus] = useState<EmergencyDispatchStatus | ''>('');
   const [emergencySeverity, setEmergencySeverity] = useState<EmergencySeverity | ''>('');
+  const [operationsError, setOperationsError] = useState<string | null>(null);
 
   const effectiveRequestId = requestId.trim() || activeRequestId || '';
-  const effectiveCategory = categoryCode || categories[0]?.code || 'general';
+  const effectiveCategory = categoryCode.trim() || categories[0]?.code || 'general';
+  const hasRequestId = Boolean(effectiveRequestId);
+
+  const reportMutationError = (error: unknown, fallback: string) => {
+    setOperationsError(formatActionError(error, fallback));
+  };
 
   const invalidateCanonical = () => {
+    setOperationsError(null);
     void queryClient.invalidateQueries({ queryKey: qk.serviceRequests.all });
     if (effectiveRequestId) void invalidateServiceRequestLifecycle(queryClient, effectiveRequestId);
   };
@@ -555,47 +568,52 @@ function CanonicalServiceRequestOperations({
       type,
       category: effectiveCategory,
       status: 'new',
-      comment: comment.trim() || 'Создано из staff workspace',
+      comment: requiredTrim(comment, 'comment'),
       targetType,
       targetId: targetId.trim() || undefined,
     }),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось создать request'),
   });
 
   const updateRequest = useMutation({
-    mutationFn: () => api.serviceRequests.update(effectiveRequestId, {
+    mutationFn: () => api.serviceRequests.update(requiredTrim(effectiveRequestId, 'request ID'), {
       status: nextStatus,
       expectedCurrentStatus: undefined,
       historyLabel: actionLabel(nextStatus),
       comment: comment.trim() || undefined,
     }),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось обновить request'),
   });
 
   const deleteRequest = useMutation({
-    mutationFn: () => api.serviceRequests.delete(effectiveRequestId),
+    mutationFn: () => api.serviceRequests.delete(requiredTrim(effectiveRequestId, 'request ID')),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось удалить request'),
   });
 
   const assignRequest = useMutation({
-    mutationFn: () => api.serviceRequests.assign(effectiveRequestId, {
-      assigneeUid: assigneeUid.trim() || user.uid,
+    mutationFn: () => api.serviceRequests.assign(requiredTrim(effectiveRequestId, 'request ID'), {
+      assigneeUid: requiredTrim(assigneeUid, 'assignee UID'),
       assigneeRole: assigneeRoleFor(user),
       assigneeName: user.name || user.uid,
       expectedCurrentStatus: undefined,
     }),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось назначить request'),
   });
 
   const firstResponse = useMutation({
-    mutationFn: () => api.serviceRequests.markFirstResponse(effectiveRequestId),
+    mutationFn: () => api.serviceRequests.markFirstResponse(requiredTrim(effectiveRequestId, 'request ID')),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось отметить первый ответ'),
   });
 
   const upsertCategory = useMutation({
     mutationFn: () => api.serviceRequests.upsertCategory(effectiveCategory, {
       propertyId: propertyId ?? undefined,
-      name: categoryName.trim() || effectiveCategory,
+      name: requiredTrim(categoryName, 'category name'),
       domain: type === 'emergency' ? 'emergency' : 'service',
       targetScope: targetType,
       priority: type === 'emergency' ? 'emergency' : 'normal',
@@ -609,24 +627,27 @@ function CanonicalServiceRequestOperations({
       void queryClient.invalidateQueries({ queryKey: qk.serviceRequests.categories() });
       invalidateCanonical();
     },
+    onError: (error) => reportMutationError(error, 'Не удалось upsert category'),
   });
 
   const createAttachment = useMutation({
-    mutationFn: () => api.serviceRequests.createAttachment(effectiveRequestId, {
-      fileUrl: attachmentUrl.trim() || '/uploads/service-request-evidence.jpg',
+    mutationFn: () => api.serviceRequests.createAttachment(requiredTrim(effectiveRequestId, 'request ID'), {
+      fileUrl: requiredTrim(attachmentUrl, 'attachment URL'),
       fileKind: 'photo',
       visibility: 'resident',
       metadata: { source: 'staff_workspace_ui' },
     }),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось добавить attachment'),
   });
 
   const rateRequest = useMutation({
-    mutationFn: () => api.serviceRequests.rate(effectiveRequestId, {
+    mutationFn: () => api.serviceRequests.rate(requiredTrim(effectiveRequestId, 'request ID'), {
       rating: Number(rating) || 5,
       comment: comment.trim() || undefined,
     }),
     onSuccess: invalidateCanonical,
+    onError: (error) => reportMutationError(error, 'Не удалось оценить request'),
   });
 
   const requests = requestListQuery.data?.data ?? [];
@@ -681,14 +702,15 @@ function CanonicalServiceRequestOperations({
         <Inline>
           <Button loading={requestListQuery.isFetching} variant="ghost" onClick={() => void requestListQuery.refetch()}>Обновить canonical list</Button>
           <Button loading={createRequest.isPending} onClick={() => createRequest.mutate()}>Создать canonical request</Button>
-          <Button loading={updateRequest.isPending} variant="secondary" onClick={() => updateRequest.mutate()}>Обновить request</Button>
-          <Button loading={deleteRequest.isPending} variant="danger" onClick={() => deleteRequest.mutate()}>Удалить request</Button>
-          <Button loading={assignRequest.isPending} variant="secondary" onClick={() => assignRequest.mutate()}>Назначить canonical</Button>
-          <Button loading={firstResponse.isPending} variant="secondary" onClick={() => firstResponse.mutate()}>Первый ответ canonical</Button>
+          <Button loading={updateRequest.isPending} disabled={!hasRequestId} variant="secondary" onClick={() => updateRequest.mutate()}>Обновить request</Button>
+          <Button loading={deleteRequest.isPending} disabled={!hasRequestId} variant="danger" onClick={() => deleteRequest.mutate()}>Удалить request</Button>
+          <Button loading={assignRequest.isPending} disabled={!hasRequestId} variant="secondary" onClick={() => assignRequest.mutate()}>Назначить canonical</Button>
+          <Button loading={firstResponse.isPending} disabled={!hasRequestId} variant="secondary" onClick={() => firstResponse.mutate()}>Первый ответ canonical</Button>
           <Button loading={upsertCategory.isPending} variant="secondary" onClick={() => upsertCategory.mutate()}>Upsert category</Button>
-          <Button loading={createAttachment.isPending} variant="secondary" onClick={() => createAttachment.mutate()}>Добавить attachment</Button>
-          <Button loading={rateRequest.isPending} variant="secondary" onClick={() => rateRequest.mutate()}>Оценить request</Button>
+          <Button loading={createAttachment.isPending} disabled={!hasRequestId} variant="secondary" onClick={() => createAttachment.mutate()}>Добавить attachment</Button>
+          <Button loading={rateRequest.isPending} disabled={!hasRequestId} variant="secondary" onClick={() => rateRequest.mutate()}>Оценить request</Button>
         </Inline>
+        {operationsError ? <Alert tone="error">{operationsError}</Alert> : null}
 
         {requestListQuery.isError ? (
           <Alert tone="warning">

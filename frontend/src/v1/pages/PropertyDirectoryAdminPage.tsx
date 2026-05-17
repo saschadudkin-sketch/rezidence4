@@ -119,7 +119,9 @@ function formatNumber(value: number | null | undefined): string {
 }
 
 function errorMessage(error: unknown): string {
-  return isV1ApiError(error) ? error.message : 'неизвестная ошибка';
+  if (isV1ApiError(error)) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'неизвестная ошибка';
 }
 
 function statusTone(status: string | null | undefined): BadgeTone {
@@ -171,6 +173,12 @@ function parseRows<T extends object>(value: string, fallback: T[]): T[] {
     throw new Error('JSON должен быть массивом объектов');
   }
   return parsed as T[];
+}
+
+function requiredTrim(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) throw new Error(`Укажите ${label}`);
+  return trimmed;
 }
 
 export function PropertyDirectoryAdminPage() {
@@ -406,6 +414,7 @@ export function PropertyDirectoryAdminPage() {
           onLoadMore={() => increaseLimit('residents')}
           propertyId={propertyId}
           invalidate={invalidateDirectory}
+          run={run}
         />
       ) : null}
       {tab === 'staff' ? (
@@ -446,6 +455,7 @@ export function PropertyDirectoryAdminPage() {
           onLoadMore={() => increaseLimit('memberships')}
           propertyId={propertyId}
           invalidate={invalidateDirectory}
+          run={run}
         />
       ) : null}
     </div>
@@ -519,50 +529,59 @@ function StructureTab({
   const [unitType, setUnitType] = useState<UnitType>('apartment');
   const [unitFloor, setUnitFloor] = useState('');
   const [unitRows, setUnitRows] = useState('[{"building":"A","entrance":"1","unit_number":"101"}]');
+  const onMutationError = (error: unknown) => run(() => {
+    throw new Error(errorMessage(error));
+  });
 
   const createBuilding = useMutation({
     mutationFn: () => api.units.createBuilding({
       property_id: propertyId,
-      name: buildingName.trim() || 'Новый корпус',
+      name: requiredTrim(buildingName, 'building name'),
       code: buildingCode.trim() || null,
       sort_order: buildings.length + 1,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const createEntrance = useMutation({
     mutationFn: () => api.units.createEntrance({
-      building_id: entranceBuildingId.trim(),
-      name: entranceName.trim() || 'Новый вход',
+      building_id: requiredTrim(entranceBuildingId, 'entrance building ID'),
+      name: requiredTrim(entranceName, 'entrance name'),
       code: entranceCode.trim() || null,
       sort_order: 1,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const getUnit = useMutation({
-    mutationFn: () => api.units.getById(unitId.trim()),
+    mutationFn: () => api.units.getById(requiredTrim(unitId, 'unit ID')),
+    onError: onMutationError,
   });
   const createUnit = useMutation({
     mutationFn: () => api.units.create({
       property_id: propertyId,
-      building_id: unitBuildingId.trim(),
-      entrance_id: unitEntranceId.trim(),
-      unit_number: unitNumber.trim() || '101',
+      building_id: requiredTrim(unitBuildingId, 'unit building ID'),
+      entrance_id: requiredTrim(unitEntranceId, 'unit entrance ID'),
+      unit_number: requiredTrim(unitNumber, 'unit number'),
       unit_type: unitType,
       floor: unitFloor.trim() ? Number(unitFloor) : null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const updateUnit = useMutation({
-    mutationFn: () => api.units.update(unitId.trim(), {
+    mutationFn: () => api.units.update(requiredTrim(unitId, 'unit ID'), {
       unit_number: unitNumber.trim() || undefined,
       unit_type: unitType,
       floor: unitFloor.trim() ? Number(unitFloor) : null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const deactivateUnit = useMutation({
-    mutationFn: () => api.units.deactivate(unitId.trim()),
+    mutationFn: () => api.units.deactivate(requiredTrim(unitId, 'unit ID')),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const importUnits = useMutation({
     mutationFn: () => api.units.importRows({
@@ -571,6 +590,7 @@ function StructureTab({
       rows: parseRows(unitRows, []),
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
 
   return (
@@ -584,7 +604,10 @@ function StructureTab({
             <Field label="Building code">
               <Input value={buildingCode} onChange={(event) => setBuildingCode(event.currentTarget.value)} placeholder="B" />
             </Field>
-            <Button loading={createBuilding.isPending} onClick={() => createBuilding.mutate()}>Создать корпус</Button>
+            <Button loading={createBuilding.isPending} onClick={() => run(() => {
+              requiredTrim(buildingName, 'building name');
+              createBuilding.mutate();
+            })}>Создать корпус</Button>
           </div>
 
           <div className={uiClasses.formGrid}>
@@ -597,7 +620,11 @@ function StructureTab({
             <Field label="Entrance code">
               <Input value={entranceCode} onChange={(event) => setEntranceCode(event.currentTarget.value)} placeholder="2" />
             </Field>
-            <Button loading={createEntrance.isPending} onClick={() => createEntrance.mutate()}>Создать вход</Button>
+            <Button loading={createEntrance.isPending} onClick={() => run(() => {
+              requiredTrim(entranceBuildingId, 'entrance building ID');
+              requiredTrim(entranceName, 'entrance name');
+              createEntrance.mutate();
+            })}>Создать вход</Button>
           </div>
 
           <div className={uiClasses.formGrid}>
@@ -623,10 +650,24 @@ function StructureTab({
             </Field>
           </div>
           <Inline>
-            <Button variant="secondary" loading={getUnit.isPending} onClick={() => getUnit.mutate()}>Загрузить unit</Button>
-            <Button variant="secondary" loading={createUnit.isPending} onClick={() => createUnit.mutate()}>Создать unit</Button>
-            <Button variant="secondary" loading={updateUnit.isPending} onClick={() => updateUnit.mutate()}>Обновить unit</Button>
-            <Button variant="danger" loading={deactivateUnit.isPending} onClick={() => deactivateUnit.mutate()}>Деактивировать unit</Button>
+            <Button variant="secondary" loading={getUnit.isPending} onClick={() => run(() => {
+              requiredTrim(unitId, 'unit ID');
+              getUnit.mutate();
+            })}>Загрузить unit</Button>
+            <Button variant="secondary" loading={createUnit.isPending} onClick={() => run(() => {
+              requiredTrim(unitBuildingId, 'unit building ID');
+              requiredTrim(unitEntranceId, 'unit entrance ID');
+              requiredTrim(unitNumber, 'unit number');
+              createUnit.mutate();
+            })}>Создать unit</Button>
+            <Button variant="secondary" loading={updateUnit.isPending} onClick={() => run(() => {
+              requiredTrim(unitId, 'unit ID');
+              updateUnit.mutate();
+            })}>Обновить unit</Button>
+            <Button variant="danger" loading={deactivateUnit.isPending} onClick={() => run(() => {
+              requiredTrim(unitId, 'unit ID');
+              deactivateUnit.mutate();
+            })}>Деактивировать unit</Button>
           </Inline>
           {getUnit.data ? <Alert tone="info">Unit загружен: {formatUnitLabel(getUnit.data.unit, propertyType)}</Alert> : null}
 
@@ -712,6 +753,7 @@ function ResidentsTab({
   onLoadMore,
   propertyId,
   invalidate,
+  run,
 }: {
   residents: ResidentWithUnit[];
   pageHint: string;
@@ -720,6 +762,7 @@ function ResidentsTab({
   onLoadMore: () => void;
   propertyId: string;
   invalidate: () => void;
+  run: (action: () => void) => void;
 }) {
   const [residentId, setResidentId] = useState('');
   const [unitId, setUnitId] = useState('');
@@ -730,20 +773,24 @@ function ResidentsTab({
   const [toResidentId, setToResidentId] = useState('');
   const [reason, setReason] = useState('');
   const [consentVersion, setConsentVersion] = useState('2026-05-17');
+  const onMutationError = (error: unknown) => run(() => {
+    throw new Error(errorMessage(error));
+  });
 
   const createResident = useMutation({
     mutationFn: () => api.residents.create({
       property_id: propertyId,
-      unit_id: unitId.trim(),
-      full_name: fullName.trim() || 'Новый житель',
-      phone: phone.trim() || '+70000000000',
+      unit_id: requiredTrim(unitId, 'unit ID'),
+      full_name: requiredTrim(fullName, 'full name'),
+      phone: requiredTrim(phone, 'phone'),
       email: email.trim() || null,
       resident_type: residentType,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const updateResident = useMutation({
-    mutationFn: () => api.residents.update(residentId.trim(), {
+    mutationFn: () => api.residents.update(requiredTrim(residentId, 'resident ID'), {
       unit_id: unitId.trim() || undefined,
       full_name: fullName.trim() || undefined,
       phone: phone.trim() || undefined,
@@ -751,22 +798,26 @@ function ResidentsTab({
       resident_type: residentType,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const deactivateResident = useMutation({
-    mutationFn: () => api.residents.deactivate(residentId.trim(), { reason: reason.trim() || null }),
+    mutationFn: () => api.residents.deactivate(requiredTrim(residentId, 'resident ID'), { reason: reason.trim() || null }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const transferOwnership = useMutation({
-    mutationFn: () => api.residents.transferOwnership(residentId.trim(), {
-      to_resident_id: toResidentId.trim(),
+    mutationFn: () => api.residents.transferOwnership(requiredTrim(residentId, 'resident ID'), {
+      to_resident_id: requiredTrim(toResidentId, 'to resident ID'),
       reason: reason.trim() || null,
       cascade_notification_preferences: true,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const recordConsent = useMutation({
-    mutationFn: () => api.residents.consent(residentId.trim(), { consent_version: consentVersion.trim() }),
+    mutationFn: () => api.residents.consent(requiredTrim(residentId, 'resident ID'), { consent_version: requiredTrim(consentVersion, 'consent version') }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
 
   return (
@@ -805,11 +856,30 @@ function ResidentsTab({
             </Field>
           </div>
           <Inline>
-            <Button loading={createResident.isPending} onClick={() => createResident.mutate()}>Создать жителя</Button>
-            <Button variant="secondary" loading={updateResident.isPending} onClick={() => updateResident.mutate()}>Обновить жителя</Button>
-            <Button variant="danger" loading={deactivateResident.isPending} onClick={() => deactivateResident.mutate()}>Деактивировать жителя</Button>
-            <Button variant="secondary" loading={transferOwnership.isPending} onClick={() => transferOwnership.mutate()}>Передать ownership</Button>
-            <Button variant="secondary" loading={recordConsent.isPending} onClick={() => recordConsent.mutate()}>Зафиксировать consent</Button>
+            <Button loading={createResident.isPending} onClick={() => run(() => {
+              requiredTrim(unitId, 'unit ID');
+              requiredTrim(fullName, 'full name');
+              requiredTrim(phone, 'phone');
+              createResident.mutate();
+            })}>Создать жителя</Button>
+            <Button variant="secondary" loading={updateResident.isPending} onClick={() => run(() => {
+              requiredTrim(residentId, 'resident ID');
+              updateResident.mutate();
+            })}>Обновить жителя</Button>
+            <Button variant="danger" loading={deactivateResident.isPending} onClick={() => run(() => {
+              requiredTrim(residentId, 'resident ID');
+              deactivateResident.mutate();
+            })}>Деактивировать жителя</Button>
+            <Button variant="secondary" loading={transferOwnership.isPending} onClick={() => run(() => {
+              requiredTrim(residentId, 'resident ID');
+              requiredTrim(toResidentId, 'to resident ID');
+              transferOwnership.mutate();
+            })}>Передать ownership</Button>
+            <Button variant="secondary" loading={recordConsent.isPending} onClick={() => run(() => {
+              requiredTrim(residentId, 'resident ID');
+              requiredTrim(consentVersion, 'consent version');
+              recordConsent.mutate();
+            })}>Зафиксировать consent</Button>
           </Inline>
         </Stack>
       </Card>
@@ -875,15 +945,19 @@ function StaffTab({
   const [canViewPhone, setCanViewPhone] = useState('true');
   const [canAssign, setCanAssign] = useState('true');
   const [importRows, setImportRows] = useState('[{"full_name":"Мария Консьерж","email":"maria@example.test","role":"concierge"}]');
+  const onMutationError = (error: unknown) => run(() => {
+    throw new Error(errorMessage(error));
+  });
 
   const getStaff = useMutation({
-    mutationFn: () => api.staff.getById(staffId.trim()),
+    mutationFn: () => api.staff.getById(requiredTrim(staffId, 'staff ID')),
+    onError: onMutationError,
   });
   const createStaff = useMutation({
     mutationFn: () => api.staff.create({
       property_id: propertyId,
-      full_name: fullName.trim() || 'Новый сотрудник',
-      email: email.trim() || 'staff@example.test',
+      full_name: requiredTrim(fullName, 'staff full name'),
+      email: requiredTrim(email, 'staff email'),
       phone: phone.trim() || null,
       role,
       specialization: specialization || null,
@@ -891,9 +965,10 @@ function StaffTab({
       can_assign_requests: canAssign === 'true',
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const updateStaff = useMutation({
-    mutationFn: () => api.staff.update(staffId.trim(), {
+    mutationFn: () => api.staff.update(requiredTrim(staffId, 'staff ID'), {
       full_name: fullName.trim() || undefined,
       phone: phone.trim() || null,
       role,
@@ -902,16 +977,19 @@ function StaffTab({
       can_assign_requests: canAssign === 'true',
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const deactivateStaff = useMutation({
-    mutationFn: () => api.staff.deactivate(staffId.trim()),
+    mutationFn: () => api.staff.deactivate(requiredTrim(staffId, 'staff ID')),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const previewStaffImport = useMutation({
     mutationFn: () => api.staff.previewImport({
       property_id: propertyId,
       rows: parseRows<StaffImportRowInput>(importRows, []),
     }),
+    onError: onMutationError,
   });
   const applyStaffImport = useMutation({
     mutationFn: () => api.staff.applyImport({
@@ -919,6 +997,7 @@ function StaffTab({
       rows: parseRows<StaffImportRowInput>(importRows, []),
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const staffTemplateUrl = api.staff.importTemplateUrl();
 
@@ -963,10 +1042,23 @@ function StaffTab({
             </Field>
           </div>
           <Inline>
-            <Button variant="secondary" loading={getStaff.isPending} onClick={() => getStaff.mutate()}>Загрузить staff</Button>
-            <Button loading={createStaff.isPending} onClick={() => createStaff.mutate()}>Создать staff</Button>
-            <Button variant="secondary" loading={updateStaff.isPending} onClick={() => updateStaff.mutate()}>Обновить staff</Button>
-            <Button variant="danger" loading={deactivateStaff.isPending} onClick={() => deactivateStaff.mutate()}>Деактивировать staff</Button>
+            <Button variant="secondary" loading={getStaff.isPending} onClick={() => run(() => {
+              requiredTrim(staffId, 'staff ID');
+              getStaff.mutate();
+            })}>Загрузить staff</Button>
+            <Button loading={createStaff.isPending} onClick={() => run(() => {
+              requiredTrim(fullName, 'staff full name');
+              requiredTrim(email, 'staff email');
+              createStaff.mutate();
+            })}>Создать staff</Button>
+            <Button variant="secondary" loading={updateStaff.isPending} onClick={() => run(() => {
+              requiredTrim(staffId, 'staff ID');
+              updateStaff.mutate();
+            })}>Обновить staff</Button>
+            <Button variant="danger" loading={deactivateStaff.isPending} onClick={() => run(() => {
+              requiredTrim(staffId, 'staff ID');
+              deactivateStaff.mutate();
+            })}>Деактивировать staff</Button>
             <Button variant="ghost" onClick={() => window.location.assign(staffTemplateUrl)}>CSV template</Button>
           </Inline>
           {getStaff.data ? <Alert tone="info">Staff загружен: {getStaff.data.staff.full_name}</Alert> : null}
@@ -1057,22 +1149,27 @@ function ContractorsTab({
   const [specialization, setSpecialization] = useState('');
   const [accessExpiresAt, setAccessExpiresAt] = useState('');
   const [importRows, setImportRows] = useState('[{"company_name":"Чистый Дом","user_full_name":"Петр Подрядчик"}]');
+  const onMutationError = (error: unknown) => run(() => {
+    throw new Error(errorMessage(error));
+  });
 
   const getCompany = useMutation({
-    mutationFn: () => api.contractors.getCompanyById(companyId.trim()),
+    mutationFn: () => api.contractors.getCompanyById(requiredTrim(companyId, 'company ID')),
+    onError: onMutationError,
   });
   const createCompany = useMutation({
     mutationFn: () => api.contractors.createCompany({
       property_id: propertyId,
-      name: companyName.trim() || 'Новая компания',
+      name: requiredTrim(companyName, 'company name'),
       contact_name: contactName.trim() || null,
       contact_phone: contactPhone.trim() || null,
       contact_email: contactEmail.trim() || null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const updateCompany = useMutation({
-    mutationFn: () => api.contractors.updateCompany(companyId.trim(), {
+    mutationFn: () => api.contractors.updateCompany(requiredTrim(companyId, 'company ID'), {
       name: companyName.trim() || undefined,
       status: companyStatus,
       contact_name: contactName.trim() || null,
@@ -1080,21 +1177,23 @@ function ContractorsTab({
       contact_email: contactEmail.trim() || null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const createUser = useMutation({
     mutationFn: () => api.contractors.createUser({
       property_id: propertyId,
-      contractor_company_id: companyId.trim(),
-      full_name: userName.trim() || 'Новый подрядчик',
+      contractor_company_id: requiredTrim(companyId, 'company ID'),
+      full_name: requiredTrim(userName, 'contractor user full name'),
       phone: userPhone.trim() || null,
       email: userEmail.trim() || null,
       specialization: specialization.trim() || null,
       access_expires_at: accessExpiresAt.trim() || null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const updateUser = useMutation({
-    mutationFn: () => api.contractors.updateUser(userId.trim(), {
+    mutationFn: () => api.contractors.updateUser(requiredTrim(userId, 'contractor user ID'), {
       full_name: userName.trim() || undefined,
       phone: userPhone.trim() || null,
       email: userEmail.trim() || null,
@@ -1102,16 +1201,19 @@ function ContractorsTab({
       access_expires_at: accessExpiresAt.trim() || null,
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const deactivateUser = useMutation({
-    mutationFn: () => api.contractors.deactivateUser(userId.trim()),
+    mutationFn: () => api.contractors.deactivateUser(requiredTrim(userId, 'contractor user ID')),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const previewContractorImport = useMutation({
     mutationFn: () => api.contractors.previewImport({
       property_id: propertyId,
       rows: parseRows<ContractorImportRowInput>(importRows, []),
     }),
+    onError: onMutationError,
   });
   const applyContractorImport = useMutation({
     mutationFn: () => api.contractors.applyImport({
@@ -1119,6 +1221,7 @@ function ContractorsTab({
       rows: parseRows<ContractorImportRowInput>(importRows, []),
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const contractorTemplateUrl = api.contractors.importTemplateUrl();
 
@@ -1149,9 +1252,18 @@ function ContractorsTab({
             </Field>
           </div>
           <Inline>
-            <Button variant="secondary" loading={getCompany.isPending} onClick={() => getCompany.mutate()}>Загрузить компанию</Button>
-            <Button loading={createCompany.isPending} onClick={() => createCompany.mutate()}>Создать компанию</Button>
-            <Button variant="secondary" loading={updateCompany.isPending} onClick={() => updateCompany.mutate()}>Обновить компанию</Button>
+            <Button variant="secondary" loading={getCompany.isPending} onClick={() => run(() => {
+              requiredTrim(companyId, 'company ID');
+              getCompany.mutate();
+            })}>Загрузить компанию</Button>
+            <Button loading={createCompany.isPending} onClick={() => run(() => {
+              requiredTrim(companyName, 'company name');
+              createCompany.mutate();
+            })}>Создать компанию</Button>
+            <Button variant="secondary" loading={updateCompany.isPending} onClick={() => run(() => {
+              requiredTrim(companyId, 'company ID');
+              updateCompany.mutate();
+            })}>Обновить компанию</Button>
           </Inline>
           {getCompany.data ? <Alert tone="info">Компания загружена: {getCompany.data.company.name}</Alert> : null}
 
@@ -1176,9 +1288,19 @@ function ContractorsTab({
             </Field>
           </div>
           <Inline>
-            <Button loading={createUser.isPending} onClick={() => createUser.mutate()}>Создать пользователя</Button>
-            <Button variant="secondary" loading={updateUser.isPending} onClick={() => updateUser.mutate()}>Обновить пользователя</Button>
-            <Button variant="danger" loading={deactivateUser.isPending} onClick={() => deactivateUser.mutate()}>Деактивировать пользователя</Button>
+            <Button loading={createUser.isPending} onClick={() => run(() => {
+              requiredTrim(companyId, 'company ID');
+              requiredTrim(userName, 'contractor user full name');
+              createUser.mutate();
+            })}>Создать пользователя</Button>
+            <Button variant="secondary" loading={updateUser.isPending} onClick={() => run(() => {
+              requiredTrim(userId, 'contractor user ID');
+              updateUser.mutate();
+            })}>Обновить пользователя</Button>
+            <Button variant="danger" loading={deactivateUser.isPending} onClick={() => run(() => {
+              requiredTrim(userId, 'contractor user ID');
+              deactivateUser.mutate();
+            })}>Деактивировать пользователя</Button>
             <Button variant="ghost" onClick={() => window.location.assign(contractorTemplateUrl)}>CSV template</Button>
           </Inline>
 
@@ -1263,6 +1385,7 @@ function MembershipsTab({
   onLoadMore,
   propertyId,
   invalidate,
+  run,
 }: {
   memberships: RoleScopeMembership[];
   pageHint: string;
@@ -1271,6 +1394,7 @@ function MembershipsTab({
   onLoadMore: () => void;
   propertyId: string;
   invalidate: () => void;
+  run: (action: () => void) => void;
 }) {
   const [membershipId, setMembershipId] = useState('');
   const [subjectType, setSubjectType] = useState<MembershipSubjectType>('staff');
@@ -1279,30 +1403,36 @@ function MembershipsTab({
   const [scopeLevel, setScopeLevel] = useState<MembershipScopeLevel>('property');
   const [scopeId, setScopeId] = useState('');
   const [reason, setReason] = useState('');
+  const onMutationError = (error: unknown) => run(() => {
+    throw new Error(errorMessage(error));
+  });
 
   const mineMemberships = useMutation({
     mutationFn: () => api.memberships.listMine(),
+    onError: onMutationError,
   });
   const createMembership = useMutation({
     mutationFn: () => api.memberships.create({
       property_id: propertyId,
       subject_type: subjectType,
-      subject_id: subjectId.trim() || null,
-      resident_id: subjectType === 'resident' ? subjectId.trim() : null,
-      staff_user_id: subjectType === 'staff' ? subjectId.trim() : null,
-      contractor_user_id: subjectType === 'contractor' ? subjectId.trim() : null,
+      subject_id: requiredTrim(subjectId, 'subject ID'),
+      resident_id: subjectType === 'resident' ? requiredTrim(subjectId, 'subject ID') : null,
+      staff_user_id: subjectType === 'staff' ? requiredTrim(subjectId, 'subject ID') : null,
+      contractor_user_id: subjectType === 'contractor' ? requiredTrim(subjectId, 'subject ID') : null,
       external_subject_type: subjectType === 'external' ? 'external' : null,
-      external_subject_id: subjectType === 'external' ? subjectId.trim() : null,
+      external_subject_id: subjectType === 'external' ? requiredTrim(subjectId, 'subject ID') : null,
       role,
       scope_level: scopeLevel,
       scope_id: scopeId.trim() || null,
       provisioned_from: 'directory_admin_ui',
     }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
   const revokeMembership = useMutation({
-    mutationFn: () => api.memberships.revoke(membershipId.trim(), { reason: reason.trim() || null }),
+    mutationFn: () => api.memberships.revoke(requiredTrim(membershipId, 'membership ID'), { reason: reason.trim() || null }),
     onSuccess: invalidate,
+    onError: onMutationError,
   });
 
   return (
@@ -1340,8 +1470,14 @@ function MembershipsTab({
           </div>
           <Inline>
             <Button variant="secondary" loading={mineMemberships.isPending} onClick={() => mineMemberships.mutate()}>Мои членства</Button>
-            <Button loading={createMembership.isPending} onClick={() => createMembership.mutate()}>Создать членство</Button>
-            <Button variant="danger" loading={revokeMembership.isPending} onClick={() => revokeMembership.mutate()}>Отозвать членство</Button>
+            <Button loading={createMembership.isPending} onClick={() => run(() => {
+              requiredTrim(subjectId, 'subject ID');
+              createMembership.mutate();
+            })}>Создать членство</Button>
+            <Button variant="danger" loading={revokeMembership.isPending} onClick={() => run(() => {
+              requiredTrim(membershipId, 'membership ID');
+              revokeMembership.mutate();
+            })}>Отозвать членство</Button>
           </Inline>
           {mineMemberships.data ? <Alert tone="info">Моих членств: {formatNumber(mineMemberships.data.memberships.length)}</Alert> : null}
         </Stack>

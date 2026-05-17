@@ -719,4 +719,22 @@ describe('PropertyDirectoryAdminPage', () => {
       );
     });
   });
+
+  test('блокирует directory mutations без обязательных идентификаторов', async () => {
+    setupDirectoryMocks();
+
+    renderWithProviders(<PropertyDirectoryAdminPage />);
+
+    expect(await screen.findByRole('heading', { name: /справочник объекта/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать вход' }));
+
+    expect(await screen.findByText('Укажите entrance building ID')).toBeInTheDocument();
+    expect(createEntranceMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить unit' }));
+
+    expect(await screen.findByText('Укажите unit ID')).toBeInTheDocument();
+    expect(getUnitByIdMock).not.toHaveBeenCalled();
+  });
 });
