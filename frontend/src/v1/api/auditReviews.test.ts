@@ -53,6 +53,32 @@ describe('auditReviewsApi', () => {
     );
   });
 
+  test('allows report evidence camelCase payload aliases accepted by backend', async () => {
+    postMock.mockResolvedValue({});
+
+    await auditReviewsApi.recordReportEvidence({
+      propertyId: 'property-1',
+      reportType: 'attestation',
+      periodFrom: '2026-05-01T00:00:00.000Z',
+      periodTo: '2026-05-31T23:59:59.000Z',
+      status: 'reviewed',
+      summary: { reviewed: true },
+    });
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/audit/sensitive-actions/_report-evidence',
+      {
+        propertyId: 'property-1',
+        reportType: 'attestation',
+        periodFrom: '2026-05-01T00:00:00.000Z',
+        periodTo: '2026-05-31T23:59:59.000Z',
+        status: 'reviewed',
+        summary: { reviewed: true },
+      },
+      undefined,
+    );
+  });
+
   test('routes sampling and escalation jobs through canonical v1 endpoints', async () => {
     postMock.mockResolvedValue({});
 

@@ -15,21 +15,30 @@ import type {
 } from './types';
 
 export interface ListGisOssExportPackagesParams {
-  property_id: UUID;
+  property_id?: UUID;
+  propertyId?: UUID;
   package_type?: GisOssPackageType | '';
   limit?: number;
 }
 
 export interface CreateGisOssExportPackageBody {
-  property_id: UUID;
+  property_id?: UUID;
+  propertyId?: UUID;
   package_type?: GisOssPackageType;
+  packageType?: GisOssPackageType;
   title: string;
   period_start?: string | null;
+  periodStart?: string | null;
   period_end?: string | null;
+  periodEnd?: string | null;
   document_ids?: UUID[];
+  documentIds?: UUID[];
   announcement_ids?: UUID[];
+  announcementIds?: UUID[];
   protocol_files?: GisOssProtocolFile[];
+  protocolFiles?: GisOssProtocolFile[];
   operational_record_refs?: GisOssOperationalRef[];
+  operationalRecordRefs?: GisOssOperationalRef[];
 }
 
 function toQuery(params: object | undefined): string {

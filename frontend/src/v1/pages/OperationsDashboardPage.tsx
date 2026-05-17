@@ -69,7 +69,10 @@ export function OperationsDashboardPage() {
   const query = useQuery({
     queryKey: ['v1', 'operations-dashboard', propertyId, period],
     enabled: Boolean(propertyId),
-    queryFn: ({ signal }) => api.operationsDashboard.get({ period }, { signal }),
+    queryFn: ({ signal }) => {
+      if (!propertyId) throw new Error('property_id is missing');
+      return api.operationsDashboard.get({ property_id: propertyId, period }, { signal });
+    },
   });
 
   if (!propertyId) {

@@ -74,10 +74,14 @@ export interface SensitiveActionReportEvidenceParams {
 
 export interface RecordSensitiveActionReportEvidenceBody {
   property_id?: UUID;
+  propertyId?: UUID;
   report_type?: SensitiveActionReportEvidenceType;
+  reportType?: SensitiveActionReportEvidenceType;
   status?: SensitiveActionReportEvidenceStatus;
   period_from?: IsoDateTime | null;
+  periodFrom?: IsoDateTime | null;
   period_to?: IsoDateTime | null;
+  periodTo?: IsoDateTime | null;
   summary?: Record<string, unknown>;
 }
 

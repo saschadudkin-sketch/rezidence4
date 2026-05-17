@@ -61,7 +61,7 @@ export const notificationLogApi = {
 
   getById(id: UUID, opts?: RequestOpts) {
     return v1Client.get<{ ok: true; item: NotificationLogRow }>(
-      `/admin/notification-log/${id}`,
+      `/admin/notification-log/${encodeURIComponent(id)}`,
       opts,
     );
   },
