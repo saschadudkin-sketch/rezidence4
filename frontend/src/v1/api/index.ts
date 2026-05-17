@@ -44,6 +44,7 @@ import { adminOutboxApi } from './adminOutbox';
 import { notificationLogApi } from './notificationLog';
 import { privacyComplianceApi } from './privacyCompliance';
 import { analyticsApi } from './analytics';
+import { erpExchangeApi } from './erpExchange';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -78,6 +79,7 @@ export const api = {
   notificationLog: notificationLogApi,
   privacyCompliance: privacyComplianceApi,
   analytics: analyticsApi,
+  erpExchange: erpExchangeApi,
 };
 
 export { normalizePlate };
@@ -250,3 +252,29 @@ export type {
   TrafficAnalyticsParams,
   TrafficAnalyticsResponse,
 } from './analytics';
+export type {
+  CreateErpProviderBody,
+  ErpExportBody,
+  ErpExportDataset,
+  ErpExportResponse,
+  ErpExportSummary,
+  ErpHealthStatus,
+  ErpImportBody,
+  ErpImportDataset,
+  ErpImportResponse,
+  ErpImportSummary,
+  ErpProvider,
+  ErpProviderConfig,
+  ErpProviderStatus,
+  ErpSyncDirection,
+  ErpSyncJob,
+  ErpSyncJobMode,
+  ErpSyncJobResponse,
+  ErpSyncJobStatus,
+  ErpSyncMode,
+  ErpSyncRecord,
+  ErpSyncRecordOperation,
+  ErpSyncRecordStatus,
+  ErpSyncSource,
+  ListErpProvidersParams,
+} from './erpExchange';
