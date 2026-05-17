@@ -47,6 +47,7 @@ import { analyticsApi } from './analytics';
 import { erpExchangeApi } from './erpExchange';
 import { webhooksApi } from './webhooks';
 import { guardVisitsApi } from './guardVisits';
+import { videoEvidenceApi } from './videoEvidence';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -84,6 +85,7 @@ export const api = {
   erpExchange: erpExchangeApi,
   webhooks: webhooksApi,
   guardVisits: guardVisitsApi,
+  videoEvidence: videoEvidenceApi,
 };
 
 export { normalizePlate };
@@ -356,3 +358,18 @@ export type {
   GuardVisitIncidentSummary,
   ListGuardVisitsParams,
 } from './guardVisits';
+export type {
+  CreateVideoEvidenceBody,
+  CreateVideoProviderBody,
+  LinkCameraVideoProviderBody,
+  ListVideoEvidenceCamerasParams,
+  ListVideoProviderParams,
+  VideoEvidenceCamera,
+  VideoEvidenceReference,
+  VideoEvidenceSensitivity,
+  VideoEvidenceSource,
+  VideoEvidenceStatus,
+  VideoEvidenceType,
+  VideoProviderConfig,
+  VideoProviderStatus,
+} from './videoEvidence';
