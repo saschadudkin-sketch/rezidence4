@@ -322,7 +322,7 @@ describe('SensitiveActionsReviewPage', () => {
       });
     });
 
-    fireEvent.change(screen.getByLabelText('Sample percent'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Sample percent'), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText('Due hours'), { target: { value: '72' } });
     fireEvent.click(screen.getByRole('button', { name: 'Запустить sampling' }));
     await waitFor(() => {
@@ -330,7 +330,7 @@ describe('SensitiveActionsReviewPage', () => {
         property_id: PROPERTY_ID,
         category: undefined,
         window_hours: 168,
-        sample_percent: 50,
+        sample_percent: 0,
         due_hours: 72,
         limit: 20,
       });

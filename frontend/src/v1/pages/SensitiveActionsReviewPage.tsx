@@ -187,9 +187,10 @@ export function SensitiveActionsReviewPage() {
     }
   }
 
-  function parsePositiveNumber(value: string, fallback: number): number {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  function parseIntegerOption(value: string, fallback: number, min: number, max: number): number {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
   }
 
   async function recordEvidence() {
@@ -219,8 +220,8 @@ export function SensitiveActionsReviewPage() {
         property_id: propertyId ?? undefined,
         category: category || undefined,
         window_hours: windowHours,
-        sample_percent: parsePositiveNumber(samplePercent, 20),
-        due_hours: parsePositiveNumber(sampleDueHours, 48),
+        sample_percent: parseIntegerOption(samplePercent, 20, 0, 100),
+        due_hours: parseIntegerOption(sampleDueHours, 48, 1, 24 * 30),
         limit: 20,
       }),
       (res) => `Sampling создал review: ${res.sampled_count}`,
@@ -233,7 +234,7 @@ export function SensitiveActionsReviewPage() {
       () => api.auditReviews.escalate({
         property_id: propertyId ?? undefined,
         limit: 20,
-        escalate_after_hours: parsePositiveNumber(escalateAfterHours, 24),
+        escalate_after_hours: parseIntegerOption(escalateAfterHours, 24, 1, 24 * 30),
       }),
       (res) => `Escalated: ${res.escalated_count}, hard: ${res.hard_escalated_count}`,
     );
