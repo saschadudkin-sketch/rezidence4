@@ -70,10 +70,12 @@ async function createIncident({ queryable, user, input }) {
   return { incident: rows[0] };
 }
 
-async function assignIncident({ queryable, incidentId, assignee }) {
+async function assignIncident({ queryable, incidentId, assignee, propertyId = null }) {
   const { rows: curRows } = await queryable.query(
-    `SELECT status FROM access_incidents WHERE id = $1`,
-    [incidentId],
+    `SELECT property_id, status
+       FROM access_incidents
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [incidentId, propertyId] : [incidentId],
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
   assertIncidentAction(curRows[0].status, 'assign');
@@ -81,17 +83,19 @@ async function assignIncident({ queryable, incidentId, assignee }) {
     `UPDATE access_incidents
         SET assigned_to_staff_id = $1,
             status = CASE WHEN status = 'open' THEN 'investigating' ELSE status END
-      WHERE id = $2 RETURNING ${INCIDENT_COLS}`,
-    [assignee, incidentId],
+      WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
+    [assignee, incidentId, curRows[0].property_id],
   );
   return { incident: rows[0] };
 }
 
-async function reopenIncident({ queryable, user, incidentId, assignee, reason }) {
+async function reopenIncident({ queryable, user, incidentId, assignee, reason, propertyId = null }) {
   const staffId = await requireStaffId(queryable, user);
   const { rows: curRows } = await queryable.query(
-    `SELECT status FROM access_incidents WHERE id = $1`,
-    [incidentId],
+    `SELECT property_id, status
+       FROM access_incidents
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [incidentId, propertyId] : [incidentId],
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
   assertIncidentAction(curRows[0].status, 'reopen');
@@ -103,21 +107,23 @@ async function reopenIncident({ queryable, user, incidentId, assignee, reason })
             description = COALESCE(description, '') ||
                          CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                          '[reopened] ' || $2
-      WHERE id = $3 RETURNING ${INCIDENT_COLS}`,
-    [assignee || staffId, reason, incidentId],
+      WHERE id = $3 AND property_id = $4 RETURNING ${INCIDENT_COLS}`,
+    [assignee || staffId, reason, incidentId, curRows[0].property_id],
   );
   return { incident: rows[0] };
 }
 
-async function resolveIncident({ txPool, user, incidentId, reason, overrideInput, isPropertyAdmin }) {
+async function resolveIncident({ txPool, user, incidentId, reason, overrideInput, isPropertyAdmin, propertyId = null }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
     const staffId = await requireStaffId(client, user);
     const { rows: curRows } = await client.query(
       `SELECT property_id, status, related_pass_id, assigned_to_staff_id
-         FROM access_incidents WHERE id = $1 FOR UPDATE`,
-      [incidentId],
+         FROM access_incidents
+        WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}
+        FOR UPDATE`,
+      propertyId ? [incidentId, propertyId] : [incidentId],
     );
     if (!curRows[0]) throw serviceError(404, 'Incident not found');
     assertIncidentAction(curRows[0].status, 'resolve');
@@ -131,8 +137,8 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
               description = COALESCE(description, '') ||
                            CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                            '[resolved] ' || $1
-        WHERE id = $2 RETURNING ${INCIDENT_COLS}`,
-      [reason, incidentId],
+        WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
+      [reason, incidentId, curRows[0].property_id],
     );
 
     let overrideRow = null;
@@ -164,10 +170,12 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
   }
 }
 
-async function dismissIncident({ queryable, user, incidentId, reason, isPropertyAdmin }) {
+async function dismissIncident({ queryable, user, incidentId, reason, isPropertyAdmin, propertyId = null }) {
   const { rows: curRows } = await queryable.query(
-    `SELECT status, assigned_to_staff_id FROM access_incidents WHERE id = $1`,
-    [incidentId],
+    `SELECT property_id, status, assigned_to_staff_id
+       FROM access_incidents
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [incidentId, propertyId] : [incidentId],
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
   assertIncidentAction(curRows[0].status, 'dismiss');
@@ -181,13 +189,13 @@ async function dismissIncident({ queryable, user, incidentId, reason, isProperty
             description = COALESCE(description, '') ||
                          CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                          '[dismissed] ' || $1
-      WHERE id = $2 RETURNING ${INCIDENT_COLS}`,
-    [reason, incidentId],
+      WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
+    [reason, incidentId, curRows[0].property_id],
   );
   return { incident: rows[0] };
 }
 
-async function patchIncident({ queryable, incidentId, changes }) {
+async function patchIncident({ queryable, incidentId, changes, propertyId = null }) {
   const sets = [];
   const params = [];
   for (const [key, value] of Object.entries(changes)) {
@@ -196,9 +204,14 @@ async function patchIncident({ queryable, incidentId, changes }) {
   }
   if (!sets.length) throw serviceError(400, 'No updatable fields provided');
   params.push(incidentId);
+  const idIdx = params.length;
+  if (propertyId) params.push(propertyId);
 
   const { rows } = await queryable.query(
-    `UPDATE access_incidents SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING ${INCIDENT_COLS}`,
+    `UPDATE access_incidents
+        SET ${sets.join(', ')}
+      WHERE id = $${idIdx}${propertyId ? ` AND property_id = $${params.length}` : ''}
+      RETURNING ${INCIDENT_COLS}`,
     params,
   );
   if (!rows[0]) throw serviceError(404, 'Incident not found');

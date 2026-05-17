@@ -77,7 +77,9 @@ describe('VehicleService ownership checks', () => {
 
   test('update rejects non-owner resident', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('FROM vehicles')) return Promise.resolve({ rows: [{ owner_resident_id: UUID_RESIDENT }] });
+      if (sql.includes('FROM vehicles')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, owner_resident_id: UUID_RESIDENT }] });
+      }
       if (sql.includes('FROM residents')) {
         return Promise.resolve({ rows: [{ id: '44444444-4444-4444-8444-444444444444' }] });
       }
@@ -122,7 +124,7 @@ describe('VehicleService mutations', () => {
   test('delete rejects vehicles with pass or request history and returns counts', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM vehicles')) return Promise.resolve({ rows: [{ owner_resident_id: UUID_RESIDENT }] });
-      if (sql.includes('COUNT(*)::int FROM passes')) {
+      if (sql.includes('FROM passes') && sql.includes('FROM access_requests')) {
         return Promise.resolve({ rows: [{ passes_count: 1, requests_count: 2 }] });
       }
       throw new Error(`unexpected SQL: ${sql}`);

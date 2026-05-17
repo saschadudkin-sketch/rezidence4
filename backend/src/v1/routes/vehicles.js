@@ -389,13 +389,13 @@ router.patch('/:id', async (req, res, next) => {
       let result;
       if (isBlacklisted) {
         action = 'vehicle.blacklisted';
-        result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+        result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
       } else if (isWhitelisted) {
         action = 'vehicle.whitelisted';
-        result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+        result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
       } else {
         action = 'vehicle.flags_cleared';
-        result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id });
+        result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
       }
       auditLog(req, {
         propertyId: result.vehicle.property_id,
@@ -442,6 +442,7 @@ router.patch('/:id', async (req, res, next) => {
       user: req.user,
       isPropertyAdmin: adminForVehicle,
       vehicleId: req.params.id,
+      propertyId,
       changes,
     });
     auditLog(req, {
@@ -466,7 +467,7 @@ router.post('/:id/whitelist', async (req, res, next) => {
     const propertyId = await loadVehicleProperty(req, req.params.id);
     if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
-    const result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+    const result = await whitelistVehicle({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
     auditLog(req, {
       propertyId: result.vehicle.property_id,
       action: 'vehicle.whitelisted',
@@ -499,7 +500,7 @@ router.post('/:id/blacklist', async (req, res, next) => {
     }
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
     if (!reason) return res.status(400).json({ error: 'reason is required' });
-    const result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id });
+    const result = await blacklistVehicle({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
     auditLog(req, {
       propertyId: result.vehicle.property_id,
       action: 'vehicle.blacklisted',
@@ -528,7 +529,7 @@ router.post('/:id/clear-flags', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
     const propertyId = await loadVehicleProperty(req, req.params.id);
     if (!isPropertyAdmin(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
-    const result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id });
+    const result = await clearVehicleFlags({ queryable: getDb(req), vehicleId: req.params.id, propertyId });
     auditLog(req, {
       propertyId: result.vehicle.property_id,
       action: 'vehicle.flags_cleared',
@@ -565,6 +566,7 @@ router.delete('/:id', async (req, res, next) => {
       user: req.user,
       isPropertyAdmin: adminForVehicle,
       vehicleId: req.params.id,
+      propertyId,
     });
     auditLog(req, {
       propertyId,

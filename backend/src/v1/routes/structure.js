@@ -65,6 +65,20 @@ function isPropertyAdmin(req, propertyId = null) {
   if (!propertyId) return isAdmin(req);
   return canInPropertyScope(req, 'structure:write', propertyId);
 }
+function canReadStructure(req, propertyId) {
+  return canInPropertyScope(req, 'structure:read', propertyId);
+}
+function resolvePropertyId(req) {
+  return req.query.property_id
+    || req.query.propertyId
+    || req.body?.property_id
+    || req.body?.propertyId
+    || req.property?.id
+    || req.property?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
 
 function sendScopeError(res, err) {
   if (!isResourceScopeServiceError(err)) return false;
@@ -107,10 +121,15 @@ function auditLog(req, { action, resourceType, resourceId, changes }) {
 router.get('/buildings', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadStructure(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows } = await getDb(req).query(
       `SELECT id, property_id, code, name, sort_order, created_at
          FROM buildings
+        WHERE property_id = $1
         ORDER BY sort_order ASC, name ASC`,
+      [propertyId],
     );
     res.json({ buildings: rows });
   } catch (err) { next(err); }
@@ -153,6 +172,13 @@ router.get('/buildings/:id/entrances', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid building id' });
+    const propertyId = await loadResourcePropertyId(
+      getDb(req),
+      'building',
+      req.params.id,
+      { notFoundMessage: 'Building not found' },
+    );
+    if (!canReadStructure(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows } = await getDb(req).query(
       `SELECT id, building_id, code, name, sort_order, created_at
          FROM entrances
@@ -208,6 +234,9 @@ router.post('/entrances', async (req, res, next) => {
 router.get('/units', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadStructure(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -216,8 +245,8 @@ router.get('/units', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.building_id) {
       if (!isValidUuid(req.query.building_id)) return res.status(400).json({ error: 'Invalid building_id' });
       params.push(req.query.building_id); filters.push(`building_id = $${params.length}`);
@@ -329,6 +358,7 @@ router.get('/units/:id', async (req, res, next) => {
       [req.params.id],
     );
     if (!unitRows[0]) return res.status(404).json({ error: 'Unit not found' });
+    if (!canReadStructure(req, unitRows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
 
     const { rows: residents } = await getDb(req).query(
       `SELECT id, full_name, resident_type, is_active, consent_given_at
@@ -416,10 +446,12 @@ router.patch('/units/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(propertyId);
 
     const { rows } = await getDb(req).query(
       `UPDATE units SET ${sets.join(', ')}
-        WHERE id = $${params.length}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
         RETURNING id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at`,
       params,
     );
@@ -443,16 +475,21 @@ router.post('/units/:id/deactivate', async (req, res, next) => {
     if (!propertyId) return;
 
     const { rows: residents } = await getDb(req).query(
-      `SELECT COUNT(*)::int AS c FROM residents WHERE unit_id = $1 AND is_active = true`,
-      [req.params.id],
+      `SELECT COUNT(*)::int AS c
+         FROM residents
+        WHERE unit_id = $1 AND property_id = $2 AND is_active = true`,
+      [req.params.id, propertyId],
     );
     if (residents[0].c > 0) {
       return res.status(409).json({ error: 'Cannot deactivate: unit still has active residents', residents: residents[0].c });
     }
 
     const { rows } = await getDb(req).query(
-      `UPDATE units SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
-      [req.params.id],
+      `UPDATE units
+          SET is_active = false, updated_at = NOW()
+        WHERE id = $1 AND property_id = $2
+        RETURNING id`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Unit not found' });
     auditLog(req, { action: 'unit.deactivated', resourceType: 'unit', resourceId: rows[0].id, changes: null });

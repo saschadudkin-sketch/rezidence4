@@ -188,8 +188,8 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
         return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY }] });
       }
       if (s.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
-      if (s.includes('SELECT status FROM access_incidents')) {
-        return Promise.resolve({ rows: [{ status: 'resolved' }] });
+      if (s.includes('FROM access_incidents') && s.includes('status')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, status: 'resolved' }] });
       }
       if (s.includes('UPDATE access_incidents')) {
         return Promise.resolve({

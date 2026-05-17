@@ -289,6 +289,7 @@ router.get('/:id/qr', async (req, res, next) => {
       user: req.user,
       isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
+      propertyId,
     });
     res.json({ qr: result.qr });
   } catch (err) {
@@ -315,6 +316,7 @@ router.post('/:id/regenerate-qr', idempotency, async (req, res, next) => {
       user: req.user,
       isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.pass.property_id,
@@ -350,6 +352,7 @@ router.get('/:id/pin', async (req, res, next) => {
       user: req.user,
       isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
+      propertyId,
     });
     res.json({ pin: result.pin });
   } catch (err) {
@@ -377,6 +380,7 @@ router.post('/:id/regenerate-pin', idempotency, async (req, res, next) => {
       user: req.user,
       isStaffUser: can(req.user, 'passes:read'),
       passId: req.params.id,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.pass.property_id,
@@ -493,6 +497,7 @@ router.post('/:id/revoke', async (req, res, next) => {
       user: req.user,
       passId: req.params.id,
       reason,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.pass.property_id,
@@ -526,7 +531,7 @@ router.post('/:id/block', async (req, res, next) => {
     const propertyId = await loadPassProperty(req, req.params.id);
     if (!canBlockPassScope(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : null;
-    const result = await blockPass({ queryable: getDb(req), passId: req.params.id, reason });
+    const result = await blockPass({ queryable: getDb(req), passId: req.params.id, reason, propertyId });
     auditLog(req, {
       propertyId: result.pass.property_id,
       action: 'pass.blocked',
@@ -568,6 +573,7 @@ router.post('/:id/unblock', async (req, res, next) => {
       reason,
       policyId,
       overrideId,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.pass.property_id,

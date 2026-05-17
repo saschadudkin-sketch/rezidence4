@@ -309,6 +309,7 @@ router.post('/access-incidents/:id/assign', async (req, res, next) => {
       queryable: getDb(req),
       incidentId: req.params.id,
       assignee,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -360,6 +361,7 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
       reason,
       overrideInput,
       isPropertyAdmin: isPropertyAdmin(req, propertyId),
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -392,6 +394,7 @@ router.post('/access-incidents/:id/dismiss', async (req, res, next) => {
       incidentId: req.params.id,
       reason,
       isPropertyAdmin: isPropertyAdmin(req, propertyId),
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -431,6 +434,7 @@ router.post('/access-incidents/:id/status', async (req, res, next) => {
         reason,
         overrideInput: null,
         isPropertyAdmin: isPropertyAdmin(req, propertyId),
+        propertyId,
       });
       auditLog(req, {
         propertyId: result.incident.property_id,
@@ -455,6 +459,7 @@ router.post('/access-incidents/:id/status', async (req, res, next) => {
         incidentId: req.params.id,
         reason,
         isPropertyAdmin: isPropertyAdmin(req, propertyId),
+        propertyId,
       });
       auditLog(req, {
         propertyId: result.incident.property_id,
@@ -484,6 +489,7 @@ router.post('/access-incidents/:id/status', async (req, res, next) => {
           incidentId: req.params.id,
           assignee,
           reason,
+          propertyId,
         });
       } catch (err) {
         if (!isAccessIncidentServiceError(err) || !String(err.message).includes('Cannot reopen')) throw err;
@@ -491,6 +497,7 @@ router.post('/access-incidents/:id/status', async (req, res, next) => {
           queryable: getDb(req),
           incidentId: req.params.id,
           assignee,
+          propertyId,
         });
       }
       auditLog(req, {
@@ -531,6 +538,7 @@ router.post('/access-incidents/:id/reopen', async (req, res, next) => {
       incidentId: req.params.id,
       assignee,
       reason,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.incident.property_id,
@@ -572,7 +580,7 @@ router.patch('/access-incidents/:id', async (req, res, next) => {
       }
       changes.description = req.body.description;
     }
-    const result = await patchIncident({ queryable: getDb(req), incidentId: req.params.id, changes });
+    const result = await patchIncident({ queryable: getDb(req), incidentId: req.params.id, propertyId, changes });
     auditLog(req, {
       propertyId: result.incident.property_id,
       action: 'incident.patched',

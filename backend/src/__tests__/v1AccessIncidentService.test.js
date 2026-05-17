@@ -98,7 +98,9 @@ describe('AccessIncidentService', () => {
 
   test('dismissIncident rejects terminal incident statuses', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('SELECT status')) return Promise.resolve({ rows: [{ status: 'resolved', assigned_to_staff_id: null }] });
+      if (sql.includes('FROM access_incidents') && sql.includes('status')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, status: 'resolved', assigned_to_staff_id: null }] });
+      }
       throw new Error(`unexpected SQL: ${sql}`);
     });
 

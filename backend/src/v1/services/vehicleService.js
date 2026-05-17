@@ -32,10 +32,13 @@ async function requireResidentId(queryable, user) {
   return residentId;
 }
 
-async function assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId }) {
+async function assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId, propertyId = null }) {
+  const params = [vehicleId];
+  const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
+  if (propertyId) params.push(propertyId);
   const { rows } = await queryable.query(
-    `SELECT owner_resident_id FROM vehicles WHERE id = $1`,
-    [vehicleId],
+    `SELECT property_id, owner_resident_id FROM vehicles WHERE id = $1${propertyPredicate}`,
+    params,
   );
   if (!rows[0]) throw serviceError(404, 'Vehicle not found');
   if (isPropertyAdmin) return rows[0];
@@ -73,8 +76,8 @@ async function createVehicle({ queryable, user, isPropertyAdmin, input }) {
   return { vehicle: rows[0] };
 }
 
-async function updateVehicle({ queryable, user, isPropertyAdmin, vehicleId, changes }) {
-  await assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId });
+async function updateVehicle({ queryable, user, isPropertyAdmin, vehicleId, changes, propertyId = null }) {
+  const vehicle = await assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId, propertyId });
 
   const sets = [];
   const params = [];
@@ -86,22 +89,31 @@ async function updateVehicle({ queryable, user, isPropertyAdmin, vehicleId, chan
 
   sets.push('updated_at = NOW()');
   params.push(vehicleId);
+  const idIdx = params.length;
+  params.push(vehicle.property_id);
   const { rows } = await queryable.query(
-    `UPDATE vehicles SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING ${VEHICLE_COLS}`,
+    `UPDATE vehicles
+        SET ${sets.join(', ')}
+      WHERE id = $${idIdx} AND property_id = $${params.length}
+      RETURNING ${VEHICLE_COLS}`,
     params,
   );
+  if (!rows[0]) throw serviceError(404, 'Vehicle not found');
   return { vehicle: rows[0] };
 }
 
-async function setVehicleFlags({ queryable, vehicleId, whitelist, blacklist }) {
+async function setVehicleFlags({ queryable, vehicleId, whitelist, blacklist, propertyId = null }) {
+  const params = [vehicleId, whitelist, blacklist];
+  const propertyPredicate = propertyId ? ' AND property_id = $4' : '';
+  if (propertyId) params.push(propertyId);
   const { rows } = await queryable.query(
     `UPDATE vehicles
         SET is_whitelisted = $2,
             is_blacklisted = $3,
             updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1${propertyPredicate}
       RETURNING ${VEHICLE_COLS}`,
-    [vehicleId, whitelist, blacklist],
+    params,
   );
   if (!rows[0]) throw serviceError(404, 'Vehicle not found');
   const eventType = blacklist
@@ -127,26 +139,30 @@ async function setVehicleFlags({ queryable, vehicleId, whitelist, blacklist }) {
   return { vehicle: rows[0] };
 }
 
-async function whitelistVehicle({ queryable, vehicleId }) {
-  return setVehicleFlags({ queryable, vehicleId, whitelist: true, blacklist: false });
+async function whitelistVehicle({ queryable, vehicleId, propertyId = null }) {
+  return setVehicleFlags({ queryable, vehicleId, propertyId, whitelist: true, blacklist: false });
 }
 
-async function blacklistVehicle({ queryable, vehicleId }) {
-  return setVehicleFlags({ queryable, vehicleId, whitelist: false, blacklist: true });
+async function blacklistVehicle({ queryable, vehicleId, propertyId = null }) {
+  return setVehicleFlags({ queryable, vehicleId, propertyId, whitelist: false, blacklist: true });
 }
 
-async function clearVehicleFlags({ queryable, vehicleId }) {
-  return setVehicleFlags({ queryable, vehicleId, whitelist: false, blacklist: false });
+async function clearVehicleFlags({ queryable, vehicleId, propertyId = null }) {
+  return setVehicleFlags({ queryable, vehicleId, propertyId, whitelist: false, blacklist: false });
 }
 
-async function deleteVehicle({ queryable, user, isPropertyAdmin, vehicleId }) {
-  await assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId });
+async function deleteVehicle({ queryable, user, isPropertyAdmin, vehicleId, propertyId = null }) {
+  const vehicle = await assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId, propertyId });
 
   const { rows: histRows } = await queryable.query(
     `SELECT
-       (SELECT COUNT(*)::int FROM passes WHERE subject_vehicle_id = $1) AS passes_count,
-       (SELECT COUNT(*)::int FROM access_requests WHERE vehicle_id = $1) AS requests_count`,
-    [vehicleId],
+       (SELECT COUNT(*)::int
+          FROM passes
+         WHERE subject_vehicle_id = $1 AND property_id = $2) AS passes_count,
+       (SELECT COUNT(*)::int
+          FROM access_requests
+         WHERE vehicle_id = $1 AND property_id = $2) AS requests_count`,
+    [vehicleId, vehicle.property_id],
   );
   if (histRows[0].passes_count > 0 || histRows[0].requests_count > 0) {
     throw serviceError(409, 'Cannot delete: vehicle has history', {
@@ -155,7 +171,10 @@ async function deleteVehicle({ queryable, user, isPropertyAdmin, vehicleId }) {
     });
   }
 
-  await queryable.query(`DELETE FROM vehicles WHERE id = $1`, [vehicleId]);
+  await queryable.query(
+    `DELETE FROM vehicles WHERE id = $1 AND property_id = $2`,
+    [vehicleId, vehicle.property_id],
+  );
   return { ok: true };
 }
 

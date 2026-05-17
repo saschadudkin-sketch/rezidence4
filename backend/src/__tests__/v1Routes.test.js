@@ -33,7 +33,7 @@ let mockCurrentUser = null;
 jest.mock('../middleware/auth', () => (req, _res, next) => {
   // eslint-disable-next-line no-undef
   if (!mockCurrentUser) return _res.status(401).json({ error: 'auth not set' });
-  req.user = mockCurrentUser;
+  req.user = { property_id: '11111111-1111-4111-8111-111111111111', ...mockCurrentUser };
   next();
 });
 
@@ -417,7 +417,7 @@ describe('GET /api/v1/residents — phone-visibility gate', () => {
   });
 
   test('admin sees phones', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     db.query.mockResolvedValueOnce({ rows: [residentRow] });
 
     const res = await supertest(buildApp()).get('/api/v1/residents');
@@ -447,7 +447,7 @@ describe('GET /api/v1/residents — phone-visibility gate', () => {
 
 describe('POST /api/v1/residents', () => {
   test('400 on bad phone', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
     const res = await supertest(buildApp())
       .post('/api/v1/residents')
       .send({ property_id: UUID_A, unit_id: UUID_B, full_name: 'X', phone: 'abc' });
@@ -456,7 +456,7 @@ describe('POST /api/v1/residents', () => {
   });
 
   test('400 when unit does not exist (pre-check)', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
     db.query.mockResolvedValueOnce({ rows: [] }); // unit lookup
 
     const res = await supertest(buildApp())
@@ -470,7 +470,7 @@ describe('POST /api/v1/residents', () => {
   });
 
   test('400 when unit is inactive', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
     db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_A, is_active: false }] });
 
     const res = await supertest(buildApp())
@@ -554,7 +554,7 @@ describe('POST /api/v1/residents/:id/deactivate', () => {
   });
 
   test('property admin offboards resident and returns cascade summary', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
     db.query.mockImplementation((sql) => {
       if (sql.includes('SELECT property_id FROM residents WHERE id = $1')) {
         return Promise.resolve({ rows: [{ property_id: UUID_A }] });
@@ -768,7 +768,7 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
 
 describe('POST /api/v1/contractor-users — company-status gate', () => {
   test('409 when company status is suspended', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_B, status: 'suspended' }] });
 
     const res = await supertest(buildApp())
@@ -781,7 +781,7 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
   });
 
   test('400 when company does not exist', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     db.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await supertest(buildApp())
@@ -793,7 +793,7 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
   });
 
   test('400 when access_expires_at is in the past', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     const res = await supertest(buildApp())
       .post('/api/v1/contractor-users')
       .send({
@@ -805,7 +805,7 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
   });
 
   test('201 when company is active and payload is valid', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     db.query
       .mockResolvedValueOnce({ rows: [{ property_id: UUID_B, status: 'active' }] })
       .mockResolvedValueOnce({ rows: [{ id: UUID_C, full_name: 'Worker', is_active: true }] });
@@ -819,7 +819,7 @@ describe('POST /api/v1/contractor-users — company-status gate', () => {
   });
 
   test('400 when company belongs to another property', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
     db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_A, status: 'active' }] });
 
     const res = await supertest(buildApp())

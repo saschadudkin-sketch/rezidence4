@@ -59,6 +59,20 @@ function isPropertyAdmin(req, propertyId = null) {
   if (!propertyId) return isAdmin(req);
   return canInPropertyScope(req, 'staff:write', propertyId);
 }
+function canReadStaff(req, propertyId) {
+  return canInPropertyScope(req, 'staff:read', propertyId);
+}
+function resolvePropertyId(req) {
+  return req.query.property_id
+    || req.query.propertyId
+    || req.body?.property_id
+    || req.body?.propertyId
+    || req.property?.id
+    || req.property?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
 function sendScopeError(res, err) {
   if (!isResourceScopeServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
@@ -114,7 +128,9 @@ function sendImportError(res, err) {
 // GET /api/v1/staff?role=&is_active=&q=&limit=&offset=
 router.get('/', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadStaff(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -123,8 +139,8 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.role) {
       if (!STAFF_ROLES.has(req.query.role)) return res.status(400).json({ error: 'Invalid role' });
       params.push(req.query.role); filters.push(`role = $${params.length}`);
@@ -210,10 +226,10 @@ router.post('/import/apply', importCsvParser, async (req, res, next) => {
 // GET /api/v1/staff/:id
 router.get('/:id', async (req, res, next) => {
   try {
-    if (!isPropertyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
     const { rows } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
+    if (!canReadStaff(req, rows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
     res.json({ staff: rows[0] });
   } catch (err) { next(err); }
 });
@@ -339,10 +355,16 @@ router.patch('/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(before.property_id);
     const { rows } = await getDb(req).query(
-      `UPDATE staff_users SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE staff_users
+          SET ${sets.join(', ')}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
+        RETURNING *`,
       params,
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
     auditLog(req, { action: 'staff.updated', resourceId: rows[0].id, changes });
     if (changes.role) {
       await suspendMembershipsForSubject({
@@ -375,8 +397,11 @@ router.post('/:id/deactivate', async (req, res, next) => {
     const propertyId = await requirePropertyAdminForResource(req, res, 'staff_user', req.params.id, 'Staff not found');
     if (!propertyId) return;
     const { rows } = await getDb(req).query(
-      `UPDATE staff_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
-      [req.params.id],
+      `UPDATE staff_users
+          SET is_active = false, updated_at = NOW()
+        WHERE id = $1 AND property_id = $2
+        RETURNING id`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
     auditLog(req, { action: 'staff.deactivated', resourceId: rows[0].id, changes: null });

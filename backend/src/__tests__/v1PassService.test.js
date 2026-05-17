@@ -304,7 +304,7 @@ describe('PassService QR and status transitions', () => {
 
   test('unblockPass only accepts blocked passes', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('FROM passes WHERE id = $1')) {
+      if (sql.includes('FROM passes') && sql.includes('WHERE id = $1')) {
         return Promise.resolve({ rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'active', policy_id: null }] });
       }
       throw new Error(`unexpected SQL: ${sql}`);
@@ -318,7 +318,7 @@ describe('PassService QR and status transitions', () => {
 
   test('unblockPass requires reason and policy or override context', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('FROM passes WHERE id = $1')) {
+      if (sql.includes('FROM passes') && sql.includes('WHERE id = $1')) {
         return Promise.resolve({
           rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'blocked', policy_id: UUID_POLICY }],
         });

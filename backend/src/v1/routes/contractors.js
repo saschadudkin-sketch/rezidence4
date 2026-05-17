@@ -51,6 +51,20 @@ function isPropertyAdmin(req, propertyId = null) {
   if (!propertyId) return isAdmin(req);
   return canInPropertyScope(req, 'contractors:write', propertyId);
 }
+function canReadContractors(req, propertyId) {
+  return canInPropertyScope(req, 'contractors:read', propertyId);
+}
+function resolvePropertyId(req) {
+  return req.query.property_id
+    || req.query.propertyId
+    || req.body?.property_id
+    || req.body?.propertyId
+    || req.property?.id
+    || req.property?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
 function sendScopeError(res, err) {
   if (!isResourceScopeServiceError(err)) return false;
   res.status(err.status).json({ error: err.message });
@@ -154,6 +168,9 @@ router.post('/contractors/import/apply', importCsvParser, async (req, res, next)
 router.get('/contractor-companies', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadContractors(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -162,8 +179,8 @@ router.get('/contractor-companies', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['c.property_id = $1'];
+    const params = [propertyId];
     if (req.query.status) {
       if (!COMPANY_STATUSES.has(req.query.status)) return res.status(400).json({ error: 'Invalid status' });
       params.push(req.query.status); filters.push(`status = $${params.length}`);
@@ -201,9 +218,12 @@ router.get('/contractor-companies/:id', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid company id' });
     const { rows } = await getDb(req).query(`SELECT * FROM contractor_companies WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
+    if (!canReadContractors(req, rows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
     const { rows: users } = await getDb(req).query(
-      `SELECT * FROM contractor_users WHERE contractor_company_id = $1 ORDER BY full_name ASC`,
-      [req.params.id],
+      `SELECT * FROM contractor_users
+        WHERE contractor_company_id = $1 AND property_id = $2
+        ORDER BY full_name ASC`,
+      [req.params.id, rows[0].property_id],
     );
     res.json({ company: rows[0], users });
   } catch (err) { next(err); }
@@ -281,8 +301,13 @@ router.patch('/contractor-companies/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(propertyId);
     const { rows } = await getDb(req).query(
-      `UPDATE contractor_companies SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE contractor_companies
+          SET ${sets.join(', ')}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
+        RETURNING *`,
       params,
     );
     if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
@@ -301,6 +326,9 @@ router.patch('/contractor-companies/:id', async (req, res, next) => {
 router.get('/contractor-users', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadContractors(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -309,8 +337,8 @@ router.get('/contractor-users', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.contractor_company_id) {
       if (!isValidUuid(req.query.contractor_company_id)) return res.status(400).json({ error: 'Invalid contractor_company_id' });
       params.push(req.query.contractor_company_id); filters.push(`contractor_company_id = $${params.length}`);
@@ -461,8 +489,13 @@ router.patch('/contractor-users/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(propertyId);
     const { rows } = await getDb(req).query(
-      `UPDATE contractor_users SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE contractor_users
+          SET ${sets.join(', ')}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
+        RETURNING *`,
       params,
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -501,8 +534,11 @@ router.post('/contractor-users/:id/deactivate', async (req, res, next) => {
     );
     if (!propertyId) return;
     const { rows } = await getDb(req).query(
-      `UPDATE contractor_users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
-      [req.params.id],
+      `UPDATE contractor_users
+          SET is_active = false, updated_at = NOW()
+        WHERE id = $1 AND property_id = $2
+        RETURNING id`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     auditLog(req, { action: 'contractor_user.deactivated', resourceType: 'contractor_user', resourceId: rows[0].id, changes: null });

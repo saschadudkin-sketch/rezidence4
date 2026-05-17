@@ -232,6 +232,17 @@ router.patch('/access-zones/:id', async (req, res, next) => {
       if (req.body.building_id !== null && !isValidUuid(req.body.building_id)) {
         return res.status(400).json({ error: 'building_id must be UUID or null' });
       }
+      if (req.body.building_id !== null && req.body.building_id !== undefined) {
+        const buildingPropertyId = await loadResourceProperty(
+          req,
+          'buildings',
+          req.body.building_id,
+          'building_id does not exist',
+        );
+        if (buildingPropertyId !== propertyId) {
+          return res.status(400).json({ error: 'building_id does not belong to this property' });
+        }
+      }
       params.push(req.body.building_id || null);
       sets.push(`building_id = $${params.length}`);
       changes.building_id = req.body.building_id || null;
@@ -266,14 +277,17 @@ router.patch('/access-zones/:id', async (req, res, next) => {
     if (!sets.length) return res.status(400).json({ error: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(propertyId);
 
     const { rows } = await getDb(req).query(
       `UPDATE access_zones SET ${sets.join(', ')}
-        WHERE id = $${params.length}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
         RETURNING id, property_id, building_id, name, zone_type, description,
                   is_active, sort_order, metadata, created_at, updated_at`,
       params,
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Access zone not found' });
     auditLog(req, { action: 'access_zone.updated', resourceType: 'access_zone', resourceId: rows[0].id, changes });
     res.json({ zone: rows[0] });
   } catch (err) {
@@ -292,10 +306,11 @@ router.post('/access-zones/:id/deactivate', async (req, res, next) => {
 
     const { rows } = await getDb(req).query(
       `UPDATE access_zones SET is_active = false, updated_at = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND property_id = $2
         RETURNING id`,
-      [req.params.id],
+      [req.params.id, propertyId],
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Access zone not found' });
     auditLog(req, { action: 'access_zone.deactivated', resourceType: 'access_zone', resourceId: rows[0].id, changes: null });
     res.status(204).end();
   } catch (err) {
@@ -504,15 +519,18 @@ router.patch('/access-points/:id', async (req, res, next) => {
     if (!sets.length) return res.status(400).json({ error: 'No updatable fields provided' });
     sets.push('updated_at = NOW()');
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(propertyId);
 
     const { rows } = await getDb(req).query(
       `UPDATE access_points SET ${sets.join(', ')}
-        WHERE id = $${params.length}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
         RETURNING id, property_id, zone_id, name, point_type, provider,
                   provider_external_id, description, is_active, sort_order,
                   metadata, created_at, updated_at`,
       params,
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Access point not found' });
     auditLog(req, { action: 'access_point.updated', resourceType: 'access_point', resourceId: rows[0].id, changes });
     res.json({ point: rows[0] });
   } catch (err) {
@@ -529,10 +547,11 @@ router.post('/access-points/:id/deactivate', async (req, res, next) => {
 
     const { rows } = await getDb(req).query(
       `UPDATE access_points SET is_active = false, updated_at = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND property_id = $2
         RETURNING id`,
-      [req.params.id],
+      [req.params.id, propertyId],
     );
+    if (!rows[0]) return res.status(404).json({ error: 'Access point not found' });
     auditLog(req, { action: 'access_point.deactivated', resourceType: 'access_point', resourceId: rows[0].id, changes: null });
     res.status(204).end();
   } catch (err) {

@@ -57,8 +57,22 @@ function isPropertyAdmin(req, propertyId = null) {
   if (!propertyId) return isAdmin(req);
   return canInPropertyScope(req, 'residents:write', propertyId);
 }
+function canReadResidents(req, propertyId) {
+  return canInPropertyScope(req, 'residents:read', propertyId);
+}
 function canViewPhone(req) {
   return can(req.user, 'residents:read_phone');
+}
+function resolvePropertyId(req) {
+  return req.query.property_id
+    || req.query.propertyId
+    || req.body?.property_id
+    || req.body?.propertyId
+    || req.property?.id
+    || req.property?.property_id
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
 }
 
 function sendScopeError(res, err) {
@@ -183,6 +197,9 @@ function auditLog(req, { action, resourceId, changes }) {
 router.get('/', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+    const propertyId = resolvePropertyId(req);
+    if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be UUID' });
+    if (!canReadResidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     let pagination;
     try {
@@ -191,8 +208,8 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: rangeErr.message });
     }
 
-    const filters = [];
-    const params = [];
+    const filters = ['property_id = $1'];
+    const params = [propertyId];
     if (req.query.unit_id) {
       if (!isValidUuid(req.query.unit_id)) return res.status(400).json({ error: 'Invalid unit_id' });
       params.push(req.query.unit_id); filters.push(`unit_id = $${params.length}`);
@@ -254,11 +271,15 @@ router.get('/:id', async (req, res, next) => {
       ? await getDb(req).query(`SELECT * FROM residents WHERE id = $1`, [ref])
       : await getDb(req).query(`SELECT * FROM residents WHERE external_uid = $1`, [ref]);
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
+    const isSelf = rows[0].external_uid === req.user.uid || rows[0].id === req.user.uid;
+    if (!isSelf && !canReadResidents(req, rows[0].property_id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     if (!isStaff(req.user.role) && rows[0].external_uid !== req.user.uid && rows[0].id !== req.user.uid) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     // Phone always visible to self, else capability-gated.
-    const showPhone = rows[0].external_uid === req.user.uid || rows[0].id === req.user.uid || canViewPhone(req);
+    const showPhone = isSelf || canViewPhone(req);
     res.json({ resident: formatResident(rows[0], showPhone) });
   } catch (err) { next(err); }
 });
@@ -383,8 +404,13 @@ router.patch('/:id', async (req, res, next) => {
 
     sets.push(`updated_at = NOW()`);
     params.push(req.params.id);
+    const idIdx = params.length;
+    params.push(existing.property_id);
     const { rows } = await getDb(req).query(
-      `UPDATE residents SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE residents
+          SET ${sets.join(', ')}
+        WHERE id = $${idIdx} AND property_id = $${params.length}
+        RETURNING *`,
       params,
     );
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
@@ -450,9 +476,9 @@ router.post('/:id/consent', async (req, res, next) => {
     const { rows } = await getDb(req).query(
       `UPDATE residents
           SET consent_given_at = NOW(), consent_version = $1, updated_at = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND (external_uid = $3 OR id::text = $3)
         RETURNING id, property_id, consent_given_at, consent_version`,
-      [consent_version, req.params.id],
+      [consent_version, req.params.id, req.user.uid],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     auditLog(req, { action: 'resident.consent_given', resourceId: rows[0].id, changes: { consent_version } });

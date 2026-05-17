@@ -93,14 +93,18 @@ function pinPolicyAllowsPublicDisplay(policy) {
   return metadata.public_pin_display === true || metadata.show_pin_on_public_pass === true;
 }
 
-async function getCurrentQrCredential(queryable, passId) {
+async function getCurrentQrCredential(queryable, passId, propertyId = null) {
+  const params = [passId];
+  const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
+  if (propertyId) params.push(propertyId);
   const { rows } = await queryable.query(
     `SELECT id, token, render_version
        FROM pass_credentials
       WHERE pass_id = $1
+        ${propertyPredicate}
         AND credential_type = 'qr'
         AND revoked_at IS NULL`,
-    [passId],
+    params,
   );
   if (rows[0]) return rows[0];
 
@@ -140,18 +144,22 @@ async function upsertQrCompatibility(queryable, pass, qr) {
   );
 }
 
-async function invalidatePassCredentials(queryable, passId) {
+async function invalidatePassCredentials(queryable, passId, propertyId = null) {
+  const params = [passId];
+  const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
+  if (propertyId) params.push(propertyId);
   await queryable.query(
     `UPDATE pass_credentials
         SET revoked_at = COALESCE(revoked_at, NOW()),
             updated_at = NOW()
       WHERE pass_id = $1
+        ${propertyPredicate}
         AND revoked_at IS NULL`,
-    [passId],
+    params,
   );
   await queryable.query(
-    `DELETE FROM qr_passes_v2 WHERE pass_id = $1`,
-    [passId],
+    `DELETE FROM qr_passes_v2 WHERE pass_id = $1${propertyPredicate}`,
+    params,
   );
 }
 
@@ -173,10 +181,13 @@ async function canReadPass({ queryable, user, isStaffUser, pass }) {
   return rows.length > 0;
 }
 
-async function requireReadablePass({ queryable, user, isStaffUser, passId, selectCols }) {
+async function requireReadablePass({ queryable, user, isStaffUser, passId, selectCols, propertyId = null }) {
+  const params = [passId];
+  const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
+  if (propertyId) params.push(propertyId);
   const { rows } = await queryable.query(
-    `SELECT ${selectCols} FROM passes WHERE id = $1`,
-    [passId],
+    `SELECT ${selectCols} FROM passes WHERE id = $1${propertyPredicate}`,
+    params,
   );
   if (!rows[0]) throw serviceError(404, 'Pass not found');
   const pass = rows[0];
@@ -186,17 +197,18 @@ async function requireReadablePass({ queryable, user, isStaffUser, passId, selec
   return pass;
 }
 
-async function getOrCreateQr({ queryable, user, isStaffUser, passId }) {
+async function getOrCreateQr({ queryable, user, isStaffUser, passId, propertyId = null }) {
   const pass = await requireReadablePass({
     queryable,
     user,
     isStaffUser,
     passId,
+    propertyId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status',
   });
   assertPassAction(pass.status, 'qr');
 
-  const existing = await getCurrentQrCredential(queryable, pass.id);
+  const existing = await getCurrentQrCredential(queryable, pass.id, pass.property_id);
   if (existing) {
     await upsertQrCompatibility(queryable, pass, existing);
     return { pass, qr: existing };
@@ -206,12 +218,13 @@ async function getOrCreateQr({ queryable, user, isStaffUser, passId }) {
   return { pass, qr };
 }
 
-async function regenerateQr({ queryable, user, isStaffUser, passId }) {
+async function regenerateQr({ queryable, user, isStaffUser, passId, propertyId = null }) {
   const pass = await requireReadablePass({
     queryable,
     user,
     isStaffUser,
     passId,
+    propertyId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status',
   });
   assertPassAction(pass.status, 'regenerate_qr');
@@ -230,12 +243,13 @@ async function regenerateQr({ queryable, user, isStaffUser, passId }) {
   return { pass, qr: rows[0] };
 }
 
-async function regeneratePin({ queryable, user, isStaffUser, passId }) {
+async function regeneratePin({ queryable, user, isStaffUser, passId, propertyId = null }) {
   const pass = await requireReadablePass({
     queryable,
     user,
     isStaffUser,
     passId,
+    propertyId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, zone_id, point_id, policy_id',
   });
   assertPassAction(pass.status, 'regenerate_pin');
@@ -285,12 +299,13 @@ async function regeneratePin({ queryable, user, isStaffUser, passId }) {
   };
 }
 
-async function getCurrentPin({ queryable, user, isStaffUser, passId }) {
+async function getCurrentPin({ queryable, user, isStaffUser, passId, propertyId = null }) {
   const pass = await requireReadablePass({
     queryable,
     user,
     isStaffUser,
     passId,
+    propertyId,
     selectCols: 'id, property_id, access_request_id, subject_resident_id, status, pass_type, subject_type, zone_id, point_id, policy_id',
   });
   assertPassAction(pass.status, 'pin');
@@ -349,13 +364,13 @@ async function createPass({ queryable, user, input }) {
   return { pass: rows[0] };
 }
 
-async function revokePass({ queryable, user, passId, reason }) {
+async function revokePass({ queryable, user, passId, reason, propertyId = null }) {
   const staffId = await resolveStaffIdByUid(queryable, user?.uid);
   if (!staffId) throw serviceError(403, 'Staff identity is not mapped to v1');
 
   const { rows: curRows } = await queryable.query(
-    `SELECT status FROM passes WHERE id = $1`,
-    [passId],
+    `SELECT status FROM passes WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [passId, propertyId] : [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
   assertPassAction(curRows[0].status, 'revoke');
@@ -367,10 +382,11 @@ async function revokePass({ queryable, user, passId, reason }) {
        revoked_by_staff_id = $1,
        revoked_reason = $2
     WHERE id = $3
+      ${propertyId ? 'AND property_id = $4' : ''}
      RETURNING ${PASS_COLS}`,
-    [staffId, reason, passId],
+    propertyId ? [staffId, reason, passId, propertyId] : [staffId, reason, passId],
   );
-  await invalidatePassCredentials(queryable, passId);
+  await invalidatePassCredentials(queryable, passId, rows[0].property_id);
   await queryable.query(
     `INSERT INTO notifications_outbox
        (property_id, event_type, channel, recipient_type, payload, correlation_id)
@@ -384,18 +400,21 @@ async function revokePass({ queryable, user, passId, reason }) {
   return { pass: rows[0] };
 }
 
-async function blockPass({ queryable, passId, reason = null }) {
+async function blockPass({ queryable, passId, reason = null, propertyId = null }) {
   const { rows: curRows } = await queryable.query(
-    `SELECT status FROM passes WHERE id = $1`,
-    [passId],
+    `SELECT status FROM passes WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [passId, propertyId] : [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
   assertPassAction(curRows[0].status, 'block');
   const { rows } = await queryable.query(
-    `UPDATE passes SET status = 'blocked' WHERE id = $1 RETURNING ${PASS_COLS}`,
-    [passId],
+    `UPDATE passes
+        SET status = 'blocked'
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}
+      RETURNING ${PASS_COLS}`,
+    propertyId ? [passId, propertyId] : [passId],
   );
-  await invalidatePassCredentials(queryable, passId);
+  await invalidatePassCredentials(queryable, passId, rows[0].property_id);
   await queryable.query(
     `INSERT INTO notifications_outbox
        (property_id, event_type, channel, recipient_type, payload, correlation_id)
@@ -424,10 +443,12 @@ async function policyAllowsUnblock(queryable, pass) {
   return metadata.allow_pass_unblock === true || metadata.allow_reactivation === true;
 }
 
-async function unblockPass({ queryable, passId, reason, policyId = null, overrideId = null }) {
+async function unblockPass({ queryable, passId, reason, policyId = null, overrideId = null, propertyId = null }) {
   const { rows: curRows } = await queryable.query(
-    `SELECT id, property_id, status, policy_id FROM passes WHERE id = $1`,
-    [passId],
+    `SELECT id, property_id, status, policy_id
+       FROM passes
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}`,
+    propertyId ? [passId, propertyId] : [passId],
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
   const pass = curRows[0];
@@ -443,8 +464,11 @@ async function unblockPass({ queryable, passId, reason, policyId = null, overrid
     throw serviceError(422, 'Pass policy does not allow reactivation');
   }
   const { rows } = await queryable.query(
-    `UPDATE passes SET status = 'active' WHERE id = $1 RETURNING ${PASS_COLS}`,
-    [passId],
+    `UPDATE passes
+        SET status = 'active'
+      WHERE id = $1 AND property_id = $2
+      RETURNING ${PASS_COLS}`,
+    [passId, pass.property_id],
   );
   await queryable.query(
     `INSERT INTO notifications_outbox
