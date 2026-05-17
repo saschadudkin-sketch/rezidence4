@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AccessPolicyTemplate } from '../api/accessPolicies';
-import type { AccessIncident, AccessOverride, AccessPoint, AccessPolicy, AccessZone, AdminPassListItem, UserMe } from '../api/types';
+import type { AccessIncident, AccessOverride, AccessPoint, AccessPolicy, AccessZone, AdminPassListItem, UserMe, Vehicle } from '../api/types';
 import { V1SessionProvider } from '../store';
 
 const {
@@ -97,6 +97,27 @@ const {
   evaluatePolicyMock: vi.fn(),
   deactivatePolicyMock: vi.fn(),
 }));
+const {
+  listVehiclesMock,
+  getVehicleByPlateMock,
+  getVehicleByIdMock,
+  createVehicleMock,
+  updateVehicleMock,
+  whitelistVehicleMock,
+  blacklistVehicleMock,
+  clearVehicleFlagsMock,
+  deleteVehicleMock,
+} = vi.hoisted(() => ({
+  listVehiclesMock: vi.fn(),
+  getVehicleByPlateMock: vi.fn(),
+  getVehicleByIdMock: vi.fn(),
+  createVehicleMock: vi.fn(),
+  updateVehicleMock: vi.fn(),
+  whitelistVehicleMock: vi.fn(),
+  blacklistVehicleMock: vi.fn(),
+  clearVehicleFlagsMock: vi.fn(),
+  deleteVehicleMock: vi.fn(),
+}));
 
 vi.mock('../api/passes', () => ({
   passesApi: {
@@ -158,6 +179,21 @@ vi.mock('../api/accessPolicies', () => ({
   },
 }));
 
+vi.mock('../api/vehicles', () => ({
+  normalizePlate: (value: string) => value.toUpperCase().replace(/[^A-ZА-Я0-9]/g, ''),
+  vehiclesApi: {
+    list: listVehiclesMock,
+    getByPlate: getVehicleByPlateMock,
+    getById: getVehicleByIdMock,
+    create: createVehicleMock,
+    update: updateVehicleMock,
+    whitelist: whitelistVehicleMock,
+    blacklist: blacklistVehicleMock,
+    clearFlags: clearVehicleFlagsMock,
+    delete: deleteVehicleMock,
+  },
+}));
+
 import { AccessAdminPage } from './AccessAdminPage';
 
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
@@ -168,6 +204,7 @@ const UUID_OVERRIDE = '55555555-5555-4555-8555-555555555555';
 const UUID_ZONE = '88888888-8888-4888-8888-888888888888';
 const UUID_POINT = '99999999-9999-4999-8999-999999999999';
 const UUID_POLICY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const UUID_VEHICLE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 function makeUser(overrides: Partial<UserMe> = {}): UserMe {
   return {
@@ -328,6 +365,28 @@ function makePolicyTemplate(overrides: Partial<AccessPolicyTemplate> = {}): Acce
     duration_minutes: 90,
     is_recurring: false,
     metadata: { source: 'template' },
+    ...overrides,
+  };
+}
+
+function makeVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
+  return {
+    id: UUID_VEHICLE,
+    property_id: UUID_PROPERTY,
+    owner_type: 'resident',
+    owner_resident_id: 'resident-1',
+    owner_staff_id: null,
+    owner_contractor_user_id: null,
+    plate_number: 'A001AA77',
+    vehicle_type: 'car',
+    color: 'Черный',
+    brand: 'BMW',
+    model: 'X5',
+    is_whitelisted: false,
+    is_blacklisted: false,
+    notes: 'Постоянный резидент',
+    created_at: '2026-05-16T10:00:00.000Z',
+    updated_at: null,
     ...overrides,
   };
 }
@@ -535,6 +594,101 @@ describe('AccessAdminPage pass management', () => {
     await waitFor(() => {
       expect(unblockPassMock).toHaveBeenCalledWith(UUID_PASS, { reason: 'Проверка завершена' });
     });
+  });
+
+  test('manages vehicle list, detail and mutation payloads through v1 client', async () => {
+    const vehicle = makeVehicle();
+    const listedVehicle = makeVehicle({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbc1', plate_number: 'B002BB77' });
+    const createdVehicle = makeVehicle({
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbc2',
+      plate_number: 'C003CC77',
+      owner_resident_id: 'resident-2',
+      brand: 'Audi',
+      model: 'Q7',
+      color: 'Белый',
+      notes: 'Резидентский автомобиль',
+    });
+    const updatedVehicle = makeVehicle({ id: UUID_VEHICLE, brand: 'Audi', model: 'Q7', color: 'Белый' });
+    listPassesMock.mockResolvedValue({ passes: [], page: { limit: 25, offset: 0, hasMore: false } });
+    getVehicleByPlateMock.mockResolvedValue({ vehicle });
+    listVehiclesMock.mockResolvedValue({ vehicles: [listedVehicle], page: { limit: 10, offset: 0, hasMore: false } });
+    getVehicleByIdMock.mockResolvedValue({ vehicle });
+    createVehicleMock.mockResolvedValue({ vehicle: createdVehicle });
+    updateVehicleMock.mockResolvedValue({ vehicle: updatedVehicle });
+    deleteVehicleMock.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Авто' }));
+
+    fireEvent.change(screen.getByLabelText('Гос. номер'), { target: { value: 'a 001 aa 77' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() => expect(getVehicleByPlateMock).toHaveBeenCalledWith('A001AA77'));
+    expect(await screen.findByText(/BMW X5/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Vehicle ID'), { target: { value: UUID_VEHICLE } });
+    fireEvent.change(screen.getByLabelText('Номер'), { target: { value: 'C003CC77' } });
+    fireEvent.change(screen.getByLabelText('Resident owner ID'), { target: { value: 'resident-2' } });
+    fireEvent.change(screen.getByLabelText('Staff owner ID'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Contractor owner ID'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Марка'), { target: { value: 'Audi' } });
+    fireEvent.change(screen.getByLabelText('Модель'), { target: { value: 'Q7' } });
+    fireEvent.change(screen.getByLabelText('Цвет'), { target: { value: 'Белый' } });
+    fireEvent.change(screen.getByLabelText('Заметки'), { target: { value: 'Резидентский автомобиль' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Список авто' }));
+    await waitFor(() => {
+      expect(listVehiclesMock).toHaveBeenCalledWith({
+        property_id: UUID_PROPERTY,
+        plate: 'C003CC77',
+        owner_type: 'resident',
+        limit: 10,
+      });
+    });
+    expect(await screen.findByText('B002BB77')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Загрузить авто' }));
+    await waitFor(() => expect(getVehicleByIdMock).toHaveBeenCalledWith(UUID_VEHICLE));
+
+    fireEvent.change(screen.getByLabelText('Номер'), { target: { value: 'C003CC77' } });
+    fireEvent.change(screen.getByLabelText('Resident owner ID'), { target: { value: 'resident-2' } });
+    fireEvent.change(screen.getByLabelText('Марка'), { target: { value: 'Audi' } });
+    fireEvent.change(screen.getByLabelText('Модель'), { target: { value: 'Q7' } });
+    fireEvent.change(screen.getByLabelText('Цвет'), { target: { value: 'Белый' } });
+    fireEvent.change(screen.getByLabelText('Заметки'), { target: { value: 'Резидентский автомобиль' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Создать авто' }));
+    await waitFor(() => {
+      expect(createVehicleMock).toHaveBeenCalledWith({
+        property_id: UUID_PROPERTY,
+        plate_number: 'C003CC77',
+        owner_type: 'resident',
+        owner_resident_id: 'resident-2',
+        owner_staff_id: null,
+        owner_contractor_user_id: null,
+        vehicle_type: 'car',
+        brand: 'Audi',
+        model: 'Q7',
+        color: 'Белый',
+        notes: 'Резидентский автомобиль',
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText('Vehicle ID'), { target: { value: UUID_VEHICLE } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить авто' }));
+    await waitFor(() => {
+      expect(updateVehicleMock).toHaveBeenCalledWith(UUID_VEHICLE, {
+        vehicle_type: 'car',
+        brand: 'Audi',
+        model: 'Q7',
+        color: 'Белый',
+        notes: 'Резидентский автомобиль',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить авто' }));
+    await waitFor(() => expect(deleteVehicleMock).toHaveBeenCalledWith(UUID_VEHICLE));
   });
 });
 

@@ -36,6 +36,8 @@ import type {
   SubjectType,
   UUID,
   Vehicle,
+  VehicleKind,
+  VehicleOwnerType,
 } from '../api/types';
 import { accessIncidentsApi } from '../api/accessIncidents';
 import { accessPoliciesApi } from '../api/accessPolicies';
@@ -114,6 +116,8 @@ const PASS_STATUSES: Array<PassStatus | ''> = ['', 'active', 'used', 'expired', 
 const MANAGED_PASS_TYPES: Array<PassType | ''> = ['', 'guest', 'vehicle', 'courier', 'service', 'contractor', 'resident', 'staff', 'emergency'];
 const PASS_SUBJECT_TYPES: SubjectType[] = ['guest', 'resident', 'staff', 'contractor_user', 'vehicle'];
 const PASS_PAGE_LIMIT = 25;
+const VEHICLE_OWNER_TYPES: VehicleOwnerType[] = ['resident', 'staff', 'contractor', 'guest'];
+const VEHICLE_KINDS: VehicleKind[] = ['car', 'truck', 'motorcycle', 'service_vehicle'];
 const INCIDENT_TYPES: IncidentType[] = [
   'expired_pass_attempt',
   'invalid_qr',
@@ -248,7 +252,7 @@ export function AccessAdminPage() {
       {tab === 'passes' ? <PassesTab propertyId={propertyId} /> : null}
       {tab === 'topology' ? <TopologyTab propertyId={propertyId} /> : null}
       {tab === 'policies' ? <PoliciesTab propertyId={propertyId} /> : null}
-      {tab === 'vehicles' ? <VehicleFlagsTab /> : null}
+      {tab === 'vehicles' ? <VehicleFlagsTab propertyId={propertyId} /> : null}
       {tab === 'incidents' ? <IncidentsTab propertyId={propertyId} /> : null}
       {tab === 'devices' ? <GuardDevicesTab propertyId={propertyId} /> : null}
     </div>
@@ -1620,12 +1624,40 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
   );
 }
 
-function VehicleFlagsTab() {
+function VehicleFlagsTab({ propertyId }: { propertyId: UUID }) {
   const [input, setInput] = useState('');
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicleId, setVehicleId] = useState('');
+  const [plateNumber, setPlateNumber] = useState('');
+  const [ownerType, setOwnerType] = useState<VehicleOwnerType>('resident');
+  const [ownerResidentId, setOwnerResidentId] = useState('');
+  const [ownerStaffId, setOwnerStaffId] = useState('');
+  const [ownerContractorUserId, setOwnerContractorUserId] = useState('');
+  const [vehicleType, setVehicleType] = useState<VehicleKind>('car');
+  const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
+  const [color, setColor] = useState('');
+  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const normalized = useMemo(() => normalizePlate(input), [input]);
+
+  function applyVehicle(next: Vehicle) {
+    setVehicle(next);
+    setVehicleId(next.id);
+    setPlateNumber(next.plate_number);
+    setOwnerType(next.owner_type);
+    setOwnerResidentId(next.owner_resident_id ?? '');
+    setOwnerStaffId(next.owner_staff_id ?? '');
+    setOwnerContractorUserId(next.owner_contractor_user_id ?? '');
+    setVehicleType(next.vehicle_type);
+    setBrand(next.brand ?? '');
+    setModel(next.model ?? '');
+    setColor(next.color ?? '');
+    setNotes(next.notes ?? '');
+  }
 
   async function search() {
     if (!normalized) {
@@ -1637,11 +1669,122 @@ function VehicleFlagsTab() {
     setVehicle(null);
     try {
       const res = await vehiclesApi.getByPlate(normalized);
-      setVehicle(res.vehicle);
+      applyVehicle(res.vehicle);
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось найти авто');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function listVehicles() {
+    setSaving('list');
+    setError(null);
+    try {
+      const res = await vehiclesApi.list({
+        property_id: propertyId,
+        plate: plateNumber.trim() || undefined,
+        owner_type: ownerType || undefined,
+        limit: 10,
+      });
+      setVehicles(res.vehicles);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить авто');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function loadById() {
+    const id = vehicleId.trim();
+    if (!id) {
+      setError('Укажите Vehicle ID');
+      return;
+    }
+    setSaving('detail');
+    setError(null);
+    try {
+      const res = await vehiclesApi.getById(id);
+      applyVehicle(res.vehicle);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить авто');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function createVehicle() {
+    if (!plateNumber.trim()) {
+      setError('Укажите номер авто');
+      return;
+    }
+    setSaving('create');
+    setError(null);
+    try {
+      const res = await vehiclesApi.create({
+        property_id: propertyId,
+        plate_number: plateNumber.trim(),
+        owner_type: ownerType,
+        owner_resident_id: ownerResidentId.trim() || null,
+        owner_staff_id: ownerStaffId.trim() || null,
+        owner_contractor_user_id: ownerContractorUserId.trim() || null,
+        vehicle_type: vehicleType,
+        brand: brand.trim() || null,
+        model: model.trim() || null,
+        color: color.trim() || null,
+        notes: notes.trim() || null,
+      });
+      applyVehicle(res.vehicle);
+      setVehicles((current) => [res.vehicle, ...current.filter((item) => item.id !== res.vehicle.id)].slice(0, 10));
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось создать авто');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function updateVehicle() {
+    const id = vehicleId.trim();
+    if (!id) {
+      setError('Укажите Vehicle ID');
+      return;
+    }
+    setSaving('update');
+    setError(null);
+    try {
+      const res = await vehiclesApi.update(id, {
+        vehicle_type: vehicleType,
+        brand: brand.trim() || null,
+        model: model.trim() || null,
+        color: color.trim() || null,
+        notes: notes.trim() || null,
+      });
+      applyVehicle(res.vehicle);
+      setVehicles((current) => current.map((item) => (item.id === res.vehicle.id ? res.vehicle : item)));
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить авто');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function deleteVehicle() {
+    const id = vehicleId.trim();
+    if (!id) {
+      setError('Укажите Vehicle ID');
+      return;
+    }
+    setSaving('delete');
+    setError(null);
+    try {
+      await vehiclesApi.delete(id);
+      setVehicle(null);
+      setVehicles((current) => current.filter((item) => item.id !== id));
+      setVehicleId('');
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось удалить авто');
+    } finally {
+      setSaving(null);
     }
   }
 
@@ -1675,7 +1818,79 @@ function VehicleFlagsTab() {
           </Inline>
         </form>
       </Card>
-      {vehicle ? <VehicleCard vehicle={vehicle} onChanged={setVehicle} /> : null}
+      <Card title="Операции с авто">
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        <div className={uiClasses.formGrid}>
+          <Field label="Vehicle ID">
+            <Input value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} placeholder="vehicle-uuid" />
+          </Field>
+          <Field label="Номер">
+            <Input value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} placeholder="A001AA77" />
+          </Field>
+          <Field label="Владелец">
+            <Select value={ownerType} onChange={(e) => setOwnerType(e.target.value as VehicleOwnerType)}>
+              {VEHICLE_OWNER_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </Select>
+          </Field>
+          <Field label="Тип авто">
+            <Select value={vehicleType} onChange={(e) => setVehicleType(e.target.value as VehicleKind)}>
+              {VEHICLE_KINDS.map((item) => <option key={item} value={item}>{item}</option>)}
+            </Select>
+          </Field>
+          <Field label="Resident owner ID">
+            <Input value={ownerResidentId} onChange={(e) => setOwnerResidentId(e.target.value)} placeholder="resident-uuid" />
+          </Field>
+          <Field label="Staff owner ID">
+            <Input value={ownerStaffId} onChange={(e) => setOwnerStaffId(e.target.value)} placeholder="staff-uuid" />
+          </Field>
+          <Field label="Contractor owner ID">
+            <Input value={ownerContractorUserId} onChange={(e) => setOwnerContractorUserId(e.target.value)} placeholder="contractor-user-uuid" />
+          </Field>
+          <Field label="Марка">
+            <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="BMW" />
+          </Field>
+          <Field label="Модель">
+            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="X5" />
+          </Field>
+          <Field label="Цвет">
+            <Input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Черный" />
+          </Field>
+          <Field label="Заметки">
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Постоянный резидент" />
+          </Field>
+        </div>
+        <Inline>
+          <Button variant="secondary" loading={saving === 'list'} onClick={() => void listVehicles()}>
+            Список авто
+          </Button>
+          <Button variant="secondary" loading={saving === 'detail'} onClick={() => void loadById()}>
+            Загрузить авто
+          </Button>
+          <Button loading={saving === 'create'} onClick={() => void createVehicle()}>
+            Создать авто
+          </Button>
+          <Button variant="secondary" loading={saving === 'update'} onClick={() => void updateVehicle()}>
+            Обновить авто
+          </Button>
+          <Button variant="danger" loading={saving === 'delete'} onClick={() => void deleteVehicle()}>
+            Удалить авто
+          </Button>
+        </Inline>
+        {vehicles.length ? (
+          <ul className={`${uiClasses.resourceList} ${uiClasses.marginTop3}`}>
+            {vehicles.map((item) => (
+              <li key={item.id} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
+                  <p className={uiClasses.resourceTitle}>{item.plate_number}</p>
+                  <p className={uiClasses.resourceMeta}>{[item.brand, item.model, item.color].filter(Boolean).join(' · ') || item.owner_type}</p>
+                </div>
+                <Button variant="ghost" onClick={() => applyVehicle(item)}>Выбрать</Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Card>
+      {vehicle ? <VehicleCard vehicle={vehicle} onChanged={applyVehicle} /> : null}
     </Stack>
   );
 }
