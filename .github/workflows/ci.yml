@@ -160,6 +160,10 @@ jobs:
       - run: npm ci
       - name: OpenAPI mounted-route drift
         run: npm run openapi:drift
+      - name: Frontend v1 contract coverage
+        run: npm run frontend:v1-contract-coverage
+      - name: Frontend v1 enum drift
+        run: npm run frontend:v1-enum-drift
       - name: Generated OpenAPI types are fresh
         run: |
           npm run openapi:types

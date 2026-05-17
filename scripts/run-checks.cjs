@@ -13,6 +13,8 @@ const profiles = {
     { label: 'backend tests', cwd: path.join(rootDir, 'backend'), args: ['./node_modules/jest/bin/jest.js', '--runInBand', '--detectOpenHandles', '--openHandlesTimeout=1000'] },
     { label: 'frontend lint', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'lint'] },
     { label: 'frontend typecheck', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'typecheck:ci'] },
+    { label: 'frontend v1 contract coverage', cwd: rootDir, args: ['scripts/frontend-v1-contract-coverage.cjs', '--gate'] },
+    { label: 'frontend v1 enum drift', cwd: rootDir, args: ['scripts/frontend-v1-enum-drift.cjs'] },
     { label: 'frontend tests', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'test'] },
     { label: 'frontend build', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'build'] },
   ],
