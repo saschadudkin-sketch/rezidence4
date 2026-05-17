@@ -183,9 +183,20 @@ export type {
   SkudSyncPassBody,
 } from './skudIntegrations';
 export type {
+  AssignSensitiveActionReviewBody,
+  EscalateSensitiveActionsBody,
+  RecordSensitiveActionReportEvidenceBody,
+  ReviewSensitiveActionBody,
+  SampleSensitiveActionsBody,
   SensitiveActionAntiAbuseParams,
   SensitiveActionListParams,
+  SensitiveActionReportEvidence,
+  SensitiveActionReportEvidenceParams,
+  SensitiveActionReportEvidenceStatus,
+  SensitiveActionReportEvidenceType,
   SensitiveActionReportParams,
+  SensitiveActionReviewDecision,
+  SensitiveActionReviewRecord,
 } from './auditReviews';
 export type {
   CreateEmergencyDrillBody,
