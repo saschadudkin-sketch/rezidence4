@@ -148,15 +148,22 @@ vi.mock('./api/accessTopology', () => ({
     listZones: vi.fn(() => Promise.resolve({ zones: [] })),
     listPoints: vi.fn(() => Promise.resolve({ points: [] })),
     createZone: vi.fn(() => Promise.resolve({ zone: null })),
+    updateZone: vi.fn(() => Promise.resolve({ zone: null })),
+    deactivateZone: vi.fn(() => Promise.resolve(undefined)),
     createPoint: vi.fn(() => Promise.resolve({ point: null })),
+    updatePoint: vi.fn(() => Promise.resolve({ point: null })),
     deactivatePoint: vi.fn(() => Promise.resolve(undefined)),
   },
 }));
 
 vi.mock('./api/accessPolicies', () => ({
   accessPoliciesApi: {
+    templates: vi.fn(() => Promise.resolve({ templates: [] })),
     list: vi.fn(() => Promise.resolve({ policies: [] })),
+    getById: vi.fn(() => Promise.resolve({ policy: null })),
     create: vi.fn(() => Promise.resolve({ policy: null })),
+    update: vi.fn(() => Promise.resolve({ policy: null })),
+    evaluate: vi.fn(() => Promise.resolve({ decision: { allowed: true, decision: 'allow', reason: 'ok', matched_policy_id: null, matched_policy_name: null, trace: [] } })),
     deactivate: vi.fn(() => Promise.resolve(undefined)),
   },
 }));

@@ -8,6 +8,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
+  AccessPolicyDecision,
+  AccessPolicyTemplate,
+} from '../api/accessPolicies';
+import type {
   AccessIncident,
   AccessPoint,
   AccessPointType,
@@ -482,13 +486,17 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
   const [points, setPoints] = useState<AccessPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState<UUID | null>(null);
   const [zoneName, setZoneName] = useState('');
   const [zoneType, setZoneType] = useState<AccessZoneType>('perimeter');
   const [zoneDescription, setZoneDescription] = useState('');
+  const [selectedPointId, setSelectedPointId] = useState<UUID | null>(null);
   const [pointName, setPointName] = useState('');
   const [pointType, setPointType] = useState<AccessPointType>('barrier');
   const [pointZoneId, setPointZoneId] = useState<UUID | ''>('');
   const [pointProvider, setPointProvider] = useState('');
+  const [pointProviderExternalId, setPointProviderExternalId] = useState('');
+  const [pointDescription, setPointDescription] = useState('');
   const [saving, setSaving] = useState<'zone' | 'point' | 'deactivate' | null>(null);
 
   const load = useCallback(async () => {
@@ -502,6 +510,8 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
       setZones(zoneRes.zones);
       setPoints(pointRes.points);
       setPointZoneId((prev) => (prev && zoneRes.zones.some((z) => z.id === prev) ? prev : zoneRes.zones[0]?.id ?? ''));
+      setSelectedZoneId((prev) => (prev && zoneRes.zones.some((zone) => zone.id === prev) ? prev : null));
+      setSelectedPointId((prev) => (prev && pointRes.points.some((point) => point.id === prev) ? prev : null));
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить топологию');
     } finally {
@@ -512,6 +522,42 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  function clearZoneForm() {
+    setSelectedZoneId(null);
+    setZoneName('');
+    setZoneType('perimeter');
+    setZoneDescription('');
+  }
+
+  function selectZone(zone: AccessZone) {
+    setSelectedZoneId(zone.id);
+    setZoneName(zone.name);
+    setZoneType(zone.zone_type);
+    setZoneDescription(zone.description ?? '');
+    setError(null);
+  }
+
+  function clearPointForm() {
+    setSelectedPointId(null);
+    setPointName('');
+    setPointType('barrier');
+    setPointZoneId(zones[0]?.id ?? '');
+    setPointProvider('');
+    setPointProviderExternalId('');
+    setPointDescription('');
+  }
+
+  function selectPoint(point: AccessPoint) {
+    setSelectedPointId(point.id);
+    setPointName(point.name);
+    setPointType(point.point_type);
+    setPointZoneId(point.zone_id);
+    setPointProvider(point.provider ?? '');
+    setPointProviderExternalId(point.provider_external_id ?? '');
+    setPointDescription(point.description ?? '');
+    setError(null);
+  }
 
   async function createZone() {
     if (!zoneName.trim()) {
@@ -527,11 +573,50 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
         zone_type: zoneType,
         description: zoneDescription.trim() || null,
       });
-      setZoneName('');
-      setZoneDescription('');
+      clearZoneForm();
       await load();
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось создать зону');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function updateZone() {
+    if (!selectedZoneId) {
+      setError('Выберите зону для обновления');
+      return;
+    }
+    if (!zoneName.trim()) {
+      setError('Название зоны обязательно');
+      return;
+    }
+    setSaving('zone');
+    setError(null);
+    try {
+      await accessTopologyApi.updateZone(selectedZoneId, {
+        name: zoneName.trim(),
+        zone_type: zoneType,
+        description: zoneDescription.trim() || null,
+      });
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить зону');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function deactivateZone(id: UUID) {
+    setSaving('deactivate');
+    setError(null);
+    try {
+      await accessTopologyApi.deactivateZone(id);
+      if (selectedZoneId === id) clearZoneForm();
+      if (pointZoneId === id) clearPointForm();
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось отключить зону');
     } finally {
       setSaving(null);
     }
@@ -555,12 +640,45 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
         name: pointName.trim(),
         point_type: pointType,
         provider: pointProvider.trim() || null,
+        provider_external_id: pointProviderExternalId.trim() || null,
+        description: pointDescription.trim() || null,
       });
-      setPointName('');
-      setPointProvider('');
+      clearPointForm();
       await load();
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось создать точку доступа');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function updatePoint() {
+    if (!selectedPointId) {
+      setError('Выберите точку для обновления');
+      return;
+    }
+    if (!pointZoneId) {
+      setError('Выберите зону для точки доступа');
+      return;
+    }
+    if (!pointName.trim()) {
+      setError('Название точки обязательно');
+      return;
+    }
+    setSaving('point');
+    setError(null);
+    try {
+      await accessTopologyApi.updatePoint(selectedPointId, {
+        zone_id: pointZoneId,
+        name: pointName.trim(),
+        point_type: pointType,
+        provider: pointProvider.trim() || null,
+        provider_external_id: pointProviderExternalId.trim() || null,
+        description: pointDescription.trim() || null,
+      });
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить точку доступа');
     } finally {
       setSaving(null);
     }
@@ -571,6 +689,7 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
     setError(null);
     try {
       await accessTopologyApi.deactivatePoint(id);
+      if (selectedPointId === id) clearPointForm();
       await load();
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось отключить точку');
@@ -583,7 +702,7 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
     <Stack>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className={uiClasses.twoColumn}>
-        <Card title="Новая зона доступа">
+        <Card title={selectedZoneId ? 'Редактирование зоны доступа' : 'Новая зона доступа'}>
           <div className={uiClasses.formGrid}>
             <Field label="Название">
               <Input value={zoneName} onChange={(e) => setZoneName(e.target.value)} placeholder="Периметр" />
@@ -603,10 +722,18 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
               />
             </Field>
           </div>
-          <Button loading={saving === 'zone'} onClick={createZone}>Создать зону</Button>
+          <Inline>
+            <Button loading={saving === 'zone'} onClick={createZone}>Создать зону</Button>
+            <Button variant="secondary" loading={saving === 'zone'} onClick={updateZone} disabled={!selectedZoneId}>
+              Обновить зону
+            </Button>
+            {selectedZoneId ? (
+              <Button variant="ghost" onClick={clearZoneForm}>Сбросить</Button>
+            ) : null}
+          </Inline>
         </Card>
 
-        <Card title="Новая точка доступа">
+        <Card title={selectedPointId ? 'Редактирование точки доступа' : 'Новая точка доступа'}>
           <div className={uiClasses.formGrid}>
             <Field label="Зона">
               <Select value={pointZoneId} onChange={(e) => setPointZoneId(e.target.value as UUID | '')}>
@@ -629,10 +756,32 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
             <Field label="Провайдер">
               <Input value={pointProvider} onChange={(e) => setPointProvider(e.target.value)} placeholder="Bolid / Hikvision" />
             </Field>
+            <Field label="Внешний ID">
+              <Input
+                value={pointProviderExternalId}
+                onChange={(e) => setPointProviderExternalId(e.target.value)}
+                placeholder="door-1"
+              />
+            </Field>
+            <Field label="Описание" className={uiClasses.formGridWide}>
+              <Textarea
+                value={pointDescription}
+                onChange={(e) => setPointDescription(e.target.value)}
+                placeholder="Например, въездной шлагбаум"
+              />
+            </Field>
           </div>
-          <Button loading={saving === 'point'} onClick={createPoint} disabled={zones.length === 0}>
-            Создать точку
-          </Button>
+          <Inline>
+            <Button loading={saving === 'point'} onClick={createPoint} disabled={zones.length === 0}>
+              Создать точку
+            </Button>
+            <Button variant="secondary" loading={saving === 'point'} onClick={updatePoint} disabled={!selectedPointId || zones.length === 0}>
+              Обновить точку
+            </Button>
+            {selectedPointId ? (
+              <Button variant="ghost" onClick={clearPointForm}>Сбросить</Button>
+            ) : null}
+          </Inline>
         </Card>
       </div>
 
@@ -666,18 +815,35 @@ function TopologyTab({ propertyId }: { propertyId: UUID }) {
                               {point.provider_external_id ? <span>{point.provider_external_id}</span> : null}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            loading={saving === 'deactivate'}
-                            onClick={() => void deactivatePoint(point.id)}
-                          >
-                            Отключить
-                          </Button>
+                          <Inline>
+                            <Button variant="ghost" onClick={() => selectPoint(point)}>
+                              Редактировать точку
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              loading={saving === 'deactivate'}
+                              onClick={() => void deactivatePoint(point.id)}
+                            >
+                              Отключить точку
+                            </Button>
+                          </Inline>
                         </li>
                       ))}
                     </ul>
                   ) : null}
                 </div>
+                <Inline>
+                  <Button variant="ghost" onClick={() => selectZone(zone)}>
+                    Редактировать зону
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    loading={saving === 'deactivate'}
+                    onClick={() => void deactivateZone(zone.id)}
+                  >
+                    Отключить зону
+                  </Button>
+                </Inline>
               </li>
             );
           })}
@@ -841,8 +1007,11 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
   const [zones, setZones] = useState<AccessZone[]>([]);
   const [points, setPoints] = useState<AccessPoint[]>([]);
   const [policies, setPolicies] = useState<AccessPolicy[]>([]);
+  const [templates, setTemplates] = useState<AccessPolicyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<UUID | null>(null);
+  const [policyDetail, setPolicyDetail] = useState<AccessPolicy | null>(null);
   const [name, setName] = useState('');
   const [subjectType, setSubjectType] = useState<AccessPolicySubjectType>('vehicle');
   const [method, setMethod] = useState<AccessPolicyMethod>('plate');
@@ -852,20 +1021,25 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
   const [pointId, setPointId] = useState<UUID | ''>('');
   const [priority, setPriority] = useState('50');
   const [duration, setDuration] = useState('');
+  const [passType, setPassType] = useState('');
+  const [decision, setDecision] = useState<AccessPolicyDecision | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [zoneRes, pointRes, policyRes] = await Promise.all([
+      const [zoneRes, pointRes, policyRes, templateRes] = await Promise.all([
         accessTopologyApi.listZones({ property_id: propertyId, is_active: true, limit: 100 }),
         accessTopologyApi.listPoints({ property_id: propertyId, is_active: true, limit: 200 }),
         accessPoliciesApi.list({ property_id: propertyId, is_active: true, limit: 100 }),
+        accessPoliciesApi.templates({ property_id: propertyId }),
       ]);
       setZones(zoneRes.zones);
       setPoints(pointRes.points);
       setPolicies(policyRes.policies);
+      setTemplates(templateRes.templates);
+      setSelectedPolicyId((prev) => (prev && policyRes.policies.some((policy) => policy.id === prev) ? prev : null));
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить политики');
     } finally {
@@ -877,19 +1051,87 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
     void load();
   }, [load]);
 
-  async function createPolicy() {
+  function clearPolicyForm() {
+    setSelectedPolicyId(null);
+    setPolicyDetail(null);
+    setName('');
+    setSubjectType('vehicle');
+    setMethod('plate');
+    setEffect('allow');
+    setApprovalMode('auto');
+    setZoneId('');
+    setPointId('');
+    setPriority('50');
+    setDuration('');
+    setPassType('');
+    setDecision(null);
+    setError(null);
+  }
+
+  function applyPolicy(policy: AccessPolicy) {
+    setSelectedPolicyId(policy.id);
+    setPolicyDetail(policy);
+    setName(policy.name);
+    setSubjectType(policy.subject_type);
+    setMethod(policy.access_method);
+    setEffect(policy.effect);
+    setApprovalMode(policy.approval_mode);
+    setZoneId(policy.zone_id ?? '');
+    setPointId(policy.point_id ?? '');
+    setPriority(String(policy.priority));
+    setDuration(policy.duration_minutes ? String(policy.duration_minutes) : '');
+    setError(null);
+  }
+
+  function applyTemplate(template: AccessPolicyTemplate) {
+    setSelectedPolicyId(null);
+    setPolicyDetail(null);
+    setName(template.name);
+    setSubjectType(template.subject_type);
+    setMethod(template.access_method);
+    setEffect(template.effect ?? 'allow');
+    setApprovalMode(template.approval_mode ?? 'auto');
+    setZoneId(template.zone_id ?? '');
+    setPointId(template.point_id ?? '');
+    setPriority(String(template.priority ?? 50));
+    setDuration(template.duration_minutes ? String(template.duration_minutes) : '');
+    setDecision(null);
+    setError(null);
+  }
+
+  function buildPolicyPayload() {
     if (!name.trim()) {
       setError('Название политики обязательно');
-      return;
+      return null;
     }
     const parsedPriority = Number(priority);
     if (!Number.isInteger(parsedPriority)) {
       setError('Приоритет должен быть целым числом');
-      return;
+      return null;
     }
     const parsedDuration = duration.trim() ? Number(duration) : null;
     if (parsedDuration !== null && (!Number.isInteger(parsedDuration) || parsedDuration <= 0)) {
       setError('Длительность должна быть положительным числом минут');
+      return null;
+    }
+    return {
+      name: name.trim(),
+      subject_type: subjectType,
+      access_method: method,
+      effect,
+      approval_mode: approvalMode,
+      priority: parsedPriority,
+      zone_id: zoneId || null,
+      point_id: pointId || null,
+      duration_minutes: parsedDuration,
+      is_recurring: parsedDuration === null,
+      metadata: { source: 'access_admin_ui' },
+    };
+  }
+
+  async function createPolicy() {
+    const payload = buildPolicyPayload();
+    if (!payload) {
       return;
     }
     setSaving(true);
@@ -897,23 +1139,68 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
     try {
       await accessPoliciesApi.create({
         property_id: propertyId,
-        name: name.trim(),
-        subject_type: subjectType,
-        access_method: method,
-        effect,
-        approval_mode: approvalMode,
-        priority: parsedPriority,
-        zone_id: zoneId || null,
-        point_id: pointId || null,
-        duration_minutes: parsedDuration,
-        is_recurring: parsedDuration === null,
-        metadata: { source: 'access_admin_ui' },
+        ...payload,
       });
-      setName('');
-      setDuration('');
+      clearPolicyForm();
       await load();
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось создать политику');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function loadPolicy(id: UUID) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await accessPoliciesApi.getById(id);
+      applyPolicy(res.policy);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить политику');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updatePolicy() {
+    if (!selectedPolicyId) {
+      setError('Выберите политику для обновления');
+      return;
+    }
+    const payload = buildPolicyPayload();
+    if (!payload) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await accessPoliciesApi.update(selectedPolicyId, payload);
+      applyPolicy(res.policy);
+      await load();
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить политику');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function evaluatePolicy() {
+    setSaving(true);
+    setError(null);
+    setDecision(null);
+    try {
+      const res = await accessPoliciesApi.evaluate({
+        property_id: propertyId,
+        subject_type: subjectType,
+        pass_type: passType.trim() || null,
+        access_method: method,
+        zone_id: zoneId || null,
+        point_id: pointId || null,
+      });
+      setDecision(res.decision);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось оценить политику');
     } finally {
       setSaving(false);
     }
@@ -924,6 +1211,7 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
     setError(null);
     try {
       await accessPoliciesApi.deactivate(id);
+      if (selectedPolicyId === id) clearPolicyForm();
       await load();
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось отключить политику');
@@ -935,7 +1223,31 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
   return (
     <Stack>
       {error ? <Alert tone="error">{error}</Alert> : null}
-      <Card title="Новая политика доступа">
+      <Card title="Шаблоны политик">
+        {templates.length === 0 ? <EmptyState>Шаблоны политик недоступны.</EmptyState> : null}
+        {templates.length > 0 ? (
+          <ul className={uiClasses.resourceList}>
+            {templates.map((template) => (
+              <li key={template.key} className={uiClasses.resourceRow}>
+                <div className={uiClasses.resourceRowMain}>
+                  <h3 className={uiClasses.resourceTitle}>{template.name}</h3>
+                  <div className={uiClasses.resourceMeta}>
+                    <span>{template.subject_type}</span>
+                    <span>{template.access_method}</span>
+                    <span>{template.effect ?? 'allow'}</span>
+                    <span>priority {template.priority ?? 50}</span>
+                  </div>
+                </div>
+                <Button variant="ghost" onClick={() => applyTemplate(template)}>
+                  Применить шаблон
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Card>
+
+      <Card title={selectedPolicyId ? 'Редактирование политики доступа' : 'Новая политика доступа'}>
         <div className={uiClasses.formGrid}>
           <Field label="Название">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Гостевой въезд через КПП" />
@@ -986,8 +1298,35 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
           <Field label="Длительность, мин">
             <Input value={duration} onChange={(e) => setDuration(e.target.value)} inputMode="numeric" placeholder="Пусто = recurring" />
           </Field>
+          <Field label="Тип пропуска">
+            <Input value={passType} onChange={(e) => setPassType(e.target.value)} placeholder="guest / resident" />
+          </Field>
         </div>
-        <Button loading={saving} onClick={createPolicy}>Создать политику</Button>
+        <Inline>
+          <Button loading={saving} onClick={createPolicy}>Создать политику</Button>
+          <Button variant="secondary" loading={saving} onClick={updatePolicy} disabled={!selectedPolicyId}>
+            Обновить политику
+          </Button>
+          <Button variant="secondary" loading={saving} onClick={evaluatePolicy}>
+            Оценить политику
+          </Button>
+          {selectedPolicyId ? (
+            <Button variant="ghost" onClick={clearPolicyForm}>Сбросить</Button>
+          ) : null}
+        </Inline>
+        {policyDetail ? (
+          <div className={`${uiClasses.resourceMeta} ${uiClasses.marginTop3}`}>
+            <span>ID {policyDetail.id}</span>
+            <span>{policyDetail.is_active ? 'active' : 'inactive'}</span>
+            <span>{policyDetail.updated_at ? `updated ${formatDateTime(policyDetail.updated_at)}` : 'not updated'}</span>
+          </div>
+        ) : null}
+        {decision ? (
+          <Alert tone={decision.allowed ? 'success' : 'warning'}>
+            {decision.decision}: {decision.reason}
+            {decision.matched_policy_name ? ` · ${decision.matched_policy_name}` : ''}
+          </Alert>
+        ) : null}
       </Card>
 
       <Card
@@ -1013,13 +1352,22 @@ function PoliciesTab({ propertyId }: { propertyId: UUID }) {
                   <span>{policy.duration_minutes ? `${policy.duration_minutes} мин` : 'recurring'}</span>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                loading={saving}
-                onClick={() => void deactivatePolicy(policy.id)}
-              >
-                Отключить
-              </Button>
+              <Inline>
+                <Button
+                  variant="ghost"
+                  loading={saving}
+                  onClick={() => void loadPolicy(policy.id)}
+                >
+                  Редактировать политику
+                </Button>
+                <Button
+                  variant="ghost"
+                  loading={saving}
+                  onClick={() => void deactivatePolicy(policy.id)}
+                >
+                  Отключить политику
+                </Button>
+              </Inline>
             </li>
           ))}
         </ul>

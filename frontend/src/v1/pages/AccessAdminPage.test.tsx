@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AccessIncident, AccessOverride, AdminPassListItem, UserMe } from '../api/types';
+import type { AccessPolicyTemplate } from '../api/accessPolicies';
+import type { AccessIncident, AccessOverride, AccessPoint, AccessPolicy, AccessZone, AdminPassListItem, UserMe } from '../api/types';
 import { V1SessionProvider } from '../store';
 
 const { listPassesMock, revokePassMock, blockPassMock } = vi.hoisted(() => ({
@@ -42,6 +43,42 @@ const {
   createVideoEvidenceMock: vi.fn(),
   fetchVideoEvidenceMock: vi.fn(),
 }));
+const {
+  listZonesMock,
+  listPointsMock,
+  createZoneMock,
+  updateZoneMock,
+  deactivateZoneMock,
+  createPointMock,
+  updatePointMock,
+  deactivatePointMock,
+} = vi.hoisted(() => ({
+  listZonesMock: vi.fn(),
+  listPointsMock: vi.fn(),
+  createZoneMock: vi.fn(),
+  updateZoneMock: vi.fn(),
+  deactivateZoneMock: vi.fn(),
+  createPointMock: vi.fn(),
+  updatePointMock: vi.fn(),
+  deactivatePointMock: vi.fn(),
+}));
+const {
+  policyTemplatesMock,
+  listPoliciesMock,
+  getPolicyMock,
+  createPolicyMock,
+  updatePolicyMock,
+  evaluatePolicyMock,
+  deactivatePolicyMock,
+} = vi.hoisted(() => ({
+  policyTemplatesMock: vi.fn(),
+  listPoliciesMock: vi.fn(),
+  getPolicyMock: vi.fn(),
+  createPolicyMock: vi.fn(),
+  updatePolicyMock: vi.fn(),
+  evaluatePolicyMock: vi.fn(),
+  deactivatePolicyMock: vi.fn(),
+}));
 
 vi.mock('../api/passes', () => ({
   passesApi: {
@@ -71,6 +108,31 @@ vi.mock('../api/accessIncidents', () => ({
   },
 }));
 
+vi.mock('../api/accessTopology', () => ({
+  accessTopologyApi: {
+    listZones: listZonesMock,
+    listPoints: listPointsMock,
+    createZone: createZoneMock,
+    updateZone: updateZoneMock,
+    deactivateZone: deactivateZoneMock,
+    createPoint: createPointMock,
+    updatePoint: updatePointMock,
+    deactivatePoint: deactivatePointMock,
+  },
+}));
+
+vi.mock('../api/accessPolicies', () => ({
+  accessPoliciesApi: {
+    templates: policyTemplatesMock,
+    list: listPoliciesMock,
+    getById: getPolicyMock,
+    create: createPolicyMock,
+    update: updatePolicyMock,
+    evaluate: evaluatePolicyMock,
+    deactivate: deactivatePolicyMock,
+  },
+}));
+
 import { AccessAdminPage } from './AccessAdminPage';
 
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
@@ -78,6 +140,9 @@ const UUID_PASS = '22222222-2222-4222-8222-222222222222';
 const UUID_INCIDENT = '44444444-4444-4444-8444-444444444444';
 const UUID_CREATED_INCIDENT = '44444444-4444-4444-8444-444444444445';
 const UUID_OVERRIDE = '55555555-5555-4555-8555-555555555555';
+const UUID_ZONE = '88888888-8888-4888-8888-888888888888';
+const UUID_POINT = '99999999-9999-4999-8999-999999999999';
+const UUID_POLICY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 function makeUser(overrides: Partial<UserMe> = {}): UserMe {
   return {
@@ -159,6 +224,85 @@ function makeOverride(overrides: Partial<AccessOverride> = {}): AccessOverride {
     override_type: 'manual_admit',
     reason: 'Разрешено администратором',
     created_at: '2026-05-16T10:05:00.000Z',
+    ...overrides,
+  };
+}
+
+function makeZone(overrides: Partial<AccessZone> = {}): AccessZone {
+  return {
+    id: UUID_ZONE,
+    property_id: UUID_PROPERTY,
+    building_id: null,
+    name: 'Периметр',
+    zone_type: 'perimeter',
+    description: 'Внешний контур',
+    is_active: true,
+    sort_order: 10,
+    metadata: null,
+    created_at: '2026-05-16T10:00:00.000Z',
+    updated_at: null,
+    ...overrides,
+  };
+}
+
+function makePoint(overrides: Partial<AccessPoint> = {}): AccessPoint {
+  return {
+    id: UUID_POINT,
+    property_id: UUID_PROPERTY,
+    zone_id: UUID_ZONE,
+    name: 'КПП 1',
+    point_type: 'barrier',
+    provider: 'Bolid',
+    provider_external_id: 'door-1',
+    description: 'Въездной шлагбаум',
+    is_active: true,
+    sort_order: 10,
+    metadata: null,
+    created_at: '2026-05-16T10:00:00.000Z',
+    updated_at: null,
+    ...overrides,
+  };
+}
+
+function makePolicy(overrides: Partial<AccessPolicy> = {}): AccessPolicy {
+  return {
+    id: UUID_POLICY,
+    property_id: UUID_PROPERTY,
+    name: 'Гостевой въезд',
+    subject_type: 'guest',
+    subject_role: null,
+    zone_id: UUID_ZONE,
+    point_id: UUID_POINT,
+    access_method: 'qr',
+    approval_mode: 'required',
+    effect: 'needs_approval',
+    priority: 60,
+    schedule_json: null,
+    duration_minutes: 120,
+    is_recurring: false,
+    is_active: true,
+    created_by: null,
+    metadata: null,
+    created_at: '2026-05-16T10:00:00.000Z',
+    updated_at: null,
+    ...overrides,
+  };
+}
+
+function makePolicyTemplate(overrides: Partial<AccessPolicyTemplate> = {}): AccessPolicyTemplate {
+  return {
+    key: 'guest_qr_entry',
+    name: 'Гостевой QR',
+    subject_type: 'guest',
+    zone_id: UUID_ZONE,
+    point_id: UUID_POINT,
+    access_method: 'qr',
+    approval_mode: 'required',
+    effect: 'needs_approval',
+    priority: 70,
+    duration_minutes: 90,
+    is_recurring: false,
+    metadata: { source: 'template' },
     ...overrides,
   };
 }
@@ -273,6 +417,155 @@ describe('AccessAdminPage pass management', () => {
 
     await waitFor(() => expect(revokePassMock).toHaveBeenCalledWith(UUID_PASS, 'Визит отменён'));
     await waitFor(() => expect(listPassesMock).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('AccessAdminPage topology and policy administration', () => {
+  test('edits and deactivates topology zones and points through v1 clients', async () => {
+    const zone = makeZone();
+    const point = makePoint();
+    listPassesMock.mockResolvedValue({ passes: [], page: { limit: 25, offset: 0, hasMore: false } });
+    listZonesMock.mockResolvedValue({ zones: [zone] });
+    listPointsMock.mockResolvedValue({ points: [point] });
+    updateZoneMock.mockResolvedValue({ zone: makeZone({ name: 'Периметр 2' }) });
+    deactivateZoneMock.mockResolvedValue(undefined);
+    updatePointMock.mockResolvedValue({ point: makePoint({ name: 'КПП Восток' }) });
+    deactivatePointMock.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'КПП и зоны' }));
+
+    expect(await screen.findByText('Периметр')).toBeInTheDocument();
+    expect(listZonesMock).toHaveBeenCalledWith({ property_id: UUID_PROPERTY, is_active: true, limit: 100 });
+    expect(listPointsMock).toHaveBeenCalledWith({ property_id: UUID_PROPERTY, is_active: true, limit: 200 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать зону' }));
+    const zoneForm = screen.getByText('Редактирование зоны доступа').closest('section') as HTMLElement;
+    fireEvent.change(within(zoneForm).getByLabelText('Название'), { target: { value: 'Периметр 2' } });
+    fireEvent.click(within(zoneForm).getByRole('button', { name: 'Обновить зону' }));
+
+    await waitFor(() => {
+      expect(updateZoneMock).toHaveBeenCalledWith(UUID_ZONE, {
+        name: 'Периметр 2',
+        zone_type: 'perimeter',
+        description: 'Внешний контур',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отключить зону' }));
+    await waitFor(() => expect(deactivateZoneMock).toHaveBeenCalledWith(UUID_ZONE));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать точку' }));
+    const pointForm = screen.getByText('Редактирование точки доступа').closest('section') as HTMLElement;
+    fireEvent.change(within(pointForm).getByLabelText('Название'), { target: { value: 'КПП Восток' } });
+    fireEvent.change(within(pointForm).getByLabelText('Внешний ID'), { target: { value: 'east-gate' } });
+    fireEvent.click(within(pointForm).getByRole('button', { name: 'Обновить точку' }));
+
+    await waitFor(() => {
+      expect(updatePointMock).toHaveBeenCalledWith(UUID_POINT, {
+        zone_id: UUID_ZONE,
+        name: 'КПП Восток',
+        point_type: 'barrier',
+        provider: 'Bolid',
+        provider_external_id: 'east-gate',
+        description: 'Въездной шлагбаум',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отключить точку' }));
+    await waitFor(() => expect(deactivatePointMock).toHaveBeenCalledWith(UUID_POINT));
+  });
+
+  test('applies templates, loads detail, updates and evaluates access policies', async () => {
+    const zone = makeZone();
+    const point = makePoint();
+    const policy = makePolicy();
+    const template = makePolicyTemplate();
+    listPassesMock.mockResolvedValue({ passes: [], page: { limit: 25, offset: 0, hasMore: false } });
+    listZonesMock.mockResolvedValue({ zones: [zone] });
+    listPointsMock.mockResolvedValue({ points: [point] });
+    policyTemplatesMock.mockResolvedValue({ templates: [template] });
+    listPoliciesMock.mockResolvedValue({ policies: [policy] });
+    createPolicyMock.mockResolvedValue({ policy: makePolicy({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab' }) });
+    getPolicyMock.mockResolvedValue({ policy });
+    updatePolicyMock.mockResolvedValue({ policy: makePolicy({ name: 'Гостевой въезд обновлен' }) });
+    evaluatePolicyMock.mockResolvedValue({
+      decision: {
+        allowed: false,
+        decision: 'needs_approval',
+        reason: 'Требуется согласование',
+        matched_policy_id: UUID_POLICY,
+        matched_policy_name: policy.name,
+        trace: [{ policy_id: UUID_POLICY }],
+      },
+    });
+    deactivatePolicyMock.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Политики' }));
+
+    expect(await screen.findByText('Гостевой QR')).toBeInTheDocument();
+    expect(policyTemplatesMock).toHaveBeenCalledWith({ property_id: UUID_PROPERTY });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить шаблон' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать политику' }));
+
+    await waitFor(() => {
+      expect(createPolicyMock).toHaveBeenCalledWith({
+        property_id: UUID_PROPERTY,
+        name: 'Гостевой QR',
+        subject_type: 'guest',
+        access_method: 'qr',
+        effect: 'needs_approval',
+        approval_mode: 'required',
+        priority: 70,
+        zone_id: UUID_ZONE,
+        point_id: UUID_POINT,
+        duration_minutes: 90,
+        is_recurring: false,
+        metadata: { source: 'access_admin_ui' },
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Редактировать политику' }));
+    await waitFor(() => expect(getPolicyMock).toHaveBeenCalledWith(UUID_POLICY));
+
+    const policyForm = screen.getByText('Редактирование политики доступа').closest('section') as HTMLElement;
+    fireEvent.change(within(policyForm).getByLabelText('Тип пропуска'), { target: { value: 'guest' } });
+    fireEvent.click(within(policyForm).getByRole('button', { name: 'Обновить политику' }));
+
+    await waitFor(() => {
+      expect(updatePolicyMock).toHaveBeenCalledWith(UUID_POLICY, {
+        name: 'Гостевой въезд',
+        subject_type: 'guest',
+        access_method: 'qr',
+        effect: 'needs_approval',
+        approval_mode: 'required',
+        priority: 60,
+        zone_id: UUID_ZONE,
+        point_id: UUID_POINT,
+        duration_minutes: 120,
+        is_recurring: false,
+        metadata: { source: 'access_admin_ui' },
+      });
+    });
+
+    fireEvent.click(within(policyForm).getByRole('button', { name: 'Оценить политику' }));
+    await waitFor(() => {
+      expect(evaluatePolicyMock).toHaveBeenCalledWith({
+        property_id: UUID_PROPERTY,
+        subject_type: 'guest',
+        pass_type: 'guest',
+        access_method: 'qr',
+        zone_id: UUID_ZONE,
+        point_id: UUID_POINT,
+      });
+    });
+    expect(await screen.findByText(/Требуется согласование/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отключить политику' }));
+    await waitFor(() => expect(deactivatePolicyMock).toHaveBeenCalledWith(UUID_POLICY));
   });
 });
 
