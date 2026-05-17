@@ -7,7 +7,7 @@ import { v1Client, type RequestOpts } from './client';
 import type { IsoDateTime, UUID } from './types';
 
 export type AnalyticsGranularity = 'hour' | 'day';
-export type AnalyticsPeriod = '24h' | '7d' | '30d' | (string & {});
+export type AnalyticsPeriod = '24h' | '7d' | '30d';
 
 export interface AnalyticsDateRangeParams {
   from?: IsoDateTime | string;
