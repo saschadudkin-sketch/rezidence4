@@ -44,6 +44,11 @@ import type {
 // вызываем оригиналы через импорт — vi.importActual.
 const {
   listAdminAnnouncementsMock,
+  createAnnouncementMock,
+  publishAnnouncementMock,
+  unpublishAnnouncementMock,
+  removeAnnouncementMock,
+  getAnnouncementMetricsMock,
   listDocumentsMock,
   listPackagesMock,
   createPackageMock,
@@ -74,6 +79,11 @@ const {
   packageStatusToneMock,
 } = vi.hoisted(() => ({
   listAdminAnnouncementsMock: vi.fn(),
+  createAnnouncementMock: vi.fn(),
+  publishAnnouncementMock: vi.fn(),
+  unpublishAnnouncementMock: vi.fn(),
+  removeAnnouncementMock: vi.fn(),
+  getAnnouncementMetricsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
   listPackagesMock: vi.fn(),
   createPackageMock: vi.fn(),
@@ -123,10 +133,11 @@ vi.mock('../api', async () => {
       announcements: {
         listAdmin: listAdminAnnouncementsMock,
         list: neverResolves,
-        create: neverResolves,
-        publish: neverResolves,
-        unpublish: neverResolves,
-        remove: neverResolves,
+        create: createAnnouncementMock,
+        publish: publishAnnouncementMock,
+        unpublish: unpublishAnnouncementMock,
+        remove: removeAnnouncementMock,
+        getMetrics: getAnnouncementMetricsMock,
       },
       documents: {
         list: listDocumentsMock,
@@ -651,6 +662,11 @@ afterEach(() => {
 describe('AnnouncementsAdminPage', () => {
   beforeEach(() => {
     listAdminAnnouncementsMock.mockReset();
+    createAnnouncementMock.mockReset();
+    publishAnnouncementMock.mockReset();
+    unpublishAnnouncementMock.mockReset();
+    removeAnnouncementMock.mockReset();
+    getAnnouncementMetricsMock.mockReset();
   });
 
   test('property_id=null → предупреждение вместо загрузки', () => {
@@ -696,6 +712,67 @@ describe('AnnouncementsAdminPage', () => {
     expect(screen.queryByRole('button', { name: 'Снять' })).not.toBeInTheDocument();
   });
 
+  test('creates draft announcement and refreshes admin list', async () => {
+    const created = makeAnnouncement({
+      id: 'ann-created',
+      title: 'Плановое отключение',
+      body_md: 'Вода будет отключена с 10:00.',
+      category: 'maintenance',
+      is_urgent: true,
+      is_pinned: true,
+      notify_channels: ['web_push', 'sms'],
+    });
+    listAdminAnnouncementsMock.mockResolvedValue({ ok: true, count: 0, announcements: [] });
+    createAnnouncementMock.mockResolvedValue({ ok: true, announcement: created });
+
+    renderWithProviders(<AnnouncementsAdminPage />, makeUser({ role: 'admin' }));
+
+    await screen.findByText(/Нет объявлений с выбранным статусом/);
+    fireEvent.click(screen.getByRole('button', { name: '+ Новое объявление' }));
+    fireEvent.change(screen.getByLabelText('Заголовок'), { target: { value: 'Плановое отключение' } });
+    fireEvent.change(screen.getByLabelText('Текст (markdown)'), { target: { value: 'Вода будет отключена с 10:00.' } });
+    fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'maintenance' } });
+    fireEvent.click(screen.getByLabelText('sms'));
+    fireEvent.click(screen.getByLabelText('Срочное (только admin может публиковать)'));
+    fireEvent.click(screen.getByLabelText('Закрепить'));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать черновик' }));
+
+    await waitFor(() => {
+      expect(createAnnouncementMock).toHaveBeenCalledWith({
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        title: 'Плановое отключение',
+        body_md: 'Вода будет отключена с 10:00.',
+        is_urgent: true,
+        is_pinned: true,
+        category: 'maintenance',
+        audience_type: 'all',
+        notify_channels: ['web_push', 'sms'],
+      });
+    });
+    await waitFor(() => expect(listAdminAnnouncementsMock).toHaveBeenCalledTimes(2));
+  });
+
+  test('publishes draft announcement and shows outbox fanout', async () => {
+    const draft = makeAnnouncement({ id: 'ann-draft', title: 'Черновик 1', published_at: null });
+    listAdminAnnouncementsMock.mockResolvedValue({ ok: true, count: 1, announcements: [draft] });
+    publishAnnouncementMock.mockResolvedValue({
+      ok: true,
+      announcement: makeAnnouncement({
+        id: 'ann-draft',
+        title: 'Черновик 1',
+        published_at: '2026-04-01T00:00:00Z',
+      }),
+      outbox_fanout: 4,
+    });
+
+    renderWithProviders(<AnnouncementsAdminPage />, makeUser({ role: 'admin' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Опубликовать' }));
+    await waitFor(() => expect(publishAnnouncementMock).toHaveBeenCalledWith('ann-draft'));
+    expect(await screen.findByText(/Уведомлений в очереди: 4/)).toBeInTheDocument();
+    await waitFor(() => expect(listAdminAnnouncementsMock).toHaveBeenCalledTimes(2));
+  });
+
   test('active + concierge → «Удалить» и «Снять» скрыты', async () => {
     // published_at в прошлом, expires_at null → деривация даст active.
     listAdminAnnouncementsMock.mockResolvedValue({
@@ -733,6 +810,56 @@ describe('AnnouncementsAdminPage', () => {
     expect(
       screen.queryByRole('button', { name: 'Опубликовать' }),
     ).not.toBeInTheDocument();
+  });
+
+  test('admin can unpublish, delete and load announcement metrics', async () => {
+    listAdminAnnouncementsMock.mockResolvedValue({
+      ok: true,
+      count: 1,
+      announcements: [
+        makeAnnouncement({
+          id: 'ann-active',
+          title: 'Активное объявление',
+          starts_at: '2026-04-01T00:00:00Z',
+          published_at: '2026-04-01T00:00:00Z',
+          published_by_staff_id: 'staff-x',
+        }),
+      ],
+    });
+    getAnnouncementMetricsMock.mockResolvedValue({
+      ok: true,
+      metrics: {
+        announcement_id: 'ann-active',
+        outbox: { delivered: 3, failed: 1 },
+        log: { read: 2 },
+        delivered_pct: 75,
+      },
+    });
+    unpublishAnnouncementMock.mockResolvedValue({
+      ok: true,
+      announcement: makeAnnouncement({ id: 'ann-active', published_at: null }),
+    });
+    removeAnnouncementMock.mockResolvedValue({
+      ok: true,
+      announcement: makeAnnouncement({ id: 'ann-active', deleted_at: '2026-04-02T00:00:00Z' }),
+    });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+
+    renderWithProviders(<AnnouncementsAdminPage />, makeUser({ role: 'admin' }));
+
+    expect(await screen.findByText('Активное объявление')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Метрики' }));
+    await waitFor(() => expect(getAnnouncementMetricsMock).toHaveBeenCalledWith('ann-active'));
+    expect(await screen.findByText('Метрики доставки: 75%')).toBeInTheDocument();
+    expect(screen.getByText('delivered: 3')).toBeInTheDocument();
+    expect(screen.getByText('read: 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять' }));
+    await waitFor(() => expect(unpublishAnnouncementMock).toHaveBeenCalledWith('ann-active'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(removeAnnouncementMock).toHaveBeenCalledWith('ann-active'));
   });
 
   test('empty → корректное сообщение', async () => {

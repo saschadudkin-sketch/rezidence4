@@ -37,6 +37,7 @@ import type {
   AnnouncementAudienceType,
   AnnouncementCategory,
   AnnouncementChannel,
+  AnnouncementReachMetrics,
   AnnouncementStatus,
   CreateAnnouncementBody,
   PropertyType,
@@ -261,6 +262,7 @@ function AnnouncementRow({ row, isAdmin, audienceLabels }: AnnouncementRowProps)
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [fanOut, setFanOut] = useState<number | null>(null);
+  const [reachMetrics, setReachMetrics] = useState<AnnouncementReachMetrics | null>(null);
 
   const publish = useMutation({
     mutationFn: () => api.announcements.publish(row.id),
@@ -288,6 +290,15 @@ function AnnouncementRow({ row, isAdmin, audienceLabels }: AnnouncementRowProps)
       void invalidateAnnouncement(qc, row.id);
     },
     onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка удаления'),
+  });
+
+  const metrics = useMutation({
+    mutationFn: () => api.announcements.getMetrics(row.id),
+    onSuccess: (r) => {
+      setActionError(null);
+      setReachMetrics(r.metrics);
+    },
+    onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка загрузки метрик'),
   });
 
   const busy = publish.isPending || unpublish.isPending || remove.isPending;
@@ -350,10 +361,39 @@ function AnnouncementRow({ row, isAdmin, audienceLabels }: AnnouncementRowProps)
               Удалить
             </Button>
           ) : null}
+          {isAdmin ? (
+            <Button
+              variant="ghost"
+              loading={metrics.isPending}
+              disabled={metrics.isPending}
+              onClick={() => metrics.mutate()}
+            >
+              Метрики
+            </Button>
+          ) : null}
         </Inline>
       }
     >
       <p className={uiClasses.preWrap}>{row.body_md}</p>
+      {reachMetrics ? (
+        <div className={uiClasses.marginTop3}>
+          <p className={uiClasses.textMuted}>
+            Метрики доставки: {reachMetrics.delivered_pct === null ? '—' : `${reachMetrics.delivered_pct}%`}
+          </p>
+          <Inline>
+            <span className={uiClasses.textMuted}>outbox</span>
+            {Object.entries(reachMetrics.outbox).map(([status, count]) => (
+              <Badge key={`outbox-${status}`} tone="neutral">{status}: {count}</Badge>
+            ))}
+          </Inline>
+          <Inline>
+            <span className={uiClasses.textMuted}>log</span>
+            {Object.entries(reachMetrics.log).map(([status, count]) => (
+              <Badge key={`log-${status}`} tone="neutral">{status}: {count}</Badge>
+            ))}
+          </Inline>
+        </div>
+      ) : null}
       {fanOut !== null ? (
         <Alert tone="success">Опубликовано. Уведомлений в очереди: {fanOut}.</Alert>
       ) : null}
