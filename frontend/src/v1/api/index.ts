@@ -117,7 +117,13 @@ export type {
   UpdateAccessZoneBody,
 } from './accessTopology';
 export type { CreateAccessPolicyBody, ListAccessPoliciesParams } from './accessPolicies';
-export type { ListVisitsParams } from './visits';
+export type {
+  CreateVisitBody,
+  ListVisitsParams,
+  ScanPassBody,
+  VisitDetailResponse,
+  VisitIncidentSummary,
+} from './visits';
 export type {
   EnrollGuardAuthorizedDeviceBody,
   ListGuardAuthorizedDevicesParams,
