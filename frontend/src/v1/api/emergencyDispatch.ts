@@ -16,12 +16,15 @@ import type {
 
 export interface GetEmergencyDispatchReadinessParams {
   property_id?: UUID;
+  propertyId?: UUID;
   window_hours?: number;
+  windowHours?: number;
   limit?: number;
 }
 
 export interface CreateEmergencyDrillBody {
-  property_id: UUID;
+  property_id?: UUID;
+  propertyId?: UUID;
   scenarioType: EmergencyType;
   severity?: EmergencySeverity;
   escalationTarget?: EmergencyEscalationTarget;
