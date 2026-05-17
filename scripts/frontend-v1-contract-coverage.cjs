@@ -21,6 +21,15 @@ const LOW_LEVEL_PLUMBING_REASON = 'low-level runtime plumbing: not a product v1 
 const LEGACY_RUNTIME_REASON = 'legacy runtime/admin surface: platform-v1 product flow uses newer bounded contracts instead';
 const EXTERNAL_INTEGRATION_REASON = 'external/provider integration surface: invoked by backend jobs or provider webhooks, not browser UI';
 
+const DIRECT_API_V1_URL_ALLOWLIST = Object.freeze({
+  'src/v1/pages/GisOssReadinessPage.tsx get /gis-oss/export-packages/{param}/artifact':
+    'download href for GIS/OSS JSON artifact; v1Client is a JSON fetch wrapper, not a browser download surface',
+  'src/v1/pages/OnboardingAdminPage.tsx get /units/import/template':
+    'CSV template download/navigation; v1Client is a JSON fetch wrapper, not a browser download surface',
+  'src/views/public/GuestPassPage.tsx get /public/pass/{param}':
+    'public no-auth guest pass lookup with credentials omitted; v1Client intentionally includes app credentials',
+});
+
 const INTENTIONALLY_NO_FRONTEND_OPERATION_REASONS = Object.freeze({
   'get /api/v1/billing': LEGACY_UTILITIES_FREEZE_REASON,
   'get /api/v1/billing/{param}': LEGACY_UTILITIES_FREEZE_REASON,
@@ -233,6 +242,31 @@ function normalizeRoutePath(routePath) {
     .replace(/\{[^}]+\}/g, '{param}') || '/';
 }
 
+function directUrlAllowlistKey(call) {
+  return `${call.file} ${call.method} ${normalizeRoutePath(call.path)}`;
+}
+
+function validateDirectUrlAllowlist(directUrlCalls) {
+  const seen = new Set(directUrlCalls.map(directUrlAllowlistKey));
+  const allowed = new Set(Object.keys(DIRECT_API_V1_URL_ALLOWLIST));
+
+  return [
+    ...[...seen]
+      .filter((key) => !allowed.has(key))
+      .map((key) => `unexpected direct apiV1Url call: ${key}`),
+    ...[...allowed]
+      .filter((key) => !seen.has(key))
+      .map((key) => `missing expected direct apiV1Url call: ${key}`),
+  ];
+}
+
+function annotateDirectUrlCalls(directUrlCalls) {
+  return directUrlCalls.map((call) => ({
+    ...call,
+    reason: DIRECT_API_V1_URL_ALLOWLIST[directUrlAllowlistKey(call)] || null,
+  }));
+}
+
 function normalizeFrontendTemplate(template) {
   return template
     .replace(/\$\{toQuery\([^`]*?\)\}/g, '')
@@ -370,7 +404,6 @@ function isGenericObjectSchema(openApi, schema) {
 function collectCoverage({
   repoRoot = path.resolve(__dirname, '..'),
   minV1ClientCalls = 160,
-  minDirectUrlCalls = 3,
 } = {}) {
   const frontendRoot = path.join(repoRoot, 'frontend');
   const v1ApiDir = path.join(frontendRoot, 'src', 'v1', 'api');
@@ -412,19 +445,20 @@ function collectCoverage({
   if (v1ClientCalls.length < minV1ClientCalls) {
     thresholdFailures.push(`expected at least ${minV1ClientCalls} v1Client calls, found ${v1ClientCalls.length}`);
   }
-  if (directUrlCalls.length < minDirectUrlCalls) {
-    thresholdFailures.push(`expected at least ${minDirectUrlCalls} direct apiV1Url calls, found ${directUrlCalls.length}`);
-  }
+  const directUrlAllowlistFailures = validateDirectUrlAllowlist(directUrlCalls);
 
   return {
     ok: missingOperations.length === 0
       && genericResponses.length === 0
-      && thresholdFailures.length === 0,
+      && thresholdFailures.length === 0
+      && directUrlAllowlistFailures.length === 0,
     counts: {
       v1ClientCalls: v1ClientCalls.length,
       directUrlCalls: directUrlCalls.length,
       contractCalls: contractCalls.length,
     },
+    directUrlCalls: annotateDirectUrlCalls(directUrlCalls),
+    directUrlAllowlistFailures,
     missingOperations,
     genericResponses,
     thresholdFailures,
@@ -527,6 +561,10 @@ function formatFailures(result) {
   if (result.thresholdFailures.length) {
     lines.push('[frontend-v1-contract-coverage] coverage thresholds failed:');
     lines.push(...result.thresholdFailures.map((failure) => `- ${failure}`));
+  }
+  if (result.directUrlAllowlistFailures.length) {
+    lines.push('[frontend-v1-contract-coverage] direct apiV1Url allowlist failed:');
+    lines.push(...result.directUrlAllowlistFailures.map((failure) => `- ${failure}`));
   }
   if (result.missingOperations.length) {
     lines.push('[frontend-v1-contract-coverage] missing OpenAPI operations:');

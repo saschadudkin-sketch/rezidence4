@@ -6,6 +6,13 @@ interface CoverageResult {
     directUrlCalls: number;
     contractCalls: number;
   };
+  directUrlCalls: Array<{
+    file: string;
+    method: string;
+    path: string;
+    reason: string | null;
+  }>;
+  directUrlAllowlistFailures: string[];
   genericResponses: string[];
   missingOperations: string[];
   ok: boolean;
@@ -36,9 +43,19 @@ const { audit, collectCoverage } = require('../../../../scripts/frontend-v1-cont
 describe('frontend v1 API contract coverage', () => {
   test('keeps every frontend v1 call mapped to a typed OpenAPI operation', () => {
     const result = collectCoverage();
+    const directUrlKeys = result.directUrlCalls
+      .map((call) => `${call.file} ${call.method} ${call.path}`)
+      .sort();
 
     expect(result.counts.v1ClientCalls).toBeGreaterThanOrEqual(160);
-    expect(result.counts.directUrlCalls).toBeGreaterThanOrEqual(3);
+    expect(result.counts.directUrlCalls).toBe(3);
+    expect(directUrlKeys).toEqual([
+      'src/v1/pages/GisOssReadinessPage.tsx get /gis-oss/export-packages/{param}/artifact',
+      'src/v1/pages/OnboardingAdminPage.tsx get /units/import/template',
+      'src/views/public/GuestPassPage.tsx get /public/pass/{param}',
+    ].sort());
+    expect(result.directUrlCalls.every((call) => Boolean(call.reason))).toBe(true);
+    expect(result.directUrlAllowlistFailures).toEqual([]);
     expect(result.missingOperations).toEqual([]);
     expect(result.genericResponses).toEqual([]);
     expect(result.thresholdFailures).toEqual([]);
