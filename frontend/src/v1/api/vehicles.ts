@@ -86,7 +86,7 @@ export const vehiclesApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ vehicle: Vehicle }>(`/vehicles/${id}`, opts);
+    return v1Client.get<{ vehicle: Vehicle }>(`/vehicles/${encodeURIComponent(id)}`, opts);
   },
   create(body: CreateVehicleBody, opts?: RequestOpts) {
     const payload: CreateVehicleBody = {
@@ -96,19 +96,34 @@ export const vehiclesApi = {
     return v1Client.post<{ vehicle: Vehicle }>(`/vehicles`, payload, opts);
   },
   update(id: UUID, body: UpdateVehicleBody, opts?: RequestOpts) {
-    return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, body, opts);
-  },
-  whitelist(id: UUID, opts?: RequestOpts) {
-    return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, { is_whitelisted: true }, opts);
-  },
-  blacklist(id: UUID, reason: string, opts?: RequestOpts) {
-    return v1Client.patch<{ vehicle: Vehicle }>(`/vehicles/${id}`, { is_blacklisted: true, reason }, opts);
-  },
-  clearFlags(id: UUID, opts?: RequestOpts) {
     return v1Client.patch<{ vehicle: Vehicle }>(
-      `/vehicles/${id}`,
-      { is_whitelisted: false, is_blacklisted: false },
+      `/vehicles/${encodeURIComponent(id)}`,
+      body,
       opts,
     );
+  },
+  whitelist(id: UUID, opts?: RequestOpts) {
+    return v1Client.post<{ vehicle: Vehicle }>(
+      `/vehicles/${encodeURIComponent(id)}/whitelist`,
+      undefined,
+      opts,
+    );
+  },
+  blacklist(id: UUID, reason: string, opts?: RequestOpts) {
+    return v1Client.post<{ vehicle: Vehicle }>(
+      `/vehicles/${encodeURIComponent(id)}/blacklist`,
+      { reason },
+      opts,
+    );
+  },
+  clearFlags(id: UUID, opts?: RequestOpts) {
+    return v1Client.post<{ vehicle: Vehicle }>(
+      `/vehicles/${encodeURIComponent(id)}/clear-flags`,
+      undefined,
+      opts,
+    );
+  },
+  delete(id: UUID, opts?: RequestOpts) {
+    return v1Client.delete<void>(`/vehicles/${encodeURIComponent(id)}`, opts);
   },
 };
