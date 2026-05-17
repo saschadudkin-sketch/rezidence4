@@ -275,7 +275,7 @@ function setupDirectoryMocks() {
     starts_at: '2026-05-01T00:00:00.000Z',
     ends_at: null,
     created_by_staff_id: null,
-    provisioned_from: 'staff_user',
+    provisioned_from: 'api',
     provisioned_at: '2026-05-01T00:00:00.000Z',
     revoked_at: null,
     revoked_reason: null,
@@ -631,7 +631,7 @@ describe('PropertyDirectoryAdminPage', () => {
         role: 'concierge',
         scope_level: 'property',
         scope_id: null,
-        provisioned_from: 'directory_admin_ui',
+        provisioned_from: 'manual',
       });
       expect(revokeMembershipMock).toHaveBeenCalledWith('membership-1', { reason: 'Роль больше не нужна' });
     });

@@ -40,19 +40,30 @@ export type OperationsDashboardPeriod = '24h' | '7d' | '30d';
 
 export type UserRole =
   | 'resident'
-  | 'owner'
-  | 'tenant'
   | 'contractor'
-  | 'concierge'
   | 'security'
+  | 'concierge'
   | 'technician'
   | 'property_admin'
   | 'management_company_admin'
   | 'platform_admin'
+  // legacy roles still present in prod auth/session rows; create/update v1
+  // contracts use the final roles above.
+  | 'owner'
+  | 'tenant'
   | 'admin'
-  // legacy roles still present in prod — we type them for safety
   | 'user'
   | 'staff';
+
+export type FinalUserRole =
+  | 'resident'
+  | 'contractor'
+  | 'security'
+  | 'concierge'
+  | 'technician'
+  | 'property_admin'
+  | 'management_company_admin'
+  | 'platform_admin';
 
 export type PropertyType =
   | 'residential_complex'
@@ -1917,8 +1928,19 @@ export interface ContractorUser {
 }
 
 export type MembershipSubjectType = 'resident' | 'staff' | 'contractor' | 'external';
-export type MembershipScopeLevel = 'property' | 'building' | 'entrance' | 'unit' | 'management_company' | 'platform';
-export type MembershipStatus = 'pending' | 'active' | 'suspended' | 'revoked' | 'ended';
+export type MembershipScopeLevel =
+  | 'platform'
+  | 'management_company'
+  | 'property'
+  | 'building'
+  | 'entrance'
+  | 'floor'
+  | 'unit'
+  | 'parking_zone'
+  | 'access_zone'
+  | 'access_point';
+export type MembershipStatus = 'active' | 'suspended' | 'revoked' | 'expired';
+export type MembershipProvisionedFrom = 'manual' | 'api' | 'import' | 'bootstrap' | 'platform_sync';
 
 export interface RoleScopeMembership {
   id: UUID;
@@ -1929,14 +1951,14 @@ export interface RoleScopeMembership {
   external_subject_type: MembershipSubjectType | string | null;
   external_subject_id: string | null;
   management_company_id: UUID | null;
-  role: UserRole | string;
-  scope_level: MembershipScopeLevel | string;
+  role: FinalUserRole;
+  scope_level: MembershipScopeLevel;
   scope_id: UUID | null;
-  status: MembershipStatus | string;
+  status: MembershipStatus;
   starts_at: IsoDateTime;
   ends_at: IsoDateTime | null;
   created_by_staff_id: UUID | null;
-  provisioned_from: string | null;
+  provisioned_from: MembershipProvisionedFrom;
   provisioned_at: IsoDateTime | null;
   revoked_at: IsoDateTime | null;
   revoked_reason: string | null;

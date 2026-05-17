@@ -9,6 +9,7 @@ import {
   type ContractorImportRowInput,
   type ContractorUser,
   type Entrance,
+  type FinalUserRole,
   type MembershipScopeLevel,
   type MembershipStatus,
   type MembershipSubjectType,
@@ -22,7 +23,6 @@ import {
   type StaffUser,
   type Unit,
   type UnitType,
-  type UserRole,
 } from '../api';
 import { useV1Session } from '../store';
 import { formatDateTime } from '../components/formatters';
@@ -69,11 +69,10 @@ const COMPANY_STATUS_LABELS: Record<ContractorCompanyStatus, string> = {
 };
 
 const MEMBERSHIP_STATUS_LABELS: Record<MembershipStatus, string> = {
-  pending: 'Ожидает',
   active: 'Активно',
   suspended: 'Приостановлено',
   revoked: 'Отозвано',
-  ended: 'Завершено',
+  expired: 'Истекло',
 };
 
 const RESIDENT_TYPE_LABELS: Record<string, string> = {
@@ -88,14 +87,23 @@ const STAFF_ROLES: StaffRole[] = ['security', 'concierge', 'technician', 'proper
 const STAFF_SPECIALIZATIONS: Array<StaffSpecialization | ''> = ['', 'plumbing', 'electric', 'cleaning', 'general'];
 const COMPANY_STATUSES: ContractorCompanyStatus[] = ['active', 'suspended', 'terminated'];
 const MEMBERSHIP_SUBJECT_TYPES: MembershipSubjectType[] = ['resident', 'staff', 'contractor', 'external'];
-const MEMBERSHIP_SCOPE_LEVELS: MembershipScopeLevel[] = ['property', 'building', 'entrance', 'unit', 'management_company', 'platform'];
-const MEMBERSHIP_ROLES: UserRole[] = [
+const MEMBERSHIP_SCOPE_LEVELS: MembershipScopeLevel[] = [
+  'platform',
+  'management_company',
+  'property',
+  'building',
+  'entrance',
+  'floor',
+  'unit',
+  'parking_zone',
+  'access_zone',
+  'access_point',
+];
+const MEMBERSHIP_ROLES: FinalUserRole[] = [
   'resident',
-  'owner',
-  'tenant',
   'contractor',
-  'concierge',
   'security',
+  'concierge',
   'technician',
   'property_admin',
   'management_company_admin',
@@ -126,10 +134,9 @@ function errorMessage(error: unknown): string {
 
 function statusTone(status: string | null | undefined): BadgeTone {
   if (status === 'active') return 'success';
-  if (status === 'pending') return 'info';
   if (status === 'suspended') return 'warning';
   if (status === 'revoked' || status === 'terminated') return 'error';
-  if (status === 'ended') return 'neutral';
+  if (status === 'expired') return 'neutral';
   return 'neutral';
 }
 
@@ -1399,7 +1406,7 @@ function MembershipsTab({
   const [membershipId, setMembershipId] = useState('');
   const [subjectType, setSubjectType] = useState<MembershipSubjectType>('staff');
   const [subjectId, setSubjectId] = useState('');
-  const [role, setRole] = useState<UserRole>('concierge');
+  const [role, setRole] = useState<FinalUserRole>('concierge');
   const [scopeLevel, setScopeLevel] = useState<MembershipScopeLevel>('property');
   const [scopeId, setScopeId] = useState('');
   const [reason, setReason] = useState('');
@@ -1424,7 +1431,7 @@ function MembershipsTab({
       role,
       scope_level: scopeLevel,
       scope_id: scopeId.trim() || null,
-      provisioned_from: 'directory_admin_ui',
+      provisioned_from: 'manual',
     }),
     onSuccess: invalidate,
     onError: onMutationError,
@@ -1452,7 +1459,7 @@ function MembershipsTab({
               <Input value={subjectId} onChange={(event) => setSubjectId(event.currentTarget.value)} placeholder="subject-uuid" />
             </Field>
             <Field label="Role">
-              <Select value={role} onChange={(event) => setRole(event.currentTarget.value as UserRole)}>
+              <Select value={role} onChange={(event) => setRole(event.currentTarget.value as FinalUserRole)}>
                 {MEMBERSHIP_ROLES.map((item) => <option key={item} value={item}>{item}</option>)}
               </Select>
             </Field>

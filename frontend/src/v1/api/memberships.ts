@@ -5,13 +5,14 @@
 
 import { v1Client, type RequestOpts } from './client';
 import type {
+  FinalUserRole,
   IsoDateTime,
   MembershipScopeLevel,
+  MembershipProvisionedFrom,
   MembershipSubjectType,
   PageMeta,
   PaginationParams,
   RoleScopeMembership,
-  UserRole,
   UUID,
 } from './types';
 
@@ -28,14 +29,14 @@ export interface CreateMembershipBody {
   contractor_user_id?: UUID | null;
   external_subject_type?: string | null;
   external_subject_id?: string | null;
-  role: UserRole | string;
+  role: FinalUserRole;
   scope_level?: MembershipScopeLevel;
   scope_id?: UUID | null;
   management_company_id?: UUID | null;
   starts_at?: IsoDateTime | null;
   ends_at?: IsoDateTime | null;
   created_by_staff_id?: UUID | null;
-  provisioned_from?: string | null;
+  provisioned_from?: MembershipProvisionedFrom;
 }
 
 export interface RevokeMembershipBody {

@@ -44,13 +44,15 @@ export type ErpSyncJobStatus =
   | 'partial'
   | 'failed'
   | 'dead_lettered';
-export type ErpSyncRecordStatus = 'valid' | 'invalid' | 'conflict' | 'applied' | 'skipped';
+export type ErpSyncRecordStatus = 'valid' | 'invalid' | 'conflict' | 'applied' | 'failed' | 'skipped';
 export type ErpSyncRecordOperation =
   | 'preview_create'
   | 'preview_update'
   | 'preview_conflict'
+  | 'preview_ignore'
   | 'applied_create'
   | 'applied_update'
+  | 'failed'
   | 'skipped';
 
 export interface ErpProviderConfig {
@@ -126,8 +128,8 @@ export interface ErpSyncRecord {
   row_index: number;
   external_entity_type: string | null;
   external_id: string | null;
-  operation: ErpSyncRecordOperation | string;
-  status: ErpSyncRecordStatus | string;
+  operation: ErpSyncRecordOperation;
+  status: ErpSyncRecordStatus;
   domhub_entity_type: string | null;
   domhub_entity_id: UUID | string | null;
   validation_errors: string[];
