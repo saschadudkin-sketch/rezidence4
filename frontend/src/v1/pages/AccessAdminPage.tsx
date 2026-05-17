@@ -21,8 +21,11 @@ import type {
   AdminPassListItem,
   GuardAuthorizedDevice,
   IncidentStatus,
+  IncidentType,
+  OverrideType,
   PassStatus,
   PassType,
+  Severity,
   UUID,
   Vehicle,
 } from '../api/types';
@@ -102,6 +105,23 @@ const SUBJECT_TYPES: AccessPolicySubjectType[] = [
 const PASS_STATUSES: Array<PassStatus | ''> = ['', 'active', 'used', 'expired', 'blocked', 'revoked'];
 const MANAGED_PASS_TYPES: Array<PassType | ''> = ['', 'guest', 'vehicle', 'courier', 'service', 'contractor', 'resident', 'staff', 'emergency'];
 const PASS_PAGE_LIMIT = 25;
+const INCIDENT_TYPES: IncidentType[] = [
+  'expired_pass_attempt',
+  'invalid_qr',
+  'invalid_pin',
+  'invalid_plate',
+  'blacklist_hit',
+  'outside_time_window',
+  'unauthorized_vehicle',
+  'manual_override',
+  'provider_conflict',
+  'suspicious_repeat_attempt',
+  'policy_denied',
+  'policy_security_review_required',
+];
+const INCIDENT_SEVERITIES: Severity[] = ['low', 'medium', 'high', 'critical'];
+const INCIDENT_STATUS_ACTIONS: Exclude<IncidentStatus, 'open'>[] = ['investigating', 'resolved', 'dismissed'];
+const OVERRIDE_TYPES: OverrideType[] = ['manual_admit', 'manual_deny', 'temporary_whitelist', 'temporary_block'];
 const POLICY_METHODS: AccessPolicyMethod[] = ['qr', 'manual', 'plate', 'ble', 'card', 'pin'];
 const POLICY_EFFECTS: AccessPolicyEffect[] = [
   'allow',
@@ -220,7 +240,7 @@ export function AccessAdminPage() {
       {tab === 'topology' ? <TopologyTab propertyId={propertyId} /> : null}
       {tab === 'policies' ? <PoliciesTab propertyId={propertyId} /> : null}
       {tab === 'vehicles' ? <VehicleFlagsTab /> : null}
-      {tab === 'incidents' ? <IncidentsTab /> : null}
+      {tab === 'incidents' ? <IncidentsTab propertyId={propertyId} /> : null}
       {tab === 'devices' ? <GuardDevicesTab propertyId={propertyId} /> : null}
     </div>
   );
@@ -1068,10 +1088,30 @@ function VehicleFlagsTab() {
   );
 }
 
-function IncidentsTab() {
+function IncidentsTab({ propertyId }: { propertyId: UUID }) {
   const [status, setStatus] = useState<IncidentStatus | ''>('');
   const [incidents, setIncidents] = useState<AccessIncident[]>([]);
+  const [selectedId, setSelectedId] = useState<UUID | null>(null);
+  const [detail, setDetail] = useState<AccessIncident | null>(null);
+  const [overrides, setOverrides] = useState<Array<{ id: UUID; override_type: OverrideType; reason: string; created_at: string }>>([]);
+  const [overridePreview, setOverridePreview] = useState<string | null>(null);
+  const [videoEvidence, setVideoEvidence] = useState<unknown[]>([]);
+  const [newTitle, setNewTitle] = useState('');
+  const [newType, setNewType] = useState<IncidentType>('manual_override');
+  const [newSeverity, setNewSeverity] = useState<Severity>('medium');
+  const [newDescription, setNewDescription] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editSeverity, setEditSeverity] = useState<Severity>('medium');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [reason, setReason] = useState('');
+  const [statusAction, setStatusAction] = useState<Exclude<IncidentStatus, 'open'>>('investigating');
+  const [overrideType, setOverrideType] = useState<OverrideType>('manual_admit');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [cameraDeviceId, setCameraDeviceId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -1079,24 +1119,265 @@ function IncidentsTab() {
     setError(null);
     try {
       const res = await accessIncidentsApi.list({
+        property_id: propertyId,
         status: status || undefined,
         limit: 100,
       });
       setIncidents(res.incidents);
+      setSelectedId((prev) => (prev && res.incidents.some((incident) => incident.id === prev) ? prev : res.incidents[0]?.id ?? null));
     } catch (err) {
       setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить инциденты');
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [propertyId, status]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const loadDetail = useCallback(async (incidentId: UUID | null) => {
+    if (!incidentId) {
+      setDetail(null);
+      setOverrides([]);
+      setVideoEvidence([]);
+      return;
+    }
+    setDetailLoading(true);
+    setError(null);
+    try {
+      const [detailRes, overridesRes, evidenceRes] = await Promise.all([
+        accessIncidentsApi.getById(incidentId),
+        accessIncidentsApi.listOverrides({ property_id: propertyId, incident_id: incidentId, limit: 20 }),
+        accessIncidentsApi.listVideoEvidence(incidentId),
+      ]);
+      setDetail(detailRes.incident);
+      setEditTitle(detailRes.incident.title);
+      setEditSeverity(detailRes.incident.severity);
+      setOverrides(overridesRes.overrides);
+      setVideoEvidence(evidenceRes.evidence);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить детали инцидента');
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [propertyId]);
+
+  useEffect(() => {
+    void loadDetail(selectedId);
+  }, [loadDetail, selectedId]);
+
+  async function createIncident() {
+    if (!newTitle.trim()) {
+      setError('Укажите заголовок инцидента');
+      return;
+    }
+    setSaving('create');
+    setError(null);
+    try {
+      const res = await accessIncidentsApi.create({
+        property_id: propertyId,
+        incident_type: newType,
+        severity: newSeverity,
+        title: newTitle.trim(),
+        description: newDescription.trim() || null,
+      });
+      setNewTitle('');
+      setNewDescription('');
+      await load();
+      setSelectedId(res.incident.id);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось создать инцидент');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function patchIncident() {
+    if (!selectedId) return;
+    setSaving('patch');
+    setError(null);
+    try {
+      await accessIncidentsApi.patch(selectedId, {
+        title: editTitle.trim() || undefined,
+        severity: editSeverity,
+      });
+      await load();
+      await loadDetail(selectedId);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось обновить инцидент');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function assignIncident() {
+    if (!selectedId) return;
+    if (!assigneeId.trim()) {
+      setError('Укажите staff ID для назначения');
+      return;
+    }
+    setSaving('assign');
+    setError(null);
+    try {
+      await accessIncidentsApi.assign(selectedId, { assigned_to_staff_id: assigneeId.trim() });
+      await load();
+      await loadDetail(selectedId);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось назначить инцидент');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function reasonAction(action: 'resolve' | 'dismiss' | 'reopen') {
+    if (!selectedId) return;
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      setError('Укажите причину действия');
+      return;
+    }
+    setSaving(action);
+    setError(null);
+    try {
+      if (action === 'resolve') {
+        await accessIncidentsApi.resolve(selectedId, { reason: trimmed });
+      } else if (action === 'dismiss') {
+        await accessIncidentsApi.dismiss(selectedId, { reason: trimmed });
+      } else {
+        await accessIncidentsApi.reopen(selectedId, { reason: trimmed, assigned_to_staff_id: assigneeId.trim() || undefined });
+      }
+      await load();
+      await loadDetail(selectedId);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось выполнить действие с инцидентом');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function updateIncidentStatus() {
+    if (!selectedId) return;
+    setSaving('status');
+    setError(null);
+    try {
+      await accessIncidentsApi.updateStatus(selectedId, {
+        status: statusAction,
+        reason: reason.trim() || undefined,
+        assigned_to_staff_id: assigneeId.trim() || undefined,
+      });
+      await load();
+      await loadDetail(selectedId);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось изменить статус инцидента');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function createOverride() {
+    if (!selectedId) return;
+    const trimmed = overrideReason.trim();
+    if (!trimmed) {
+      setError('Укажите причину override');
+      return;
+    }
+    setSaving('override');
+    setError(null);
+    try {
+      await accessIncidentsApi.createOverride({
+        property_id: propertyId,
+        incident_id: selectedId,
+        pass_id: detail?.related_pass_id ?? null,
+        override_type: overrideType,
+        reason: trimmed,
+      });
+      await loadDetail(selectedId);
+      setOverrideReason('');
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось создать override');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function previewOverride(id: UUID) {
+    setSaving(`override-${id}`);
+    setError(null);
+    try {
+      const res = await accessIncidentsApi.getOverride(id);
+      setOverridePreview(`${res.override.override_type}: ${res.override.reason}`);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось загрузить override');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function createVideoEvidence() {
+    if (!selectedId) return;
+    const trimmed = videoUrl.trim();
+    if (!trimmed) {
+      setError('Укажите URL видеофрагмента');
+      return;
+    }
+    setSaving('video-create');
+    setError(null);
+    try {
+      await accessIncidentsApi.createVideoEvidence(selectedId, {
+        property_id: propertyId,
+        evidence_url: trimmed,
+      });
+      await loadDetail(selectedId);
+      setVideoUrl('');
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось добавить видеофрагмент');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function fetchVideoEvidence() {
+    if (!selectedId) return;
+    setSaving('video-fetch');
+    setError(null);
+    try {
+      await accessIncidentsApi.fetchVideoEvidence(selectedId, {
+        property_id: propertyId,
+        camera_device_id: cameraDeviceId.trim() || null,
+      });
+      await loadDetail(selectedId);
+    } catch (err) {
+      setError(isV1ApiError(err) ? err.message : 'Не удалось запросить видео у провайдера');
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <Stack>
       {error ? <Alert tone="error">{error}</Alert> : null}
+      <Card title="Новый инцидент доступа">
+        <div className={uiClasses.formGrid}>
+          <Field label="Заголовок">
+            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Ручной инцидент" />
+          </Field>
+          <Field label="Тип">
+            <Select value={newType} onChange={(e) => setNewType(e.target.value as IncidentType)}>
+              {INCIDENT_TYPES.map((item) => <option key={item} value={item}>{formatIncidentType(item)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Критичность">
+            <Select value={newSeverity} onChange={(e) => setNewSeverity(e.target.value as Severity)}>
+              {INCIDENT_SEVERITIES.map((item) => <option key={item} value={item}>{formatSeverity(item)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Описание">
+            <Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Контекст для разбора" rows={3} />
+          </Field>
+        </div>
+        <Button loading={saving === 'create'} onClick={() => void createIncident()}>Создать инцидент</Button>
+      </Card>
       <Card
         title="Инциденты доступа"
         actions={<Button variant="ghost" onClick={() => void load()} loading={loading}>Обновить</Button>}
@@ -1128,12 +1409,145 @@ function IncidentsTab() {
                 </div>
                 {incident.description ? <p className={uiClasses.textMuted}>{incident.description}</p> : null}
               </div>
+              <Button variant="secondary" onClick={() => setSelectedId(incident.id)}>
+                Открыть
+              </Button>
             </li>
           ))}
         </ul>
       </Card>
+      <Card
+        title="Карточка инцидента"
+        subtitle={detail ? `ID ${detail.id.slice(0, 8)}` : 'Выберите инцидент из списка'}
+      >
+        {detailLoading ? <LoadingLine>Загрузка карточки…</LoadingLine> : null}
+        {!detailLoading && !detail ? <EmptyState>Инцидент не выбран.</EmptyState> : null}
+        {detail ? (
+          <Stack>
+            <Inline>
+              <Badge tone={incidentStatusTone(detail.status)}>{detail.status}</Badge>
+              <Badge tone={severityTone(detail.severity)}>{formatSeverity(detail.severity)}</Badge>
+              <Badge tone="info">{formatIncidentType(detail.incident_type)}</Badge>
+            </Inline>
+            <div className={uiClasses.resourceMeta}>
+              <span>Создан: {formatDateTime(detail.created_at)}</span>
+              {detail.assigned_to_staff_id ? <span>Назначен: {detail.assigned_to_staff_id}</span> : null}
+              {detail.resolved_at ? <span>Закрыт: {formatDateTime(detail.resolved_at)}</span> : null}
+              {detail.related_pass_id ? <span>pass {detail.related_pass_id.slice(0, 8)}</span> : null}
+            </div>
+            <div className={uiClasses.formGrid}>
+              <Field label="Заголовок">
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </Field>
+              <Field label="Критичность">
+                <Select value={editSeverity} onChange={(e) => setEditSeverity(e.target.value as Severity)}>
+                  {INCIDENT_SEVERITIES.map((item) => <option key={item} value={item}>{formatSeverity(item)}</option>)}
+                </Select>
+              </Field>
+              <Button variant="secondary" loading={saving === 'patch'} onClick={() => void patchIncident()}>
+                Сохранить карточку
+              </Button>
+            </div>
+
+            <div className={uiClasses.formGrid}>
+              <Field label="Staff ID">
+                <Input value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} placeholder="staff-uuid" />
+              </Field>
+              <Button variant="secondary" loading={saving === 'assign'} onClick={() => void assignIncident()}>
+                Назначить
+              </Button>
+              <Field label="Причина">
+                <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Основание решения" />
+              </Field>
+              <Field label="Новый статус">
+                <Select value={statusAction} onChange={(e) => setStatusAction(e.target.value as Exclude<IncidentStatus, 'open'>)}>
+                  {INCIDENT_STATUS_ACTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                </Select>
+              </Field>
+            </div>
+            <Inline>
+              <Button variant="secondary" loading={saving === 'status'} onClick={() => void updateIncidentStatus()}>Сменить статус</Button>
+              <Button variant="primary" loading={saving === 'resolve'} onClick={() => void reasonAction('resolve')}>Закрыть</Button>
+              <Button variant="ghost" loading={saving === 'dismiss'} onClick={() => void reasonAction('dismiss')}>Отклонить</Button>
+              <Button variant="secondary" loading={saving === 'reopen'} onClick={() => void reasonAction('reopen')}>Переоткрыть</Button>
+            </Inline>
+
+            <section aria-label="Overrides">
+              <h3 className={uiClasses.cardTitle}>Overrides</h3>
+              <div className={uiClasses.formGrid}>
+                <Field label="Тип override">
+                  <Select value={overrideType} onChange={(e) => setOverrideType(e.target.value as OverrideType)}>
+                    {OVERRIDE_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </Select>
+                </Field>
+                <Field label="Причина override">
+                  <Input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Решение администратора" />
+                </Field>
+                <Button variant="secondary" loading={saving === 'override'} onClick={() => void createOverride()}>
+                  Создать override
+                </Button>
+              </div>
+              {overridePreview ? <Alert tone="info">{overridePreview}</Alert> : null}
+              {!overrides.length ? <EmptyState>Override-решений нет.</EmptyState> : null}
+              <ul className={uiClasses.resourceList}>
+                {overrides.map((override) => (
+                  <li key={override.id} className={uiClasses.resourceRow}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>{override.override_type}</p>
+                      <p className={uiClasses.resourceMeta}>{override.reason} · {formatDateTime(override.created_at)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      loading={saving === `override-${override.id}`}
+                      onClick={() => void previewOverride(override.id)}
+                    >
+                      Проверить
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section aria-label="Видео evidence">
+              <h3 className={uiClasses.cardTitle}>Видео evidence</h3>
+              <div className={uiClasses.formGrid}>
+                <Field label="URL фрагмента">
+                  <Input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://provider/clip.mp4" />
+                </Field>
+                <Button variant="secondary" loading={saving === 'video-create'} onClick={() => void createVideoEvidence()}>
+                  Добавить видео
+                </Button>
+                <Field label="Camera device ID">
+                  <Input value={cameraDeviceId} onChange={(e) => setCameraDeviceId(e.target.value)} placeholder="camera-uuid" />
+                </Field>
+                <Button variant="secondary" loading={saving === 'video-fetch'} onClick={() => void fetchVideoEvidence()}>
+                  Запросить у провайдера
+                </Button>
+              </div>
+              {!videoEvidence.length ? <EmptyState>Видео evidence нет.</EmptyState> : null}
+              <ul className={uiClasses.resourceList}>
+                {videoEvidence.map((item, index) => (
+                  <li key={index} className={uiClasses.resourceRow}>
+                    <div className={uiClasses.resourceRowMain}>
+                      <p className={uiClasses.resourceTitle}>Evidence #{index + 1}</p>
+                      <p className={uiClasses.resourceMeta}>{summarizeUnknown(item)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </Stack>
+        ) : null}
+      </Card>
     </Stack>
   );
+}
+
+function summarizeUnknown(value: unknown): string {
+  if (!value || typeof value !== 'object') return String(value ?? '—');
+  const record = value as Record<string, unknown>;
+  const label = record.id || record.evidence_url || record.clip_url || record.status || 'record';
+  return String(label);
 }
 
 function LoadingLine({ children }: { children: string }) {
