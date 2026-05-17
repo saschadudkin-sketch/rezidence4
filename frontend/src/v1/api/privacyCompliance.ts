@@ -6,20 +6,18 @@
 import { v1Client, type RequestOpts } from './client';
 import type { IsoDateTime, UUID } from './types';
 
-export type DataSubjectRequestType = 'export' | 'delete' | 'correct' | 'restrict' | (string & {});
+export type DataSubjectRequestType = 'export' | 'delete' | 'correct' | 'restrict';
 export type DataSubjectRequestStatus =
   | 'pending'
   | 'in_progress'
   | 'completed'
   | 'rejected'
-  | 'cancelled'
-  | (string & {});
+  | 'cancelled';
 export type DataSubjectRequestCompletionStatus =
   | 'in_progress'
   | 'completed'
   | 'rejected'
-  | 'cancelled'
-  | (string & {});
+  | 'cancelled';
 export type ComplianceEvidenceType =
   | 'dsar_workflow'
   | 'retention_sweep'
@@ -27,9 +25,8 @@ export type ComplianceEvidenceType =
   | 'ispdn_readiness'
   | 'no_biometrics_release_guard'
   | 'consent_history'
-  | 'deletion_procedure'
-  | (string & {});
-export type ComplianceEvidenceStatus = 'draft' | 'ready' | 'reviewed' | 'blocked' | (string & {});
+  | 'deletion_procedure';
+export type ComplianceEvidenceStatus = 'draft' | 'ready' | 'reviewed' | 'blocked';
 
 export interface PrivacyConsentStatus {
   currentVersion: string;
@@ -68,17 +65,20 @@ export interface CreateDataSubjectRequestBody {
   subject_resident_id?: UUID | null;
   subjectResidentId?: UUID | null;
   reason?: string | null;
-  metadata?: Record<string, unknown>;
+  source?: string;
+  requested_action?: string | null;
+  requestedAction?: string | null;
+  correction?: Record<string, unknown>;
 }
 
 export interface CompleteDataSubjectRequestBody {
   status?: DataSubjectRequestCompletionStatus;
-  decision?: string;
-  evidence?: Record<string, unknown>;
+  resolution_note?: string | null;
+  resolutionNote?: string | null;
   export_payload?: Record<string, unknown>;
   exportPayload?: Record<string, unknown>;
-  retention_reason?: string | null;
-  retentionReason?: string | null;
+  retention_decision?: Record<string, unknown>;
+  retentionDecision?: Record<string, unknown>;
 }
 
 export interface ListComplianceEvidenceParams {

@@ -164,7 +164,7 @@ describe('PrivacyCompliancePage', () => {
         subject_uid: 'user-2',
         subject_resident_id: 'resident-1',
         reason: 'Нужен экспорт',
-        metadata: { source: 'privacy_compliance_ui' },
+        source: 'privacy_compliance_ui',
       });
     });
 
@@ -181,8 +181,8 @@ describe('PrivacyCompliancePage', () => {
     await waitFor(() => {
       expect(completeDataSubjectRequestMock).toHaveBeenCalledWith('dsar-1', {
         status: 'completed',
-        decision: 'done',
-        evidence: { ticket: 'DSAR-1' },
+        resolution_note: 'done',
+        retention_decision: { ticket: 'DSAR-1' },
       });
     });
 

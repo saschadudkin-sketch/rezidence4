@@ -157,7 +157,7 @@ export function PrivacyCompliancePage() {
         subject_uid: uid || undefined,
         subject_resident_id: residentId || null,
         reason: requestReason.trim() || null,
-        metadata: { source: 'privacy_compliance_ui' },
+        source: 'privacy_compliance_ui',
       });
     },
     onSuccess: invalidatePrivacy,
@@ -168,8 +168,8 @@ export function PrivacyCompliancePage() {
       const evidence = parseJsonObject(completionEvidenceJson, { source: 'privacy_compliance_ui' });
       return api.privacyCompliance.completeDataSubjectRequest(requiredTrim(completeRequestId, 'request ID'), {
         status: completionStatus,
-        decision: completionDecision.trim() || undefined,
-        evidence,
+        resolution_note: completionDecision.trim() || null,
+        retention_decision: evidence,
       });
     },
     onSuccess: invalidatePrivacy,
