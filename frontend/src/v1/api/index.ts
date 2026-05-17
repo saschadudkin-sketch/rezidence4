@@ -45,6 +45,7 @@ import { notificationLogApi } from './notificationLog';
 import { privacyComplianceApi } from './privacyCompliance';
 import { analyticsApi } from './analytics';
 import { erpExchangeApi } from './erpExchange';
+import { webhooksApi } from './webhooks';
 
 export const api = {
   accessRequests: accessRequestsApi,
@@ -80,6 +81,7 @@ export const api = {
   privacyCompliance: privacyComplianceApi,
   analytics: analyticsApi,
   erpExchange: erpExchangeApi,
+  webhooks: webhooksApi,
 };
 
 export { normalizePlate };
@@ -278,3 +280,10 @@ export type {
   ErpSyncSource,
   ListErpProvidersParams,
 } from './erpExchange';
+export type {
+  CreateWebhookBody,
+  UpdateWebhookBody,
+  Webhook,
+  WebhookDelivery,
+  WebhookDeliveryStatus,
+} from './webhooks';
