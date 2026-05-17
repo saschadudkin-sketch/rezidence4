@@ -141,9 +141,17 @@ export type {
 } from './contractorWorkspace';
 export type { ListUnitsParams } from './units';
 export type {
+  CreateResidentBody,
+  DeactivateResidentBody,
   GetResidentOffboardingReportParams,
   ListResidentsParams,
+  ResidentConsentBody,
+  ResidentConsentResponse,
+  ResidentOffboardingResult,
+  ResidentOwnershipTransferResult,
   ResidentWithUnit,
+  TransferResidentOwnershipBody,
+  UpdateResidentBody,
 } from './residents';
 export type {
   CreateStaffBody,

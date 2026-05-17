@@ -1,18 +1,16 @@
 /**
- * platform-v1 residents client (subset for Phase 4).
+ * platform-v1 residents client.
  * Backend: backend/src/v1/routes/residents.js
- *
- * Phase 4 only needs "find my resident row(s) for the UI form".  For staff
- * admin workflows the full CRUD lives in Phase 2/5 UIs — intentionally
- * omitted here.
  */
 
 import { v1Client, type RequestOpts } from './client';
 import type {
+  IsoDateTime,
   PageMeta,
   PaginationParams,
   Resident,
   ResidentOffboardingReportResponse,
+  ResidentType,
   UUID,
 } from './types';
 
@@ -25,6 +23,69 @@ export interface ListResidentsParams extends PaginationParams {
 export interface GetResidentOffboardingReportParams {
   property_id: UUID;
   limit?: number;
+}
+
+export interface CreateResidentBody {
+  property_id: UUID;
+  unit_id: UUID;
+  full_name: string;
+  phone: string;
+  email?: string | null;
+  resident_type?: ResidentType;
+  external_uid?: string | null;
+}
+
+export interface UpdateResidentBody {
+  full_name?: string;
+  email?: string | null;
+  phone?: string;
+  resident_type?: ResidentType;
+  unit_id?: UUID;
+}
+
+export interface ResidentConsentBody {
+  consent_version: string;
+}
+
+export interface DeactivateResidentBody {
+  reason?: string | null;
+}
+
+export interface TransferResidentOwnershipBody {
+  to_resident_id: UUID;
+  reason?: string | null;
+  effective_at?: IsoDateTime | null;
+  cascade_notification_preferences?: boolean;
+}
+
+export interface ResidentOffboardingResult {
+  resident: Pick<ResidentWithUnit, 'id' | 'property_id' | 'unit_id' | 'external_uid' | 'is_active'>;
+  summary: {
+    suspended_memberships: number;
+    revoked_passes: number;
+    deactivated_unit_links: number;
+    vehicles_marked_for_review: number;
+    cancelled_access_requests: number;
+    notification_preferences_disabled: number;
+  };
+  affected: Record<string, unknown[]>;
+}
+
+export interface ResidentOwnershipTransferResult {
+  transfer: Record<string, unknown>;
+  summary: {
+    previous_owner_offboarding: ResidentOffboardingResult['summary'];
+    previous_owner_links_closed: number;
+    new_owner_links_activated: number;
+    notification_preferences_copied: number;
+  };
+  from_resident: Pick<ResidentWithUnit, 'id' | 'property_id' | 'unit_id' | 'external_uid' | 'is_active'>;
+  to_resident: Pick<ResidentWithUnit, 'id' | 'property_id' | 'unit_id' | 'external_uid' | 'is_active' | 'resident_type'>;
+  affected: Record<string, unknown>;
+}
+
+export interface ResidentConsentResponse {
+  resident: Pick<ResidentWithUnit, 'id' | 'property_id' | 'consent_given_at' | 'consent_version'>;
 }
 
 function toQuery(params: object | undefined): string {
@@ -62,7 +123,41 @@ export const residentsApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<{ resident: ResidentWithUnit }>(`/residents/${id}`, opts);
+    return v1Client.get<{ resident: ResidentWithUnit }>(
+      `/residents/${encodeURIComponent(id)}`,
+      opts,
+    );
+  },
+  create(body: CreateResidentBody, opts?: RequestOpts) {
+    return v1Client.post<{ resident: ResidentWithUnit }>('/residents', body, opts);
+  },
+  update(id: UUID, body: UpdateResidentBody, opts?: RequestOpts) {
+    return v1Client.patch<{ resident: ResidentWithUnit }>(
+      `/residents/${encodeURIComponent(id)}`,
+      body,
+      opts,
+    );
+  },
+  deactivate(id: UUID, body?: DeactivateResidentBody, opts?: RequestOpts) {
+    return v1Client.post<{ offboarding: ResidentOffboardingResult }>(
+      `/residents/${encodeURIComponent(id)}/deactivate`,
+      body,
+      opts,
+    );
+  },
+  transferOwnership(id: UUID, body: TransferResidentOwnershipBody, opts?: RequestOpts) {
+    return v1Client.post<{ ownership_transfer: ResidentOwnershipTransferResult }>(
+      `/residents/${encodeURIComponent(id)}/transfer-ownership`,
+      body,
+      opts,
+    );
+  },
+  consent(id: UUID, body: ResidentConsentBody, opts?: RequestOpts) {
+    return v1Client.post<ResidentConsentResponse>(
+      `/residents/${encodeURIComponent(id)}/consent`,
+      body,
+      opts,
+    );
   },
   offboardingReport(params: GetResidentOffboardingReportParams, opts?: RequestOpts) {
     return v1Client.get<ResidentOffboardingReportResponse>(
