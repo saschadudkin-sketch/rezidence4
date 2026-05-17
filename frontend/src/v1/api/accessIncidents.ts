@@ -118,11 +118,20 @@ export const accessIncidentsApi = {
     );
   },
   getById(id: UUID, opts?: RequestOpts) {
-    return v1Client.get<IncidentDetailResponse>(`/access-incidents/${id}`, opts);
+    return v1Client.get<IncidentDetailResponse>(
+      `/access-incidents/${encodeURIComponent(id)}`,
+      opts,
+    );
   },
   listOverrides(params?: ListOverridesParams, opts?: RequestOpts) {
     return v1Client.get<{ overrides: AccessOverride[]; page?: PageMeta }>(
       `/access-overrides${toQuery(params)}`,
+      opts,
+    );
+  },
+  getOverride(id: UUID, opts?: RequestOpts) {
+    return v1Client.get<{ override: AccessOverride }>(
+      `/access-overrides/${encodeURIComponent(id)}`,
       opts,
     );
   },
