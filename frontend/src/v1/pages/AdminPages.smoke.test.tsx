@@ -46,6 +46,11 @@ const {
   listAdminAnnouncementsMock,
   listDocumentsMock,
   listPackagesMock,
+  createPackageMock,
+  pickupPackageMock,
+  returnPackageMock,
+  markLostPackageMock,
+  remindPackageMock,
   getOperationsDashboardMock,
   getAnalyticsTrafficMock,
   getAnalyticsTopResidentsMock,
@@ -71,6 +76,11 @@ const {
   listAdminAnnouncementsMock: vi.fn(),
   listDocumentsMock: vi.fn(),
   listPackagesMock: vi.fn(),
+  createPackageMock: vi.fn(),
+  pickupPackageMock: vi.fn(),
+  returnPackageMock: vi.fn(),
+  markLostPackageMock: vi.fn(),
+  remindPackageMock: vi.fn(),
   getOperationsDashboardMock: vi.fn(),
   getAnalyticsTrafficMock: vi.fn(),
   getAnalyticsTopResidentsMock: vi.fn(),
@@ -129,11 +139,11 @@ vi.mock('../api', async () => {
       packages: {
         list: listPackagesMock,
         listMine: neverResolves,
-        create: neverResolves,
-        pickup: neverResolves,
-        return: neverResolves,
-        markLost: neverResolves,
-        remind: neverResolves,
+        create: createPackageMock,
+        pickup: pickupPackageMock,
+        return: returnPackageMock,
+        markLost: markLostPackageMock,
+        remind: remindPackageMock,
       },
       operationsDashboard: {
         get: getOperationsDashboardMock,
@@ -633,6 +643,7 @@ function renderWithProviders(node: ReactElement, user: UserMe | null = makeUser(
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 // ─── AnnouncementsAdminPage ────────────────────────────────────────────────
@@ -841,6 +852,11 @@ describe('DocumentsAdminPage', () => {
 describe('PackagesAdminPage', () => {
   beforeEach(() => {
     listPackagesMock.mockReset();
+    createPackageMock.mockReset();
+    pickupPackageMock.mockReset();
+    returnPackageMock.mockReset();
+    markLostPackageMock.mockReset();
+    remindPackageMock.mockReset();
   });
 
   test('property_id=null → предупреждение', () => {
@@ -881,6 +897,113 @@ describe('PackagesAdminPage', () => {
     expect(screen.getByRole('button', { name: 'Возврат' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Напомнить' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Утеряна' })).toBeInTheDocument();
+  });
+
+  test('creates package with receive payload and refreshes package list', async () => {
+    const createdPackage = makePackage({
+      id: '00000000-0000-0000-0000-0000000000a3',
+      unit_id: '00000000-0000-0000-0000-0000000000d1',
+      recipient_name_snapshot: 'Петров П.П.',
+      sender_name: 'Ozon',
+      carrier: 'Boxberry',
+      tracking_number: 'BOX-77',
+      size_category: 'large',
+      storage_location: 'B-17',
+      notes: 'Хрупкое',
+    });
+    listPackagesMock.mockResolvedValue({ ok: true, count: 0, packages: [] });
+    createPackageMock.mockResolvedValue({ ok: true, package: createdPackage, outbox_fanout: 2 });
+
+    renderWithProviders(<PackagesAdminPage />, makeUser({ role: 'admin' }));
+
+    await screen.findByText(/Нет посылок с выбранным статусом/);
+    fireEvent.click(screen.getByRole('button', { name: '+ Принять посылку' }));
+    fireEvent.change(screen.getByLabelText(/Квартира \(unit_id\)/), {
+      target: { value: '00000000-0000-0000-0000-0000000000d1' },
+    });
+    fireEvent.change(screen.getByLabelText('Имя получателя (если на лист)'), {
+      target: { value: 'Петров П.П.' },
+    });
+    fireEvent.change(screen.getByLabelText('Отправитель'), { target: { value: 'Ozon' } });
+    fireEvent.change(screen.getByLabelText('Служба доставки'), { target: { value: 'Boxberry' } });
+    fireEvent.change(screen.getByLabelText('Трек-номер'), { target: { value: 'BOX-77' } });
+    fireEvent.change(screen.getByLabelText('Размер'), { target: { value: 'large' } });
+    fireEvent.change(screen.getByLabelText('Место хранения (ячейка)'), { target: { value: 'B-17' } });
+    fireEvent.change(screen.getByLabelText('Примечания'), { target: { value: 'Хрупкое' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Принять посылку' }));
+
+    await waitFor(() => {
+      expect(createPackageMock).toHaveBeenCalledWith({
+        property_id: '00000000-0000-0000-0000-000000000bbb',
+        unit_id: '00000000-0000-0000-0000-0000000000d1',
+        recipient_name_snapshot: 'Петров П.П.',
+        sender_name: 'Ozon',
+        carrier: 'Boxberry',
+        tracking_number: 'BOX-77',
+        size_category: 'large',
+        storage_location: 'B-17',
+        notes: 'Хрупкое',
+      });
+    });
+    await waitFor(() => expect(listPackagesMock).toHaveBeenCalledTimes(2));
+  });
+
+  test('sends package transition payloads for pickup, return, remind and mark-lost', async () => {
+    const row = makePackage();
+    listPackagesMock.mockResolvedValue({ ok: true, count: 1, packages: [row] });
+    pickupPackageMock.mockResolvedValue({
+      ok: true,
+      package: makePackage({ status: 'picked_up', picked_up_by_name: 'Петров П.П.' }),
+      outbox_fanout: 1,
+    });
+    returnPackageMock.mockResolvedValue({
+      ok: true,
+      package: makePackage({ status: 'returned', returned_reason: 'Срок хранения истёк' }),
+    });
+    remindPackageMock.mockResolvedValue({ ok: true, package: row, outbox_fanout: 2 });
+    markLostPackageMock.mockResolvedValue({ ok: true, package: makePackage({ status: 'lost' }) });
+    vi.stubGlobal('confirm', vi.fn(() => true));
+
+    renderWithProviders(<PackagesAdminPage />, makeUser({ role: 'admin' }));
+
+    const pickupButton = await screen.findByRole('button', { name: 'Выдать' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Напомнить' }));
+    await waitFor(() => expect(remindPackageMock).toHaveBeenCalledWith(row.id));
+    expect(await screen.findByText(/Напоминание отправлено \(2 канал/)).toBeInTheDocument();
+
+    fireEvent.click(pickupButton);
+    const pickupForm = screen.getByLabelText('Имя получателя (ФИО)').closest('form') as HTMLFormElement;
+    fireEvent.change(within(pickupForm).getByLabelText('Имя получателя (ФИО)'), {
+      target: { value: 'Петров П.П.' },
+    });
+    fireEvent.click(within(pickupForm).getByRole('button', { name: 'Выдать' }));
+    await waitFor(() => {
+      expect(pickupPackageMock).toHaveBeenCalledWith(row.id, { picked_up_by_name: 'Петров П.П.' });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Возврат' }));
+    const returnForm = screen.getByLabelText('Причина возврата').closest('form') as HTMLFormElement;
+    fireEvent.change(within(returnForm).getByLabelText('Причина возврата'), {
+      target: { value: 'Срок хранения истёк' },
+    });
+    fireEvent.click(within(returnForm).getByRole('button', { name: 'Оформить возврат' }));
+    await waitFor(() => {
+      expect(returnPackageMock).toHaveBeenCalledWith(row.id, { reason: 'Срок хранения истёк' });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Утеряна' }));
+    const lostForm = screen.getByLabelText('Причина утери (обязательно)').closest('form') as HTMLFormElement;
+    fireEvent.change(within(lostForm).getByLabelText('Причина утери (обязательно)'), {
+      target: { value: 'Потеря на складе' },
+    });
+    fireEvent.click(within(lostForm).getByRole('button', { name: 'Подтвердить утерю' }));
+    await waitFor(() => {
+      expect(markLostPackageMock).toHaveBeenCalledWith(row.id, {
+        confirm: true,
+        reason: 'Потеря на складе',
+      });
+    });
   });
 
   test('awaiting_pickup + concierge → «Утеряна» скрыта', async () => {
