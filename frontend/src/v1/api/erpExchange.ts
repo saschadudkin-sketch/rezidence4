@@ -28,7 +28,13 @@ export type ErpImportDataset =
 export type ErpExportDataset = 'access_events_summary' | 'incident_summary' | 'request_summary';
 export type ErpSyncDirection = 'import' | 'export';
 export type ErpSyncJobMode = 'dry_run' | 'apply';
-export type ErpSyncJobStatus = 'processing' | 'completed' | 'partial' | 'failed';
+export type ErpSyncJobStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'dead_lettered';
 export type ErpSyncRecordStatus = 'valid' | 'invalid' | 'conflict' | 'applied' | 'skipped';
 export type ErpSyncRecordOperation =
   | 'preview_create'
