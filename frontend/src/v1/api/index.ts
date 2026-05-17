@@ -273,6 +273,7 @@ export type {
   GetEmergencyDispatchReadinessParams,
 } from './emergencyDispatch';
 export type {
+  AssignServiceRequestBody,
   CreateEmergencyProviderDeliveryEvidenceBody,
   CreateServiceRequestAttachmentBody,
   CreateServiceRequestBody,

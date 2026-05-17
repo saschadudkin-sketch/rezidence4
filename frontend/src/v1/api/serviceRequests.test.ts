@@ -37,6 +37,34 @@ describe('serviceRequestsApi', () => {
     );
   });
 
+  test('routes SLA assignment and first-response through canonical request endpoints', async () => {
+    postMock.mockResolvedValue({});
+
+    await serviceRequestsApi.assign('req/1', {
+      assigneeUid: 'staff-1',
+      assigneeRole: 'technician',
+      expectedCurrentStatus: 'pending',
+    });
+    await serviceRequestsApi.markFirstResponse('req/1');
+
+    expect(postMock).toHaveBeenNthCalledWith(
+      1,
+      '/requests/req%2F1/assign',
+      {
+        assigneeUid: 'staff-1',
+        assigneeRole: 'technician',
+        expectedCurrentStatus: 'pending',
+      },
+      undefined,
+    );
+    expect(postMock).toHaveBeenNthCalledWith(
+      2,
+      '/requests/req%2F1/first-response',
+      undefined,
+      undefined,
+    );
+  });
+
   test('normalizes category property filters to propertyId', async () => {
     getMock.mockResolvedValue({ data: [] });
 

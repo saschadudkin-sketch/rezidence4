@@ -27,6 +27,7 @@ import type {
   StaffRequestTargetType,
   StaffRequestType,
   StaffSlaProfile,
+  UserRole,
   UUID,
 } from './types';
 
@@ -94,6 +95,21 @@ export interface UpdateServiceRequestBody {
   passDuration?: string;
   photos?: string[];
 }
+
+type AssignServiceRequestUidInput =
+  | { assigneeUid: string; assignee_uid?: string }
+  | { assigneeUid?: string; assignee_uid: string };
+
+type AssignServiceRequestRoleInput =
+  | { assigneeRole: UserRole | string; assignee_role?: UserRole | string }
+  | { assigneeRole?: UserRole | string; assignee_role: UserRole | string };
+
+export type AssignServiceRequestBody = AssignServiceRequestUidInput & AssignServiceRequestRoleInput & {
+  assigneeName?: string;
+  assignee_name?: string;
+  expectedCurrentStatus?: StaffRequestStatus | string;
+  expected_current_status?: StaffRequestStatus | string;
+};
 
 export interface CreateServiceRequestAttachmentBody {
   fileUrl: string;
@@ -214,6 +230,22 @@ export const serviceRequestsApi = {
   delete(id: string, opts?: RequestOpts) {
     return v1Client.delete<{ ok: true }>(
       `/requests/${encodeURIComponent(id)}`,
+      opts,
+    );
+  },
+
+  assign(id: string, body: AssignServiceRequestBody, opts?: RequestOpts) {
+    return v1Client.post<ServiceRequest>(
+      `/requests/${encodeURIComponent(id)}/assign`,
+      body,
+      opts,
+    );
+  },
+
+  markFirstResponse(id: string, opts?: RequestOpts) {
+    return v1Client.post<ServiceRequest>(
+      `/requests/${encodeURIComponent(id)}/first-response`,
+      undefined,
       opts,
     );
   },
