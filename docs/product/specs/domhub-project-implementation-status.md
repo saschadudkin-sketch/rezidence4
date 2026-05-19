@@ -188,6 +188,11 @@ execution plan is `docs/product/specs/domhub-test-db-execution-plan.md`.
    and `npm run frontend:v1-contract-coverage` passed.
 2. Treat the canonical seeded test tenant as the main runtime contour: migrations,
    seed, tenant preflight and E2E must be reproducible from a clean test DB.
+   Latest local verification on 2026-05-20 expanded `seedV1Access.js` with
+   management-company binding, property admin, technician, contractor,
+   canonical topology, vehicles, access request/pass, visit/incident/override,
+   outbox and audit evidence; repeated seed runs preserve canonical ids and
+   `npm run test:e2e:v1-access` passed 3 Playwright tests.
 3. Prove access-core on the seeded tenant before adding scope: resident pass,
    resident vehicle access, admin topology/policy, guard QR/plate verify, manual
    admit/deny, degraded replay and audit evidence.

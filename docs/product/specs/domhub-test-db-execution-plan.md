@@ -116,6 +116,22 @@ Acceptance:
 
 Purpose: make the test database a product-like stand-in, not a manual dev DB.
 
+Status: improved as of 2026-05-20 local verification.
+
+Latest verification:
+
+- `backend/src/e2e/seedV1Access.js` now seeds a management company binding,
+  property admin, technician, contractor company/user, canonical access topology,
+  resident and contractor vehicles, contractor access request/pass, visit log,
+  access incident, override, notification outbox row and property audit row.
+- Re-running `node backend/src/e2e/seedV1Access.js` preserves canonical ids and
+  reports stable canonical invariant counts.
+- `npm run tenant:preflight:local`: global/platform/tenant DB reachable,
+  migrations current.
+- `npm run tenant:preflight:e2e`: global/platform/tenant DB reachable.
+- `npm run test:e2e:v1-access`: 3 Playwright tests passed against the seeded
+  test DB.
+
 The canonical tenant seed must create:
 
 - platform admin;
@@ -373,8 +389,10 @@ record which ones actually ran.
 3. Audit current uncommitted documentation/status changes and stage them only
    when the plan/status wording matches the latest evidence.
 4. Harden canonical test tenant seed and idempotency checks.
-5. Run access E2E on seeded test DB.
-6. Prove resident -> guard -> audit access scenario.
+5. Keep canonical test tenant seed idempotent as the access and operations
+   scenarios evolve.
+6. Prove resident -> guard -> audit access scenario beyond the current access
+   smoke by asserting canonical audit/outbox evidence where useful.
 7. Prove service request -> staff/technician/contractor -> notification scenario.
 8. Update implementation status with only commands that actually passed.
 9. Prepare the real-DB onboarding checklist before seeking production-like
