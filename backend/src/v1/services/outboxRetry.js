@@ -32,6 +32,7 @@
 const DEFAULT_LIMIT = 100;
 const HARD_LIMIT    = 1000;
 const ALLOWED_FROM  = new Set(['dead', 'failed']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * @typedef {Object} ResurrectParams
@@ -60,6 +61,9 @@ function validateParams(params) {
     for (const id of p.ids) {
       if (typeof id !== 'string' || id.length === 0) {
         throw new TypeError('resurrectOutboxRows: every id must be a non-empty string');
+      }
+      if (!UUID_RE.test(id)) {
+        throw new TypeError('resurrectOutboxRows: every id must be a valid UUID');
       }
     }
     if (p.ids.length > HARD_LIMIT) {

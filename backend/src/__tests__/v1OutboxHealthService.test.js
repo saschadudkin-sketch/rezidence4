@@ -16,6 +16,7 @@
 const { describe, test, expect } = require('@jest/globals');
 const {
   QUERY_SQL,
+  buildQuery,
   normalizeRow,
   fetchTenantOutboxHealth,
   aggregateSnapshots,
@@ -130,9 +131,27 @@ describe('fetchTenantOutboxHealth', () => {
     });
   });
 
+  test('propertyId scopes shared-pool health queries', async () => {
+    const pool = {
+      query: jest.fn().mockResolvedValue({
+        rows: [{ pending: '1', in_flight: '0', failed: '0', dead: '0', sent_last_24h: '0', stuck_in_flight: '0', oldest_pending_age_seconds: '10' }],
+      }),
+    };
+    await fetchTenantOutboxHealth(pool, { propertyId: 'property-1' });
+    const [sql, args] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE\s+property_id\s*=\s*\$1/i);
+    expect(args).toEqual(['property-1']);
+  });
+
   test('surfaces pool errors unchanged (caller decides 503/item.error)', async () => {
     const pool = { query: jest.fn().mockRejectedValue(new Error('relation does not exist')) };
     await expect(fetchTenantOutboxHealth(pool)).rejects.toThrow(/relation does not exist/);
+  });
+});
+
+describe('buildQuery', () => {
+  test('without propertyId preserves shared QUERY_SQL identity', () => {
+    expect(buildQuery()).toEqual({ sql: QUERY_SQL, args: [] });
   });
 });
 

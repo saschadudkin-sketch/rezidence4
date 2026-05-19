@@ -24,10 +24,10 @@
 //      «самое старое» и null у него = «нет данных», что корректно.
 //   3. Округляем возраст до ближайшей секунды: миллисекунды в мониторинге
 //      шумят.  Math.round, не floor — «123.8s» → «124s» лучше, чем «123s».
-//   4. В SQL НЕ ставим `WHERE property_id = $1`: multi-tenant изоляция
-//      обеспечивается на уровне connection pool (каждый tenant — свой
-//      pg pool, свой database).  Добавлять фильтр по property_id здесь
-//      было бы дублированием и источником багов при миграции.
+//   4. По умолчанию SQL без WHERE: multi-tenant изоляция обеспечивается
+//      per-property pool'ом.  Но helper также принимает propertyId для
+//      shared-DB/legacy fallback'ов и тестовых mounts, где pool может быть
+//      общим, а row-level guard всё равно нужен.
 
 'use strict';
 
@@ -58,6 +58,16 @@ const QUERY_SQL = `
       FILTER (WHERE status IN ('pending','failed')))                   AS oldest_pending_age_seconds
   FROM notifications_outbox
 `;
+
+function buildQuery(opts = {}) {
+  if (!opts.propertyId) return { sql: QUERY_SQL, args: [] };
+  return {
+    sql: `${QUERY_SQL.trimEnd()}
+  WHERE property_id = $1
+`,
+    args: [opts.propertyId],
+  };
+}
 
 /**
  * normalizeRow — превращает raw-строку pg (все числа — строки) в чистую
@@ -91,11 +101,12 @@ function normalizeRow(r) {
  * refused и т.п.).  Вызывающий код (HTTP-хендлер) решает, превращать
  * это в 503 (per-tenant ручка) или в item.error (superadmin dashboard).
  */
-async function fetchTenantOutboxHealth(pool) {
+async function fetchTenantOutboxHealth(pool, opts = {}) {
   if (!pool || typeof pool.query !== 'function') {
     throw new Error('fetchTenantOutboxHealth: pool with .query required');
   }
-  const { rows } = await pool.query(QUERY_SQL);
+  const { sql, args } = buildQuery(opts);
+  const { rows } = await pool.query(sql, args);
   return normalizeRow(rows[0]);
 }
 
@@ -141,6 +152,7 @@ function aggregateSnapshots(tenantSnapshots) {
 
 module.exports = {
   QUERY_SQL,
+  buildQuery,
   normalizeRow,
   fetchTenantOutboxHealth,
   aggregateSnapshots,

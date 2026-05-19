@@ -12,6 +12,10 @@ const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { fetchTenantOutboxHealth } = require('../v1/services/outboxHealth');
 const { resurrectOutboxRows } = require('../v1/services/outboxRetry');
 
+function resolvePropertyId(req) {
+  return req.property?.id || req.property?.property_id || req.user?.property_id || req.user?.propertyId || null;
+}
+
 function registerObservabilityRoutes(app, { db }) {
   const openApiPath = path.resolve(__dirname, '../../../docs/openapi.json');
 
@@ -42,15 +46,20 @@ function registerObservabilityRoutes(app, { db }) {
         redisPublisher = 'error';
       }
     }
+    const redisStatus = sseRedis.getStatus();
+    const redisDegraded = redisPublisher === 'error'
+      || (redisStatus.enabled && redisStatus.subscriber !== 'ok');
     res.json({
-      ok: true,
+      ok: !redisDegraded,
+      degraded: redisDegraded,
       uniqueUsers,
       totalConnections,
       maxTotalConnections: 2000,
       saturated: totalConnections >= 1800,
       redis: {
         publisher: redisPublisher,
-        subscriber: sseRedis.getStatus().subscriber,
+        subscriber: redisStatus.subscriber,
+        enabled: redisStatus.enabled,
       },
       ts: new Date().toISOString(),
     });
@@ -76,11 +85,12 @@ function registerObservabilityRoutes(app, { db }) {
   app.get('/api/v1/notifications/outbox/health', requireAuth, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const pool = req.db || db;
+    const propertyId = resolvePropertyId(req);
     try {
       // fetchTenantOutboxHealth — один aggregate SELECT + нормализация pg-
       // bigint-строк в number'ы.  SQL + формат выкатывается также из
       // superadmin platform-wide дашборда → держим в одном месте.
-      const snapshot = await fetchTenantOutboxHealth(pool);
+      const snapshot = await fetchTenantOutboxHealth(pool, { propertyId });
       res.json({
         ok: true,
         feature_enabled: isOutboxEnabled(),
@@ -114,12 +124,14 @@ function registerObservabilityRoutes(app, { db }) {
   app.post('/api/v1/notifications/outbox/retry', requireAuth, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     const pool = req.db || db;
+    const propertyId = resolvePropertyId(req);
     const body = req.body || {};
     try {
       const out = await resurrectOutboxRows(pool, {
         ids:    body.ids,
         status: body.status,
         limit:  body.limit,
+        propertyId,
       });
       logger.info(
         { admin: req.user.uid, revived: out.revived, mode: body.ids ? 'ids' : 'bulk' },

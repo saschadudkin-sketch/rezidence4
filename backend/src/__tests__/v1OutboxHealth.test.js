@@ -19,6 +19,17 @@ const supertest = require('supertest');
 
 jest.mock('../logger', () => require('../__mocks__/logger'));
 
+const mockGetRedis = jest.fn(() => null);
+const mockSseRedisStatus = jest.fn(() => ({ enabled: false, subscriber: 'unconfigured' }));
+
+jest.mock('../lib/redisClient', () => ({
+  getRedis: () => mockGetRedis(),
+}));
+
+jest.mock('../sse-redis', () => ({
+  getStatus: () => mockSseRedisStatus(),
+}));
+
 // Mutable auth user (same pattern as v1Routes.test.js).
 let mockCurrentUser = null;
 jest.mock('../middleware/auth', () => (req, res, next) => {
@@ -52,6 +63,8 @@ const ORIGINAL_FLAG = process.env.NOTIFICATIONS_OUTBOX_ENABLED;
 beforeEach(() => {
   jest.clearAllMocks();
   mockCurrentUser = null;
+  mockGetRedis.mockReturnValue(null);
+  mockSseRedisStatus.mockReturnValue({ enabled: false, subscriber: 'unconfigured' });
   // Default shape of the aggregate SELECT when notifications_outbox is empty.
   mockDb.query.mockResolvedValue({
     rows: [{
@@ -72,6 +85,48 @@ afterEach(() => {
   } else {
     process.env.NOTIFICATIONS_OUTBOX_ENABLED = ORIGINAL_FLAG;
   }
+});
+
+describe('GET /api/v1/events/health — redis status', () => {
+  beforeEach(() => { mockCurrentUser = { uid: 'admin1', role: 'admin' }; });
+
+  test('reports healthy when Redis is unconfigured', async () => {
+    const res = await supertest(buildApp()).get('/api/v1/events/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      ok: true,
+      degraded: false,
+      redis: {
+        publisher: 'unconfigured',
+        subscriber: 'unconfigured',
+        enabled: false,
+      },
+    });
+  });
+
+  test('reports degraded when Redis publisher ping fails', async () => {
+    mockGetRedis.mockReturnValue({ ping: jest.fn().mockRejectedValue(new Error('redis down')) });
+    mockSseRedisStatus.mockReturnValue({ enabled: true, subscriber: 'ok' });
+    const res = await supertest(buildApp()).get('/api/v1/events/health');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.degraded).toBe(true);
+    expect(res.body.redis.publisher).toBe('error');
+  });
+
+  test('reports degraded when Redis subscriber is not ready', async () => {
+    mockGetRedis.mockReturnValue({ ping: jest.fn().mockResolvedValue('PONG') });
+    mockSseRedisStatus.mockReturnValue({ enabled: true, subscriber: 'connecting' });
+    const res = await supertest(buildApp()).get('/api/v1/events/health');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.degraded).toBe(true);
+    expect(res.body.redis).toMatchObject({
+      publisher: 'ok',
+      subscriber: 'connecting',
+      enabled: true,
+    });
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -154,6 +209,16 @@ describe('GET /api/v1/notifications/outbox/health — payload', () => {
       oldest_pending_age_seconds: 126,
     });
     expect(typeof res.body.ts).toBe('string');
+  });
+
+  test('scopes shared-pool health by user property_id when present', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: 'property-1' };
+    const app = buildApp();
+    const res = await supertest(app).get('/api/v1/notifications/outbox/health');
+    expect(res.status).toBe(200);
+    const [sql, args] = mockDb.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE\s+property_id\s*=\s*\$1/i);
+    expect(args).toEqual(['property-1']);
   });
 
   test('oldest_pending_age_seconds is null when queue empty', async () => {

@@ -20,6 +20,10 @@ const {
   ALLOWED_FROM,
 } = require('../v1/services/outboxRetry');
 
+const UUID_1 = '11111111-1111-4111-8111-111111111111';
+const UUID_2 = '22222222-2222-4222-8222-222222222222';
+const UUID_3 = '33333333-3333-4333-8333-333333333333';
+
 // ══════════════════════════════════════════════════════════════════════════════
 // validateParams
 // ══════════════════════════════════════════════════════════════════════════════
@@ -41,8 +45,12 @@ describe('validateParams', () => {
   });
 
   test('throws when ids length exceeds HARD_LIMIT', () => {
-    const ids = new Array(HARD_LIMIT + 1).fill('x');
+    const ids = new Array(HARD_LIMIT + 1).fill(UUID_1);
     expect(() => validateParams({ ids })).toThrow(/hard cap/);
+  });
+
+  test('throws when any id is not a UUID', () => {
+    expect(() => validateParams({ ids: ['not-a-uuid'] })).toThrow(/valid UUID/i);
   });
 
   test('throws when status not in ALLOWED_FROM', () => {
@@ -83,9 +91,9 @@ describe('validateParams', () => {
 describe('resurrectOutboxRows — ids mode', () => {
   test('issues UPDATE with WHERE id = ANY + status IN (dead,failed)', async () => {
     const pool = { query: jest.fn().mockResolvedValue({
-      rows: [{ id: 'row-1' }, { id: 'row-2' }],
+      rows: [{ id: UUID_1 }, { id: UUID_2 }],
     }) };
-    const out = await resurrectOutboxRows(pool, { ids: ['row-1', 'row-2', 'row-3'] });
+    const out = await resurrectOutboxRows(pool, { ids: [UUID_1, UUID_2, UUID_3] });
     expect(pool.query).toHaveBeenCalledTimes(1);
 
     const [sql, args] = pool.query.mock.calls[0];
@@ -100,15 +108,15 @@ describe('resurrectOutboxRows — ids mode', () => {
     expect(sql).toMatch(/RETURNING\s+id/i);
 
     // Args: [ids] only.
-    expect(args).toEqual([['row-1', 'row-2', 'row-3']]);
+    expect(args).toEqual([[UUID_1, UUID_2, UUID_3]]);
 
     // Response: only the 2 that actually came back from RETURNING.
-    expect(out).toEqual({ revived: 2, revivedIds: ['row-1', 'row-2'] });
+    expect(out).toEqual({ revived: 2, revivedIds: [UUID_1, UUID_2] });
   });
 
   test('returns 0 revived when no rows matched (e.g. all were already sent)', async () => {
     const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
-    const out = await resurrectOutboxRows(pool, { ids: ['row-x'] });
+    const out = await resurrectOutboxRows(pool, { ids: [UUID_1] });
     expect(out).toEqual({ revived: 0, revivedIds: [] });
   });
 });
@@ -171,7 +179,7 @@ describe('resurrectOutboxRows — safety', () => {
     // (idempotency broken) or race the worker mid-delivery (double-send).
     const poolIds  = { query: jest.fn().mockResolvedValue({ rows: [] }) };
     const poolBulk = { query: jest.fn().mockResolvedValue({ rows: [] }) };
-    await resurrectOutboxRows(poolIds,  { ids: ['x'] });
+    await resurrectOutboxRows(poolIds,  { ids: [UUID_1] });
     await resurrectOutboxRows(poolBulk, { status: 'dead' });
     for (const pool of [poolIds, poolBulk]) {
       const sql = pool.query.mock.calls[0][0];

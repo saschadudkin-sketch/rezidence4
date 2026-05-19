@@ -31,6 +31,8 @@ const mockDb = {
 
 const { registerObservabilityRoutes } = require('../app/registerObservabilityRoutes');
 
+const UUID_1 = '11111111-1111-4111-8111-111111111111';
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -133,9 +135,21 @@ describe('POST /api/v1/notifications/outbox/retry — happy path', () => {
     mockDb.query.mockResolvedValue({ rows: [] });
     const res = await supertest(buildApp())
       .post('/api/v1/notifications/outbox/retry')
-      .send({ ids: ['never-existed'] });
+      .send({ ids: [UUID_1] });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, revived: 0, revivedIds: [] });
+  });
+
+  test('shared-pool retry is scoped by user property_id when present', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: 'property-1' };
+    mockDb.query.mockResolvedValue({ rows: [] });
+    const res = await supertest(buildApp())
+      .post('/api/v1/notifications/outbox/retry')
+      .send({ status: 'dead', limit: 10 });
+    expect(res.status).toBe(200);
+    const [sql, args] = mockDb.query.mock.calls[0];
+    expect(sql).toMatch(/AND property_id = \$3/);
+    expect(args).toEqual(['dead', 10, 'property-1']);
   });
 });
 
