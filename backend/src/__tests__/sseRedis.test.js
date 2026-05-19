@@ -62,4 +62,22 @@ describe('sse redis adapter tenant envelope', () => {
     );
     shutdown();
   });
+
+  test('falls back to local scoped broadcast when Redis publish fails', async () => {
+    mockPublish.mockRejectedValueOnce(new Error('redis down'));
+    const sse = require('../sse');
+    const localBroadcastToAll = jest.spyOn(sse, 'localBroadcastToAll').mockImplementation(() => {});
+    const { init, shutdown } = require('../sse-redis');
+
+    init();
+    sse.broadcastChatMessage({ id: 'm1' }, { propertySlug: 'alpha' });
+    await Promise.resolve();
+
+    expect(localBroadcastToAll).toHaveBeenCalledWith(
+      'message',
+      { id: 'm1', property_slug: 'alpha' },
+      { propertySlug: 'alpha' },
+    );
+    shutdown();
+  });
 });

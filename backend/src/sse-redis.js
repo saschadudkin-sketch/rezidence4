@@ -53,14 +53,31 @@ function init() {
     }
   });
 
+  function localFallback(event, data, targetRoles, propertySlug) {
+    const options = propertySlug ? { propertySlug } : {};
+    if (targetRoles && Array.isArray(targetRoles)) {
+      sse.localBroadcastToRoles(event, data, new Set(targetRoles), options);
+    } else if (event === 'request_update') {
+      sse.localBroadcastRequestUpdate(data, options);
+    } else {
+      sse.localBroadcastToAll(event, data, options);
+    }
+  }
+
   // fn signature: (event, data, targetRoles?, propertySlug?)
   sse.setRedisPublish((event, data, targetRoles, propertySlug) => {
-    if (pub) {
-      const msg = { event, data };
-      if (targetRoles) msg.targetRoles = targetRoles;
-      if (propertySlug) msg.propertySlug = propertySlug;
-      pub.publish(CHANNEL, JSON.stringify(msg)).catch(() => {});
+    const msg = { event, data };
+    if (targetRoles) msg.targetRoles = targetRoles;
+    if (propertySlug) msg.propertySlug = propertySlug;
+
+    if (!pub || typeof pub.publish !== 'function') {
+      localFallback(event, data, targetRoles, propertySlug);
+      return;
     }
+    pub.publish(CHANNEL, JSON.stringify(msg)).catch((err) => {
+      logger.warn({ err }, '[redis] SSE publish failed; falling back to local broadcast');
+      localFallback(event, data, targetRoles, propertySlug);
+    });
   });
 
   logger.info('[redis] pub/sub initialized for SSE broadcast');

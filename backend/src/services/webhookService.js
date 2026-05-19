@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const logger = require('../logger');
+const { validateOutboundUrl } = require('../lib/urlSafety');
 
 // Retry back-off delays in seconds: 1m, 5m, 30m
 const RETRY_DELAYS_SECONDS = [60, 300, 1800];
@@ -59,18 +60,46 @@ async function enqueueWebhookEvent(event, data, db) {
  */
 async function processPendingDeliveries(db) {
   const { rows } = await db.query(`
-    SELECT d.*, w.url, w.secret, w.name
-    FROM webhook_deliveries d
-    JOIN webhooks w ON w.id = d.webhook_id
-    WHERE d.status IN ('pending', 'retrying')
-      AND d.next_attempt_at <= NOW()
-    LIMIT 20
-    FOR UPDATE SKIP LOCKED
+    WITH candidate AS (
+      SELECT d.id
+      FROM webhook_deliveries d
+      WHERE d.status IN ('pending', 'retrying')
+        AND d.next_attempt_at <= NOW()
+      ORDER BY d.next_attempt_at ASC, d.created_at ASC
+      LIMIT 20
+      FOR UPDATE SKIP LOCKED
+    )
+    UPDATE webhook_deliveries d
+       SET status = 'retrying',
+           next_attempt_at = NOW() + INTERVAL '5 minutes'
+      FROM candidate c, webhooks w
+     WHERE d.id = c.id
+       AND w.id = d.webhook_id
+     RETURNING d.*, w.url, w.secret, w.name
   `);
 
   for (const delivery of rows) {
     await deliverOne(delivery, db);
   }
+}
+
+async function markPermanentFailure(delivery, db, errorMessage, responseStatus = null) {
+  await db.query(
+    `UPDATE webhook_deliveries
+     SET status = 'failed',
+         attempt_count = attempt_count + 1,
+         completed_at = NOW(),
+         response_status = $1,
+         error_message = $2
+     WHERE id = $3`,
+    [responseStatus, errorMessage, delivery.id],
+  );
+  await db.query(
+    `UPDATE webhooks
+     SET last_error = $1, last_attempt_at = NOW(), retry_count = retry_count + 1
+     WHERE id = $2`,
+    [errorMessage, delivery.webhook_id],
+  );
 }
 
 /**
@@ -81,6 +110,17 @@ async function processPendingDeliveries(db) {
  * @param {object} db
  */
 async function deliverOne(delivery, db) {
+  const urlCheck = validateOutboundUrl(delivery.url, { allowedProtocols: ['https:'] });
+  if (!urlCheck.ok) {
+    const errorMessage = `ssrf_blocked:${urlCheck.reason}`;
+    logger.warn(
+      { deliveryId: delivery.id, webhookId: delivery.webhook_id, reason: urlCheck.reason },
+      '[webhook] rejected unsafe delivery URL',
+    );
+    await markPermanentFailure(delivery, db, errorMessage);
+    return;
+  }
+
   const payload = buildWebhookEnvelope(delivery);
   const body = JSON.stringify(payload);
   const sig  = crypto
@@ -127,6 +167,7 @@ async function deliverOne(delivery, db) {
       logger.debug({ deliveryId: delivery.id, url: delivery.url }, '[webhook] delivered successfully');
       return;
     }
+    error = `HTTP ${responseStatus}: ${responseBody}`;
   } catch (err) {
     error = err.message;
     logger.warn({ err: error, deliveryId: delivery.id, url: delivery.url }, '[webhook] delivery attempt failed');
@@ -157,22 +198,7 @@ async function deliverOne(delivery, db) {
       [delivery.webhook_id],
     );
   } else {
-    await db.query(
-      `UPDATE webhook_deliveries
-       SET status = 'failed',
-           attempt_count = attempt_count + 1,
-           completed_at = NOW(),
-           response_status = $1,
-           error_message = $2
-       WHERE id = $3`,
-      [responseStatus ?? null, error ?? null, delivery.id],
-    );
-    await db.query(
-      `UPDATE webhooks
-       SET last_error = $1, last_attempt_at = NOW(), retry_count = retry_count + 1
-       WHERE id = $2`,
-      [error ?? `HTTP ${responseStatus}`, delivery.webhook_id],
-    );
+    await markPermanentFailure(delivery, db, error ?? `HTTP ${responseStatus}`, responseStatus ?? null);
     logger.warn({ deliveryId: delivery.id, url: delivery.url }, '[webhook] delivery permanently failed');
   }
 }
@@ -181,5 +207,6 @@ module.exports = {
   enqueueWebhookEvent,
   processPendingDeliveries,
   buildWebhookEnvelope,
+  deliverOne,
   WEBHOOK_PAYLOAD_VERSION,
 };
