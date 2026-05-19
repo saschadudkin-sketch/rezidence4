@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  createTrustedVisitor,
   createPassFromTrustedVisitor,
   listTrustedVisitors,
   normalizeTrustedVisitorInput,
@@ -96,6 +97,27 @@ describe('TrustedVisitorService validation', () => {
 });
 
 describe('TrustedVisitorService pass creation', () => {
+  test('rejects trusted visitor creation when resident is outside property scope', async () => {
+    const queryable = {
+      query: jest.fn((sql, params) => {
+        if (sql.includes('FROM residents')) {
+          expect(params).toEqual([UUID_RESIDENT, UUID_PROPERTY]);
+          return Promise.resolve({ rows: [] });
+        }
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    await expect(createTrustedVisitor(queryable, {
+      propertyId: UUID_PROPERTY,
+      residentId: UUID_RESIDENT,
+      input: { name: 'Mom', visitor_type: 'relative' },
+    })).rejects.toMatchObject({
+      status: 403,
+      message: 'resident_id does not belong to property',
+    });
+  });
+
   test('lists trusted visitors with recent access request history', async () => {
     const recentRequest = {
       id: UUID_REQUEST,

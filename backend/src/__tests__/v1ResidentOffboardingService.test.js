@@ -58,6 +58,9 @@ function makeQueryable() {
       if (sql.includes('UPDATE resident_notification_preferences')) {
         return Promise.resolve({ rows: [{ id: 'pref-1', channel: 'sms', event_scope: 'all', enabled: false }] });
       }
+      if (sql.includes('UPDATE trusted_visitors')) {
+        return Promise.resolve({ rows: [{ id: 'trusted-visitor-1', name: 'Mom', visitor_type: 'relative', is_active: false }] });
+      }
       if (sql.includes('INSERT INTO resident_lifecycle_events')) {
         return Promise.resolve({ rows: [] });
       }
@@ -87,6 +90,7 @@ describe('resident offboarding service', () => {
       vehicles_marked_for_review: 1,
       cancelled_access_requests: 1,
       notification_preferences_disabled: 1,
+      trusted_visitors_deactivated: 1,
     });
     expect(result.resident.is_active).toBe(false);
 
@@ -111,6 +115,13 @@ describe('resident offboarding service', () => {
     expect(lifecycleMetadata.offboarding.pass_ids).toEqual(['pass-1']);
     expect(lifecycleMetadata.offboarding.vehicle_ids).toEqual(['vehicle-1']);
     expect(lifecycleMetadata.offboarding.notification_preference_ids).toEqual(['pref-1']);
+    expect(lifecycleMetadata.offboarding.trusted_visitor_ids).toEqual(['trusted-visitor-1']);
+
+    const trustedVisitorUpdate = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE trusted_visitors'));
+    expect(trustedVisitorUpdate[0]).toContain('WHERE property_id = $2');
+    expect(trustedVisitorUpdate[0]).toContain('AND resident_id = $1');
+    expect(trustedVisitorUpdate[0]).toContain('AND is_active = true');
+    expect(trustedVisitorUpdate[1]).toEqual([UUID_RESIDENT, UUID_PROPERTY]);
 
     const auditInsert = queryable.query.mock.calls.find(([sql]) => sql.includes('property_audit_log'));
     expect(auditInsert[0]).toContain('resident.deactivated');
@@ -196,6 +207,7 @@ describe('resident offboarding service', () => {
     expect(report.evidence.source_tables).toEqual(expect.arrayContaining([
       'resident_lifecycle_events',
       'vehicles',
+      'trusted_visitors',
       'property_audit_log',
     ]));
     expect(queryable.query.mock.calls[1][1]).toEqual([UUID_PROPERTY, 10]);
@@ -261,6 +273,9 @@ describe('resident offboarding service', () => {
         if (sql.includes('UPDATE resident_notification_preferences')) {
           return Promise.resolve({ rows: [{ id: 'pref-1', channel: 'sms', event_scope: 'all', enabled: false }] });
         }
+        if (sql.includes('UPDATE trusted_visitors')) {
+          return Promise.resolve({ rows: [{ id: 'trusted-visitor-1', is_active: false }] });
+        }
         if (sql.includes('INSERT INTO resident_unit_links')) {
           return Promise.resolve({ rows: [{ id: 'new-owner-link', resident_id: toResidentId, unit_id: UUID_UNIT }] });
         }
@@ -298,6 +313,7 @@ describe('resident offboarding service', () => {
     expect(result.summary.previous_owner_offboarding).toMatchObject({
       revoked_passes: 1,
       notification_preferences_disabled: 1,
+      trusted_visitors_deactivated: 1,
     });
     expect(result.to_resident).toMatchObject({ id: toResidentId, resident_type: 'owner' });
     expect(queryable.query.mock.calls.find(([sql]) => sql.includes('resident_ownership_transfers'))[1][2])

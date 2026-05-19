@@ -169,6 +169,19 @@ async function validateResidentUnit(queryable, { propertyId, residentId, unitId 
   if (!rows[0]) throw serviceError(403, 'target_unit_id does not belong to resident');
 }
 
+async function validateResidentInProperty(queryable, { propertyId, residentId }) {
+  const { rows } = await queryable.query(
+    `SELECT 1
+       FROM residents
+      WHERE id = $1
+        AND property_id = $2
+        AND is_active = true
+      LIMIT 1`,
+    [residentId, propertyId],
+  );
+  if (!rows[0]) throw serviceError(403, 'resident_id does not belong to property');
+}
+
 async function listTrustedVisitors(queryable, { propertyId, residentId, includeInactive = false }) {
   const params = [propertyId, residentId];
   const activeSql = includeInactive ? '' : 'AND is_active = true';
@@ -186,6 +199,7 @@ async function listTrustedVisitors(queryable, { propertyId, residentId, includeI
 
 async function createTrustedVisitor(queryable, { propertyId, residentId, input }) {
   const normalized = normalizeTrustedVisitorInput(input);
+  await validateResidentInProperty(queryable, { propertyId, residentId });
   await validateAccessTopologyTarget(queryable, {
     propertyId,
     zoneId: normalized.allowed_zone_id,

@@ -612,6 +612,7 @@ describe('POST /api/v1/residents/:id/deactivate', () => {
       vehicles_marked_for_review: 1,
       cancelled_access_requests: 1,
       notification_preferences_disabled: 0,
+      trusted_visitors_deactivated: 0,
     });
     const passUpdate = db.query.mock.calls.find(([sql]) => String(sql).includes('UPDATE passes'));
     expect(passUpdate[0]).toContain('p.subject_vehicle_id IN');

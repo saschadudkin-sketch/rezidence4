@@ -193,6 +193,20 @@ async function disableNotificationPreferences(queryable, resident, source = 'off
   return rows;
 }
 
+async function deactivateTrustedVisitors(queryable, resident) {
+  const { rows } = await queryable.query(
+    `UPDATE trusted_visitors
+        SET is_active = false,
+            updated_at = NOW()
+      WHERE property_id = $2
+        AND resident_id = $1
+        AND is_active = true
+      RETURNING id, name, visitor_type, is_active`,
+    [resident.id, resident.property_id],
+  );
+  return rows;
+}
+
 async function writeOffboardingAudit(queryable, resident, actor, summary, reason) {
   await queryable.query(
     `INSERT INTO property_audit_log(
@@ -219,6 +233,7 @@ function buildSummary({
   vehicles,
   accessRequests,
   notificationPreferences,
+  trustedVisitors,
 }) {
   return {
     suspended_memberships: memberships.length,
@@ -227,6 +242,7 @@ function buildSummary({
     vehicles_marked_for_review: vehicles.length,
     cancelled_access_requests: accessRequests.length,
     notification_preferences_disabled: notificationPreferences.length,
+    trusted_visitors_deactivated: trustedVisitors.length,
   };
 }
 
@@ -247,6 +263,7 @@ async function offboardResident({ queryable, residentId, actor = {}, reason = nu
   const accessRequests = await cancelResidentAccessRequests(queryable, resident);
   const vehicles = await markVehiclesForReview(queryable, resident, normalizedReason);
   const notificationPreferences = await disableNotificationPreferences(queryable, resident, 'offboarding');
+  const trustedVisitors = await deactivateTrustedVisitors(queryable, resident);
   const summary = buildSummary({
     memberships,
     passes,
@@ -254,6 +271,7 @@ async function offboardResident({ queryable, residentId, actor = {}, reason = nu
     vehicles,
     accessRequests,
     notificationPreferences,
+    trustedVisitors,
   });
 
   await recordResidentLifecycleEvent({
@@ -274,6 +292,7 @@ async function offboardResident({ queryable, residentId, actor = {}, reason = nu
         vehicle_ids: ids(vehicles),
         access_request_ids: ids(accessRequests),
         notification_preference_ids: ids(notificationPreferences),
+        trusted_visitor_ids: ids(trustedVisitors),
       },
     },
   });
@@ -290,6 +309,7 @@ async function offboardResident({ queryable, residentId, actor = {}, reason = nu
       vehicles,
       access_requests: accessRequests,
       notification_preferences: notificationPreferences,
+      trusted_visitors: trustedVisitors,
     },
   };
 }
@@ -679,6 +699,7 @@ async function getResidentOffboardingReport({ queryable, propertyId, limit = 25 
         'passes',
         'access_requests',
         'vehicles',
+        'trusted_visitors',
         'property_audit_log',
       ],
       report_scope: 'resident_offboarding',
