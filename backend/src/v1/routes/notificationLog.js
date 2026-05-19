@@ -17,8 +17,9 @@
 //     residents.external_uid = req.user.uid.
 //
 // Per-tenant scoping: роут использует req.db (если propertyDb middleware
-// установил) иначе legacy singleton db.  Таблица notification_log_v2 —
-// per-property DB, поэтому global filter по property_id в SQL не нужен.
+// установил) иначе legacy singleton db.  Admin endpoints are tenant-only:
+// property scope may come from authenticated middleware/user context, never
+// from query params.
 //
 // Ошибки:
 //   400 — валидация (since/until обязательны когда recipient_id пуст; bad period)
@@ -62,8 +63,6 @@ function isValidIso(v) {
 function resolvePropertyId(req) {
   return req.property?.id
     || req.property?.property_id
-    || req.query?.property_id
-    || req.query?.propertyId
     || req.user?.property_id
     || req.user?.propertyId
     || null;

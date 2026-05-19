@@ -437,9 +437,12 @@ async function getIncidentSummary(db, propertyId, period) {
   };
 }
 
-async function getNotificationHealth(db, period) {
+async function getNotificationHealth(db, period, opts = {}) {
+  const logArgs = [period.interval];
+  const propertyClause = opts.propertyId ? 'AND property_id = $2' : '';
+  if (opts.propertyId) logArgs.push(opts.propertyId);
   const [outbox, logAggResult, logChannelResult] = await Promise.all([
-    getOutboxMetrics(db),
+    getOutboxMetrics(db, { propertyId: opts.propertyId }),
     db.query(
       `
         SELECT
@@ -447,8 +450,9 @@ async function getNotificationHealth(db, period) {
           COUNT(*) FILTER (WHERE status = 'failed') AS failed
         FROM notification_log_v2
         WHERE created_at >= NOW() - $1::interval
+          ${propertyClause}
       `,
-      [period.interval],
+      logArgs,
     ),
     db.query(
       `
@@ -457,10 +461,11 @@ async function getNotificationHealth(db, period) {
                COUNT(*) FILTER (WHERE status = 'failed') AS failed
           FROM notification_log_v2
          WHERE created_at >= NOW() - $1::interval
+          ${propertyClause}
          GROUP BY channel
          ORDER BY channel ASC
       `,
-      [period.interval],
+      logArgs,
     ),
   ]);
 
@@ -511,7 +516,7 @@ async function getOperationsDashboard(db, opts = {}) {
       peakTrafficWindowLimit: opts.peakTrafficWindowLimit,
     }),
     getIncidentSummary(db, opts.propertyId, period),
-    getNotificationHealth(db, period),
+    getNotificationHealth(db, period, { propertyId: opts.propertyId }),
   ]);
 
   return {

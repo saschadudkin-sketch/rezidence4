@@ -191,6 +191,23 @@ describe('GET /api/v1/admin/outbox — list', () => {
     expect(capturedArgs).toContain('web_push');
   });
 
+  test('scopes list by authenticated property_id and ignores query override', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: UUID2 };
+    let capturedSql = '';
+    let capturedArgs = null;
+    dispatch([
+      [/FROM notifications_outbox/, (sql, args) => {
+        capturedSql = sql;
+        capturedArgs = args;
+        return { rows: [] };
+      }],
+    ]);
+    const res = await supertest(buildApp()).get(`/api/v1/admin/outbox?property_id=${UUID}`);
+    expect(res.status).toBe(200);
+    expect(capturedSql).toMatch(/WHERE property_id = \$1/);
+    expect(capturedArgs).toEqual([UUID2, 100, 0]);
+  });
+
   test('невалидный status молча игнорируется (не 400)', async () => {
     let capturedArgs = null;
     dispatch([

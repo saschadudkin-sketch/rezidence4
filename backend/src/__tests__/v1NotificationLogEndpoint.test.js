@@ -197,6 +197,15 @@ describe('GET /api/v1/admin/notification-log — happy path', () => {
     expect(args).toEqual(['property-1', '2026-04-01T00:00:00Z', 50, 0]);
   });
 
+  test('does not accept property_id from query as admin scope', async () => {
+    mockDb.query.mockResolvedValue({ rows: [] });
+    await supertest(buildApp())
+      .get('/api/v1/admin/notification-log?since=2026-04-01T00:00:00Z&property_id=other-property');
+    const [sql, args] = mockDb.query.mock.calls[0];
+    expect(sql).not.toMatch(/property_id = \$/);
+    expect(args).toEqual(['2026-04-01T00:00:00Z', 50, 0]);
+  });
+
   test('503 when SQL rejects', async () => {
     mockDb.query.mockRejectedValue(new Error('pool terminated'));
     const res = await supertest(buildApp())

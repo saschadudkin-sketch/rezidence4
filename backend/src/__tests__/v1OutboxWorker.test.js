@@ -135,7 +135,8 @@ describe('processRow — success path', () => {
 
     const updateSent = findQuery(tx.query, /UPDATE notifications_outbox.*status='sent'/s);
     expect(updateSent).toBeDefined();
-    expect(updateSent[1]).toEqual([row.id, 1]); // attempt_count=1
+    expect(updateSent[0]).toMatch(/WHERE id=\$1\s+AND property_id=\$3/);
+    expect(updateSent[1]).toEqual([row.id, 1, row.property_id]); // attempt_count=1
 
     const logInsert = findQuery(tx.query, /INSERT INTO notification_log_v2/);
     expect(logInsert).toBeDefined();
@@ -199,6 +200,8 @@ describe('processRow — retryable failure', () => {
     expect(update[1][1]).toBe(BACKOFF_MINUTES[1]); // 5
     expect(update[1][2]).toBe(2);
     expect(update[1][3]).toBe('network_timeout');
+    expect(update[1][4]).toBe(row.property_id);
+    expect(update[0]).toMatch(/AND property_id=\$5/);
 
     expect(findQuery(tx.query, /INSERT INTO notification_log_v2/)).toBeUndefined();
   });
@@ -214,6 +217,7 @@ describe('processRow — retryable failure', () => {
     const update = findQuery(tx.query, /UPDATE notifications_outbox.*status='failed'/s);
     expect(update).toBeDefined();
     expect(update[1][3]).toBe('kaboom');
+    expect(update[1][4]).toBe(row.property_id);
     expect(findQuery(tx.query, /INSERT INTO notification_log_v2/)).toBeUndefined();
   });
 });
@@ -237,6 +241,8 @@ describe('processRow — dead path', () => {
     expect(outcome).toBe('dead');
     const update = findQuery(tx.query, /UPDATE notifications_outbox.*status='dead'/s);
     expect(update).toBeDefined();
+    expect(update[0]).toMatch(/AND property_id=\$4/);
+    expect(update[1][3]).toBe(row.property_id);
 
     const logInsert = findQuery(tx.query, /INSERT INTO notification_log_v2/);
     expect(logInsert).toBeDefined();
@@ -477,6 +483,8 @@ describe('processBatch', () => {
     );
     expect(revival).toBeDefined();
     expect(revival[1][0]).toBe(row.id);
+    expect(revival[1][2]).toBe(row.property_id);
+    expect(revival[0]).toMatch(/AND property_id=\$3/);
     expect(released.count).toBe(1);
   });
 

@@ -315,37 +315,51 @@ async function loadRequestDetail(queryable, requestId, opts = {}) {
     params,
   );
   if (!rows[0]) throw serviceError(404, 'Request not found');
+  const childScopeSql = opts.propertyId
+    ? `AND EXISTS (
+         SELECT 1
+           FROM requests scoped_r
+           LEFT JOIN residents scoped_resident_ref
+             ON scoped_resident_ref.external_uid = scoped_r.created_by_uid
+          WHERE scoped_r.id = $1
+            AND scoped_resident_ref.property_id = $2
+       )`
+    : '';
 
   const [attachments, updates, internalComments, slaEvents] = await Promise.all([
     queryable.query(
       `SELECT id, request_id, uploaded_by_uid, file_url, file_kind, visibility, metadata, created_at
          FROM request_attachments
         WHERE request_id=$1
+          ${childScopeSql}
         ORDER BY created_at ASC, id ASC`,
-      [id],
+      opts.propertyId ? [id, opts.propertyId] : [id],
     ),
     queryable.query(
       `SELECT id, request_id, actor_uid, actor_name, actor_role, body, visibility,
               attachment_ids, created_at
          FROM request_updates
         WHERE request_id=$1 AND visibility='resident'
+          ${childScopeSql}
         ORDER BY created_at ASC, id ASC`,
-      [id],
+      opts.propertyId ? [id, opts.propertyId] : [id],
     ),
     queryable.query(
       `SELECT id, request_id, actor_uid, actor_name, actor_role, body, visibility,
               attachment_ids, created_at
          FROM request_updates
         WHERE request_id=$1 AND visibility='internal'
+          ${childScopeSql}
         ORDER BY created_at ASC, id ASC`,
-      [id],
+      opts.propertyId ? [id, opts.propertyId] : [id],
     ),
     queryable.query(
       `SELECT id, request_id, event_key, event_type, severity, due_at, detected_at, metadata, created_at
          FROM request_sla_events
         WHERE request_id=$1
+          ${childScopeSql}
         ORDER BY detected_at DESC, id DESC`,
-      [id],
+      opts.propertyId ? [id, opts.propertyId] : [id],
     ),
   ]);
 
@@ -451,8 +465,14 @@ async function getResidentQuickView(queryable, { residentId, canViewPhone, prope
         `SELECT status, COUNT(*)::int AS count
            FROM requests
           WHERE created_by_uid=$1 AND deleted_at IS NULL
+            ${propertyId ? `AND EXISTS (
+              SELECT 1
+                FROM residents scoped_resident
+               WHERE scoped_resident.external_uid = requests.created_by_uid
+                 AND scoped_resident.property_id = $2
+            )` : ''}
           GROUP BY status`,
-        [resident.external_uid],
+        propertyId ? [resident.external_uid, propertyId] : [resident.external_uid],
       )
       : Promise.resolve({ rows: [] }),
     resident.external_uid
@@ -460,9 +480,15 @@ async function getResidentQuickView(queryable, { residentId, canViewPhone, prope
         `SELECT *
            FROM requests
           WHERE created_by_uid=$1 AND deleted_at IS NULL
+            ${propertyId ? `AND EXISTS (
+              SELECT 1
+                FROM residents scoped_resident
+               WHERE scoped_resident.external_uid = requests.created_by_uid
+                 AND scoped_resident.property_id = $2
+            )` : ''}
           ORDER BY created_at DESC
           LIMIT 5`,
-        [resident.external_uid],
+        propertyId ? [resident.external_uid, propertyId] : [resident.external_uid],
       )
       : Promise.resolve({ rows: [] }),
   ]);

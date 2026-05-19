@@ -206,8 +206,9 @@ async function processRow(tx, row, tenant = null) {
              last_attempted_at=NOW(),
              attempt_count=$2,
              last_error=NULL
-       WHERE id=$1`,
-      [row.id, newAttemptCount],
+       WHERE id=$1
+         AND property_id=$3`,
+      [row.id, newAttemptCount, row.property_id],
     );
     await insertLogV2(tx, row, {
       status: 'sent',
@@ -236,8 +237,9 @@ async function processRow(tx, row, tenant = null) {
              last_attempted_at=NOW(),
              attempt_count=$2,
              last_error=$3
-       WHERE id=$1`,
-      [row.id, newAttemptCount, errorMessage],
+       WHERE id=$1
+         AND property_id=$4`,
+      [row.id, newAttemptCount, errorMessage, row.property_id],
     );
     await insertLogV2(tx, row, {
       status: 'failed',      // log_v2 не имеет 'dead' — последний fail пишем
@@ -258,8 +260,9 @@ async function processRow(tx, row, tenant = null) {
            next_attempt_at=NOW() + ($2 * INTERVAL '1 minute'),
            attempt_count=$3,
            last_error=$4
-     WHERE id=$1`,
-    [row.id, backoffMin, newAttemptCount, errorMessage],
+     WHERE id=$1
+       AND property_id=$5`,
+    [row.id, backoffMin, newAttemptCount, errorMessage, row.property_id],
   );
   appMetrics.recordOutboxDelivery(row.channel, 'failed', durationMs);
   return 'failed';
@@ -365,8 +368,9 @@ async function processBatch(db, opts = {}) {
              SET status='failed',
                  next_attempt_at=NOW() + INTERVAL '5 minutes',
                  last_error=$2
-           WHERE id=$1`,
-          [row.id, truncate(err.message || 'worker_tx_failed', 500)],
+           WHERE id=$1
+             AND property_id=$3`,
+          [row.id, truncate(err.message || 'worker_tx_failed', 500), row.property_id],
         );
       } catch (revErr) {
         logger.error(

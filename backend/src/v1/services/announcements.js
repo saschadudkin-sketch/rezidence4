@@ -669,15 +669,24 @@ async function getReachMetrics(db, id, opts = {}) {
   const audSize = await computeAudienceSize(db, a);
 
   const { rows: outboxCount } = await db.query(
-    `SELECT COUNT(*)::int AS n FROM notifications_outbox WHERE correlation_id = $1`,
-    [id],
+    `SELECT COUNT(*)::int AS n
+       FROM notifications_outbox
+      WHERE correlation_id = $1
+        AND property_id = $2`,
+    [id, a.property_id],
   );
   const { rows: logCounts } = await db.query(
     `SELECT status, COUNT(*)::int AS n
        FROM notification_log_v2
-      WHERE correlation_id = $1
+      WHERE outbox_id IN (
+              SELECT id
+                FROM notifications_outbox
+               WHERE correlation_id = $1
+                 AND property_id = $2
+            )
+        AND property_id = $2
       GROUP BY status`,
-    [id],
+    [id, a.property_id],
   );
   const byStatus = Object.fromEntries(logCounts.map((r) => [r.status, r.n]));
 

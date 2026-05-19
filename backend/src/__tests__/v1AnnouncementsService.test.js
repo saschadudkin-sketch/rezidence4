@@ -732,12 +732,20 @@ describe('getReachMetrics', () => {
       [/SELECT id, property_id, audience_type/, () => ({ rows: [ann] })],
       [/SELECT COUNT\(\*\)::int AS n FROM residents WHERE property_id = \$1 AND is_active = true\s*$/,
         () => ({ rows: [{ n: 100 }] })],
-      [/FROM notifications_outbox WHERE correlation_id/, () => ({ rows: [{ n: 200 }] })],
-      [/FROM notification_log_v2/, () => ({ rows: [
+      [/FROM notification_log_v2[\s\S]*WHERE outbox_id IN \([\s\S]*FROM notifications_outbox[\s\S]*WHERE correlation_id = \$1[\s\S]*AND property_id = \$2[\s\S]*AND property_id = \$2/,
+        (_sql, args) => {
+          expect(args).toEqual([UUID, UUID2]);
+          return { rows: [
         { status: 'sent', n: 150 },
         { status: 'delivered', n: 140 },
         { status: 'failed', n: 10 },
-      ] })],
+          ] };
+        }],
+      [/SELECT COUNT\(\*\)::int AS n[\s\S]*FROM notifications_outbox[\s\S]*WHERE correlation_id = \$1[\s\S]*AND property_id = \$2/,
+        (_sql, args) => {
+          expect(args).toEqual([UUID, UUID2]);
+          return { rows: [{ n: 200 }] };
+        }],
     ]);
     const m = await getReachMetrics(db, UUID);
     expect(m).toEqual({

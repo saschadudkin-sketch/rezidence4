@@ -761,11 +761,19 @@ describe('GET /api/v1/admin/announcements/:id/metrics', () => {
       }] })],
       [/SELECT COUNT\(\*\)::int AS n FROM residents WHERE property_id = \$1 AND is_active = true\s*$/,
         () => ({ rows: [{ n: 50 }] })],
-      [/FROM notifications_outbox WHERE correlation_id/, () => ({ rows: [{ n: 100 }] })],
-      [/FROM notification_log_v2/, () => ({ rows: [
-        { status: 'delivered', n: 80 },
-        { status: 'failed', n: 5 },
-      ] })],
+      [/FROM notification_log_v2[\s\S]*WHERE outbox_id IN \([\s\S]*FROM notifications_outbox[\s\S]*WHERE correlation_id = \$1[\s\S]*AND property_id = \$2[\s\S]*AND property_id = \$2/,
+        (_sql, args) => {
+          expect(args).toEqual([UUID, UUID2]);
+          return { rows: [
+            { status: 'delivered', n: 80 },
+            { status: 'failed', n: 5 },
+          ] };
+        }],
+      [/SELECT COUNT\(\*\)::int AS n[\s\S]*FROM notifications_outbox[\s\S]*WHERE correlation_id = \$1[\s\S]*AND property_id = \$2/,
+        (_sql, args) => {
+          expect(args).toEqual([UUID, UUID2]);
+          return { rows: [{ n: 100 }] };
+        }],
     ]);
     const res = await supertest(buildApp()).get(`/api/v1/admin/announcements/${UUID}/metrics`);
     expect(res.status).toBe(200);

@@ -152,14 +152,18 @@ describe('getOperationsDashboard', () => {
       [/SELECT event_type, COUNT\(\*\)::int AS total\s+FROM notifications_outbox/s, {
         rows: [{ event_type: 'package.received', total: 20 }],
       }],
-      [/SELECT\s+COUNT\(\*\) FILTER \(WHERE status = 'sent'\)[\s\S]*FROM notification_log_v2/s, {
-        rows: [{ sent: '90', failed: '10' }],
+      [/SELECT\s+COUNT\(\*\) FILTER \(WHERE status = 'sent'\)[\s\S]*FROM notification_log_v2/s, (sql, args) => {
+        expect(sql).toMatch(/AND property_id = \$2/);
+        expect(args).toEqual(['168 hours', PROPERTY_ID]);
+        return { rows: [{ sent: '90', failed: '10' }] };
       }],
-      [/FROM notification_log_v2\s+.*GROUP BY channel/s, {
-        rows: [
+      [/FROM notification_log_v2\s+.*GROUP BY channel/s, (sql, args) => {
+        expect(sql).toMatch(/AND property_id = \$2/);
+        expect(args).toEqual(['168 hours', PROPERTY_ID]);
+        return { rows: [
           { channel: 'sms', sent: '10', failed: '5' },
           { channel: 'web_push', sent: '80', failed: '5' },
-        ],
+        ] };
       }],
     ]);
 

@@ -220,6 +220,14 @@ describe('v1 staff workspace routes', () => {
     const vehiclesCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM vehicles'));
     expect(vehiclesCall[0]).toContain('property_id = $2');
     expect(vehiclesCall[1]).toEqual([UUID_A, UUID_B]);
+    const countsCall = db.query.mock.calls.find(([sql]) => sql.includes('GROUP BY status'));
+    expect(countsCall[0]).toContain('scoped_resident.property_id = $2');
+    expect(countsCall[1]).toEqual(['resident-uid-1', UUID_B]);
+    const recentRequestsCall = db.query.mock.calls.find(
+      ([sql]) => sql.includes('FROM requests') && sql.includes('ORDER BY created_at DESC'),
+    );
+    expect(recentRequestsCall[0]).toContain('scoped_resident.property_id = $2');
+    expect(recentRequestsCall[1]).toEqual(['resident-uid-1', UUID_B]);
   });
 
   test('GET /residents/:id/quick-view shows phone to concierge', async () => {

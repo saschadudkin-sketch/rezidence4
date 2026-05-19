@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 const scanRoots = [
   path.join(root, 'backend', 'src', 'v1', 'routes'),
   path.join(root, 'backend', 'src', 'v1', 'services'),
+  path.join(root, 'backend', 'src', 'v1', 'workers'),
 ];
 
 const propertyOwnedTables = [
@@ -83,8 +84,10 @@ function compactSql(sql) {
 
 function isScopedSql(snippet) {
   return /\bproperty_id\s*=\s*\$\d+\b/i.test(snippet)
+    || /\b\w+\.property_id\s*=\s*\$\d+\b/i.test(snippet)
     || /\$\{\s*propertyPredicate\s*\}/.test(snippet)
     || /\$\{[^}]*propertyId[^}]*\?\s*['"`]\s*AND\s+property_id/i.test(snippet)
+    || /\$\{[^}]*propertyId[^}]*\?\s*['"`]\s*AND\s+\w+\.property_id/i.test(snippet)
     || /\$\{[^}]*property_id[^}]*\}/i.test(snippet);
 }
 
@@ -97,13 +100,12 @@ function auditSqlText(file, source) {
   const findings = [];
   const tablePattern = propertyOwnedTables.join('|');
   const re = new RegExp(
-    String.raw`SELECT\s+([\s\S]{1,180}?)\s+FROM\s+(${tablePattern})\s+WHERE\s+id\s*=\s*\$1([\s\S]{0,220})`,
+    String.raw`SELECT\s+([\s\S]{1,180}?)\s+FROM\s+(${tablePattern})(?:\s+(?:AS\s+)?([A-Za-z_][\w]*))?\s+WHERE\s+(?:(?:\3|[A-Za-z_][\w]*)\.)?id\s*=\s*\$1([\s\S]{0,220})`,
     'gi',
   );
 
   for (const match of source.matchAll(re)) {
-    const [raw, selectExpr, table, tail] = match;
-    const snippet = `${raw}${tail}`;
+    const [snippet, selectExpr, table] = match;
     if (!isFullRowSelect(selectExpr)) continue;
     if (isScopedSql(snippet)) continue;
 
@@ -121,13 +123,12 @@ function auditMutationText(file, source) {
   const findings = [];
   const tablePattern = propertyOwnedTables.join('|');
   const re = new RegExp(
-    String.raw`\b(UPDATE|DELETE\s+FROM)\s+(${tablePattern})\b([\s\S]{0,360}?)\bWHERE\s+id\s*=\s*\$1([\s\S]{0,220})`,
+    String.raw`\b(UPDATE|DELETE\s+FROM)\s+(${tablePattern})(?:\s+(?:AS\s+)?([A-Za-z_][\w]*))?\b([\s\S]{0,360}?)\bWHERE\s+(?:(?:\3|[A-Za-z_][\w]*)\.)?id\s*=\s*\$1([\s\S]{0,220})`,
     'gi',
   );
 
   for (const match of source.matchAll(re)) {
-    const [raw, op, table, middle, tail] = match;
-    const snippet = `${raw}${middle}${tail}`;
+    const [snippet, op, table] = match;
     if (isScopedSql(snippet)) continue;
 
     findings.push({
@@ -142,11 +143,11 @@ function auditMutationText(file, source) {
 
 function auditRouteHelperCalls(file, source) {
   const findings = [];
-  const callRe = /\b([A-Za-z_$][\w$]*)\s*\(([\s\S]{0,260}?req\.params\.[A-Za-z_$][\w$]*[\s\S]{0,260}?)\)/g;
+  const callRe = /\b([A-Za-z_$][\w$]*)\s*\(([\s\S]{0,420}?req\.params\.[A-Za-z_$][\w$]*[\s\S]{0,420}?)\)/g;
   for (const match of source.matchAll(callRe)) {
     const [, helper, args] = match;
-    if (!/^(?:get.*ById|load.*Detail|getOutboxById)$/i.test(helper)) continue;
-    if (/\bpropertyId\b/.test(args) || /\bproperty_id\b/.test(args)) continue;
+    if (!/^(?:get.*ById|load.*Detail|find.*ById|load.*ById|getOutboxById)$/i.test(helper)) continue;
+    if (/\bpropertyId\b/.test(args) || /\bproperty_id\b/.test(args) || /\bpropertyScope\b/.test(args)) continue;
 
     findings.push({
       file,
