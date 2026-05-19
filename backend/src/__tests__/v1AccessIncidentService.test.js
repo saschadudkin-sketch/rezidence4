@@ -220,6 +220,28 @@ describe('AccessIncidentService', () => {
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
   });
 
+  test('createOverride rejects invalid override_type before staff lookup', async () => {
+    const queryable = makeQueryable(() => {
+      throw new Error('invalid override_type should not query');
+    });
+
+    await expect(createOverride({
+      queryable,
+      user: { uid: 'legacy-security-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        incident_id: UUID_INCIDENT,
+        pass_id: null,
+        override_type: 'force_open',
+        reason: 'resident confirmed',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'Invalid override_type',
+    });
+    expect(queryable.query).not.toHaveBeenCalled();
+  });
+
   test('createOverride rejects pass_id from another property', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });

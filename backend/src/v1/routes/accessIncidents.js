@@ -348,6 +348,9 @@ router.post('/access-incidents/:id/resolve', async (req, res, next) => {
     if (!OVERRIDE_TYPES.has(overrideInput.override_type)) {
       return res.status(400).json({ error: 'Invalid override_type' });
     }
+    if (overrideInput.pass_id !== undefined && overrideInput.pass_id !== null && !isValidUuid(overrideInput.pass_id)) {
+      return res.status(400).json({ error: 'override.pass_id must be UUID or null' });
+    }
     if (!isNonEmptyString(overrideInput.reason, 500)) {
       return res.status(422).json({ error: 'override.reason is required' });
     }

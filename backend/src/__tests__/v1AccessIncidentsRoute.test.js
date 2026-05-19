@@ -239,6 +239,31 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     expect(auditCall[1][5]).toBe('incident.reopened');
   });
 
+  test('resolve rejects invalid override pass_id before opening transaction', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (String(sql).includes('SELECT property_id FROM access_incidents')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/access-incidents/${UUID_INCIDENT}/resolve`)
+      .send({
+        reason: 'resolved at desk',
+        create_override: {
+          override_type: 'manual_admit',
+          pass_id: 'not-a-uuid',
+          reason: 'resident confirmed',
+        },
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('override.pass_id must be UUID or null');
+    expect(db.pool.connect).not.toHaveBeenCalled();
+  });
+
   test('incident detail reads incident and overrides within owned property scope', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
     db.query.mockImplementation((sql) => {

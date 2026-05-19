@@ -25,6 +25,18 @@ const VISIT_LOG_COLS = `
   degraded_reconciliation_note, occurred_at, created_at
 `;
 
+const INCIDENT_TYPES = new Set([
+  'expired_pass_attempt', 'invalid_qr', 'invalid_pin', 'invalid_plate', 'blacklist_hit',
+  'outside_time_window', 'unauthorized_vehicle', 'manual_override',
+  'provider_conflict', 'suspicious_repeat_attempt',
+  'policy_denied', 'policy_security_review_required',
+]);
+const SEVERITIES = new Set(['low', 'medium', 'high', 'critical']);
+const OVERRIDE_TYPES = new Set([
+  'manual_admit', 'manual_deny', 'temporary_whitelist', 'temporary_block',
+]);
+const MANUAL_DECISIONS = new Set(['manual_admit', 'manual_deny']);
+
 class AccessIncidentServiceError extends Error {
   constructor(status, message) {
     super(message);
@@ -108,14 +120,40 @@ async function validateIncidentReferences(queryable, {
 
   if (accessPointId) {
     const { rows } = await queryable.query(
-      `SELECT id FROM access_points WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      `SELECT id FROM access_points
+        WHERE id = $1 AND property_id = $2 AND is_active = true
+        LIMIT 1`,
       [accessPointId, propertyId],
     );
     if (!rows[0]) throw serviceError(400, 'access_point_id does not exist for this property');
   }
 }
 
+function validateIncidentInput(input) {
+  if (!INCIDENT_TYPES.has(input.incident_type)) throw serviceError(400, 'Invalid incident_type');
+  if (!SEVERITIES.has(input.severity)) throw serviceError(400, 'Invalid severity');
+  if (typeof input.title !== 'string' || !input.title.trim()) {
+    throw serviceError(400, 'title is required');
+  }
+}
+
+function validateOverrideInput(input) {
+  if (!OVERRIDE_TYPES.has(input.override_type)) throw serviceError(400, 'Invalid override_type');
+  if (typeof input.reason !== 'string' || !input.reason.trim()) {
+    throw serviceError(422, 'reason is required');
+  }
+}
+
+function validateManualDecisionInput(input) {
+  if (!MANUAL_DECISIONS.has(input.decision)) throw serviceError(400, 'Invalid manual decision');
+  if (typeof input.reason !== 'string' || !input.reason.trim()) {
+    throw serviceError(422, 'reason is required');
+  }
+  if (input.severity && !SEVERITIES.has(input.severity)) throw serviceError(400, 'Invalid severity');
+}
+
 async function createIncident({ queryable, user, input }) {
+  validateIncidentInput(input);
   const staffId = await requireStaffId(queryable, user);
   await validateIncidentReferences(queryable, {
     propertyId: input.property_id,
@@ -209,6 +247,7 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
 
     let overridePassId = null;
     if (overrideInput) {
+      validateOverrideInput(overrideInput);
       overridePassId = overrideInput.pass_id || curRows[0].related_pass_id || null;
       await validateOverrideReferences(client, {
         propertyId: curRows[0].property_id,
@@ -305,6 +344,7 @@ async function patchIncident({ queryable, incidentId, changes, propertyId = null
 }
 
 async function createOverride({ queryable, user, input }) {
+  validateOverrideInput(input);
   const staffId = await requireStaffId(queryable, user);
   await validateOverrideReferences(queryable, {
     propertyId: input.property_id,
@@ -344,6 +384,7 @@ function manualDecisionDescription(input) {
 }
 
 async function createManualSecurityDecision({ txPool, user, input }) {
+  validateManualDecisionInput(input);
   const client = await txPool.connect();
   const normalizedPlate = input.vehicle_plate ? normalizePlate(input.vehicle_plate) : null;
   const occurredAtIso = input.occurred_at || new Date().toISOString();
