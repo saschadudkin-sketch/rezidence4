@@ -99,6 +99,12 @@ describe('access policy routes', () => {
     expect(insert).toBeDefined();
     expect(insert[1][0]).toBe(UUID_PROPERTY);
     expect(insert[1][15]).toBe(JSON.stringify({ source: 'test' }));
+    const audit = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO property_audit_log'));
+    expect(audit[0]).toContain('property_id');
+    expect(audit[0]).toContain('entity_type');
+    expect(audit[1][0]).toBe(UUID_PROPERTY);
+    expect(audit[1][4]).toBe('access_policy');
+    expect(audit[1][5]).toBe(UUID_POLICY);
   });
 
   test('POST /api/v1/access-policies rejects dormant biometric access methods', async () => {

@@ -425,6 +425,35 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
   });
 
+  test('GET /:id scopes approvals and pass detail to the request property', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_requests WHERE id = $1')) {
+        return Promise.resolve({ rows: [accessRequestRow({ status: 'approved' })] });
+      }
+      if (sql.includes('FROM access_approvals')) {
+        return Promise.resolve({ rows: [{ id: 'approval-1', decision: 'approved' }] });
+      }
+      if (sql.includes('FROM passes')) {
+        return Promise.resolve({ rows: [{ id: UUID_PASS, status: 'active' }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/access-requests/${UUID_REQUEST}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.approvals).toHaveLength(1);
+    expect(res.body.pass.id).toBe(UUID_PASS);
+    const approvalsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM access_approvals'));
+    const passCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM passes'));
+    expect(approvalsCall[0]).toContain('ar.property_id = $2');
+    expect(approvalsCall[1]).toEqual([UUID_REQUEST, UUID_PROPERTY]);
+    expect(passCall[0]).toContain('property_id = $2');
+    expect(passCall[1]).toEqual([UUID_REQUEST, UUID_PROPERTY]);
+  });
+
   test('manual approval setting keeps non-contractor request pending and does not issue pass', async () => {
     mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
     const row = accessRequestRow({ status: 'pending_approval', approval_required: true });

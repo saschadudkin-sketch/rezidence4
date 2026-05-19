@@ -64,14 +64,34 @@ function sendKnownError(res, err) {
   return false;
 }
 
-function auditLog(req, { action, resourceType, resourceId, changes }) {
+function actorTypeForRole(role) {
+  if (role === 'contractor') return 'contractor';
+  if (role === 'owner' || role === 'tenant' || role === 'resident') return 'resident';
+  if (role === 'system') return 'system';
+  return 'staff';
+}
+
+function auditLog(req, {
+  propertyId,
+  action,
+  resourceType,
+  resourceId,
+  changes,
+  entityType = resourceType,
+  entityId = resourceId,
+}) {
   getDb(req).query(
     `INSERT INTO property_audit_log
-       (actor_uid, actor_role, action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
+        action, resource_type, resource_id, changes, ip_address)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
+      propertyId,
       req.user?.uid || null,
       req.user?.role || null,
+      actorTypeForRole(req.user?.role),
+      entityType,
+      entityId,
       action,
       resourceType,
       resourceId,
@@ -218,6 +238,7 @@ router.post('/access-policies', async (req, res, next) => {
 
     const policy = await createPolicy({ queryable: getDb(req), input: req.body || {} });
     auditLog(req, {
+      propertyId: policy.property_id,
       action: 'access_policy.created',
       resourceType: 'access_policy',
       resourceId: policy.id,
@@ -261,6 +282,7 @@ router.patch('/access-policies/:id', async (req, res, next) => {
       propertyId,
     });
     auditLog(req, {
+      propertyId: policy.property_id,
       action: 'access_policy.updated',
       resourceType: 'access_policy',
       resourceId: policy.id,
@@ -288,6 +310,7 @@ router.post('/access-policies/:id/deactivate', async (req, res, next) => {
       propertyId,
     });
     auditLog(req, {
+      propertyId: policy.property_id,
       action: 'access_policy.deactivated',
       resourceType: 'access_policy',
       resourceId: policy.id,

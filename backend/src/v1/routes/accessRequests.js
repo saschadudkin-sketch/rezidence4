@@ -411,17 +411,23 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const approvalsP = getDb(req).query(
-      `SELECT id, approver_type, approver_staff_id, approver_resident_id,
-              decision, comment, created_at
-         FROM access_approvals
-        WHERE access_request_id = $1
-        ORDER BY created_at ASC`,
-      [req.params.id],
+      `SELECT aa.id, aa.approver_type, aa.approver_staff_id, aa.approver_resident_id,
+              decision, comment, aa.created_at
+         FROM access_approvals aa
+         JOIN access_requests ar
+           ON ar.id = aa.access_request_id
+          AND ar.property_id = $2
+        WHERE aa.access_request_id = $1
+        ORDER BY aa.created_at ASC`,
+      [req.params.id, ar.property_id],
     );
     const passP = getDb(req).query(
       `SELECT id, pass_type, status, valid_from, valid_until
-         FROM passes WHERE access_request_id = $1 ORDER BY created_at DESC LIMIT 1`,
-      [req.params.id],
+         FROM passes
+        WHERE access_request_id = $1
+          AND property_id = $2
+        ORDER BY created_at DESC LIMIT 1`,
+      [req.params.id, ar.property_id],
     );
     const [approvalsR, passR] = await Promise.all([approvalsP, passP]);
     res.json({
