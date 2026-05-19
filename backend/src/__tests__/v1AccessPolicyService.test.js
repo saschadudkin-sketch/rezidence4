@@ -1,10 +1,12 @@
 'use strict';
 
 const {
+  deactivatePolicy,
   evaluateAccessPolicy,
   getDefaultPolicyTemplates,
   normalizePolicyInput,
   scheduleMatches,
+  updatePolicy,
 } = require('../v1/services/accessPolicyService');
 
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
@@ -235,5 +237,38 @@ describe('AccessPolicyService', () => {
       days_of_week: [2],
       time_windows: [{ start: '11:00', end: '12:30' }],
     }, NOW)).toMatchObject({ ok: true });
+  });
+
+  test('updatePolicy scopes the write to the resolved property', async () => {
+    const queryable = {
+      query: jest.fn(() => Promise.resolve({ rows: [policy({ name: 'Updated policy' })] })),
+    };
+
+    const result = await updatePolicy({
+      queryable,
+      policyId: UUID_POLICY_A,
+      propertyId: UUID_PROPERTY,
+      input: { name: 'Updated policy' },
+    });
+
+    expect(result.name).toBe('Updated policy');
+    expect(queryable.query.mock.calls[0][0]).toContain('WHERE id = $2 AND property_id = $3');
+    expect(queryable.query.mock.calls[0][1]).toEqual(['Updated policy', UUID_POLICY_A, UUID_PROPERTY]);
+  });
+
+  test('deactivatePolicy scopes the write to the resolved property', async () => {
+    const queryable = {
+      query: jest.fn(() => Promise.resolve({ rows: [policy({ is_active: false })] })),
+    };
+
+    const result = await deactivatePolicy({
+      queryable,
+      policyId: UUID_POLICY_A,
+      propertyId: UUID_PROPERTY,
+    });
+
+    expect(result.is_active).toBe(false);
+    expect(queryable.query.mock.calls[0][0]).toContain('WHERE id = $1 AND property_id = $2');
+    expect(queryable.query.mock.calls[0][1]).toEqual([UUID_POLICY_A, UUID_PROPERTY]);
   });
 });

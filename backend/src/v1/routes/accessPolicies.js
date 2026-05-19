@@ -254,7 +254,12 @@ router.patch('/access-policies/:id', async (req, res, next) => {
     if (!canWritePolicy(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     await validatePolicyTopology(req, propertyId, req.body || {});
 
-    const policy = await updatePolicy({ queryable: getDb(req), policyId: req.params.id, input: req.body || {} });
+    const policy = await updatePolicy({
+      queryable: getDb(req),
+      policyId: req.params.id,
+      input: req.body || {},
+      propertyId,
+    });
     auditLog(req, {
       action: 'access_policy.updated',
       resourceType: 'access_policy',
@@ -277,7 +282,11 @@ router.post('/access-policies/:id/deactivate', async (req, res, next) => {
     const propertyId = await requirePolicyProperty(req, req.params.id);
     if (!canWritePolicy(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
-    const policy = await deactivatePolicy({ queryable: getDb(req), policyId: req.params.id });
+    const policy = await deactivatePolicy({
+      queryable: getDb(req),
+      policyId: req.params.id,
+      propertyId,
+    });
     auditLog(req, {
       action: 'access_policy.deactivated',
       resourceType: 'access_policy',

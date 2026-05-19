@@ -125,9 +125,11 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
       NOW,
     ]);
     expect(passUpdateCall[0]).toContain("status = 'used'");
-    expect(passUpdateCall[1]).toEqual([UUID_PASS]);
+    expect(passUpdateCall[0]).toContain('property_id = $2');
+    expect(passUpdateCall[1]).toEqual([UUID_PASS, UUID_PROPERTY]);
     const credentialUpdateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE pass_credentials'));
-    expect(credentialUpdateCall[1]).toEqual([UUID_PASS]);
+    expect(credentialUpdateCall[0]).toContain('property_id = $2');
+    expect(credentialUpdateCall[1]).toEqual([UUID_PASS, UUID_PROPERTY]);
     expect(auditCall[0]).toContain('property_id');
     expect(auditCall[0]).toContain('entity_id');
     expect(auditCall[1][0]).toBe(UUID_PROPERTY);
@@ -380,7 +382,8 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
 
     expect(result.verdict.allowed).toBe(true);
     const credentialUpdateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE pass_credentials'));
-    expect(credentialUpdateCall[1]).toEqual([UUID_PASS]);
+    expect(credentialUpdateCall[0]).toContain('property_id = $2');
+    expect(credentialUpdateCall[1]).toEqual([UUID_PASS, UUID_PROPERTY]);
     const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
     expect(JSON.parse(visitCall[1][9])).toMatchObject({
       mode: 'pin',

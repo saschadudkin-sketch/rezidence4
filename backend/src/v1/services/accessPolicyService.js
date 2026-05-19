@@ -327,7 +327,7 @@ async function createPolicy({ queryable, input }) {
   return rows[0];
 }
 
-async function updatePolicy({ queryable, policyId, input }) {
+async function updatePolicy({ queryable, policyId, input, propertyId = null }) {
   const updates = normalizePolicyInput(input, { partial: true });
   const sets = [];
   const params = [];
@@ -347,11 +347,13 @@ async function updatePolicy({ queryable, policyId, input }) {
   if (!sets.length) throw serviceError(400, 'No updatable fields provided');
   sets.push('updated_at = NOW()');
   params.push(policyId);
+  const policyIdIdx = params.length;
+  if (propertyId) params.push(propertyId);
 
   const { rows } = await queryable.query(
     `UPDATE access_policies
         SET ${sets.join(', ')}
-      WHERE id = $${params.length}
+      WHERE id = $${policyIdIdx}${propertyId ? ` AND property_id = $${params.length}` : ''}
       RETURNING ${POLICY_COLS}`,
     params,
   );
@@ -359,13 +361,13 @@ async function updatePolicy({ queryable, policyId, input }) {
   return rows[0];
 }
 
-async function deactivatePolicy({ queryable, policyId }) {
+async function deactivatePolicy({ queryable, policyId, propertyId = null }) {
   const { rows } = await queryable.query(
     `UPDATE access_policies
         SET is_active = false, updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}
       RETURNING ${POLICY_COLS}`,
-    [policyId],
+    propertyId ? [policyId, propertyId] : [policyId],
   );
   if (!rows[0]) throw serviceError(404, 'Access policy not found');
   return rows[0];

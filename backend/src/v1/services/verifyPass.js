@@ -413,9 +413,11 @@ async function verifyPass({
       const { rows: usedRows } = await client.query(
         `UPDATE passes
             SET status = 'used'
-          WHERE id = $1 AND status = 'active'
+          WHERE id = $1
+            AND property_id = $2
+            AND status = 'active'
           RETURNING id`,
-        [pass.id],
+        [pass.id, property_id],
       );
       if (!usedRows.length) {
         verdict.allowed = false;
@@ -430,9 +432,10 @@ async function verifyPass({
                 SET used_at = COALESCE(used_at, NOW()),
                     updated_at = NOW()
               WHERE pass_id = $1
+                AND property_id = $2
                 AND revoked_at IS NULL
                 AND used_at IS NULL`,
-            [pass.id],
+            [pass.id, property_id],
           );
         }
       }
