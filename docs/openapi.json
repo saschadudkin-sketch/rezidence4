@@ -29242,6 +29242,12 @@
             "format": "uuid",
             "nullable": true
           },
+          "trusted_visitor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Resident-owned trusted visitor template to link to this access request. Only the owning resident may use it; vehicle_access must use the vehicle flow."
+          },
           "request_id": {
             "type": "string",
             "nullable": true

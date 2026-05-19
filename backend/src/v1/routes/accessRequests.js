@@ -449,6 +449,7 @@ router.post('/', idempotency, async (req, res, next) => {
       property_id, request_type,
       visitor_name = null, visitor_phone = null, vehicle_id = null,
       target_unit_id = null, target_zone_id = null, target_point_id = null,
+      trusted_visitor_id = null,
       request_id = null,
       reason = null,
       guest_instructions = null,
@@ -467,7 +468,8 @@ router.post('/', idempotency, async (req, res, next) => {
       return res.status(400).json({ error: 'ends_at must be after starts_at' });
     }
     for (const [k, v] of [['vehicle_id', vehicle_id], ['target_unit_id', target_unit_id],
-                          ['target_zone_id', target_zone_id], ['target_point_id', target_point_id]]) {
+                          ['target_zone_id', target_zone_id], ['target_point_id', target_point_id],
+                          ['trusted_visitor_id', trusted_visitor_id]]) {
       if (v !== null && !isValidUuid(v)) return res.status(400).json({ error: `${k} must be UUID or null` });
     }
     await validateAccessTopologyTarget(getDb(req), {
@@ -521,6 +523,7 @@ router.post('/', idempotency, async (req, res, next) => {
         target_unit_id,
         target_zone_id,
         target_point_id,
+        trusted_visitor_id,
         request_id,
         reason: normalizedReason,
         guest_instructions: normalizedGuestInstructions,
@@ -542,6 +545,7 @@ router.post('/', idempotency, async (req, res, next) => {
         ends_at,
         guest_instructions: Boolean(normalizedGuestInstructions),
         guard_notes: Boolean(normalizedGuardNotes),
+        trusted_visitor_id: trusted_visitor_id || null,
         approval_required: result.approval_required,
         pass_id: result.pass?.id || null,
       },

@@ -67,6 +67,7 @@ export interface ResidentOffboardingResult {
     vehicles_marked_for_review: number;
     cancelled_access_requests: number;
     notification_preferences_disabled: number;
+    trusted_visitors_deactivated: number;
   };
   affected: Record<string, unknown[]>;
 }

@@ -5,7 +5,7 @@ Scope: `DH-55` resident lifecycle/offboarding report evidence
 
 ## 1. Purpose
 
-Resident deactivation already cascades through memberships, unit links, active passes, pending resident-created access requests and vehicle access review markers. `DH-55` adds an admin evidence surface so property admins can verify recent offboarding effects without querying the database directly.
+Resident deactivation already cascades through memberships, unit links, active passes, pending resident-created access requests, resident-owned trusted visitor templates and vehicle access review markers. `DH-55` adds an admin evidence surface so property admins can verify recent offboarding effects without querying the database directly.
 
 This report is operational evidence over lifecycle/audit rows. It is not an ownership-transfer workflow and does not replace legal sale/lease-end documentation.
 
@@ -42,6 +42,7 @@ Response shape:
         "passes",
         "access_requests",
         "vehicles",
+        "trusted_visitors",
         "property_audit_log"
       ],
       "report_scope": "resident_offboarding",
@@ -58,6 +59,7 @@ The report reads:
 - `resident_lifecycle_events` for deactivation history and offboarding summaries;
 - `residents` for current resident name/unit/active state;
 - `vehicles` for records still marked `review_required=true` after offboarding;
+- `trusted_visitors` for resident-owned frequent guest templates deactivated by offboarding;
 - source-table evidence metadata for reviewer traceability.
 
 The service does not expose raw PII beyond the resident name already visible to property admins in the residents module.

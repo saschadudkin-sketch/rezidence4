@@ -31,6 +31,7 @@ const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 const UUID_VEHICLE = '99999999-9999-4999-8999-999999999999';
 const UUID_POLICY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const UUID_OTHER_UNIT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const UUID_VISITOR = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 function buildApp({ featureFlags = null } = {}) {
   const app = express();
@@ -343,6 +344,84 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(insertCall[1][14]).toBe('Показать QR на северном КПП');
     expect(insertCall[1][15]).toBe('Проверить паспорт');
     expect(JSON.parse(insertCall[1][16])).toEqual(['link', 'qr']);
+  });
+
+  test('resident create can link an active trusted visitor template', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
+    const row = accessRequestRow({
+      status: 'approved',
+      approval_required: false,
+      visitor_name: 'Mom',
+      visitor_phone: '+79990000000',
+      trusted_visitor_id: UUID_VISITOR,
+      guest_instructions: 'Call first',
+    });
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO access_requests')) return Promise.resolve({ rows: [row] });
+      if (sql.includes('UPDATE trusted_visitors')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VISITOR,
+            property_id: UUID_PROPERTY,
+            resident_id: UUID_RESIDENT,
+            name: 'Mom',
+            phone: '+79990000000',
+            visitor_type: 'relative',
+            default_vehicle_plate: null,
+            default_instructions: 'Call first',
+            allowed_zone_id: null,
+            allowed_point_id: null,
+            is_active: true,
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO passes')) {
+        return Promise.resolve({ rows: [{ id: UUID_PASS, pass_type: 'guest', status: 'active' }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      if (sql.includes('FROM trusted_visitors')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VISITOR,
+            property_id: UUID_PROPERTY,
+            resident_id: UUID_RESIDENT,
+            name: 'Mom',
+            phone: '+79990000000',
+            visitor_type: 'relative',
+            default_vehicle_plate: null,
+            default_instructions: 'Call first',
+            allowed_zone_id: null,
+            allowed_point_id: null,
+            is_active: true,
+          }],
+        });
+      }
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      return Promise.resolve({ rows: [] });
+    });
+    db.pool.connect.mockResolvedValue(txClient);
+
+    const res = await supertest(buildApp())
+      .post('/api/v1/access-requests')
+      .send(validCreatePayload({
+        trusted_visitor_id: UUID_VISITOR,
+        visitor_name: null,
+        visitor_phone: null,
+      }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.access_request.trusted_visitor_id).toBe(UUID_VISITOR);
+    const insertCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_requests'));
+    expect(insertCall[1][6]).toBe('Mom');
+    expect(insertCall[1][7]).toBe('+79990000000');
+    expect(insertCall[1][12]).toBe(UUID_VISITOR);
+    expect(insertCall[1][14]).toBe('Call first');
+    const trustedVisitorUpdate = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE trusted_visitors'));
+    expect(trustedVisitorUpdate[1]).toEqual([UUID_VISITOR, UUID_PROPERTY, UUID_RESIDENT]);
   });
 
   test('resident create rejects target_unit_id that is not linked to resident', async () => {

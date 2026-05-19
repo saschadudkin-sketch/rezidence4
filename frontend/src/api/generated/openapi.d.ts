@@ -29446,6 +29446,11 @@ export interface components {
             target_zone_id?: string | null;
             /** Format: uuid */
             target_point_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Resident-owned trusted visitor template to link to this access request. Only the owning resident may use it; vehicle_access must use the vehicle flow.
+             */
+            trusted_visitor_id?: string | null;
             request_id?: string | null;
             reason?: string | null;
             guest_instructions?: string | null;

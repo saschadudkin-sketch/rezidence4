@@ -51,8 +51,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 trusted visitors / frequent guests
     // + 1 pass credential layer
     // + 1 guard authorized devices + 1 guard device hardening
-    // + 1 internal pass credential attempt table = 56
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(56);
+    // + 1 internal pass credential attempt table
+    // + 1 trusted visitor scope constraints = 57
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(57);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -178,6 +179,29 @@ describe('v1_056_pass_credential_attempts', () => {
     expect(tbl).toContain('REFERENCES access_points(property_id, id)');
     expect(sqls.find((s) => s.includes('idx_pass_credential_attempts_fingerprint_window')))
       .toContain('(property_id, credential_type, credential_fingerprint, occurred_at DESC)');
+  });
+});
+
+describe('v1_057_trusted_visitor_scope_constraints', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds composite tenant constraints for resident-owned trusted visitors', async () => {
+    await byId('v1_057_trusted_visitor_scope_constraints').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls[0]).toContain('UPDATE trusted_visitors tv');
+    expect(sqls[0]).toContain('is_active = false');
+    expect(sqls[1]).toContain('UPDATE access_requests ar');
+    expect(sqls[1]).toContain('trusted_visitor_id = NULL');
+    expect(sqls[2]).toContain('residents_id_property_unique UNIQUE (id, property_id)');
+    expect(sqls[3]).toContain('trusted_visitors_id_property_unique UNIQUE (id, property_id)');
+    expect(sqls[4]).toContain('FOREIGN KEY (resident_id, property_id)');
+    expect(sqls[4]).toContain('REFERENCES residents(id, property_id)');
+    expect(sqls[4]).toContain('ON DELETE CASCADE');
+    expect(sqls[5]).toContain('FOREIGN KEY (trusted_visitor_id, property_id)');
+    expect(sqls[5]).toContain('REFERENCES trusted_visitors(id, property_id)');
+    expect(sqls[5]).toContain('ON DELETE SET NULL (trusted_visitor_id)');
   });
 });
 

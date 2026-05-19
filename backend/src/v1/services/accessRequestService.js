@@ -202,6 +202,41 @@ async function validateAccessRequestReferences(queryable, {
   }
 }
 
+async function resolveTrustedVisitorInput(queryable, { input, creator }) {
+  if (!input.trusted_visitor_id) return { input, trustedVisitor: null };
+  if (!creator.created_by_resident_id) {
+    throw serviceError(403, 'Trusted visitor pass creation requires resident identity');
+  }
+  if (input.request_type === 'vehicle_access') {
+    throw serviceError(422, 'vehicle_access from trusted visitor requires the vehicle flow');
+  }
+
+  const { rows } = await queryable.query(
+    `SELECT ${TRUSTED_VISITOR_RETURNING}
+       FROM trusted_visitors
+      WHERE id = $1
+        AND property_id = $2
+        AND resident_id = $3
+        AND is_active = true
+      LIMIT 1`,
+    [input.trusted_visitor_id, input.property_id, creator.created_by_resident_id],
+  );
+  const trustedVisitor = rows[0] || null;
+  if (!trustedVisitor) throw serviceError(409, 'Trusted visitor is unavailable for pass creation');
+
+  return {
+    trustedVisitor,
+    input: {
+      ...input,
+      visitor_name: input.visitor_name || trustedVisitor.name,
+      visitor_phone: input.visitor_phone || trustedVisitor.phone,
+      target_zone_id: input.target_zone_id || trustedVisitor.allowed_zone_id || null,
+      target_point_id: input.target_point_id || trustedVisitor.allowed_point_id || null,
+      guest_instructions: input.guest_instructions ?? trustedVisitor.default_instructions,
+    },
+  };
+}
+
 async function evaluateAccessRequestPolicy({ queryable, property, input, creator }) {
   const policyContext = getRequestPolicyContext(input, creator);
   const vehicle = await loadPolicyVehicle(queryable, {
@@ -323,18 +358,20 @@ async function createAccessRequest({
   input,
 }) {
   const creator = await resolveCreator({ queryable, user });
+  const resolved = await resolveTrustedVisitorInput(queryable, { input, creator });
+  const effectiveInput = resolved.input;
   await validateAccessRequestReferences(queryable, {
-    propertyId: input.property_id,
-    vehicleId: input.vehicle_id || null,
-    targetUnitId: input.target_unit_id || null,
-    targetZoneId: input.target_zone_id || null,
-    targetPointId: input.target_point_id || null,
+    propertyId: effectiveInput.property_id,
+    vehicleId: effectiveInput.vehicle_id || null,
+    targetUnitId: effectiveInput.target_unit_id || null,
+    targetZoneId: effectiveInput.target_zone_id || null,
+    targetPointId: effectiveInput.target_point_id || null,
   });
-  await validateLinkedServiceRequest(queryable, { input, creator });
+  await validateLinkedServiceRequest(queryable, { input: effectiveInput, creator });
   const { policyDecision, approvalRequired } = await evaluateAccessRequestPolicy({
     queryable,
     property,
-    input,
+    input: effectiveInput,
     creator,
   });
   const initialStatus = approvalRequired ? 'pending_approval' : 'approved';
@@ -357,22 +394,19 @@ async function createAccessRequest({
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18,$19,$20,$21,$22)
        RETURNING ${AR_COLS}`,
       [
-        input.property_id, creator.created_by_type,
+        effectiveInput.property_id, creator.created_by_type,
         creator.created_by_resident_id, creator.created_by_staff_id, creator.created_by_contractor_user_id,
-        input.request_type, input.visitor_name, input.visitor_phone, input.vehicle_id,
-        input.target_zone_id, input.target_point_id, input.target_unit_id,
-        input.trusted_visitor_id || null,
-        input.reason, input.guest_instructions, input.guard_notes,
-        JSON.stringify(input.share_delivery_channels || []),
-        input.starts_at, input.ends_at, approvalRequired, initialStatus, approvedAt,
+        effectiveInput.request_type, effectiveInput.visitor_name, effectiveInput.visitor_phone, effectiveInput.vehicle_id,
+        effectiveInput.target_zone_id, effectiveInput.target_point_id, effectiveInput.target_unit_id,
+        effectiveInput.trusted_visitor_id || null,
+        effectiveInput.reason, effectiveInput.guest_instructions, effectiveInput.guard_notes,
+        JSON.stringify(effectiveInput.share_delivery_channels || []),
+        effectiveInput.starts_at, effectiveInput.ends_at, approvalRequired, initialStatus, approvedAt,
       ],
     );
     accessRequest = rows[0];
     accessRequest.policy_id = policyDecision.matched_policy_id || null;
-    if (input.trusted_visitor_id) {
-      if (!creator.created_by_resident_id) {
-        throw serviceError(403, 'Trusted visitor pass creation requires resident identity');
-      }
+    if (effectiveInput.trusted_visitor_id) {
       const trustedVisitorResult = await client.query(
         `UPDATE trusted_visitors
             SET last_used_at = NOW(), updated_at = NOW()
@@ -381,19 +415,19 @@ async function createAccessRequest({
             AND resident_id = $3
             AND is_active = true
           RETURNING ${TRUSTED_VISITOR_RETURNING}`,
-        [input.trusted_visitor_id, input.property_id, creator.created_by_resident_id],
+        [effectiveInput.trusted_visitor_id, effectiveInput.property_id, creator.created_by_resident_id],
       );
       if (!trustedVisitorResult.rows[0]) {
         throw serviceError(409, 'Trusted visitor is unavailable for pass creation');
       }
       trustedVisitor = trustedVisitorResult.rows[0];
     }
-    if (input.request_id) {
+    if (effectiveInput.request_id) {
       await client.query(
         `INSERT INTO request_access_links (request_id, access_request_id)
          VALUES ($1, $2)
          ON CONFLICT (request_id, access_request_id) DO NOTHING`,
-        [input.request_id, accessRequest.id],
+        [effectiveInput.request_id, accessRequest.id],
       );
     }
     if (!approvalRequired) {

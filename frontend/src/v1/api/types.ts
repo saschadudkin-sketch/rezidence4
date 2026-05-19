@@ -537,9 +537,11 @@ export interface AccessRequest {
   target_zone_id: UUID | null;
   target_point_id: UUID | null;
   target_unit_id: UUID | null;
+  trusted_visitor_id: UUID | null;
   reason: string | null;
   guest_instructions: string | null;
   guard_notes: string | null;
+  share_delivery_channels: string[] | null;
   starts_at: IsoDateTime;
   ends_at: IsoDateTime;
   status: RequestStatus;

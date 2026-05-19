@@ -13,6 +13,8 @@ const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 const UUID_POLICY = '99999999-9999-4999-8999-999999999999';
+const UUID_RESIDENT = '33333333-3333-4333-8333-333333333333';
+const UUID_VISITOR = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 function allowPolicy(overrides = {}) {
   return {
@@ -77,6 +79,79 @@ describe('AccessRequestService approval policy', () => {
 });
 
 describe('AccessRequestService state transitions', () => {
+  test('direct trusted visitor access request requires an active resident-owned template', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM residents')) return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+        if (sql.includes('FROM trusted_visitors')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+    const txPool = { connect: jest.fn() };
+
+    await expect(createAccessRequest({
+      queryable,
+      txPool,
+      property: { feature_flags: { manual_access_approval: false } },
+      user: { uid: 'legacy-resident-1', role: 'owner' },
+      input: {
+        property_id: UUID_PROPERTY,
+        request_type: 'guest_access',
+        visitor_name: null,
+        visitor_phone: null,
+        vehicle_id: null,
+        target_unit_id: null,
+        target_zone_id: null,
+        target_point_id: null,
+        trusted_visitor_id: UUID_VISITOR,
+        request_id: null,
+        reason: 'visit',
+        starts_at: '2026-05-05T10:00:00.000Z',
+        ends_at: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Trusted visitor is unavailable for pass creation',
+    });
+    expect(txPool.connect).not.toHaveBeenCalled();
+  });
+
+  test('direct trusted visitor access request cannot be created by staff', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+    const txPool = { connect: jest.fn() };
+
+    await expect(createAccessRequest({
+      queryable,
+      txPool,
+      property: { feature_flags: { manual_access_approval: false } },
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        request_type: 'guest_access',
+        visitor_name: null,
+        visitor_phone: null,
+        vehicle_id: null,
+        target_unit_id: null,
+        target_zone_id: null,
+        target_point_id: null,
+        trusted_visitor_id: UUID_VISITOR,
+        request_id: null,
+        reason: 'visit',
+        starts_at: '2026-05-05T10:00:00.000Z',
+        ends_at: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 403,
+      message: 'Trusted visitor pass creation requires resident identity',
+    });
+    expect(txPool.connect).not.toHaveBeenCalled();
+  });
+
   test('contractor access requires a linked service request', async () => {
     const queryable = {
       query: jest.fn((sql) => {

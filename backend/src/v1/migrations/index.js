@@ -104,6 +104,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./055_guard_authorized_devices_hardening'),
   // Access rollout hardening: internal credential-attempt rate-limit evidence
   require('./056_pass_credential_attempts'),
+  // Trusted visitors hardening: DB-level tenant scope constraints
+  require('./057_trusted_visitor_scope_constraints'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =

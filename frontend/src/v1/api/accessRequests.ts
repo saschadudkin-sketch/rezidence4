@@ -40,6 +40,7 @@ export interface CreateAccessRequestBody {
   visitor_name?: string | null;
   visitor_phone?: string | null;
   vehicle_id?: UUID | null;
+  trusted_visitor_id?: UUID | null;
   reason?: string | null;
   guest_instructions?: string | null;
   guard_notes?: string | null;

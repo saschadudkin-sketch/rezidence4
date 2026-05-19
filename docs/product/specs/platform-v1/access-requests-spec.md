@@ -39,6 +39,10 @@ Stable product fields:
 - `guest_instructions` — текст для гостя на публичной странице пропуска.
 - `guard_notes` — staff/security-only заметка для решения на КПП.
 - `share_delivery_channels` — будущая настройка каналов доставки ссылки/QR.
+- `trusted_visitor_id` — resident-owned frequent guest template. If supplied on
+  `POST /api/v1/access-requests`, backend verifies the template belongs to the
+  authenticated resident and same property, is active, and is not used for
+  `vehicle_access`.
 
 Эти поля реализованы как отдельные колонки в `v1_051_access_request_product_text`.
 `metadata` допустима только для экспериментальных или integration-only расширений.
@@ -66,6 +70,7 @@ access_requests
   target_zone_id                  UUID NULL → access_zones
   target_point_id                 UUID NULL → access_points
   target_unit_id                  UUID NULL → units
+  trusted_visitor_id              UUID NULL → trusted_visitors
   reason                          TEXT NULL
   guest_instructions              TEXT NULL
   guard_notes                     TEXT NULL
