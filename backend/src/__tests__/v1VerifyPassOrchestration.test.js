@@ -96,6 +96,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
   test('valid QR allows entry, creates visit log, and marks one-shot pass used', async () => {
     const txClient = installTxClient();
     db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
       if (sql.includes('FROM qr_passes_v2')) return Promise.resolve({ rows: [makePass()] });
       if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
       if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
@@ -150,6 +151,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     });
     db.pool.connect.mockResolvedValue(txClient);
     db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
       if (sql.includes('FROM qr_passes_v2')) return Promise.resolve({ rows: [makePass()] });
       if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
       if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
@@ -319,7 +321,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
           subject_vehicle_id: UUID_VEHICLE,
         })] });
       }
-      if (sql.includes('FROM vehicles WHERE id')) {
+      if (sql.includes('FROM vehicles') && sql.includes('id = $1')) {
         return Promise.resolve({ rows: [{
           id: UUID_VEHICLE,
           plate_number: 'A001AA77',
@@ -353,6 +355,7 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     const txClient = installTxClient();
     const pinHash = hashPin('123456');
     db.query.mockImplementation((sql, params) => {
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
       if (sql.includes('FROM pass_credential_attempts')) {
         expect(params).toEqual([UUID_PROPERTY, expect.any(String), credentialFingerprint(pinHash)]);
         return Promise.resolve({ rows: [{ n: 0 }] });
@@ -538,6 +541,10 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
 
   test('invalid plate denies through visit log and incident pipeline', async () => {
     const txClient = installTxClient();
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
 
     const result = await verifyPass({
       property_id: UUID_PROPERTY,
@@ -554,7 +561,6 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
     expect(result.verdict.event_type).toBe('exit_denied');
     expect(result.visit_log_id).toBe(UUID_VISIT_LOG);
     expect(result.incident_id).toBe(UUID_INCIDENT);
-    expect(db.query).not.toHaveBeenCalled();
 
     const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
     const incidentCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_incidents'));
@@ -570,6 +576,7 @@ describe('verifyPass orchestration — Phase 1.3 plate flow', () => {
       'invalid_plate', 'low', 'invalid plate',
     ]);
     expect(auditCall[1][2]).toBe('visit.exit_denied');
+    expect(db.query).toHaveBeenCalledTimes(1);
   });
 
   test('blacklisted plate denies with high-severity incident', async () => {

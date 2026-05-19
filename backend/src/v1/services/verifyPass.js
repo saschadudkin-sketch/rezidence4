@@ -112,6 +112,20 @@ function resolvePersonLabel(pass, vehicle) {
   return null;
 }
 
+async function validateAccessPointScope(db, propertyId, accessPointId) {
+  if (!accessPointId) return;
+  const { rows } = await db.query(
+    `SELECT id
+       FROM access_points
+      WHERE id = $1
+        AND property_id = $2
+        AND is_active = true
+      LIMIT 1`,
+    [accessPointId, propertyId],
+  );
+  if (!rows[0]) throw new Error('access_point_id does not exist for this property');
+}
+
 /**
  * Main entry point.  Возвращает { verdict, visit_log_id, pass_id, incident_id }.
  * Throws только на инфраструктурные ошибки; business deny — не throw.
@@ -146,13 +160,16 @@ async function verifyPass({
   if (!['qr', 'pin', 'plate', 'provider'].includes(mode)) throw new Error(`Invalid mode '${mode}'`);
   if (!['entry', 'exit'].includes(direction)) throw new Error(`Invalid direction '${direction}'`);
   const now = occurred_at ? new Date(occurred_at) : new Date();
+  await validateAccessPointScope(db, property_id, access_point_id);
 
   // ─── Step 1: idempotency ────────────────────────────────────────────────
   if (provider_event_id) {
     const { rows } = await db.query(
       `SELECT id, pass_id, event_type FROM visit_logs_v2
-         WHERE event_source = 'skud' AND provider_event_id = $1`,
-      [provider_event_id],
+         WHERE property_id = $1
+           AND event_source = 'skud'
+           AND provider_event_id = $2`,
+      [property_id, provider_event_id],
     );
     if (rows[0]) {
       return {
@@ -218,8 +235,10 @@ async function verifyPass({
       const { rows: vRows } = await db.query(
         `SELECT id, plate_number, owner_type, vehicle_type,
                 is_whitelisted, is_blacklisted
-           FROM vehicles WHERE id = $1`,
-        [pass.subject_vehicle_id],
+           FROM vehicles
+          WHERE id = $1
+            AND property_id = $2`,
+        [pass.subject_vehicle_id, property_id],
       );
       vehicle = vRows[0] || null;
     }
@@ -312,12 +331,14 @@ async function verifyPass({
     const { rows } = await db.query(
       `SELECT id, event_type
          FROM visit_logs_v2
-        WHERE pass_id = $1 AND performed_by_staff_id = $2
+        WHERE pass_id = $1
+          AND performed_by_staff_id = $2
+          AND property_id = $6
           AND event_type = $5
           AND occurred_at > $3
           AND ($4::uuid IS NULL OR access_point_id IS NOT DISTINCT FROM $4)
         ORDER BY occurred_at DESC LIMIT 1`,
-      [pass.id, performed_by_staff_id, cutoff, access_point_id || null, eventTypeFor(direction, true)],
+      [pass.id, performed_by_staff_id, cutoff, access_point_id || null, eventTypeFor(direction, true), property_id],
     );
     if (rows[0]) {
       return {

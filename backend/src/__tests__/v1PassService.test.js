@@ -14,6 +14,7 @@ const UUID_PASS = '66666666-6666-4666-8666-666666666666';
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_RESIDENT = '33333333-3333-4333-8333-333333333333';
 const UUID_STAFF = '44444444-4444-4444-8444-444444444444';
+const UUID_VEHICLE = '55555555-5555-4555-8555-555555555555';
 const UUID_ZONE = '77777777-7777-4777-8777-777777777777';
 const UUID_POINT = '88888888-8888-4888-8888-888888888888';
 const UUID_POLICY = '99999999-9999-4999-8999-999999999999';
@@ -59,6 +60,8 @@ describe('PassService QR and status transitions', () => {
   test('createPass stores access topology zone and point', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
       if (sql.includes('INSERT INTO passes')) {
         return Promise.resolve({ rows: [{ id: UUID_PASS, zone_id: UUID_ZONE, point_id: UUID_POINT }] });
       }
@@ -90,6 +93,69 @@ describe('PassService QR and status transitions', () => {
     expect(insertCall[1][8]).toBe(UUID_ZONE);
     expect(insertCall[1][9]).toBe(UUID_POINT);
     expect(insertCall[1][12]).toBe(UUID_STAFF);
+  });
+
+  test('createPass rejects subject references outside property before insert', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM vehicles')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createPass({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        access_request_id: null,
+        pass_type: 'vehicle',
+        subject_type: 'vehicle',
+        subject_resident_id: null,
+        subject_staff_id: null,
+        subject_contractor_user_id: null,
+        subject_vehicle_id: UUID_VEHICLE,
+        zone_id: null,
+        point_id: null,
+        valid_from: '2026-05-05T10:00:00.000Z',
+        valid_until: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'subject_vehicle_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+  });
+
+  test('createPass rejects access topology references outside property before insert', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createPass({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        access_request_id: null,
+        pass_type: 'guest',
+        subject_type: 'guest',
+        subject_resident_id: null,
+        subject_staff_id: null,
+        subject_contractor_user_id: null,
+        subject_vehicle_id: null,
+        zone_id: UUID_ZONE,
+        point_id: UUID_POINT,
+        valid_from: '2026-05-05T10:00:00.000Z',
+        valid_until: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'point_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
   });
 
   test('getOrCreateQr rejects terminal passes', async () => {

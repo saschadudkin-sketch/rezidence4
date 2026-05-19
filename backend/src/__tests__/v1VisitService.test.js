@@ -27,6 +27,7 @@ describe('VisitService', () => {
   test('createVisitLog normalizes plate and writes staff_users.id', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
       if (sql.includes('INSERT INTO visit_logs_v2')) {
         return Promise.resolve({ rows: [{ id: 'visit-1', vehicle_plate: 'A123BC777', performed_by_staff_id: UUID_STAFF }] });
       }
@@ -58,6 +59,35 @@ describe('VisitService', () => {
     expect(insertCall[1]).not.toContain('legacy-security-1');
   });
 
+  test('createVisitLog rejects pass references outside property before insert', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createVisitLog({
+      queryable,
+      user: { uid: 'legacy-security-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        pass_id: UUID_PASS,
+        access_point_id: null,
+        event_type: 'manual_admit',
+        event_source: 'guard_console',
+        person_label: 'Guest',
+        vehicle_plate: null,
+        provider_event_id: null,
+        provider_payload: null,
+        occurred_at: '2026-05-05T10:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'pass_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO visit_logs_v2'))).toBe(false);
+  });
+
   test('verifyVisit calls verifyPass with staff_users.id and enriches pass info', async () => {
     verifyPass.mockResolvedValue({
       verdict: { allowed: true, reason: 'active_pass' },
@@ -87,10 +117,14 @@ describe('VisitService', () => {
 
     expect(result.pass.id).toBe(UUID_PASS);
     expect(verifyPass).toHaveBeenCalledWith(expect.objectContaining({
+      property_id: UUID_PROPERTY,
       performed_by_staff_id: UUID_STAFF,
       token: 'a'.repeat(32),
       access_point_id: UUID_POINT,
     }));
+    const passLookup = queryable.query.mock.calls.find(([sql]) => sql.includes('FROM passes'));
+    expect(passLookup[0]).toContain('property_id = $2');
+    expect(passLookup[1]).toEqual([UUID_PASS, UUID_PROPERTY]);
   });
 
   test('missing staff mapping returns service error before verify', async () => {

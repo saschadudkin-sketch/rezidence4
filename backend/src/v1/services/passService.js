@@ -109,10 +109,81 @@ async function getCurrentQrCredential(queryable, passId, propertyId = null) {
   if (rows[0]) return rows[0];
 
   const { rows: legacyRows } = await queryable.query(
-    `SELECT id, token, render_version FROM qr_passes_v2 WHERE pass_id = $1`,
-    [passId],
+    `SELECT id, token, render_version
+       FROM qr_passes_v2
+      WHERE pass_id = $1${propertyPredicate}`,
+    params,
   );
   return legacyRows[0] || null;
+}
+
+async function assertPropertyReference(queryable, { table, id, propertyId, field, active = false }) {
+  if (!id) return null;
+  const { rows } = await queryable.query(
+    `SELECT id
+       FROM ${table}
+      WHERE id = $1
+        AND property_id = $2
+        ${active ? 'AND is_active = true' : ''}
+      LIMIT 1`,
+    [id, propertyId],
+  );
+  if (!rows[0]) {
+    throw serviceError(400, `${field} does not exist for this property`);
+  }
+  return rows[0];
+}
+
+async function validatePassReferences(queryable, input) {
+  const propertyId = input.property_id;
+  if (!propertyId) throw serviceError(400, 'property_id is required');
+
+  await assertPropertyReference(queryable, {
+    table: 'access_requests',
+    id: input.access_request_id,
+    propertyId,
+    field: 'access_request_id',
+  });
+
+  const subjectChecks = {
+    resident: ['residents', input.subject_resident_id, 'subject_resident_id'],
+    staff: ['staff_users', input.subject_staff_id, 'subject_staff_id'],
+    contractor: ['contractor_users', input.subject_contractor_user_id, 'subject_contractor_user_id'],
+    vehicle: ['vehicles', input.subject_vehicle_id, 'subject_vehicle_id'],
+  };
+  const subjectCheck = subjectChecks[input.subject_type];
+  if (subjectCheck) {
+    await assertPropertyReference(queryable, {
+      table: subjectCheck[0],
+      id: subjectCheck[1],
+      propertyId,
+      field: subjectCheck[2],
+    });
+  }
+
+  await assertPropertyReference(queryable, {
+    table: 'access_zones',
+    id: input.zone_id,
+    propertyId,
+    field: 'zone_id',
+    active: true,
+  });
+
+  if (input.point_id) {
+    const { rows } = await queryable.query(
+      `SELECT id, zone_id
+         FROM access_points
+        WHERE id = $1
+          AND property_id = $2
+          AND is_active = true
+        LIMIT 1`,
+      [input.point_id, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'point_id does not exist for this property');
+    if (input.zone_id && rows[0].zone_id && rows[0].zone_id !== input.zone_id) {
+      throw serviceError(400, 'point_id does not belong to zone_id');
+    }
+  }
 }
 
 async function createQrCredential(queryable, pass) {
@@ -318,12 +389,13 @@ async function getCurrentPin({ queryable, user, isStaffUser, passId, propertyId 
             credential_ciphertext, credential_iv, credential_tag
        FROM pass_credentials
       WHERE pass_id = $1
+        AND property_id = $2
         AND credential_type = 'pin'
         AND revoked_at IS NULL
         AND used_at IS NULL
         AND (expires_at IS NULL OR expires_at >= NOW())
       LIMIT 1`,
-    [pass.id],
+    [pass.id, pass.property_id],
   );
   if (!rows[0]) throw serviceError(404, 'PIN credential not found');
   const value = decryptCredentialSecret(rows[0]);
@@ -345,6 +417,7 @@ async function getCurrentPin({ queryable, user, isStaffUser, passId, propertyId 
 async function createPass({ queryable, user, input }) {
   const staffId = await resolveStaffIdByUid(queryable, user?.uid);
   if (!staffId) throw serviceError(403, 'Staff identity is not mapped to v1');
+  await validatePassReferences(queryable, input);
 
   const { rows } = await queryable.query(
     `INSERT INTO passes
