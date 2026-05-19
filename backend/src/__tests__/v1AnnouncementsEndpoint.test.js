@@ -752,8 +752,9 @@ describe('GET /api/v1/admin/announcements/:id/metrics', () => {
     expect(res.status).toBe(404);
   });
   test('200 happy with metrics shape', async () => {
-    mockCurrentUser = { uid: 'a1', role: 'admin' };
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID2 };
     dispatch([
+      [/SELECT property_id FROM announcements_v2 WHERE id = \$1/, () => ({ rows: [{ property_id: UUID2 }] })],
       [/SELECT id, property_id, audience_type/, () => ({ rows: [{
         id: UUID, property_id: UUID2, audience_type: 'all',
         audience_building_id: null, audience_entrance_id: null, audience_unit_type: null,

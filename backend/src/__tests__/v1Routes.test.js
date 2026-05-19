@@ -443,6 +443,28 @@ describe('GET /api/v1/residents — phone-visibility gate', () => {
     expect(res.body.resident.phone).toBe('+79991234567');
     expect(db.query.mock.calls[0][0]).toContain('WHERE external_uid = $1');
   });
+
+  test('staff UUID detail read is scoped by resident property', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_B };
+    db.query
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_B }] })
+      .mockResolvedValueOnce({ rows: [residentRow] });
+
+    const res = await supertest(buildApp()).get(`/api/v1/residents/${UUID_A}`);
+    expect(res.status).toBe(200);
+    expect(db.query.mock.calls[0][0]).toContain('SELECT property_id FROM residents WHERE id = $1');
+    expect(db.query.mock.calls[1][0]).toContain('WHERE id = $1 AND property_id = $2');
+    expect(db.query.mock.calls[1][1]).toEqual([UUID_A, UUID_B]);
+  });
+
+  test('staff UUID detail rejects cross-property resident before full row read', async () => {
+    mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
+    db.query.mockResolvedValueOnce({ rows: [{ property_id: UUID_B }] });
+
+    const res = await supertest(buildApp()).get(`/api/v1/residents/${UUID_A}`);
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('POST /api/v1/residents', () => {

@@ -64,6 +64,10 @@ const {
   ALLOWED_CATEGORIES,
   ALLOWED_AUDIENCE_TYPES,
 } = require('../services/announcements');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUuid(v) { return typeof v === 'string' && UUID_RE.test(v); }
@@ -105,6 +109,18 @@ function canArchiveAnnouncementProperty(req, propertyId) {
 
 function canPublishAnnouncementProperty(req, propertyId) {
   return canInPropertyScope(req, 'announcements:publish', propertyId);
+}
+
+async function loadAnnouncementProperty(req, announcementId) {
+  return loadResourcePropertyId(req.db || db.pool || db, 'announcement', announcementId, {
+    notFoundMessage: 'Not found',
+  });
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
 }
 
 // ─── Rate limiters (§4) ──────────────────────────────────────────────────────
@@ -208,14 +224,15 @@ router.get('/:id', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const row = await getById(pool, req.params.id);
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    const row = await getById(pool, req.params.id, { propertyId });
     if (!row) return res.status(404).json({ error: 'Not found' });
     if (row.deleted_at) return res.status(404).json({ error: 'Not found' });
 
     // Staff видит всё.  Резидент — только опубликованное и попадающее в
     // audience (+ временное окно).
     if (isAnnouncementReader(req)) {
-      if (!canReadAnnouncementProperty(req, row.property_id)) return res.status(403).json({ error: 'Forbidden' });
+      if (!canReadAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     } else {
       if (!isResident(req)) return res.status(403).json({ error: 'Forbidden' });
       if (!row.published_at) return res.status(404).json({ error: 'Not found' });
@@ -233,6 +250,7 @@ router.get('/:id', async (req, res) => {
     }
     return res.json({ ok: true, announcement: row });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err, id: req.params.id }, '[v1/announcements] get failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -322,13 +340,14 @@ router.patch('/:id', async (req, res) => {
   }
 
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
-    if (!canWriteAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canWriteAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { row, conflict } = await updateAnnouncement(pool, req.params.id, patch, {
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'noop') return res.status(400).json({ error: 'No fields to update' });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
@@ -339,6 +358,7 @@ router.patch('/:id', async (req, res) => {
     audit(req, 'announcement.updated', req.params.id, Object.keys(patch));
     return res.json({ ok: true, announcement: row });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (/^invalid /i.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
@@ -358,10 +378,11 @@ router.post('/:id/publish', async (req, res, next) => {
   // Pre-read row, чтобы определить is_urgent и применить правильный RBAC.
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
-    if (!canWriteAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canWriteAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     if (existing.is_urgent && !isAdmin(req)) {
       return res.status(403).json({ error: 'Admin only for urgent announcements' });
@@ -380,7 +401,7 @@ router.post('/:id/publish', async (req, res, next) => {
           return res.status(400).json({ error: 'staff user not registered in staff_users' });
         }
         const { row, outboxRows, conflict } = await publishAnnouncement(pool, req.params.id, staffId, {
-          propertyId: existing.property_id,
+          propertyId,
         });
         if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
         if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -402,6 +423,7 @@ router.post('/:id/publish', async (req, res, next) => {
       }
     });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err, id: req.params.id }, '[v1/announcements] publish pre-check failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -414,13 +436,14 @@ router.post('/:id/unpublish',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
-    if (!canPublishAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canPublishAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { row, conflict } = await unpublishAnnouncement(pool, req.params.id, {
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -430,6 +453,7 @@ router.post('/:id/unpublish',
     audit(req, 'announcement.unpublished', req.params.id, null);
     return res.json({ ok: true, announcement: row });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err, id: req.params.id }, '[v1/announcements] unpublish failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -442,13 +466,14 @@ router.delete('/:id',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (existing.deleted_at) return res.status(409).json({ error: 'Already deleted' });
-    if (!canArchiveAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canArchiveAnnouncementProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { row, conflict } = await softDeleteAnnouncement(pool, req.params.id, {
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'already_deleted') {
@@ -457,6 +482,7 @@ router.delete('/:id',
     audit(req, 'announcement.deleted', req.params.id, null);
     return res.json({ ok: true, announcement: row });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err, id: req.params.id }, '[v1/announcements] delete failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -507,13 +533,15 @@ adminRouter.get('/:id/metrics',
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const metrics = await getReachMetrics(pool, req.params.id);
-    if (!metrics) return res.status(404).json({ error: 'Not found' });
-    if (metrics.property_id && !canPublishAnnouncementProperty(req, metrics.property_id)) {
+    const propertyId = await loadAnnouncementProperty(req, req.params.id);
+    if (!canPublishAnnouncementProperty(req, propertyId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    const metrics = await getReachMetrics(pool, req.params.id, { propertyId });
+    if (!metrics) return res.status(404).json({ error: 'Not found' });
     return res.json({ ok: true, metrics });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err, id: req.params.id }, '[v1/admin/announcements] metrics failed');
     return res.status(503).json({ ok: false, error: err.message });
   }

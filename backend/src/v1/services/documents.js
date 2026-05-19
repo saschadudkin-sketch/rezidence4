@@ -248,11 +248,13 @@ async function listPublic(db, propertyId, opts = {}) {
   return { rows, count: rows.length };
 }
 
-async function getById(db, id) {
+async function getById(db, id, opts = {}) {
   if (!isValidUuid(id)) return null;
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows } = await db.query(
-    `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1`,
-    [id],
+    `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1${propertyPredicate}`,
+    params,
   );
   return rows[0] || null;
 }

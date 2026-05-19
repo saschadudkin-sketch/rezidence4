@@ -56,6 +56,10 @@ const {
   resolveStaffIdByUid,
   resolveUnitIdsForResident,
 } = require('../services/packages');
+const {
+  isResourceScopeServiceError,
+  loadResourcePropertyId,
+} = require('../services/resourceScope');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -111,6 +115,18 @@ function canIntakePackageProperty(req, propertyId) {
 
 function canOperatePackageProperty(req, propertyId) {
   return isPackageOperator(req) && canReadPackageProperty(req, propertyId);
+}
+
+async function loadPackageProperty(req, packageId) {
+  return loadResourcePropertyId(req.db || db.pool || db, 'package', packageId, {
+    notFoundMessage: 'Not found',
+  });
+}
+
+function sendScopeError(res, err) {
+  if (!isResourceScopeServiceError(err)) return false;
+  res.status(err.status).json({ error: err.message });
+  return true;
 }
 
 // ─── Rate limiters (spec §4) ─────────────────────────────────────────────────
@@ -226,7 +242,8 @@ router.get('/:id', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const pkg = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const pkg = await getById(pool, req.params.id, { propertyId });
     if (!pkg) return res.status(404).json({ error: 'Not found' });
 
     // Visibility: staff — всё; резидент — только свои (по recipient_resident_id
@@ -243,11 +260,12 @@ router.get('/:id', async (req, res) => {
           return res.status(403).json({ error: 'Forbidden' });
         }
       }
-    } else if (!canReadPackageProperty(req, pkg.property_id)) {
+    } else if (!canReadPackageProperty(req, propertyId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     return res.json({ ok: true, package: pkg });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err }, '[v1/packages] getById query failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -314,17 +332,19 @@ router.patch('/:id', async (req, res) => {
   }
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
-    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canOperatePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const pkg = await updatePackage(pool, req.params.id, req.body || {}, {
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (!pkg) return res.status(404).json({ error: 'Not found' });
     audit(req, 'package.updated', pkg.id, req.body || null);
     return res.json({ ok: true, package: pkg });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (/^invalid |must start with/i.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
@@ -344,9 +364,10 @@ router.post('/:id/pickup', async (req, res) => {
   if (hasResident && hasName) return res.status(400).json({ error: 'picked_up_by_resident_id and picked_up_by_name are mutually exclusive' });
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
-    if (!canIntakePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canIntakePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     if (!staffId) {
@@ -356,7 +377,7 @@ router.post('/:id/pickup', async (req, res) => {
       pickedUpByResidentId: b.picked_up_by_resident_id || null,
       pickedUpByName: b.picked_up_by_name || null,
       pickedUpByStaffId: staffId,
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -369,6 +390,7 @@ router.post('/:id/pickup', async (req, res) => {
     });
     return res.json({ ok: true, package: pkg, outbox_fanout: outboxRows.length });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (/(either |mutually exclusive|must be UUID|invalid )/i.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
@@ -383,13 +405,14 @@ router.post('/:id/return', async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
-    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canOperatePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { package: pkg, conflict } = await returnPackage(pool, req.params.id, {
       ...(req.body || {}),
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -398,6 +421,7 @@ router.post('/:id/return', async (req, res) => {
     audit(req, 'package.returned', pkg.id, { reason: pkg.returned_reason });
     return res.json({ ok: true, package: pkg });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err }, '[v1/packages] return failed');
     return res.status(503).json({ ok: false, error: err.message });
   }
@@ -414,13 +438,14 @@ router.post('/:id/mark-lost',
   }
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
-    if (!canManagePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canManagePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { package: pkg, conflict } = await markLostPackage(pool, req.params.id, {
       ...(req.body || {}),
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -432,6 +457,7 @@ router.post('/:id/mark-lost',
     });
     return res.json({ ok: true, package: pkg });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     if (/^(confirm|reason)/i.test(err.message)) {
       return res.status(400).json({ error: err.message });
     }
@@ -446,12 +472,13 @@ router.post('/:id/remind', remindLimiter, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
   try {
-    const existing = await getById(pool, req.params.id);
+    const propertyId = await loadPackageProperty(req, req.params.id);
+    const existing = await getById(pool, req.params.id, { propertyId });
     if (!existing) return res.status(404).json({ error: 'Not found' });
-    if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
+    if (!canOperatePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { package: pkg, outboxRows, conflict } = await remindPackage(pool, req.params.id, {
-      propertyId: existing.property_id,
+      propertyId,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -460,6 +487,7 @@ router.post('/:id/remind', remindLimiter, async (req, res) => {
     audit(req, 'package.reminded', pkg.id, { outbox_fanout: outboxRows.length });
     return res.json({ ok: true, package: pkg, outbox_fanout: outboxRows.length });
   } catch (err) {
+    if (sendScopeError(res, err)) return;
     logger.error({ err }, '[v1/packages] remind failed');
     return res.status(503).json({ ok: false, error: err.message });
   }

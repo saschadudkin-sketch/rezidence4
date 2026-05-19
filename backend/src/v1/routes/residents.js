@@ -267,9 +267,22 @@ router.get('/:id', async (req, res, next) => {
     if (!byUuid && !isStaff(req.user.role) && req.user.uid !== ref) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const { rows } = byUuid
-      ? await getDb(req).query(`SELECT * FROM residents WHERE id = $1`, [ref])
-      : await getDb(req).query(`SELECT * FROM residents WHERE external_uid = $1`, [ref]);
+    let rows;
+    if (byUuid) {
+      const propertyId = await loadResourcePropertyId(getDb(req), 'resident', ref, {
+        notFoundMessage: 'Resident not found',
+      });
+      const isSelfById = req.user.uid === ref;
+      if (!isSelfById && !canReadResidents(req, propertyId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      ({ rows } = await getDb(req).query(
+        `SELECT * FROM residents WHERE id = $1 AND property_id = $2`,
+        [ref, propertyId],
+      ));
+    } else {
+      ({ rows } = await getDb(req).query(`SELECT * FROM residents WHERE external_uid = $1`, [ref]));
+    }
     if (!rows[0]) return res.status(404).json({ error: 'Resident not found' });
     const isSelf = rows[0].external_uid === req.user.uid || rows[0].id === req.user.uid;
     if (!isSelf && !canReadResidents(req, rows[0].property_id)) {
@@ -281,7 +294,10 @@ router.get('/:id', async (req, res, next) => {
     // Phone always visible to self, else capability-gated.
     const showPhone = isSelf || canViewPhone(req);
     res.json({ resident: formatResident(rows[0], showPhone) });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/residents — property_admin only

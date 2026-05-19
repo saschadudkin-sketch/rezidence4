@@ -10,6 +10,7 @@ const profiles = {
     { label: 'frontend tests', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'test'] },
   ],
   verify: [
+    { label: 'backend v1 property scope audit', cwd: rootDir, args: ['scripts/backend-v1-property-scope-audit.cjs'] },
     { label: 'backend tests', cwd: path.join(rootDir, 'backend'), args: ['./node_modules/jest/bin/jest.js', '--runInBand', '--detectOpenHandles', '--openHandlesTimeout=1000'] },
     { label: 'frontend lint', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'lint'] },
     { label: 'frontend typecheck', cwd: rootDir, args: ['scripts/run-frontend-script.cjs', 'typecheck:ci'] },

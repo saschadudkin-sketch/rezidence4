@@ -312,11 +312,13 @@ async function listPublic(db, propertyId, opts = {}) {
 /**
  * getById — row detail; caller решает видимость.
  */
-async function getById(db, id) {
+async function getById(db, id, opts = {}) {
   if (!isValidUuid(id)) return null;
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows } = await db.query(
-    `SELECT ${ANNOUNCEMENT_COLUMNS} FROM announcements_v2 WHERE id = $1`,
-    [id],
+    `SELECT ${ANNOUNCEMENT_COLUMNS} FROM announcements_v2 WHERE id = $1${propertyPredicate}`,
+    params,
   );
   return rows[0] || null;
 }
@@ -650,13 +652,15 @@ async function softDeleteAnnouncement(db, id, opts = {}) {
  *   - log_sent:           count notification_log_v2.status='sent' / 'delivered'
  *   - log_opened:         count с opened_at IS NOT NULL (когда log начнёт отслеживать)
  */
-async function getReachMetrics(db, id) {
+async function getReachMetrics(db, id, opts = {}) {
   if (!isValidUuid(id)) return null;
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows: ann } = await db.query(
     `SELECT id, property_id, audience_type, audience_building_id, audience_entrance_id, audience_unit_type
        FROM announcements_v2
-      WHERE id = $1`,
-    [id],
+      WHERE id = $1${propertyPredicate}`,
+    params,
   );
   if (ann.length === 0) return null;
   const a = ann[0];

@@ -47,6 +47,7 @@
     "frontend:v1-contract-coverage": "node scripts/frontend-v1-contract-coverage.cjs --gate",
     "frontend:v1-enum-drift": "node scripts/frontend-v1-enum-drift.cjs",
     "frontend:v1-openapi-schema-drift": "node scripts/frontend-v1-openapi-schema-drift.cjs",
+    "backend:v1-property-scope-audit": "node scripts/backend-v1-property-scope-audit.cjs",
     "security:gitleaks": "node scripts/run-gitleaks.cjs",
     "security:semgrep": "node scripts/run-semgrep.cjs",
     "security:scan": "npm run security:gitleaks && npm run security:semgrep"
