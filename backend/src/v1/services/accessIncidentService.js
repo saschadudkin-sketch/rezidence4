@@ -65,8 +65,64 @@ async function validateOverrideReferences(queryable, { propertyId, incidentId, p
   }
 }
 
+async function requireStaffInProperty(queryable, { propertyId, staffId }) {
+  const { rows } = await queryable.query(
+    `SELECT id FROM staff_users
+      WHERE id = $1 AND property_id = $2 AND is_active = true
+      LIMIT 1`,
+    [staffId, propertyId],
+  );
+  if (!rows[0]) throw serviceError(400, 'assigned_to_staff_id does not exist for this property');
+}
+
+async function validateIncidentReferences(queryable, {
+  propertyId,
+  passId = null,
+  visitLogId = null,
+  vehicleId = null,
+  accessPointId = null,
+}) {
+  if (passId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM passes WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [passId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'related_pass_id does not exist for this property');
+  }
+
+  if (visitLogId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM visit_logs_v2 WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [visitLogId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'related_visit_log_id does not exist for this property');
+  }
+
+  if (vehicleId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM vehicles WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [vehicleId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'related_vehicle_id does not exist for this property');
+  }
+
+  if (accessPointId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM access_points WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [accessPointId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'access_point_id does not exist for this property');
+  }
+}
+
 async function createIncident({ queryable, user, input }) {
   const staffId = await requireStaffId(queryable, user);
+  await validateIncidentReferences(queryable, {
+    propertyId: input.property_id,
+    passId: input.related_pass_id,
+    visitLogId: input.related_visit_log_id,
+    vehicleId: input.related_vehicle_id,
+  });
   const { rows } = await queryable.query(
     `INSERT INTO access_incidents
        (property_id, related_pass_id, related_visit_log_id, related_vehicle_id,
@@ -97,6 +153,7 @@ async function assignIncident({ queryable, incidentId, assignee, propertyId = nu
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
   assertIncidentAction(curRows[0].status, 'assign');
+  await requireStaffInProperty(queryable, { propertyId: curRows[0].property_id, staffId: assignee });
   const { rows } = await queryable.query(
     `UPDATE access_incidents
         SET assigned_to_staff_id = $1,
@@ -117,6 +174,7 @@ async function reopenIncident({ queryable, user, incidentId, assignee, reason, p
   );
   if (!curRows[0]) throw serviceError(404, 'Incident not found');
   assertIncidentAction(curRows[0].status, 'reopen');
+  await requireStaffInProperty(queryable, { propertyId: curRows[0].property_id, staffId: assignee || staffId });
   const { rows } = await queryable.query(
     `UPDATE access_incidents
         SET assigned_to_staff_id = $1,
@@ -308,6 +366,12 @@ async function createManualSecurityDecision({ txPool, user, input }) {
   try {
     await client.query('BEGIN');
     const staffId = await requireStaffId(client, user);
+    await validateIncidentReferences(client, {
+      propertyId: input.property_id,
+      passId: input.pass_id || null,
+      vehicleId: input.related_vehicle_id || null,
+      accessPointId: input.access_point_id || null,
+    });
 
     const { rows: visitRows } = await client.query(
       `INSERT INTO visit_logs_v2

@@ -160,6 +160,8 @@ describe('security workspace routes', () => {
       query: jest.fn((sql) => {
         if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
         if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('FROM passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }] });
+        if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
         if (sql.includes('INSERT INTO visit_logs_v2')) {
           return Promise.resolve({
             rows: [{
@@ -366,6 +368,7 @@ describe('security workspace routes', () => {
       query: jest.fn((sql) => {
         if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
         if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
         if (sql.includes('INSERT INTO visit_logs_v2')) {
           return Promise.resolve({
             rows: [{

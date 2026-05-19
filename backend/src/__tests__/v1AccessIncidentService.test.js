@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  assignIncident,
   createIncident,
   createManualSecurityDecision,
   createOverride,
@@ -144,6 +145,56 @@ describe('AccessIncidentService', () => {
     expect(insertCall[1]).not.toContain('legacy-security-1');
   });
 
+  test('createIncident rejects related pass from another property', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createIncident({
+      queryable,
+      user: { uid: 'legacy-security-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        related_pass_id: UUID_PASS,
+        related_visit_log_id: null,
+        related_vehicle_id: null,
+        incident_type: 'invalid_qr',
+        severity: 'medium',
+        title: 'Invalid QR',
+        description: null,
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'related_pass_id does not exist for this property',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_incidents'))).toBe(false);
+  });
+
+  test('assignIncident rejects assignee from another property', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM access_incidents') && sql.includes('status')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, status: 'open' }] });
+      }
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(assignIncident({
+      queryable,
+      incidentId: UUID_INCIDENT,
+      assignee: UUID_STAFF,
+      propertyId: UUID_PROPERTY,
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'assigned_to_staff_id does not exist for this property',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE access_incidents'))).toBe(false);
+  });
+
   test('createOverride rejects incident_id from another property', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -239,6 +290,8 @@ describe('AccessIncidentService', () => {
     const txClient = makeTxClient((sql) => {
       if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT }] });
       if (sql.includes('INSERT INTO visit_logs_v2')) {
         return Promise.resolve({
           rows: [{
