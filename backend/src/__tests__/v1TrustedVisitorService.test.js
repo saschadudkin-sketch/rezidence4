@@ -237,6 +237,7 @@ describe('TrustedVisitorService pass creation', () => {
       query: jest.fn((sql) => {
         if (sql.includes('FROM trusted_visitors')) return Promise.resolve({ rows: [visitor()] });
         if (sql.includes('resident_unit_links')) return Promise.resolve({ rows: [{ '?column?': 1 }] });
+        if (sql.includes('FROM units')) return Promise.resolve({ rows: [{ id: UUID_UNIT }] });
         if (sql.includes('FROM residents') && sql.includes('external_uid')) {
           return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
         }

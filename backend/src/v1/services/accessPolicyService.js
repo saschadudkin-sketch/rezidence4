@@ -296,8 +296,40 @@ async function getPolicyById({ queryable, policyId }) {
   return rows[0] || null;
 }
 
+async function validatePolicyScopeReferences(queryable, { propertyId, zoneId = null, pointId = null }) {
+  let zone = null;
+  if (zoneId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM access_zones
+        WHERE id = $1 AND property_id = $2 AND is_active = true
+        LIMIT 1`,
+      [zoneId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'zone_id does not exist for this property');
+    zone = rows[0];
+  }
+
+  if (pointId) {
+    const { rows } = await queryable.query(
+      `SELECT id, zone_id FROM access_points
+        WHERE id = $1 AND property_id = $2 AND is_active = true
+        LIMIT 1`,
+      [pointId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'point_id does not exist for this property');
+    if (zone && rows[0].zone_id !== zone.id) {
+      throw serviceError(400, 'point_id does not belong to zone_id');
+    }
+  }
+}
+
 async function createPolicy({ queryable, input }) {
   const policy = normalizePolicyInput(input);
+  await validatePolicyScopeReferences(queryable, {
+    propertyId: policy.property_id,
+    zoneId: policy.zone_id || null,
+    pointId: policy.point_id || null,
+  });
   const { rows } = await queryable.query(
     `INSERT INTO access_policies
        (property_id, name, subject_type, subject_role, zone_id, point_id,
@@ -329,6 +361,13 @@ async function createPolicy({ queryable, input }) {
 
 async function updatePolicy({ queryable, policyId, input, propertyId = null }) {
   const updates = normalizePolicyInput(input, { partial: true });
+  if (propertyId && (updates.zone_id !== undefined || updates.point_id !== undefined)) {
+    await validatePolicyScopeReferences(queryable, {
+      propertyId,
+      zoneId: updates.zone_id || null,
+      pointId: updates.point_id || null,
+    });
+  }
   const sets = [];
   const params = [];
 

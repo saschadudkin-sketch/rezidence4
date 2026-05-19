@@ -81,6 +81,8 @@ describe('AccessRequestService state transitions', () => {
     const queryable = {
       query: jest.fn((sql) => {
         if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+        if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
         throw new Error(`unexpected SQL: ${sql}`);
       }),
     };
@@ -108,6 +110,42 @@ describe('AccessRequestService state transitions', () => {
     })).rejects.toMatchObject({
       status: 422,
       message: 'contractor_access requires linked request_id',
+    });
+    expect(txPool.connect).not.toHaveBeenCalled();
+  });
+
+  test('create rejects topology references outside the access request property', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+    const txPool = { connect: jest.fn() };
+
+    await expect(createAccessRequest({
+      queryable,
+      txPool,
+      property: { feature_flags: { manual_access_approval: false } },
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        request_type: 'guest_access',
+        visitor_name: 'Guest',
+        visitor_phone: null,
+        vehicle_id: null,
+        target_unit_id: null,
+        target_zone_id: UUID_ZONE,
+        target_point_id: null,
+        request_id: null,
+        reason: 'visit',
+        starts_at: '2026-05-05T10:00:00.000Z',
+        ends_at: '2026-05-05T12:00:00.000Z',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'target_zone_id does not exist for this property',
     });
     expect(txPool.connect).not.toHaveBeenCalled();
   });
@@ -157,6 +195,8 @@ describe('AccessRequestService state transitions', () => {
           }],
         });
       }
+      if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
       if (sql.includes('FROM request_access_links')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
     });
@@ -169,6 +209,45 @@ describe('AccessRequestService state transitions', () => {
     })).rejects.toMatchObject({
       status: 409,
       message: 'contractor_access requires linked service request',
+    });
+
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+    expect(txClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  test('approve rejects persisted target point outside the access request property', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_REQUEST,
+            property_id: UUID_PROPERTY,
+            request_type: 'guest_access',
+            vehicle_id: null,
+            created_by_contractor_user_id: null,
+            target_zone_id: null,
+            target_point_id: UUID_POINT,
+            starts_at: '2026-05-05T10:00:00.000Z',
+            ends_at: '2026-05-05T12:00:00.000Z',
+            status: 'pending_approval',
+          }],
+        });
+      }
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(approveAccessRequest({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      accessRequestId: UUID_REQUEST,
+      comment: 'ok',
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'target_point_id does not exist for this property',
     });
 
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
@@ -220,6 +299,8 @@ describe('AccessRequestService state transitions', () => {
           }],
         });
       }
+      if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [{ id: UUID_ZONE }] });
+      if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
       if (sql.includes('INSERT INTO access_approvals')) return Promise.resolve({ rows: [] });
       if (sql.includes('UPDATE access_requests')) {
         return Promise.resolve({ rows: [{ id: UUID_REQUEST, status: 'approved' }] });

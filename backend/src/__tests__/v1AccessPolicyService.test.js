@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  createPolicy,
   deactivatePolicy,
   evaluateAccessPolicy,
   getDefaultPolicyTemplates,
@@ -229,6 +230,50 @@ describe('AccessPolicyService', () => {
     expect(result.allowed).toBe(false);
     expect(result.reason).toBe('no_matching_policy');
     expect(result.trace[0]).toMatchObject({ result: 'vehicle_context_mismatch' });
+  });
+
+  test('createPolicy rejects zone from another property before insert', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM access_zones')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    await expect(createPolicy({
+      queryable,
+      input: {
+        property_id: UUID_PROPERTY,
+        name: 'Scoped policy',
+        subject_type: 'guest',
+        access_method: 'qr',
+        zone_id: UUID_ZONE,
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'zone_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_policies'))).toBe(false);
+  });
+
+  test('updatePolicy rejects point from another property before update', async () => {
+    const queryable = {
+      query: jest.fn((sql) => {
+        if (sql.includes('FROM access_points')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    await expect(updatePolicy({
+      queryable,
+      policyId: UUID_POLICY_A,
+      propertyId: UUID_PROPERTY,
+      input: { point_id: UUID_POINT },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'point_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE access_policies'))).toBe(false);
   });
 
   test('evaluates Europe/Moscow schedule windows predictably', () => {

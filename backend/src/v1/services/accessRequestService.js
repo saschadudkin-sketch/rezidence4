@@ -153,6 +153,55 @@ async function loadPolicyVehicle(queryable, { propertyId, vehicleId }) {
   return rows[0];
 }
 
+async function validateAccessRequestReferences(queryable, {
+  propertyId,
+  vehicleId = null,
+  targetUnitId = null,
+  targetZoneId = null,
+  targetPointId = null,
+}) {
+  if (vehicleId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM vehicles WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [vehicleId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'vehicle_id does not exist for this property');
+  }
+
+  if (targetUnitId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM units WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [targetUnitId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'target_unit_id does not exist for this property');
+  }
+
+  let zone = null;
+  if (targetZoneId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM access_zones
+        WHERE id = $1 AND property_id = $2 AND is_active = true
+        LIMIT 1`,
+      [targetZoneId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'target_zone_id does not exist for this property');
+    zone = rows[0];
+  }
+
+  if (targetPointId) {
+    const { rows } = await queryable.query(
+      `SELECT id, zone_id FROM access_points
+        WHERE id = $1 AND property_id = $2 AND is_active = true
+        LIMIT 1`,
+      [targetPointId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'target_point_id does not exist for this property');
+    if (zone && rows[0].zone_id !== zone.id) {
+      throw serviceError(400, 'target_point_id does not belong to target_zone_id');
+    }
+  }
+}
+
 async function evaluateAccessRequestPolicy({ queryable, property, input, creator }) {
   const policyContext = getRequestPolicyContext(input, creator);
   const vehicle = await loadPolicyVehicle(queryable, {
@@ -274,6 +323,13 @@ async function createAccessRequest({
   input,
 }) {
   const creator = await resolveCreator({ queryable, user });
+  await validateAccessRequestReferences(queryable, {
+    propertyId: input.property_id,
+    vehicleId: input.vehicle_id || null,
+    targetUnitId: input.target_unit_id || null,
+    targetZoneId: input.target_zone_id || null,
+    targetPointId: input.target_point_id || null,
+  });
   await validateLinkedServiceRequest(queryable, { input, creator });
   const { policyDecision, approvalRequired } = await evaluateAccessRequestPolicy({
     queryable,
@@ -431,6 +487,12 @@ async function approveAccessRequest({
     const ar = arRows[0];
     assertExpectedStatus(ar.status, expectedCurrentStatus);
     assertAccessRequestAction(ar.status, 'approve');
+    await validateAccessRequestReferences(client, {
+      propertyId: ar.property_id,
+      vehicleId: ar.vehicle_id || null,
+      targetZoneId: ar.target_zone_id || null,
+      targetPointId: ar.target_point_id || null,
+    });
     await validateExistingLinkedServiceRequest(client, {
       accessRequestId: ar.id,
       input: {
