@@ -290,7 +290,15 @@ async function resolveProperty(req) {
  * Gets or creates a connection pool for a property
  */
 function getPropertyPool(property) {
-  const { slug, db_connection_url } = property;
+  const slug = String(property?.slug || '').trim();
+  const db_connection_url = String(property?.db_connection_url || '').trim();
+
+  if (!slug) {
+    throw new Error('getPropertyPool: property.slug required');
+  }
+  if (!db_connection_url) {
+    throw new Error(`getPropertyPool: db_connection_url required for property '${slug}'`);
+  }
 
   if (!pools.has(slug)) {
     const pool = new Pool({
@@ -353,6 +361,13 @@ async function propertyDbMiddleware(req, res, next) {
       return res.status(503).json({
         error: 'Property unavailable',
         message: `Property '${ctx.property.slug}' is temporarily unavailable`,
+      });
+    }
+    if (!ctx.property.db_connection_url) {
+      logger.error({ slug: ctx.property.slug }, '[propertyDb] property missing db_connection_url');
+      return res.status(503).json({
+        error: 'Property database unavailable',
+        message: `Property '${ctx.property.slug}' database is not configured`,
       });
     }
 

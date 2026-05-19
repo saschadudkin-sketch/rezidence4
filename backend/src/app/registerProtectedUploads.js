@@ -22,12 +22,23 @@ function attachUploadProperty(req, property, resolvedBy) {
   req.db = getPropertyPool(property);
 }
 
+function attachUploadPropertySafe(req, property, resolvedBy) {
+  try {
+    attachUploadProperty(req, property, resolvedBy);
+    return null;
+  } catch (err) {
+    logger.error({ err, slug: property?.slug }, '[uploads] property database unavailable');
+    return { errorStatus: 503, body: { error: 'Property database unavailable' } };
+  }
+}
+
 async function resolveUploadTenant(req, signedTenantSlug = null) {
   if (signedTenantSlug) {
     const property = await getProperty(signedTenantSlug);
     if (!property) return { errorStatus: 404, body: { error: 'Property not found' } };
     if (!property.is_active) return { errorStatus: 503, body: { error: 'Property unavailable' } };
-    attachUploadProperty(req, property, 'signed_url');
+    const attachError = attachUploadPropertySafe(req, property, 'signed_url');
+    if (attachError) return attachError;
     return { queryDb: req.db };
   }
 
@@ -37,7 +48,8 @@ async function resolveUploadTenant(req, signedTenantSlug = null) {
   }
   if (!ctx.property) return { queryDb: null };
   if (!ctx.property.is_active) return { errorStatus: 503, body: { error: 'Property unavailable' } };
-  attachUploadProperty(req, ctx.property, ctx.resolvedBy);
+  const attachError = attachUploadPropertySafe(req, ctx.property, ctx.resolvedBy);
+  if (attachError) return attachError;
   return { queryDb: req.db };
 }
 

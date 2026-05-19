@@ -21,6 +21,7 @@ jest.mock('../logger', () => ({
 const {
   propertyDbMiddleware,
   resolveProperty,
+  getPropertyPool,
   closeAllPools,
   _cache,
   _hostnameCache,
@@ -86,5 +87,37 @@ describe('propertyDb tenant resolver', () => {
     });
 
     expect(result.error).toBe('cross_tenant');
+  });
+
+  test('does not attach a pool when active property has no db_connection_url', async () => {
+    mockPlatformQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'prop-1',
+        slug: 'alpha',
+        hostname: null,
+        is_active: true,
+        db_connection_url: null,
+        feature_flags: {},
+        plan: 'operations',
+      }],
+    });
+    const req = { headers: { 'x-property-slug': 'alpha' }, cookies: {}, path: '/requests' };
+    const res = makeRes();
+    const next = jest.fn();
+
+    await propertyDbMiddleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Property database unavailable',
+      message: "Property 'alpha' database is not configured",
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(req.db).toBeUndefined();
+  });
+
+  test('getPropertyPool requires explicit slug and db_connection_url', () => {
+    expect(() => getPropertyPool(null)).toThrow(/property\.slug required/);
+    expect(() => getPropertyPool({ slug: 'alpha', db_connection_url: '' })).toThrow(/db_connection_url required/);
   });
 });
