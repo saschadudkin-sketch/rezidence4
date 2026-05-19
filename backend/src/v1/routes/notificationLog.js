@@ -59,6 +59,16 @@ function isValidIso(v) {
   return typeof v === 'string' && !Number.isNaN(Date.parse(v));
 }
 
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.query?.propertyId
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
 // ─── GET /api/v1/admin/notification-log/metrics ──────────────────────────────
 // ВАЖНО: /metrics должен быть определён ПЕРЕД /:id, иначе express matchнет
 // "metrics" как id и уйдёт в getById.
@@ -72,8 +82,9 @@ router.get('/admin/notification-log/metrics', requireLogAdmin, async (req, res) 
   }
 
   const pool = req.db || db;
+  const propertyId = resolvePropertyId(req);
   try {
-    const snapshot = await getMetrics(pool, hours);
+    const snapshot = await getMetrics(pool, hours, { propertyId });
     return res.json({ ok: true, period, ...snapshot });
   } catch (err) {
     logger.error({ err }, '[notification-log] metrics query failed');
@@ -104,8 +115,10 @@ router.get('/admin/notification-log', requireLogAdmin, async (req, res) => {
   }
 
   const pool = req.db || db;
+  const propertyId = resolvePropertyId(req);
   try {
     const result = await listForTenant(pool, {
+      propertyId,
       recipient_type: req.query.recipient_type,
       recipient_id:   recipientId,
       channel:        req.query.channel,
@@ -132,8 +145,9 @@ router.get('/admin/notification-log', requireLogAdmin, async (req, res) => {
 // ─── GET /api/v1/admin/notification-log/:id ──────────────────────────────────
 router.get('/admin/notification-log/:id', requireLogAdmin, async (req, res) => {
   const pool = req.db || db;
+  const propertyId = resolvePropertyId(req);
   try {
-    const row = await getById(pool, req.params.id);
+    const row = await getById(pool, req.params.id, { propertyId });
     if (!row) return res.status(404).json({ error: 'Not found' });
     return res.json({ ok: true, item: row });
   } catch (err) {
@@ -146,14 +160,15 @@ router.get('/admin/notification-log/:id', requireLogAdmin, async (req, res) => {
 router.get('/notification-log/mine', async (req, res) => {
   if (!isResident(req)) return res.status(403).json({ error: 'Residents only' });
   const pool = req.db || db;
+  const propertyId = resolvePropertyId(req);
   try {
-    const residentId = await resolveResidentByUid(pool, req.user.uid);
+    const residentId = await resolveResidentByUid(pool, req.user.uid, { propertyId });
     // Резидент без residents-row (pre-Phase-7 legacy user) → пустой список,
     // а не 404.  404 пугает UI — «у вас нет уведомлений» более корректно.
     if (!residentId) {
       return res.json({ ok: true, items: [], count: 0 });
     }
-    const items = await listForResident(pool, residentId, { limit: req.query.limit });
+    const items = await listForResident(pool, residentId, { propertyId, limit: req.query.limit });
     return res.json({ ok: true, items, count: items.length });
   } catch (err) {
     logger.error({ err }, '[notification-log] mine query failed');

@@ -108,7 +108,12 @@ describe('resident offboarding service', () => {
     const vehicleUpdate = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE vehicles'));
     expect(vehicleUpdate[0]).toContain('is_whitelisted = false');
     expect(vehicleUpdate[0]).toContain('review_required = true');
-    expect(vehicleUpdate[1]).toEqual([UUID_RESIDENT, 'ownership transfer']);
+    expect(vehicleUpdate[0]).toContain('AND property_id = $3');
+    expect(vehicleUpdate[1]).toEqual([UUID_RESIDENT, 'ownership transfer', UUID_PROPERTY]);
+
+    const residentUpdate = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE residents'));
+    expect(residentUpdate[0]).toContain('AND property_id = $2');
+    expect(residentUpdate[1]).toEqual([UUID_RESIDENT, UUID_PROPERTY]);
 
     const lifecycleInsert = queryable.query.mock.calls.find(([sql]) => sql.includes('resident_lifecycle_events'));
     const lifecycleMetadata = JSON.parse(lifecycleInsert[1][5]);
@@ -316,6 +321,11 @@ describe('resident offboarding service', () => {
       trusted_visitors_deactivated: 1,
     });
     expect(result.to_resident).toMatchObject({ id: toResidentId, resident_type: 'owner' });
+    const targetOwnerUpdate = queryable.query.mock.calls.find(([sql]) => (
+      sql.includes('UPDATE residents') && sql.includes("resident_type = 'owner'")
+    ));
+    expect(targetOwnerUpdate[0]).toContain('AND property_id = $3');
+    expect(targetOwnerUpdate[1]).toEqual([toResidentId, UUID_UNIT, UUID_PROPERTY]);
     expect(queryable.query.mock.calls.find(([sql]) => sql.includes('resident_ownership_transfers'))[1][2])
       .toBe(fromResidentId);
     expect(queryable.query.mock.calls.find(([sql]) => sql.includes('resident.ownership_transferred'))[1][5])

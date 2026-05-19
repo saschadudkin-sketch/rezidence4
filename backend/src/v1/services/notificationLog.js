@@ -8,7 +8,7 @@
 //
 // Публичный контракт:
 //   listForTenant(db, filters)         — admin list с фильтрами (§3.2)
-//   getById(db, id)                    — full-detail row для admin
+//   getById(db, id, opts)              — full-detail row для admin
 //   listForResident(db, residentId, opts) — /mine, с trimmed payload
 //   getMetrics(db, hoursBack)          — агрегаты success-rate + top events/errors
 //   resolveResidentByUid(db, uid)      — helper: legacy users.uid → residents.id
@@ -96,6 +96,10 @@ async function listForTenant(db, filters = {}) {
   const clauses = [];
   const args = [];
 
+  if (filters.propertyId) {
+    args.push(filters.propertyId);
+    clauses.push(`property_id = $${args.length}`);
+  }
   if (filters.recipient_type && ALLOWED_RECIPIENT_TYPES.has(filters.recipient_type)) {
     args.push(filters.recipient_type);
     clauses.push(`recipient_type = $${args.length}`);
@@ -144,12 +148,15 @@ async function listForTenant(db, filters = {}) {
 
 /**
  * getById — single-row lookup.  Возвращает null если не найдено.
- * Тенант-скопинг обеспечивается per-tenant DB (нет глобальной таблицы).
+ * Тенант-скопинг обеспечивается per-tenant DB; opts.propertyId добавляет
+ * явный guard для legacy/test mount'ов и переиспользования сервиса.
  */
-async function getById(db, id) {
+async function getById(db, id, opts = {}) {
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows } = await db.query(
-    `SELECT ${FULL_COLS} FROM notification_log_v2 WHERE id = $1`,
-    [id],
+    `SELECT ${FULL_COLS} FROM notification_log_v2 WHERE id = $1${propertyPredicate}`,
+    params,
   );
   return rows[0] || null;
 }
@@ -168,15 +175,19 @@ async function getById(db, id) {
 async function listForResident(db, residentId, opts = {}) {
   if (!residentId) return [];
   const limit = clampLimit(opts.limit);
+  const propertyPredicate = opts.propertyId ? 'AND property_id = $2' : '';
+  const params = opts.propertyId ? [residentId, opts.propertyId, limit] : [residentId, limit];
+  const limitIdx = opts.propertyId ? 3 : 2;
   const { rows } = await db.query(
     `SELECT ${MINE_COLS}
        FROM notification_log_v2
       WHERE recipient_type = 'resident'
         AND recipient_id = $1
+        ${propertyPredicate}
         AND status = 'sent'
       ORDER BY created_at DESC
-      LIMIT $2`,
-    [residentId, limit],
+      LIMIT $${limitIdx}`,
+    params,
   );
   return rows.map((r) => ({ ...r, payload: trimPayloadForResident(r.payload) }));
 }
@@ -191,11 +202,13 @@ async function listForResident(db, residentId, opts = {}) {
  * в property-scoped residents (pre-Phase-7 legacy user); роут должен вернуть
  * пустой список, не 404 (у него нет истории уведомлений).
  */
-async function resolveResidentByUid(db, uid) {
+async function resolveResidentByUid(db, uid, opts = {}) {
   if (!uid) return null;
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [uid, opts.propertyId] : [uid];
   const { rows } = await db.query(
-    `SELECT id FROM residents WHERE external_uid = $1 LIMIT 1`,
-    [uid],
+    `SELECT id FROM residents WHERE external_uid = $1${propertyPredicate} LIMIT 1`,
+    params,
   );
   return rows[0]?.id || null;
 }
@@ -219,14 +232,17 @@ async function resolveResidentByUid(db, uid) {
  *
  * success_rate — фракция [0..1], null когда нет данных (деление на 0).
  */
-async function getMetrics(db, hoursBack) {
+async function getMetrics(db, hoursBack, opts = {}) {
   const hours = Number(hoursBack);
   if (!Number.isFinite(hours) || hours <= 0) {
     throw new TypeError('hoursBack must be positive number');
   }
   const generatedAt = new Date().toISOString();
-  const sinceClause = `created_at >= NOW() - $1::interval`;
   const intervalArg = `${Math.floor(hours)} hours`;
+  const baseArgs = [intervalArg];
+  const propertyClause = opts.propertyId ? ' AND property_id = $2' : '';
+  const args = opts.propertyId ? [intervalArg, opts.propertyId] : baseArgs;
+  const sinceClause = `created_at >= NOW() - $1::interval${propertyClause}`;
 
   // Per-channel sent/failed counts.
   const { rows: chRows } = await db.query(
@@ -237,7 +253,7 @@ async function getMetrics(db, hoursBack) {
       WHERE ${sinceClause}
       GROUP BY channel
       ORDER BY channel`,
-    [intervalArg],
+    args,
   );
   const channels = chRows.map((r) => {
     const sent = Number(r.sent) || 0;
@@ -259,7 +275,7 @@ async function getMetrics(db, hoursBack) {
       GROUP BY event_type
       ORDER BY total DESC
       LIMIT 10`,
-    [intervalArg],
+    args,
   );
   const top_events = evRows.map((r) => ({
     event_type: r.event_type,
@@ -276,7 +292,7 @@ async function getMetrics(db, hoursBack) {
       GROUP BY error_code
       ORDER BY total DESC
       LIMIT 10`,
-    [intervalArg],
+    args,
   );
   const top_errors = errRows.map((r) => ({
     error_code: r.error_code,

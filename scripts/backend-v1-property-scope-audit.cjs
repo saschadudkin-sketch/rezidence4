@@ -23,6 +23,8 @@ const propertyOwnedTables = [
   'contractor_users',
   'documents_v2',
   'erp_provider_configs',
+  'notification_log_v2',
+  'notifications_outbox',
   'packages_v2',
   'passes',
   'residents',
@@ -107,6 +109,29 @@ function auditSqlText(file, source) {
   return findings;
 }
 
+function auditMutationText(file, source) {
+  const findings = [];
+  const tablePattern = propertyOwnedTables.join('|');
+  const re = new RegExp(
+    String.raw`\b(UPDATE|DELETE\s+FROM)\s+(${tablePattern})\b([\s\S]{0,360}?)\bWHERE\s+id\s*=\s*\$1([\s\S]{0,220})`,
+    'gi',
+  );
+
+  for (const match of source.matchAll(re)) {
+    const [raw, op, table, middle, tail] = match;
+    const snippet = `${raw}${middle}${tail}`;
+    if (isScopedSql(snippet)) continue;
+
+    findings.push({
+      file,
+      line: lineOf(source, match.index),
+      message: `${op.toUpperCase()} ${table} id mutation is missing property_id scope`,
+      sql: compactSql(snippet).slice(0, 220),
+    });
+  }
+  return findings;
+}
+
 function auditRouteHelperCalls(source, guard) {
   const findings = [];
   const callRe = new RegExp(String.raw`\b${guard.helper}\s*\(\s*pool\s*,\s*req\.params\.id\s*\)`, 'g');
@@ -124,7 +149,9 @@ function auditRouteHelperCalls(source, guard) {
 const files = scanRoots.flatMap(walk);
 const findings = [];
 for (const file of files) {
-  findings.push(...auditSqlText(file, fs.readFileSync(file, 'utf8')));
+  const source = fs.readFileSync(file, 'utf8');
+  findings.push(...auditSqlText(file, source));
+  findings.push(...auditMutationText(file, source));
 }
 for (const guard of routeHelperGuards) {
   if (!fs.existsSync(guard.file)) continue;

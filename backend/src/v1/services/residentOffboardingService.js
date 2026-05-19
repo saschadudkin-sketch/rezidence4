@@ -87,14 +87,15 @@ async function loadTransferTarget(queryable, residentId) {
   return rows[0];
 }
 
-async function deactivateResidentRow(queryable, residentId) {
+async function deactivateResidentRow(queryable, residentId, propertyId) {
   const { rows } = await queryable.query(
     `UPDATE residents
         SET is_active = false,
             updated_at = NOW()
       WHERE id = $1
+        AND property_id = $2
       RETURNING id, property_id, unit_id, external_uid, is_active`,
-    [residentId],
+    [residentId, propertyId],
   );
   if (!rows[0]) throw serviceError(404, 'Resident not found');
   return rows[0];
@@ -172,8 +173,9 @@ async function markVehiclesForReview(queryable, resident, reason) {
             offboarding_reason = $2,
             updated_at = NOW()
       WHERE owner_resident_id = $1
+        AND property_id = $3
       RETURNING id, plate_number, is_whitelisted, is_blacklisted, review_required`,
-    [resident.id, reason],
+    [resident.id, reason, resident.property_id],
   );
   return rows;
 }
@@ -251,7 +253,7 @@ async function offboardResident({ queryable, residentId, actor = {}, reason = nu
   const resident = await loadResident(queryable, residentId);
   const actorStaffId = await resolveActorStaffId(queryable, actor);
 
-  const updatedResident = await deactivateResidentRow(queryable, resident.id);
+  const updatedResident = await deactivateResidentRow(queryable, resident.id, resident.property_id);
   const memberships = await suspendMembershipsForSubject({
     queryable,
     subjectType: 'resident',
@@ -350,6 +352,7 @@ async function copyNotificationPreferencesForTransfer(queryable, {
 }
 
 async function activateTargetOwner(queryable, {
+  propertyId,
   targetResidentId,
   unitId,
 }) {
@@ -360,8 +363,9 @@ async function activateTargetOwner(queryable, {
             is_active = true,
             updated_at = NOW()
       WHERE id = $1
+        AND property_id = $3
       RETURNING id, property_id, unit_id, external_uid, is_active, resident_type`,
-    [targetResidentId, unitId],
+    [targetResidentId, unitId, propertyId],
   );
   if (!rows[0]) throw serviceError(404, 'Target resident not found');
   return rows[0];
@@ -508,6 +512,7 @@ async function transferResidentOwnership({
   });
 
   const targetResident = await activateTargetOwner(queryable, {
+    propertyId: fromResident.property_id,
     targetResidentId: toResident.id,
     unitId: fromResident.unit_id,
   });

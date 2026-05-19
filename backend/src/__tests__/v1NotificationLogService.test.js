@@ -184,6 +184,19 @@ describe('listForTenant', () => {
     expect(args[0]).toBe('uuid-abc');
   });
 
+  test('applies propertyId as first scope filter', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    await listForTenant(pool, {
+      propertyId: 'property-1',
+      recipient_id: 'uuid-abc',
+      limit: 10,
+    });
+    const [sql, args] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE property_id = \$1 AND recipient_id = \$2/);
+    expect(sql).toMatch(/LIMIT \$3 OFFSET \$4/);
+    expect(args).toEqual(['property-1', 'uuid-abc', 10, 0]);
+  });
+
   test('applies channel filter only when in ALLOWED_CHANNELS', async () => {
     const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
     await listForTenant(pool, { channel: 'web_push' });
@@ -289,6 +302,16 @@ describe('getById', () => {
     expect(args).toEqual(['xyz']);
   });
 
+  test('uses propertyId scope when provided', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({
+      rows: [{ id: 'xyz', property_id: 'property-1' }],
+    }) };
+    await getById(pool, 'xyz', { propertyId: 'property-1' });
+    const [sql, args] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE id = \$1 AND property_id = \$2/);
+    expect(args).toEqual(['xyz', 'property-1']);
+  });
+
   test('returns null on empty result', async () => {
     const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
     const row = await getById(pool, 'missing');
@@ -320,6 +343,15 @@ describe('listForResident', () => {
     expect(sql).toMatch(/LIMIT \$2/);
     expect(args[0]).toBe('resident-uuid');
     expect(args[1]).toBe(LIMIT_DEFAULT);
+  });
+
+  test('scopes resident list by propertyId when provided', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({ rows: [] }) };
+    await listForResident(pool, 'resident-uuid', { propertyId: 'property-1', limit: 5 });
+    const [sql, args] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/AND property_id = \$2/);
+    expect(sql).toMatch(/LIMIT \$3/);
+    expect(args).toEqual(['resident-uuid', 'property-1', 5]);
   });
 
   test('sensitive columns excluded from SELECT (provider_message_id, error_message)', async () => {
@@ -386,6 +418,17 @@ describe('resolveResidentByUid', () => {
     const [sql, args] = pool.query.mock.calls[0];
     expect(sql).toMatch(/FROM residents WHERE external_uid = \$1 LIMIT 1/);
     expect(args).toEqual(['legacy-uid-abc']);
+  });
+
+  test('scopes resident uid lookup by propertyId when provided', async () => {
+    const pool = { query: jest.fn().mockResolvedValue({
+      rows: [{ id: 'resident-uuid-123' }],
+    }) };
+    const id = await resolveResidentByUid(pool, 'legacy-uid-abc', { propertyId: 'property-1' });
+    expect(id).toBe('resident-uuid-123');
+    const [sql, args] = pool.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE external_uid = \$1 AND property_id = \$2 LIMIT 1/);
+    expect(args).toEqual(['legacy-uid-abc', 'property-1']);
   });
 
   test('returns null when no residents row for uid (legacy pre-Phase-7 user)', async () => {
@@ -473,5 +516,17 @@ describe('getMetrics', () => {
     expect(errSql).toMatch(/error_code IS NOT NULL/i);
     expect(errSql).toMatch(/GROUP BY error_code/i);
     expect(errSql).toMatch(/LIMIT 10/i);
+  });
+
+  test('scopes all metrics queries by propertyId when provided', async () => {
+    const pool = { query: jest.fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] }) };
+    await getMetrics(pool, 24, { propertyId: 'property-1' });
+    for (const [sql, args] of pool.query.mock.calls) {
+      expect(sql).toMatch(/created_at >= NOW\(\) - \$1::interval AND property_id = \$2/);
+      expect(args).toEqual(['24 hours', 'property-1']);
+    }
   });
 });

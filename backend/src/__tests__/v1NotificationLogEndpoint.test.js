@@ -187,6 +187,16 @@ describe('GET /api/v1/admin/notification-log — happy path', () => {
     ]));
   });
 
+  test('scopes admin list by authenticated property_id when present', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: 'property-1' };
+    mockDb.query.mockResolvedValue({ rows: [] });
+    await supertest(buildApp())
+      .get('/api/v1/admin/notification-log?since=2026-04-01T00:00:00Z');
+    const [sql, args] = mockDb.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE property_id = \$1 AND created_at >= \$2/);
+    expect(args).toEqual(['property-1', '2026-04-01T00:00:00Z', 50, 0]);
+  });
+
   test('503 when SQL rejects', async () => {
     mockDb.query.mockRejectedValue(new Error('pool terminated'));
     const res = await supertest(buildApp())
@@ -251,6 +261,21 @@ describe('GET /api/v1/admin/notification-log/metrics', () => {
     // Every query should have passed the interval string "168 hours".
     for (const call of mockDb.query.mock.calls) {
       expect(call[1]).toEqual(['168 hours']);
+    }
+  });
+
+  test('scopes metrics by authenticated property_id when present', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: 'property-1' };
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await supertest(buildApp())
+      .get('/api/v1/admin/notification-log/metrics?period=7d');
+    expect(res.status).toBe(200);
+    for (const call of mockDb.query.mock.calls) {
+      expect(call[0]).toMatch(/AND property_id = \$2/);
+      expect(call[1]).toEqual(['168 hours', 'property-1']);
     }
   });
 
@@ -323,6 +348,17 @@ describe('GET /api/v1/admin/notification-log/:id', () => {
     // Admin view is NOT trimmed — provider_message_id + full payload visible.
     expect(res.body.item.payload.endpoint).toBe('SECRET');
     expect(res.body.item.provider_message_id).toBe('fcm-123');
+  });
+
+  test('scopes detail by authenticated property_id when present', async () => {
+    mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: 'property-1' };
+    mockDb.query.mockResolvedValue({ rows: [{ id: 'abc', property_id: 'property-1' }] });
+    const res = await supertest(buildApp())
+      .get('/api/v1/admin/notification-log/abc');
+    expect(res.status).toBe(200);
+    const [sql, args] = mockDb.query.mock.calls[0];
+    expect(sql).toMatch(/WHERE id = \$1 AND property_id = \$2/);
+    expect(args).toEqual(['abc', 'property-1']);
   });
 
   test('503 on query rejection', async () => {
@@ -424,6 +460,19 @@ describe('GET /api/v1/notification-log/mine', () => {
     ]);
     await supertest(buildApp()).get('/api/v1/notification-log/mine?limit=5');
     expect(mockDb.query.mock.calls[1][1]).toEqual(['r1', 5]);
+  });
+
+  test('scopes resident lookup and mine list by authenticated property_id when present', async () => {
+    mockCurrentUser = { uid: 'uid1', role: 'resident', property_id: 'property-1' };
+    dispatchQuery([
+      ['FROM residents', () => ({ rows: [{ id: 'r1' }] })],
+      ['FROM notification_log_v2', () => ({ rows: [] })],
+    ]);
+    await supertest(buildApp()).get('/api/v1/notification-log/mine?limit=5');
+    expect(mockDb.query.mock.calls[0][0]).toMatch(/external_uid = \$1 AND property_id = \$2/);
+    expect(mockDb.query.mock.calls[0][1]).toEqual(['uid1', 'property-1']);
+    expect(mockDb.query.mock.calls[1][0]).toMatch(/AND property_id = \$2/);
+    expect(mockDb.query.mock.calls[1][1]).toEqual(['r1', 'property-1', 5]);
   });
 
   test('503 when residents lookup rejects', async () => {
