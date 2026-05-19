@@ -21,6 +21,16 @@ router.use(requireAuth);
 
 const getDb = (req) => req.db || db;
 
+function resolvePropertyId(req) {
+  return req.property?.id
+    || req.property?.property_id
+    || req.query?.property_id
+    || req.query?.propertyId
+    || req.user?.property_id
+    || req.user?.propertyId
+    || null;
+}
+
 function requireWorkspaceRead(req, res) {
   if (can(req.user, 'requests:read')) return true;
   res.status(403).json({ error: 'Forbidden' });
@@ -58,6 +68,7 @@ router.get('/inbox', async (req, res, next) => {
       user: req.user,
       filters: req.query,
       pagination,
+      propertyId: resolvePropertyId(req),
     });
     res.json({
       requests: result.requests,
@@ -85,6 +96,7 @@ router.get('/overdue', async (req, res, next) => {
       user: req.user,
       filters: { ...req.query, queue: 'overdue' },
       pagination,
+      propertyId: resolvePropertyId(req),
     });
     res.json({
       requests: result.requests,
@@ -101,7 +113,7 @@ router.get('/overdue', async (req, res, next) => {
 router.get('/requests/:id', async (req, res, next) => {
   try {
     if (!requireWorkspaceRead(req, res)) return;
-    res.json(await loadRequestDetail(getDb(req), req.params.id));
+    res.json(await loadRequestDetail(getDb(req), req.params.id, { propertyId: resolvePropertyId(req) }));
   } catch (err) {
     if (sendKnownError(res, err)) return;
     next(err);
@@ -116,6 +128,7 @@ router.post('/requests/:id/internal-comments', async (req, res, next) => {
       user: req.user,
       requestId: req.params.id,
       body: req.body,
+      propertyId: resolvePropertyId(req),
     });
     res.status(201).json({ comment });
   } catch (err) {
@@ -131,6 +144,7 @@ router.get('/residents/:id/quick-view', async (req, res, next) => {
     const quickView = await getResidentQuickView(getDb(req), {
       residentId: req.params.id,
       canViewPhone: can(req.user, 'residents:read_phone'),
+      propertyId: resolvePropertyId(req),
     });
     res.json(quickView);
   } catch (err) {

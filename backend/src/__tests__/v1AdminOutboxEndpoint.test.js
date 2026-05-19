@@ -87,6 +87,7 @@ describe('auth — 401 when not authenticated', () => {
   const cases = [
     ['get',  '/api/v1/admin/outbox'],
     ['get',  '/api/v1/admin/outbox/metrics'],
+    ['get',  '/api/v1/admin/outbox/sla'],
     ['get',  `/api/v1/admin/outbox/${UUID}`],
     ['post', `/api/v1/admin/outbox/${UUID}/requeue`],
     ['post', `/api/v1/admin/outbox/${UUID}/cancel`],
@@ -108,6 +109,7 @@ describe('auth — 403 for non-admin roles', () => {
   const endpoints = [
     ['get',  '/api/v1/admin/outbox'],
     ['get',  '/api/v1/admin/outbox/metrics'],
+    ['get',  '/api/v1/admin/outbox/sla'],
     ['get',  `/api/v1/admin/outbox/${UUID}`],
     ['post', `/api/v1/admin/outbox/${UUID}/requeue`],
     ['post', `/api/v1/admin/outbox/${UUID}/cancel`],
@@ -423,6 +425,45 @@ describe('GET /api/v1/admin/outbox/metrics', () => {
     const res = await supertest(buildApp()).get('/api/v1/admin/outbox/metrics');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GET /api/v1/admin/outbox/sla
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('GET /api/v1/admin/outbox/sla', () => {
+  beforeEach(() => { mockCurrentUser = { uid: 'admin1', role: 'admin', property_id: UUID2 }; });
+
+  test('scopes package SLA metrics by authenticated property_id', async () => {
+    dispatch([
+      [/FROM packages_v2/, () => ({ rows: [{
+        awaiting_pickup_total: 1,
+        awaiting_pickup_over_remind: 0,
+        awaiting_pickup_over_followup: 0,
+        awaiting_pickup_over_admin_alert: 0,
+        received_24h: 1,
+      }] })],
+      [/FROM notifications_outbox/, () => ({ rows: [{
+        reminders_sent_24h: 0,
+        followups_sent_24h: 0,
+        admin_alerts_sent_24h: 0,
+      }] })],
+    ]);
+
+    const res = await supertest(buildApp()).get('/api/v1/admin/outbox/sla');
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    const [packagesSql, packagesArgs] = mockPool.query.mock.calls[0];
+    expect(packagesSql).toMatch(/FROM packages_v2/);
+    expect(packagesSql).toMatch(/WHERE property_id = \$4/);
+    expect(packagesArgs).toEqual(['7', '14', '30', UUID2]);
+
+    const [outboxSql, outboxArgs] = mockPool.query.mock.calls[1];
+    expect(outboxSql).toMatch(/FROM notifications_outbox/);
+    expect(outboxSql).toMatch(/AND property_id = \$5/);
+    expect(outboxArgs[4]).toBe(UUID2);
   });
 });
 

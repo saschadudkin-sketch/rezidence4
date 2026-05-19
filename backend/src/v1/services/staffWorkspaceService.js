@@ -117,7 +117,7 @@ function formatWorkspaceRequest(row) {
   };
 }
 
-function buildInboxFilters(user, filters, params) {
+function buildInboxFilters(user, filters, params, opts = {}) {
   const sql = ['r.deleted_at IS NULL'];
   const queue = parseEnum(filters.queue || 'active', VALID_QUEUES, 'queue');
   const statuses = parseStatuses(filters.status);
@@ -129,6 +129,11 @@ function buildInboxFilters(user, filters, params) {
       || filters.access_zone_id || filters.access_point_id,
     'target_id',
   );
+
+  if (opts.propertyId) {
+    const idx = addParam(params, opts.propertyId);
+    sql.push(`resident_ref.property_id = $${idx}`);
+  }
 
   if (statuses) {
     const idx = addParam(params, statuses);
@@ -203,9 +208,9 @@ function buildInboxFilters(user, filters, params) {
   return sql;
 }
 
-async function listInbox(queryable, { user, filters = {}, pagination }) {
+async function listInbox(queryable, { user, filters = {}, pagination, propertyId = null }) {
   const params = [];
-  const where = buildInboxFilters(user, filters, params).join(' AND ');
+  const where = buildInboxFilters(user, filters, params, { propertyId }).join(' AND ');
   const limitIdx = addParam(params, pagination.limit);
   const offsetIdx = addParam(params, pagination.offset);
 
@@ -294,15 +299,20 @@ function formatSlaEventRow(row) {
   };
 }
 
-async function loadRequestDetail(queryable, requestId) {
+async function loadRequestDetail(queryable, requestId, opts = {}) {
   const id = validateRequestId(requestId);
+  const params = [id];
+  const propertyPredicate = opts.propertyId ? ` AND resident_ref.property_id = $2` : '';
+  if (opts.propertyId) params.push(opts.propertyId);
   const { rows } = await queryable.query(
     `SELECT r.*, resident_ref.id AS resident_id
        FROM requests r
-       LEFT JOIN residents resident_ref ON resident_ref.external_uid = r.created_by_uid
+       LEFT JOIN residents resident_ref
+         ON resident_ref.external_uid = r.created_by_uid
       WHERE r.id=$1 AND r.deleted_at IS NULL
+        ${propertyPredicate}
       LIMIT 1`,
-    [id],
+    params,
   );
   if (!rows[0]) throw serviceError(404, 'Request not found');
 
@@ -357,9 +367,9 @@ function normalizeInternalComment(body = {}) {
   return text;
 }
 
-async function createInternalComment(queryable, { user, requestId, body }) {
+async function createInternalComment(queryable, { user, requestId, body, propertyId = null }) {
   const id = validateRequestId(requestId);
-  await loadRequestDetail(queryable, id);
+  await loadRequestDetail(queryable, id, { propertyId });
   const text = normalizeInternalComment(body);
   const { rows } = await queryable.query(
     `INSERT INTO request_updates
@@ -398,20 +408,30 @@ function formatResident(row, canViewPhone) {
   };
 }
 
-async function getResidentQuickView(queryable, { residentId, canViewPhone }) {
+async function getResidentQuickView(queryable, { residentId, canViewPhone, propertyId = null }) {
   if (!isValidUuid(residentId)) throw serviceError(400, 'resident_id must be UUID');
+  const params = [residentId];
+  const propertyPredicate = propertyId ? ` AND r.property_id = $2` : '';
+  if (propertyId) params.push(propertyId);
 
   const { rows } = await queryable.query(
     `SELECT r.*, u.unit_number, u.unit_type, u.floor, u.building_id, u.entrance_id,
             b.name AS building_name, b.code AS building_code,
             e.name AS entrance_name, e.code AS entrance_code
        FROM residents r
-       JOIN units u ON u.id = r.unit_id
-       LEFT JOIN buildings b ON b.id = u.building_id
-       LEFT JOIN entrances e ON e.id = u.entrance_id
+       JOIN units u
+         ON u.id = r.unit_id
+        AND u.property_id = r.property_id
+       LEFT JOIN buildings b
+         ON b.id = u.building_id
+        AND b.property_id = u.property_id
+       LEFT JOIN entrances e
+         ON e.id = u.entrance_id
+        AND e.property_id = u.property_id
       WHERE r.id=$1
+        ${propertyPredicate}
       LIMIT 1`,
-    [residentId],
+    params,
   );
   if (!rows[0]) throw serviceError(404, 'Resident not found');
   const resident = rows[0];
@@ -422,8 +442,9 @@ async function getResidentQuickView(queryable, { residentId, canViewPhone }) {
               is_whitelisted, is_blacklisted
          FROM vehicles
         WHERE owner_resident_id=$1
+          ${propertyId ? 'AND property_id = $2' : ''}
         ORDER BY is_blacklisted DESC, is_whitelisted DESC, plate_number ASC`,
-      [residentId],
+      propertyId ? [residentId, propertyId] : [residentId],
     ),
     resident.external_uid
       ? queryable.query(

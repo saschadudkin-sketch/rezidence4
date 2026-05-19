@@ -112,9 +112,11 @@ describe('v1 staff workspace routes', () => {
     });
     expect(res.body.property.type).toBe('cottage_community');
     const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toContain('resident_ref.property_id');
     expect(sql).toContain("r.sla_state IN ('escalated','emergency_escalated')");
     expect(sql).toContain('r.category');
     expect(sql).toContain('r.target_type');
+    expect(params).toContain(UUID_B);
     expect(params).toContain('plumber');
     expect(params).toContain('unit');
     expect(params).toContain(UUID_A);
@@ -158,12 +160,15 @@ describe('v1 staff workspace routes', () => {
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
-    const res = await supertest(buildApp())
+    const res = await supertest(buildApp({ property: { id: UUID_B } }))
       .post('/api/v1/staff-workspace/requests/req-1/internal-comments')
       .send({ body: 'Вызвали аварийную бригаду' });
 
     expect(res.status).toBe(201);
     expect(res.body.comment.visibility).toBe('internal');
+    const detailCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM requests') && sql.includes('LIMIT 1'));
+    expect(detailCall[0]).toContain('resident_ref.property_id = $2');
+    expect(detailCall[1]).toEqual(['req-1', UUID_B]);
     const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO request_updates'));
     expect(insertCall[0]).toContain("'internal'");
   });
@@ -202,13 +207,19 @@ describe('v1 staff workspace routes', () => {
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
-    const res = await supertest(buildApp())
+    const res = await supertest(buildApp({ property: { id: UUID_B } }))
       .get(`/api/v1/staff-workspace/residents/${UUID_A}/quick-view`);
 
     expect(res.status).toBe(200);
     expect(res.body.resident.phone).toBeNull();
     expect(res.body.vehicles[0].plate_number).toBe('A001AA77');
     expect(res.body.requestCounts.pending).toBe(2);
+    const residentCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM residents r'));
+    expect(residentCall[0]).toContain('r.property_id = $2');
+    expect(residentCall[1]).toEqual([UUID_A, UUID_B]);
+    const vehiclesCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM vehicles'));
+    expect(vehiclesCall[0]).toContain('property_id = $2');
+    expect(vehiclesCall[1]).toEqual([UUID_A, UUID_B]);
   });
 
   test('GET /residents/:id/quick-view shows phone to concierge', async () => {
@@ -243,7 +254,7 @@ describe('v1 staff workspace routes', () => {
       throw new Error(`unexpected SQL: ${sql}`);
     });
 
-    const res = await supertest(buildApp())
+    const res = await supertest(buildApp({ property: { id: UUID_B } }))
       .get(`/api/v1/staff-workspace/residents/${UUID_A}/quick-view`);
 
     expect(res.status).toBe(200);

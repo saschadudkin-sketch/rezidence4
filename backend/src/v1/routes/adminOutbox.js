@@ -126,9 +126,10 @@ router.get('/metrics', requireOutboxRead, async (req, res) => {
 // Content negotiation тот же, что и /metrics: ?format=prometheus → text/plain.
 router.get('/sla', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
 
   try {
-    const snapshot = await getPackageSlaSnapshot(pool);
+    const snapshot = await getPackageSlaSnapshot(pool, { propertyId });
 
     const format = String(req.query.format || '').toLowerCase();
     if (format === 'prometheus') {

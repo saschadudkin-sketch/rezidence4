@@ -27,29 +27,34 @@ const propertyOwnedTables = [
   'notifications_outbox',
   'packages_v2',
   'passes',
+  'pass_credentials',
+  'qr_passes_v2',
   'residents',
   'skud_provider_configs',
   'staff_users',
+  'trusted_visitors',
   'units',
   'vehicles',
   'video_evidence_references',
   'visit_logs_v2',
 ];
 
-const routeHelperGuards = [
-  {
-    file: path.join(root, 'backend', 'src', 'v1', 'routes', 'announcements.js'),
-    helper: 'getById',
-  },
-  {
-    file: path.join(root, 'backend', 'src', 'v1', 'routes', 'documents.js'),
-    helper: 'getById',
-  },
-  {
-    file: path.join(root, 'backend', 'src', 'v1', 'routes', 'packages.js'),
-    helper: 'getById',
-  },
+const allowlist = [
+  // Keep this list small and explicit. Each entry must name the file, line,
+  // and a reason explaining why tenant-only or non-property scoping is safe.
+  // Example:
+  // {
+  //   file: 'backend/src/v1/routes/example.js',
+  //   line: 42,
+  //   reason: 'platform-admin endpoint reads a platform table, not a property-owned row',
+  // },
 ];
+
+for (const entry of allowlist) {
+  if (!entry.file || !entry.line || !entry.reason) {
+    throw new Error('backend-v1-property-scope-audit allowlist entries require file, line, and reason');
+  }
+}
 
 function walk(dir) {
   const out = [];
@@ -132,18 +137,27 @@ function auditMutationText(file, source) {
   return findings;
 }
 
-function auditRouteHelperCalls(source, guard) {
+function auditRouteHelperCalls(file, source) {
   const findings = [];
-  const callRe = new RegExp(String.raw`\b${guard.helper}\s*\(\s*pool\s*,\s*req\.params\.id\s*\)`, 'g');
+  const callRe = /\b([A-Za-z_$][\w$]*)\s*\(([\s\S]{0,260}?req\.params\.[A-Za-z_$][\w$]*[\s\S]{0,260}?)\)/g;
   for (const match of source.matchAll(callRe)) {
+    const [, helper, args] = match;
+    if (!/^(?:get.*ById|load.*Detail|getOutboxById)$/i.test(helper)) continue;
+    if (/\bpropertyId\b/.test(args) || /\bproperty_id\b/.test(args)) continue;
+
     findings.push({
-      file: guard.file,
+      file,
       line: lineOf(source, match.index),
-      message: `${guard.helper}(pool, req.params.id) route call is missing { propertyId }`,
+      message: `${helper}(... req.params.* ...) route call is missing { propertyId }`,
       sql: match[0],
     });
   }
   return findings;
+}
+
+function isAllowlisted(finding) {
+  const rel = path.relative(root, finding.file).replace(/\\/g, '/');
+  return allowlist.some((entry) => entry.file.replace(/\\/g, '/') === rel && entry.line === finding.line);
 }
 
 const files = scanRoots.flatMap(walk);
@@ -152,15 +166,16 @@ for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
   findings.push(...auditSqlText(file, source));
   findings.push(...auditMutationText(file, source));
-}
-for (const guard of routeHelperGuards) {
-  if (!fs.existsSync(guard.file)) continue;
-  findings.push(...auditRouteHelperCalls(fs.readFileSync(guard.file, 'utf8'), guard));
+  if (file.includes(`${path.sep}routes${path.sep}`)) {
+    findings.push(...auditRouteHelperCalls(file, source));
+  }
 }
 
-if (findings.length) {
+const activeFindings = findings.filter((finding) => !isAllowlisted(finding));
+
+if (activeFindings.length) {
   console.error('[backend-v1-property-scope-audit] unsafe property-scope reads found:');
-  for (const finding of findings) {
+  for (const finding of activeFindings) {
     console.error(`- ${path.relative(root, finding.file)}:${finding.line} ${finding.message}`);
     console.error(`  ${finding.sql}`);
   }

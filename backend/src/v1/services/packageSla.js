@@ -47,6 +47,9 @@ async function getPackageSlaSnapshot(db, opts = {}) {
   }
   const { remindDays, followupDays, adminAlertDays } = resolveThresholds(opts);
   const generatedAt = new Date().toISOString();
+  const packageArgs = [String(remindDays), String(followupDays), String(adminAlertDays)];
+  const packageWhere = opts.propertyId ? `WHERE property_id = $${packageArgs.length + 1}` : '';
+  if (opts.propertyId) packageArgs.push(opts.propertyId);
 
   const { rows: aggRows } = await db.query(
     `
@@ -67,8 +70,9 @@ async function getPackageSlaSnapshot(db, opts = {}) {
       COUNT(*) FILTER (WHERE received_at >= NOW() - INTERVAL '24 hours')
         AS received_24h
       FROM packages_v2
+      ${packageWhere}
     `,
-    [String(remindDays), String(followupDays), String(adminAlertDays)],
+    packageArgs,
   );
   const agg = aggRows[0] || {};
 
@@ -77,6 +81,14 @@ async function getPackageSlaSnapshot(db, opts = {}) {
     FOLLOWUP_EVENT_TYPE,
     ADMIN_ALERT_EVENT_TYPE,
   ];
+  const outboxArgs = [
+    PICKUP_REMINDER_EVENT_TYPE,
+    FOLLOWUP_EVENT_TYPE,
+    ADMIN_ALERT_EVENT_TYPE,
+    eventTypes,
+  ];
+  const outboxPropertyPredicate = opts.propertyId ? `AND property_id = $${outboxArgs.length + 1}` : '';
+  if (opts.propertyId) outboxArgs.push(opts.propertyId);
   const { rows: outboxRows } = await db.query(
     `
     SELECT
@@ -86,13 +98,9 @@ async function getPackageSlaSnapshot(db, opts = {}) {
       FROM notifications_outbox
      WHERE event_type = ANY($4::text[])
        AND created_at >= NOW() - INTERVAL '24 hours'
+       ${outboxPropertyPredicate}
     `,
-    [
-      PICKUP_REMINDER_EVENT_TYPE,
-      FOLLOWUP_EVENT_TYPE,
-      ADMIN_ALERT_EVENT_TYPE,
-      eventTypes,
-    ],
+    outboxArgs,
   );
   const outboxAgg = outboxRows[0] || {};
 

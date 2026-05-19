@@ -120,6 +120,30 @@ describe('getPackageSlaSnapshot', () => {
     });
     expect(query.mock.calls[0][1]).toEqual(['3', '10', '20']);
   });
+
+  test('scopes package and outbox metrics by propertyId', async () => {
+    const query = jestApi.fn()
+      .mockResolvedValueOnce({ rows: [{}] })
+      .mockResolvedValueOnce({ rows: [{}] });
+
+    await getPackageSlaSnapshot({ query }, { propertyId: 'property-1' });
+
+    const [packagesSql, packagesArgs] = query.mock.calls[0];
+    expect(packagesSql).toMatch(/FROM packages_v2/);
+    expect(packagesSql).toMatch(/WHERE property_id = \$4/);
+    expect(packagesArgs).toEqual(['7', '14', '30', 'property-1']);
+
+    const [outboxSql, outboxArgs] = query.mock.calls[1];
+    expect(outboxSql).toMatch(/FROM notifications_outbox/);
+    expect(outboxSql).toMatch(/AND property_id = \$5/);
+    expect(outboxArgs).toEqual([
+      PICKUP_REMINDER_EVENT_TYPE,
+      FOLLOWUP_EVENT_TYPE,
+      ADMIN_ALERT_EVENT_TYPE,
+      [PICKUP_REMINDER_EVENT_TYPE, FOLLOWUP_EVENT_TYPE, ADMIN_ALERT_EVENT_TYPE],
+      'property-1',
+    ]);
+  });
 });
 
 describe('renderSlaAsPrometheus', () => {
