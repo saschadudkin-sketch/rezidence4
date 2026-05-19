@@ -65,8 +65,25 @@ function buildE2EEnv(baseEnv = process.env) {
   return env;
 }
 
+function loadEnvFilesDefault() {
+  let dotenv;
+  try {
+    dotenv = require(path.join(repoRoot, 'backend', 'node_modules', 'dotenv'));
+  } catch {
+    return;
+  }
+
+  for (const envPath of [
+    path.join(repoRoot, '.env'),
+    path.join(repoRoot, 'backend', '.env'),
+  ]) {
+    dotenv.config({ path: envPath, override: false, quiet: true });
+  }
+}
+
 module.exports = {
   buildE2EEnv,
+  loadEnvFilesDefault,
   parseEnvFile,
   repoRoot,
 };

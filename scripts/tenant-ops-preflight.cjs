@@ -1,22 +1,6 @@
 #!/usr/bin/env node
 const path = require('node:path');
-const { buildE2EEnv, repoRoot } = require('./e2e-env.cjs');
-
-function loadEnvFilesDefault() {
-  let dotenv;
-  try {
-    dotenv = require(path.join(repoRoot, 'backend', 'node_modules', 'dotenv'));
-  } catch {
-    return;
-  }
-
-  for (const envPath of [
-    path.join(repoRoot, '.env'),
-    path.join(repoRoot, 'backend', '.env'),
-  ]) {
-    dotenv.config({ path: envPath, override: false, quiet: true });
-  }
-}
+const { buildE2EEnv, loadEnvFilesDefault, repoRoot } = require('./e2e-env.cjs');
 
 function parseArgs(argv) {
   return {

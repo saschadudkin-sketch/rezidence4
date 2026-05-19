@@ -75,7 +75,7 @@ async function processPendingDeliveries(db) {
       FROM candidate c, webhooks w
      WHERE d.id = c.id
        AND w.id = d.webhook_id
-     RETURNING d.*, w.url, w.secret, w.name
+     RETURNING d.*, w.url, w.secret, w.name, w.is_active
   `);
 
   for (const delivery of rows) {
@@ -110,6 +110,11 @@ async function markPermanentFailure(delivery, db, errorMessage, responseStatus =
  * @param {object} db
  */
 async function deliverOne(delivery, db) {
+  if (delivery.is_active === false) {
+    await markPermanentFailure(delivery, db, 'webhook_inactive');
+    return;
+  }
+
   const urlCheck = validateOutboundUrl(delivery.url, { allowedProtocols: ['https:'] });
   if (!urlCheck.ok) {
     const errorMessage = `ssrf_blocked:${urlCheck.reason}`;

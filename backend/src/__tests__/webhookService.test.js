@@ -55,7 +55,38 @@ describe('legacy webhookService delivery runtime', () => {
     expect(sql).toMatch(/FOR UPDATE SKIP LOCKED/i);
     expect(sql).toMatch(/UPDATE webhook_deliveries d/i);
     expect(sql).toMatch(/SET status = 'retrying'/i);
-    expect(sql).toMatch(/RETURNING d\.\*, w\.url, w\.secret, w\.name/i);
+    expect(sql).toMatch(/RETURNING d\.\*, w\.url, w\.secret, w\.name, w\.is_active/i);
+  });
+
+  test('deliverOne stops queued deliveries for inactive webhooks before fetch', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+    };
+
+    await deliverOne({
+      id: 'delivery-1',
+      webhook_id: 'wh-1',
+      event_type: 'request.approved',
+      attempt_count: 0,
+      payload: { requestId: 'req-1' },
+      url: 'https://partner.example/hook',
+      secret: 'secret',
+      is_active: false,
+    }, db);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    const deliveryUpdate = db.query.mock.calls.find(([sql]) => /UPDATE webhook_deliveries/i.test(sql));
+    const webhookUpdate = db.query.mock.calls.find(([sql]) => /UPDATE webhooks/i.test(sql));
+    expect(deliveryUpdate[0]).toMatch(/status = 'failed'/);
+    expect(deliveryUpdate[1]).toEqual([
+      null,
+      'webhook_inactive',
+      'delivery-1',
+    ]);
+    expect(webhookUpdate[1]).toEqual([
+      'webhook_inactive',
+      'wh-1',
+    ]);
   });
 
   test('deliverOne blocks unsafe stored URLs before fetch and marks failed', async () => {

@@ -6,8 +6,10 @@ const {
   parseBatchArgs,
   runTenantMigrationBatch,
 } = require('./tenant-ops-core.cjs');
+const { loadEnvFilesDefault } = require('./e2e-env.cjs');
 
 async function main() {
+  loadEnvFilesDefault();
   const options = parseBatchArgs(process.argv.slice(2));
   const result = await runTenantMigrationBatch({ options });
   // eslint-disable-next-line no-console
