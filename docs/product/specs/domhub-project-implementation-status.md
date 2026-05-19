@@ -178,10 +178,28 @@ Started after `DH-03` implementation pass on 2026-05-05.
 
 ## Current Critical Path
 
-1. Add Russia readiness depth now that DH-58/DH-60 baselines exist: validate DH-59 field rollout evidence and DH-60 report evidence against real pilot runs, then continue notification delivery validation and richer anomaly rules.
-2. Keep DH-55/DH-57 evidence on the same track: validate ownership-transfer/preference cascade with real pilot data, and continue DH-57 external certification/24x7 provider validation beyond the recorded delivery evidence baseline.
-3. Repeat `npm run tenant:restore-drill` in staging/prod against real retained backups before go-live; local restore drill is green, but staging/prod evidence is still required.
-4. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths until v1 release gates and replacement modules prove no supported flow depends on them.
+Current operating assumption: DomHub has only a test database. The active
+execution plan is `docs/product/specs/domhub-test-db-execution-plan.md`.
+
+1. Keep the local critical gate green after every access/content/operations
+   change. Latest local verification on 2026-05-20: `cd backend &&
+   npm run test:coverage:critical` passed with 32 suites / 629 tests, backend
+   contract tests passed with 1 suite / 8 tests, `npm run openapi:drift` passed,
+   and `npm run frontend:v1-contract-coverage` passed.
+2. Treat the canonical seeded test tenant as the main runtime contour: migrations,
+   seed, tenant preflight and E2E must be reproducible from a clean test DB.
+3. Prove access-core on the seeded tenant before adding scope: resident pass,
+   resident vehicle access, admin topology/policy, guard QR/plate verify, manual
+   admit/deny, degraded replay and audit evidence.
+4. Prove one operations lifecycle on the seeded tenant: resident request, staff
+   assignment, technician/contractor action, resident-visible update and
+   notification/outbox evidence.
+5. Keep Russia readiness, SKUD, GIS/OSS, ERP/1C and emergency provider work as
+   adapter/stub/evidence-baseline until a real DB and external provider context
+   exist. Do not describe these as production-validated.
+6. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths
+   until v1 release gates and replacement modules prove no supported flow depends
+   on them.
 
 ## Validation Performed
 

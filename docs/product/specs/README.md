@@ -60,6 +60,9 @@ This directory contains the working product source of truth for DomHub platform 
 - `domhub-project-implementation-status.md`
   - Audit snapshot comparing the current local codebase against `DH-01` through `DH-61`. It reports implemented, partial, planned, and legacy/prototype areas and does not override the master plan.
 
+- `domhub-test-db-execution-plan.md`
+  - Active execution plan for the current phase where DomHub has only a test database: canonical seeded tenant, critical gates, seeded-test-DB E2E, legacy containment, and real-DB onboarding preparation.
+
 - `domhub-access-data-model-spec.md`
   - ERD/data model source of truth for DomHub as an access-control platform.
 
