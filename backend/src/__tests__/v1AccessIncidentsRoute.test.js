@@ -51,6 +51,26 @@ function overrideRow(overrides = {}) {
   };
 }
 
+function incidentRow(overrides = {}) {
+  return {
+    id: UUID_INCIDENT,
+    property_id: UUID_PROPERTY,
+    related_pass_id: UUID_PASS,
+    related_visit_log_id: null,
+    related_vehicle_id: null,
+    incident_type: 'invalid_qr',
+    severity: 'medium',
+    status: 'investigating',
+    title: 'Invalid QR',
+    description: null,
+    created_by_staff_id: UUID_STAFF,
+    assigned_to_staff_id: null,
+    resolved_at: null,
+    created_at: '2026-05-05T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockCurrentUser = null;
@@ -63,6 +83,8 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     mockCurrentUser = { uid: 'legacy-security-1', role: 'security' };
     db.query.mockImplementation((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [{ id: UUID_PASS }] });
       if (sql.includes('INSERT INTO access_overrides')) return Promise.resolve({ rows: [overrideRow()] });
       if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
       throw new Error(`unexpected SQL: ${sql}`);
@@ -104,6 +126,7 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     mockCurrentUser = { uid: 'legacy-security-1', role: 'security' };
     db.query.mockImplementation((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
       if (sql.includes('INSERT INTO access_overrides')) return Promise.resolve({ rows: [overrideRow()] });
       if (sql.includes('INSERT INTO property_audit_log')) return Promise.reject(new Error('audit down'));
       throw new Error(`unexpected SQL: ${sql}`);
@@ -214,6 +237,63 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     const auditCall = db.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO property_audit_log'));
     expect(auditCall[1][0]).toBe(UUID_PROPERTY);
     expect(auditCall[1][5]).toBe('incident.reopened');
+  });
+
+  test('incident detail reads incident and overrides within owned property scope', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('SELECT property_id FROM access_incidents')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY }] });
+      }
+      if (s.includes('FROM access_incidents') && s.includes('WHERE id = $1 AND property_id = $2')) {
+        return Promise.resolve({ rows: [incidentRow()] });
+      }
+      if (s.includes('FROM access_overrides') && s.includes('WHERE incident_id = $1 AND property_id = $2')) {
+        return Promise.resolve({ rows: [overrideRow()] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp()).get(`/api/v1/access-incidents/${UUID_INCIDENT}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.incident.id).toBe(UUID_INCIDENT);
+    expect(res.body.overrides).toHaveLength(1);
+
+    const incidentReadCall = db.query.mock.calls.find(([sql]) => {
+      const s = String(sql);
+      return s.includes('related_pass_id') && s.includes('WHERE id = $1 AND property_id = $2');
+    });
+    expect(incidentReadCall[1]).toEqual([UUID_INCIDENT, UUID_PROPERTY]);
+
+    const overridesReadCall = db.query.mock.calls.find(([sql]) => String(sql).includes('WHERE incident_id = $1 AND property_id = $2'));
+    expect(overridesReadCall[1]).toEqual([UUID_INCIDENT, UUID_PROPERTY]);
+  });
+
+  test('override detail reads override within owned property scope', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      const s = String(sql);
+      if (s.includes('SELECT property_id FROM access_overrides')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY }] });
+      }
+      if (s.includes('FROM access_overrides') && s.includes('WHERE id = $1 AND property_id = $2')) {
+        return Promise.resolve({ rows: [overrideRow()] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp()).get(`/api/v1/access-overrides/${UUID_OVERRIDE}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.override.id).toBe(UUID_OVERRIDE);
+
+    const overrideReadCall = db.query.mock.calls.find(([sql]) => {
+      const s = String(sql);
+      return s.includes('created_at') && s.includes('WHERE id = $1 AND property_id = $2');
+    });
+    expect(overrideReadCall[1]).toEqual([UUID_OVERRIDE, UUID_PROPERTY]);
   });
 
   test('non-admin cannot reopen resolved incident', async () => {

@@ -119,6 +119,7 @@ describe('AccessIncidentService', () => {
   test('createOverride writes performed_by_staff_id from staff mapping', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents')) return Promise.resolve({ rows: [{ id: UUID_INCIDENT }] });
       if (sql.includes('INSERT INTO access_overrides')) {
         return Promise.resolve({ rows: [{ id: 'override-1', property_id: UUID_PROPERTY, performed_by_staff_id: UUID_STAFF }] });
       }
@@ -141,6 +142,97 @@ describe('AccessIncidentService', () => {
     const insertCall = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO access_overrides'));
     expect(insertCall[1]).toContain(UUID_STAFF);
     expect(insertCall[1]).not.toContain('legacy-security-1');
+  });
+
+  test('createOverride rejects incident_id from another property', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createOverride({
+      queryable,
+      user: { uid: 'legacy-security-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        incident_id: UUID_INCIDENT,
+        pass_id: null,
+        override_type: 'manual_admit',
+        reason: 'resident confirmed',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'incident_id does not exist for this property',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
+  });
+
+  test('createOverride rejects pass_id from another property', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createOverride({
+      queryable,
+      user: { uid: 'legacy-security-1', role: 'security' },
+      input: {
+        property_id: UUID_PROPERTY,
+        incident_id: null,
+        pass_id: UUID_PASS,
+        override_type: 'manual_admit',
+        reason: 'resident confirmed',
+      },
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'pass_id does not exist for this property',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
+  });
+
+  test('resolveIncident rejects override pass_id from another property', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            property_id: UUID_PROPERTY,
+            status: 'investigating',
+            related_pass_id: null,
+            assigned_to_staff_id: null,
+          }],
+        });
+      }
+      if (sql.includes('FROM passes')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(resolveIncident({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-security-1', role: 'security' },
+      incidentId: UUID_INCIDENT,
+      reason: 'done',
+      overrideInput: {
+        pass_id: UUID_PASS,
+        override_type: 'manual_admit',
+        reason: 'resident confirmed',
+      },
+      isPropertyAdmin: true,
+      propertyId: UUID_PROPERTY,
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'pass_id does not exist for this property',
+    });
+
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('UPDATE access_incidents'))).toBe(false);
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+    expect(txClient.release).toHaveBeenCalledTimes(1);
   });
 
   test('createManualSecurityDecision writes visit log, incident, override and audit in one transaction', async () => {

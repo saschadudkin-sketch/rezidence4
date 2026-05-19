@@ -215,15 +215,15 @@ router.get('/access-incidents/:id', async (req, res, next) => {
     const propertyId = await loadOwnedProperty(req, 'access_incident', req.params.id, 'Incident not found');
     if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows } = await getDb(req).query(
-      `SELECT ${INCIDENT_COLS} FROM access_incidents WHERE id = $1`,
-      [req.params.id],
+      `SELECT ${INCIDENT_COLS} FROM access_incidents WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Incident not found' });
 
     const { rows: ovRows } = await getDb(req).query(
       `SELECT ${OVERRIDE_COLS} FROM access_overrides
-        WHERE incident_id = $1 ORDER BY created_at ASC`,
-      [req.params.id],
+        WHERE incident_id = $1 AND property_id = $2 ORDER BY created_at ASC`,
+      [req.params.id, propertyId],
     );
     res.json({ incident: rows[0], overrides: ovRows });
   } catch (err) {
@@ -664,7 +664,10 @@ router.get('/access-overrides/:id', async (req, res, next) => {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
     const propertyId = await loadOwnedProperty(req, 'access_override', req.params.id, 'Override not found');
     if (!canReadIncidents(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
-    const { rows } = await getDb(req).query(`SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1`, [req.params.id]);
+    const { rows } = await getDb(req).query(
+      `SELECT ${OVERRIDE_COLS} FROM access_overrides WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Override not found' });
     res.json({ override: rows[0] });
   } catch (err) {

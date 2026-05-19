@@ -47,6 +47,24 @@ async function requireStaffId(queryable, user) {
   return staffId;
 }
 
+async function validateOverrideReferences(queryable, { propertyId, incidentId, passId }) {
+  if (incidentId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM access_incidents WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [incidentId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'incident_id does not exist for this property');
+  }
+
+  if (passId) {
+    const { rows } = await queryable.query(
+      `SELECT id FROM passes WHERE id = $1 AND property_id = $2 LIMIT 1`,
+      [passId, propertyId],
+    );
+    if (!rows[0]) throw serviceError(400, 'pass_id does not exist for this property');
+  }
+}
+
 async function createIncident({ queryable, user, input }) {
   const staffId = await requireStaffId(queryable, user);
   const { rows } = await queryable.query(
@@ -131,6 +149,16 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
       throw serviceError(403, 'Incident is assigned to another staff');
     }
 
+    let overridePassId = null;
+    if (overrideInput) {
+      overridePassId = overrideInput.pass_id || curRows[0].related_pass_id || null;
+      await validateOverrideReferences(client, {
+        propertyId: curRows[0].property_id,
+        incidentId: null,
+        passId: overridePassId,
+      });
+    }
+
     const { rows: incRows } = await client.query(
       `UPDATE access_incidents
           SET status = 'resolved', resolved_at = NOW(),
@@ -151,7 +179,7 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
         [
           incRows[0].property_id,
           incidentId,
-          overrideInput.pass_id || curRows[0].related_pass_id || null,
+          overridePassId,
           staffId,
           overrideInput.override_type,
           overrideInput.reason.trim(),
@@ -220,6 +248,11 @@ async function patchIncident({ queryable, incidentId, changes, propertyId = null
 
 async function createOverride({ queryable, user, input }) {
   const staffId = await requireStaffId(queryable, user);
+  await validateOverrideReferences(queryable, {
+    propertyId: input.property_id,
+    incidentId: input.incident_id,
+    passId: input.pass_id,
+  });
   const { rows } = await queryable.query(
     `INSERT INTO access_overrides
        (property_id, incident_id, pass_id, performed_by_staff_id, override_type, reason)
