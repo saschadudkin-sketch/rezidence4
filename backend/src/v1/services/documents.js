@@ -360,9 +360,11 @@ async function updateDocument(pool, id, patch, opts = {}) {
     await client.query('BEGIN');
 
     // 1. Прочитать текущую row (lock не нужен — snapshot transactional).
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const readParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: cur } = await client.query(
-      `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1`,
-      [id],
+      `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1${propertyPredicate}`,
+      readParams,
     );
     if (cur.length === 0) {
       await client.query('ROLLBACK');
@@ -427,10 +429,16 @@ async function updateDocument(pool, id, patch, opts = {}) {
       n += 1;
     }
     params.push(id);
+    const idIdx = n;
+    if (opts.propertyId) {
+      params.push(opts.propertyId);
+      n += 1;
+    }
     const { rows: upd } = await client.query(
       `UPDATE documents_v2
           SET ${pieces.join(', ')}, updated_at = NOW()
-        WHERE id = $${n}
+        WHERE id = $${idIdx}
+          ${opts.propertyId ? `AND property_id = $${n}` : ''}
           AND deleted_at IS NULL
         RETURNING ${DOCUMENT_COLUMNS}`,
       params,
@@ -457,9 +465,11 @@ async function updateDocument(pool, id, patch, opts = {}) {
 async function publishDocument(db, id, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
 
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const readParams = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows: cur } = await db.query(
-    `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1`,
-    [id],
+    `SELECT ${DOCUMENT_COLUMNS} FROM documents_v2 WHERE id = $1${propertyPredicate}`,
+    readParams,
   );
   if (cur.length === 0) return { row: null, conflict: 'not_found' };
   if (cur[0].deleted_at) return { row: null, conflict: 'deleted' };
@@ -479,9 +489,10 @@ async function publishDocument(db, id, opts = {}) {
             updated_by_staff_id = $2,
             updated_at = NOW()
       WHERE id = $1
+        ${opts.propertyId ? 'AND property_id = $3' : ''}
         AND deleted_at IS NULL
       RETURNING ${DOCUMENT_COLUMNS}`,
-    [id, opts.updatedByStaffId || null],
+    opts.propertyId ? [id, opts.updatedByStaffId || null, opts.propertyId] : [id, opts.updatedByStaffId || null],
   );
   return { row: upd[0], conflict: null };
 }
@@ -497,15 +508,18 @@ async function unpublishDocument(db, id, opts = {}) {
             updated_by_staff_id = $2,
             updated_at = NOW()
       WHERE id = $1
+        ${opts.propertyId ? 'AND property_id = $3' : ''}
         AND deleted_at IS NULL
         AND published_at IS NOT NULL
       RETURNING ${DOCUMENT_COLUMNS}`,
-    [id, opts.updatedByStaffId || null],
+    opts.propertyId ? [id, opts.updatedByStaffId || null, opts.propertyId] : [id, opts.updatedByStaffId || null],
   );
   if (upd.length === 0) {
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const probeParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: probe } = await db.query(
-      `SELECT id, published_at, deleted_at FROM documents_v2 WHERE id = $1`,
-      [id],
+      `SELECT id, published_at, deleted_at FROM documents_v2 WHERE id = $1${propertyPredicate}`,
+      probeParams,
     );
     if (probe.length === 0) return { row: null, conflict: 'not_found' };
     if (probe[0].deleted_at) return { row: null, conflict: 'deleted' };
@@ -518,21 +532,24 @@ async function unpublishDocument(db, id, opts = {}) {
  * softDeleteDocument — DELETE /api/v1/documents/:id.  admin only.
  * soft — ставит deleted_at=NOW().  document_versions сохраняются.
  */
-async function softDeleteDocument(db, id) {
+async function softDeleteDocument(db, id, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
   const { rows: upd } = await db.query(
     `UPDATE documents_v2
         SET deleted_at = NOW(),
             updated_at = NOW()
       WHERE id = $1
+        ${opts.propertyId ? 'AND property_id = $2' : ''}
         AND deleted_at IS NULL
       RETURNING ${DOCUMENT_COLUMNS}`,
-    [id],
+    opts.propertyId ? [id, opts.propertyId] : [id],
   );
   if (upd.length === 0) {
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const probeParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: probe } = await db.query(
-      `SELECT id, deleted_at FROM documents_v2 WHERE id = $1`,
-      [id],
+      `SELECT id, deleted_at FROM documents_v2 WHERE id = $1${propertyPredicate}`,
+      probeParams,
     );
     if (probe.length === 0) return { row: null, conflict: 'not_found' };
     return { row: null, conflict: 'already_deleted' };

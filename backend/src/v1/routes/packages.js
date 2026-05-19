@@ -318,7 +318,9 @@ router.patch('/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const pkg = await updatePackage(pool, req.params.id, req.body || {});
+    const pkg = await updatePackage(pool, req.params.id, req.body || {}, {
+      propertyId: existing.property_id,
+    });
     if (!pkg) return res.status(404).json({ error: 'Not found' });
     audit(req, 'package.updated', pkg.id, req.body || null);
     return res.json({ ok: true, package: pkg });
@@ -354,6 +356,7 @@ router.post('/:id/pickup', async (req, res) => {
       pickedUpByResidentId: b.picked_up_by_resident_id || null,
       pickedUpByName: b.picked_up_by_name || null,
       pickedUpByStaffId: staffId,
+      propertyId: existing.property_id,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
@@ -384,7 +387,10 @@ router.post('/:id/return', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { package: pkg, conflict } = await returnPackage(pool, req.params.id, req.body || {});
+    const { package: pkg, conflict } = await returnPackage(pool, req.params.id, {
+      ...(req.body || {}),
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
       return res.status(409).json({ error: `Cannot return from status '${conflict}'` });
@@ -412,7 +418,10 @@ router.post('/:id/mark-lost',
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (!canManagePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { package: pkg, conflict } = await markLostPackage(pool, req.params.id, req.body || {});
+    const { package: pkg, conflict } = await markLostPackage(pool, req.params.id, {
+      ...(req.body || {}),
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
       return res.status(409).json({ error: `Cannot mark-lost from status '${conflict}'` });
@@ -441,7 +450,9 @@ router.post('/:id/remind', remindLimiter, async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Not found' });
     if (!canOperatePackageProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { package: pkg, outboxRows, conflict } = await remindPackage(pool, req.params.id);
+    const { package: pkg, outboxRows, conflict } = await remindPackage(pool, req.params.id, {
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict !== null) {
       return res.status(409).json({ error: `Cannot remind from status '${conflict}'` });

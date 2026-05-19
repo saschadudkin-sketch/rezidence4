@@ -310,6 +310,7 @@ router.patch('/:id', async (req, res) => {
       role: req.user.role,
       updatedByStaffId: staffId,
       reason: b.reason || null,
+      propertyId: existing.property_id,
     });
     if (conflict === 'noop') return res.status(400).json({ error: 'No fields to update' });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
@@ -340,6 +341,7 @@ router.post('/:id/publish', async (req, res) => {
     const { row, conflict } = await publishDocument(pool, req.params.id, {
       role: req.user.role,
       updatedByStaffId: staffId,
+      propertyId: existing.property_id,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -373,6 +375,7 @@ router.post('/:id/unpublish',
     const staffId = await resolveStaffIdByUid(pool, req.user.uid);
     const { row, conflict } = await unpublishDocument(pool, req.params.id, {
       updatedByStaffId: staffId,
+      propertyId: existing.property_id,
     });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -399,7 +402,9 @@ router.delete('/:id',
     if (existing.deleted_at) return res.status(409).json({ error: 'Already deleted' });
     if (!canDeleteDocumentProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { row, conflict } = await softDeleteDocument(pool, req.params.id);
+    const { row, conflict } = await softDeleteDocument(pool, req.params.id, {
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'already_deleted') {
       return res.status(409).json({ error: 'Already deleted' });

@@ -204,11 +204,13 @@ async function listForResident(db, residentId, unitIds = [], opts = {}) {
   return rows;
 }
 
-async function getById(db, id) {
+async function getById(db, id, opts = {}) {
   if (!isValidUuid(id)) return null;
+  const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+  const params = opts.propertyId ? [id, opts.propertyId] : [id];
   const { rows } = await db.query(
-    `SELECT ${FULL_COLS} FROM packages_v2 WHERE id = $1`,
-    [id],
+    `SELECT ${FULL_COLS} FROM packages_v2 WHERE id = $1${propertyPredicate}`,
+    params,
   );
   return rows[0] || null;
 }
@@ -336,7 +338,7 @@ async function createPackage(pool, input) {
  * меняется только через pickup/return/mark-lost endpoints, которые enforce'ят
  * state machine invariants.
  */
-async function updatePackage(db, id, patch) {
+async function updatePackage(db, id, patch, opts = {}) {
   if (!isValidUuid(id)) throw new Error('id must be UUID');
   const fields = [];
   const args = [];
@@ -361,13 +363,15 @@ async function updatePackage(db, id, patch) {
   }
   if (fields.length === 0) {
     // Идемпотентный no-op: возвращаем текущую строку.
-    return getById(db, id);
+    return getById(db, id, opts);
   }
   args.push(id);
+  const idIdx = args.length;
+  if (opts.propertyId) args.push(opts.propertyId);
   const { rows } = await db.query(
     `UPDATE packages_v2
         SET ${fields.join(', ')}, updated_at = NOW()
-      WHERE id = $${args.length}
+      WHERE id = $${idIdx}${opts.propertyId ? ` AND property_id = $${args.length}` : ''}
       RETURNING ${FULL_COLS}`,
     args,
   );
@@ -409,8 +413,8 @@ async function pickupPackage(pool, id, input) {
     await client.query('BEGIN');
     // FOR UPDATE — lock'им строку, чтобы параллельный pickup не прошёл.
     const { rows: curRows } = await client.query(
-      `SELECT id, property_id, status FROM packages_v2 WHERE id = $1 FOR UPDATE`,
-      [id],
+      `SELECT id, property_id, status FROM packages_v2 WHERE id = $1${input.propertyId ? ' AND property_id = $2' : ''} FOR UPDATE`,
+      input.propertyId ? [id, input.propertyId] : [id],
     );
     if (!curRows[0]) {
       await client.query('ROLLBACK');
@@ -431,8 +435,9 @@ async function pickupPackage(pool, id, input) {
               picked_up_by_staff_id = $3,
               updated_at = NOW()
         WHERE id = $4
+          AND property_id = $5
         RETURNING ${FULL_COLS}`,
-      [pickedUpByResidentId, pickedUpByName, pickedUpByStaffId, id],
+      [pickedUpByResidentId, pickedUpByName, pickedUpByStaffId, id, propertyId],
     );
     const pkg = rows[0];
 
@@ -486,8 +491,8 @@ async function returnPackage(pool, id, input) {
   try {
     await client.query('BEGIN');
     const { rows: curRows } = await client.query(
-      `SELECT status FROM packages_v2 WHERE id = $1 FOR UPDATE`,
-      [id],
+      `SELECT property_id, status FROM packages_v2 WHERE id = $1${input?.propertyId ? ' AND property_id = $2' : ''} FOR UPDATE`,
+      input?.propertyId ? [id, input.propertyId] : [id],
     );
     if (!curRows[0]) {
       await client.query('ROLLBACK');
@@ -505,8 +510,9 @@ async function returnPackage(pool, id, input) {
               returned_reason = $1,
               updated_at = NOW()
         WHERE id = $2
+          AND property_id = $3
         RETURNING ${FULL_COLS}`,
-      [reason, id],
+      [reason, id, curRows[0].property_id],
     );
     await client.query('COMMIT');
     return { package: rows[0], conflict: null };
@@ -535,8 +541,8 @@ async function markLostPackage(pool, id, input) {
   try {
     await client.query('BEGIN');
     const { rows: curRows } = await client.query(
-      `SELECT status FROM packages_v2 WHERE id = $1 FOR UPDATE`,
-      [id],
+      `SELECT property_id, status FROM packages_v2 WHERE id = $1${input?.propertyId ? ' AND property_id = $2' : ''} FOR UPDATE`,
+      input?.propertyId ? [id, input.propertyId] : [id],
     );
     if (!curRows[0]) {
       await client.query('ROLLBACK');
@@ -553,8 +559,9 @@ async function markLostPackage(pool, id, input) {
               returned_reason = $1,
               updated_at = NOW()
         WHERE id = $2
+          AND property_id = $3
         RETURNING ${FULL_COLS}`,
-      [reason, id],
+      [reason, id, curRows[0].property_id],
     );
     await client.query('COMMIT');
     return { package: rows[0], conflict: null };
@@ -571,14 +578,14 @@ async function markLostPackage(pool, id, input) {
  * (дополнительно к SLA-scheduler'у).  Работает только для awaiting_pickup.
  * Fan-out'им на те же каналы, что и receive, но payload помечен `manual:true`.
  */
-async function remindPackage(pool, id) {
+async function remindPackage(pool, id, opts = {}) {
   if (!isValidUuid(id)) throw new Error('id must be UUID');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows: curRows } = await client.query(
-      `SELECT ${FULL_COLS} FROM packages_v2 WHERE id = $1`,
-      [id],
+      `SELECT ${FULL_COLS} FROM packages_v2 WHERE id = $1${opts.propertyId ? ' AND property_id = $2' : ''}`,
+      opts.propertyId ? [id, opts.propertyId] : [id],
     );
     if (!curRows[0]) {
       await client.query('ROLLBACK');

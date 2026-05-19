@@ -58,6 +58,10 @@ function unavailable(res) {
   });
 }
 
+function resolvePropertyId(req) {
+  return req.property?.id || req.property?.property_id || req.user?.property_id || req.user?.propertyId || null;
+}
+
 // ─── Capability-middleware shortcuts ─────────────────────────────────────────
 // Сохраняем legacy error-message 'Admin only' для всех outbox endpoints
 // (было `if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' })`).
@@ -91,9 +95,10 @@ function audit(req, action, resourceId, changes) {
 // default (без query) — JSON для admin UI.
 router.get('/metrics', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
 
   try {
-    const snapshot = await getOutboxMetrics(pool);
+    const snapshot = await getOutboxMetrics(pool, { propertyId });
 
     // Content negotiation: ?format=prometheus → text/plain.
     const format = String(req.query.format || '').toLowerCase();
@@ -143,6 +148,7 @@ router.get('/sla', requireOutboxRead, async (req, res) => {
 // ─── GET / ───────────────────────────────────────────────────────────────────
 router.get('/', requireOutboxRead, async (req, res) => {
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
 
   // Early validation: если `from`/`to` указаны, но невалидны — 400 (не SILENT
   // игнорирование, иначе админ не поймёт, почему получил слишком много).
@@ -159,6 +165,7 @@ router.get('/', requireOutboxRead, async (req, res) => {
 
   try {
     const result = await listOutbox(pool, {
+      propertyId,
       status:  req.query.status,
       channel: req.query.channel,
       from:    req.query.from,
@@ -184,8 +191,9 @@ router.get('/', requireOutboxRead, async (req, res) => {
 router.get('/:id', requireOutboxRead, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
   try {
-    const row = await getOutboxById(pool, req.params.id);
+    const row = await getOutboxById(pool, req.params.id, { propertyId });
     if (!row) return res.status(404).json({ error: 'Not found' });
     return res.json({ ok: true, item: row });
   } catch (err) {
@@ -198,8 +206,9 @@ router.get('/:id', requireOutboxRead, async (req, res) => {
 router.post('/:id/requeue', requireOutboxRequeue, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
   try {
-    const out = await requeueOutboxRow(pool, req.params.id);
+    const out = await requeueOutboxRow(pool, req.params.id, { propertyId });
     if (out.revived) {
       audit(req, 'outbox.requeued', req.params.id, {
         previous_status: out.previousStatus,
@@ -232,8 +241,9 @@ router.post('/:id/requeue', requireOutboxRequeue, async (req, res) => {
 router.post('/:id/cancel', requireOutboxCancel, async (req, res) => {
   if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const pool = req.db || db.pool;
+  const propertyId = resolvePropertyId(req);
   try {
-    const out = await cancelOutboxRow(pool, req.params.id);
+    const out = await cancelOutboxRow(pool, req.params.id, { propertyId });
     if (out.cancelled) {
       audit(req, 'outbox.cancelled', req.params.id, null);
       return res.json({ ok: true, item: out.row });

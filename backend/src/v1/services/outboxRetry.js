@@ -104,6 +104,7 @@ async function resurrectOutboxRows(pool, params) {
   if (Array.isArray(p.ids) && p.ids.length > 0) {
     // Точечный retry: status IN ('dead','failed') — защита от двойной
     // отправки на in_flight и от бессмысленного retry на sent.
+    const propertyPredicate = p.propertyId ? 'AND property_id = $2' : '';
     sql = `
       UPDATE notifications_outbox
          SET status            = 'pending',
@@ -112,16 +113,18 @@ async function resurrectOutboxRows(pool, params) {
              last_error        = NULL,
              last_attempted_at = NULL
        WHERE id = ANY($1::uuid[])
+         ${propertyPredicate}
          AND status IN ('dead','failed')
        RETURNING id
     `;
-    args = [p.ids];
+    args = p.propertyId ? [p.ids, p.propertyId] : [p.ids];
   } else {
     // Bulk retry с лимитом.  Использую подзапрос ORDER BY created_at
     // + LIMIT, чтобы «чинили» самые старые дохлые строки первыми (они
     // же самые «болезненные» для бизнес-процесса, user получил уведомление
     // позже всех).
     const limit = Math.min(p.limit || DEFAULT_LIMIT, HARD_LIMIT);
+    const propertyPredicate = p.propertyId ? 'AND property_id = $3' : '';
     sql = `
       UPDATE notifications_outbox
          SET status            = 'pending',
@@ -132,12 +135,13 @@ async function resurrectOutboxRows(pool, params) {
        WHERE id IN (
          SELECT id FROM notifications_outbox
           WHERE status = $1
+            ${propertyPredicate}
           ORDER BY created_at
           LIMIT $2
        )
        RETURNING id
     `;
-    args = [p.status, limit];
+    args = p.propertyId ? [p.status, limit, p.propertyId] : [p.status, limit];
   }
 
   const { rows } = await pool.query(sql, args);

@@ -18,9 +18,9 @@
 //   • renderMetricsAsPrometheus(m)   — text/plain exposition для Prometheus
 //
 // Безопасность/контракт:
-//   • Все функции — БЕЗ `property_id` аргумента: multi-tenant изоляция держится
-//     на уровне pg pool (per-property DB).  Добавление property_id здесь
-//     дублирует фильтр и риск рассогласования.
+//   • Все функции принимают optional `propertyId`: production изоляция всё ещё
+//     держится на per-property pool, а propertyId — дополнительный guard для
+//     legacy/test mount'ов на общем pool и будущих переиспользований сервиса.
 //   • Cancel гейтится через WHERE status IN ('pending','failed') — sent и dead
 //     нельзя cancel'нуть (sent финальный; dead уже терминал).  in_flight
 //     cancel мы тоже не делаем, чтобы не двойнить: worker как раз обрабатывает.
@@ -76,6 +76,19 @@ function clampLimit(raw, defaultVal = LIMIT_DEFAULT) {
   return Math.min(Math.floor(n), LIMIT_MAX);
 }
 
+function scopedOutboxId(id, propertyId = null) {
+  if (!propertyId) {
+    return {
+      where: 'id = $1',
+      args: [id],
+    };
+  }
+  return {
+    where: 'id = $1 AND property_id = $2',
+    args: [id, propertyId],
+  };
+}
+
 // ─── listOutbox ──────────────────────────────────────────────────────────────
 
 /**
@@ -100,6 +113,11 @@ function clampLimit(raw, defaultVal = LIMIT_DEFAULT) {
 async function listOutbox(db, filters = {}) {
   const clauses = [];
   const args    = [];
+
+  if (filters.propertyId) {
+    args.push(filters.propertyId);
+    clauses.push(`property_id = $${args.length}`);
+  }
 
   if (filters.status && ALLOWED_STATUSES.has(filters.status)) {
     args.push(filters.status);
@@ -158,10 +176,11 @@ async function listOutbox(db, filters = {}) {
  * Возвращает null, если не найдено.  id-валидация — уровень роута (UUID guard);
  * сервис сам invalid-id просто не найдёт.
  */
-async function getOutboxById(db, id) {
+async function getOutboxById(db, id, opts = {}) {
+  const scope = scopedOutboxId(id, opts.propertyId);
   const { rows } = await db.query(
-    `SELECT ${OUTBOX_COLUMNS} FROM notifications_outbox WHERE id = $1 LIMIT 1`,
-    [id],
+    `SELECT ${OUTBOX_COLUMNS} FROM notifications_outbox WHERE ${scope.where} LIMIT 1`,
+    scope.args,
   );
   return rows[0] || null;
 }
@@ -186,11 +205,11 @@ async function getOutboxById(db, id) {
  * потому что resurrect возвращает revivedIds=[] и в случае not_found, и в
  * случае not_retryable — без detail-check caller не отличит их.
  */
-async function requeueOutboxRow(db, id) {
-  const existing = await getOutboxById(db, id);
+async function requeueOutboxRow(db, id, opts = {}) {
+  const existing = await getOutboxById(db, id, opts);
   if (!existing) return { revived: false, conflict: 'not_found' };
 
-  const out = await resurrectOutboxRows(db, { ids: [id] });
+  const out = await resurrectOutboxRows(db, { ids: [id], propertyId: opts.propertyId });
   if (out.revivedIds.includes(id)) {
     return { revived: true, id, previousStatus: existing.status };
   }
@@ -215,20 +234,21 @@ async function requeueOutboxRow(db, id) {
  * max_attempts — чтобы admin-UI unified.  last_error помечаем как
  * 'cancelled_by_admin', чтобы audit было видно ПОЧЕМУ она dead.
  */
-async function cancelOutboxRow(db, id) {
+async function cancelOutboxRow(db, id, opts = {}) {
+  const scope = scopedOutboxId(id, opts.propertyId);
   const { rows } = await db.query(
     `UPDATE notifications_outbox
         SET status     = 'dead',
             last_error = 'cancelled_by_admin',
             last_attempted_at = NOW()
-      WHERE id = $1
+      WHERE ${scope.where}
         AND status IN ('pending','failed')
       RETURNING ${OUTBOX_COLUMNS}`,
-    [id],
+    scope.args,
   );
   if (rows.length === 0) {
     // Отличаем not_found от not_cancellable (sent/dead/in_flight).
-    const existing = await getOutboxById(db, id);
+    const existing = await getOutboxById(db, id, opts);
     if (!existing) return { cancelled: false, conflict: 'not_found' };
     return {
       cancelled: false,
@@ -264,8 +284,10 @@ async function cancelOutboxRow(db, id) {
  *   2. per-channel breakdown (seq scan acceptable — 5 каналов)
  *   3. top events (idx_..._property_time + GROUP BY event_type)
  */
-async function getOutboxMetrics(db) {
+async function getOutboxMetrics(db, opts = {}) {
   const generatedAt = new Date().toISOString();
+  const where = opts.propertyId ? 'WHERE property_id = $1' : '';
+  const args = opts.propertyId ? [opts.propertyId] : [];
 
   // 1. Глобальные counts per-status + oldest_pending.
   const { rows: aggRows } = await db.query(`
@@ -278,7 +300,8 @@ async function getOutboxMetrics(db) {
       EXTRACT(EPOCH FROM (NOW() - MIN(next_attempt_at))
         FILTER (WHERE status IN ('pending','failed'))) AS oldest_pending_age_seconds
       FROM notifications_outbox
-  `);
+      ${where}
+  `, args);
   const agg = aggRows[0] || {};
 
   // 2. Per-channel breakdown.  Заполняем ВСЕ каналы (включая нулевые) —
@@ -291,8 +314,9 @@ async function getOutboxMetrics(db) {
            COUNT(*) FILTER (WHERE status = 'failed')    AS failed,
            COUNT(*) FILTER (WHERE status = 'dead')      AS dead
       FROM notifications_outbox
+      ${where}
      GROUP BY channel
-  `);
+  `, args);
   const chByName = new Map();
   for (const r of chRows) chByName.set(r.channel, r);
   const perChannel = CHANNELS_ORDERED.map((name) => {
@@ -312,10 +336,11 @@ async function getOutboxMetrics(db) {
   const { rows: evRows } = await db.query(`
     SELECT event_type, COUNT(*)::int AS total
       FROM notifications_outbox
+      ${where}
      GROUP BY event_type
      ORDER BY total DESC
      LIMIT 10
-  `);
+  `, args);
   const perEventType = evRows.map((r) => ({
     event_type: r.event_type,
     total:      Number(r.total) || 0,

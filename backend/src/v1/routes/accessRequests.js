@@ -573,6 +573,7 @@ router.post('/:id/submit', async (req, res, next) => {
     const result = await submitAccessRequest({
       txPool: getTxPool(req),
       accessRequestId: req.params.id,
+      propertyId: curRows[0].property_id,
     });
     auditLog(req, {
       propertyId: result.access_request.property_id,
@@ -607,6 +608,7 @@ router.post('/:id/approve', async (req, res, next) => {
       accessRequestId: req.params.id,
       comment,
       expectedCurrentStatus,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.access_request.property_id,
@@ -651,6 +653,7 @@ router.post('/:id/reject', async (req, res, next) => {
       accessRequestId: req.params.id,
       comment,
       expectedCurrentStatus,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.access_request.property_id,
@@ -692,6 +695,7 @@ router.post('/:id/cancel', async (req, res, next) => {
       expectedCurrentStatus: typeof req.body?.expectedCurrentStatus === 'string'
         ? req.body.expectedCurrentStatus
         : null,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.access_request.property_id,
@@ -733,6 +737,7 @@ router.post('/:id/escalate', async (req, res, next) => {
       accessRequestId: req.params.id,
       comment,
       expectedCurrentStatus,
+      propertyId,
     });
     auditLog(req, {
       propertyId: result.access_request.property_id,

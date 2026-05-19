@@ -385,7 +385,7 @@ async function createAnnouncement(db, input) {
  * 409 (§4: «правки только до публикации», исправления — через создание
  * нового объявления с ручной ссылкой).
  */
-async function updateAnnouncement(db, id, patch) {
+async function updateAnnouncement(db, id, patch, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
   if (!patch || typeof patch !== 'object') {
     return { package: null, conflict: 'noop' };
@@ -470,10 +470,16 @@ async function updateAnnouncement(db, id, patch) {
   }
 
   params.push(id);
+  const idIdx = n;
+  if (opts.propertyId) {
+    params.push(opts.propertyId);
+    n += 1;
+  }
   const sql = `
     UPDATE announcements_v2
        SET ${pieces.join(', ')}, updated_at = NOW()
-     WHERE id = $${n}
+     WHERE id = $${idIdx}
+       ${opts.propertyId ? `AND property_id = $${n}` : ''}
        AND deleted_at IS NULL
        AND published_at IS NULL
      RETURNING ${ANNOUNCEMENT_COLUMNS}
@@ -481,9 +487,11 @@ async function updateAnnouncement(db, id, patch) {
   const { rows } = await db.query(sql, params);
   if (rows.length === 0) {
     // Либо 404, либо уже опубликовано.  Отличить — отдельным SELECT'ом.
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const probeParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: probe } = await db.query(
-      `SELECT id, published_at, deleted_at FROM announcements_v2 WHERE id = $1`,
-      [id],
+      `SELECT id, published_at, deleted_at FROM announcements_v2 WHERE id = $1${propertyPredicate}`,
+      probeParams,
     );
     if (probe.length === 0) return { row: null, conflict: 'not_found' };
     if (probe[0].deleted_at) return { row: null, conflict: 'deleted' };
@@ -510,7 +518,7 @@ async function updateAnnouncement(db, id, patch) {
  * Идемпотентность: повторный publish после уже опубликованного → conflict:
  * 'already_published' (caller → 409).
  */
-async function publishAnnouncement(pool, id, staffId) {
+async function publishAnnouncement(pool, id, staffId, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
   if (!isValidUuid(staffId)) throw new Error('invalid staff_id: must be UUID');
 
@@ -520,9 +528,9 @@ async function publishAnnouncement(pool, id, staffId) {
     const { rows: cur } = await client.query(
       `SELECT ${ANNOUNCEMENT_COLUMNS}
          FROM announcements_v2
-        WHERE id = $1
+        WHERE id = $1${opts.propertyId ? ' AND property_id = $2' : ''}
         FOR UPDATE`,
-      [id],
+      opts.propertyId ? [id, opts.propertyId] : [id],
     );
     if (cur.length === 0) {
       await client.query('ROLLBACK');
@@ -544,8 +552,9 @@ async function publishAnnouncement(pool, id, staffId) {
               published_by_staff_id = $2,
               updated_at = NOW()
         WHERE id = $1
+          ${opts.propertyId ? 'AND property_id = $3' : ''}
         RETURNING ${ANNOUNCEMENT_COLUMNS}`,
-      [id, staffId],
+      opts.propertyId ? [id, staffId, opts.propertyId] : [id, staffId],
     );
     const row = upd[0];
 
@@ -574,7 +583,7 @@ async function publishAnnouncement(pool, id, staffId) {
  * видеть.  НЕ отзывает уже отправленные outbox rows (spec §3 «ранее
  * отправленные push/sms остаются доставленными»).
  */
-async function unpublishAnnouncement(db, id) {
+async function unpublishAnnouncement(db, id, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
   const { rows } = await db.query(
     `UPDATE announcements_v2
@@ -582,15 +591,18 @@ async function unpublishAnnouncement(db, id) {
             published_by_staff_id = NULL,
             updated_at = NOW()
       WHERE id = $1
+        ${opts.propertyId ? 'AND property_id = $2' : ''}
         AND deleted_at IS NULL
         AND published_at IS NOT NULL
       RETURNING ${ANNOUNCEMENT_COLUMNS}`,
-    [id],
+    opts.propertyId ? [id, opts.propertyId] : [id],
   );
   if (rows.length === 0) {
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const probeParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: probe } = await db.query(
-      `SELECT id, published_at, deleted_at FROM announcements_v2 WHERE id = $1`,
-      [id],
+      `SELECT id, published_at, deleted_at FROM announcements_v2 WHERE id = $1${propertyPredicate}`,
+      probeParams,
     );
     if (probe.length === 0) return { row: null, conflict: 'not_found' };
     if (probe[0].deleted_at) return { row: null, conflict: 'deleted' };
@@ -604,21 +616,24 @@ async function unpublishAnnouncement(db, id) {
  * deleted_at=NOW().  Ранее опубликованные уведомления остаются в outbox;
  * UI просто перестаёт показывать announcement.
  */
-async function softDeleteAnnouncement(db, id) {
+async function softDeleteAnnouncement(db, id, opts = {}) {
   if (!isValidUuid(id)) throw new Error('invalid id: must be UUID');
   const { rows } = await db.query(
     `UPDATE announcements_v2
         SET deleted_at = NOW(),
             updated_at = NOW()
       WHERE id = $1
+        ${opts.propertyId ? 'AND property_id = $2' : ''}
         AND deleted_at IS NULL
       RETURNING ${ANNOUNCEMENT_COLUMNS}`,
-    [id],
+    opts.propertyId ? [id, opts.propertyId] : [id],
   );
   if (rows.length === 0) {
+    const propertyPredicate = opts.propertyId ? ' AND property_id = $2' : '';
+    const probeParams = opts.propertyId ? [id, opts.propertyId] : [id];
     const { rows: probe } = await db.query(
-      `SELECT id, deleted_at FROM announcements_v2 WHERE id = $1`,
-      [id],
+      `SELECT id, deleted_at FROM announcements_v2 WHERE id = $1${propertyPredicate}`,
+      probeParams,
     );
     if (probe.length === 0) return { row: null, conflict: 'not_found' };
     return { row: null, conflict: 'already_deleted' };

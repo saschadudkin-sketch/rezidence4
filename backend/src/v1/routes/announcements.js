@@ -327,7 +327,9 @@ router.patch('/:id', async (req, res) => {
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
     if (!canWriteAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { row, conflict } = await updateAnnouncement(pool, req.params.id, patch);
+    const { row, conflict } = await updateAnnouncement(pool, req.params.id, patch, {
+      propertyId: existing.property_id,
+    });
     if (conflict === 'noop') return res.status(400).json({ error: 'No fields to update' });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
@@ -377,7 +379,9 @@ router.post('/:id/publish', async (req, res, next) => {
         if (!staffId) {
           return res.status(400).json({ error: 'staff user not registered in staff_users' });
         }
-        const { row, outboxRows, conflict } = await publishAnnouncement(pool, req.params.id, staffId);
+        const { row, outboxRows, conflict } = await publishAnnouncement(pool, req.params.id, staffId, {
+          propertyId: existing.property_id,
+        });
         if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
         if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
         if (conflict === 'already_published') {
@@ -415,7 +419,9 @@ router.post('/:id/unpublish',
     if (existing.deleted_at) return res.status(404).json({ error: 'Not found' });
     if (!canPublishAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { row, conflict } = await unpublishAnnouncement(pool, req.params.id);
+    const { row, conflict } = await unpublishAnnouncement(pool, req.params.id, {
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'deleted') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'not_published') {
@@ -441,7 +447,9 @@ router.delete('/:id',
     if (existing.deleted_at) return res.status(409).json({ error: 'Already deleted' });
     if (!canArchiveAnnouncementProperty(req, existing.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { row, conflict } = await softDeleteAnnouncement(pool, req.params.id);
+    const { row, conflict } = await softDeleteAnnouncement(pool, req.params.id, {
+      propertyId: existing.property_id,
+    });
     if (conflict === 'not_found') return res.status(404).json({ error: 'Not found' });
     if (conflict === 'already_deleted') {
       return res.status(409).json({ error: 'Already deleted' });

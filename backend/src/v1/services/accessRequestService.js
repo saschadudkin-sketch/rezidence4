@@ -375,6 +375,19 @@ function assertExpectedStatus(currentStatus, expectedCurrentStatus) {
   }
 }
 
+function accessRequestIdScope(accessRequestId, propertyId = null) {
+  if (!propertyId) {
+    return {
+      where: 'id = $1',
+      params: [accessRequestId],
+    };
+  }
+  return {
+    where: 'id = $1 AND property_id = $2',
+    params: [accessRequestId, propertyId],
+  };
+}
+
 async function enqueueAccessEvent(client, {
   propertyId,
   eventType,
@@ -400,17 +413,19 @@ async function approveAccessRequest({
   accessRequestId,
   comment,
   expectedCurrentStatus = null,
+  propertyId = null,
 }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
     const staffId = await requireStaffId(client, user);
+    const scope = accessRequestIdScope(accessRequestId, propertyId);
     const { rows: arRows } = await client.query(
       `SELECT id, property_id, request_type, vehicle_id,
               created_by_contractor_user_id, target_zone_id, target_point_id,
               starts_at, ends_at, status
-         FROM access_requests WHERE id = $1 FOR UPDATE`,
-      [accessRequestId],
+         FROM access_requests WHERE ${scope.where} FOR UPDATE`,
+      scope.params,
     );
     if (!arRows[0]) throw serviceError(404, 'Access request not found');
     const ar = arRows[0];
@@ -451,9 +466,9 @@ async function approveAccessRequest({
     const { rows: updatedArRows } = await client.query(
       `UPDATE access_requests
           SET status = 'approved', approved_at = NOW(), updated_at = NOW()
-        WHERE id = $1
+        WHERE ${scope.where}
         RETURNING ${AR_COLS}`,
-      [ar.id],
+      scope.params,
     );
 
     const pass = await insertPassForAccessRequest(
@@ -482,13 +497,19 @@ async function approveAccessRequest({
   }
 }
 
-async function submitAccessRequest({ txPool, accessRequestId, expectedCurrentStatus = null }) {
+async function submitAccessRequest({
+  txPool,
+  accessRequestId,
+  expectedCurrentStatus = null,
+  propertyId = null,
+}) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
+    const scope = accessRequestIdScope(accessRequestId, propertyId);
     const { rows: curRows } = await client.query(
-      `SELECT status FROM access_requests WHERE id = $1 FOR UPDATE`,
-      [accessRequestId],
+      `SELECT status FROM access_requests WHERE ${scope.where} FOR UPDATE`,
+      scope.params,
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
     assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
@@ -498,9 +519,9 @@ async function submitAccessRequest({ txPool, accessRequestId, expectedCurrentSta
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'pending_approval', updated_at = NOW()
-        WHERE id = $1
+        WHERE ${scope.where}
         RETURNING ${AR_COLS}`,
-      [accessRequestId],
+      scope.params,
     );
     await client.query('COMMIT');
     return { access_request: rows[0] };
@@ -518,14 +539,16 @@ async function rejectAccessRequest({
   accessRequestId,
   comment,
   expectedCurrentStatus = null,
+  propertyId = null,
 }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
     const staffId = await requireStaffId(client, user);
+    const scope = accessRequestIdScope(accessRequestId, propertyId);
     const { rows: curRows } = await client.query(
-      `SELECT status FROM access_requests WHERE id = $1 FOR UPDATE`,
-      [accessRequestId],
+      `SELECT status FROM access_requests WHERE ${scope.where} FOR UPDATE`,
+      scope.params,
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
     assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
@@ -540,8 +563,8 @@ async function rejectAccessRequest({
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'rejected', rejected_at = NOW(), updated_at = NOW()
-        WHERE id = $1 RETURNING ${AR_COLS}`,
-      [accessRequestId],
+        WHERE ${scope.where} RETURNING ${AR_COLS}`,
+      scope.params,
     );
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,
@@ -569,14 +592,16 @@ async function cancelAccessRequest({
   accessRequestId,
   isPropertyAdmin,
   expectedCurrentStatus = null,
+  propertyId = null,
 }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
+    const scope = accessRequestIdScope(accessRequestId, propertyId);
     const { rows: curRows } = await client.query(
       `SELECT status, created_by_resident_id, created_by_contractor_user_id
-         FROM access_requests WHERE id = $1 FOR UPDATE`,
-      [accessRequestId],
+         FROM access_requests WHERE ${scope.where} FOR UPDATE`,
+      scope.params,
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
     assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
@@ -597,8 +622,8 @@ async function cancelAccessRequest({
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-        WHERE id = $1 RETURNING ${AR_COLS}`,
-      [accessRequestId],
+        WHERE ${scope.where} RETURNING ${AR_COLS}`,
+      scope.params,
     );
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,
@@ -626,14 +651,16 @@ async function escalateAccessRequest({
   accessRequestId,
   comment,
   expectedCurrentStatus = null,
+  propertyId = null,
 }) {
   const client = await txPool.connect();
   try {
     await client.query('BEGIN');
     const staffId = await requireStaffId(client, user);
+    const scope = accessRequestIdScope(accessRequestId, propertyId);
     const { rows: curRows } = await client.query(
-      `SELECT status FROM access_requests WHERE id = $1 FOR UPDATE`,
-      [accessRequestId],
+      `SELECT status FROM access_requests WHERE ${scope.where} FOR UPDATE`,
+      scope.params,
     );
     if (!curRows[0]) throw serviceError(404, 'Access request not found');
     assertExpectedStatus(curRows[0].status, expectedCurrentStatus);
@@ -648,8 +675,8 @@ async function escalateAccessRequest({
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'escalated', updated_at = NOW()
-        WHERE id = $1 RETURNING ${AR_COLS}`,
-      [accessRequestId],
+        WHERE ${scope.where} RETURNING ${AR_COLS}`,
+      scope.params,
     );
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,

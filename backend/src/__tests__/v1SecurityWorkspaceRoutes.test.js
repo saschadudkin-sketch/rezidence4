@@ -454,4 +454,126 @@ describe('security workspace routes', () => {
     expect(visitCall[0]).toContain('offline_replay_event_id');
     expect(visitCall[1][8]).toBe(UUID_REPLAY);
   });
+
+  test('GET /dashboard returns compact guard metrics', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points') && sql.includes('LIMIT 1') && !sql.includes('JOIN access_zones')) {
+        return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
+      }
+      if (sql.includes('JOIN access_zones')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_POINT,
+            property_id: UUID_PROPERTY,
+            zone_id: UUID_ZONE,
+            name: 'КПП 1',
+            point_type: 'barrier',
+            zone_name: 'Периметр',
+            zone_type: 'perimeter',
+          }],
+        });
+      }
+      if (sql.includes('FROM passes p')) return Promise.resolve({ rows: [{ id: 'pass-1' }] });
+      if (sql.includes('FROM access_requests ar')) return Promise.resolve({ rows: [{ id: 'request-1' }] });
+      if (sql.includes('FROM visit_logs_v2 vl')) return Promise.resolve({ rows: [{ id: 'visit-1' }] });
+      if (sql.includes('FROM access_incidents ai')) return Promise.resolve({ rows: [{ id: 'incident-1' }] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/security-workspace/dashboard?property_id=${UUID_PROPERTY}&access_point_id=${UUID_POINT}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.expectedArrivals).toBe(1);
+    expect(res.body.activePasses).toBe(1);
+    expect(res.body.openIncidents).toBe(1);
+    expect(res.body.workspace.station_context.access_point.id).toBe(UUID_POINT);
+  });
+
+  test('GET /authorized-devices lists scoped guard devices without fingerprints', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM guard_authorized_devices')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_GUARD_DEVICE,
+            property_id: UUID_PROPERTY,
+            access_point_id: UUID_POINT,
+            staff_user_id: UUID_STAFF,
+            device_fingerprint: 'hashed-fingerprint',
+            label: 'КПП Север планшет',
+            status: 'active',
+          }],
+        });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/security-workspace/authorized-devices?property_id=${UUID_PROPERTY}&access_point_id=${UUID_POINT}&status=active`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.guard_authorized_devices[0].id).toBe(UUID_GUARD_DEVICE);
+    expect(res.body.guard_authorized_devices[0].device_fingerprint).toBeUndefined();
+    expect(db.query.mock.calls[0][1]).toEqual([UUID_PROPERTY, UUID_POINT, 'active', 100]);
+  });
+
+  test('POST /authorized-devices/:id/revoke revokes scoped guard device', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('UPDATE guard_authorized_devices')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_GUARD_DEVICE,
+            property_id: UUID_PROPERTY,
+            access_point_id: UUID_POINT,
+            staff_user_id: UUID_STAFF,
+            device_fingerprint: 'hashed-fingerprint',
+            label: 'КПП Север планшет',
+            status: 'revoked',
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/security-workspace/authorized-devices/${UUID_GUARD_DEVICE}/revoke`)
+      .send({ property_id: UUID_PROPERTY, reason: 'lost tablet' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.guard_authorized_device.status).toBe('revoked');
+    const audit = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(JSON.parse(audit[1][5])).toMatchObject({ reason: 'lost tablet' });
+  });
+
+  test('POST /degraded-events/:id/reconcile updates pending degraded visit log', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('UPDATE visit_logs_v2')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VISIT_LOG,
+            property_id: UUID_PROPERTY,
+            degraded_mode: true,
+            degraded_reconciliation_state: 'matched',
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/security-workspace/degraded-events/${UUID_VISIT_LOG}/reconcile`)
+      .send({ property_id: UUID_PROPERTY, reconciliation_state: 'matched', note: 'camera confirmed' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.visit_log.degraded_reconciliation_state).toBe('matched');
+    const update = db.query.mock.calls.find(([sql]) => sql.includes('UPDATE visit_logs_v2'));
+    expect(update[1]).toEqual([UUID_VISIT_LOG, 'matched', 'camera confirmed', UUID_PROPERTY]);
+  });
 });
