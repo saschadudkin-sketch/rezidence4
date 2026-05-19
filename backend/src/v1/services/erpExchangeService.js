@@ -410,16 +410,12 @@ async function completeSyncJob(queryable, job, { status, summary, errorMessage =
             completed_at = NOW(),
             updated_at = NOW()
       WHERE id = $1
+        AND property_id = $5
       RETURNING ${SYNC_JOB_COLS}`,
-    [job.id, status, JSON.stringify(summary), errorMessage],
+    [job.id, status, JSON.stringify(summary), errorMessage, job.property_id],
   );
-  return rows[0] || {
-    ...job,
-    status,
-    summary,
-    error_message: errorMessage,
-    completed_at: new Date().toISOString(),
-  };
+  if (!rows[0]) throw serviceError(409, 'ERP sync job changed; refresh and retry');
+  return rows[0];
 }
 
 async function insertSyncRecord(queryable, {

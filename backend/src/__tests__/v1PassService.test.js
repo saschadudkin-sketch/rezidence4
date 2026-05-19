@@ -236,10 +236,33 @@ describe('PassService QR and status transitions', () => {
 
     expect(result.pass.status).toBe('revoked');
     const updateCall = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE passes SET'));
-    expect(updateCall[1]).toEqual([UUID_STAFF, 'duplicate', UUID_PASS]);
+    expect(updateCall[0]).toContain('AND status = $4');
+    expect(updateCall[1]).toEqual([UUID_STAFF, 'duplicate', UUID_PASS, 'active']);
     expect(updateCall[1]).not.toContain('legacy-staff-1');
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE pass_credentials'))).toBe(true);
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM qr_passes_v2'))).toBe(true);
+  });
+
+  test('revokePass returns conflict when status changes before update', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('SELECT status FROM passes')) return Promise.resolve({ rows: [{ status: 'active' }] });
+      if (sql.includes('UPDATE passes SET')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(revokePass({
+      queryable,
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      passId: UUID_PASS,
+      reason: 'duplicate',
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Pass status changed; refresh and retry',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE pass_credentials'))).toBe(false);
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO notifications_outbox'))).toBe(false);
   });
 
   test('getOrCreateQr uses pass_credentials as canonical source and mirrors qr_passes_v2', async () => {
@@ -414,6 +437,25 @@ describe('PassService QR and status transitions', () => {
     });
   });
 
+  test('blockPass scopes update by previously-read status', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('SELECT status FROM passes')) return Promise.resolve({ rows: [{ status: 'active' }] });
+      if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'blocked' }] });
+      if (sql.includes('UPDATE pass_credentials')) return Promise.resolve({ rows: [] });
+      if (sql.includes('DELETE FROM qr_passes_v2')) return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await blockPass({ queryable, passId: UUID_PASS, propertyId: UUID_PROPERTY });
+
+    expect(result.pass.status).toBe('blocked');
+    const updateCall = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE passes'));
+    expect(updateCall[0]).toContain('AND status = $2');
+    expect(updateCall[0]).toContain('AND property_id = $3');
+    expect(updateCall[1]).toEqual([UUID_PASS, 'active', UUID_PROPERTY]);
+  });
+
   test('unblockPass requires reason and policy or override context', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM passes') && sql.includes('WHERE id = $1')) {
@@ -432,5 +474,32 @@ describe('PassService QR and status transitions', () => {
       status: 422,
       message: 'policy_id or override_id is required for unblock',
     });
+  });
+
+  test('unblockPass returns conflict when blocked status changes before update', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM passes') && sql.includes('WHERE id = $1')) {
+        return Promise.resolve({
+          rows: [{ id: UUID_PASS, property_id: UUID_PROPERTY, status: 'blocked', policy_id: UUID_POLICY }],
+        });
+      }
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [{ metadata: { allow_pass_unblock: true } }] });
+      if (sql.includes('UPDATE passes')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(unblockPass({
+      queryable,
+      passId: UUID_PASS,
+      reason: 'resident verified',
+      policyId: UUID_POLICY,
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Pass status changed; refresh and retry',
+    });
+
+    const updateCall = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE passes'));
+    expect(updateCall[0]).toContain('AND status = $3');
+    expect(updateCall[1]).toEqual([UUID_PASS, UUID_PROPERTY, 'blocked']);
   });
 });

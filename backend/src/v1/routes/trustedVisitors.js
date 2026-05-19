@@ -130,7 +130,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', idempotency, async (req, res, next) => {
   try {
     const scope = await resolveResidentScope(req, res);
     if (!scope) return;

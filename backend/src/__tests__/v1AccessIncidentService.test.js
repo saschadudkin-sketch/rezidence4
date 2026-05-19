@@ -195,6 +195,52 @@ describe('AccessIncidentService', () => {
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('UPDATE access_incidents'))).toBe(false);
   });
 
+  test('assignIncident scopes update by previously-read status', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM access_incidents') && sql.includes('status')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, status: 'open' }] });
+      }
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('UPDATE access_incidents')) {
+        return Promise.resolve({ rows: [{ id: UUID_INCIDENT, property_id: UUID_PROPERTY, status: 'investigating' }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await assignIncident({
+      queryable,
+      incidentId: UUID_INCIDENT,
+      assignee: UUID_STAFF,
+      propertyId: UUID_PROPERTY,
+    });
+
+    expect(result.incident.status).toBe('investigating');
+    const updateCall = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE access_incidents'));
+    expect(updateCall[0]).toContain('AND status = $4');
+    expect(updateCall[1]).toEqual([UUID_STAFF, UUID_INCIDENT, UUID_PROPERTY, 'open']);
+  });
+
+  test('assignIncident returns conflict when status changes before update', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM access_incidents') && sql.includes('status')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, status: 'open' }] });
+      }
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('UPDATE access_incidents')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(assignIncident({
+      queryable,
+      incidentId: UUID_INCIDENT,
+      assignee: UUID_STAFF,
+      propertyId: UUID_PROPERTY,
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Incident status changed; refresh and retry',
+    });
+  });
+
   test('createOverride rejects incident_id from another property', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
@@ -306,6 +352,78 @@ describe('AccessIncidentService', () => {
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
     expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
     expect(txClient.release).toHaveBeenCalledTimes(1);
+  });
+
+  test('resolveIncident scopes update by locked status', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (['BEGIN', 'COMMIT'].includes(sql)) return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            property_id: UUID_PROPERTY,
+            status: 'investigating',
+            related_pass_id: null,
+            assigned_to_staff_id: null,
+          }],
+        });
+      }
+      if (sql.includes('UPDATE access_incidents')) {
+        return Promise.resolve({ rows: [{ id: UUID_INCIDENT, property_id: UUID_PROPERTY, status: 'resolved' }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await resolveIncident({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-security-1', role: 'security' },
+      incidentId: UUID_INCIDENT,
+      reason: 'done',
+      overrideInput: null,
+      isPropertyAdmin: true,
+      propertyId: UUID_PROPERTY,
+    });
+
+    expect(result.incident.status).toBe('resolved');
+    const updateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE access_incidents'));
+    expect(updateCall[0]).toContain('AND status = $4');
+    expect(updateCall[1]).toEqual(['done', UUID_INCIDENT, UUID_PROPERTY, 'investigating']);
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'COMMIT')).toBe(true);
+  });
+
+  test('resolveIncident rolls back on stale status conflict', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_incidents') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            property_id: UUID_PROPERTY,
+            status: 'investigating',
+            related_pass_id: null,
+            assigned_to_staff_id: null,
+          }],
+        });
+      }
+      if (sql.includes('UPDATE access_incidents')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(resolveIncident({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-security-1', role: 'security' },
+      incidentId: UUID_INCIDENT,
+      reason: 'done',
+      overrideInput: null,
+      isPropertyAdmin: true,
+      propertyId: UUID_PROPERTY,
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Incident status changed; refresh and retry',
+    });
+
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO access_overrides'))).toBe(false);
   });
 
   test('createManualSecurityDecision writes visit log, incident, override and audit in one transaction', async () => {

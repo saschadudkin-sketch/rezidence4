@@ -196,9 +196,11 @@ async function assignIncident({ queryable, incidentId, assignee, propertyId = nu
     `UPDATE access_incidents
         SET assigned_to_staff_id = $1,
             status = CASE WHEN status = 'open' THEN 'investigating' ELSE status END
-      WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
-    [assignee, incidentId, curRows[0].property_id],
+      WHERE id = $2 AND property_id = $3 AND status = $4
+      RETURNING ${INCIDENT_COLS}`,
+    [assignee, incidentId, curRows[0].property_id, curRows[0].status],
   );
+  if (!rows[0]) throw serviceError(409, 'Incident status changed; refresh and retry');
   return { incident: rows[0] };
 }
 
@@ -221,9 +223,11 @@ async function reopenIncident({ queryable, user, incidentId, assignee, reason, p
             description = COALESCE(description, '') ||
                          CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                          '[reopened] ' || $2
-      WHERE id = $3 AND property_id = $4 RETURNING ${INCIDENT_COLS}`,
-    [assignee || staffId, reason, incidentId, curRows[0].property_id],
+      WHERE id = $3 AND property_id = $4 AND status = $5
+      RETURNING ${INCIDENT_COLS}`,
+    [assignee || staffId, reason, incidentId, curRows[0].property_id, curRows[0].status],
   );
+  if (!rows[0]) throw serviceError(409, 'Incident status changed; refresh and retry');
   return { incident: rows[0] };
 }
 
@@ -262,9 +266,11 @@ async function resolveIncident({ txPool, user, incidentId, reason, overrideInput
               description = COALESCE(description, '') ||
                            CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                            '[resolved] ' || $1
-        WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
-      [reason, incidentId, curRows[0].property_id],
+        WHERE id = $2 AND property_id = $3 AND status = $4
+        RETURNING ${INCIDENT_COLS}`,
+      [reason, incidentId, curRows[0].property_id, curRows[0].status],
     );
+    if (!incRows[0]) throw serviceError(409, 'Incident status changed; refresh and retry');
 
     let overrideRow = null;
     if (overrideInput) {
@@ -314,9 +320,11 @@ async function dismissIncident({ queryable, user, incidentId, reason, isProperty
             description = COALESCE(description, '') ||
                          CASE WHEN description IS NULL OR description = '' THEN '' ELSE E'\n' END ||
                          '[dismissed] ' || $1
-      WHERE id = $2 AND property_id = $3 RETURNING ${INCIDENT_COLS}`,
-    [reason, incidentId, curRows[0].property_id],
+      WHERE id = $2 AND property_id = $3 AND status = $4
+      RETURNING ${INCIDENT_COLS}`,
+    [reason, incidentId, curRows[0].property_id, curRows[0].status],
   );
+  if (!rows[0]) throw serviceError(409, 'Incident status changed; refresh and retry');
   return { incident: rows[0] };
 }
 

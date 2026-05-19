@@ -137,8 +137,39 @@ describe('ErpExchangeService', () => {
     });
     const mappingWrite = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO erp_external_mappings'));
     expect(mappingWrite).toBeUndefined();
+    const updateJob = queryable.query.mock.calls.find(([sql]) => sql.includes('UPDATE erp_sync_jobs'));
+    expect(updateJob[0]).toContain('AND property_id = $5');
+    expect(updateJob[1][4]).toBe(PROPERTY_ID);
     const audit = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
     expect(audit[1][5]).toBe('erp.import.previewed');
+  });
+
+  test('fails preview when scoped sync job completion does not update a row', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM erp_provider_configs')) return Promise.resolve({ rows: [providerRow()] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: STAFF_ID }] });
+      if (sql.includes('INSERT INTO erp_sync_jobs')) return Promise.resolve({ rows: [jobRow()] });
+      if (sql.includes('FROM erp_external_mappings')) return Promise.resolve({ rows: [] });
+      if (sql.includes('INSERT INTO erp_sync_records')) return Promise.resolve({ rows: [] });
+      if (sql.includes('UPDATE erp_sync_jobs')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(previewErpImport(queryable, {
+      propertyId: PROPERTY_ID,
+      providerConfigId: PROVIDER_ID,
+      user: { uid: 'admin-1', role: 'property_admin' },
+      input: {
+        dataset: 'resident_registry',
+        source: 'csv',
+        rows: [{ external_id: 'r-1', full_name: 'Ivan Petrov', unit_number: '12' }],
+      },
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'ERP sync job changed; refresh and retry',
+    });
+
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO property_audit_log'))).toBe(false);
   });
 
   test('applies import as external-ID mapping only and records no DomHub access grant', async () => {

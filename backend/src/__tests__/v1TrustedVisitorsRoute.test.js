@@ -102,4 +102,55 @@ describe('v1 trustedVisitors route auth and ownership', () => {
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('Resident identity is not mapped to v1');
   });
+
+  test('POST / uses idempotency key for trusted visitor create', async () => {
+    mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM residents') && sql.includes('external_uid')) {
+        return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      }
+      if (sql.includes('FROM residents') && sql.includes('WHERE id = $1')) {
+        return Promise.resolve({ rows: [{ id: UUID_RESIDENT }] });
+      }
+      if (sql.includes('INSERT INTO trusted_visitors')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_VISITOR,
+            property_id: UUID_PROPERTY,
+            resident_id: UUID_RESIDENT,
+            name: 'Mom',
+            phone: null,
+            visitor_type: 'relative',
+            default_vehicle_plate: null,
+            default_instructions: null,
+            allowed_zone_id: null,
+            allowed_point_id: null,
+            is_active: true,
+            last_used_at: null,
+            created_at: '2026-05-05T08:00:00.000Z',
+            updated_at: '2026-05-05T08:00:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const app = buildApp();
+    const body = { property_id: UUID_PROPERTY, name: 'Mom', visitor_type: 'relative' };
+    const first = await supertest(app)
+      .post('/api/v1/trusted-visitors')
+      .set('Idempotency-Key', 'trusted-create-1')
+      .send(body);
+    const second = await supertest(app)
+      .post('/api/v1/trusted-visitors')
+      .set('Idempotency-Key', 'trusted-create-1')
+      .send(body);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(second.body).toEqual(first.body);
+    const inserts = db.query.mock.calls.filter(([sql]) => sql.includes('INSERT INTO trusted_visitors'));
+    expect(inserts).toHaveLength(1);
+  });
 });

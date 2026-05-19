@@ -447,6 +447,7 @@ async function revokePass({ queryable, user, passId, reason, propertyId = null }
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
   assertPassAction(curRows[0].status, 'revoke');
+  const currentStatus = curRows[0].status;
 
   const { rows } = await queryable.query(
     `UPDATE passes SET
@@ -455,10 +456,12 @@ async function revokePass({ queryable, user, passId, reason, propertyId = null }
        revoked_by_staff_id = $1,
        revoked_reason = $2
     WHERE id = $3
-      ${propertyId ? 'AND property_id = $4' : ''}
+      AND status = $4
+      ${propertyId ? 'AND property_id = $5' : ''}
      RETURNING ${PASS_COLS}`,
-    propertyId ? [staffId, reason, passId, propertyId] : [staffId, reason, passId],
+    propertyId ? [staffId, reason, passId, currentStatus, propertyId] : [staffId, reason, passId, currentStatus],
   );
+  if (!rows[0]) throw serviceError(409, 'Pass status changed; refresh and retry');
   await invalidatePassCredentials(queryable, passId, rows[0].property_id);
   await queryable.query(
     `INSERT INTO notifications_outbox
@@ -480,13 +483,17 @@ async function blockPass({ queryable, passId, reason = null, propertyId = null }
   );
   if (!curRows[0]) throw serviceError(404, 'Pass not found');
   assertPassAction(curRows[0].status, 'block');
+  const currentStatus = curRows[0].status;
   const { rows } = await queryable.query(
     `UPDATE passes
         SET status = 'blocked'
-      WHERE id = $1${propertyId ? ' AND property_id = $2' : ''}
+      WHERE id = $1
+        AND status = $2
+        ${propertyId ? 'AND property_id = $3' : ''}
       RETURNING ${PASS_COLS}`,
-    propertyId ? [passId, propertyId] : [passId],
+    propertyId ? [passId, currentStatus, propertyId] : [passId, currentStatus],
   );
+  if (!rows[0]) throw serviceError(409, 'Pass status changed; refresh and retry');
   await invalidatePassCredentials(queryable, passId, rows[0].property_id);
   await queryable.query(
     `INSERT INTO notifications_outbox
@@ -539,10 +546,13 @@ async function unblockPass({ queryable, passId, reason, policyId = null, overrid
   const { rows } = await queryable.query(
     `UPDATE passes
         SET status = 'active'
-      WHERE id = $1 AND property_id = $2
+      WHERE id = $1
+        AND property_id = $2
+        AND status = $3
       RETURNING ${PASS_COLS}`,
-    [passId, pass.property_id],
+    [passId, pass.property_id, pass.status],
   );
+  if (!rows[0]) throw serviceError(409, 'Pass status changed; refresh and retry');
   await queryable.query(
     `INSERT INTO notifications_outbox
        (property_id, event_type, channel, recipient_type, payload, correlation_id)
