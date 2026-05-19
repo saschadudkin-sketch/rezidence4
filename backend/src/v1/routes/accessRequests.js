@@ -136,15 +136,12 @@ async function validateVehicleForRequest(req, res, { vehicleId, propertyId }) {
   const { rows } = await getDb(req).query(
     `SELECT id, property_id, owner_resident_id, owner_contractor_user_id
        FROM vehicles
-      WHERE id = $1`,
-    [vehicleId],
+      WHERE id = $1
+        AND property_id = $2`,
+    [vehicleId, propertyId],
   );
   if (!rows[0]) {
     res.status(404).json({ error: 'Vehicle not found' });
-    return false;
-  }
-  if (rows[0].property_id !== propertyId) {
-    res.status(403).json({ error: 'Vehicle belongs to another property' });
     return false;
   }
   if (can(req.user, 'requests:read')) return true;
@@ -173,15 +170,12 @@ async function validateUnitForRequest(req, res, { unitId, propertyId }) {
   const { rows } = await getDb(req).query(
     `SELECT id, property_id
        FROM units
-      WHERE id = $1`,
-    [unitId],
+      WHERE id = $1
+        AND property_id = $2`,
+    [unitId, propertyId],
   );
   if (!rows[0]) {
     res.status(400).json({ error: 'target_unit_id does not exist' });
-    return false;
-  }
-  if (rows[0].property_id !== propertyId) {
-    res.status(403).json({ error: 'target_unit_id belongs to another property' });
     return false;
   }
   if (can(req.user, 'requests:read') || isContractorRole(req.user.role)) return true;

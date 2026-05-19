@@ -294,8 +294,9 @@ async function validateLinkedServiceRequest(queryable, { input, creator }) {
     `SELECT id, status, assigned_contractor_user_id, resolution_due_at
        FROM requests
       WHERE id = $1
+        AND property_id = $2
         AND deleted_at IS NULL`,
-    [requestId],
+    [requestId, input.property_id],
   );
   const linkedRequest = rows[0];
   if (!linkedRequest) throw serviceError(404, 'Linked service request not found');
@@ -309,10 +310,11 @@ async function validateExistingLinkedServiceRequest(queryable, { accessRequestId
        FROM request_access_links ral
        JOIN requests r ON r.id = ral.request_id
       WHERE ral.access_request_id = $1
+        AND r.property_id = $2
         AND r.deleted_at IS NULL
       ORDER BY ral.created_at DESC
       LIMIT 1`,
-    [accessRequestId],
+    [accessRequestId, input.property_id],
   );
   if (!rows[0]) throw serviceError(409, `${input.request_type} requires linked service request`);
   validateLinkedServiceRequestRow({ linkedRequest: rows[0], input, creator });
@@ -478,6 +480,13 @@ function accessRequestIdScope(accessRequestId, propertyId = null) {
   };
 }
 
+function accessRequestStatusScope(scope, currentStatus) {
+  return {
+    where: `${scope.where} AND status = $${scope.params.length + 1}`,
+    params: [...scope.params, currentStatus],
+  };
+}
+
 async function enqueueAccessEvent(client, {
   propertyId,
   eventType,
@@ -530,6 +539,7 @@ async function approveAccessRequest({
     await validateExistingLinkedServiceRequest(client, {
       accessRequestId: ar.id,
       input: {
+        property_id: ar.property_id,
         request_type: ar.request_type,
         ends_at: ar.ends_at,
       },
@@ -559,13 +569,15 @@ async function approveAccessRequest({
        VALUES ($1, 'staff', $2, 'approved', $3)`,
       [ar.id, staffId, comment],
     );
+    const updateScope = accessRequestStatusScope(scope, ar.status);
     const { rows: updatedArRows } = await client.query(
       `UPDATE access_requests
           SET status = 'approved', approved_at = NOW(), updated_at = NOW()
-        WHERE ${scope.where}
+        WHERE ${updateScope.where}
         RETURNING ${AR_COLS}`,
-      scope.params,
+      updateScope.params,
     );
+    if (!updatedArRows[0]) throw serviceError(409, 'Access request status changed; refresh and retry');
 
     const pass = await insertPassForAccessRequest(
       client,
@@ -612,13 +624,15 @@ async function submitAccessRequest({
     if (curRows[0].status !== 'new') {
       throw serviceError(409, `Cannot submit from status '${curRows[0].status}'`);
     }
+    const updateScope = accessRequestStatusScope(scope, curRows[0].status);
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'pending_approval', updated_at = NOW()
-        WHERE ${scope.where}
+        WHERE ${updateScope.where}
         RETURNING ${AR_COLS}`,
-      scope.params,
+      updateScope.params,
     );
+    if (!rows[0]) throw serviceError(409, 'Access request status changed; refresh and retry');
     await client.query('COMMIT');
     return { access_request: rows[0] };
   } catch (err) {
@@ -656,12 +670,14 @@ async function rejectAccessRequest({
        VALUES ($1, 'staff', $2, 'rejected', $3)`,
       [accessRequestId, staffId, comment],
     );
+    const updateScope = accessRequestStatusScope(scope, curRows[0].status);
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'rejected', rejected_at = NOW(), updated_at = NOW()
-        WHERE ${scope.where} RETURNING ${AR_COLS}`,
-      scope.params,
+        WHERE ${updateScope.where} RETURNING ${AR_COLS}`,
+      updateScope.params,
     );
+    if (!rows[0]) throw serviceError(409, 'Access request status changed; refresh and retry');
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,
       eventType: 'access.request.rejected',
@@ -715,12 +731,14 @@ async function cancelAccessRequest({
       }
     }
     assertAccessRequestAction(curRows[0].status, 'cancel');
+    const updateScope = accessRequestStatusScope(scope, curRows[0].status);
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-        WHERE ${scope.where} RETURNING ${AR_COLS}`,
-      scope.params,
+        WHERE ${updateScope.where} RETURNING ${AR_COLS}`,
+      updateScope.params,
     );
+    if (!rows[0]) throw serviceError(409, 'Access request status changed; refresh and retry');
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,
       eventType: 'access.request.cancelled',
@@ -768,12 +786,14 @@ async function escalateAccessRequest({
        VALUES ($1, 'staff', $2, 'escalated', $3)`,
       [accessRequestId, staffId, comment],
     );
+    const updateScope = accessRequestStatusScope(scope, curRows[0].status);
     const { rows } = await client.query(
       `UPDATE access_requests
           SET status = 'escalated', updated_at = NOW()
-        WHERE ${scope.where} RETURNING ${AR_COLS}`,
-      scope.params,
+        WHERE ${updateScope.where} RETURNING ${AR_COLS}`,
+      updateScope.params,
     );
+    if (!rows[0]) throw serviceError(409, 'Access request status changed; refresh and retry');
     await enqueueAccessEvent(client, {
       propertyId: rows[0].property_id,
       eventType: 'access.request.escalated',

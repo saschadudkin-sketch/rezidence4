@@ -52,8 +52,9 @@ describe('v1 property migrations — registry invariants', () => {
     // + 1 pass credential layer
     // + 1 guard authorized devices + 1 guard device hardening
     // + 1 internal pass credential attempt table
-    // + 1 trusted visitor scope constraints = 57
-    expect(V1_PROPERTY_MIGRATIONS.length).toBe(57);
+    // + 1 trusted visitor scope constraints
+    // + 1 property-owned reference hardening = 58
+    expect(V1_PROPERTY_MIGRATIONS.length).toBe(58);
   });
 
   test('every id is prefixed v1_ so it never collides with legacy', () => {
@@ -202,6 +203,47 @@ describe('v1_057_trusted_visitor_scope_constraints', () => {
     expect(sqls[5]).toContain('FOREIGN KEY (trusted_visitor_id, property_id)');
     expect(sqls[5]).toContain('REFERENCES trusted_visitors(id, property_id)');
     expect(sqls[5]).toContain('ON DELETE SET NULL (trusted_visitor_id)');
+  });
+});
+
+describe('v1_058_property_scope_reference_hardening', () => {
+  let client;
+  beforeEach(() => { client = { query: jest.fn().mockResolvedValue({ rows: [] }) }; });
+
+  test('adds composite property constraints for core access and notification references', async () => {
+    await byId('v1_058_property_scope_reference_hardening').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('UPDATE access_requests ar')))
+      .toContain('ar.property_id <> v.property_id');
+    expect(sqls.find((s) => s.includes('vehicles_id_property_unique')))
+      .toContain('UNIQUE (id, property_id)');
+    expect(sqls.find((s) => s.includes('access_requests_id_property_unique')))
+      .toContain('UNIQUE (id, property_id)');
+    expect(sqls.find((s) => s.includes('passes_id_property_unique')))
+      .toContain('UNIQUE (id, property_id)');
+    expect(sqls.find((s) => s.includes('notifications_outbox_id_property_unique')))
+      .toContain('UNIQUE (id, property_id)');
+
+    const vehicleFk = sqls.find((s) => s.includes('access_requests_vehicle_property_fk'));
+    expect(vehicleFk).toContain('FOREIGN KEY (vehicle_id, property_id)');
+    expect(vehicleFk).toContain('REFERENCES vehicles(id, property_id)');
+    expect(vehicleFk).toContain('ON DELETE SET NULL (vehicle_id)');
+
+    const outboxFk = sqls.find((s) => s.includes('notification_log_v2_outbox_property_fk'));
+    expect(outboxFk).toContain('FOREIGN KEY (outbox_id, property_id)');
+    expect(outboxFk).toContain('REFERENCES notifications_outbox(id, property_id)');
+    expect(outboxFk).toContain('ON DELETE SET NULL (outbox_id)');
+  });
+
+  test('adds property-first indexes for scoped detail reads', async () => {
+    await byId('v1_058_property_scope_reference_hardening').up(client);
+    const sqls = client.query.mock.calls.map((c) => c[0]);
+
+    expect(sqls.find((s) => s.includes('idx_vehicles_property_id'))).toContain('ON vehicles(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_access_requests_property_id'))).toContain('ON access_requests(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_passes_property_id'))).toContain('ON passes(property_id, id)');
+    expect(sqls.find((s) => s.includes('idx_notifications_outbox_property_id'))).toContain('ON notifications_outbox(property_id, id)');
   });
 });
 

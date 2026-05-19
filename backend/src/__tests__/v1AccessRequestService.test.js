@@ -2,9 +2,12 @@
 
 const {
   approveAccessRequest,
+  cancelAccessRequest,
   createAccessRequest,
   escalateAccessRequest,
+  rejectAccessRequest,
   shouldRequireManualApproval,
+  submitAccessRequest,
 } = require('../v1/services/accessRequestService');
 
 const UUID_REQUEST = '22222222-2222-4222-8222-222222222222';
@@ -402,9 +405,136 @@ describe('AccessRequestService state transitions', () => {
       'COMMIT',
     ]));
     const passCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO passes'));
+    const updateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE access_requests'));
+    expect(updateCall[0]).toContain('AND status = $2');
+    expect(updateCall[1]).toEqual([UUID_REQUEST, 'pending_approval']);
     expect(passCall[1][6]).toBe(UUID_ZONE);
     expect(passCall[1][7]).toBe(UUID_POINT);
     expect(passCall[1][8]).toBe(UUID_POLICY);
+  });
+
+  test('approve rolls back when locked status no longer matches update predicate', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+      if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({
+          rows: [{
+            id: UUID_REQUEST,
+            property_id: UUID_PROPERTY,
+            request_type: 'guest_access',
+            vehicle_id: null,
+            target_zone_id: null,
+            target_point_id: null,
+            starts_at: '2026-05-05T10:00:00.000Z',
+            ends_at: '2026-05-05T12:00:00.000Z',
+            status: 'pending_approval',
+          }],
+        });
+      }
+      if (sql.includes('FROM access_policies')) return Promise.resolve({ rows: [allowPolicy()] });
+      if (sql.includes('INSERT INTO access_approvals')) return Promise.resolve({ rows: [] });
+      if (sql.includes('UPDATE access_requests')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(approveAccessRequest({
+      txPool: makeTxPool(txClient),
+      user: { uid: 'legacy-staff-1', role: 'security' },
+      accessRequestId: UUID_REQUEST,
+      comment: 'ok',
+    })).rejects.toMatchObject({
+      status: 409,
+      message: 'Access request status changed; refresh and retry',
+    });
+
+    const updateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE access_requests'));
+    expect(updateCall[0]).toContain('AND status = $2');
+    expect(updateCall[1]).toEqual([UUID_REQUEST, 'pending_approval']);
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+    expect(txClient.query.mock.calls.some(([sql]) => sql === 'ROLLBACK')).toBe(true);
+  });
+
+  test('submit scopes mutation by current status', async () => {
+    const txClient = makeTxClient((sql) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+      if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+        return Promise.resolve({ rows: [{ status: 'new' }] });
+      }
+      if (sql.includes('UPDATE access_requests')) {
+        return Promise.resolve({ rows: [{ id: UUID_REQUEST, status: 'pending_approval' }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await submitAccessRequest({
+      txPool: makeTxPool(txClient),
+      accessRequestId: UUID_REQUEST,
+      propertyId: UUID_PROPERTY,
+    });
+
+    expect(result.access_request.status).toBe('pending_approval');
+    const updateCall = txClient.query.mock.calls.find(([sql]) => sql.includes('UPDATE access_requests'));
+    expect(updateCall[0]).toContain('AND property_id = $2');
+    expect(updateCall[0]).toContain('AND status = $3');
+    expect(updateCall[1]).toEqual([UUID_REQUEST, UUID_PROPERTY, 'new']);
+  });
+
+  test('reject/cancel/escalate updates include locked status predicate', async () => {
+    const cases = [
+      {
+        run: () => rejectAccessRequest({
+          txPool: makeTxPool(makeClient('pending_approval', 'rejected')),
+          user: { uid: 'legacy-staff-1', role: 'security' },
+          accessRequestId: UUID_REQUEST,
+          comment: 'no',
+          propertyId: UUID_PROPERTY,
+        }),
+        status: 'pending_approval',
+      },
+      {
+        run: () => cancelAccessRequest({
+          txPool: makeTxPool(makeClient('pending_approval', 'cancelled', { created_by_resident_id: UUID_RESIDENT })),
+          user: { uid: 'legacy-resident-1', role: 'owner' },
+          accessRequestId: UUID_REQUEST,
+          isPropertyAdmin: true,
+          propertyId: UUID_PROPERTY,
+        }),
+        status: 'pending_approval',
+      },
+      {
+        run: () => escalateAccessRequest({
+          txPool: makeTxPool(makeClient('pending_approval', 'escalated')),
+          user: { uid: 'legacy-staff-1', role: 'security' },
+          accessRequestId: UUID_REQUEST,
+          comment: 'admin',
+          propertyId: UUID_PROPERTY,
+        }),
+        status: 'pending_approval',
+      },
+    ];
+
+    for (const item of cases) {
+      const result = await item.run();
+      expect(result.access_request).toBeDefined();
+    }
+
+    function makeClient(currentStatus, nextStatus, extraCurrent = {}) {
+      return makeTxClient((sql) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') return Promise.resolve({ rows: [] });
+        if (sql.includes('FROM staff_users')) return Promise.resolve({ rows: [{ id: UUID_STAFF }] });
+        if (sql.includes('FROM access_requests') && sql.includes('FOR UPDATE')) {
+          return Promise.resolve({ rows: [{ status: currentStatus, ...extraCurrent }] });
+        }
+        if (sql.includes('INSERT INTO access_approvals')) return Promise.resolve({ rows: [] });
+        if (sql.includes('UPDATE access_requests')) {
+          expect(sql).toContain('AND status = $3');
+          return Promise.resolve({ rows: [{ id: UUID_REQUEST, property_id: UUID_PROPERTY, status: nextStatus }] });
+        }
+        if (sql.includes('INSERT INTO notifications_outbox')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      });
+    }
   });
 
   test('approve returns structured conflict when expected status is stale', async () => {

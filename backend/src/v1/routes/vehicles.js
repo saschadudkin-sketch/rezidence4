@@ -96,15 +96,14 @@ async function requireResidentVehicleOwner(req, res, vehicleId) {
     return null;
   }
   const { rows } = await getDb(req).query(
-    `SELECT property_id, owner_resident_id FROM vehicles WHERE id = $1`,
-    [vehicleId],
+    `SELECT property_id, owner_resident_id
+       FROM vehicles
+      WHERE id = $1
+        AND owner_resident_id = $2`,
+    [vehicleId, residentId],
   );
   if (!rows[0]) {
     res.status(404).json({ error: 'Vehicle not found' });
-    return null;
-  }
-  if (rows[0].owner_resident_id !== residentId) {
-    res.status(403).json({ error: 'Forbidden' });
     return null;
   }
   return { propertyId: rows[0].property_id, residentId };

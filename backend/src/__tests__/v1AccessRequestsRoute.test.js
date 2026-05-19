@@ -239,6 +239,9 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(passCall[1][2]).toBe('contractor');
     expect(passCall[1][3]).toBe('contractor_user');
     expect(passCall[1][4]).toBe(UUID_CONTRACTOR);
+    const linkedRequestCall = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM requests'));
+    expect(linkedRequestCall[0]).toContain('AND property_id = $2');
+    expect(linkedRequestCall[1]).toEqual(['req-1', UUID_PROPERTY]);
   });
 
   test('create validates topology target and auto-issued pass inherits zone and point', async () => {
@@ -445,6 +448,9 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('target_unit_id does not belong to resident');
+    const unitCall = db.query.mock.calls.find(([sql]) => String(sql).includes('FROM units'));
+    expect(unitCall[0]).toContain('AND property_id = $2');
+    expect(unitCall[1]).toEqual([UUID_OTHER_UNIT, UUID_PROPERTY]);
     expect(db.pool.connect).not.toHaveBeenCalled();
   });
 
@@ -502,6 +508,9 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(res.body.access_request.status).toBe('pending_approval');
     expect(res.body.pass).toBeNull();
     expect(txClient.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO passes'))).toBe(false);
+    const routeVehicleCall = db.query.mock.calls.find(([sql]) => String(sql).includes('owner_contractor_user_id'));
+    expect(routeVehicleCall[0]).toContain('AND property_id = $2');
+    expect(routeVehicleCall[1]).toEqual([UUID_VEHICLE, UUID_PROPERTY]);
   });
 
   test('GET /:id scopes approvals and pass detail to the request property', async () => {

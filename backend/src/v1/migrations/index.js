@@ -106,6 +106,8 @@ const V1_PROPERTY_MIGRATIONS = [
   require('./056_pass_credential_attempts'),
   // Trusted visitors hardening: DB-level tenant scope constraints
   require('./057_trusted_visitor_scope_constraints'),
+  // Property-owned reference hardening: composite FK scope and detail indexes
+  require('./058_property_scope_reference_hardening'),
 ];
 
 const LATEST_V1_PROPERTY_MIGRATION_ID =
