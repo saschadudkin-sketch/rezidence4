@@ -109,6 +109,12 @@ async function postJson(page, baseURL, path, data) {
   });
 }
 
+async function getJson(page, path) {
+  const response = await page.request.get(path);
+  expect(response.status()).toBe(200);
+  return response.json();
+}
+
 test.describe('platform-v1 access production e2e', () => {
   test.skip(!enabled, 'backend-backed v1 access e2e is enabled with E2E_V1_ACCESS=1');
 
@@ -288,7 +294,16 @@ test.describe('platform-v1 access production e2e', () => {
       expect(verifyBody.direction).toBe('entry');
       expect(verifyBody.policy_decision.reason).toBe('policy_allowed');
       expect(verifyBody.policy_decision.matched_policy_name).toBe(policyName);
+      expect(verifyBody.visit_log_id).toMatch(/^[0-9a-f-]{36}$/i);
       await expect(security.page.getByText('Проход разрешён')).toBeVisible();
+
+      const plateVisits = await getJson(
+        security.page,
+        `/api/v1/visits/by-plate/${encodeURIComponent(plate)}?property_id=${propertyId}&limit=5`,
+      );
+      expect(plateVisits.visit_logs.some((row) => row.id === verifyBody.visit_log_id)).toBe(true);
+      expect(plateVisits.visit_logs.find((row) => row.id === verifyBody.visit_log_id).access_point_id)
+        .toBe(accessPointId);
 
       const manualCard = security.page.locator('section').filter({
         has: security.page.getByRole('heading', { name: 'Ручное решение' }),
@@ -312,6 +327,98 @@ test.describe('platform-v1 access production e2e', () => {
       expect(manualBody.visit_log.provider_payload.direction).toBe('entry');
       expect(manualBody.incident.incident_type).toBe('manual_override');
       expect(manualBody.override.override_type).toBe('manual_admit');
+
+      const manualVisit = await getJson(
+        security.page,
+        `/api/v1/visits/${manualBody.visit_log.id}?property_id=${propertyId}`,
+      );
+      expect(manualVisit.visit_log.id).toBe(manualBody.visit_log.id);
+      expect(manualVisit.incidents.some((incident) => incident.id === manualBody.incident.id)).toBe(true);
+
+      const manualIncident = await getJson(
+        security.page,
+        `/api/v1/access-incidents/${manualBody.incident.id}?property_id=${propertyId}`,
+      );
+      expect(manualIncident.incident.related_visit_log_id).toBe(manualBody.visit_log.id);
+      expect(manualIncident.overrides.some((override) => override.id === manualBody.override.id)).toBe(true);
+
+      const offlineClientEventId = `phase3-${crypto.randomUUID()}`;
+      const offlinePlate = uniquePlate(stamp + 2);
+      const offlineEvent = {
+        client_event_id: offlineClientEventId,
+        event_type: 'manual_deny',
+        access_point_id: accessPointId,
+        direction: 'entry',
+        person_label: 'DH20 Offline Driver',
+        vehicle_plate: offlinePlate,
+        reason: 'DH20 offline deny replay',
+        degraded_reason: 'network_down',
+        lookup_state: 'unavailable',
+        occurred_at: new Date().toISOString(),
+      };
+
+      const offlineResponse = await postJson(security.page, baseURL, '/api/v1/security-workspace/offline-replay', {
+        property_id: propertyId,
+        events: [offlineEvent],
+      });
+      expect(offlineResponse.status()).toBe(202);
+      const offlineBody = await offlineResponse.json();
+      expect(offlineBody.results).toHaveLength(1);
+      expect(offlineBody.results[0].replay_event.client_event_id).toBe(offlineClientEventId);
+      expect(offlineBody.results[0].replay_event.replay_status).toBe('accepted');
+      expect(offlineBody.results[0].result.visit_log.event_type).toBe('manual_deny');
+      expect(offlineBody.results[0].result.visit_log.degraded_mode).toBe(true);
+      expect(offlineBody.results[0].result.visit_log.degraded_reconciliation_state).toBe('pending');
+      expect(offlineBody.results[0].result.incident.status).toBe('investigating');
+
+      const duplicateReplay = await postJson(security.page, baseURL, '/api/v1/security-workspace/offline-replay', {
+        property_id: propertyId,
+        events: [offlineEvent],
+      });
+      expect(duplicateReplay.status()).toBe(202);
+      const duplicateReplayBody = await duplicateReplay.json();
+      expect(duplicateReplayBody.results[0].replay_event.replay_status).toBe('duplicate');
+      expect(duplicateReplayBody.results[0].result).toBeNull();
+
+      const degradedVisitId = offlineBody.results[0].result.visit_log.id;
+      const reconcileResponse = await postJson(
+        security.page,
+        baseURL,
+        `/api/v1/security-workspace/degraded-events/${degradedVisitId}/reconcile`,
+        {
+          property_id: propertyId,
+          reconciliation_state: 'matched',
+          note: 'DH20 phase3 replay matched physical log',
+        },
+      );
+      expect(reconcileResponse.status()).toBe(200);
+      const reconcileBody = await reconcileResponse.json();
+      expect(reconcileBody.visit_log.id).toBe(degradedVisitId);
+      expect(reconcileBody.visit_log.degraded_reconciliation_state).toBe('matched');
+
+      const auditEvidence = await getJson(
+        admin.page,
+        `/api/v1/audit/sensitive-actions?property_id=${propertyId}&category=manual_override&limit=20`,
+      );
+      const auditActions = auditEvidence.actions.map((row) => ({
+        action: row.action,
+        resource_type: row.resource_type,
+        resource_id: row.resource_id,
+      }));
+      expect(auditActions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: 'override.created',
+            resource_type: 'access_override',
+            resource_id: manualBody.override.id,
+          }),
+          expect.objectContaining({
+            action: 'degraded_checkpoint.reconciled',
+            resource_type: 'visit_log',
+            resource_id: degradedVisitId,
+          }),
+        ]),
+      );
     } finally {
       await Promise.all(contexts.map((context) => context.close().catch(() => {})));
     }

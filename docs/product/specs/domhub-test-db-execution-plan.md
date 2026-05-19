@@ -177,6 +177,21 @@ Acceptance:
 
 Purpose: prove the core DomHub value before operations and integrations expand.
 
+Status: improved as of 2026-05-20 local verification.
+
+Latest verification:
+
+- `e2e/v1-access-production.spec.js` now proves the resident access path,
+  vehicle registration/request path, admin-created checkpoint/policy baseline,
+  guard checkpoint selection, QR verify, plate verify and manual security
+  decision on the seeded test tenant.
+- The same E2E gate now asserts visit-log details, linked manual
+  incident/override evidence, idempotent offline replay duplicate handling,
+  degraded checkpoint reconciliation and sensitive audit rows for manual
+  override/reconciliation.
+- `npm run test:e2e:v1-access`: tenant preflight passed with migrations `76/76`
+  and 3 Playwright tests passed.
+
 Required scenario:
 
 1. Resident creates a guest pass.
