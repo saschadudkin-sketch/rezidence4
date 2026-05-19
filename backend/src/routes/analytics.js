@@ -39,10 +39,22 @@ function parseDateRange(query) {
   if (isNaN(from) || isNaN(to)) {
     throw { status: 400, code: 'INVALID_DATE', message: 'Invalid date format' };
   }
+  if (from > to) {
+    throw { status: 400, code: 'INVALID_RANGE', message: 'from must be before or equal to to' };
+  }
   if (to - from > 366 * 24 * 60 * 60 * 1000) {
     throw { status: 400, code: 'RANGE_TOO_LARGE', message: 'Max range is 1 year' };
   }
   return { from, to };
+}
+
+function parseGranularity(value) {
+  if (value === undefined || value === null || value === '') return 'day';
+  const granularity = String(value).trim().toLowerCase();
+  if (!['hour', 'day'].includes(granularity)) {
+    throw { status: 400, code: 'INVALID_GRANULARITY', message: 'granularity must be hour or day' };
+  }
+  return granularity;
 }
 
 // ─── Redis caching ────────────────────────────────────────────────────────────
@@ -112,7 +124,7 @@ router.get('/traffic', async (req, res, next) => {
   try {
     let { from, to } = parseDateRange(req.query);
 
-    const granularity = req.query.granularity === 'hour' ? 'hour' : 'day';
+    const granularity = parseGranularity(req.query.granularity);
     const db    = req.db;
     const redis = getRedis();
     const slug  = req.propertySlug;

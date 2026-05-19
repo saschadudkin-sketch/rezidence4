@@ -78,6 +78,95 @@ describe('v1 webhooks route contract', () => {
     expect(res.body).toEqual({ webhook: webhookRow() });
   });
 
+  test('POST /webhooks trims required fields and rejects invalid events', async () => {
+    const db = {
+      query: jest.fn((sql) => {
+        if (sql.includes('INSERT INTO webhooks')) return Promise.resolve({ rows: [webhookRow()] });
+        if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const res = await supertest(buildApp(db))
+      .post('/api/v1/webhooks')
+      .send({
+        name: ' ERP bridge ',
+        url: ' https://hooks.example/domhub ',
+        secret: ' secret-ref ',
+        events: [' request.created ', 'access.incident.created'],
+      });
+
+    expect(res.status).toBe(201);
+    const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO webhooks'));
+    expect(insertCall[1]).toEqual([
+      'ERP bridge',
+      'https://hooks.example/domhub',
+      'secret-ref',
+      ['request.created', 'access.incident.created'],
+      'admin-1',
+    ]);
+
+    const rejected = await supertest(buildApp(db))
+      .post('/api/v1/webhooks')
+      .send({
+        name: 'ERP bridge',
+        url: 'https://hooks.example/domhub',
+        secret: 'secret-ref',
+        events: ['request.created', ' '],
+      });
+
+    expect(rejected.status).toBe(400);
+    expect(rejected.body.error.code).toBe('INVALID_EVENTS');
+  });
+
+  test('PATCH /webhooks/:id normalizes boolean strings and redacts secret from audit', async () => {
+    const db = {
+      query: jest.fn((sql) => {
+        if (sql.includes('UPDATE webhooks')) return Promise.resolve({ rows: [webhookRow({ is_active: false })] });
+        if (sql.includes('INSERT INTO property_audit_log')) return Promise.resolve({ rows: [] });
+        throw new Error(`unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const res = await supertest(buildApp(db))
+      .patch(`/api/v1/webhooks/${WEBHOOK_ID}`)
+      .send({
+        name: ' ERP bridge updated ',
+        secret: ' rotated-secret ',
+        events: [' request.created '],
+        is_active: 'false',
+      });
+
+    expect(res.status).toBe(200);
+    const updateCall = db.query.mock.calls.find(([sql]) => sql.includes('UPDATE webhooks'));
+    expect(updateCall[1]).toEqual([
+      'ERP bridge updated',
+      'rotated-secret',
+      ['request.created'],
+      false,
+      WEBHOOK_ID,
+    ]);
+    const auditCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(JSON.parse(auditCall[1][4])).toEqual({
+      name: 'ERP bridge updated',
+      secret_changed: true,
+      events: ['request.created'],
+      is_active: false,
+    });
+  });
+
+  test('PATCH /webhooks/:id rejects invalid is_active values', async () => {
+    const db = { query: jest.fn() };
+
+    const res = await supertest(buildApp(db))
+      .patch(`/api/v1/webhooks/${WEBHOOK_ID}`)
+      .send({ is_active: 'definitely' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toEqual({ code: 'INVALID_FIELD', message: 'is_active must be boolean' });
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
   test('DELETE /webhooks/:id returns ok wrapper', async () => {
     const db = {
       query: jest.fn((sql) => {
