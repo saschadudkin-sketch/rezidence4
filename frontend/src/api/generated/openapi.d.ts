@@ -28856,8 +28856,11 @@ export interface components {
             /** @enum {string|null} */
             request_type?: "guest_access" | "vehicle_access" | "contractor_access" | "courier_access" | "service_access" | "temporary_resident_access" | null;
             visitor_name?: string | null;
+            /** Format: uuid */
+            trusted_visitor_id?: string | null;
             guest_instructions?: string | null;
             guard_notes?: string | null;
+            share_delivery_channels?: ("link" | "qr" | "sms" | "telegram" | "email")[] | null;
             unit_number?: string | null;
             unit_type?: string | null;
             resident_name?: string | null;

@@ -38,6 +38,9 @@ Security boundaries:
 - Public pass response не раскрывает resident UID, resident phone, staff notes, guard notes или internal audit data.
 - Guest-facing instructions приходят из `access_requests.guest_instructions`, когда это поле будет добавлено.
 - Guard-only notes остаются в security workspace / authenticated staff APIs.
+- Admin/staff pass list rows may include access-request context such as
+  `trusted_visitor_id`, `guest_instructions`, `guard_notes` and
+  `share_delivery_channels`; public pass responses must not expose guard notes.
 
 ---
 
@@ -88,6 +91,9 @@ qr_passes
 Инварианты:
 - `status='active'` требует `valid_from ≤ now ≤ valid_until`.
 - Переход `* → revoked` — одноразовый, обязателен `revoked_reason`.
+- Verification must enforce `point_id` and `zone_id` against the selected
+  checkpoint when `access_point_id` is supplied; wrong checkpoint scans are
+  denied before one-shot passes are marked used.
 - `used` для one-shot пропусков (`pass_type IN ('guest','courier','service')`); для `resident/staff/vehicle` — многоразовое, статус не меняется на `used`.
 
 ---

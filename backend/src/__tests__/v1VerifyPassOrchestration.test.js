@@ -17,6 +17,8 @@ const UUID_INCIDENT = '44444444-4444-4444-8444-444444444444';
 const UUID_STAFF = '55555555-5555-4555-8555-555555555555';
 const UUID_VEHICLE = '66666666-6666-4666-8666-666666666666';
 const UUID_POINT = '77777777-7777-4777-8777-777777777777';
+const UUID_ZONE = '99999999-9999-4999-8999-999999999999';
+const UUID_OTHER_ZONE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const NOW = '2026-05-05T10:30:00.000Z';
 
@@ -136,6 +138,38 @@ describe('verifyPass orchestration — Phase 1.2 QR flow', () => {
     expect(auditCall[1][0]).toBe(UUID_PROPERTY);
     expect(auditCall[1][1]).toBe(UUID_STAFF);
     expect(auditCall[1][2]).toBe('visit.entry_allowed');
+  });
+
+  test('valid QR is denied when scanned at a checkpoint outside pass zone scope', async () => {
+    const txClient = installTxClient();
+    db.query.mockImplementation((sql) => {
+      if (sql.includes('FROM access_points')) {
+        return Promise.resolve({ rows: [{ id: UUID_POINT, zone_id: UUID_ZONE }] });
+      }
+      if (sql.includes('FROM qr_passes_v2')) {
+        return Promise.resolve({ rows: [makePass({ zone_id: UUID_OTHER_ZONE, point_id: null })] });
+      }
+      if (sql.includes('COUNT(*)::int AS n')) return Promise.resolve({ rows: [{ n: 0 }] });
+      if (sql.includes('FROM visit_logs_v2') && sql.includes('event_type =')) return Promise.resolve({ rows: [] });
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const result = await verifyPass({
+      property_id: UUID_PROPERTY,
+      mode: 'qr',
+      token: 'valid-qr-token-123',
+      access_point_id: UUID_POINT,
+      performed_by_staff_id: UUID_STAFF,
+      occurred_at: NOW,
+    });
+
+    expect(result.verdict.allowed).toBe(false);
+    expect(result.verdict.reason).toBe('outside_access_scope');
+    expect(result.verdict.incident_type).toBe('policy_denied');
+    expect(result.incident_id).toBe(UUID_INCIDENT);
+    expect(txClient.query.mock.calls.some(([sql]) => sql.includes('UPDATE passes'))).toBe(false);
+    const visitCall = txClient.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO visit_logs_v2'));
+    expect(visitCall[1][3]).toBe('entry_denied');
   });
 
   test('one-shot QR denies when atomic use transition loses a race', async () => {

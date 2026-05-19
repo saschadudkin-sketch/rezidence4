@@ -27312,6 +27312,11 @@
             "type": "string",
             "nullable": true
           },
+          "trusted_visitor_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "guest_instructions": {
             "type": "string",
             "nullable": true
@@ -27319,6 +27324,20 @@
           "guard_notes": {
             "type": "string",
             "nullable": true
+          },
+          "share_delivery_channels": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "link",
+                "qr",
+                "sms",
+                "telegram",
+                "email"
+              ]
+            }
           },
           "unit_number": {
             "type": "string",

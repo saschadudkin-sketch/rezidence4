@@ -27,6 +27,10 @@ Guard vocabulary:
 - Blacklist hits: open incidents and vehicle flags relevant to the selected property/access point.
 - Guard notes: staff/security-only operational notes; never returned to public pass.
 - Guest instructions: guest-facing text from the access request; safe to show on public pass and optionally in guard context.
+- Trusted visitor context: expected guests and active passes include
+  `trusted_visitor_id` when the access request came from a resident-owned
+  frequent guest template. This is staff-only context and must stay property
+  scoped.
 - Guard authorized devices: future allow-list of devices/stations permitted to perform manual decision or hardware-control actions.
 
 Out of first MVP:

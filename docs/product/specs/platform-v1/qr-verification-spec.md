@@ -80,6 +80,8 @@ function verifyPass({ property_id, mode, token?, plate?, performed_by_staff_id, 
     verdict = { allowed: false, reason: 'expired', incident_type: 'expired_pass_attempt', severity: 'low' }
   } else if (now < pass?.valid_from) {
     verdict = { allowed: false, reason: 'outside_time_window', incident_type: 'outside_time_window', severity: 'low' }
+  } else if (access_point_id && pass has point/zone scope that does not match the checkpoint) {
+    verdict = { allowed: false, reason: 'outside_access_scope', incident_type: 'policy_denied', severity: 'medium' }
   } else if (vehicle && !pass && !vehicle.flags.includes('whitelist')) {
     verdict = { allowed: false, reason: 'unauthorized_vehicle', incident_type: 'unauthorized_vehicle', severity: 'medium' }
   } else {

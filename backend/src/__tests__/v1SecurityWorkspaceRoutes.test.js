@@ -80,8 +80,10 @@ describe('security workspace routes', () => {
           rows: [{
             id: 'request-1',
             visitor_name: 'Guest',
+            trusted_visitor_id: 'trusted-visitor-1',
             guest_instructions: 'Показать QR',
             guard_notes: 'Проверить документы',
+            share_delivery_channels: ['link', 'qr'],
           }],
         });
       }
@@ -112,8 +114,12 @@ describe('security workspace routes', () => {
     expect(activePassesCall[0]).toContain('r.property_id = p.property_id');
     expect(activePassesCall[0]).toContain('u.property_id = r.property_id');
     expect(expectedGuestsCall[0]).toContain("ar.status = 'approved'");
+    expect(activePassesCall[0]).toContain('ar.trusted_visitor_id');
+    expect(activePassesCall[0]).toContain('ar.share_delivery_channels');
+    expect(expectedGuestsCall[0]).toContain('ar.trusted_visitor_id');
     expect(expectedGuestsCall[0]).toContain('ar.guest_instructions');
     expect(expectedGuestsCall[0]).toContain('ar.guard_notes');
+    expect(expectedGuestsCall[0]).toContain('ar.share_delivery_channels');
     expect(expectedGuestsCall[0]).toContain('v.property_id = ar.property_id');
     expect(expectedGuestsCall[0]).toContain('u.property_id = ar.property_id');
     expect(expectedGuestsCall[0]).toContain('p.property_id = ar.property_id');

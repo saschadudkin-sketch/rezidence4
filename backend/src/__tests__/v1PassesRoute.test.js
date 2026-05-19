@@ -22,6 +22,7 @@ const passesRouter = require('../v1/routes/passes');
 const UUID_PROPERTY = '11111111-1111-4111-8111-111111111111';
 const UUID_RESIDENT = '22222222-2222-4222-8222-222222222222';
 const UUID_PASS = '33333333-3333-4333-8333-333333333333';
+const UUID_VISITOR = '44444444-4444-4444-8444-444444444444';
 
 function buildApp() {
   const app = express();
@@ -65,6 +66,7 @@ describe('v1 passes route', () => {
         revoked_reason: null,
         created_at: '2026-05-01T10:00:00.000Z',
         visitor_name: 'Guest One',
+        trusted_visitor_id: UUID_VISITOR,
         resident_name: 'Resident One',
         unit_number: '125',
         vehicle_plate: 'A001AA77',
@@ -73,6 +75,7 @@ describe('v1 passes route', () => {
         credential_types: ['pin', 'qr'],
         guard_notes: 'Проверить паспорт',
         guest_instructions: 'Показать QR',
+        share_delivery_channels: ['link', 'qr'],
       }],
     });
 
@@ -83,17 +86,21 @@ describe('v1 passes route', () => {
     expect(res.body.passes[0]).toMatchObject({
       id: UUID_PASS,
       visitor_name: 'Guest One',
+      trusted_visitor_id: UUID_VISITOR,
       resident_name: 'Resident One',
       unit_number: '125',
       vehicle_plate: 'A001AA77',
       credential_types: ['pin', 'qr'],
       guard_notes: 'Проверить паспорт',
+      share_delivery_channels: ['link', 'qr'],
     });
     expect(res.body.page).toEqual({ limit: 25, offset: 0, hasMore: false });
 
     const [sql, params] = db.query.mock.calls[0];
     expect(sql).toContain('FROM passes p');
     expect(sql).toContain('LEFT JOIN access_requests ar');
+    expect(sql).toContain('ar.trusted_visitor_id');
+    expect(sql).toContain('ar.share_delivery_channels');
     expect(sql).toContain('LEFT JOIN units u');
     expect(sql).toContain('LEFT JOIN residents r');
     expect(sql).toContain('FROM pass_credentials pc');

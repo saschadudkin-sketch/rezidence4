@@ -101,7 +101,8 @@ async function listActivePasses(queryable, { propertyId, station, now, limit }) 
             p.subject_contractor_user_id, p.subject_vehicle_id,
             p.zone_id, p.point_id, p.policy_id,
             p.valid_from, p.valid_until, p.status,
-            ar.guest_instructions, ar.guard_notes,
+            ar.visitor_name, ar.trusted_visitor_id,
+            ar.guest_instructions, ar.guard_notes, ar.share_delivery_channels,
             v.plate_number, v.is_whitelisted, v.is_blacklisted,
             r.full_name AS resident_name, r.phone AS resident_phone,
             u.unit_number, u.unit_type
@@ -140,8 +141,9 @@ async function listExpectedGuests(queryable, { propertyId, station, now, limit }
   const { rows } = await queryable.query(
     `SELECT ar.id, ar.property_id, ar.request_type, ar.visitor_name,
             ar.visitor_phone, ar.vehicle_id, ar.target_zone_id,
-            ar.target_point_id, ar.target_unit_id, ar.reason,
-            ar.guest_instructions, ar.guard_notes,
+            ar.target_point_id, ar.target_unit_id, ar.trusted_visitor_id,
+            ar.reason, ar.guest_instructions, ar.guard_notes,
+            ar.share_delivery_channels,
             ar.starts_at, ar.ends_at, ar.status, ar.approval_required,
             v.plate_number, u.unit_number, u.unit_type,
             p.id AS pass_id, p.status AS pass_status

@@ -621,8 +621,10 @@ export type PassCredentialType = 'qr' | 'pin' | 'plate' | 'ble' | 'card';
 export interface AdminPassListItem extends Pass {
   request_type?: RequestType | null;
   visitor_name?: string | null;
+  trusted_visitor_id?: UUID | null;
   guest_instructions?: string | null;
   guard_notes?: string | null;
+  share_delivery_channels?: string[] | null;
   unit_number?: string | null;
   unit_type?: string | null;
   resident_name?: string | null;
@@ -1037,8 +1039,11 @@ export interface SecurityWorkspaceActivePass {
   valid_from: IsoDateTime;
   valid_until: IsoDateTime;
   status: PassStatus;
+  visitor_name: string | null;
+  trusted_visitor_id: UUID | null;
   guest_instructions: string | null;
   guard_notes: string | null;
+  share_delivery_channels: string[] | null;
   plate_number: string | null;
   is_whitelisted: boolean | null;
   is_blacklisted: boolean | null;

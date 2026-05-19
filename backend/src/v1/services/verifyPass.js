@@ -112,10 +112,10 @@ function resolvePersonLabel(pass, vehicle) {
   return null;
 }
 
-async function validateAccessPointScope(db, propertyId, accessPointId) {
-  if (!accessPointId) return;
+async function loadAccessPointScope(db, propertyId, accessPointId) {
+  if (!accessPointId) return null;
   const { rows } = await db.query(
-    `SELECT id
+    `SELECT id, zone_id
        FROM access_points
       WHERE id = $1
         AND property_id = $2
@@ -124,6 +124,14 @@ async function validateAccessPointScope(db, propertyId, accessPointId) {
     [accessPointId, propertyId],
   );
   if (!rows[0]) throw new Error('access_point_id does not exist for this property');
+  return rows[0];
+}
+
+function passMatchesAccessPoint(pass, accessPoint) {
+  if (!pass || !accessPoint) return true;
+  if (pass.point_id && pass.point_id !== accessPoint.id) return false;
+  if (pass.zone_id && pass.zone_id !== accessPoint.zone_id) return false;
+  return true;
 }
 
 /**
@@ -160,7 +168,7 @@ async function verifyPass({
   if (!['qr', 'pin', 'plate', 'provider'].includes(mode)) throw new Error(`Invalid mode '${mode}'`);
   if (!['entry', 'exit'].includes(direction)) throw new Error(`Invalid direction '${direction}'`);
   const now = occurred_at ? new Date(occurred_at) : new Date();
-  await validateAccessPointScope(db, property_id, access_point_id);
+  const accessPoint = await loadAccessPointScope(db, property_id, access_point_id);
 
   // ─── Step 1: idempotency ────────────────────────────────────────────────
   if (provider_event_id) {
@@ -353,6 +361,13 @@ async function verifyPass({
   // ─── Step 3: verdict cascade ────────────────────────────────────────────
   const baseVerdict = computeVerdict({ mode, pass, vehicle, now, direction, inputInvalid, pinRateLimited });
   const verdict = { ...baseVerdict };
+  if (verdict.allowed && !passMatchesAccessPoint(pass, accessPoint)) {
+    verdict.allowed = false;
+    verdict.reason = 'outside_access_scope';
+    verdict.event_type = eventTypeFor(direction, false);
+    verdict.incident_type = 'policy_denied';
+    verdict.severity = 'medium';
+  }
   const requiresVehiclePolicyDecision = mode === 'plate'
     && vehicle
     && !pass
