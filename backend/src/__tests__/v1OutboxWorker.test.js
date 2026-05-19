@@ -382,6 +382,16 @@ describe('lockBatch', () => {
     await worker.lockBatch(db);
     expect(db.query.mock.calls[0][1]).toEqual([worker.DEFAULT_BATCH_SIZE]);
   });
+
+  test('propertyId scopes candidate selection and defensive update condition', async () => {
+    const db = { query: jestApi.fn().mockResolvedValue({ rows: [] }) };
+    await worker.lockBatch(db, 10, 'property-a');
+
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/AND property_id::text = \$2/);
+    expect(sql).toMatch(/AND notifications_outbox\.property_id::text = \$2/);
+    expect(params).toEqual([10, 'property-a']);
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -575,6 +585,8 @@ describe('runOnce', () => {
     expect(unlockCall[1]).toEqual(['outbox-p1']);
 
     expect(client.release).toHaveBeenCalled();
+    const lockBatchCall = db.query.mock.calls.find(([sql]) => /SET status='in_flight'/.test(sql));
+    expect(lockBatchCall[1]).toEqual([worker.DEFAULT_BATCH_SIZE, 'p1']);
   });
 
   test('processBatch throws → unlock + release still happen (try/finally)', async () => {

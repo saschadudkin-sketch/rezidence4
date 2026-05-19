@@ -394,6 +394,7 @@ describe('startOutboxRunner — tick loop', () => {
       await jestApi.advanceTimersByTimeAsync(500);
       expect(worker.runOnce).toHaveBeenCalledWith(fallbackDb, {
         propertyId: runner.DEFAULT_PROPERTY_ID,
+        rowPropertyId: null,
         batchSize: runner.DEFAULT_BATCH_SIZE,
       });
     } finally {

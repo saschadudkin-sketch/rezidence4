@@ -233,6 +233,7 @@ function startOutboxRunner(opts = {}) {
       try {
         await worker.runOnce(fallbackDb, {
           propertyId: DEFAULT_PROPERTY_ID,
+          rowPropertyId: null,
           batchSize,
         });
       } catch (err) {

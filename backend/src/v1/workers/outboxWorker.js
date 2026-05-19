@@ -16,7 +16,7 @@
 //   2. insertLogV2(tx, row, outcome)     — single INSERT в log_v2 с
 //      нормализацией под constraints миграции 017 (vehicle → external,
 //      external → recipient_id=NULL, attempt_count >= 1).
-//   3. lockBatch(db, batchSize)          — atomic UPDATE...RETURNING,
+//   3. lockBatch(db, batchSize, propertyId) — atomic UPDATE...RETURNING,
 //      переводит до N строк из {pending, failed, eligible} в in_flight.
 //      Single SQL — атомарно относительно других воркеров даже без
 //      advisory lock, но (acquire SKIP LOCKED не нужен: UPDATE с подзапросом
@@ -279,13 +279,18 @@ async function processRow(tx, row, tenant = null) {
  *
  * ORDER BY next_attempt_at — FIFO-ish: старые pending уходят первыми.
  */
-async function lockBatch(db, batchSize = DEFAULT_BATCH_SIZE) {
+async function lockBatch(db, batchSize = DEFAULT_BATCH_SIZE, propertyId = null) {
+  const params = [batchSize];
+  const propertyFilter = propertyId ? `AND property_id::text = $${params.length + 1}` : '';
+  if (propertyId) params.push(String(propertyId));
+
   const { rows } = await db.query(
     `WITH candidates AS (
        SELECT id
          FROM notifications_outbox
         WHERE status IN ('pending','failed')
           AND next_attempt_at <= NOW()
+          ${propertyFilter}
         ORDER BY next_attempt_at
         LIMIT $1
         FOR UPDATE SKIP LOCKED
@@ -296,10 +301,11 @@ async function lockBatch(db, batchSize = DEFAULT_BATCH_SIZE) {
       FROM candidates
      WHERE notifications_outbox.id = candidates.id
        AND notifications_outbox.status IN ('pending','failed')
+       ${propertyId ? `AND notifications_outbox.property_id::text = $${params.length}` : ''}
      RETURNING notifications_outbox.id, property_id, event_type, channel, recipient_type,
                recipient_id, recipient_address, payload,
                attempt_count, max_attempts, correlation_id`,
-    [batchSize],
+    params,
   );
   return rows;
 }
@@ -317,8 +323,8 @@ async function lockBatch(db, batchSize = DEFAULT_BATCH_SIZE) {
  *   Это MVP-замена для reaper-таска (поэтапный cleanup для stuck rows).
  */
 async function processBatch(db, opts = {}) {
-  const { batchSize = DEFAULT_BATCH_SIZE, tenant = null } = opts;
-  const rows = await lockBatch(db, batchSize);
+  const { batchSize = DEFAULT_BATCH_SIZE, tenant = null, propertyId = null } = opts;
+  const rows = await lockBatch(db, batchSize, propertyId);
   const counts = { sent: 0, failed: 0, dead: 0, errors: 0 };
 
   for (const row of rows) {
@@ -392,7 +398,12 @@ async function processBatch(db, opts = {}) {
  * это ОК, advisory lock у них другой (session = другой backend).
  */
 async function runOnce(db, opts = {}) {
-  const { batchSize = DEFAULT_BATCH_SIZE, propertyId, tenant = null } = opts;
+  const {
+    batchSize = DEFAULT_BATCH_SIZE,
+    propertyId,
+    rowPropertyId = propertyId,
+    tenant = null,
+  } = opts;
   if (!propertyId) {
     throw new Error('outboxWorker.runOnce: propertyId required for advisory lock');
   }
@@ -410,7 +421,7 @@ async function runOnce(db, opts = {}) {
     }
 
     try {
-      const stats = await processBatch(db, { batchSize, tenant });
+      const stats = await processBatch(db, { batchSize, tenant, propertyId: rowPropertyId });
       return { acquired: true, ...stats };
     } finally {
       try {
