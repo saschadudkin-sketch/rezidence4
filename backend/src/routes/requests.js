@@ -24,6 +24,7 @@ const {
 const { RequestSlaService } = require('../services/requests/RequestSlaService');
 const { RequestUpdatesService } = require('../services/requests/RequestUpdatesService');
 const { dispatch: notifyDispatch } = require('../services/notificationService');
+const { isOutboxEnabled } = require('../v1/services/notificationOutbox');
 const { createSkudAdapter } = require('../services/skud');
 const logger = require('../logger');
 
@@ -240,7 +241,9 @@ router.post('/', createRequestLimiter, idempotency, async (req, res, next) => {
 // ─── PATCH /api/requests/:id ─────────────────────────────────────────────────
 router.patch('/:id', validateId, async (req, res, next) => {
   try {
-    const updated = await RequestsService.update(req.user, req.params.id, req.body, getDb(req), getTxPool(req));
+    const updated = await RequestsService.update(req.user, req.params.id, req.body, getDb(req), getTxPool(req), {
+      property: req.property || null,
+    });
     broadcastRequestWithTenant(updated, req);
     res.json(updated);
 
@@ -249,7 +252,7 @@ router.patch('/:id', validateId, async (req, res, next) => {
     const newStatus = req.body.status;
     if (newStatus === 'approved' || newStatus === 'rejected' || newStatus === 'completed') {
       const db = req.db || null;
-      if (db) {
+      if (db && !isOutboxEnabled()) {
         const eventName = newStatus === 'approved'
           ? 'request.approved'
           : newStatus === 'rejected'

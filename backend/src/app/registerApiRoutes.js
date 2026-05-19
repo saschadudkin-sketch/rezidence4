@@ -254,6 +254,11 @@ function registerApiRoutes(app, { rateLimiters }) {
   // Phase 6 — legacy Analytics (admin-only, auth enforced inside analyticsRouter)
   app.use('/api/v1/analytics', requireFeature('analytics'), analyticsRouter);
 
+  // Phase 5 — admin/outbox observability.  Mount before generic /api/v1/admin
+  // settings routes so /admin/outbox is not swallowed by the admin settings
+  // router's no-match 404.
+  app.use('/api/v1/admin/outbox', v1AdminOutboxRouter);
+
   // Admin settings — feature flag management (admin role, property context required)
   app.use('/api/v1/admin', adminSettingsRouter);
 
@@ -324,17 +329,6 @@ function registerApiRoutes(app, { rateLimiters }) {
   //   GET  /api/v1/notification-log/mine              (resident)
   //   GET  /api/v1/notification-log/_meta             (limit cap)
   app.use('/api/v1', v1NotificationLogRouter);
-
-  // Phase 5 — admin/outbox observability.  Per-property admin UI, spec §4.2:
-  //   GET  /api/v1/admin/outbox                  list with filters
-  //   GET  /api/v1/admin/outbox/metrics          JSON snapshot (+ ?format=prometheus)
-  //   GET  /api/v1/admin/outbox/:id              row detail
-  //   POST /api/v1/admin/outbox/:id/requeue      force-retry dead/failed
-  //   POST /api/v1/admin/outbox/:id/cancel       manual pending/failed → dead
-  // Mount ПЕРЕД /api/v1/admin/feature-flags (adminSettingsRouter): у того router
-  // middleware-chain (requireAuth + requireAdmin), но fall-through на no-match
-  // корректный — наш более специфичный path /admin/outbox matchнется первым.
-  app.use('/api/v1/admin/outbox', v1AdminOutboxRouter);
 
   // DH-35 — object-level operational dashboard for property admins:
   // request/access/incident KPIs plus notification health in one per-property

@@ -199,9 +199,13 @@ execution plan is `docs/product/specs/domhub-test-db-execution-plan.md`.
    checkpoint/policy setup, guard QR/plate verify, manual decision evidence,
    idempotent offline replay, degraded reconciliation and sensitive audit rows;
    `npm run test:e2e:v1-access` passed 3 Playwright tests.
-4. Prove one operations lifecycle on the seeded tenant: resident request, staff
-   assignment, technician/contractor action, resident-visible update and
-   notification/outbox evidence.
+4. Treat the seeded-tenant operations baseline as locally proven for the
+   contractor path. Latest local verification on 2026-05-20 added
+   `e2e/v1-operations-production.spec.js` and `npm run test:e2e:v1-operations`
+   to cover resident service request creation, staff inbox/internal comments,
+   contractor assignment/start/resolve, resident-visible update filtering,
+   staff-only internal note separation and `request.completed`
+   `notifications_outbox` evidence.
 5. Keep Russia readiness, SKUD, GIS/OSS, ERP/1C and emergency provider work as
    adapter/stub/evidence-baseline until a real DB and external provider context
    exist. Do not describe these as production-validated.

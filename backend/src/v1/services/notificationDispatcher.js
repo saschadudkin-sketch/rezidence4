@@ -44,6 +44,13 @@ const {
   getPropertyUsers,
 } = notificationService;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function uuidOrNull(value) {
+  const text = String(value || '');
+  return UUID_RE.test(text) ? text : null;
+}
+
 // ─── recipient resolution ─────────────────────────────────────────────────────
 
 /**
@@ -96,8 +103,9 @@ async function buildRowsForUser({ userId, event, data, channels, messages, db })
         eventType: event,
         channel: 'web_push',
         recipientType: 'resident',
-        recipientId: userId,
+        recipientId: uuidOrNull(userId),
         recipientAddress: JSON.stringify({
+          user_id: userId,
           subscription_id: sub.id,
           endpoint: sub.endpoint,
           p256dh: sub.p256dh,
@@ -114,7 +122,7 @@ async function buildRowsForUser({ userId, event, data, channels, messages, db })
         eventType: event,
         channel: 'telegram',
         recipientType: 'resident',
-        recipientId: userId,
+        recipientId: uuidOrNull(userId),
         recipientAddress: sub.telegram_chat_id,
         payload: { text: messages.telegram },
       });
@@ -128,7 +136,7 @@ async function buildRowsForUser({ userId, event, data, channels, messages, db })
         eventType: event,
         channel: 'sms',
         recipientType: 'resident',
-        recipientId: userId,
+        recipientId: uuidOrNull(userId),
         recipientAddress: user.phone,
         payload: { message: messages.sms },
       });

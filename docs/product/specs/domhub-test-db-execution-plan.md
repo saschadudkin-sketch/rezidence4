@@ -222,6 +222,24 @@ Acceptance:
 
 Purpose: prove that a pilot property can be operated after access is working.
 
+Status: improved as of 2026-05-20 local verification.
+
+Latest verification:
+
+- `e2e/v1-operations-production.spec.js` now proves a seeded-tenant operations
+  lifecycle: resident service request creation, staff inbox visibility,
+  staff internal comment, staff resident-visible update, contractor assignment,
+  contractor queue/detail visibility, contractor start/resolve, resident-safe
+  update visibility and staff-only internal note separation.
+- `request.completed` now enqueues `request.completed` into
+  `notifications_outbox` when `NOTIFICATIONS_OUTBOX_ENABLED=true`, using the
+  v1 notification dispatcher in the same request status transaction.
+- `npm run test:e2e:v1-operations`: tenant preflight passed with migrations
+  `76/76` and 1 Playwright test passed.
+- Focused backend Jest for requests/staff workspace/contractor workspace/outbox
+  passed 6 suites / 93 tests, and the critical backend coverage gate passed
+  32 suites / 629 tests.
+
 Required scenario:
 
 1. Resident creates a service request.

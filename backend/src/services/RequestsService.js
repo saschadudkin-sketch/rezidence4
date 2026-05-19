@@ -35,6 +35,7 @@ const {
   createEmergencyProfileForRequest,
 } = require('./requests/EmergencyDispatchService');
 const { ServiceError, ConflictError } = require('./requests/RequestErrors');
+const { dispatchEvent } = require('../v1/services/notificationDispatcher');
 
 // ─── Transaction helper ───────────────────────────────────────────────────────
 
@@ -209,7 +210,7 @@ class RequestsService {
    * Обновить заявку (статус, комментарий и т.д.)
    * @returns {object} Обновлённая заявка
    */
-  static async update(user, id, patch, queryDb = db, txPool = db.pool) {
+  static async update(user, id, patch, queryDb = db, txPool = db.pool, context = {}) {
     const { uid, name, role } = user;
     const staff = isStaff(role);
 
@@ -286,7 +287,24 @@ class RequestsService {
           [id, name, role, patch.historyLabel],
         );
       }
-      return formatRequestRow(rows[0]);
+      const formatted = formatRequestRow(rows[0]);
+      if (patch.status === 'completed') {
+        await dispatchEvent({
+          event: 'request.completed',
+          data: {
+            userId: formatted.createdByUid,
+            requestId: formatted.id,
+            requestSummary: formatted.visitorName
+              ? `Заявка для ${formatted.visitorName}`
+              : `Заявка #${formatted.id.slice(0, 8)}`,
+            correlationId: formatted.id,
+          },
+          db: queryDb,
+          tx: client,
+          property: context.property || null,
+        });
+      }
+      return formatted;
     });
 
     if (!updated) throw new ServiceError('Not found', 404);
