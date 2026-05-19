@@ -104,11 +104,23 @@ describe('security workspace routes', () => {
     expect(res.body.workspace.recent_events).toHaveLength(1);
     expect(res.body.workspace.blacklist_hits).toHaveLength(1);
     const expectedGuestsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM access_requests ar'));
+    const activePassesCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM passes p'));
+    const recentEventsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM visit_logs_v2 vl'));
+    const blacklistHitsCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM access_incidents ai'));
+    expect(activePassesCall[0]).toContain('ar.property_id = p.property_id');
+    expect(activePassesCall[0]).toContain('v.property_id = p.property_id');
+    expect(activePassesCall[0]).toContain('r.property_id = p.property_id');
+    expect(activePassesCall[0]).toContain('u.property_id = r.property_id');
     expect(expectedGuestsCall[0]).toContain("ar.status = 'approved'");
     expect(expectedGuestsCall[0]).toContain('ar.guest_instructions');
     expect(expectedGuestsCall[0]).toContain('ar.guard_notes');
+    expect(expectedGuestsCall[0]).toContain('v.property_id = ar.property_id');
+    expect(expectedGuestsCall[0]).toContain('u.property_id = ar.property_id');
+    expect(expectedGuestsCall[0]).toContain('p.property_id = ar.property_id');
     expect(expectedGuestsCall[0]).not.toContain('pending_approval');
     expect(expectedGuestsCall[0]).not.toContain('escalated');
+    expect(recentEventsCall[0]).toContain('ai.property_id = vl.property_id');
+    expect(blacklistHitsCall[0]).toContain('v.property_id = ai.property_id');
   });
 
   test('GET /search runs scoped vehicle-first search for security users', async () => {
@@ -127,6 +139,10 @@ describe('security workspace routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.results.normalized_plate).toBe('A001AA77');
     expect(res.body.results.vehicles[0].plate_number).toBe('A001AA77');
+    const passSearchCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM passes p'));
+    expect(passSearchCall[0]).toContain('v.property_id = p.property_id');
+    expect(passSearchCall[0]).toContain('r.property_id = p.property_id');
+    expect(passSearchCall[0]).toContain('u.property_id = r.property_id');
   });
 
   test('GET /recent-events filters by access point after topology validation', async () => {

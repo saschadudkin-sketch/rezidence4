@@ -32,6 +32,36 @@ async function requireResidentId(queryable, user) {
   return residentId;
 }
 
+async function assertOwnerReference(queryable, { table, ownerId, propertyId, field }) {
+  if (!ownerId) return;
+  const { rows } = await queryable.query(
+    `SELECT id
+       FROM ${table}
+      WHERE id = $1
+        AND property_id = $2
+        AND is_active = true
+      LIMIT 1`,
+    [ownerId, propertyId],
+  );
+  if (!rows[0]) throw serviceError(400, `${field} does not exist for this property`);
+}
+
+async function validateVehicleOwnerReference(queryable, input) {
+  const ownerChecks = {
+    resident: ['residents', input.owner_resident_id, 'owner_resident_id'],
+    staff: ['staff_users', input.owner_staff_id, 'owner_staff_id'],
+    contractor: ['contractor_users', input.owner_contractor_user_id, 'owner_contractor_user_id'],
+  };
+  const ownerCheck = ownerChecks[input.owner_type];
+  if (!ownerCheck) return;
+  await assertOwnerReference(queryable, {
+    table: ownerCheck[0],
+    ownerId: ownerCheck[1],
+    propertyId: input.property_id,
+    field: ownerCheck[2],
+  });
+}
+
 async function assertVehicleOwnerAccess({ queryable, user, isPropertyAdmin, vehicleId, propertyId = null }) {
   const params = [vehicleId];
   const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
@@ -60,6 +90,7 @@ async function createVehicle({ queryable, user, isPropertyAdmin, input }) {
       throw serviceError(403, 'Residents may register only their own vehicle');
     }
   }
+  await validateVehicleOwnerReference(queryable, input);
 
   const { rows } = await queryable.query(
     `INSERT INTO vehicles

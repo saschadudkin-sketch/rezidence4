@@ -139,4 +139,26 @@ describe('v1 vehicles route resource-scope checks', () => {
     expect(vehicleCall[0]).toContain('owner_resident_id');
     expect(vehicleCall[1]).toEqual([UUID_PROPERTY_A, UUID_RESIDENT, 50, 0]);
   });
+
+  test('GET /vehicles/:id reads vehicle through resolved property scope', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY_A };
+    db.query
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_PROPERTY_A }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: UUID_VEHICLE,
+          property_id: UUID_PROPERTY_A,
+          owner_type: 'resident',
+          plate_number: 'A001AA77',
+        }],
+      });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/vehicles/${UUID_VEHICLE}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.vehicle.id).toBe(UUID_VEHICLE);
+    expect(db.query.mock.calls[1][0]).toContain('WHERE id = $1 AND property_id = $2');
+    expect(db.query.mock.calls[1][1]).toEqual([UUID_VEHICLE, UUID_PROPERTY_A]);
+  });
 });

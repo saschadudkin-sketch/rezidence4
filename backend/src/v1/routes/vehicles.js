@@ -253,8 +253,9 @@ router.get('/by-plate/:plate', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid vehicle id' });
+    let propertyId;
     if (isStaff(req.user.role)) {
-      const propertyId = await loadVehicleProperty(req, req.params.id);
+      propertyId = await loadVehicleProperty(req, req.params.id);
       if (!canReadVehicles(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     } else if (isResident(req.user.role)) {
       const owner = await requireResidentVehicleOwner(req, res, req.params.id);
@@ -262,12 +263,13 @@ router.get('/:id', async (req, res, next) => {
       if (!canInPropertyScope(req, 'access.request.create', owner.propertyId)) {
         return res.status(403).json({ error: 'Forbidden' });
       }
+      propertyId = owner.propertyId;
     } else {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const { rows } = await getDb(req).query(
-      `SELECT ${VEHICLE_COLS} FROM vehicles WHERE id = $1`,
-      [req.params.id],
+      `SELECT ${VEHICLE_COLS} FROM vehicles WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
     );
     if (!rows[0]) return res.status(404).json({ error: 'Vehicle not found' });
     res.json({ vehicle: rows[0] });

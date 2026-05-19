@@ -106,12 +106,18 @@ async function listActivePasses(queryable, { propertyId, station, now, limit }) 
             r.full_name AS resident_name, r.phone AS resident_phone,
             u.unit_number, u.unit_type
        FROM passes p
-       LEFT JOIN access_requests ar ON ar.id = p.access_request_id
-       LEFT JOIN vehicles v ON v.id = p.subject_vehicle_id
+       LEFT JOIN access_requests ar
+         ON ar.id = p.access_request_id
+        AND ar.property_id = p.property_id
+       LEFT JOIN vehicles v
+         ON v.id = p.subject_vehicle_id
+        AND v.property_id = p.property_id
        LEFT JOIN residents r
-         ON r.id = p.subject_resident_id
-         OR r.id = v.owner_resident_id
-       LEFT JOIN units u ON u.id = r.unit_id
+         ON r.property_id = p.property_id
+        AND (r.id = p.subject_resident_id OR r.id = v.owner_resident_id)
+       LEFT JOIN units u
+         ON u.id = r.unit_id
+        AND u.property_id = r.property_id
       WHERE p.property_id = $1
         AND p.status = 'active'
         AND p.valid_from <= $2
@@ -140,9 +146,15 @@ async function listExpectedGuests(queryable, { propertyId, station, now, limit }
             v.plate_number, u.unit_number, u.unit_type,
             p.id AS pass_id, p.status AS pass_status
        FROM access_requests ar
-       LEFT JOIN vehicles v ON v.id = ar.vehicle_id
-       LEFT JOIN units u ON u.id = ar.target_unit_id
-       LEFT JOIN passes p ON p.access_request_id = ar.id
+       LEFT JOIN vehicles v
+         ON v.id = ar.vehicle_id
+        AND v.property_id = ar.property_id
+       LEFT JOIN units u
+         ON u.id = ar.target_unit_id
+        AND u.property_id = ar.property_id
+       LEFT JOIN passes p
+         ON p.access_request_id = ar.id
+        AND p.property_id = ar.property_id
       WHERE ar.property_id = $1
         AND ar.status = 'approved'
         AND ar.ends_at >= $2
@@ -182,6 +194,7 @@ async function listRecentEvents(queryable, { propertyId, accessPointId = null, l
         AND az.property_id = ap.property_id
        LEFT JOIN access_incidents ai
          ON ai.related_visit_log_id = vl.id
+        AND ai.property_id = vl.property_id
       WHERE ${filters.join(' AND ')}
       ORDER BY vl.occurred_at DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
@@ -196,7 +209,9 @@ async function listBlacklistHits(queryable, { propertyId, limit }) {
             ai.incident_type, ai.severity, ai.status, ai.title, ai.created_at,
             v.plate_number, v.owner_type, v.is_blacklisted
        FROM access_incidents ai
-       LEFT JOIN vehicles v ON v.id = ai.related_vehicle_id
+       LEFT JOIN vehicles v
+         ON v.id = ai.related_vehicle_id
+        AND v.property_id = ai.property_id
       WHERE ai.property_id = $1
         AND ai.incident_type IN ('blacklist_hit','policy_denied','policy_security_review_required')
         AND ai.status IN ('open','investigating')
@@ -311,11 +326,15 @@ async function searchSecurityWorkspace({
               p.point_id, p.valid_from, p.valid_until, p.status,
               v.plate_number, r.full_name AS resident_name, u.unit_number
          FROM passes p
-         LEFT JOIN vehicles v ON v.id = p.subject_vehicle_id
+         LEFT JOIN vehicles v
+           ON v.id = p.subject_vehicle_id
+          AND v.property_id = p.property_id
          LEFT JOIN residents r
-           ON r.id = p.subject_resident_id
-           OR r.id = v.owner_resident_id
-         LEFT JOIN units u ON u.id = r.unit_id
+           ON r.property_id = p.property_id
+          AND (r.id = p.subject_resident_id OR r.id = v.owner_resident_id)
+         LEFT JOIN units u
+           ON u.id = r.unit_id
+          AND u.property_id = r.property_id
         WHERE p.property_id = $1
           AND (
             p.id::text = $2

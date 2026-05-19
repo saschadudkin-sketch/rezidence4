@@ -75,6 +75,26 @@ describe('VehicleService ownership checks', () => {
     expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO vehicles'))).toBe(false);
   });
 
+  test('admin create rejects owner references outside property before insert', async () => {
+    const queryable = makeQueryable((sql) => {
+      if (sql.includes('FROM residents') && sql.includes('property_id = $2')) {
+        return Promise.resolve({ rows: [] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    await expect(createVehicle({
+      queryable,
+      user: { uid: 'admin-1', role: 'admin' },
+      isPropertyAdmin: true,
+      input: validVehicleInput(),
+    })).rejects.toMatchObject({
+      status: 400,
+      message: 'owner_resident_id does not exist for this property',
+    });
+    expect(queryable.query.mock.calls.some(([sql]) => sql.includes('INSERT INTO vehicles'))).toBe(false);
+  });
+
   test('update rejects non-owner resident', async () => {
     const queryable = makeQueryable((sql) => {
       if (sql.includes('FROM vehicles')) {
@@ -123,7 +143,9 @@ describe('VehicleService mutations', () => {
 
   test('delete rejects vehicles with pass or request history and returns counts', async () => {
     const queryable = makeQueryable((sql) => {
-      if (sql.includes('FROM vehicles')) return Promise.resolve({ rows: [{ owner_resident_id: UUID_RESIDENT }] });
+      if (sql.includes('FROM vehicles')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY, owner_resident_id: UUID_RESIDENT }] });
+      }
       if (sql.includes('FROM passes') && sql.includes('FROM access_requests')) {
         return Promise.resolve({ rows: [{ passes_count: 1, requests_count: 2 }] });
       }
