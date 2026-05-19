@@ -60,6 +60,7 @@ import {
   severityTone,
 } from '../components/formatters';
 import { VehicleCard } from '../components/VehicleCard';
+import { OperationsNav } from '../components/OperationsNav';
 import {
   Alert,
   Badge,
@@ -233,6 +234,7 @@ export function AccessAdminPage() {
         <p className={uiClasses.pageSubtitle}>
           {labels.propertyKind}: активные пропуска, КПП, правила допуска, автофлаги и инциденты.
         </p>
+        <OperationsNav />
       </header>
 
       <div className={uiClasses.tabs} role="tablist" aria-label="Разделы настроек доступа">

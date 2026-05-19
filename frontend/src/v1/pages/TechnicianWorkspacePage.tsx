@@ -24,6 +24,7 @@ import {
   qk,
   useV1Session,
 } from '../store';
+import { OperationsNav } from '../components/OperationsNav';
 import { formatDateTime } from '../components/formatters';
 import {
   Alert,
@@ -240,6 +241,7 @@ export function TechnicianWorkspacePage() {
           {user.property_slug ? `${user.property_slug} · ` : ''}
           назначенные задачи, ожидания, результат работ и SLA
         </p>
+        <OperationsNav />
       </header>
 
       <Stack>

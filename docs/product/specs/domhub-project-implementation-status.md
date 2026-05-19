@@ -206,10 +206,18 @@ execution plan is `docs/product/specs/domhub-test-db-execution-plan.md`.
    contractor assignment/start/resolve, resident-visible update filtering,
    staff-only internal note separation and `request.completed`
    `notifications_outbox` evidence.
-5. Keep Russia readiness, SKUD, GIS/OSS, ERP/1C and emergency provider work as
+5. Continue Phase 5 frontend pilot ergonomics. Latest local verification on
+   2026-05-20 passed `npm run openapi:drift`,
+   `npm run frontend:v1-contract-coverage`, `npm run typecheck`,
+   `npm run frontend:lint` and targeted v1 frontend tests for router,
+   operations navigation, guard, staff, technician, contractor, access admin
+   and admin smoke pages. Staff/security/admin pilot users now have a role-aware
+   `OperationsNav` across the main v1 operations screens instead of depending
+   on manual URLs.
+6. Keep Russia readiness, SKUD, GIS/OSS, ERP/1C and emergency provider work as
    adapter/stub/evidence-baseline until a real DB and external provider context
    exist. Do not describe these as production-validated.
-6. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths
+7. Keep `DH-62` as post-cutover work: do not remove legacy aliases/runtime paths
    until v1 release gates and replacement modules prove no supported flow depends
    on them.
 

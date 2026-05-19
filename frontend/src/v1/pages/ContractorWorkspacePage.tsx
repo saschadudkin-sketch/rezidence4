@@ -25,6 +25,7 @@ import {
   qk,
   useV1Session,
 } from '../store';
+import { OperationsNav } from '../components/OperationsNav';
 import { formatDateTime } from '../components/formatters';
 import {
   Alert,
@@ -245,6 +246,7 @@ export function ContractorWorkspacePage() {
           {user.property_slug ? `${user.property_slug} · ` : ''}
           назначенные работы, ожидание материалов и сдача результата
         </p>
+        <OperationsNav />
       </header>
 
       <Stack>

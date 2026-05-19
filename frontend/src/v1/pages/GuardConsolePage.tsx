@@ -8,7 +8,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type {
   PropertyType,
   GuardAuthorizedDeviceContext,
@@ -29,8 +28,9 @@ import type {
   UUID,
 } from '../api/types';
 import { api, isV1ApiError } from '../api';
-import { useV1Session, isGuardRole, normalizeUserRole } from '../store';
+import { useV1Session, isGuardRole } from '../store';
 import { ScanPanel } from '../components/ScanPanel';
+import { OperationsNav } from '../components/OperationsNav';
 import { getPropertyLabels, formatUnitLabel } from '../lib/propertyLabels';
 import {
   Alert,
@@ -62,10 +62,7 @@ import {
 
 export function GuardConsolePage() {
   const session = useV1Session();
-  const navigate = useNavigate();
   const canGuard = isGuardRole(session.role);
-  const canOnboard = ['property_admin', 'management_company_admin', 'platform_admin']
-    .includes(normalizeUserRole(session.role));
   const propertyId = session.property_id ?? null;
   const labels = useMemo(() => getPropertyLabels(session.property_type), [session.property_type]);
   const pinCredentialsEnabled = session.feature_flags?.pin_credentials === true;
@@ -101,25 +98,11 @@ export function GuardConsolePage() {
   return (
     <div className={uiClasses.pageShell}>
       <header className={uiClasses.pageHeader}>
-        <Inline>
-          <h1 className={uiClasses.pageTitle}>{labels.guardTitle}</h1>
-          <Button variant="ghost" onClick={() => navigate('/v1/staff-workspace')}>
-            Рабочее место staff
-          </Button>
-          {canOnboard ? (
-            <>
-              <Button variant="ghost" onClick={() => navigate('/v1/admin/access')}>
-                Настройки доступа
-              </Button>
-              <Button variant="ghost" onClick={() => navigate('/v1/onboarding')}>
-                Онбординг
-              </Button>
-            </>
-          ) : null}
-        </Inline>
+        <h1 className={uiClasses.pageTitle}>{labels.guardTitle}</h1>
         <p className={uiClasses.pageSubtitle}>
           {labels.guardSubtitle}{session.property_slug ? ` · ${session.property_slug}` : ''}
         </p>
+        <OperationsNav />
       </header>
 
       <div className={uiClasses.twoColumn}>

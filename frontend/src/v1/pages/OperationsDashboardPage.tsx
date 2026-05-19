@@ -23,6 +23,7 @@ import {
   Stack,
   uiClasses,
 } from '../components/ui';
+import { OperationsNav } from '../components/OperationsNav';
 
 const PERIODS: Array<{ value: OperationsDashboardPeriod; label: string }> = [
   { value: '24h', label: '24 часа' },
@@ -104,6 +105,7 @@ export function OperationsDashboardPage() {
             </p>
           </div>
         </Inline>
+        <OperationsNav />
       </header>
 
       <Stack>

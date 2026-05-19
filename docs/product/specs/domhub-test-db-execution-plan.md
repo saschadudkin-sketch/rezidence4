@@ -266,6 +266,20 @@ Acceptance:
 
 Purpose: polish only the screens needed for a credible test-DB pilot rehearsal.
 
+Status: started as of 2026-05-20 local verification.
+
+Latest verification:
+
+- `npm run openapi:drift`: ok, 51 mounted prefixes covered.
+- `npm run frontend:v1-contract-coverage`: ok, 274 calls checked.
+- `npm run typecheck`: type debt gate passed with 0 errors.
+- `npm run frontend:lint`: passed.
+- `npm run frontend:test -- src/v1/components/OperationsNav.test.tsx src/v1/V1Router.test.tsx src/v1/pages/GuardConsolePage.test.tsx src/v1/pages/StaffWorkspacePage.test.tsx src/v1/pages/TechnicianWorkspacePage.test.tsx src/v1/pages/ContractorWorkspacePage.test.tsx src/v1/pages/AccessAdminPage.test.tsx src/v1/pages/AdminPages.smoke.test.tsx`: 8 files / 95 tests passed.
+- `OperationsNav` now gives staff/security/admin pilot users a role-aware v1
+  switcher across staff workspace, КПП, package intake, technician,
+  contractor, operations dashboard, access settings, outbox and onboarding
+  where their role is allowed.
+
 Priority screens:
 
 - resident access;

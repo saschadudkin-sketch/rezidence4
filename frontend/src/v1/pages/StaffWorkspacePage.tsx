@@ -38,6 +38,7 @@ import {
   qk,
   useV1Session,
 } from '../store';
+import { OperationsNav } from '../components/OperationsNav';
 import { formatDateTime } from '../components/formatters';
 import {
   Alert,
@@ -334,6 +335,7 @@ export function StaffWorkspacePage() {
           {user.property_slug ? `${user.property_slug} · ` : ''}
           единая очередь заявок, SLA и внутренние заметки
         </p>
+        <OperationsNav />
       </header>
 
       <Stack>
