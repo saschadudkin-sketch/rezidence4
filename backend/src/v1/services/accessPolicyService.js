@@ -288,10 +288,13 @@ async function listPolicies({ queryable, filters, pagination }) {
   return rows;
 }
 
-async function getPolicyById({ queryable, policyId }) {
+async function getPolicyById({ queryable, policyId, propertyId = null }) {
+  const params = [policyId];
+  const propertyPredicate = propertyId ? ' AND property_id = $2' : '';
+  if (propertyId) params.push(propertyId);
   const { rows } = await queryable.query(
-    `SELECT ${POLICY_COLS} FROM access_policies WHERE id = $1`,
-    [policyId],
+    `SELECT ${POLICY_COLS} FROM access_policies WHERE id = $1${propertyPredicate}`,
+    params,
   );
   return rows[0] || null;
 }

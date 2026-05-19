@@ -148,7 +148,7 @@ async function validatePassReferences(queryable, input) {
   const subjectChecks = {
     resident: ['residents', input.subject_resident_id, 'subject_resident_id'],
     staff: ['staff_users', input.subject_staff_id, 'subject_staff_id'],
-    contractor: ['contractor_users', input.subject_contractor_user_id, 'subject_contractor_user_id'],
+    contractor_user: ['contractor_users', input.subject_contractor_user_id, 'subject_contractor_user_id'],
     vehicle: ['vehicles', input.subject_vehicle_id, 'subject_vehicle_id'],
   };
   const subjectCheck = subjectChecks[input.subject_type];

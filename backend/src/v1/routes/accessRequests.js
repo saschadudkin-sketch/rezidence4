@@ -380,20 +380,27 @@ router.get('/', async (req, res, next) => {
       access_requests: rows,
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── GET /api/v1/access-requests/:id ─────────────────────────────────────────
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await getDb(req).query(`SELECT ${AR_COLS} FROM access_requests WHERE id = $1`, [req.params.id]);
+    const propertyId = await loadAccessRequestProperty(req, req.params.id);
+    const { rows } = await getDb(req).query(
+      `SELECT ${AR_COLS} FROM access_requests WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Access request not found' });
     const ar = rows[0];
 
     // Visibility: access staff — всё; resident/contractor — только своё.
     if (can(req.user, 'requests:read')) {
-      if (!canReadRequests(req, ar.property_id)) return res.status(403).json({ error: 'Forbidden' });
+      if (!canReadRequests(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     } else {
       if (isContractorRole(req.user.role)) {
         const contractorUserId = await requireContractorUserId(req, res);

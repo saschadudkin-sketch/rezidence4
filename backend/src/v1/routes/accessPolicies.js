@@ -102,13 +102,16 @@ function auditLog(req, {
 }
 
 async function requirePolicyProperty(req, policyId) {
-  const policy = await getPolicyById({ queryable: getDb(req), policyId });
-  if (!policy) {
+  const { rows } = await getDb(req).query(
+    `SELECT property_id FROM access_policies WHERE id = $1`,
+    [policyId],
+  );
+  if (!rows[0]) {
     const err = new Error('Access policy not found');
     err.status = 404;
     throw err;
   }
-  return policy.property_id;
+  return rows[0].property_id;
 }
 
 async function validatePolicyTopology(req, propertyId, body) {
@@ -261,11 +264,15 @@ router.post('/access-policies', async (req, res, next) => {
 router.get('/access-policies/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid policy id' });
-    const policy = await getPolicyById({ queryable: getDb(req), policyId: req.params.id });
+    const propertyId = await requirePolicyProperty(req, req.params.id);
+    if (!canReadPolicy(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const policy = await getPolicyById({ queryable: getDb(req), policyId: req.params.id, propertyId });
     if (!policy) return res.status(404).json({ error: 'Access policy not found' });
-    if (!canReadPolicy(req, policy.property_id)) return res.status(403).json({ error: 'Forbidden' });
     res.json({ policy });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err && err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
 });
 
 router.patch('/access-policies/:id', async (req, res, next) => {

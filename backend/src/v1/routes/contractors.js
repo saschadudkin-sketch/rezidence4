@@ -216,17 +216,26 @@ router.get('/contractor-companies/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid company id' });
-    const { rows } = await getDb(req).query(`SELECT * FROM contractor_companies WHERE id = $1`, [req.params.id]);
+    const propertyId = await loadResourcePropertyId(getDb(req), 'contractor_company', req.params.id, {
+      notFoundMessage: 'Company not found',
+    });
+    if (!canReadContractors(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const { rows } = await getDb(req).query(
+      `SELECT * FROM contractor_companies WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Company not found' });
-    if (!canReadContractors(req, rows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
     const { rows: users } = await getDb(req).query(
       `SELECT * FROM contractor_users
         WHERE contractor_company_id = $1 AND property_id = $2
         ORDER BY full_name ASC`,
-      [req.params.id, rows[0].property_id],
+      [req.params.id, propertyId],
     );
     res.json({ company: rows[0], users });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/contractor-companies

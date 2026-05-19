@@ -237,17 +237,24 @@ router.get('/', async (req, res, next) => {
       passes: rows,
       page: buildPageMeta({ ...pagination, returnedCount: rows.length }),
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // ─── GET /api/v1/passes/:id ──────────────────────────────────────────────────
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
-    const { rows } = await getDb(req).query(`SELECT ${PASS_COLS} FROM passes WHERE id = $1`, [req.params.id]);
+    const propertyId = await loadPassProperty(req, req.params.id);
+    const { rows } = await getDb(req).query(
+      `SELECT ${PASS_COLS} FROM passes WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Pass not found' });
     const pass = rows[0];
-    if (can(req.user, 'passes:read') && !canReadPassScope(req, pass.property_id)) {
+    if (can(req.user, 'passes:read') && !canReadPassScope(req, propertyId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -265,9 +272,10 @@ router.get('/:id', async (req, res, next) => {
       `SELECT id, token, render_version, created_at
          FROM pass_credentials
         WHERE pass_id = $1
+          AND property_id = $2
           AND credential_type = 'qr'
           AND revoked_at IS NULL`,
-      [req.params.id],
+      [req.params.id, propertyId],
     );
     res.json({ pass, qr: qrRows[0] || null });
   } catch (err) { next(err); }

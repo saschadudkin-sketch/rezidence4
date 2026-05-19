@@ -227,11 +227,20 @@ router.post('/import/apply', importCsvParser, async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
-    const { rows } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
+    const propertyId = await loadResourcePropertyId(getDb(req), 'staff_user', req.params.id, {
+      notFoundMessage: 'Staff not found',
+    });
+    if (!canReadStaff(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
+    const { rows } = await getDb(req).query(
+      `SELECT * FROM staff_users WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!rows[0]) return res.status(404).json({ error: 'Staff not found' });
-    if (!canReadStaff(req, rows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
     res.json({ staff: rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/staff
@@ -301,11 +310,16 @@ router.patch('/:id', async (req, res, next) => {
   try {
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid staff id' });
 
-    // Read current row for audit before/after.
-    const { rows: existing } = await getDb(req).query(`SELECT * FROM staff_users WHERE id = $1`, [req.params.id]);
+    const propertyId = await requirePropertyAdminForResource(req, res, 'staff_user', req.params.id, 'Staff not found');
+    if (!propertyId) return;
+
+    // Read current row for audit before/after inside the authorized property.
+    const { rows: existing } = await getDb(req).query(
+      `SELECT * FROM staff_users WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
+    );
     if (!existing[0]) return res.status(404).json({ error: 'Staff not found' });
     const before = existing[0];
-    if (!isPropertyAdmin(req, before.property_id)) return res.status(403).json({ error: 'Forbidden' });
 
     const sets = [];
     const params = [];

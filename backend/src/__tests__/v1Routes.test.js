@@ -720,7 +720,9 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
   test('captures old → new snapshot for role change', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin' };
     db.query
-      // read current row
+      // resolve resource property before full row read
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_A }] })
+      // read current row inside the resolved property
       .mockResolvedValueOnce({
         rows: [{
           id: UUID_A, property_id: UUID_A, full_name: 'Guard', phone: null, role: 'security',
@@ -749,11 +751,7 @@ describe('PATCH /api/v1/staff/:id — audit before/after', () => {
   test('403 when scoped admin patches staff from another property', async () => {
     mockCurrentUser = { uid: 'a1', role: 'admin', property_id: UUID_A };
     db.query.mockResolvedValueOnce({
-      rows: [{
-        id: UUID_D, property_id: UUID_B, full_name: 'Guard', phone: null, role: 'security',
-        specialization: null,
-        can_view_resident_phone: false, can_assign_requests: false,
-      }],
+      rows: [{ property_id: UUID_B }],
     });
 
     const res = await supertest(buildApp())

@@ -352,22 +352,28 @@ router.get('/units/:id', async (req, res, next) => {
   try {
     if (!isStaff(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
     if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Invalid unit id' });
+    const propertyId = await loadResourcePropertyId(getDb(req), 'unit', req.params.id, {
+      notFoundMessage: 'Unit not found',
+    });
+    if (!canReadStructure(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
     const { rows: unitRows } = await getDb(req).query(
       `SELECT id, property_id, building_id, entrance_id, unit_number, unit_type, floor, is_active, created_at
-         FROM units WHERE id = $1`,
-      [req.params.id],
+         FROM units WHERE id = $1 AND property_id = $2`,
+      [req.params.id, propertyId],
     );
     if (!unitRows[0]) return res.status(404).json({ error: 'Unit not found' });
-    if (!canReadStructure(req, unitRows[0].property_id)) return res.status(403).json({ error: 'Forbidden' });
 
     const { rows: residents } = await getDb(req).query(
       `SELECT id, full_name, resident_type, is_active, consent_given_at
-         FROM residents WHERE unit_id = $1 AND is_active = true
+         FROM residents WHERE unit_id = $1 AND property_id = $2 AND is_active = true
          ORDER BY full_name ASC`,
-      [req.params.id],
+      [req.params.id, propertyId],
     );
     res.json({ unit: unitRows[0], residents });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (sendScopeError(res, err)) return;
+    next(err);
+  }
 });
 
 // POST /api/v1/units — create single unit
