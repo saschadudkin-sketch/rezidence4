@@ -46,6 +46,7 @@ DomHub должен быть внедряемым продуктом, а не н
 | First-week pilot support | Required | Ops And Enablement | First live property week | `docs/runbooks/pilot-rollout.md`, `docs/runbooks/pilot-operations-training-pack.md` |
 | Pilot operations training pack | Required | Ops And Enablement / QA And Release | Before Russia production readiness sign-off | `docs/runbooks/pilot-operations-training-pack.md`, `platform-v1/pilot-operations-training-pack-spec.md` |
 | Russia readiness evidence capture | Required | QA And Release / Ops And Enablement | Before strict Russia readiness sign-off | `docs/runbooks/russia-readiness-evidence-capture.md`, `artifacts/russia-readiness/*.json` |
+| Pilot readiness rehearsal evidence | Required | QA And Release / Ops And Enablement | After local strict gates and before staging/prod-candidate sign-off | `docs/runbooks/pilot-readiness-rehearsal-2026-05-20.md`, `artifacts/release-gates/*.json`, `artifacts/russia-readiness/*.json` |
 
 ---
 
@@ -111,6 +112,8 @@ Each runbook SHOULD include:
   PDn/DSAR workflows.
 - `docs/runbooks/russia-readiness-evidence-capture.md` — retained JSON evidence
   contract for strict DH-55 through DH-61 and staging command evidence.
+- `docs/runbooks/pilot-readiness-rehearsal-2026-05-20.md` — local readiness
+  rehearsal result, current go/no-go status and live evidence blockers.
 - `domhub-deployment-and-tenant-ops-spec.md` — tenant provisioning, migrations, rollback and operational model.
 - `domhub-russia-production-readiness-spec.md` — required runbook topics for Russia readiness.
 
