@@ -12,6 +12,13 @@ const tenantOpsPreflightEntry = path.join(repoRoot, 'scripts', 'tenant-ops-prefl
 const backendMode = process.env.E2E_BACKEND_MODE === '1' || process.env.E2E_V1_ACCESS === '1';
 const e2eEnv = buildE2EEnv(process.env);
 const backendPort = e2eEnv.E2E_BACKEND_PORT || e2eEnv.PORT || '3001';
+const frontendPort = e2eEnv.E2E_FRONTEND_PORT || (() => {
+  try {
+    return String(new URL(process.env.PLAYWRIGHT_WEBSERVER_URL || '').port || '3000');
+  } catch {
+    return '3000';
+  }
+})();
 const children = [];
 
 function startChild(command, args, options, exitParentOnClean = false) {
@@ -66,7 +73,7 @@ if (backendMode && process.env.E2E_START_BACKEND === '1') {
   });
 }
 
-startChild(process.execPath, [viteEntry, '--host', '127.0.0.1', '--port', '3000'], {
+startChild(process.execPath, [viteEntry, '--host', '127.0.0.1', '--port', frontendPort], {
   cwd: frontendDir,
   stdio: 'inherit',
   env: {

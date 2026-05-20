@@ -112,7 +112,7 @@ describe('v1 staff workspace routes', () => {
     });
     expect(res.body.property.type).toBe('cottage_community');
     const [sql, params] = db.query.mock.calls[0];
-    expect(sql).toContain('resident_ref.property_id');
+    expect(sql).toContain('(resident_ref.property_id = $1 OR resident_ref.id IS NULL)');
     expect(sql).toContain("r.sla_state IN ('escalated','emergency_escalated')");
     expect(sql).toContain('r.category');
     expect(sql).toContain('r.target_type');
@@ -130,6 +130,37 @@ describe('v1 staff workspace routes', () => {
 
     expect(res.status).toBe(403);
     expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('GET /inbox keeps staff-created requests visible in tenant-scoped DB', async () => {
+    mockCurrentUser = { uid: 'concierge-1', role: 'concierge' };
+    db.query.mockResolvedValueOnce({
+      rows: [requestRow({
+        id: 'staff-created-req',
+        resident_id: null,
+        created_by_uid: 'concierge-1',
+        created_by_name: 'Мария',
+        created_by_role: 'concierge',
+        comment: 'Staff-created operation',
+      })],
+    });
+
+    const res = await supertest(buildApp({ property: { id: UUID_B, slug: 'demo' } }))
+      .get('/api/v1/staff-workspace/inbox?q=Staff-created&limit=10');
+
+    expect(res.status).toBe(200);
+    expect(res.body.requests[0]).toMatchObject({
+      id: 'staff-created-req',
+      resident: {
+        id: null,
+        uid: 'concierge-1',
+      },
+    });
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toContain('(resident_ref.property_id = $1 OR resident_ref.id IS NULL)');
+    expect(sql).toContain('r.comment ILIKE');
+    expect(params).toContain(UUID_B);
+    expect(params).toContain('%Staff-created%');
   });
 
   test('POST /requests/:id/internal-comments stores internal-only comment', async () => {
@@ -167,7 +198,7 @@ describe('v1 staff workspace routes', () => {
     expect(res.status).toBe(201);
     expect(res.body.comment.visibility).toBe('internal');
     const detailCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM requests') && sql.includes('LIMIT 1'));
-    expect(detailCall[0]).toContain('resident_ref.property_id = $2');
+    expect(detailCall[0]).toContain('(resident_ref.property_id = $2 OR resident_ref.id IS NULL)');
     expect(detailCall[1]).toEqual(['req-1', UUID_B]);
     const insertCall = db.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO request_updates'));
     expect(insertCall[0]).toContain("'internal'");

@@ -4,6 +4,15 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..');
 const defaultFrontendOrigins = ['http://127.0.0.1:3000', 'http://localhost:3000'];
 
+function addOrigin(frontendOrigins, rawUrl) {
+  if (!rawUrl) return;
+  try {
+    frontendOrigins.add(new URL(rawUrl).origin);
+  } catch {
+    // Ignore non-URL values; explicit FRONTEND_URL remains the escape hatch.
+  }
+}
+
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
 
@@ -58,6 +67,12 @@ function buildE2EEnv(baseEnv = process.env) {
       .filter(Boolean),
   );
   for (const origin of defaultFrontendOrigins) frontendOrigins.add(origin);
+  if (env.E2E_FRONTEND_PORT) {
+    frontendOrigins.add(`http://127.0.0.1:${env.E2E_FRONTEND_PORT}`);
+    frontendOrigins.add(`http://localhost:${env.E2E_FRONTEND_PORT}`);
+  }
+  addOrigin(frontendOrigins, env.PLAYWRIGHT_BASE_URL);
+  addOrigin(frontendOrigins, env.PLAYWRIGHT_WEBSERVER_URL);
   env.FRONTEND_URL = Array.from(frontendOrigins).join(',');
   env.BACKEND_URL = env.BACKEND_URL || `http://127.0.0.1:${env.PORT}`;
   env.E2E_DISABLE_RATE_LIMITS = env.E2E_DISABLE_RATE_LIMITS || '1';
