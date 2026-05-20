@@ -441,7 +441,7 @@ async function getResidentQuickView(queryable, { residentId, canViewPhone, prope
         AND b.property_id = u.property_id
        LEFT JOIN entrances e
          ON e.id = u.entrance_id
-        AND e.property_id = u.property_id
+        AND e.building_id = u.building_id
       WHERE r.id=$1
         ${propertyPredicate}
       LIMIT 1`,

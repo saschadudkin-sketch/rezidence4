@@ -14,10 +14,13 @@ const PROPERTY_SLUG = process.env.E2E_PROPERTY_SLUG || 'zamoskv';
 const PROPERTY_NAME = 'E2E Резиденции Замоскворечья';
 const PROPERTY_TYPE = process.env.E2E_PROPERTY_TYPE || 'residential_complex';
 const REQUIRED_FEATURE_FLAGS = {
+  analytics: true,
+  packages: true,
   qr_pass: true,
   public_pass_v1: true,
   security_workspace_enriched: true,
   guard_authorized_devices: false,
+  trusted_visitors: true,
 };
 const MANAGEMENT_COMPANY = {
   slug: 'e2e-management-company',

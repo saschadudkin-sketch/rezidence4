@@ -45,7 +45,7 @@ describe('outboxHealth.QUERY_SQL', () => {
 
   test('oldest age uses EXTRACT(EPOCH ...) with MIN(next_attempt_at)', () => {
     expect(QUERY_SQL).toMatch(/EXTRACT\(\s*EPOCH\s+FROM/i);
-    expect(QUERY_SQL).toMatch(/MIN\(\s*next_attempt_at\s*\)/i);
+    expect(QUERY_SQL).toMatch(/MIN\(\s*next_attempt_at\s*\)\s*FILTER\s*\(\s*WHERE\s+status\s+IN/i);
   });
 });
 

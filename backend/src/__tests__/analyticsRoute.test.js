@@ -53,6 +53,21 @@ describe('legacy v1 analytics route contract', () => {
     expect(db.query).not.toHaveBeenCalled();
   });
 
+  test('traffic reads legacy visit_logs without deleted_at filter', async () => {
+    const db = {
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+    };
+
+    const res = await supertest(buildApp(db))
+      .get('/api/v1/analytics/traffic?from=2026-05-19T00:00:00.000Z&to=2026-05-20T00:00:00.000Z');
+
+    expect(res.status).toBe(200);
+    expect(db.query).toHaveBeenCalledTimes(1);
+    const [sql] = db.query.mock.calls[0];
+    expect(sql).toMatch(/FROM\s+visit_logs/i);
+    expect(sql).not.toMatch(/deleted_at/i);
+  });
+
   test('SLA rejects inverted date ranges before querying', async () => {
     const db = { query: jest.fn() };
 

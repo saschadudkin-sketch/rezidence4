@@ -80,7 +80,7 @@ router.get('/snapshots/latest', async (req, res, next) => {
       propertyId,
       period: req.query.period || '7d',
     });
-    if (!snapshot) return res.status(404).json({ error: 'Analytics snapshot not found' });
+    if (!snapshot) return res.json({ snapshot: null });
     if (String(req.query.format || '').toLowerCase() === 'csv') {
       return sendCsv(res, `analytics-${snapshot.period}.csv`, snapshot.flat_rows || []);
     }

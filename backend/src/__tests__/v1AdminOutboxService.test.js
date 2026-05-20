@@ -552,7 +552,7 @@ describe('getOutboxMetrics', () => {
     const agg = db.calls[0].sql;
     expect(agg).toMatch(/FILTER\s*\(\s*WHERE\s+status\s*=\s*'pending'\s*\)/i);
     expect(agg).toMatch(/FILTER\s*\(\s*WHERE\s+status\s*=\s*'dead'\s*\)/i);
-    expect(agg).toMatch(/MIN\(\s*next_attempt_at\s*\)/i);
+    expect(agg).toMatch(/MIN\(\s*next_attempt_at\s*\)\s*FILTER\s*\(\s*WHERE\s+status\s+IN/i);
     expect(agg).toMatch(/EXTRACT\(\s*EPOCH\s+FROM/i);
   });
 

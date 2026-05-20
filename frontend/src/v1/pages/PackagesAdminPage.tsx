@@ -38,6 +38,7 @@ import type {
 } from '../api';
 import { normalizeUserRole, useV1Session, qk, invalidatePackage } from '../store';
 import { getPropertyLabels } from '../lib/propertyLabels';
+import { OperationsNav } from '../components/OperationsNav';
 import {
   Alert,
   Badge,
@@ -109,6 +110,7 @@ export function PackagesAdminPage() {
       <div className={uiClasses.pageShell}>
         <header className={uiClasses.pageHeader}>
           <h1 className={uiClasses.pageTitle}>Посылки</h1>
+          <OperationsNav />
         </header>
         <Alert tone="warning">
           Вашему staff-аккаунту не назначен объект (property). Попросите
@@ -126,6 +128,7 @@ export function PackagesAdminPage() {
         <p className={uiClasses.pageSubtitle}>
           Приём посылок на ресепшн, выдача резидентам и журнал.
         </p>
+        <OperationsNav />
       </header>
 
       <Stack>

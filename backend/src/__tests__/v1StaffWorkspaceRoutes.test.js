@@ -216,6 +216,8 @@ describe('v1 staff workspace routes', () => {
     expect(res.body.requestCounts.pending).toBe(2);
     const residentCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM residents r'));
     expect(residentCall[0]).toContain('r.property_id = $2');
+    expect(residentCall[0]).toContain('e.building_id = u.building_id');
+    expect(residentCall[0]).not.toContain('e.property_id');
     expect(residentCall[1]).toEqual([UUID_A, UUID_B]);
     const vehiclesCall = db.query.mock.calls.find(([sql]) => sql.includes('FROM vehicles'));
     expect(vehiclesCall[0]).toContain('property_id = $2');

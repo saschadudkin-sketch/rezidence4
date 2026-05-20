@@ -297,8 +297,9 @@ async function getOutboxMetrics(db, opts = {}) {
       COUNT(*) FILTER (WHERE status = 'sent')      AS sent,
       COUNT(*) FILTER (WHERE status = 'failed')    AS failed,
       COUNT(*) FILTER (WHERE status = 'dead')      AS dead,
-      EXTRACT(EPOCH FROM (NOW() - MIN(next_attempt_at))
-        FILTER (WHERE status IN ('pending','failed'))) AS oldest_pending_age_seconds
+      EXTRACT(EPOCH FROM (
+        NOW() - MIN(next_attempt_at) FILTER (WHERE status IN ('pending','failed'))
+      )) AS oldest_pending_age_seconds
       FROM notifications_outbox
       ${where}
   `, args);

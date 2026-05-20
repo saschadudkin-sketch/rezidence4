@@ -210,12 +210,12 @@ export function ScanPanel({
         });
         if (cancelled) return;
         setPoints(res.points);
-        setInternalSelectedPointId((prev) => {
-          if (prev && res.points.some((point) => point.id === prev)) return prev;
-          const next = res.points[0]?.id ?? '';
-          onAccessPointChange?.(next || null);
-          return next;
-        });
+        const selected = accessPointId ?? internalSelectedPointId;
+        const next = selected && res.points.some((point) => point.id === selected)
+          ? selected
+          : res.points[0]?.id ?? '';
+        setInternalSelectedPointId(next);
+        onAccessPointChange?.(next || null);
       } catch (err) {
         if (cancelled) return;
         setPoints([]);
@@ -231,7 +231,7 @@ export function ScanPanel({
     return () => {
       cancelled = true;
     };
-  }, [onAccessPointChange, propertyId]);
+  }, [accessPointId, internalSelectedPointId, onAccessPointChange, propertyId]);
 
   useEffect(() => {
     persistOfflineQueue(readOfflineQueue(propertyId));
@@ -256,6 +256,11 @@ export function ScanPanel({
     () => points.find((point) => point.id === selectedPointId) ?? null,
     [points, selectedPointId],
   );
+
+  useEffect(() => {
+    if (accessPointId === undefined) return;
+    setInternalSelectedPointId(accessPointId ?? '');
+  }, [accessPointId]);
 
   const updateSelectedPoint = useCallback((next: UUID | '') => {
     setInternalSelectedPointId(next);

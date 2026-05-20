@@ -107,6 +107,26 @@ describe('access topology routes', () => {
     expect(params[0]).toBe(UUID_A);
   });
 
+  test('GET /api/v1/access-points lets residents read active topology for request creation', async () => {
+    mockCurrentUser = { uid: 'resident-1', role: 'owner', property_id: UUID_A };
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: UUID_C,
+        property_id: UUID_A,
+        zone_id: UUID_B,
+        name: 'Шлагбаум КПП 1',
+        point_type: 'barrier',
+        is_active: true,
+      }],
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/access-points?property_id=${UUID_A}&is_active=true`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.points).toHaveLength(1);
+  });
+
   test('POST /api/v1/access-points rejects missing zone in same property', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_A };
     db.query.mockResolvedValueOnce({ rows: [] });
