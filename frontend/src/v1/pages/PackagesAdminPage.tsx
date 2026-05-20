@@ -34,6 +34,7 @@ import type {
   PackageSize,
   PackageStatus,
   PropertyType,
+  Unit,
   UUID,
 } from '../api';
 import { normalizeUserRole, useV1Session, qk, invalidatePackage } from '../store';
@@ -122,7 +123,7 @@ export function PackagesAdminPage() {
   }
 
   return (
-    <div className={uiClasses.pageShell}>
+    <div className={uiClasses.pageShell} data-testid="packages-admin-page">
       <header className={uiClasses.pageHeader}>
         <h1 className={uiClasses.pageTitle}>Посылки</h1>
         <p className={uiClasses.pageSubtitle}>
@@ -289,116 +290,123 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
     row.recipient_name_snapshot || row.picked_up_by_name || '—';
 
   return (
-    <Card
-      title={
-        <Inline>
-          <span>{row.carrier ? `${row.carrier}` : 'Посылка'}</span>
-          {row.tracking_number ? (
-            <span className={uiClasses.textMuted}>№ {row.tracking_number}</span>
-          ) : null}
-        </Inline>
-      }
-      subtitle={
-        <Inline>
-          <Badge tone={tone}>{STATUS_LABELS[row.status]}</Badge>
-          {row.size_category ? (
-            <span className={uiClasses.textMuted}>размер: {SIZE_LABELS[row.size_category]}</span>
-          ) : null}
-          <span className={uiClasses.textMuted}>
-            принято: {new Date(row.received_at).toLocaleString('ru-RU')}
-          </span>
-          {row.storage_location ? (
-            <span className={uiClasses.textMuted}>ячейка: {row.storage_location}</span>
-          ) : null}
-        </Inline>
-      }
-      actions={
-        <Inline>
-          {isAwaiting ? (
-            <>
-              <Button
-                variant="primary"
-                disabled={busy}
-                onClick={() => setMode(mode === 'pickup' ? 'none' : 'pickup')}
-              >
-                Выдать
-              </Button>
-              {canReturnOrRemind ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => setMode(mode === 'return' ? 'none' : 'return')}
-                  >
-                    Возврат
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    loading={remind.isPending}
-                    disabled={busy}
-                    onClick={() => remind.mutate()}
-                  >
-                    Напомнить
-                  </Button>
-                </>
-              ) : null}
-              {isAdmin ? (
-                <Button
-                  variant="danger"
-                  disabled={busy}
-                  onClick={() => setMode(mode === 'lost' ? 'none' : 'lost')}
-                >
-                  Утеряна
-                </Button>
-              ) : null}
-            </>
-          ) : null}
-        </Inline>
-      }
+    <div
+      data-testid="package-row"
+      data-package-id={row.id}
+      data-package-status={row.status}
+      data-tracking-number={row.tracking_number ?? undefined}
     >
-      <Stack>
-        <Inline>
-          <span className={uiClasses.textMuted}>Получатель:</span>
-          <span>{recipient}</span>
-        </Inline>
-        {row.sender_name ? (
+      <Card
+        title={
           <Inline>
-            <span className={uiClasses.textMuted}>Отправитель:</span>
-            <span>{row.sender_name}</span>
+            <span>{row.carrier ? `${row.carrier}` : 'Посылка'}</span>
+            {row.tracking_number ? (
+              <span className={uiClasses.textMuted}>№ {row.tracking_number}</span>
+            ) : null}
           </Inline>
-        ) : null}
-        {row.notes ? (
-          <p className={uiClasses.preWrap}>{row.notes}</p>
-        ) : null}
+        }
+        subtitle={
+          <Inline>
+            <Badge tone={tone}>{STATUS_LABELS[row.status]}</Badge>
+            {row.size_category ? (
+              <span className={uiClasses.textMuted}>размер: {SIZE_LABELS[row.size_category]}</span>
+            ) : null}
+            <span className={uiClasses.textMuted}>
+              принято: {new Date(row.received_at).toLocaleString('ru-RU')}
+            </span>
+            {row.storage_location ? (
+              <span className={uiClasses.textMuted}>ячейка: {row.storage_location}</span>
+            ) : null}
+          </Inline>
+        }
+        actions={
+          <Inline>
+            {isAwaiting ? (
+              <>
+                <Button
+                  variant="primary"
+                  disabled={busy}
+                  onClick={() => setMode(mode === 'pickup' ? 'none' : 'pickup')}
+                >
+                  Выдать
+                </Button>
+                {canReturnOrRemind ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => setMode(mode === 'return' ? 'none' : 'return')}
+                    >
+                      Возврат
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      loading={remind.isPending}
+                      disabled={busy}
+                      onClick={() => remind.mutate()}
+                    >
+                      Напомнить
+                    </Button>
+                  </>
+                ) : null}
+                {isAdmin ? (
+                  <Button
+                    variant="danger"
+                    disabled={busy}
+                    onClick={() => setMode(mode === 'lost' ? 'none' : 'lost')}
+                  >
+                    Утеряна
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+          </Inline>
+        }
+      >
+        <Stack>
+          <Inline>
+            <span className={uiClasses.textMuted}>Получатель:</span>
+            <span>{recipient}</span>
+          </Inline>
+          {row.sender_name ? (
+            <Inline>
+              <span className={uiClasses.textMuted}>Отправитель:</span>
+              <span>{row.sender_name}</span>
+            </Inline>
+          ) : null}
+          {row.notes ? (
+            <p className={uiClasses.preWrap}>{row.notes}</p>
+          ) : null}
 
-        {mode === 'pickup' ? (
-          <PickupForm
-            onCancel={() => setMode('none')}
-            onSubmit={(name) => pickup.mutate({ picked_up_by_name: name })}
-            pending={pickup.isPending}
-          />
-        ) : null}
+          {mode === 'pickup' ? (
+            <PickupForm
+              onCancel={() => setMode('none')}
+              onSubmit={(name) => pickup.mutate({ picked_up_by_name: name })}
+              pending={pickup.isPending}
+            />
+          ) : null}
 
-        {mode === 'return' ? (
-          <ReturnForm
-            onCancel={() => setMode('none')}
-            onSubmit={(reason) => ret.mutate({ reason })}
-            pending={ret.isPending}
-          />
-        ) : null}
+          {mode === 'return' ? (
+            <ReturnForm
+              onCancel={() => setMode('none')}
+              onSubmit={(reason) => ret.mutate({ reason })}
+              pending={ret.isPending}
+            />
+          ) : null}
 
-        {mode === 'lost' ? (
-          <LostForm
-            onCancel={() => setMode('none')}
-            onSubmit={(reason) => markLost.mutate({ reason })}
-            pending={markLost.isPending}
-          />
-        ) : null}
+          {mode === 'lost' ? (
+            <LostForm
+              onCancel={() => setMode('none')}
+              onSubmit={(reason) => markLost.mutate({ reason })}
+              pending={markLost.isPending}
+            />
+          ) : null}
 
-        {actionOk ? <Alert tone="success">{actionOk}</Alert> : null}
-        {actionError ? <Alert tone="error">{actionError}</Alert> : null}
-      </Stack>
-    </Card>
+          {actionOk ? <Alert tone="success">{actionOk}</Alert> : null}
+          {actionError ? <Alert tone="error">{actionError}</Alert> : null}
+        </Stack>
+      </Card>
+    </div>
   );
 }
 
@@ -425,7 +433,7 @@ function PickupForm({ onCancel, onSubmit, pending }: PickupFormProps) {
   }
 
   return (
-    <form onSubmit={submit}>
+    <form data-testid="package-pickup-form" onSubmit={submit}>
       <Stack>
         <Field id="pickup-name" label="Имя получателя (ФИО)">
           <Input
@@ -564,6 +572,12 @@ function CreatePackageForm({ propertyId, propertyType, onCreated }: CreateFormPr
   const [storageLocation, setStorageLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const unitsParams = useMemo(() => ({ is_active: true, limit: 200 }), []);
+  const unitsQuery = useQuery({
+    queryKey: qk.units.list(unitsParams),
+    queryFn: ({ signal }) => api.units.list(unitsParams, { signal }),
+  });
+  const units = unitsQuery.data?.units ?? [];
 
   const create = useMutation({
     mutationFn: (body: CreatePackageBody) => api.packages.create(body),
@@ -587,7 +601,7 @@ function CreatePackageForm({ propertyId, propertyType, onCreated }: CreateFormPr
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!unitId.trim()) {
-      setError(`Укажите unit_id (${labels.unitLower})`);
+      setError(`Выберите ${labels.unitLower}`);
       return;
     }
     create.mutate({
@@ -604,18 +618,34 @@ function CreatePackageForm({ propertyId, propertyType, onCreated }: CreateFormPr
   }
 
   return (
-    <Card title="Принять посылку" subtitle="После приёма резидент получит уведомление">
-      <form onSubmit={onSubmit}>
+    <div data-testid="package-create-panel">
+      <Card title="Принять посылку" subtitle="После приёма резидент получит уведомление">
+      <form data-testid="package-create-form" onSubmit={onSubmit}>
         <Stack>
           <Inline>
-            <Field id="pkg-unit" label={`${labels.unitField} (unit_id)`}>
-              <Input
+            <Field
+              id="pkg-unit"
+              label={labels.unitField}
+              hint={unitsQuery.isLoading ? 'Загружаем список помещений…' : undefined}
+            >
+              <Select
                 id="pkg-unit"
                 value={unitId}
                 onChange={(e) => setUnitId(e.target.value)}
-                placeholder="UUID"
                 required
-              />
+                disabled={unitsQuery.isLoading || unitsQuery.isError || units.length === 0}
+              >
+                <option value="">
+                  {unitsQuery.isLoading
+                    ? 'Загрузка…'
+                    : units.length
+                      ? `Выберите ${labels.unitLower}`
+                      : `${labels.unitField} не найдена`}
+                </option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>{formatUnitOption(unit, labels.unitField)}</option>
+                ))}
+              </Select>
             </Field>
             <Field id="pkg-recipient" label="Имя получателя (если на лист)">
               <Input
@@ -686,14 +716,31 @@ function CreatePackageForm({ propertyId, propertyType, onCreated }: CreateFormPr
           </Field>
 
           {error ? <Alert tone="error">{error}</Alert> : null}
+          {unitsQuery.isError ? (
+            <Alert tone="error">
+              Не удалось загрузить список помещений:{' '}
+              {isV1ApiError(unitsQuery.error) ? unitsQuery.error.message : 'неизвестная ошибка'}
+            </Alert>
+          ) : null}
 
           <Inline>
-            <Button type="submit" variant="primary" loading={create.isPending} disabled={create.isPending}>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={create.isPending}
+              disabled={create.isPending || unitsQuery.isLoading || unitsQuery.isError || units.length === 0}
+            >
               Принять посылку
             </Button>
           </Inline>
         </Stack>
       </form>
-    </Card>
+      </Card>
+    </div>
   );
+}
+
+function formatUnitOption(unit: Unit, unitLabel: string): string {
+  const floor = typeof unit.floor === 'number' ? `, этаж ${unit.floor}` : '';
+  return `${unitLabel} ${unit.unit_number}${floor}`;
 }

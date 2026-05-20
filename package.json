@@ -32,6 +32,7 @@
     "e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:v1-access": "node scripts/run-v1-access-e2e.cjs",
     "test:e2e:v1-operations": "node scripts/run-v1-operations-e2e.cjs",
+    "test:e2e:v1-packages": "node scripts/run-v1-packages-e2e.cjs",
     "test:e2e:preflight": "node scripts/playwright-preflight.cjs",
     "tenant:preflight": "node scripts/tenant-ops-preflight.cjs",
     "tenant:preflight:local": "node scripts/tenant-ops-preflight.cjs --e2e-access --require-current-migrations",
