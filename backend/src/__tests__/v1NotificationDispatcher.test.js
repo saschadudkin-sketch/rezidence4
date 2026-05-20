@@ -158,9 +158,10 @@ describe('dispatchEvent — routing', () => {
       eventType:      'request.approved',
       channel:        'web_push',
       recipientType:  'resident',
-      recipientId:    'u1',
+      recipientId:    null,
       propertyId:     'p1',
     });
+    expect(JSON.parse(rows[0].recipientAddress).user_id).toBe('u1');
   });
 
   test('outbox path propagates errors (NO swallow — caller rollback contract)', async () => {
@@ -256,13 +257,33 @@ describe('buildRowsForUser', () => {
     for (const r of rows) {
       expect(r.channel).toBe('web_push');
       expect(r.recipientType).toBe('resident');
-      expect(r.recipientId).toBe('u1');
+      expect(r.recipientId).toBeNull();
     }
     const snap = JSON.parse(rows[0].recipientAddress);
     expect(snap).toEqual({
-      subscription_id: 's1', endpoint: 'e1', p256dh: 'k1', auth: 'a1',
+      user_id: 'u1', subscription_id: 's1', endpoint: 'e1', p256dh: 'k1', auth: 'a1',
     });
     expect(rows[0].payload).toEqual({ title: 't', body: 'b' });
+  });
+
+  test('UUID user id is preserved as recipientId for notification log linkage', async () => {
+    const userId = '11111111-1111-4111-8111-111111111111';
+    notificationService.getUserSubscriptions.mockResolvedValue([
+      { id: 's1', platform: 'web', endpoint: 'e1', p256dh: 'k1', auth: 'a1' },
+    ]);
+
+    const rows = await dispatcher.buildRowsForUser({
+      userId,
+      event: 'announcement.published',
+      data: {},
+      channels: { push: true, sms: false, telegram: false },
+      messages: { push: { title: 't', body: 'b' }, sms: null, telegram: null },
+      db: {},
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].recipientId).toBe(userId);
+    expect(JSON.parse(rows[0].recipientAddress).user_id).toBe(userId);
   });
 
   test('telegram enabled + tg subs → telegram rows with chat_id as address', async () => {

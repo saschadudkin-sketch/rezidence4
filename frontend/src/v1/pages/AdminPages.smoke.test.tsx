@@ -32,6 +32,7 @@ import type {
   OutboxHealthResponse,
   NotificationLogMetrics,
   NotificationLogRow,
+  Unit,
   UserMe,
   V1Document,
 } from '../api/types';
@@ -57,6 +58,7 @@ const {
   removeDocumentMock,
   listDocumentVersionsMock,
   listPackagesMock,
+  listUnitsMock,
   createPackageMock,
   pickupPackageMock,
   returnPackageMock,
@@ -99,6 +101,7 @@ const {
   removeDocumentMock: vi.fn(),
   listDocumentVersionsMock: vi.fn(),
   listPackagesMock: vi.fn(),
+  listUnitsMock: vi.fn(),
   createPackageMock: vi.fn(),
   pickupPackageMock: vi.fn(),
   returnPackageMock: vi.fn(),
@@ -210,7 +213,7 @@ vi.mock('../api', async () => {
       visits: { list: neverResolves },
       incidents: { list: neverResolves },
       residents: { getById: neverResolves },
-      units: { list: neverResolves },
+      units: { list: listUnitsMock },
       session: { me: neverResolves },
     },
     isV1ApiError: () => false,
@@ -552,6 +555,21 @@ function makeManagementCompanyPortfolio(
       access_avg_decision_seconds: 'Weighted by measured manual decision sample counts from DH-35 property snapshots.',
       hotspot_property_count: 'Counts properties with overdue backlog, high incident load, or notification delivery/queue risk.',
     },
+    ...overrides,
+  };
+}
+
+function makeUnit(overrides: Partial<Unit> = {}): Unit {
+  return {
+    id: '00000000-0000-0000-0000-0000000000d1',
+    property_id: '00000000-0000-0000-0000-000000000bbb',
+    building_id: '00000000-0000-0000-0000-000000000b01',
+    entrance_id: '00000000-0000-0000-0000-000000000e01',
+    unit_number: '12',
+    unit_type: 'apartment',
+    floor: 3,
+    is_active: true,
+    created_at: '2026-04-01T00:00:00Z',
     ...overrides,
   };
 }
@@ -1134,6 +1152,7 @@ describe('PackagesAdminPage', () => {
   beforeEach(() => {
     listPackagesMock.mockReset();
     createPackageMock.mockReset();
+    listUnitsMock.mockReset();
     pickupPackageMock.mockReset();
     returnPackageMock.mockReset();
     markLostPackageMock.mockReset();
@@ -1193,13 +1212,18 @@ describe('PackagesAdminPage', () => {
       notes: 'Хрупкое',
     });
     listPackagesMock.mockResolvedValue({ ok: true, count: 0, packages: [] });
+    listUnitsMock.mockResolvedValue({ units: [makeUnit()], page: { limit: 200, offset: 0, total: 1 } });
     createPackageMock.mockResolvedValue({ ok: true, package: createdPackage, outbox_fanout: 2 });
 
     renderWithProviders(<PackagesAdminPage />, makeUser({ role: 'admin' }));
 
     await screen.findByText(/Нет посылок с выбранным статусом/);
     fireEvent.click(screen.getByRole('button', { name: '+ Принять посылку' }));
-    fireEvent.change(screen.getByLabelText(/Квартира \(unit_id\)/), {
+    expect(await screen.findByText('Квартира 12, этаж 3')).toBeInTheDocument();
+    const unitSelect = screen.getByLabelText('Квартира');
+    const submitButton = screen.getByRole('button', { name: 'Принять посылку' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    fireEvent.change(unitSelect, {
       target: { value: '00000000-0000-0000-0000-0000000000d1' },
     });
     fireEvent.change(screen.getByLabelText('Имя получателя (если на лист)'), {
@@ -1211,7 +1235,7 @@ describe('PackagesAdminPage', () => {
     fireEvent.change(screen.getByLabelText('Размер'), { target: { value: 'large' } });
     fireEvent.change(screen.getByLabelText('Место хранения (ячейка)'), { target: { value: 'B-17' } });
     fireEvent.change(screen.getByLabelText('Примечания'), { target: { value: 'Хрупкое' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Принять посылку' }));
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(createPackageMock).toHaveBeenCalledWith({
