@@ -19,6 +19,7 @@ const phaseTimeouts = {
   verify: parsePositiveInt(process.env.STRICT_VERIFY_PHASE_TIMEOUT_MS, 20 * 60 * 1000),
   releaseMatrix: parsePositiveInt(process.env.STRICT_RELEASE_MATRIX_TIMEOUT_MS, 60 * 1000),
   v1AccessE2e: parsePositiveInt(process.env.STRICT_V1_ACCESS_E2E_TIMEOUT_MS, 15 * 60 * 1000),
+  v1PackagesE2e: parsePositiveInt(process.env.STRICT_V1_PACKAGES_E2E_TIMEOUT_MS, 15 * 60 * 1000),
 };
 
 const phases = [
@@ -39,6 +40,15 @@ const phases = [
     label: 'backend-backed v1 access E2E',
     args: [path.join(repoRoot, 'scripts', 'run-v1-access-e2e.cjs')],
     timeoutMs: phaseTimeouts.v1AccessE2e,
+    env: {
+      E2E_FAIL_ON_INFRA_RETRY: '1',
+    },
+  },
+  {
+    id: 'v1-packages-e2e',
+    label: 'backend-backed v1 packages E2E',
+    args: [path.join(repoRoot, 'scripts', 'run-v1-packages-e2e.cjs')],
+    timeoutMs: phaseTimeouts.v1PackagesE2e,
     env: {
       E2E_FAIL_ON_INFRA_RETRY: '1',
     },

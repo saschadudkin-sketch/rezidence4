@@ -57,6 +57,7 @@ const RELEASE_GATES = [
     scripts: [
       'verify:strict',
       'test:e2e:v1-access',
+      'test:e2e:v1-packages',
       'tenant:preflight:e2e',
       'tenant:preflight:current',
       'tenant:provision',
@@ -69,6 +70,7 @@ const RELEASE_GATES = [
     evidence: [
       'scripts/run-strict-verify.cjs',
       'scripts/run-v1-access-e2e.cjs',
+      'scripts/run-v1-packages-e2e.cjs',
       'scripts/tenant-ops-preflight.cjs',
       'scripts/tenant-ops-provision.cjs',
       'scripts/tenant-ops-migrate.cjs',
@@ -76,6 +78,7 @@ const RELEASE_GATES = [
       'scripts/pilot-training-pack-check.cjs',
       'scripts/pilot-readiness-check.cjs',
       'e2e/v1-access-production.spec.js',
+      'e2e/v1-packages-production.spec.js',
       'docs/runbooks/restore-drill.md',
       'docs/runbooks/pilot-rollout.md',
       'docs/runbooks/pilot-operations-training-pack.md',

@@ -2,6 +2,9 @@
 
 const {
   PILOT_RUNBOOK_SECTIONS,
+  REQUIRED_EVIDENCE,
+  REQUIRED_PACKAGES_E2E_MARKERS,
+  REQUIRED_ROOT_SCRIPTS,
   checkPilotReadiness,
   formatReport,
 } = require('../../../scripts/pilot-readiness-check.cjs');
@@ -11,6 +14,9 @@ describe('pilot-readiness-check script', () => {
     const result = checkPilotReadiness();
 
     expect(result.ok).toBe(true);
+    expect(REQUIRED_ROOT_SCRIPTS).toContain('test:e2e:v1-packages');
+    expect(REQUIRED_EVIDENCE).toContain('e2e/v1-packages-production.spec.js');
+    expect(REQUIRED_PACKAGES_E2E_MARKERS).toContain('e2e/v1-packages-production.spec.js');
     expect(formatReport(result)).toContain('[ok] pilot rollout readiness evidence is registered');
   });
 

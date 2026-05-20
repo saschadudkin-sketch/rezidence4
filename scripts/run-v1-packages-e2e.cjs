@@ -76,6 +76,7 @@ status = runWithCrashRetry([
   path.join(repoRoot, 'scripts', 'run-playwright-tests.cjs'),
   'e2e/v1-packages-production.spec.js',
   '--project=chromium',
+  '--retries=0',
 ], e2eEnv);
 
 writeArtifact(status);

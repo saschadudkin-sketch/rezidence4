@@ -23,7 +23,8 @@ Before launch:
 - target property, package and property type are confirmed;
 - `npm run release:gate:check` passes;
 - `npm run verify:strict` has a clean CI/staging result or an explicit waiver;
-- staging/prod-candidate smoke evidence includes `e2e/v1-access-production.spec.js`;
+- staging/prod-candidate smoke evidence includes `e2e/v1-access-production.spec.js`
+  and `e2e/v1-packages-production.spec.js`;
 - platform admin can see the property lifecycle state.
 
 ## Tenant Provisioning And Migrations
