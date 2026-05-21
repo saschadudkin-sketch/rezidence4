@@ -110,6 +110,25 @@ For `dh58-gis-oss-package.json`, `evidence.legally_authoritative` must be
    evidence. Do not embed resident personal data, vehicle plates, phone numbers
    or raw document contents.
 3. Save the JSON files under `artifacts/russia-readiness/`.
+
+For a full staging/prod-candidate packet, use the orchestrator:
+
+```bash
+npm run pilot:release-packet -- \
+  --environment staging \
+  --property-slug <pilot-property> \
+  --captured-by <release-owner> \
+  --log-reference <ci-or-release-log-uri> \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+It runs strict verification, backup refresh/restore drill, command evidence
+generation and strict live Russia readiness in order. It stops on the first
+failure.
+
+Manual step-by-step flow:
+
 4. Run strict verification in the same environment that will be used for the
    retained release packet:
 

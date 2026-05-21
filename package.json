@@ -28,6 +28,7 @@
     "release:gate:check": "node scripts/release-gate-matrix.cjs --require-runtime-evidence",
     "pilot:training-pack": "node scripts/pilot-training-pack-check.cjs",
     "pilot:readiness": "node scripts/pilot-readiness-check.cjs",
+    "pilot:release-packet": "node scripts/pilot-release-packet.cjs",
     "russia:readiness": "node scripts/russia-readiness-check.cjs",
     "russia:readiness:evidence": "node scripts/russia-readiness-evidence.cjs",
     "e2e": "node scripts/run-playwright-tests.cjs",

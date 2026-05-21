@@ -56,6 +56,8 @@ No-go for real pilot sign-off until:
 3. `artifacts/russia-readiness/` contains the DH-55 through DH-61 evidence files plus staging `verify:strict` and restore-drill evidence.
 4. `npm run russia:readiness -- --require-live --live-dir artifacts/russia-readiness` passes.
 
+Use `npm run pilot:release-packet -- --environment <staging|prod-candidate> --property-slug <slug> --captured-by <owner> --log-reference <uri> --backup-reference <uri> --restore-target <target>` to run strict verification, backup/restore evidence, command evidence and final live readiness in order.
+
 Use `npm run tenant:backup-restore:evidence -- --write --refresh --preflight --drill --environment <staging|prod-candidate> --backup-reference <uri> --restore-target <target>` to refresh backup files, run restore preflight/drill and capture release-gate restore artifacts.
 
 Use `npm run verify:strict -- --environment <staging|prod-candidate>` to capture strict release evidence with the target environment instead of `local`.

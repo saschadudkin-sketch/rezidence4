@@ -91,6 +91,10 @@ Helper пишет:
 диагностики failing evidence можно добавить `--write-failed`, но такой artifact
 должен оставлять release gate красным.
 
+Полный release packet можно запускать через `npm run pilot:release-packet`,
+который вызовет этот helper как один из шагов перед финальным
+`russia:readiness -- --require-live`.
+
 ### Customisation
 
 ```bash

@@ -19,6 +19,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:restore-drill',
   'pilot:training-pack',
   'pilot:readiness',
+  'pilot:release-packet',
   'russia:readiness',
 ];
 
@@ -45,6 +46,7 @@ const REQUIRED_EVIDENCE = [
   'scripts/tenant-ops-migrate.cjs',
   'scripts/restore-drill-preflight.cjs',
   'scripts/pilot-training-pack-check.cjs',
+  'scripts/pilot-release-packet.cjs',
   'scripts/russia-readiness-check.cjs',
 ];
 

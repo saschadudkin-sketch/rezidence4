@@ -80,6 +80,7 @@ const RELEASE_GATES = [
       'scripts/restore-drill-preflight.cjs',
       'scripts/pilot-training-pack-check.cjs',
       'scripts/pilot-readiness-check.cjs',
+      'scripts/pilot-release-packet.cjs',
       'e2e/v1-access-production.spec.js',
       'e2e/v1-packages-production.spec.js',
       'e2e/v1-service-execution-production.spec.js',
