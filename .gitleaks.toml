@@ -1,0 +1,17 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Tests and CI fixtures use fixed dummy secrets, not real credentials"
+paths = [
+  '''\.agents/skills/playwright-best-practices/advanced/authentication-flows\.md''',
+  '''\.github/workflows/ci\.yml''',
+  '''backend/src/__tests__/auth_redis_revocation\.test\.js''',
+  '''backend/src/__tests__/requests_service_validation\.test\.js''',
+  '''backend/src/__tests__/blacklist_validation\.test\.js''',
+  '''e2e/v1-access-production\.spec\.js''',
+  '''e2e/v1-service-execution-production\.spec\.js''',
+  '''e2e/v1-packages-production\.spec\.js''',
+  '''e2e/v1-operations-production\.spec\.js''',
+  '''ops/ci-dummy\.env''',
+]

@@ -10,6 +10,7 @@ import type {
 } from '../api/types';
 
 const {
+  assignRequestMock,
   getRequestDetailMock,
   listQueueMock,
   resolveRequestMock,
@@ -17,6 +18,7 @@ const {
   setWaitingMock,
   startRequestMock,
 } = vi.hoisted(() => ({
+  assignRequestMock: vi.fn(),
   getRequestDetailMock: vi.fn(),
   listQueueMock: vi.fn(),
   resolveRequestMock: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('../api', async () => {
       contractorWorkspace: {
         listQueue: listQueueMock,
         getRequestDetail: getRequestDetailMock,
+        assignRequest: assignRequestMock,
         startRequest: startRequestMock,
         resumeRequest: resumeRequestMock,
         setWaiting: setWaitingMock,
@@ -235,6 +238,7 @@ function renderWithProviders(node: ReactElement, user = makeUser()) {
 
 beforeEach(() => {
   mockContractorData();
+  assignRequestMock.mockResolvedValue({ request: makeRequest({ status: 'assigned' }) });
   startRequestMock.mockResolvedValue({ request: makeRequest({ status: 'in_progress' }) });
   resumeRequestMock.mockResolvedValue({ request: makeRequest({ status: 'in_progress' }) });
   setWaitingMock.mockResolvedValue({ request: makeRequest({ status: 'waiting_parts' }) });
@@ -326,6 +330,23 @@ describe('ContractorWorkspacePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^возобновить$/i }));
     await waitFor(() => {
       expect(resumeRequestMock).toHaveBeenCalledWith('req-1');
+    });
+  });
+
+  test('lets admin assign contractor work from the portal', async () => {
+    renderWithProviders(<ContractorWorkspacePage />, makeUser({ role: 'admin', uid: 'admin-1', name: 'Admin' }));
+    await screen.findByRole('heading', { name: /портал подрядчика/i });
+
+    fireEvent.change(screen.getByLabelText('Request ID'), { target: { value: 'req-1' } });
+    fireEvent.change(screen.getByLabelText('Contractor user ID'), { target: { value: CONTRACTOR_USER_ID } });
+    fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Передано подрядчику' } });
+    fireEvent.click(screen.getByRole('button', { name: /назначить подрядчика/i }));
+
+    await waitFor(() => {
+      expect(assignRequestMock).toHaveBeenCalledWith(
+        'req-1',
+        { contractorUserId: CONTRACTOR_USER_ID, note: 'Передано подрядчику' },
+      );
     });
   });
 

@@ -132,7 +132,7 @@ function buildInboxFilters(user, filters, params, opts = {}) {
 
   if (opts.propertyId) {
     const idx = addParam(params, opts.propertyId);
-    sql.push(`resident_ref.property_id = $${idx}`);
+    sql.push(`(resident_ref.property_id = $${idx} OR resident_ref.id IS NULL)`);
   }
 
   if (statuses) {
@@ -302,7 +302,7 @@ function formatSlaEventRow(row) {
 async function loadRequestDetail(queryable, requestId, opts = {}) {
   const id = validateRequestId(requestId);
   const params = [id];
-  const propertyPredicate = opts.propertyId ? ` AND resident_ref.property_id = $2` : '';
+  const propertyPredicate = opts.propertyId ? ` AND (resident_ref.property_id = $2 OR resident_ref.id IS NULL)` : '';
   if (opts.propertyId) params.push(opts.propertyId);
   const { rows } = await queryable.query(
     `SELECT r.*, resident_ref.id AS resident_id
@@ -319,10 +319,10 @@ async function loadRequestDetail(queryable, requestId, opts = {}) {
     ? `AND EXISTS (
          SELECT 1
            FROM requests scoped_r
-           LEFT JOIN residents scoped_resident_ref
+          LEFT JOIN residents scoped_resident_ref
              ON scoped_resident_ref.external_uid = scoped_r.created_by_uid
           WHERE scoped_r.id = $1
-            AND scoped_resident_ref.property_id = $2
+            AND (scoped_resident_ref.property_id = $2 OR scoped_resident_ref.id IS NULL)
        )`
     : '';
 
@@ -441,7 +441,7 @@ async function getResidentQuickView(queryable, { residentId, canViewPhone, prope
         AND b.property_id = u.property_id
        LEFT JOIN entrances e
          ON e.id = u.entrance_id
-        AND e.property_id = u.property_id
+        AND e.building_id = u.building_id
       WHERE r.id=$1
         ${propertyPredicate}
       LIMIT 1`,

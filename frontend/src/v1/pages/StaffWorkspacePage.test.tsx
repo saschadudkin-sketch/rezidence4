@@ -544,6 +544,7 @@ describe('StaffWorkspacePage', () => {
     fireEvent.change(screen.getByLabelText('Category name'), { target: { value: 'Plumber updated' } });
     fireEvent.change(screen.getByLabelText('Target ID'), { target: { value: 'unit-1' } });
     fireEvent.change(screen.getByLabelText('Assignee UID'), { target: { value: 'staff-2' } });
+    fireEvent.change(screen.getByLabelText('Assignee role'), { target: { value: 'technician' } });
     fireEvent.change(screen.getByLabelText('Attachment URL'), { target: { value: '/uploads/evidence.jpg' } });
     fireEvent.change(screen.getByLabelText('Comment'), { target: { value: 'Операционный комментарий' } });
 
@@ -573,7 +574,7 @@ describe('StaffWorkspacePage', () => {
       });
       expect(assignServiceRequestMock).toHaveBeenCalledWith('req-1', {
         assigneeUid: 'staff-2',
-        assigneeRole: 'concierge',
+        assigneeRole: 'technician',
         assigneeName: 'Мария Консьерж',
         expectedCurrentStatus: undefined,
       });

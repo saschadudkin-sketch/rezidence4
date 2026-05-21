@@ -122,42 +122,49 @@ function PackageCard({ row }: { row: Package }) {
   const tone = packageStatusTone(row.status);
   const waiting = row.status === 'awaiting_pickup';
   return (
-    <Card
-      title={row.sender_name || 'Посылка'}
-      subtitle={row.tracking_number ? `Трек: ${row.tracking_number}` : undefined}
-      actions={<Badge tone={tone}>{STATUS_LABELS[row.status]}</Badge>}
-      elevated={waiting}
+    <div
+      data-testid="resident-package-row"
+      data-package-id={row.id}
+      data-package-status={row.status}
+      data-tracking-number={row.tracking_number ?? undefined}
     >
-      <Stack>
-        <p className={uiClasses.textMuted}>
-          Принято {formatDate(row.received_at)}
-          {row.carrier ? ` · курьер: ${row.carrier}` : ''}
-          {row.size_category ? ` · размер: ${row.size_category}` : ''}
-        </p>
-        {waiting && row.storage_location && (
-          <p>
-            Место хранения: <strong>{row.storage_location}</strong>
-          </p>
-        )}
-        {row.status === 'picked_up' && row.picked_up_at && (
+      <Card
+        title={row.sender_name || 'Посылка'}
+        subtitle={row.tracking_number ? `Трек: ${row.tracking_number}` : undefined}
+        actions={<Badge tone={tone}>{STATUS_LABELS[row.status]}</Badge>}
+        elevated={waiting}
+      >
+        <Stack>
           <p className={uiClasses.textMuted}>
-            Получено {formatDate(row.picked_up_at)}
-            {row.picked_up_by_name ? ` (${row.picked_up_by_name})` : ''}
+            Принято {formatDate(row.received_at)}
+            {row.carrier ? ` · курьер: ${row.carrier}` : ''}
+            {row.size_category ? ` · размер: ${row.size_category}` : ''}
           </p>
-        )}
-        {row.status === 'returned' && (
-          <p className={uiClasses.textMuted}>
-            Возвращено отправителю{row.returned_at ? ` ${formatDate(row.returned_at)}` : ''}
-            {row.returned_reason ? ` · причина: ${row.returned_reason}` : ''}
-          </p>
-        )}
-        {row.status === 'lost' && (
-          <Alert tone="error">
-            Посылка помечена как потерянная. Свяжитесь с консьержем.
-          </Alert>
-        )}
-        {row.notes && <p className={uiClasses.textMuted}>Заметки: {row.notes}</p>}
-      </Stack>
-    </Card>
+          {waiting && row.storage_location && (
+            <p>
+              Место хранения: <strong>{row.storage_location}</strong>
+            </p>
+          )}
+          {row.status === 'picked_up' && row.picked_up_at && (
+            <p className={uiClasses.textMuted}>
+              Получено {formatDate(row.picked_up_at)}
+              {row.picked_up_by_name ? ` (${row.picked_up_by_name})` : ''}
+            </p>
+          )}
+          {row.status === 'returned' && (
+            <p className={uiClasses.textMuted}>
+              Возвращено отправителю{row.returned_at ? ` ${formatDate(row.returned_at)}` : ''}
+              {row.returned_reason ? ` · причина: ${row.returned_reason}` : ''}
+            </p>
+          )}
+          {row.status === 'lost' && (
+            <Alert tone="error">
+              Посылка помечена как потерянная. Свяжитесь с консьержем.
+            </Alert>
+          )}
+          {row.notes && <p className={uiClasses.textMuted}>Заметки: {row.notes}</p>}
+        </Stack>
+      </Card>
+    </div>
   );
 }

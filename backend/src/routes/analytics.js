@@ -142,7 +142,6 @@ router.get('/traffic', async (req, res, next) => {
            COUNT(*) FILTER (WHERE result = 'denied')                AS denied
          FROM visit_logs
          WHERE timestamp BETWEEN $2 AND $3
-           AND deleted_at IS NULL
          GROUP BY 1
          ORDER BY 1`,
         [granularity, from, to],

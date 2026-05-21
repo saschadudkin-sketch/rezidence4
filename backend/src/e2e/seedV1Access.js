@@ -1,7 +1,12 @@
 'use strict';
 
 const path = require('path');
-const { buildE2EEnv } = require(path.resolve(__dirname, '..', '..', '..', 'scripts', 'e2e-env.cjs'));
+const fs = require('fs');
+
+const e2eEnvPath = path.resolve(__dirname, '..', '..', '..', 'scripts', 'e2e-env.cjs');
+const { buildE2EEnv } = fs.existsSync(e2eEnvPath)
+  ? require(e2eEnvPath)
+  : { buildE2EEnv: (env) => env };
 
 Object.assign(process.env, buildE2EEnv(process.env));
 
@@ -14,10 +19,13 @@ const PROPERTY_SLUG = process.env.E2E_PROPERTY_SLUG || 'zamoskv';
 const PROPERTY_NAME = 'E2E Резиденции Замоскворечья';
 const PROPERTY_TYPE = process.env.E2E_PROPERTY_TYPE || 'residential_complex';
 const REQUIRED_FEATURE_FLAGS = {
+  analytics: true,
+  packages: true,
   qr_pass: true,
   public_pass_v1: true,
   security_workspace_enriched: true,
   guard_authorized_devices: false,
+  trusted_visitors: true,
 };
 const MANAGEMENT_COMPANY = {
   slug: 'e2e-management-company',

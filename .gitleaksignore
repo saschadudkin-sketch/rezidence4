@@ -9,3 +9,6 @@ c27c9e5ab7f6cf16694c26a69a27e7f823002ad9:e2e/v1-access-production.spec.js:generi
 800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/api-design-reviewer/SKILL.md:generic-api-key:255
 800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/tech-debt-tracker/assets/sample_codebase/src/frontend.js:generic-api-key:5
 800b305cd88464decbdde6ae3d5e6dcb48534fa5:.agents/skills/tech-debt-tracker/assets/sample_codebase/src/user_service.py:generic-api-key:14
+6f9137510419821d7c61b35c5bc1a709749dee81:e2e/v1-service-execution-production.spec.js:generic-api-key:8
+c1b42f3f5a444f6c175674cbd6d86dc6ad4aa2e6:e2e/v1-packages-production.spec.js:generic-api-key:8
+4d80ab578ce768a0d46f8a4f372d692062b41b7d:e2e/v1-operations-production.spec.js:generic-api-key:8

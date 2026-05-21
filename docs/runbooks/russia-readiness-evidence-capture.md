@@ -110,11 +110,272 @@ For `dh58-gis-oss-package.json`, `evidence.legally_authoritative` must be
    evidence. Do not embed resident personal data, vehicle plates, phone numbers
    or raw document contents.
 3. Save the JSON files under `artifacts/russia-readiness/`.
-4. Run:
+
+Recommended capture flow: collect the retained live/staging identifiers in one
+manifest and let the validator write the strict root files:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --init-manifest \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --environment staging \
+  --property-slug zamoskv \
+  --captured-by <release-owner>
+```
+
+The initialized manifest contains `TODO` placeholders on purpose. It cannot be
+promoted into strict evidence until those placeholders are replaced with real
+staging/pilot IDs, source endpoints or report URIs. Existing manifests are not
+overwritten unless `--force` is passed.
+Each `items.<DH>.capture_hint` lists the expected API or runbook source, but it
+is not promoted to strict evidence. Copy only verified live/staging identifiers
+from the workflow result into `source`, `result` and `evidence`.
+
+After filling the manifest, dry-run validation first:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json
+```
+
+Then write the strict root files:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json
+```
+
+### DH-58 GIS/OSS Artifact Helper
+
+For the GIS/OSS readiness item, download the JSON returned by:
+
+```text
+GET /api/v1/gis-oss/export-packages/:packageId/artifact?property_id=<property_id>
+```
+
+Then merge it into the manifest:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh58-artifact artifacts/russia-readiness/dh58-gis-oss-artifact.json \
+  --document-registry-id <external-or-operational-document-registry-id>
+```
+
+The helper verifies the artifact format and non-authoritative boundary. It still
+requires `--document-registry-id`; that identifier must come from the retained
+operator document registry or release evidence store, not from guesswork. Check
+only DH-58 afterward with:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh DH-58
+```
+
+### DH-61 Training Acceptance Helper
+
+After the pilot owner accepts the training pack and open waivers are known,
+merge DH-61 into the manifest:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh61-training-date <YYYY-MM-DD> \
+  --dh61-accepted-by <pilot-owner-or-release-owner> \
+  --dh61-open-waivers <comma-separated-waiver-ids>
+```
+
+Omit `--dh61-open-waivers` only when there are no open waivers. The helper writes
+an explicit empty `open_waivers` array in that case. Check only DH-61 afterward
+with:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh DH-61
+```
+
+### Remaining DH Helpers
+
+Use these after the corresponding staging/pilot workflow has produced retained
+IDs. Each helper updates only one manifest item; validate that item immediately
+afterward with `--dh <DH-id>`.
+
+DH-59 SKUD field rollout:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh59-provider-config-id <provider-config-id> \
+  --dh59-field-rollout-evidence-id <field-rollout-evidence-id> \
+  --dh59-drill-type <provider_failure|field_rollout|vendor_health_probe>
+```
+
+DH-60 sensitive-action report:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh60-report-evidence-id <report-evidence-id> \
+  --dh60-review-report-id <review-report-id> \
+  --dh60-anti-abuse-summary-id <anti-abuse-summary-id>
+```
+
+DH-57 emergency provider delivery:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh57-emergency-request-id <emergency-request-id> \
+  --dh57-provider-delivery-evidence-id <provider-delivery-evidence-id> \
+  --dh57-notification-provider <provider-name>
+```
+
+DH-56 privacy/DSAR:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh56-dsar-request-id <dsar-request-id> \
+  --dh56-privacy-readiness-report-id <privacy-readiness-report-id> \
+  --dh56-no-biometrics-guard-checked true
+```
+
+DH-55 ownership/offboarding:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh55-ownership-transfer-id <ownership-transfer-id> \
+  --dh55-offboarding-report-id <offboarding-report-id> \
+  --dh55-notification-cascade-evidence <notification-cascade-evidence-id-or-uri>
+```
+
+The manifest is not a waiver and does not mark work complete by itself. The
+script validates every DH-55 through DH-61 payload with the same strict contract
+used by `npm run russia:readiness -- --require-live`; if any required identifier
+or source reference is missing, it writes nothing.
+
+Minimal manifest shape:
+
+```json
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "property_slug": "zamoskv",
+  "captured_by": "release.owner@example.com",
+  "captured_at": "2026-05-21T10:00:00.000Z",
+  "items": {
+    "DH-55": {
+      "capture_hint": {
+        "source_type": "api",
+        "source_refs": [
+          "POST /api/v1/residents/:id/transfer-ownership",
+          "GET /api/v1/residents/offboarding-report?property_id=<property_id>"
+        ],
+        "result_summary": "Ownership transfer/offboarding evidence accepted for release review."
+      },
+      "source": {
+        "type": "api",
+        "endpoint": "/api/v1/residents/ownership-transfers/<id>"
+      },
+      "result": {
+        "status": "passed",
+        "summary": "Ownership transfer/offboarding evidence accepted."
+      },
+      "evidence": {
+        "ownership_transfer_id": "<id>",
+        "offboarding_report_id": "<id>",
+        "notification_cascade_evidence": "<id-or-report-uri>"
+      }
+    }
+  }
+}
+```
+
+Include equivalent `items` entries for `DH-56` through `DH-61` before running
+with `--write`. The script can be dry-run without `--write`.
+
+For a full staging/prod-candidate packet, use the orchestrator:
+
+```bash
+npm run pilot:release-packet -- \
+  --environment staging \
+  --property-slug <pilot-property> \
+  --captured-by <release-owner> \
+  --log-reference <ci-or-release-log-uri> \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+It runs strict verification, backup refresh/restore drill, command evidence
+generation and strict live Russia readiness in order. It stops on the first
+failure.
+
+Manual step-by-step flow:
+
+4. Run strict verification in the same environment that will be used for the
+   retained release packet:
+
+```bash
+npm run verify:strict -- --environment staging
+```
+
+This writes `artifacts/release-gates/verify-strict.json` with
+`environment: "staging"`. The Russia evidence generator refuses to promote a
+`local` strict artifact into staging/prod-candidate evidence.
+
+5. Refresh backup/restore runtime evidence for staging/prod-candidate:
+
+```bash
+npm run tenant:backup-restore:evidence -- \
+  --write \
+  --refresh \
+  --preflight \
+  --drill \
+  --environment staging \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+6. Generate command evidence from retained staging/prod-candidate release-gate
+   artifacts:
+
+```bash
+npm run russia:readiness:evidence -- \
+  --write \
+  --environment staging \
+  --property-slug <pilot-property> \
+  --captured-by <release-owner> \
+  --log-reference <ci-or-release-log-uri> \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+The generator refuses to convert `local` runtime artifacts into `staging` or
+`prod-candidate` evidence. Source artifacts under `artifacts/release-gates/`
+must already have the same `environment` as the target packet.
+
+Use `--templates` with the command above, or `--templates-only` before command
+evidence exists, to write DH-55 through DH-61 JSON templates under
+`artifacts/russia-readiness/templates/`. Templates are intentionally not written
+to the strict root filenames because they are not live evidence.
+
+7. Run:
 
 ```bash
 npm run russia:readiness -- --require-live
 ```
 
-5. Attach the strict gate output and the retained JSON packet to the release
+8. Attach the strict gate output and the retained JSON packet to the release
    review.

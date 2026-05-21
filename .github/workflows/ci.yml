@@ -201,7 +201,7 @@ jobs:
       # PLATFORM_JWT_SECRET, UPLOAD_SIGNING_SECRET, FRONTEND_URL для YAML
       # interpolation (security hardening — AUDIT #6/#7).  CI dummy creds
       # хранятся в ops/ci-dummy.env (checked in, не used in production).
-      - run: docker compose --env-file ops/ci-dummy.env build
+      - run: docker compose -f docker-compose.yml --env-file ops/ci-dummy.env build
 
   login-e2e-smoke:
     runs-on: ubuntu-latest
@@ -268,9 +268,21 @@ jobs:
       # же файл как .env, чтобы compose не падал с "env file .env not found".
       - run: cp ops/ci-dummy.env .env
       - id: compose_up
-        run: docker compose --env-file ops/ci-dummy.env up -d
+        run: docker compose -f docker-compose.yml --env-file ops/ci-dummy.env up -d
       - id: seed_v1_access
-        run: docker compose exec -T backend node src/e2e/seedV1Access.js
+        run: docker compose -f docker-compose.yml exec -T backend node src/e2e/seedV1Access.js
+      - id: wait_frontend
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1/ >/dev/null; then
+              exit 0
+            fi
+            docker compose -f docker-compose.yml ps || true
+            sleep 2
+          done
+          docker compose -f docker-compose.yml ps -a || true
+          docker compose -f docker-compose.yml logs frontend || true
+          exit 1
       - id: v1_access_e2e
         env:
           E2E_V1_ACCESS: "1"
@@ -285,13 +297,16 @@ jobs:
         if: failure()
         run: |
           echo "::group::compose ps"
-          docker compose ps -a || true
+          docker compose -f docker-compose.yml ps -a || true
           echo "::endgroup::"
           echo "::group::db logs"
-          docker compose logs db || true
+          docker compose -f docker-compose.yml logs db || true
           echo "::endgroup::"
           echo "::group::backend logs"
-          docker compose logs backend || true
+          docker compose -f docker-compose.yml logs backend || true
+          echo "::endgroup::"
+          echo "::group::frontend logs"
+          docker compose -f docker-compose.yml logs frontend || true
           echo "::endgroup::"
       - id: full_e2e
         run: npm run test:e2e -- e2e/
@@ -378,5 +393,5 @@ jobs:
       - run: npm run test:e2e:preflight
       # ops/ci-dummy.env: см. e2e-test job — те же CI-only ephemeral creds.
       - run: cp ops/ci-dummy.env .env
-      - run: docker compose --env-file ops/ci-dummy.env up -d
+      - run: docker compose -f docker-compose.yml --env-file ops/ci-dummy.env up -d
       - run: npm run test:e2e -- e2e/pass-flow.spec.js --project=chromium

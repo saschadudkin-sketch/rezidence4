@@ -22,6 +22,10 @@ describe('release-gate-matrix script', () => {
     const selected = selectGates(RELEASE_GATES, 'pilot-to-production');
     expect(selected).toHaveLength(1);
     expect(selected[0].scripts).toContain('verify:strict');
+    expect(selected[0].scripts).toContain('test:e2e:v1-packages');
+    expect(selected[0].scripts).toContain('test:e2e:v1-service-execution');
+    expect(selected[0].evidence).toContain('e2e/v1-packages-production.spec.js');
+    expect(selected[0].evidence).toContain('e2e/v1-service-execution-production.spec.js');
 
     const result = checkMatrix({ gateId: 'pilot-to-production', requireRuntimeEvidence: false });
     expect(result.ok).toBe(true);

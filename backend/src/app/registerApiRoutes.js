@@ -259,6 +259,12 @@ function registerApiRoutes(app, { rateLimiters }) {
   // router's no-match 404.
   app.use('/api/v1/admin/outbox', v1AdminOutboxRouter);
 
+  // DH-35 — object-level operational dashboard for property admins:
+  // request/access/incident KPIs plus notification health in one per-property
+  // snapshot. Mount before generic admin settings for the same reason as
+  // /admin/outbox above.
+  app.use('/api/v1/admin/operations-dashboard', v1OperationsDashboardRouter);
+
   // Admin settings — feature flag management (admin role, property context required)
   app.use('/api/v1/admin', adminSettingsRouter);
 
@@ -329,11 +335,6 @@ function registerApiRoutes(app, { rateLimiters }) {
   //   GET  /api/v1/notification-log/mine              (resident)
   //   GET  /api/v1/notification-log/_meta             (limit cap)
   app.use('/api/v1', v1NotificationLogRouter);
-
-  // DH-35 — object-level operational dashboard for property admins:
-  // request/access/incident KPIs plus notification health in one per-property
-  // snapshot.  Route is admin-only and uses req.db tenant context.
-  app.use('/api/v1/admin/operations-dashboard', v1OperationsDashboardRouter);
 
   // DH-36 — management-company portfolio API.  Uses the current tenant's
   // management_company_id as the company boundary, then fans out through the

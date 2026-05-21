@@ -362,6 +362,8 @@ function TechnicianTaskButton({ request, selected, onSelect }: TechnicianTaskBut
   return (
     <button
       type="button"
+      data-testid="technician-task-row"
+      data-request-id={request.id}
       className={`${uiClasses.staffRequestButton} ${selected ? uiClasses.staffRequestButtonActive : ''}`}
       onClick={onSelect}
       aria-pressed={selected}

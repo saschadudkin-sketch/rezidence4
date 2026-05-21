@@ -26,7 +26,7 @@
 1. Docker daemon доступен (`docker info` отвечает).
 2. В `./backups/` есть `*_latest.sql.gz` для всех БД из `BACKUP_DATABASES`. Если нет — запустить вручную:
    ```bash
-   docker compose run --rm backup /backup.sh
+   docker compose run --rm --entrypoint sh backup -c "tr -d '\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh"
    ls -la backups/*_latest.sql.gz
    ```
 3. ~500 MB свободного диска (pristine postgres data + restored БД).
@@ -65,6 +65,36 @@ npm run tenant:restore-drill
 `platform`, `zamoskv`), последние snapshots, на pristine `postgres:16-alpine`,
 port `15432`.
 
+### Backup refresh + evidence helper
+
+Для staging/prod-candidate release packet можно одним helper'ом обновить
+backup, прогнать preflight/drill и записать runtime artifacts в
+`artifacts/release-gates/`:
+
+```bash
+npm run tenant:backup-restore:evidence -- \
+  --write \
+  --refresh \
+  --preflight \
+  --drill \
+  --environment staging \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+Helper пишет:
+
+- `artifacts/release-gates/tenant-restore-drill-preflight.json`
+- `artifacts/release-gates/tenant-restore-drill.json`
+
+Если backup refresh или preflight падает, helper останавливается до drill. Для
+диагностики failing evidence можно добавить `--write-failed`, но такой artifact
+должен оставлять release gate красным.
+
+Полный release packet можно запускать через `npm run pilot:release-packet`,
+который вызовет этот helper как один из шагов перед финальным
+`russia:readiness -- --require-live`.
+
 ### Customisation
 
 ```bash
@@ -101,7 +131,7 @@ PG_IMAGE=postgres:17-alpine bash scripts/restore-drill.sh
 
 | Exit | Что произошло | Действие |
 |---|---|---|
-| 1 | Backup файлы отсутствуют | Запустить `docker compose run --rm backup /backup.sh`; проверить cron в backup-контейнере |
+| 1 | Backup файлы отсутствуют | Запустить `docker compose run --rm --entrypoint sh backup -c "tr -d '\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh"`; проверить cron в backup-контейнере |
 | 2 | `pg_restore` failure | Прочитать `/tmp/restore_<db>.log`; чаще всего — несовместимость version postgres (drill image vs prod) |
 | 3 | Invariant check failed | Backup есть, restore прошёл, но в БД пусто/мало данных. **Срочно**: проверить prod backup-контейнер логи (`docker compose logs backup`) — возможно, уже неделю пишет пустые dump'ы |
 | 4 | Docker недоступен | Запустить Docker Desktop (Windows/Mac) или `sudo systemctl start docker` (Linux) |

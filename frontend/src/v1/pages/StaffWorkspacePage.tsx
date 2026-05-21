@@ -143,6 +143,16 @@ const REQUEST_TYPES: StaffRequestType[] = [
   'emergency',
 ];
 const TARGET_TYPES: StaffRequestTargetType[] = ['unit', 'home', 'access_zone', 'access_point', 'common_territory', 'road', 'service_area'];
+const ASSIGNEE_ROLES: AssignableServiceRequestRole[] = [
+  'security',
+  'concierge',
+  'technician',
+  'contractor',
+  'property_admin',
+  'management_company_admin',
+  'platform_admin',
+  'admin',
+];
 const EMERGENCY_QUEUE_STATUSES: Array<EmergencyDispatchStatus | ''> = ['', 'new', 'acknowledged', 'dispatched', 'escalated', 'resolved', 'cancelled'];
 const EMERGENCY_SEVERITIES: Array<EmergencySeverity | ''> = ['', 'P0', 'P1', 'P2'];
 
@@ -483,6 +493,8 @@ function RequestListButton({ request, selected, onSelect }: RequestListButtonPro
   return (
     <button
       type="button"
+      data-testid="staff-request-row"
+      data-request-id={request.id}
       className={`${uiClasses.staffRequestButton} ${selected ? uiClasses.staffRequestButtonActive : ''}`}
       onClick={onSelect}
       aria-pressed={selected}
@@ -526,6 +538,7 @@ function CanonicalServiceRequestOperations({
   const [comment, setComment] = useState('');
   const [nextStatus, setNextStatus] = useState<StaffRequestStatus>('in_progress');
   const [assigneeUid, setAssigneeUid] = useState(user.uid);
+  const [assigneeRole, setAssigneeRole] = useState<AssignableServiceRequestRole>(assigneeRoleFor(user));
   const [categoryName, setCategoryName] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [rating, setRating] = useState('5');
@@ -578,7 +591,10 @@ function CanonicalServiceRequestOperations({
       targetType,
       targetId: targetId.trim() || undefined,
     }),
-    onSuccess: invalidateCanonical,
+    onSuccess: (request) => {
+      setRequestId(request.id);
+      invalidateCanonical();
+    },
     onError: (error) => reportMutationError(error, 'Не удалось создать request'),
   });
 
@@ -602,7 +618,7 @@ function CanonicalServiceRequestOperations({
   const assignRequest = useMutation({
     mutationFn: () => api.serviceRequests.assign(requiredTrim(effectiveRequestId, 'request ID'), {
       assigneeUid: requiredTrim(assigneeUid, 'assignee UID'),
-      assigneeRole: assigneeRoleFor(user),
+      assigneeRole,
       assigneeName: user.name || user.uid,
       expectedCurrentStatus: undefined,
     }),
@@ -663,47 +679,52 @@ function CanonicalServiceRequestOperations({
     <Card title="Canonical requests" subtitle="Прямые операции /api/v1/requests для lifecycle coverage.">
       <Stack>
         <div className={uiClasses.formGrid}>
-          <Field label="Request ID">
-            <Input value={requestId} onChange={(event) => setRequestId(event.currentTarget.value)} placeholder={activeRequestId ?? 'request-id'} />
+          <Field id="staff-canonical-request-id" label="Request ID">
+            <Input id="staff-canonical-request-id" value={requestId} onChange={(event) => setRequestId(event.currentTarget.value)} placeholder={activeRequestId ?? 'request-id'} />
           </Field>
-          <Field label="Type">
-            <Select value={type} onChange={(event) => setType(event.currentTarget.value as StaffRequestType)}>
+          <Field id="staff-canonical-type" label="Type">
+            <Select id="staff-canonical-type" value={type} onChange={(event) => setType(event.currentTarget.value as StaffRequestType)}>
               {REQUEST_TYPES.map((item) => <option key={item} value={item}>{formatType(item)}</option>)}
             </Select>
           </Field>
-          <Field label="Category code">
-            <Input value={categoryCode} onChange={(event) => setCategoryCode(event.currentTarget.value)} placeholder="plumber" />
+          <Field id="staff-canonical-category-code" label="Category code">
+            <Input id="staff-canonical-category-code" value={categoryCode} onChange={(event) => setCategoryCode(event.currentTarget.value)} placeholder="plumber" />
           </Field>
-          <Field label="Category name">
-            <Input value={categoryName} onChange={(event) => setCategoryName(event.currentTarget.value)} placeholder="Plumber" />
+          <Field id="staff-canonical-category-name" label="Category name">
+            <Input id="staff-canonical-category-name" value={categoryName} onChange={(event) => setCategoryName(event.currentTarget.value)} placeholder="Plumber" />
           </Field>
-          <Field label="Target type">
-            <Select value={targetType} onChange={(event) => setTargetType(event.currentTarget.value as StaffRequestTargetType)}>
+          <Field id="staff-canonical-target-type" label="Target type">
+            <Select id="staff-canonical-target-type" value={targetType} onChange={(event) => setTargetType(event.currentTarget.value as StaffRequestTargetType)}>
               {TARGET_TYPES.map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
           </Field>
-          <Field label="Target ID">
-            <Input value={targetId} onChange={(event) => setTargetId(event.currentTarget.value)} placeholder="target-uuid" />
+          <Field id="staff-canonical-target-id" label="Target ID">
+            <Input id="staff-canonical-target-id" value={targetId} onChange={(event) => setTargetId(event.currentTarget.value)} placeholder="target-uuid" />
           </Field>
-          <Field label="Next status">
-            <Select value={nextStatus} onChange={(event) => setNextStatus(event.currentTarget.value as StaffRequestStatus)}>
+          <Field id="staff-canonical-next-status" label="Next status">
+            <Select id="staff-canonical-next-status" value={nextStatus} onChange={(event) => setNextStatus(event.currentTarget.value as StaffRequestStatus)}>
               {STATUS_FILTERS.filter((item): item is StaffRequestStatus => item !== 'all').map((item) => (
                 <option key={item} value={item}>{formatStatus(item)}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Assignee UID">
-            <Input value={assigneeUid} onChange={(event) => setAssigneeUid(event.currentTarget.value)} placeholder="staff-uid" />
+          <Field id="staff-canonical-assignee-uid" label="Assignee UID">
+            <Input id="staff-canonical-assignee-uid" value={assigneeUid} onChange={(event) => setAssigneeUid(event.currentTarget.value)} placeholder="staff-uid" />
           </Field>
-          <Field label="Attachment URL">
-            <Input value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.currentTarget.value)} placeholder="/uploads/service-request-evidence.jpg" />
+          <Field id="staff-canonical-assignee-role" label="Assignee role">
+            <Select id="staff-canonical-assignee-role" value={assigneeRole} onChange={(event) => setAssigneeRole(event.currentTarget.value as AssignableServiceRequestRole)}>
+              {ASSIGNEE_ROLES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </Select>
           </Field>
-          <Field label="Rating">
-            <Input value={rating} onChange={(event) => setRating(event.currentTarget.value)} inputMode="numeric" placeholder="5" />
+          <Field id="staff-canonical-attachment-url" label="Attachment URL">
+            <Input id="staff-canonical-attachment-url" value={attachmentUrl} onChange={(event) => setAttachmentUrl(event.currentTarget.value)} placeholder="/uploads/service-request-evidence.jpg" />
+          </Field>
+          <Field id="staff-canonical-rating" label="Rating">
+            <Input id="staff-canonical-rating" value={rating} onChange={(event) => setRating(event.currentTarget.value)} inputMode="numeric" placeholder="5" />
           </Field>
         </div>
-        <Field label="Comment">
-          <Textarea value={comment} onChange={(event) => setComment(event.currentTarget.value)} rows={3} placeholder="Операционный комментарий" />
+        <Field id="staff-canonical-comment" label="Comment">
+          <Textarea id="staff-canonical-comment" value={comment} onChange={(event) => setComment(event.currentTarget.value)} rows={3} placeholder="Операционный комментарий" />
         </Field>
         <Inline>
           <Button loading={requestListQuery.isFetching} variant="ghost" onClick={() => void requestListQuery.refetch()}>Обновить canonical list</Button>
@@ -731,7 +752,14 @@ function CanonicalServiceRequestOperations({
                   <p className={uiClasses.resourceTitle}>{requestTitle(request)}</p>
                   <p className={uiClasses.resourceMeta}>{request.category} · {request.status}</p>
                 </div>
-                <Button variant="ghost" onClick={() => setRequestId(request.id)}>Выбрать</Button>
+                <Button
+                  variant="ghost"
+                  data-testid="staff-canonical-request-select"
+                  data-request-id={request.id}
+                  onClick={() => setRequestId(request.id)}
+                >
+                  Выбрать
+                </Button>
               </li>
             ))}
           </ul>

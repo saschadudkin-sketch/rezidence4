@@ -54,8 +54,9 @@ const QUERY_SQL = `
       WHERE status = 'in_flight'
         AND last_attempted_at < NOW() - INTERVAL '30 minutes'
     )                                                                  AS stuck_in_flight,
-    EXTRACT(EPOCH FROM (NOW() - MIN(next_attempt_at))
-      FILTER (WHERE status IN ('pending','failed')))                   AS oldest_pending_age_seconds
+    EXTRACT(EPOCH FROM (
+      NOW() - MIN(next_attempt_at) FILTER (WHERE status IN ('pending','failed'))
+    ))                                                                 AS oldest_pending_age_seconds
   FROM notifications_outbox
 `;
 

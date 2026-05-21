@@ -8,6 +8,8 @@ const { repoRoot } = require('./e2e-env.cjs');
 const REQUIRED_ROOT_SCRIPTS = [
   'verify:strict',
   'test:e2e:v1-access',
+  'test:e2e:v1-packages',
+  'test:e2e:v1-service-execution',
   'release:gate:check',
   'tenant:preflight:e2e',
   'tenant:preflight:current',
@@ -17,6 +19,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:restore-drill',
   'pilot:training-pack',
   'pilot:readiness',
+  'pilot:release-packet',
   'russia:readiness',
 ];
 
@@ -32,13 +35,18 @@ const REQUIRED_EVIDENCE = [
   'docs/runbooks/pilot-rollout.md',
   'docs/runbooks/pilot-operations-training-pack.md',
   'e2e/v1-access-production.spec.js',
+  'e2e/v1-packages-production.spec.js',
+  'e2e/v1-service-execution-production.spec.js',
   'scripts/release-gate-matrix.cjs',
   'scripts/run-v1-access-e2e.cjs',
+  'scripts/run-v1-packages-e2e.cjs',
+  'scripts/run-v1-service-execution-e2e.cjs',
   'scripts/tenant-ops-preflight.cjs',
   'scripts/tenant-ops-provision.cjs',
   'scripts/tenant-ops-migrate.cjs',
   'scripts/restore-drill-preflight.cjs',
   'scripts/pilot-training-pack-check.cjs',
+  'scripts/pilot-release-packet.cjs',
   'scripts/russia-readiness-check.cjs',
 ];
 
@@ -46,6 +54,18 @@ const REQUIRED_STRICT_VERIFY_MARKERS = [
   "E2E_V1_ACCESS: '1'",
   "E2E_BACKEND_MODE: '1'",
   'e2e/v1-access-production.spec.js',
+];
+
+const REQUIRED_PACKAGES_E2E_MARKERS = [
+  "E2E_V1_PACKAGES: '1'",
+  "E2E_BACKEND_MODE: '1'",
+  'e2e/v1-packages-production.spec.js',
+];
+
+const REQUIRED_SERVICE_EXECUTION_E2E_MARKERS = [
+  "E2E_V1_SERVICE_EXECUTION: '1'",
+  "E2E_BACKEND_MODE: '1'",
+  'e2e/v1-service-execution-production.spec.js',
 ];
 
 const PILOT_RUNBOOK_SECTIONS = [
@@ -154,6 +174,34 @@ function checkPilotReadiness({
     }
   }
 
+  const v1PackagesE2ePath = 'scripts/run-v1-packages-e2e.cjs';
+  if (fs.existsSync(path.join(root, v1PackagesE2ePath))) {
+    const packagesRunner = readText(root, v1PackagesE2ePath);
+    for (const marker of REQUIRED_PACKAGES_E2E_MARKERS) {
+      const ok = packagesRunner.includes(marker);
+      checks.push(makeCheck(
+        `${v1PackagesE2ePath}#${marker}`,
+        ok,
+        ok ? 'v1 packages E2E runs in backend-backed mode' : 'v1 packages E2E is missing backend-backed marker',
+        'v1-packages-e2e-marker',
+      ));
+    }
+  }
+
+  const v1ServiceExecutionE2ePath = 'scripts/run-v1-service-execution-e2e.cjs';
+  if (fs.existsSync(path.join(root, v1ServiceExecutionE2ePath))) {
+    const serviceExecutionRunner = readText(root, v1ServiceExecutionE2ePath);
+    for (const marker of REQUIRED_SERVICE_EXECUTION_E2E_MARKERS) {
+      const ok = serviceExecutionRunner.includes(marker);
+      checks.push(makeCheck(
+        `${v1ServiceExecutionE2ePath}#${marker}`,
+        ok,
+        ok ? 'v1 service execution E2E runs in backend-backed mode' : 'v1 service execution E2E is missing backend-backed marker',
+        'v1-service-execution-e2e-marker',
+      ));
+    }
+  }
+
   return {
     ok: checks.every((check) => check.ok),
     checks,
@@ -193,6 +241,8 @@ if (require.main === module) {
 module.exports = {
   PILOT_RUNBOOK_SECTIONS,
   REQUIRED_STRICT_VERIFY_MARKERS,
+  REQUIRED_PACKAGES_E2E_MARKERS,
+  REQUIRED_SERVICE_EXECUTION_E2E_MARKERS,
   REQUIRED_EVIDENCE,
   REQUIRED_ROOT_SCRIPTS,
   checkPilotReadiness,

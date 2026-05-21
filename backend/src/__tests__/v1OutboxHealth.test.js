@@ -179,6 +179,7 @@ describe('GET /api/v1/notifications/outbox/health — payload', () => {
     expect(sql).toMatch(/INTERVAL\s+'30\s+minutes'/i);
     // Oldest pending age calculation
     expect(sql).toMatch(/EXTRACT\(\s*EPOCH\s+FROM/i);
+    expect(sql).toMatch(/MIN\(\s*next_attempt_at\s*\)\s*FILTER\s*\(\s*WHERE\s+status\s+IN/i);
   });
 
   test('normalizes Postgres-string counts into numbers', async () => {

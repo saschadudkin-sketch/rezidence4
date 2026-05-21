@@ -7,6 +7,7 @@
  */
 
 import { useDeferredValue, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, isV1ApiError } from '../api';
 import type {
@@ -147,6 +148,15 @@ function formatPriority(priority: StaffRequestPriority): string {
   return PRIORITY_LABELS[priority] ?? priority;
 }
 
+function canAssignContractorWork(user: UserMe): boolean {
+  const role = normalizeUserRole(user.role);
+  return role === 'concierge'
+    || role === 'admin'
+    || role === 'property_admin'
+    || role === 'management_company_admin'
+    || role === 'platform_admin';
+}
+
 function formatActionError(error: unknown, fallback: string): string {
   if (isV1ApiError(error)) {
     if (error.kind === 'conflict') {
@@ -200,10 +210,16 @@ export function ContractorWorkspacePage() {
   const [priority, setPriority] = useState<StaffRequestPriority | 'all'>('all');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [assignRequestId, setAssignRequestId] = useState('');
+  const [assignContractorUserId, setAssignContractorUserId] = useState('');
+  const [assignNote, setAssignNote] = useState('');
+  const [assignMessage, setAssignMessage] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   const deferredSearch = useDeferredValue(search.trim());
   const searchParam = deferredSearch.length >= 2 ? deferredSearch : undefined;
   const canAccess = canUseContractorWorkspace(user);
+  const canAssign = canAssignContractorWork(user);
 
   const filters = useMemo<ListContractorWorkspaceQueueParams>(() => ({
     queue,
@@ -227,6 +243,41 @@ export function ContractorWorkspacePage() {
     : null;
   const activeRequest = selectedRequest ?? requests[0] ?? null;
   const activeId = activeRequest?.id ?? null;
+  const queryClient = useQueryClient();
+
+  const assignMutation = useMutation({
+    mutationFn: () => api.contractorWorkspace.assignRequest((assignRequestId.trim() || activeId || ''), {
+      contractorUserId: assignContractorUserId.trim(),
+      note: assignNote.trim() || undefined,
+    }),
+    onSuccess: (result) => {
+      setAssignRequestId(result.request.id);
+      setAssignNote('');
+      setAssignError(null);
+      setAssignMessage('Работа назначена подрядчику');
+      void query.refetch();
+      void queryClient.invalidateQueries({ queryKey: qk.contractorWorkspace.request(result.request.id) });
+    },
+    onError: (error) => {
+      setAssignMessage(null);
+      setAssignError(formatActionError(error, 'Не удалось назначить подрядчика'));
+    },
+  });
+
+  const submitAssignment = (event: FormEvent) => {
+    event.preventDefault();
+    if (!(assignRequestId.trim() || activeId)) {
+      setAssignMessage(null);
+      setAssignError('Укажите request ID');
+      return;
+    }
+    if (!assignContractorUserId.trim()) {
+      setAssignMessage(null);
+      setAssignError('Укажите contractor user ID');
+      return;
+    }
+    assignMutation.mutate();
+  };
 
   if (!canAccess) {
     return (
@@ -307,6 +358,49 @@ export function ContractorWorkspacePage() {
           </Button>
         </Toolbar>
 
+        {canAssign ? (
+          <Card title="Назначение подрядчика" subtitle="Admin/concierge action for DH-29 contractor work handoff.">
+            <form onSubmit={submitAssignment} data-testid="contractor-assignment-form">
+              <Stack>
+                {assignError ? <Alert tone="error">{assignError}</Alert> : null}
+                {assignMessage ? <Alert tone="success">{assignMessage}</Alert> : null}
+                <Inline>
+                  <Field id="contractor-assign-request-id" label="Request ID">
+                    <Input
+                      id="contractor-assign-request-id"
+                      value={assignRequestId}
+                      onChange={(event) => setAssignRequestId(event.currentTarget.value)}
+                      placeholder={activeId ?? 'request-id'}
+                      disabled={assignMutation.isPending}
+                    />
+                  </Field>
+                  <Field id="contractor-assign-user-id" label="Contractor user ID">
+                    <Input
+                      id="contractor-assign-user-id"
+                      value={assignContractorUserId}
+                      onChange={(event) => setAssignContractorUserId(event.currentTarget.value)}
+                      placeholder="contractor-user-uuid"
+                      disabled={assignMutation.isPending}
+                    />
+                  </Field>
+                  <Field id="contractor-assign-note" label="Комментарий">
+                    <Input
+                      id="contractor-assign-note"
+                      value={assignNote}
+                      onChange={(event) => setAssignNote(event.currentTarget.value)}
+                      placeholder="Что передать подрядчику"
+                      disabled={assignMutation.isPending}
+                    />
+                  </Field>
+                  <Button type="submit" variant="secondary" loading={assignMutation.isPending}>
+                    Назначить подрядчика
+                  </Button>
+                </Inline>
+              </Stack>
+            </form>
+          </Card>
+        ) : null}
+
         {query.isError ? (
           <Alert tone="error">
             Не удалось загрузить работы: {isV1ApiError(query.error) ? query.error.message : 'ошибка сети'}
@@ -367,6 +461,8 @@ function ContractorJobButton({ request, selected, onSelect }: ContractorJobButto
   return (
     <button
       type="button"
+      data-testid="contractor-job-row"
+      data-request-id={request.id}
       className={`${uiClasses.staffRequestButton} ${selected ? uiClasses.staffRequestButtonActive : ''}`}
       onClick={onSelect}
       aria-pressed={selected}

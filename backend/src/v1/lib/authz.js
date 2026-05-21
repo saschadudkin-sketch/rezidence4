@@ -307,7 +307,7 @@ const CAPABILITIES = Object.freeze({
   'access.incident.create': spec(accessStaff),
   'access.incident.resolve': spec(accessStaff),
   'access.override.create': spec(accessOperators),
-  'access.topology.read': spec(accessStaff),
+  'access.topology.read': spec(roles(FINAL_ROLES.RESIDENT, FINAL_ROLES.CONTRACTOR, accessStaff)),
   'access.topology.write': spec(propertyAdmin),
   'access.policy.read': spec(accessStaff),
   'access.policy.write': spec(propertyAdmin),

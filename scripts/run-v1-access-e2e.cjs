@@ -17,6 +17,10 @@ function run(args, env) {
   return result.status ?? 1;
 }
 
+function evidenceEnvironment() {
+  return process.env.RELEASE_GATE_ENVIRONMENT || (process.env.CI ? 'ci' : 'local');
+}
+
 function isProcessCrashStatus(status) {
   return status === -1073741819 || status === 3221225477;
 }
@@ -38,7 +42,7 @@ function writeArtifact(status) {
     script: 'test:e2e:v1-access',
     command: 'npm run test:e2e:v1-access',
     captured_at: new Date().toISOString(),
-    environment: process.env.CI ? 'ci' : 'local',
+    environment: evidenceEnvironment(),
     ok: status === 0,
     exit_code: status,
   }, null, 2)}\n`);

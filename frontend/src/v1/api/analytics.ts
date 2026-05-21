@@ -142,7 +142,7 @@ export const analyticsApi = {
   },
 
   latestSnapshot(params?: AnalyticsSnapshotParams, opts?: RequestOpts) {
-    return v1Client.get<{ snapshot: AnalyticsSnapshot }>(
+    return v1Client.get<{ snapshot: AnalyticsSnapshot | null }>(
       `/analytics/snapshots/latest${toQuery(params)}`,
       opts,
     );
