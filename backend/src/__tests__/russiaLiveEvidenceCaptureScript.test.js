@@ -416,6 +416,151 @@ describe('russia-live-evidence-capture script', () => {
     });
   });
 
+  test('updates DH-59, DH-60, DH-57, DH-56 and DH-55 manifest items from explicit evidence fields', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-remaining-dh-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest({
+      items: {},
+    }));
+
+    const cases = [
+      {
+        dh: 'DH-59',
+        argv: [
+          '--dh59-provider-config-id', 'provider-config-123',
+          '--dh59-field-rollout-evidence-id', 'field-rollout-123',
+          '--dh59-drill-type', 'provider_failure',
+        ],
+        expected: {
+          source: { endpoint: '/api/v1/skud/field-rollout-evidence' },
+          evidence: {
+            provider_config_id: 'provider-config-123',
+            field_rollout_evidence_id: 'field-rollout-123',
+            drill_type: 'provider_failure',
+          },
+        },
+      },
+      {
+        dh: 'DH-60',
+        argv: [
+          '--dh60-report-evidence-id', 'report-evidence-123',
+          '--dh60-review-report-id', 'review-report-123',
+          '--dh60-anti-abuse-summary-id', 'anti-abuse-123',
+        ],
+        expected: {
+          source: { endpoint: '/api/v1/audit/sensitive-actions/_report-evidence' },
+          evidence: {
+            report_evidence_id: 'report-evidence-123',
+            review_report_id: 'review-report-123',
+            anti_abuse_summary_id: 'anti-abuse-123',
+          },
+        },
+      },
+      {
+        dh: 'DH-57',
+        argv: [
+          '--dh57-emergency-request-id', 'emergency-123',
+          '--dh57-provider-delivery-evidence-id', 'provider-delivery-123',
+          '--dh57-notification-provider', 'smsru',
+        ],
+        expected: {
+          source: { endpoint: '/api/v1/requests/emergency/provider-delivery-evidence' },
+          evidence: {
+            emergency_request_id: 'emergency-123',
+            provider_delivery_evidence_id: 'provider-delivery-123',
+            notification_provider: 'smsru',
+          },
+        },
+      },
+      {
+        dh: 'DH-56',
+        argv: [
+          '--dh56-dsar-request-id', 'dsar-123',
+          '--dh56-privacy-readiness-report-id', 'privacy-readiness-123',
+          '--dh56-no-biometrics-guard-checked', 'true',
+        ],
+        expected: {
+          source: { endpoint: '/api/v1/privacy/data-subject-requests/dsar-123/complete' },
+          evidence: {
+            dsar_request_id: 'dsar-123',
+            privacy_readiness_report_id: 'privacy-readiness-123',
+            no_biometrics_guard_checked: true,
+          },
+        },
+      },
+      {
+        dh: 'DH-55',
+        argv: [
+          '--dh55-ownership-transfer-id', 'ownership-transfer-123',
+          '--dh55-offboarding-report-id', 'offboarding-report-123',
+          '--dh55-notification-cascade-evidence', 'notification-cascade-123',
+        ],
+        expected: {
+          source: { endpoint: '/api/v1/residents/:residentId/transfer-ownership' },
+          evidence: {
+            ownership_transfer_id: 'ownership-transfer-123',
+            offboarding_report_id: 'offboarding-report-123',
+            notification_cascade_evidence: 'notification-cascade-123',
+          },
+        },
+      },
+    ];
+
+    for (const item of cases) {
+      const merge = captureLiveEvidence({
+        root,
+        argv: ['--write', '--manifest', 'manifest.json', ...item.argv],
+      });
+      expect(merge.ok).toBe(true);
+      expect(merge.generated).toEqual([{
+        type: 'manifest-update',
+        dh: item.dh,
+        path: 'manifest.json',
+        written: true,
+      }]);
+
+      const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+      expect(manifest.items[item.dh]).toMatchObject({
+        source: {
+          type: 'api',
+          ...item.expected.source,
+        },
+        result: {
+          status: 'passed',
+        },
+        evidence: item.expected.evidence,
+      });
+
+      const validation = captureLiveEvidence({
+        root,
+        argv: ['--manifest', 'manifest.json', '--dh', item.dh],
+      });
+      expect(validation.ok).toBe(true);
+      expect(validation.generated[0]).toMatchObject({
+        dh: item.dh,
+        written: false,
+      });
+    }
+  });
+
+  test('refuses DH-56 privacy merge unless the no-biometrics guard was checked', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh56-fail-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest());
+
+    const result = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh56-dsar-request-id', 'dsar-123',
+        '--dh56-privacy-readiness-report-id', 'privacy-readiness-123',
+        '--dh56-no-biometrics-guard-checked', 'false',
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toEqual(['DH-56: --dh56-no-biometrics-guard-checked must be true']);
+  });
+
   test('writes strict DH-55 through DH-61 live evidence from a complete manifest', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-'));
     writeJson(path.join(root, 'manifest.json'), makeManifest());

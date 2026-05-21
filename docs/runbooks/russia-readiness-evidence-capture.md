@@ -200,6 +200,67 @@ npm run russia:readiness:live-evidence -- \
   --dh DH-61
 ```
 
+### Remaining DH Helpers
+
+Use these after the corresponding staging/pilot workflow has produced retained
+IDs. Each helper updates only one manifest item; validate that item immediately
+afterward with `--dh <DH-id>`.
+
+DH-59 SKUD field rollout:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh59-provider-config-id <provider-config-id> \
+  --dh59-field-rollout-evidence-id <field-rollout-evidence-id> \
+  --dh59-drill-type <provider_failure|field_rollout|vendor_health_probe>
+```
+
+DH-60 sensitive-action report:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh60-report-evidence-id <report-evidence-id> \
+  --dh60-review-report-id <review-report-id> \
+  --dh60-anti-abuse-summary-id <anti-abuse-summary-id>
+```
+
+DH-57 emergency provider delivery:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh57-emergency-request-id <emergency-request-id> \
+  --dh57-provider-delivery-evidence-id <provider-delivery-evidence-id> \
+  --dh57-notification-provider <provider-name>
+```
+
+DH-56 privacy/DSAR:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh56-dsar-request-id <dsar-request-id> \
+  --dh56-privacy-readiness-report-id <privacy-readiness-report-id> \
+  --dh56-no-biometrics-guard-checked true
+```
+
+DH-55 ownership/offboarding:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh55-ownership-transfer-id <ownership-transfer-id> \
+  --dh55-offboarding-report-id <offboarding-report-id> \
+  --dh55-notification-cascade-evidence <notification-cascade-evidence-id-or-uri>
+```
+
 The manifest is not a waiver and does not mark work complete by itself. The
 script validates every DH-55 through DH-61 payload with the same strict contract
 used by `npm run russia:readiness -- --require-live`; if any required identifier

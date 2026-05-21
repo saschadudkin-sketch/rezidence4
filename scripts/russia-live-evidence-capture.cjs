@@ -85,6 +85,21 @@ function parseArgs(argv = []) {
     dh61AcceptedBy: readOption(argv, '--dh61-accepted-by'),
     dh61OpenWaivers: parseList(readOption(argv, '--dh61-open-waivers')),
     dh61Runbook: readOption(argv, '--dh61-runbook') || 'docs/runbooks/pilot-operations-training-pack.md',
+    dh59ProviderConfigId: readOption(argv, '--dh59-provider-config-id'),
+    dh59FieldRolloutEvidenceId: readOption(argv, '--dh59-field-rollout-evidence-id'),
+    dh59DrillType: readOption(argv, '--dh59-drill-type'),
+    dh60ReportEvidenceId: readOption(argv, '--dh60-report-evidence-id'),
+    dh60ReviewReportId: readOption(argv, '--dh60-review-report-id'),
+    dh60AntiAbuseSummaryId: readOption(argv, '--dh60-anti-abuse-summary-id'),
+    dh57EmergencyRequestId: readOption(argv, '--dh57-emergency-request-id'),
+    dh57ProviderDeliveryEvidenceId: readOption(argv, '--dh57-provider-delivery-evidence-id'),
+    dh57NotificationProvider: readOption(argv, '--dh57-notification-provider'),
+    dh56DsarRequestId: readOption(argv, '--dh56-dsar-request-id'),
+    dh56PrivacyReadinessReportId: readOption(argv, '--dh56-privacy-readiness-report-id'),
+    dh56NoBiometricsGuardChecked: readOption(argv, '--dh56-no-biometrics-guard-checked'),
+    dh55OwnershipTransferId: readOption(argv, '--dh55-ownership-transfer-id'),
+    dh55OffboardingReportId: readOption(argv, '--dh55-offboarding-report-id'),
+    dh55NotificationCascadeEvidence: readOption(argv, '--dh55-notification-cascade-evidence'),
     force: argv.includes('--force'),
     write: argv.includes('--write'),
     json: argv.includes('--json'),
@@ -244,6 +259,203 @@ function buildDh61ItemFromTraining({ trainingDate, acceptedBy, openWaivers, runb
       open_waivers: openWaivers,
     },
   };
+}
+
+function buildSimpleApiManifestItem({ dh, endpoint, evidence, status = 'passed' }) {
+  return {
+    capture_hint: MANIFEST_CAPTURE_HINTS[dh],
+    source: {
+      type: 'api',
+      endpoint,
+    },
+    result: {
+      status,
+      summary: MANIFEST_CAPTURE_HINTS[dh].result_summary,
+    },
+    evidence,
+  };
+}
+
+function mergeManifestItemEvidence({
+  args,
+  manifest,
+  manifestRelativePath,
+  root,
+  dh,
+  required,
+  buildItem,
+}) {
+  const failures = [];
+  for (const [label, value] of required) {
+    if (!hasText(value)) failures.push(`${dh}: ${label} is required`);
+  }
+  if (failures.length) {
+    return {
+      ok: false,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated: [],
+      failures,
+    };
+  }
+
+  const updatedManifest = {
+    ...manifest,
+    items: {
+      ...(isPlainObject(manifest.items) ? manifest.items : {}),
+      [dh]: buildItem(),
+    },
+  };
+
+  return {
+    ok: true,
+    write: args.write,
+    outputDir: args.outputDir,
+    generated: [{
+      type: 'manifest-update',
+      dh,
+      path: writeJsonIfRequested({
+        root,
+        relativePath: manifestRelativePath,
+        value: updatedManifest,
+        write: args.write,
+      }),
+      written: args.write,
+    }],
+    failures,
+  };
+}
+
+function mergeDh59FieldRolloutEvidence({ args, manifest, manifestRelativePath, root }) {
+  return mergeManifestItemEvidence({
+    args,
+    manifest,
+    manifestRelativePath,
+    root,
+    dh: 'DH-59',
+    required: [
+      ['--dh59-provider-config-id', args.dh59ProviderConfigId],
+      ['--dh59-field-rollout-evidence-id', args.dh59FieldRolloutEvidenceId],
+      ['--dh59-drill-type', args.dh59DrillType],
+    ],
+    buildItem: () => buildSimpleApiManifestItem({
+      dh: 'DH-59',
+      endpoint: '/api/v1/skud/field-rollout-evidence',
+      evidence: {
+        provider_config_id: args.dh59ProviderConfigId,
+        field_rollout_evidence_id: args.dh59FieldRolloutEvidenceId,
+        drill_type: args.dh59DrillType,
+      },
+    }),
+  });
+}
+
+function mergeDh60SensitiveReportEvidence({ args, manifest, manifestRelativePath, root }) {
+  return mergeManifestItemEvidence({
+    args,
+    manifest,
+    manifestRelativePath,
+    root,
+    dh: 'DH-60',
+    required: [
+      ['--dh60-report-evidence-id', args.dh60ReportEvidenceId],
+      ['--dh60-review-report-id', args.dh60ReviewReportId],
+      ['--dh60-anti-abuse-summary-id', args.dh60AntiAbuseSummaryId],
+    ],
+    buildItem: () => buildSimpleApiManifestItem({
+      dh: 'DH-60',
+      endpoint: '/api/v1/audit/sensitive-actions/_report-evidence',
+      evidence: {
+        report_evidence_id: args.dh60ReportEvidenceId,
+        review_report_id: args.dh60ReviewReportId,
+        anti_abuse_summary_id: args.dh60AntiAbuseSummaryId,
+      },
+    }),
+  });
+}
+
+function mergeDh57ProviderDeliveryEvidence({ args, manifest, manifestRelativePath, root }) {
+  return mergeManifestItemEvidence({
+    args,
+    manifest,
+    manifestRelativePath,
+    root,
+    dh: 'DH-57',
+    required: [
+      ['--dh57-emergency-request-id', args.dh57EmergencyRequestId],
+      ['--dh57-provider-delivery-evidence-id', args.dh57ProviderDeliveryEvidenceId],
+      ['--dh57-notification-provider', args.dh57NotificationProvider],
+    ],
+    buildItem: () => buildSimpleApiManifestItem({
+      dh: 'DH-57',
+      endpoint: '/api/v1/requests/emergency/provider-delivery-evidence',
+      evidence: {
+        emergency_request_id: args.dh57EmergencyRequestId,
+        provider_delivery_evidence_id: args.dh57ProviderDeliveryEvidenceId,
+        notification_provider: args.dh57NotificationProvider,
+      },
+    }),
+  });
+}
+
+function mergeDh56PrivacyEvidence({ args, manifest, manifestRelativePath, root }) {
+  const failures = [];
+  if (args.dh56NoBiometricsGuardChecked !== 'true') {
+    failures.push('DH-56: --dh56-no-biometrics-guard-checked must be true');
+  }
+  if (failures.length) {
+    return {
+      ok: false,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated: [],
+      failures,
+    };
+  }
+  return mergeManifestItemEvidence({
+    args,
+    manifest,
+    manifestRelativePath,
+    root,
+    dh: 'DH-56',
+    required: [
+      ['--dh56-dsar-request-id', args.dh56DsarRequestId],
+      ['--dh56-privacy-readiness-report-id', args.dh56PrivacyReadinessReportId],
+    ],
+    buildItem: () => buildSimpleApiManifestItem({
+      dh: 'DH-56',
+      endpoint: `/api/v1/privacy/data-subject-requests/${encodeURIComponent(args.dh56DsarRequestId)}/complete`,
+      evidence: {
+        dsar_request_id: args.dh56DsarRequestId,
+        privacy_readiness_report_id: args.dh56PrivacyReadinessReportId,
+        no_biometrics_guard_checked: true,
+      },
+    }),
+  });
+}
+
+function mergeDh55OwnershipEvidence({ args, manifest, manifestRelativePath, root }) {
+  return mergeManifestItemEvidence({
+    args,
+    manifest,
+    manifestRelativePath,
+    root,
+    dh: 'DH-55',
+    required: [
+      ['--dh55-ownership-transfer-id', args.dh55OwnershipTransferId],
+      ['--dh55-offboarding-report-id', args.dh55OffboardingReportId],
+      ['--dh55-notification-cascade-evidence', args.dh55NotificationCascadeEvidence],
+    ],
+    buildItem: () => buildSimpleApiManifestItem({
+      dh: 'DH-55',
+      endpoint: '/api/v1/residents/:residentId/transfer-ownership',
+      evidence: {
+        ownership_transfer_id: args.dh55OwnershipTransferId,
+        offboarding_report_id: args.dh55OffboardingReportId,
+        notification_cascade_evidence: args.dh55NotificationCascadeEvidence,
+      },
+    }),
+  });
 }
 
 function mergeDh61TrainingEvidence({
@@ -551,6 +763,96 @@ function captureLiveEvidence({
     });
   }
 
+  if (args.dh59ProviderConfigId || args.dh59FieldRolloutEvidenceId || args.dh59DrillType) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh59FieldRolloutEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
+  if (args.dh60ReportEvidenceId || args.dh60ReviewReportId || args.dh60AntiAbuseSummaryId) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh60SensitiveReportEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
+  if (args.dh57EmergencyRequestId || args.dh57ProviderDeliveryEvidenceId || args.dh57NotificationProvider) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh57ProviderDeliveryEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
+  if (args.dh56DsarRequestId || args.dh56PrivacyReadinessReportId || args.dh56NoBiometricsGuardChecked) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh56PrivacyEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
+  if (args.dh55OwnershipTransferId || args.dh55OffboardingReportId || args.dh55NotificationCascadeEvidence) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh55OwnershipEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
   const prepared = [];
   for (const requirement of requirements) {
     const item = getManifestItem(manifest, requirement.dh);
@@ -643,6 +945,7 @@ module.exports = {
   buildPayload,
   buildDh58ItemFromArtifact,
   buildDh61ItemFromTraining,
+  buildSimpleApiManifestItem,
   captureLiveEvidence,
   formatReport,
   parseArgs,
