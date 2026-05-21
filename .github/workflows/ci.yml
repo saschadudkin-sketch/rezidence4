@@ -271,6 +271,18 @@ jobs:
         run: docker compose -f docker-compose.yml --env-file ops/ci-dummy.env up -d
       - id: seed_v1_access
         run: docker compose -f docker-compose.yml exec -T backend node src/e2e/seedV1Access.js
+      - id: wait_frontend
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1/ >/dev/null; then
+              exit 0
+            fi
+            docker compose -f docker-compose.yml ps || true
+            sleep 2
+          done
+          docker compose -f docker-compose.yml ps -a || true
+          docker compose -f docker-compose.yml logs frontend || true
+          exit 1
       - id: v1_access_e2e
         env:
           E2E_V1_ACCESS: "1"
@@ -292,6 +304,9 @@ jobs:
           echo "::endgroup::"
           echo "::group::backend logs"
           docker compose -f docker-compose.yml logs backend || true
+          echo "::endgroup::"
+          echo "::group::frontend logs"
+          docker compose -f docker-compose.yml logs frontend || true
           echo "::endgroup::"
       - id: full_e2e
         run: npm run test:e2e -- e2e/
