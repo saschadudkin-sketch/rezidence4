@@ -141,6 +141,13 @@ describe('russia-live-evidence-capture script', () => {
       'DH-60',
       'DH-61',
     ]);
+    expect(manifest.items['DH-58'].capture_hint).toMatchObject({
+      source_type: 'api',
+      result_summary: 'GIS/OSS readiness export package accepted as non-authoritative release evidence.',
+    });
+    expect(manifest.items['DH-58'].capture_hint.source_refs).toContain(
+      'POST /api/v1/gis-oss/export-packages',
+    );
     expect(manifest.items['DH-55'].evidence.ownership_transfer_id).toBe('TODO');
   });
 

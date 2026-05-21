@@ -128,6 +128,9 @@ The initialized manifest contains `TODO` placeholders on purpose. It cannot be
 promoted into strict evidence until those placeholders are replaced with real
 staging/pilot IDs, source endpoints or report URIs. Existing manifests are not
 overwritten unless `--force` is passed.
+Each `items.<DH>.capture_hint` lists the expected API or runbook source, but it
+is not promoted to strict evidence. Copy only verified live/staging identifiers
+from the workflow result into `source`, `result` and `evidence`.
 
 After filling the manifest, dry-run validation first:
 
@@ -160,6 +163,14 @@ Minimal manifest shape:
   "captured_at": "2026-05-21T10:00:00.000Z",
   "items": {
     "DH-55": {
+      "capture_hint": {
+        "source_type": "api",
+        "source_refs": [
+          "POST /api/v1/residents/:id/transfer-ownership",
+          "GET /api/v1/residents/offboarding-report?property_id=<property_id>"
+        ],
+        "result_summary": "Ownership transfer/offboarding evidence accepted for release review."
+      },
       "source": {
         "type": "api",
         "endpoint": "/api/v1/residents/ownership-transfers/<id>"

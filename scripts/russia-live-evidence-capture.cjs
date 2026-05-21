@@ -10,6 +10,65 @@ const {
 const { repoRoot } = require('./e2e-env.cjs');
 
 const DH_REQUIREMENTS = LIVE_EVIDENCE_REQUIREMENTS.filter((requirement) => requirement.dh);
+const MANIFEST_CAPTURE_HINTS = {
+  'DH-55': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/residents/:id/transfer-ownership',
+      'GET /api/v1/residents/offboarding-report?property_id=<property_id>',
+    ],
+    result_summary: 'Ownership transfer/offboarding evidence accepted for release review.',
+  },
+  'DH-56': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/privacy/data-subject-requests',
+      'POST /api/v1/privacy/data-subject-requests/:id/complete',
+      'GET /api/v1/privacy/readiness',
+    ],
+    result_summary: 'DSAR workflow, privacy readiness and no-biometrics guard accepted for release review.',
+  },
+  'DH-57': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/requests/emergency/provider-delivery-evidence',
+      'GET /api/v1/requests/emergency/readiness',
+    ],
+    result_summary: 'Emergency provider delivery evidence accepted for release review.',
+  },
+  'DH-58': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/gis-oss/export-packages',
+      'GET /api/v1/gis-oss/export-packages/:packageId/artifact?property_id=<property_id>',
+    ],
+    result_summary: 'GIS/OSS readiness export package accepted as non-authoritative release evidence.',
+  },
+  'DH-59': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/skud/field-rollout-evidence',
+      'GET /api/v1/skud/provider-failures?property_id=<property_id>',
+    ],
+    result_summary: 'SKUD field rollout/provider failure evidence accepted for release review.',
+  },
+  'DH-60': {
+    source_type: 'api',
+    source_refs: [
+      'POST /api/v1/audit/sensitive-actions/_report-evidence',
+      'GET /api/v1/audit/sensitive-actions/_report-evidence?property_id=<property_id>',
+    ],
+    result_summary: 'Sensitive-action report evidence accepted for release review.',
+  },
+  'DH-61': {
+    source_type: 'runbook',
+    source_refs: [
+      'docs/runbooks/pilot-operations-training-pack.md',
+      'docs/runbooks/pilot-rollout.md',
+    ],
+    result_summary: 'Pilot operations training acceptance retained for release review.',
+  },
+};
 
 function parseArgs(argv = []) {
   return {
@@ -101,6 +160,11 @@ function buildManifestItemTemplate(requirement) {
     }
   }
   return {
+    capture_hint: MANIFEST_CAPTURE_HINTS[requirement.dh] || {
+      source_type: 'api',
+      source_refs: [],
+      result_summary: 'Retained live/staging evidence accepted for release review.',
+    },
     source: {
       type: 'TODO',
       endpoint: 'TODO',
