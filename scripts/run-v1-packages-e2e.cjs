@@ -7,6 +7,9 @@ const { buildE2EEnv, repoRoot } = require('./e2e-env.cjs');
 const node = process.execPath;
 const artifactDir = path.join(repoRoot, 'artifacts', 'release-gates');
 const artifactPath = path.join(artifactDir, 'test-e2e-v1-packages.json');
+const frontendPort = process.env.E2E_FRONTEND_PORT || '3134';
+const backendPort = process.env.E2E_BACKEND_PORT || '3135';
+const frontendUrl = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${frontendPort}`;
 
 function run(args, env) {
   const result = spawnSync(node, args, {
@@ -50,11 +53,16 @@ function writeArtifact(status) {
 
 const e2eEnv = buildE2EEnv({
   ...process.env,
+  E2E_BACKEND_PORT: backendPort,
+  E2E_FRONTEND_PORT: frontendPort,
   E2E_BACKEND_MODE: '1',
   E2E_V1_ACCESS: '1',
   E2E_V1_PACKAGES: '1',
   E2E_START_BACKEND: '1',
+  E2E_PROPERTY_TYPE: 'cottage_community',
   NOTIFICATIONS_OUTBOX_ENABLED: 'true',
+  PLAYWRIGHT_BASE_URL: frontendUrl,
+  PLAYWRIGHT_WEBSERVER_URL: process.env.PLAYWRIGHT_WEBSERVER_URL || frontendUrl,
   VITE_RUNTIME_MODE: 'live',
   VITE_ENABLE_DEMO: 'false',
 });
