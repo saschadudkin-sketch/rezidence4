@@ -18,14 +18,38 @@ if (scriptName === 'build') {
   env.VITE_RUNTIME_MODE = env.VITE_RUNTIME_MODE || 'live';
 }
 
+const RETRYABLE_INFRA_EXIT_CODES = new Set([3221225477]);
+const RETRYABLE_INFRA_ERROR_CODES = new Set(['EBUSY', 'EAGAIN', 'EPERM']);
+
+function shouldRetryInfraFailure(result, attempt) {
+  if (attempt > 1) return false;
+  if (result.error && RETRYABLE_INFRA_ERROR_CODES.has(result.error.code)) return true;
+  const status = result.status ?? 1;
+  return RETRYABLE_INFRA_EXIT_CODES.has(status);
+}
+
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: frontendDir,
-    env,
-    stdio: 'inherit',
-    shell: false,
-    ...options,
-  });
+  let result;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    result = spawnSync(command, args, {
+      cwd: frontendDir,
+      env,
+      stdio: 'inherit',
+      shell: false,
+      ...options,
+    });
+
+    if (shouldRetryInfraFailure(result, attempt)) {
+      const reason = result.error
+        ? `retryable infra error ${result.error.code}: ${result.error.message}`
+        : `retryable infra exit code ${result.status}`;
+      console.warn(`[run-frontend-script] ${scriptName} hit ${reason}; retrying once`);
+      continue;
+    }
+
+    break;
+  }
 
   if (result.error) {
     console.error(result.error.message);

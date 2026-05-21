@@ -46,6 +46,7 @@ const phaseTimeouts = {
   v1PackagesE2e: parsePositiveInt(process.env.STRICT_V1_PACKAGES_E2E_TIMEOUT_MS, 15 * 60 * 1000),
   v1ServiceExecutionE2e: parsePositiveInt(process.env.STRICT_V1_SERVICE_EXECUTION_E2E_TIMEOUT_MS, 15 * 60 * 1000),
 };
+const RETRYABLE_SPAWN_ERROR_CODES = new Set(['EBUSY', 'EAGAIN', 'EPERM']);
 
 const phases = [
   {
@@ -184,6 +185,7 @@ function runPhase(phase) {
         exit_code: null,
         signal: null,
         error: error.message,
+        error_code: error.code || null,
         started_at: startedAt,
         finished_at: new Date().toISOString(),
         duration_ms: Date.now() - startedAtMs,
@@ -225,6 +227,15 @@ async function runPhaseWithRetry(phase) {
       && attempt < 2
     ) {
       console.warn(`[verify:strict] ${phase.id} crashed before verdict; retrying once; exit_code=${result.exit_code}`);
+      continue;
+    }
+
+    if (
+      result.status === 'spawn_error'
+      && RETRYABLE_SPAWN_ERROR_CODES.has(result.error_code)
+      && attempt < 2
+    ) {
+      console.warn(`[verify:strict] ${phase.id} hit retryable spawn error ${result.error_code}; retrying once`);
       continue;
     }
 

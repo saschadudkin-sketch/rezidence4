@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { test, expect } = require('./test');
 const { buildE2EEnv } = require('../scripts/e2e-env.cjs');
+const { stubExternalFontAssets } = require('./support/externalAssets');
 
 const e2eEnv = buildE2EEnv(process.env);
 const enabled = e2eEnv.E2E_V1_OPERATIONS === '1' || e2eEnv.E2E_BACKEND_MODE === '1';
@@ -56,6 +57,7 @@ async function newAuthedPage(browser, baseURL, user) {
   const origin = originFromBaseURL(baseURL);
   const cookieUrl = new URL(origin);
   const context = await browser.newContext({ baseURL: origin });
+  await stubExternalFontAssets(context);
   await context.addCookies([
     {
       name: 'token',

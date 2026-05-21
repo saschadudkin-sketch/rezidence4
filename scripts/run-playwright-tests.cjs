@@ -191,8 +191,10 @@ async function startWebServer() {
     });
 
     if (launchError) {
-      if ((launchError.code === 'EPERM' || launchError.code === 'EACCES') && attempt < 3) {
-        console.warn(`[e2e] ${launchError.code} while launching webServer; retrying (${attempt}/3)`);
+      if (attempt < 3) {
+        infrastructureRetryCount += 1;
+        const reason = launchError.code || launchError.message;
+        console.warn(`[e2e] ${reason} while launching webServer; retrying (${attempt}/3)`);
         sleep(1500 * attempt);
         continue;
       }
@@ -204,6 +206,11 @@ async function startWebServer() {
     }
 
     child.kill();
+    if (attempt < 3) {
+      infrastructureRetryCount += 1;
+      console.warn(`[e2e] webServer did not become ready; retrying (${attempt}/3)`);
+      sleep(1500 * attempt);
+    }
   }
 
   throw new Error('webServer did not become ready');
@@ -229,10 +236,28 @@ async function main() {
   const hasRetriesOverride = forwardedArgs.some((arg) => arg === '--retries' || arg.startsWith('--retries='));
 
   if (usesExplicitSelection) {
-    status = runNode([playwrightCli, 'test', ...effectiveArgs], { retryLaunch: true });
-    if (status === 0 && failOnInfrastructureRetry && infrastructureRetryCount > 0) {
-      console.error(`[e2e] failing strict run because infrastructureRetries=${infrastructureRetryCount}`);
-      status = 1;
+    const needsWebServer = !forwardedArgs.some((arg) => (
+      arg === '--list'
+      || arg === '--ui'
+      || arg === '--debug'
+    ));
+    const webServer = needsWebServer && !process.env.PLAYWRIGHT_SKIP_WEBSERVER
+      ? await startWebServer()
+      : null;
+
+    try {
+      status = runNode([playwrightCli, 'test', ...effectiveArgs], {
+        retryLaunch: true,
+        extraEnv: needsWebServer ? { PLAYWRIGHT_SKIP_WEBSERVER: '1' } : {},
+      });
+      if (status === 0 && failOnInfrastructureRetry && infrastructureRetryCount > 0) {
+        console.error(`[e2e] failing strict run because infrastructureRetries=${infrastructureRetryCount}`);
+        status = 1;
+      }
+    } finally {
+      if (webServer && !webServer.killed) {
+        webServer.kill();
+      }
     }
     process.exit(status);
   }
