@@ -36,6 +36,7 @@ const { MIGRATIONS, LATEST_MIGRATION_ID } = require('./dbMigrations');
 // so legacy tables exist before any v1 FK that might later reference them.
 // IDs are prefixed `v1_` and never collide with legacy IDs in schema_migrations.
 const { V1_PROPERTY_MIGRATIONS } = require('./v1/migrations');
+const ALL_PROPERTY_MIGRATIONS = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS];
 
 // Platform database pool for property registry
 let platformPool = null;
@@ -62,12 +63,12 @@ function getPlatformDb() {
   return platformPool;
 }
 
-async function migrate() {
-  logger.info('[db] running versioned migrations...');
+async function runPropertyMigrationsOnPool(targetPool, { lockKey, label }) {
+  logger.info(`[${label}] running versioned migrations...`);
 
-  const client = await pool.connect();
+  const client = await targetPool.connect();
   try {
-    await withSessionAdvisoryLock(client, 'domhub:property:migrations', async () => {
+    await withSessionAdvisoryLock(client, lockKey, async () => {
       // Создаём таблицу версий если не существует (единственная bootstrapping операция)
       await client.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -82,10 +83,9 @@ async function migrate() {
       let ran = 0;
       // Legacy + v1 migrations share `schema_migrations` so idempotency is
       // tracked uniformly; the v1 prefix guarantees no ID collision.
-      const ALL_MIGRATIONS = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS];
-      for (const migration of ALL_MIGRATIONS) {
+      for (const migration of ALL_PROPERTY_MIGRATIONS) {
         if (appliedIds.has(migration.id)) {
-          logger.info(`[migrate] skip ${migration.id} (already applied)`);
+          logger.info(`[${label}] skip ${migration.id} (already applied)`);
           continue;
         }
 
@@ -99,20 +99,27 @@ async function migrate() {
           );
           await client.query('COMMIT');
           appliedIds.add(migration.id);
-          logger.info(`[migrate] applied ${migration.id}`);
+          logger.info(`[${label}] applied ${migration.id}`);
           ran++;
         } catch (err) {
           await client.query('ROLLBACK');
-          logger.fatal({ err }, `[migrate] FAILED at ${migration.id} — rolled back`);
+          logger.fatal({ err }, `[${label}] FAILED at ${migration.id} — rolled back`);
           throw err; // прерываем — не запускаем сервер с частичной схемой
         }
       }
 
-      logger.info(`[migrate] done (${ran} new, ${applied.length} skipped)`);
+      logger.info(`[${label}] done (${ran} new, ${applied.length} skipped)`);
     });
   } finally {
     client.release();
   }
+}
+
+async function migrate() {
+  return runPropertyMigrationsOnPool(pool, {
+    lockKey: 'domhub:property:migrations',
+    label: 'migrate',
+  });
 }
 
 // Platform database migrations
@@ -173,8 +180,47 @@ async function migratePlatform() {
   }
 }
 
+async function migrateActiveTenants() {
+  if (!process.env.PLATFORM_DB_URL) {
+    logger.info('[tenant-migrate] PLATFORM_DB_URL not set, skipping tenant migrations');
+    return;
+  }
+
+  const platformDb = getPlatformDb();
+  const { rows: properties } = await platformDb.query(
+    `SELECT slug, db_connection_url
+       FROM properties
+      WHERE COALESCE(is_active, true) = true
+        AND COALESCE(status, 'active') <> 'terminated'
+      ORDER BY slug`,
+  );
+
+  const seenConnectionStrings = new Set([process.env.DATABASE_URL].filter(Boolean));
+  for (const property of properties) {
+    if (!property.db_connection_url) continue;
+    if (seenConnectionStrings.has(property.db_connection_url)) continue;
+    seenConnectionStrings.add(property.db_connection_url);
+
+    const tenantPool = new Pool({
+      connectionString: property.db_connection_url,
+      max: 1,
+      idleTimeoutMillis: 1_000,
+      connectionTimeoutMillis: 5_000,
+      statement_timeout: 10_000,
+    });
+    try {
+      await runPropertyMigrationsOnPool(tenantPool, {
+        lockKey: `domhub:property:migrations:${property.slug}`,
+        label: `tenant-migrate:${property.slug}`,
+      });
+    } finally {
+      await tenantPool.end().catch(() => {});
+    }
+  }
+}
+
 async function assertSchemaCurrent() {
-  const requiredPropertyIds = [...MIGRATIONS, ...V1_PROPERTY_MIGRATIONS]
+  const requiredPropertyIds = ALL_PROPERTY_MIGRATIONS
     .map((migration) => migration.id)
     .filter(Boolean);
   if (!requiredPropertyIds.length) return;
@@ -252,6 +298,7 @@ module.exports = {
   query,
   migrate,
   migratePlatform,
+  migrateActiveTenants,
   pool,
   getPlatformDb,
   assertSchemaCurrent,

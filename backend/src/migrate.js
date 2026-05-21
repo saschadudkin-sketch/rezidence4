@@ -29,6 +29,9 @@ async function run() {
     // Then run property database migrations
     await db.migrate();
 
+    // Finally run migrations for active tenant databases from the platform registry.
+    await db.migrateActiveTenants();
+
     logger.info('[migrate] all migrations completed successfully');
     process.exit(0);
   } catch (err) {
