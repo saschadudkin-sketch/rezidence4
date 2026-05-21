@@ -58,6 +58,8 @@ No-go for real pilot sign-off until:
 
 Use `npm run tenant:backup-restore:evidence -- --write --refresh --preflight --drill --environment <staging|prod-candidate> --backup-reference <uri> --restore-target <target>` to refresh backup files, run restore preflight/drill and capture release-gate restore artifacts.
 
+Use `npm run verify:strict -- --environment <staging|prod-candidate>` to capture strict release evidence with the target environment instead of `local`.
+
 Use `npm run russia:readiness:evidence -- --write --environment <staging|prod-candidate> --property-slug <slug> --captured-by <owner> --log-reference <uri> --backup-reference <uri> --restore-target <target>` to generate the two staging command evidence files from matching release-gate artifacts. The command refuses to promote local artifacts to staging evidence.
 
 Local engineering readiness is green; operational release readiness is blocked on live evidence, not on the v1 application code path.

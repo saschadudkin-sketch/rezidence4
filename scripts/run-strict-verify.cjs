@@ -9,10 +9,34 @@ const { repoRoot } = require('./e2e-env.cjs');
 const node = process.execPath;
 const artifactDir = path.join(repoRoot, 'artifacts', 'release-gates');
 const artifactPath = path.join(artifactDir, 'verify-strict.json');
+const ALLOWED_ENVIRONMENTS = ['local', 'ci', 'staging', 'prod-candidate', 'pilot', 'production'];
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readOption(argv, name) {
+  const inline = argv.find((arg) => arg.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+  const index = argv.indexOf(name);
+  if (index >= 0 && argv[index + 1] && !argv[index + 1].startsWith('--')) return argv[index + 1];
+  return null;
+}
+
+function parseArgs(argv = []) {
+  const environment = readOption(argv, '--environment')
+    || process.env.RELEASE_GATE_ENVIRONMENT
+    || (process.env.CI ? 'ci' : 'local');
+  if (!ALLOWED_ENVIRONMENTS.includes(environment)) {
+    throw new Error(`--environment must be one of ${ALLOWED_ENVIRONMENTS.join(', ')}`);
+  }
+  return { environment };
+}
+
+function commandForArtifact(argv = []) {
+  const suffix = argv.length ? ` -- ${argv.join(' ')}` : '';
+  return `npm run verify:strict${suffix}`;
 }
 
 const phaseTimeouts = {
@@ -94,18 +118,22 @@ function isProcessCrashStatus(status) {
   return status === -1073741819 || status === 3221225477;
 }
 
-function writeArtifact(result) {
-  ensureArtifactDir();
-  fs.writeFileSync(artifactPath, `${JSON.stringify({
+function buildArtifact(result, options = {}) {
+  return {
     schema_version: 1,
-    command: 'npm run verify:strict',
+    command: options.command || 'npm run verify:strict',
     captured_at: new Date().toISOString(),
-    environment: process.env.CI ? 'ci' : 'local',
+    environment: options.environment || (process.env.CI ? 'ci' : 'local'),
     ok: result.ok,
     timed_out: result.timedOut,
     exit_code: result.exitCode,
     phases: result.phases,
-  }, null, 2)}\n`);
+  };
+}
+
+function writeArtifact(result, options = {}) {
+  ensureArtifactDir();
+  fs.writeFileSync(artifactPath, `${JSON.stringify(buildArtifact(result, options), null, 2)}\n`);
 }
 
 function runPhase(phase) {
@@ -212,7 +240,9 @@ async function runPhaseWithRetry(phase) {
   return attempts[attempts.length - 1];
 }
 
-async function main() {
+async function main(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  process.env.RELEASE_GATE_ENVIRONMENT = options.environment;
   const startedAtMs = Date.now();
   const completedPhases = [];
   let exitCode = 0;
@@ -235,13 +265,22 @@ async function main() {
     phases: completedPhases,
     durationMs: Date.now() - startedAtMs,
   };
-  writeArtifact(result);
+  writeArtifact(result, {
+    command: commandForArtifact(argv),
+    environment: options.environment,
+  });
   console.log(`[verify:strict] artifact=${path.relative(repoRoot, artifactPath)}`);
   process.exit(exitCode);
 }
 
 if (require.main === module) {
   main().catch((err) => {
+    let options = {};
+    try {
+      options = parseArgs(process.argv.slice(2));
+    } catch {
+      options = { environment: process.env.CI ? 'ci' : 'local' };
+    }
     const result = {
       ok: false,
       timedOut: false,
@@ -250,8 +289,18 @@ if (require.main === module) {
       error: err.stack || err.message,
       durationMs: 0,
     };
-    writeArtifact(result);
+    writeArtifact(result, {
+      command: commandForArtifact(process.argv.slice(2)),
+      environment: options.environment,
+    });
     console.error(`[verify:strict] ${err.stack || err.message}`);
     process.exit(1);
   });
 }
+
+module.exports = {
+  ALLOWED_ENVIRONMENTS,
+  buildArtifact,
+  commandForArtifact,
+  parseArgs,
+};
