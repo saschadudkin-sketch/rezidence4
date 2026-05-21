@@ -1,7 +1,12 @@
 'use strict';
 
 const path = require('path');
-const { buildE2EEnv } = require(path.resolve(__dirname, '..', '..', '..', 'scripts', 'e2e-env.cjs'));
+const fs = require('fs');
+
+const e2eEnvPath = path.resolve(__dirname, '..', '..', '..', 'scripts', 'e2e-env.cjs');
+const { buildE2EEnv } = fs.existsSync(e2eEnvPath)
+  ? require(e2eEnvPath)
+  : { buildE2EEnv: (env) => env };
 
 Object.assign(process.env, buildE2EEnv(process.env));
 
