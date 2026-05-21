@@ -52,9 +52,21 @@ describe('OperationsNav', () => {
     expect(screen.getByRole('link', { name: 'Онбординг' })).toHaveAttribute('href', '/v1/onboarding');
   });
 
-  test('contractor does not see staff/admin-only navigation', () => {
-    const { container } = renderNav('contractor', '/v1/contractor-workspace');
+  test('technician keeps a visible operations entry point even when only one item is allowed', () => {
+    renderNav('technician', '/v1/technician-workspace');
 
-    expect(container).toBeEmptyDOMElement();
+    const nav = screen.getByRole('navigation', { name: /пилотная навигация операций/i });
+    expect(nav).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Техник' })).toHaveAttribute('href', '/v1/technician-workspace');
+    expect(screen.queryByRole('link', { name: 'Staff' })).toBeNull();
+  });
+
+  test('contractor keeps a visible operations entry point without staff/admin-only navigation', () => {
+    renderNav('contractor', '/v1/contractor-workspace');
+
+    const nav = screen.getByRole('navigation', { name: /пилотная навигация операций/i });
+    expect(nav).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Подрядчик' })).toHaveAttribute('href', '/v1/contractor-workspace');
+    expect(screen.queryByRole('link', { name: 'Staff' })).toBeNull();
   });
 });
