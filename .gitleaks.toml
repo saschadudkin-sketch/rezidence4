@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "E2E tests use fixed JWT fixture secrets, not real credentials"
+paths = [
+  '''e2e/v1-service-execution-production\.spec\.js''',
+  '''e2e/v1-packages-production\.spec\.js''',
+  '''e2e/v1-operations-production\.spec\.js''',
+]
