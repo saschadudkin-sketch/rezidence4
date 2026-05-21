@@ -13,6 +13,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:restore-drill',
   'pilot:training-pack',
   'russia:readiness:evidence',
+  'russia:readiness:live-evidence',
 ];
 
 const READINESS_GROUPS = [
@@ -416,6 +417,13 @@ function validateLiveEvidencePayload(payload, requirement = {}) {
     failures.push('evidence object is required');
   } else {
     for (const key of requirement.evidenceKeys || []) {
+      if (
+        requirement.filename === 'dh61-training-pack.json'
+        && key === 'open_waivers'
+        && Array.isArray(payload.evidence[key])
+      ) {
+        continue;
+      }
       if (!hasMeaningfulValue(payload.evidence[key])) failures.push(`evidence.${key} is required`);
     }
     if (requirement.filename === 'dh58-gis-oss-package.json' && payload.evidence.legally_authoritative !== false) {

@@ -111,6 +111,52 @@ For `dh58-gis-oss-package.json`, `evidence.legally_authoritative` must be
    or raw document contents.
 3. Save the JSON files under `artifacts/russia-readiness/`.
 
+Recommended capture flow: collect the retained live/staging identifiers in one
+manifest and let the validator write the strict root files:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json
+```
+
+The manifest is not a waiver and does not mark work complete by itself. The
+script validates every DH-55 through DH-61 payload with the same strict contract
+used by `npm run russia:readiness -- --require-live`; if any required identifier
+or source reference is missing, it writes nothing.
+
+Minimal manifest shape:
+
+```json
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "property_slug": "zamoskv",
+  "captured_by": "release.owner@example.com",
+  "captured_at": "2026-05-21T10:00:00.000Z",
+  "items": {
+    "DH-55": {
+      "source": {
+        "type": "api",
+        "endpoint": "/api/v1/residents/ownership-transfers/<id>"
+      },
+      "result": {
+        "status": "passed",
+        "summary": "Ownership transfer/offboarding evidence accepted."
+      },
+      "evidence": {
+        "ownership_transfer_id": "<id>",
+        "offboarding_report_id": "<id>",
+        "notification_cascade_evidence": "<id-or-report-uri>"
+      }
+    }
+  }
+}
+```
+
+Include equivalent `items` entries for `DH-56` through `DH-61` before running
+with `--write`. The script can be dry-run without `--write`.
+
 For a full staging/prod-candidate packet, use the orchestrator:
 
 ```bash

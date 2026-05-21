@@ -190,4 +190,31 @@ describe('russia-readiness-check script', () => {
       'pii_policy must be no_personal_data_embedded',
     ]));
   });
+
+  test('strict live mode accepts no open training waivers as explicit evidence', () => {
+    const failures = validateLiveEvidencePayload(makeLiveEvidence({
+      dh: 'DH-61',
+      source: {
+        type: 'runbook',
+        runbook: 'docs/runbooks/pilot-operations-training-pack.md',
+      },
+      evidence: {
+        property_slug: 'pilot-property',
+        training_date: '2026-05-21',
+        accepted_by: 'pilot-owner@example.test',
+        open_waivers: [],
+      },
+    }), {
+      filename: 'dh61-training-pack.json',
+      dh: 'DH-61',
+      evidenceKeys: [
+        'property_slug',
+        'training_date',
+        'accepted_by',
+        'open_waivers',
+      ],
+    });
+
+    expect(failures).toEqual([]);
+  });
 });
