@@ -147,6 +147,35 @@ npm run russia:readiness:live-evidence -- \
   --manifest artifacts/russia-readiness/live-evidence-manifest.json
 ```
 
+### DH-58 GIS/OSS Artifact Helper
+
+For the GIS/OSS readiness item, download the JSON returned by:
+
+```text
+GET /api/v1/gis-oss/export-packages/:packageId/artifact?property_id=<property_id>
+```
+
+Then merge it into the manifest:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh58-artifact artifacts/russia-readiness/dh58-gis-oss-artifact.json \
+  --document-registry-id <external-or-operational-document-registry-id>
+```
+
+The helper verifies the artifact format and non-authoritative boundary. It still
+requires `--document-registry-id`; that identifier must come from the retained
+operator document registry or release evidence store, not from guesswork. Check
+only DH-58 afterward with:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh DH-58
+```
+
 The manifest is not a waiver and does not mark work complete by itself. The
 script validates every DH-55 through DH-61 payload with the same strict contract
 used by `npm run russia:readiness -- --require-live`; if any required identifier

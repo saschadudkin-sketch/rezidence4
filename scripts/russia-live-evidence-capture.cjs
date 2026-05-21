@@ -78,6 +78,9 @@ function parseArgs(argv = []) {
     propertySlug: readOption(argv, '--property-slug') || 'TODO',
     capturedBy: readOption(argv, '--captured-by') || 'TODO',
     initManifest: argv.includes('--init-manifest'),
+    dh58Artifact: readOption(argv, '--dh58-artifact'),
+    documentRegistryId: readOption(argv, '--document-registry-id'),
+    artifactUrl: readOption(argv, '--artifact-url'),
     force: argv.includes('--force'),
     write: argv.includes('--write'),
     json: argv.includes('--json'),
@@ -107,6 +110,10 @@ function readJson(filePath) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasText(value) {
+  return typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'todo';
 }
 
 function selectedRequirements(dhs) {
@@ -145,6 +152,129 @@ function writeJsonIfRequested({ root, relativePath, value, write }) {
     fs.writeFileSync(absolutePath, `${JSON.stringify(value, null, 2)}\n`);
   }
   return relativePath.replace(/\\/g, '/');
+}
+
+function validateDh58Artifact(artifact) {
+  const failures = [];
+  if (!isPlainObject(artifact)) return ['artifact must be a JSON object'];
+  if (artifact.artifact_format_version !== 'gis_oss_package_artifact.v1') {
+    failures.push('artifact_format_version must be gis_oss_package_artifact.v1');
+  }
+  if (!isPlainObject(artifact.export_package)) {
+    failures.push('export_package object is required');
+  } else {
+    if (!hasText(artifact.export_package.id)) failures.push('export_package.id is required');
+    if (!hasText(artifact.export_package.property_id)) failures.push('export_package.property_id is required');
+    if (artifact.export_package.legally_authoritative !== false) {
+      failures.push('export_package.legally_authoritative must be false');
+    }
+    if (artifact.export_package.certified_submission !== false) {
+      failures.push('export_package.certified_submission must be false');
+    }
+  }
+  if (!isPlainObject(artifact.legal_boundary)) {
+    failures.push('legal_boundary object is required');
+  } else {
+    if (artifact.legal_boundary.legally_authoritative !== false) {
+      failures.push('legal_boundary.legally_authoritative must be false');
+    }
+    if (artifact.legal_boundary.certified_submission !== false) {
+      failures.push('legal_boundary.certified_submission must be false');
+    }
+  }
+  if (!isPlainObject(artifact.payload) || artifact.payload.format_version !== 'gis_oss_readiness.v1') {
+    failures.push('payload.format_version must be gis_oss_readiness.v1');
+  }
+  return failures;
+}
+
+function buildDh58ItemFromArtifact({ artifact, documentRegistryId, artifactUrl }) {
+  const packageId = artifact.export_package.id;
+  const propertyId = artifact.export_package.property_id;
+  return {
+    capture_hint: MANIFEST_CAPTURE_HINTS['DH-58'],
+    source: {
+      type: 'api',
+      endpoint: artifactUrl || `/api/v1/gis-oss/export-packages/${packageId}/artifact?property_id=${propertyId}`,
+    },
+    result: {
+      status: 'passed',
+      summary: MANIFEST_CAPTURE_HINTS['DH-58'].result_summary,
+    },
+    evidence: {
+      export_package_id: packageId,
+      document_registry_id: documentRegistryId,
+      legally_authoritative: false,
+    },
+  };
+}
+
+function mergeDh58ArtifactEvidence({
+  root,
+  args,
+  manifest,
+  manifestRelativePath,
+}) {
+  const failures = [];
+  const artifactPath = path.isAbsolute(args.dh58Artifact)
+    ? args.dh58Artifact
+    : path.join(root, args.dh58Artifact);
+  let artifact;
+  try {
+    artifact = readJson(artifactPath);
+  } catch (err) {
+    return {
+      ok: false,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated: [],
+      failures: [`DH-58 artifact could not be read: ${err.message}`],
+    };
+  }
+
+  failures.push(...validateDh58Artifact(artifact).map((failure) => `DH-58: ${failure}`));
+  if (!hasText(args.documentRegistryId)) {
+    failures.push('DH-58: --document-registry-id is required');
+  }
+  if (failures.length) {
+    return {
+      ok: false,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated: [],
+      failures,
+    };
+  }
+
+  const updatedManifest = {
+    ...manifest,
+    items: {
+      ...(isPlainObject(manifest.items) ? manifest.items : {}),
+      'DH-58': buildDh58ItemFromArtifact({
+        artifact,
+        documentRegistryId: args.documentRegistryId,
+        artifactUrl: args.artifactUrl,
+      }),
+    },
+  };
+
+  return {
+    ok: true,
+    write: args.write,
+    outputDir: args.outputDir,
+    generated: [{
+      type: 'manifest-update',
+      dh: 'DH-58',
+      path: writeJsonIfRequested({
+        root,
+        relativePath: manifestRelativePath,
+        value: updatedManifest,
+        write: args.write,
+      }),
+      written: args.write,
+    }],
+    failures,
+  };
 }
 
 function buildManifestItemTemplate(requirement) {
@@ -290,6 +420,24 @@ function captureLiveEvidence({
     failures.push('manifest.schema_version must be 1');
   }
 
+  if (args.dh58Artifact) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh58ArtifactEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
   const prepared = [];
   for (const requirement of requirements) {
     const item = getManifestItem(manifest, requirement.dh);
@@ -380,7 +528,9 @@ if (require.main === module) {
 module.exports = {
   buildManifestTemplate,
   buildPayload,
+  buildDh58ItemFromArtifact,
   captureLiveEvidence,
   formatReport,
   parseArgs,
+  validateDh58Artifact,
 };

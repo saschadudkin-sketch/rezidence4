@@ -99,6 +99,33 @@ function makeManifest(overrides = {}) {
   };
 }
 
+function makeGisOssArtifact(overrides = {}) {
+  return {
+    artifact_format_version: 'gis_oss_package_artifact.v1',
+    export_package: {
+      id: 'export-package-123',
+      property_id: 'property-123',
+      package_type: 'oss_readiness',
+      title: 'OSS readiness May',
+      legally_authoritative: false,
+      certified_submission: false,
+    },
+    legal_boundary: {
+      legally_authoritative: false,
+      certified_submission: false,
+      notice: 'Readiness package only.',
+    },
+    manifest: {
+      package_payload_sha256: 'a'.repeat(64),
+      files: [],
+    },
+    payload: {
+      format_version: 'gis_oss_readiness.v1',
+    },
+    ...overrides,
+  };
+}
+
 describe('russia-live-evidence-capture script', () => {
   test('initializes a manifest template without writing strict live evidence', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-init-'));
@@ -197,6 +224,87 @@ describe('russia-live-evidence-capture script', () => {
       schema_version: 1,
       sentinel: true,
     });
+  });
+
+  test('updates DH-58 manifest item from a downloaded GIS/OSS artifact', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh58-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest({
+      items: {
+        'DH-58': {
+          source: { type: 'TODO', endpoint: 'TODO' },
+          result: { status: 'TODO', summary: 'TODO' },
+          evidence: {
+            export_package_id: 'TODO',
+            document_registry_id: 'TODO',
+            legally_authoritative: false,
+          },
+        },
+      },
+    }));
+    writeJson(path.join(root, 'gis-oss-artifact.json'), makeGisOssArtifact());
+
+    const merge = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh58-artifact', 'gis-oss-artifact.json',
+        '--document-registry-id', 'document-registry-123',
+      ],
+    });
+
+    expect(merge.ok).toBe(true);
+    expect(merge.generated).toEqual([{
+      type: 'manifest-update',
+      dh: 'DH-58',
+      path: 'manifest.json',
+      written: true,
+    }]);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+    expect(manifest.items['DH-58']).toMatchObject({
+      source: {
+        type: 'api',
+        endpoint: '/api/v1/gis-oss/export-packages/export-package-123/artifact?property_id=property-123',
+      },
+      result: {
+        status: 'passed',
+      },
+      evidence: {
+        export_package_id: 'export-package-123',
+        document_registry_id: 'document-registry-123',
+        legally_authoritative: false,
+      },
+    });
+
+    const validation = captureLiveEvidence({
+      root,
+      argv: ['--manifest', 'manifest.json', '--dh', 'DH-58'],
+    });
+    expect(validation.ok).toBe(true);
+    expect(validation.generated[0]).toMatchObject({
+      dh: 'DH-58',
+      path: 'artifacts/russia-readiness/dh58-gis-oss-package.json',
+      written: false,
+    });
+  });
+
+  test('refuses DH-58 artifact merge without an external document registry id', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh58-fail-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest());
+    writeJson(path.join(root, 'gis-oss-artifact.json'), makeGisOssArtifact());
+
+    const result = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh58-artifact', 'gis-oss-artifact.json',
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toEqual(['DH-58: --document-registry-id is required']);
   });
 
   test('writes strict DH-55 through DH-61 live evidence from a complete manifest', () => {
