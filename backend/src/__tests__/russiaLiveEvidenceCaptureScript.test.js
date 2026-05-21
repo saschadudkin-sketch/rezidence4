@@ -307,6 +307,115 @@ describe('russia-live-evidence-capture script', () => {
     expect(result.failures).toEqual(['DH-58: --document-registry-id is required']);
   });
 
+  test('updates DH-61 manifest item from training acceptance fields', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh61-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest({
+      items: {
+        'DH-61': {
+          source: { type: 'TODO', runbook: 'TODO' },
+          result: { status: 'TODO', summary: 'TODO' },
+          evidence: {
+            training_date: 'TODO',
+            accepted_by: 'TODO',
+            open_waivers: [],
+          },
+        },
+      },
+    }));
+
+    const merge = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh61-training-date', '2026-05-21',
+        '--dh61-accepted-by', 'pilot-owner@example.test',
+        '--dh61-open-waivers', 'DH-999,DH-1000',
+      ],
+    });
+
+    expect(merge.ok).toBe(true);
+    expect(merge.generated).toEqual([{
+      type: 'manifest-update',
+      dh: 'DH-61',
+      path: 'manifest.json',
+      written: true,
+    }]);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+    expect(manifest.items['DH-61']).toMatchObject({
+      source: {
+        type: 'runbook',
+        runbook: 'docs/runbooks/pilot-operations-training-pack.md',
+      },
+      result: {
+        status: 'accepted',
+      },
+      evidence: {
+        training_date: '2026-05-21',
+        accepted_by: 'pilot-owner@example.test',
+        open_waivers: ['DH-999', 'DH-1000'],
+      },
+    });
+
+    const validation = captureLiveEvidence({
+      root,
+      argv: ['--manifest', 'manifest.json', '--dh', 'DH-61'],
+    });
+    expect(validation.ok).toBe(true);
+    expect(validation.generated[0]).toMatchObject({
+      dh: 'DH-61',
+      path: 'artifacts/russia-readiness/dh61-training-pack.json',
+      written: false,
+    });
+  });
+
+  test('refuses DH-61 training merge without date and acceptance owner', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh61-fail-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest());
+
+    const result = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh61-training-date', 'not-a-date',
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toEqual([
+      'DH-61: --dh61-training-date must be YYYY-MM-DD',
+      'DH-61: --dh61-accepted-by is required',
+    ]);
+  });
+
+  test('writes explicit empty DH-61 waiver list when no waivers are provided', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-dh61-no-waivers-'));
+    writeJson(path.join(root, 'manifest.json'), makeManifest());
+
+    const merge = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'manifest.json',
+        '--dh61-training-date', '2026-05-21',
+        '--dh61-accepted-by', 'pilot-owner@example.test',
+      ],
+    });
+
+    expect(merge.ok).toBe(true);
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+    expect(manifest.items['DH-61']).toMatchObject({
+      result: {
+        status: 'passed',
+      },
+      evidence: {
+        open_waivers: [],
+      },
+    });
+  });
+
   test('writes strict DH-55 through DH-61 live evidence from a complete manifest', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-'));
     writeJson(path.join(root, 'manifest.json'), makeManifest());

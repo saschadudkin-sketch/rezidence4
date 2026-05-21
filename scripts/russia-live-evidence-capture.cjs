@@ -81,6 +81,10 @@ function parseArgs(argv = []) {
     dh58Artifact: readOption(argv, '--dh58-artifact'),
     documentRegistryId: readOption(argv, '--document-registry-id'),
     artifactUrl: readOption(argv, '--artifact-url'),
+    dh61TrainingDate: readOption(argv, '--dh61-training-date'),
+    dh61AcceptedBy: readOption(argv, '--dh61-accepted-by'),
+    dh61OpenWaivers: parseList(readOption(argv, '--dh61-open-waivers')),
+    dh61Runbook: readOption(argv, '--dh61-runbook') || 'docs/runbooks/pilot-operations-training-pack.md',
     force: argv.includes('--force'),
     write: argv.includes('--write'),
     json: argv.includes('--json'),
@@ -101,6 +105,14 @@ function parseDhList(value) {
   return String(value)
     .split(/[,\s]+/)
     .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function parseList(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
     .filter(Boolean);
 }
 
@@ -206,6 +218,89 @@ function buildDh58ItemFromArtifact({ artifact, documentRegistryId, artifactUrl }
       document_registry_id: documentRegistryId,
       legally_authoritative: false,
     },
+  };
+}
+
+function isIsoDateOnly(value) {
+  return typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`));
+}
+
+function buildDh61ItemFromTraining({ trainingDate, acceptedBy, openWaivers, runbook }) {
+  return {
+    capture_hint: MANIFEST_CAPTURE_HINTS['DH-61'],
+    source: {
+      type: 'runbook',
+      runbook,
+    },
+    result: {
+      status: openWaivers.length ? 'accepted' : 'passed',
+      summary: MANIFEST_CAPTURE_HINTS['DH-61'].result_summary,
+    },
+    evidence: {
+      training_date: trainingDate,
+      accepted_by: acceptedBy,
+      open_waivers: openWaivers,
+    },
+  };
+}
+
+function mergeDh61TrainingEvidence({
+  args,
+  manifest,
+  manifestRelativePath,
+  root,
+}) {
+  const failures = [];
+  if (!isIsoDateOnly(args.dh61TrainingDate)) {
+    failures.push('DH-61: --dh61-training-date must be YYYY-MM-DD');
+  }
+  if (!hasText(args.dh61AcceptedBy)) {
+    failures.push('DH-61: --dh61-accepted-by is required');
+  }
+  if (!hasText(args.dh61Runbook)) {
+    failures.push('DH-61: --dh61-runbook is required');
+  }
+  if (failures.length) {
+    return {
+      ok: false,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated: [],
+      failures,
+    };
+  }
+
+  const updatedManifest = {
+    ...manifest,
+    items: {
+      ...(isPlainObject(manifest.items) ? manifest.items : {}),
+      'DH-61': buildDh61ItemFromTraining({
+        trainingDate: args.dh61TrainingDate,
+        acceptedBy: args.dh61AcceptedBy,
+        openWaivers: args.dh61OpenWaivers,
+        runbook: args.dh61Runbook,
+      }),
+    },
+  };
+
+  return {
+    ok: true,
+    write: args.write,
+    outputDir: args.outputDir,
+    generated: [{
+      type: 'manifest-update',
+      dh: 'DH-61',
+      path: writeJsonIfRequested({
+        root,
+        relativePath: manifestRelativePath,
+        value: updatedManifest,
+        write: args.write,
+      }),
+      written: args.write,
+    }],
+    failures,
   };
 }
 
@@ -438,6 +533,24 @@ function captureLiveEvidence({
     });
   }
 
+  if (args.dh61TrainingDate || args.dh61AcceptedBy || args.dh61OpenWaivers.length) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    return mergeDh61TrainingEvidence({
+      root,
+      args,
+      manifest,
+      manifestRelativePath,
+    });
+  }
+
   const prepared = [];
   for (const requirement of requirements) {
     const item = getManifestItem(manifest, requirement.dh);
@@ -529,6 +642,7 @@ module.exports = {
   buildManifestTemplate,
   buildPayload,
   buildDh58ItemFromArtifact,
+  buildDh61ItemFromTraining,
   captureLiveEvidence,
   formatReport,
   parseArgs,

@@ -176,6 +176,30 @@ npm run russia:readiness:live-evidence -- \
   --dh DH-58
 ```
 
+### DH-61 Training Acceptance Helper
+
+After the pilot owner accepts the training pack and open waivers are known,
+merge DH-61 into the manifest:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh61-training-date <YYYY-MM-DD> \
+  --dh61-accepted-by <pilot-owner-or-release-owner> \
+  --dh61-open-waivers <comma-separated-waiver-ids>
+```
+
+Omit `--dh61-open-waivers` only when there are no open waivers. The helper writes
+an explicit empty `open_waivers` array in that case. Check only DH-61 afterward
+with:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --dh DH-61
+```
+
 The manifest is not a waiver and does not mark work complete by itself. The
 script validates every DH-55 through DH-61 payload with the same strict contract
 used by `npm run russia:readiness -- --require-live`; if any required identifier
