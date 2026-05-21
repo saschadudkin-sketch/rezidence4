@@ -324,7 +324,7 @@ function registerApiRoutes(app, { rateLimiters }) {
   app.use('/api/v1', v1AccessIncidentsRouter);
   app.use('/api/v1/audit', v1AuditReviewsRouter);
   app.use('/api/v1/skud', requireFeature('skud_integration'), v1SkudIntegrationsRouter);
-  app.use('/api/v1', requireFeature('video_evidence'), v1VideoEvidenceRouter);
+  app.use('/api/v1', v1VideoEvidenceRouter);
   app.use('/api/v1/erp', requireFeature('erp_exchange'), v1ErpExchangeRouter);
   app.use('/api/v1/gis-oss', requireFeature('gis_oss_readiness'), v1GisOssReadinessRouter);
 

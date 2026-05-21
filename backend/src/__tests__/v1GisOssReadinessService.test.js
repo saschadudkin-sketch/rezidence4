@@ -142,6 +142,8 @@ describe('GisOssReadinessService', () => {
     expect(JSON.parse(insert[1][9]).packaging.manifest.files).toEqual(expect.any(Array));
 
     const audit = queryable.query.mock.calls.find(([sql]) => sql.includes('INSERT INTO property_audit_log'));
+    expect(audit[0]).toContain('$4::uuid');
+    expect(audit[0]).toContain('$4::text');
     expect(audit[1][4]).toBe('gis_oss.export_package.generated');
     expect(JSON.parse(audit[1][5])).toMatchObject({
       document_count: 1,

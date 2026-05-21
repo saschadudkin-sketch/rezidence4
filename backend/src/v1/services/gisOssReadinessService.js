@@ -444,8 +444,8 @@ async function auditExport(queryable, {
     `INSERT INTO property_audit_log
        (property_id, actor_uid, actor_role, actor_type, entity_type, entity_id,
         action, resource_type, resource_id, changes, ip_address)
-     VALUES ($1,$2,$3,'staff','gis_oss_export_package',$4,
-             $5,'gis_oss_export_package',$4,$6,$7)`,
+     VALUES ($1,$2,$3,'staff','gis_oss_export_package',$4::uuid,
+             $5,'gis_oss_export_package',$4::text,$6,$7)`,
     [
       propertyId,
       user?.uid || null,
