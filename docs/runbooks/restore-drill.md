@@ -65,6 +65,32 @@ npm run tenant:restore-drill
 `platform`, `zamoskv`), последние snapshots, на pristine `postgres:16-alpine`,
 port `15432`.
 
+### Backup refresh + evidence helper
+
+Для staging/prod-candidate release packet можно одним helper'ом обновить
+backup, прогнать preflight/drill и записать runtime artifacts в
+`artifacts/release-gates/`:
+
+```bash
+npm run tenant:backup-restore:evidence -- \
+  --write \
+  --refresh \
+  --preflight \
+  --drill \
+  --environment staging \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+Helper пишет:
+
+- `artifacts/release-gates/tenant-restore-drill-preflight.json`
+- `artifacts/release-gates/tenant-restore-drill.json`
+
+Если backup refresh или preflight падает, helper останавливается до drill. Для
+диагностики failing evidence можно добавить `--write-failed`, но такой artifact
+должен оставлять release gate красным.
+
 ### Customisation
 
 ```bash
