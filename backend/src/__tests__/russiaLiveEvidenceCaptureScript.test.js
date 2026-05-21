@@ -100,6 +100,98 @@ function makeManifest(overrides = {}) {
 }
 
 describe('russia-live-evidence-capture script', () => {
+  test('initializes a manifest template without writing strict live evidence', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-init-'));
+
+    const result = captureLiveEvidence({
+      root,
+      now: new Date('2026-05-21T11:00:00.000Z'),
+      argv: [
+        '--write',
+        '--init-manifest',
+        '--manifest', 'artifacts/russia-readiness/live-evidence-manifest.json',
+        '--environment', 'staging',
+        '--property-slug', 'zamoskvorechye',
+        '--captured-by', 'release.owner@example.test',
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(formatReport(result)).toContain('[ok] manifest template initialized; replace TODO values before promotion');
+    expect(result.generated).toEqual([{
+      type: 'manifest-template',
+      path: 'artifacts/russia-readiness/live-evidence-manifest.json',
+      written: true,
+    }]);
+    expect(fs.existsSync(path.join(
+      root,
+      'artifacts/russia-readiness/dh55-ownership-transfer.json',
+    ))).toBe(false);
+
+    const manifest = JSON.parse(fs.readFileSync(
+      path.join(root, 'artifacts/russia-readiness/live-evidence-manifest.json'),
+      'utf8',
+    ));
+    expect(Object.keys(manifest.items)).toEqual([
+      'DH-55',
+      'DH-56',
+      'DH-57',
+      'DH-58',
+      'DH-59',
+      'DH-60',
+      'DH-61',
+    ]);
+    expect(manifest.items['DH-55'].evidence.ownership_transfer_id).toBe('TODO');
+  });
+
+  test('initialized manifest cannot be promoted before real evidence replaces placeholders', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-init-fail-'));
+    captureLiveEvidence({
+      root,
+      now: new Date('2026-05-21T11:00:00.000Z'),
+      argv: [
+        '--write',
+        '--init-manifest',
+        '--manifest', 'artifacts/russia-readiness/live-evidence-manifest.json',
+      ],
+    });
+
+    const result = captureLiveEvidence({
+      root,
+      argv: [
+        '--write',
+        '--manifest', 'artifacts/russia-readiness/live-evidence-manifest.json',
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures).toEqual(expect.arrayContaining([
+      expect.stringContaining('DH-55: captured_by is required'),
+      expect.stringContaining('evidence.ownership_transfer_id is required'),
+    ]));
+    expect(fs.existsSync(path.join(
+      root,
+      'artifacts/russia-readiness/dh55-ownership-transfer.json',
+    ))).toBe(false);
+  });
+
+  test('does not overwrite an existing manifest unless forced', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-init-existing-'));
+    writeJson(path.join(root, 'manifest.json'), { schema_version: 1, sentinel: true });
+
+    const result = captureLiveEvidence({
+      root,
+      argv: ['--write', '--init-manifest', '--manifest', 'manifest.json'],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.failures[0]).toContain('manifest already exists');
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'))).toEqual({
+      schema_version: 1,
+      sentinel: true,
+    });
+  });
+
   test('writes strict DH-55 through DH-61 live evidence from a complete manifest', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'domhub-live-evidence-'));
     writeJson(path.join(root, 'manifest.json'), makeManifest());

@@ -117,6 +117,30 @@ manifest and let the validator write the strict root files:
 ```bash
 npm run russia:readiness:live-evidence -- \
   --write \
+  --init-manifest \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json \
+  --environment staging \
+  --property-slug zamoskv \
+  --captured-by <release-owner>
+```
+
+The initialized manifest contains `TODO` placeholders on purpose. It cannot be
+promoted into strict evidence until those placeholders are replaced with real
+staging/pilot IDs, source endpoints or report URIs. Existing manifests are not
+overwritten unless `--force` is passed.
+
+After filling the manifest, dry-run validation first:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --manifest artifacts/russia-readiness/live-evidence-manifest.json
+```
+
+Then write the strict root files:
+
+```bash
+npm run russia:readiness:live-evidence -- \
+  --write \
   --manifest artifacts/russia-readiness/live-evidence-manifest.json
 ```
 

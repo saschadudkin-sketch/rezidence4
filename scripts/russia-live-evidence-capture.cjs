@@ -15,6 +15,11 @@ function parseArgs(argv = []) {
   return {
     manifest: readOption(argv, '--manifest'),
     outputDir: readOption(argv, '--output-dir') || 'artifacts/russia-readiness',
+    environment: readOption(argv, '--environment') || 'staging',
+    propertySlug: readOption(argv, '--property-slug') || 'TODO',
+    capturedBy: readOption(argv, '--captured-by') || 'TODO',
+    initManifest: argv.includes('--init-manifest'),
+    force: argv.includes('--force'),
     write: argv.includes('--write'),
     json: argv.includes('--json'),
     dhs: parseDhList(readOption(argv, '--dh')),
@@ -83,6 +88,48 @@ function writeJsonIfRequested({ root, relativePath, value, write }) {
   return relativePath.replace(/\\/g, '/');
 }
 
+function buildManifestItemTemplate(requirement) {
+  const evidence = {};
+  for (const key of requirement.evidenceKeys || []) {
+    if (key === 'property_slug') continue;
+    if (requirement.filename === 'dh58-gis-oss-package.json' && key === 'legally_authoritative') {
+      evidence[key] = false;
+    } else if (key === 'open_waivers') {
+      evidence[key] = [];
+    } else {
+      evidence[key] = 'TODO';
+    }
+  }
+  return {
+    source: {
+      type: 'TODO',
+      endpoint: 'TODO',
+      report_uri: 'TODO',
+    },
+    result: {
+      status: 'TODO',
+      summary: 'TODO',
+    },
+    evidence,
+  };
+}
+
+function buildManifestTemplate({ args, requirements, now = new Date() }) {
+  const items = {};
+  for (const requirement of requirements) {
+    items[requirement.dh] = buildManifestItemTemplate(requirement);
+  }
+  return {
+    schema_version: 1,
+    environment: args.environment,
+    property_slug: args.propertySlug,
+    captured_by: args.capturedBy,
+    captured_at: now.toISOString(),
+    pii_policy: 'no_personal_data_embedded',
+    items,
+  };
+}
+
 function captureLiveEvidence({
   root = repoRoot,
   argv = process.argv.slice(2),
@@ -102,9 +149,58 @@ function captureLiveEvidence({
     };
   }
 
+  const requirements = selectedRequirements(args.dhs);
+  if (args.dhs && requirements.length !== args.dhs.length) {
+    const known = new Set(DH_REQUIREMENTS.map((requirement) => requirement.dh));
+    for (const dh of args.dhs.filter((item) => !known.has(item))) {
+      failures.push(`${dh}: unknown DH id`);
+    }
+  }
+
   const manifestPath = path.isAbsolute(args.manifest)
     ? args.manifest
     : path.join(root, args.manifest);
+  const manifestRelativePath = path.relative(root, manifestPath).replace(/\\/g, '/');
+
+  if (args.initManifest) {
+    if (failures.length) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures,
+      };
+    }
+    if (fs.existsSync(manifestPath) && !args.force) {
+      return {
+        ok: false,
+        write: args.write,
+        outputDir: args.outputDir,
+        generated,
+        failures: [`manifest already exists: ${manifestRelativePath}; pass --force to overwrite`],
+      };
+    }
+    const manifestTemplate = buildManifestTemplate({ args, requirements, now });
+    generated.push({
+      type: 'manifest-template',
+      path: writeJsonIfRequested({
+        root,
+        relativePath: manifestRelativePath,
+        value: manifestTemplate,
+        write: args.write,
+      }),
+      written: args.write,
+    });
+    return {
+      ok: true,
+      write: args.write,
+      outputDir: args.outputDir,
+      generated,
+      failures,
+    };
+  }
+
   let manifest;
   try {
     manifest = readJson(manifestPath);
@@ -128,14 +224,6 @@ function captureLiveEvidence({
   }
   if (manifest.schema_version !== 1) {
     failures.push('manifest.schema_version must be 1');
-  }
-
-  const requirements = selectedRequirements(args.dhs);
-  if (args.dhs && requirements.length !== args.dhs.length) {
-    const known = new Set(DH_REQUIREMENTS.map((requirement) => requirement.dh));
-    for (const dh of args.dhs.filter((item) => !known.has(item))) {
-      failures.push(`${dh}: unknown DH id`);
-    }
   }
 
   const prepared = [];
@@ -190,12 +278,17 @@ function formatReport(result) {
   const lines = ['[russia-live-evidence-capture]'];
   lines.push(result.write ? '[mode] write' : '[mode] dry-run');
   for (const item of result.generated) {
-    lines.push(`[${item.written ? 'write' : 'dry'}] ${item.dh} ${item.path}`);
+    const label = item.dh || item.type || 'evidence';
+    lines.push(`[${item.written ? 'write' : 'dry'}] ${label} ${item.path}`);
   }
   for (const failure of result.failures) {
     lines.push(`[fail] ${failure}`);
   }
-  if (result.ok) lines.push('[ok] live evidence payloads passed strict validation');
+  if (result.ok && result.generated.every((item) => item.type === 'manifest-template')) {
+    lines.push('[ok] manifest template initialized; replace TODO values before promotion');
+  } else if (result.ok) {
+    lines.push('[ok] live evidence payloads passed strict validation');
+  }
   return lines.join('\n');
 }
 
@@ -221,6 +314,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildManifestTemplate,
   buildPayload,
   captureLiveEvidence,
   formatReport,
