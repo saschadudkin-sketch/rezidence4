@@ -96,6 +96,7 @@ const RELEASE_GATES = [
     scripts: ['backend:test', 'tenant:preflight:current', 'pilot:training-pack', 'russia:readiness'],
     evidence: [
       'scripts/russia-readiness-check.cjs',
+      'scripts/russia-readiness-evidence.cjs',
       'docs/product/specs/domhub-russia-production-readiness-spec.md',
       'docs/product/specs/domhub-security-threat-model.md',
       'docs/product/specs/platform-v1/resident-ownership-transfer-spec.md',

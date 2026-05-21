@@ -110,11 +110,34 @@ For `dh58-gis-oss-package.json`, `evidence.legally_authoritative` must be
    evidence. Do not embed resident personal data, vehicle plates, phone numbers
    or raw document contents.
 3. Save the JSON files under `artifacts/russia-readiness/`.
-4. Run:
+4. Generate command evidence from retained staging/prod-candidate release-gate
+   artifacts:
+
+```bash
+npm run russia:readiness:evidence -- \
+  --write \
+  --environment staging \
+  --property-slug <pilot-property> \
+  --captured-by <release-owner> \
+  --log-reference <ci-or-release-log-uri> \
+  --backup-reference <backup-set-uri-or-id> \
+  --restore-target <restore-drill-target>
+```
+
+The generator refuses to convert `local` runtime artifacts into `staging` or
+`prod-candidate` evidence. Source artifacts under `artifacts/release-gates/`
+must already have the same `environment` as the target packet.
+
+Use `--templates` with the command above, or `--templates-only` before command
+evidence exists, to write DH-55 through DH-61 JSON templates under
+`artifacts/russia-readiness/templates/`. Templates are intentionally not written
+to the strict root filenames because they are not live evidence.
+
+5. Run:
 
 ```bash
 npm run russia:readiness -- --require-live
 ```
 
-5. Attach the strict gate output and the retained JSON packet to the release
+6. Attach the strict gate output and the retained JSON packet to the release
    review.

@@ -56,4 +56,6 @@ No-go for real pilot sign-off until:
 3. `artifacts/russia-readiness/` contains the DH-55 through DH-61 evidence files plus staging `verify:strict` and restore-drill evidence.
 4. `npm run russia:readiness -- --require-live --live-dir artifacts/russia-readiness` passes.
 
+Use `npm run russia:readiness:evidence -- --write --environment <staging|prod-candidate> --property-slug <slug> --captured-by <owner> --log-reference <uri> --backup-reference <uri> --restore-target <target>` to generate the two staging command evidence files from matching release-gate artifacts. The command refuses to promote local artifacts to staging evidence.
+
 Local engineering readiness is green; operational release readiness is blocked on live evidence, not on the v1 application code path.

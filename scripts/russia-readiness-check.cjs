@@ -12,6 +12,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'tenant:restore-drill:preflight',
   'tenant:restore-drill',
   'pilot:training-pack',
+  'russia:readiness:evidence',
 ];
 
 const READINESS_GROUPS = [
@@ -158,6 +159,7 @@ const SHARED_EVIDENCE = [
   'docs/runbooks/pilot-operations-training-pack.md',
   'docs/runbooks/russia-readiness-evidence-capture.md',
   'scripts/pilot-training-pack-check.cjs',
+  'scripts/russia-readiness-evidence.cjs',
   'scripts/release-gate-matrix.cjs',
   'scripts/pilot-readiness-check.cjs',
   'e2e/v1-access-production.spec.js',

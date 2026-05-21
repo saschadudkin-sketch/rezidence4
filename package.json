@@ -29,6 +29,7 @@
     "pilot:training-pack": "node scripts/pilot-training-pack-check.cjs",
     "pilot:readiness": "node scripts/pilot-readiness-check.cjs",
     "russia:readiness": "node scripts/russia-readiness-check.cjs",
+    "russia:readiness:evidence": "node scripts/russia-readiness-evidence.cjs",
     "e2e": "node scripts/run-playwright-tests.cjs",
     "test:e2e:v1-access": "node scripts/run-v1-access-e2e.cjs",
     "test:e2e:v1-operations": "node scripts/run-v1-operations-e2e.cjs",
