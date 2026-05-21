@@ -233,9 +233,12 @@ services:
       - |
         mkdir -p /backups
         chmod 0700 /backups
-        chmod +x /backup.sh
+        # /backup.sh is mounted read-only and may come from a Windows checkout.
+        # Normalize it inside the container before cron execution.
+        tr -d '\r' < /backup.sh > /tmp/backup.sh
+        chmod 0700 /tmp/backup.sh
         # Создаём crontab: 03:00 UTC каждый день
-        echo "0 3 * * * /backup.sh >> /var/log/backup.log 2>&1" | crontab -
+        echo "0 3 * * * sh /tmp/backup.sh >> /var/log/backup.log 2>&1" | crontab -
         echo "[backup] cron scheduled: daily at 03:00 UTC, BACKUP_DIR=/backups (0700)"
         # Запускаем crond в foreground
         exec crond -f -d 8

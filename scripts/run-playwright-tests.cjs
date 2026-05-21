@@ -9,6 +9,8 @@ const node = process.execPath;
 const preflight = path.join(repoRoot, 'scripts', 'playwright-preflight.cjs');
 const playwrightCli = path.join(repoRoot, 'node_modules', '@playwright', 'test', 'cli.js');
 const webServerScript = path.join(repoRoot, 'scripts', 'run-playwright-webserver.cjs');
+const defaultWebServerURL = 'http://127.0.0.1:3000/';
+const webServerURL = process.env.PLAYWRIGHT_WEBSERVER_URL || defaultWebServerURL;
 const forwardedArgs = process.argv.slice(2);
 const runOutputRoot = path.join('test-results', `e2e-${Date.now()}-${process.pid}`);
 const failOnInfrastructureRetry = process.env.E2E_FAIL_ON_INFRA_RETRY === '1'
@@ -125,7 +127,7 @@ function runNode(args, { retryLaunch = false, extraEnv = {} } = {}) {
 
 function canReachWebServer() {
   return new Promise((resolve) => {
-    const req = http.get('http://127.0.0.1:3000/', (res) => {
+    const req = http.get(webServerURL, (res) => {
       res.resume();
       resolve(res.statusCode >= 200 && res.statusCode < 500);
     });

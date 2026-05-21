@@ -26,7 +26,7 @@
 1. Docker daemon доступен (`docker info` отвечает).
 2. В `./backups/` есть `*_latest.sql.gz` для всех БД из `BACKUP_DATABASES`. Если нет — запустить вручную:
    ```bash
-   docker compose run --rm backup /backup.sh
+   docker compose run --rm --entrypoint sh backup -c "tr -d '\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh"
    ls -la backups/*_latest.sql.gz
    ```
 3. ~500 MB свободного диска (pristine postgres data + restored БД).
@@ -131,7 +131,7 @@ PG_IMAGE=postgres:17-alpine bash scripts/restore-drill.sh
 
 | Exit | Что произошло | Действие |
 |---|---|---|
-| 1 | Backup файлы отсутствуют | Запустить `docker compose run --rm backup /backup.sh`; проверить cron в backup-контейнере |
+| 1 | Backup файлы отсутствуют | Запустить `docker compose run --rm --entrypoint sh backup -c "tr -d '\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh"`; проверить cron в backup-контейнере |
 | 2 | `pg_restore` failure | Прочитать `/tmp/restore_<db>.log`; чаще всего — несовместимость version postgres (drill image vs prod) |
 | 3 | Invariant check failed | Backup есть, restore прошёл, но в БД пусто/мало данных. **Срочно**: проверить prod backup-контейнер логи (`docker compose logs backup`) — возможно, уже неделю пишет пустые dump'ы |
 | 4 | Docker недоступен | Запустить Docker Desktop (Windows/Mac) или `sudo systemctl start docker` (Linux) |

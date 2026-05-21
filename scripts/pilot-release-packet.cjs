@@ -71,6 +71,7 @@ function buildPlan(options) {
       args: [
         scriptPath('backup-restore-evidence.cjs'),
         '--write',
+        '--write-failed',
         '--refresh',
         '--preflight',
         '--drill',

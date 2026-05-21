@@ -9,6 +9,7 @@ const { repoRoot } = require('./e2e-env.cjs');
 const DEFAULT_ARTIFACT_DIR = 'artifacts/release-gates';
 const DEFAULT_BACKUP_DIR = './backups';
 const DEFAULT_DATABASES = ['residenze', 'platform', 'zamoskv'];
+const DEFAULT_STEP_TIMEOUT_MS = 10 * 60 * 1000;
 const ALLOWED_ENVIRONMENTS = ['local', 'staging', 'prod-candidate', 'pilot', 'production'];
 
 function parseArgs(argv = []) {
@@ -29,7 +30,13 @@ function parseArgs(argv = []) {
     backupReference: readOption(argv, '--backup-reference'),
     restoreTarget: readOption(argv, '--restore-target'),
     pgImage: readOption(argv, '--pg-image'),
+    stepTimeoutMs: parsePositiveInt(readOption(argv, '--step-timeout-ms'), DEFAULT_STEP_TIMEOUT_MS),
   };
+}
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function readOption(argv, name) {
@@ -63,14 +70,18 @@ function runProcess(command, args, options = {}) {
     encoding: 'utf8',
     stdio: 'pipe',
     shell: options.shell || false,
+    timeout: options.timeoutMs || DEFAULT_STEP_TIMEOUT_MS,
   });
+  const timedOut = result.error?.code === 'ETIMEDOUT';
   return {
     command,
     args,
-    exitCode: result.status ?? (result.error ? 1 : 0),
+    exitCode: result.status ?? (timedOut ? 124 : (result.error ? 1 : 0)),
     error: result.error ? result.error.message : null,
     stdout: result.stdout || '',
     stderr: result.stderr || '',
+    signal: result.signal || null,
+    timedOut,
   };
 }
 
@@ -166,14 +177,27 @@ function runBackupRefresh(options, spawn = runProcess) {
     BACKUP_DIR: path.resolve(repoRoot, options.backupDir),
     BACKUP_DATABASES: options.databases.join(' '),
   };
-  return spawn('docker', ['compose', 'run', '--rm', 'backup', '/backup.sh'], {
+  return spawn('docker', [
+    'compose',
+    'run',
+    '--rm',
+    '--entrypoint',
+    'sh',
+    'backup',
+    '-c',
+    "tr -d '\\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh",
+  ], {
     cwd: repoRoot,
     env,
+    timeoutMs: options.stepTimeoutMs,
   });
 }
 
 function runPreflight(options, spawn = runProcess) {
-  return spawn(process.execPath, buildPreflightArgs(options), { cwd: repoRoot });
+  return spawn(process.execPath, buildPreflightArgs(options), {
+    cwd: repoRoot,
+    timeoutMs: options.stepTimeoutMs,
+  });
 }
 
 function runDrill(options, spawn = runProcess) {
@@ -186,6 +210,7 @@ function runDrill(options, spawn = runProcess) {
   return spawn(process.execPath, [path.join(repoRoot, 'scripts', 'restore-drill.cjs')], {
     cwd: repoRoot,
     env,
+    timeoutMs: options.stepTimeoutMs,
   });
 }
 
@@ -210,6 +235,7 @@ function runBackupRestoreEvidence({
       id: 'backup-refresh',
       ok: result.exitCode === 0,
       exit_code: result.exitCode,
+      timed_out: Boolean(result.timedOut),
       command: commandString(result.command, result.args),
       stdout_tail: tail(result.stdout),
       stderr_tail: tail(result.stderr || result.error),
@@ -251,6 +277,7 @@ function runBackupRestoreEvidence({
       id: 'restore-drill-preflight',
       ok: result.exitCode === 0,
       exit_code: result.exitCode,
+      timed_out: Boolean(result.timedOut),
       artifact: pathWritten,
       evidence,
       stdout_tail: tail(result.stdout),
@@ -287,6 +314,7 @@ function runBackupRestoreEvidence({
       id: 'restore-drill',
       ok: result.exitCode === 0,
       exit_code: result.exitCode,
+      timed_out: Boolean(result.timedOut),
       artifact: pathWritten,
       evidence,
       stdout_tail: tail(result.stdout),

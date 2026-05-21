@@ -55,7 +55,7 @@ discover_backup_targets() {
 backup_one() {
   LABEL="$1"
   TARGET="$2"
-  SAFE_LABEL=$(echo "$LABEL" | tr -c 'A-Za-z0-9_.-' '_')
+  SAFE_LABEL=$(printf '%s' "$LABEL" | tr -c 'A-Za-z0-9_.-' '_')
   FNAME="${BACKUP_DIR}/${SAFE_LABEL}_${DATE}.sql.gz"
   TMP_SQL="/tmp/backup_${SAFE_LABEL}_$$.sql"
   echo "[backup] $(date '+%Y-%m-%d %H:%M:%S') — starting backup of ${LABEL}@${DB_HOST}..."

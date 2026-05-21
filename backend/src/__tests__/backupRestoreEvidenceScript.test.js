@@ -153,4 +153,43 @@ RTO summary:
     });
     expect(spawn.calls).toHaveLength(1);
   });
+
+  test('propagates step timeout and records timed out backup refresh', () => {
+    const spawn = makeSpawn([
+      {
+        exitCode: 124,
+        stdout: '',
+        stderr: '',
+        error: 'spawnSync docker ETIMEDOUT',
+        timedOut: true,
+        command: 'docker',
+        args: [],
+      },
+    ]);
+
+    const result = runBackupRestoreEvidence({
+      spawn,
+      argv: ['--refresh', '--step-timeout-ms', '1234'],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(spawn.calls[0].options.timeoutMs).toBe(1234);
+    expect(spawn.calls[0].args).toEqual([
+      'compose',
+      'run',
+      '--rm',
+      '--entrypoint',
+      'sh',
+      'backup',
+      '-c',
+      "tr -d '\\r' < /backup.sh > /tmp/backup.sh && sh /tmp/backup.sh",
+    ]);
+    expect(result.steps[0]).toMatchObject({
+      id: 'backup-refresh',
+      ok: false,
+      exit_code: 124,
+      timed_out: true,
+      stderr_tail: 'spawnSync docker ETIMEDOUT',
+    });
+  });
 });

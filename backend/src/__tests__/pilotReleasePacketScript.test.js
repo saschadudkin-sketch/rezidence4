@@ -36,6 +36,7 @@ describe('pilot-release-packet script', () => {
       'russia-live-readiness',
     ]);
     expect(plan[0].args).toEqual(expect.arrayContaining(['--environment', 'staging']));
+    expect(plan[1].args).toEqual(expect.arrayContaining(['--write', '--write-failed']));
     expect(plan[2].args).toEqual(expect.arrayContaining(['--templates']));
   });
 
