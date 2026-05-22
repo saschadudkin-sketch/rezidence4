@@ -102,9 +102,52 @@ function requestRow(page, testId, requestId) {
   return page.locator(`[data-testid="${testId}"][data-request-id="${requestId}"]`);
 }
 
+async function postV1(page, path, data = {}) {
+  const origin = new URL(page.url()).origin;
+  return page.request.post(path, {
+    headers: {
+      Origin: origin,
+      'X-CSRF-Token': csrfToken,
+    },
+    data,
+  });
+}
+
+async function openWorkspaceViaRoleNavigation(page, { linkName, urlPattern, headingName }) {
+  await page.goto('/v1');
+  const nav = page.getByRole('navigation', { name: 'Пилотная навигация операций' });
+  await expect(nav).toBeVisible();
+  await nav.getByRole('link', { name: linkName }).click();
+  await expect(page).toHaveURL(urlPattern);
+  await expect(page.getByRole('heading', { name: headingName })).toBeVisible();
+}
+
+async function openStaffWorkspaceViaRoleNavigation(page) {
+  await openWorkspaceViaRoleNavigation(page, {
+    linkName: 'Staff',
+    urlPattern: /\/v1\/staff-workspace$/,
+    headingName: 'Рабочее место staff',
+  });
+}
+
+async function openTechnicianWorkspaceViaRoleNavigation(page) {
+  await openWorkspaceViaRoleNavigation(page, {
+    linkName: 'Техник',
+    urlPattern: /\/v1\/technician-workspace$/,
+    headingName: 'Рабочее место техника',
+  });
+}
+
+async function openContractorWorkspaceViaRoleNavigation(page) {
+  await openWorkspaceViaRoleNavigation(page, {
+    linkName: 'Подрядчик',
+    urlPattern: /\/v1\/contractor-workspace$/,
+    headingName: 'Портал подрядчика',
+  });
+}
+
 async function createCanonicalRequest(page, requestComment) {
-  await page.goto('/v1/staff-workspace');
-  await expect(page.getByRole('heading', { name: 'Рабочее место staff' })).toBeVisible();
+  await openStaffWorkspaceViaRoleNavigation(page);
   await expect(page.getByText('Canonical requests')).toBeVisible();
 
   await page.locator('#staff-canonical-category-code').fill('plumber');
@@ -154,8 +197,7 @@ async function getContractorUserId(page, propertyId) {
 }
 
 async function assignContractor(page, requestId, contractorUserId) {
-  await page.goto('/v1/contractor-workspace');
-  await expect(page.getByRole('heading', { name: 'Портал подрядчика' })).toBeVisible();
+  await openContractorWorkspaceViaRoleNavigation(page);
   const form = page.getByTestId('contractor-assignment-form');
   await form.locator('#contractor-assign-request-id').fill(requestId);
   await form.locator('#contractor-assign-user-id').fill(contractorUserId);
@@ -172,8 +214,7 @@ async function assignContractor(page, requestId, contractorUserId) {
 }
 
 async function executeTechnicianWork(page, requestId, resolutionNote) {
-  await page.goto('/v1/technician-workspace');
-  await expect(page.getByRole('heading', { name: 'Рабочее место техника' })).toBeVisible();
+  await openTechnicianWorkspaceViaRoleNavigation(page);
   const row = requestRow(page, 'technician-task-row', requestId);
   await expect(row).toBeVisible();
   await row.click();
@@ -216,8 +257,7 @@ async function executeTechnicianWork(page, requestId, resolutionNote) {
 }
 
 async function executeContractorWork(page, requestId, resolutionNote) {
-  await page.goto('/v1/contractor-workspace');
-  await expect(page.getByRole('heading', { name: 'Портал подрядчика' })).toBeVisible();
+  await openContractorWorkspaceViaRoleNavigation(page);
   const row = requestRow(page, 'contractor-job-row', requestId);
   await expect(row).toBeVisible();
   await row.click();
@@ -305,8 +345,7 @@ test.describe('platform-v1 service execution production e2e', () => {
         `Phase8 contractor resolution ${stamp}`,
       );
 
-      await admin.page.goto('/v1/staff-workspace');
-      await expect(admin.page.getByRole('heading', { name: 'Рабочее место staff' })).toBeVisible();
+      await openStaffWorkspaceViaRoleNavigation(admin.page);
       await admin.page.locator('#staff-search').fill(String(stamp));
       await expect(admin.page.locator(`[data-testid="staff-request-row"][data-request-id="${technicianRequest.id}"]`)).toBeVisible();
       await admin.page.locator(`[data-testid="staff-request-row"][data-request-id="${technicianRequest.id}"]`).click();
@@ -316,6 +355,58 @@ test.describe('platform-v1 service execution production e2e', () => {
       await expect(admin.page.getByText(`Phase8 contractor resolution ${stamp}`).first()).toBeVisible();
 
       expect(runtimeErrors).toEqual([]);
+    } finally {
+      await Promise.all(contexts.map((context) => context.close().catch(() => {})));
+    }
+  });
+
+  test('service execution role and stale-state errors stay understandable', async ({ browser, baseURL }) => {
+    const contexts = [];
+    const stamp = Date.now();
+
+    try {
+      const admin = await newAuthedPage(browser, baseURL, USERS.admin);
+      const technician = await newAuthedPage(browser, baseURL, USERS.technician);
+      const contractor = await newAuthedPage(browser, baseURL, USERS.contractor);
+      contexts.push(admin.context, technician.context, contractor.context);
+
+      const request = await createCanonicalRequest(
+        admin.page,
+        `Phase8 technician stale execution ${stamp}`,
+      );
+      await assignTechnician(admin.page, request.id);
+
+      await openContractorWorkspaceViaRoleNavigation(contractor.page);
+      const forbiddenTechnicianStart = await postV1(
+        contractor.page,
+        `/api/v1/technician-workspace/requests/${request.id}/start`,
+      );
+      expect(forbiddenTechnicianStart.status()).toBe(403);
+
+      await openTechnicianWorkspaceViaRoleNavigation(technician.page);
+      const row = requestRow(technician.page, 'technician-task-row', request.id);
+      await expect(row).toBeVisible();
+      await row.click();
+      await expect(technician.page.getByRole('button', { name: 'Начать' })).toBeVisible();
+
+      const directStart = await postV1(
+        technician.page,
+        `/api/v1/technician-workspace/requests/${request.id}/start`,
+      );
+      expect(directStart.status()).toBe(200);
+
+      const conflictResponse = technician.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/technician-workspace/requests/${request.id}/start`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 409,
+      );
+      await technician.page.getByRole('button', { name: 'Начать' }).click();
+      const conflict = await (await conflictResponse).json();
+      expect(conflict.error).toContain('Request cannot be started');
+      await expect(
+        technician.page.getByText('Задача уже изменилась. Детали обновляются; проверьте актуальный статус и повторите действие.'),
+      ).toBeVisible();
+      await expect(technician.page.getByText(/Request cannot be started/)).toHaveCount(0);
     } finally {
       await Promise.all(contexts.map((context) => context.close().catch(() => {})));
     }
