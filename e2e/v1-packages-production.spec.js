@@ -101,10 +101,34 @@ function attachRuntimeGuards(page, errors) {
   });
 }
 
+async function openStaffPackagesViaRoleNavigation(page) {
+  await page.goto('/v1');
+  await expect(page).toHaveURL(/\/v1\/guard$/);
+  await expect(page.getByRole('heading', { name: 'Пост КПП' })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Пилотная навигация операций' })
+    .getByRole('link', { name: 'Посылки' })
+    .click();
+  await expect(page).toHaveURL(/\/v1\/packages$/);
+  await expect(page.getByRole('heading', { name: 'Посылки' })).toBeVisible();
+}
+
+async function openResidentPackagesViaRoleNavigation(page) {
+  await page.goto('/v1');
+  await expect(page).toHaveURL(/\/v1\/access$/);
+  await expect(page.getByRole('heading', { name: /Пропуска|Доступ/i })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Навигация жильца' })
+    .getByRole('link', { name: 'Мои посылки' })
+    .click();
+  await expect(page).toHaveURL(/\/v1\/my\/packages$/);
+  await expect(page.getByRole('heading', { name: 'Мои посылки' })).toBeVisible();
+}
+
 test.describe('platform-v1 packages production e2e', () => {
   test.skip(!enabled, 'backend-backed v1 packages e2e is enabled with E2E_V1_PACKAGES=1');
 
-  test('security receives a package, resident sees it, security picks it up, resident sees completion', async ({ browser, baseURL }) => {
+  test('security receives a package through role nav, resident sees it, security picks it up, resident sees completion', async ({ browser, baseURL }) => {
     const contexts = [];
     const runtimeErrors = [];
     const stamp = Date.now();
@@ -121,8 +145,7 @@ test.describe('platform-v1 packages production e2e', () => {
       attachRuntimeGuards(security.page, runtimeErrors);
       attachRuntimeGuards(resident.page, runtimeErrors);
 
-      await security.page.goto('/v1/packages');
-      await expect(security.page.getByRole('heading', { name: 'Посылки' })).toBeVisible();
+      await openStaffPackagesViaRoleNavigation(security.page);
       await expect(security.page.getByRole('link', { name: 'КПП' })).toHaveAttribute('href', '/v1/guard');
 
       await security.page.getByRole('button', { name: '+ Принять посылку' }).click();
@@ -155,8 +178,7 @@ test.describe('platform-v1 packages production e2e', () => {
       await expect(awaitingRow).toHaveAttribute('data-package-status', 'awaiting_pickup');
       await expect(awaitingRow).toContainText(storage);
 
-      await resident.page.goto('/v1/my/packages');
-      await expect(resident.page.getByRole('heading', { name: 'Мои посылки' })).toBeVisible();
+      await openResidentPackagesViaRoleNavigation(resident.page);
       const residentAwaitingRow = residentPackageRow(resident.page, tracking);
       await expect(residentAwaitingRow).toBeVisible();
       await expect(residentAwaitingRow).toHaveAttribute('data-package-status', 'awaiting_pickup');
