@@ -78,7 +78,7 @@ export function OperationsNav() {
   const role = normalizeUserRole(user.role);
   const visibleItems = ITEMS.filter((item) => item.allow.has(role));
 
-  if (visibleItems.length <= 1) return null;
+  if (visibleItems.length === 0) return null;
 
   return (
     <nav aria-label="Пилотная навигация операций">

@@ -3,6 +3,7 @@
 const express = require('express');
 const db = require('../../db');
 const requireAuth = require('../../middleware/auth');
+const requireFeature = require('../../middleware/requireFeature');
 const { canInPropertyScope } = require('../lib/authz');
 const {
   createVideoProviderConfig,
@@ -17,7 +18,11 @@ const {
 } = require('../services/videoEvidenceService');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(
+  ['/video-evidence', '/video', '/access-incidents/:incidentId/video-evidence'],
+  requireFeature('video_evidence'),
+  requireAuth,
+);
 
 const getDb = (req) => req.db || db;
 

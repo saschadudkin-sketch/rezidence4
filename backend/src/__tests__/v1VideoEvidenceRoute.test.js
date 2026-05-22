@@ -29,6 +29,7 @@ function buildApp() {
   const app = express();
   app.use(express.json());
   app.use('/api/v1', videoEvidenceRouter);
+  app.use((_req, res) => res.status(404).json({ error: 'not found' }));
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     res.status(500).json({ error: String(err && err.message || err) });
@@ -79,6 +80,37 @@ beforeEach(() => {
 });
 
 describe('v1 video evidence route', () => {
+  test('disabled video evidence gate does not block unrelated root-mounted v1 paths', async () => {
+    const app = express();
+    app.use((req, _res, next) => {
+      req.property = { resolvedFlags: { video_evidence: false } };
+      next();
+    });
+    app.use('/api/v1', videoEvidenceRouter);
+    app.use((_req, res) => res.status(404).json({ error: 'not found' }));
+
+    const res = await supertest(app)
+      .get('/api/v1/gis-oss/boundary');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('not found');
+  });
+
+  test('disabled video evidence gate still hides video endpoints', async () => {
+    const app = express();
+    app.use((req, _res, next) => {
+      req.property = { resolvedFlags: { video_evidence: false } };
+      next();
+    });
+    app.use('/api/v1', videoEvidenceRouter);
+
+    const res = await supertest(app)
+      .get(`/api/v1/video-evidence/${EVIDENCE_ID}?property_id=${PROPERTY_ID}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('FEATURE_DISABLED');
+  });
+
   test('security can attach evidence to an incident and writes audit', async () => {
     mockCurrentUser = { uid: 'security-1', role: 'security', property_id: PROPERTY_ID };
     db.query.mockImplementation((sql) => {
