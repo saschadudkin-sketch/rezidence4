@@ -63,15 +63,41 @@ function commandString(command, args = []) {
   return [command, ...args].join(' ');
 }
 
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isProcessCrashStatus(status) {
+  return status === -1073741819 || status === 3221225477;
+}
+
+function isRetryableSpawnError(error) {
+  return ['EBUSY', 'EAGAIN', 'EPERM'].includes(error?.code);
+}
+
 function runProcess(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd || repoRoot,
-    env: options.env || process.env,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    shell: options.shell || false,
-    timeout: options.timeoutMs || DEFAULT_STEP_TIMEOUT_MS,
-  });
+  let result;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    result = spawnSync(command, args, {
+      cwd: options.cwd || repoRoot,
+      env: options.env || process.env,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      shell: options.shell || false,
+      timeout: options.timeoutMs || DEFAULT_STEP_TIMEOUT_MS,
+    });
+
+    if (
+      !isProcessCrashStatus(result.status)
+      && !isRetryableSpawnError(result.error)
+    ) {
+      break;
+    }
+    if (attempt === 3) break;
+    sleep(1500 * attempt);
+  }
+
   const timedOut = result.error?.code === 'ETIMEDOUT';
   return {
     command,

@@ -27,12 +27,28 @@ function formatTail(value) {
   return String(value || '').trim().slice(-2000);
 }
 
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function isProcessCrashStatus(status) {
+  return status === -1073741819 || status === 3221225477;
+}
+
 function runDocker(args, { capture = true, allowFailure = false } = {}) {
-  const result = spawnSync('docker', args, {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: capture ? 'pipe' : 'inherit',
-  });
+  let result;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    result = spawnSync('docker', args, {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: capture ? 'pipe' : 'inherit',
+    });
+
+    if (!isProcessCrashStatus(result.status) || attempt === 3) break;
+    console.warn(`[drill] docker command crashed before verdict; retrying (${attempt}/3)`);
+    sleep(1500 * attempt);
+  }
 
   if (result.error) throw result.error;
   if (result.status !== 0 && !allowFailure) {
@@ -40,6 +56,47 @@ function runDocker(args, { capture = true, allowFailure = false } = {}) {
     throw new Error(`docker ${args.join(' ')} failed with exit ${result.status}${tail ? `\n${tail}` : ''}`);
   }
   return result;
+}
+
+function restoreDatabase({ backupDir, container, database, image, network, password, user }) {
+  const latestPath = `/backups/${database}_latest.sql.gz`;
+  const hostPath = path.join(backupDir, `${database}_latest.sql.gz`);
+  const restoreCommand = `gunzip -c ${shQuote(latestPath)} | psql -h ${shQuote(container)} -U ${shQuote(user)} -d ${shQuote(database)} -v ON_ERROR_STOP=1 >/tmp/restore.log`;
+  const mountedRestore = runDocker([
+    'run',
+    '--rm',
+    '--network',
+    network,
+    '-v',
+    `${backupDir}:/backups:ro`,
+    '-e',
+    `PGPASSWORD=${password}`,
+    image,
+    'sh',
+    '-c',
+    restoreCommand,
+  ], { allowFailure: true });
+
+  if (mountedRestore.status === 0) return;
+
+  const tail = [formatTail(mountedRestore.stdout), formatTail(mountedRestore.stderr)]
+    .filter(Boolean)
+    .join('\n');
+  console.warn(`[drill] bind mount restore failed for ${database}; falling back to docker cp${tail ? `\n${tail}` : ''}`);
+
+  const containerDir = '/tmp/restore-drill';
+  const containerPath = `${containerDir}/${database}_latest.sql.gz`;
+  runDocker(['exec', container, 'mkdir', '-p', containerDir]);
+  runDocker(['cp', hostPath, `${container}:${containerPath}`]);
+  runDocker([
+    'exec',
+    '-e',
+    `PGPASSWORD=${password}`,
+    container,
+    'sh',
+    '-c',
+    `gunzip -c ${shQuote(containerPath)} | psql -U ${shQuote(user)} -d ${shQuote(database)} -v ON_ERROR_STOP=1 >/tmp/restore.log`,
+  ]);
 }
 
 function cleanup({ container, network }) {
@@ -159,20 +216,7 @@ async function main(env = process.env) {
       const restoreStartedAt = Date.now();
       const latestPath = `/backups/${database}_latest.sql.gz`;
       console.log(`[drill] restoring ${database} from ${latestPath}`);
-      runDocker([
-        'run',
-        '--rm',
-        '--network',
-        network,
-        '-v',
-        `${backupDir}:/backups:ro`,
-        '-e',
-        `PGPASSWORD=${password}`,
-        image,
-        'sh',
-        '-c',
-        `gunzip -c ${shQuote(latestPath)} | psql -h ${shQuote(container)} -U ${shQuote(user)} -d ${shQuote(database)} -v ON_ERROR_STOP=1 >/tmp/restore.log`,
-      ]);
+      restoreDatabase({ backupDir, container, database, image, network, password, user });
       const seconds = Math.max(1, Math.round((Date.now() - restoreStartedAt) / 1000));
       rto.set(database, seconds);
       console.log(`[drill] ${database} restored in ${seconds}s`);
