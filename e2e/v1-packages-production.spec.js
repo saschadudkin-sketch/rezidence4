@@ -20,6 +20,16 @@ const USERS = {
     role: 'security',
     name: 'E2E Security',
   },
+  concierge: {
+    uid: 'e2e-v1-concierge',
+    role: 'concierge',
+    name: 'E2E Concierge',
+  },
+  admin: {
+    uid: 'e2e-v1-admin',
+    role: 'admin',
+    name: 'E2E Property Admin',
+  },
 };
 
 function base64urlJson(value) {
@@ -103,14 +113,45 @@ function attachRuntimeGuards(page, errors) {
 
 async function openStaffPackagesViaRoleNavigation(page) {
   await page.goto('/v1');
-  await expect(page).toHaveURL(/\/v1\/guard$/);
-  await expect(page.getByRole('heading', { name: 'Пост КПП' })).toBeVisible();
   await page
     .getByRole('navigation', { name: 'Пилотная навигация операций' })
     .getByRole('link', { name: 'Посылки' })
     .click();
   await expect(page).toHaveURL(/\/v1\/packages$/);
   await expect(page.getByRole('heading', { name: 'Посылки' })).toBeVisible();
+}
+
+async function receivePackageFromOpenStaffPage(page, input) {
+  await page.getByRole('button', { name: '+ Принять посылку' }).click();
+  const createForm = page.getByTestId('package-create-form');
+  await expect(createForm).toBeVisible();
+
+  const unitSelect = createForm.locator('#pkg-unit');
+  await expect(unitSelect.locator('option', { hasText: '101' }).first()).toHaveCount(1);
+  const unitValue = await unitSelect.locator('option', { hasText: '101' }).first().getAttribute('value');
+  expect(unitValue).toMatch(/^[0-9a-f-]{36}$/i);
+  await unitSelect.selectOption(unitValue);
+  await createForm.locator('#pkg-recipient').fill(input.recipientName || 'E2E Resident');
+  await createForm.locator('#pkg-sender').fill(input.sender);
+  await createForm.locator('#pkg-carrier').fill(input.carrier || 'Phase6 courier');
+  await createForm.locator('#pkg-tracking').fill(input.tracking);
+  await createForm.locator('#pkg-storage').fill(input.storage);
+  await createForm.locator('#pkg-notes').fill(input.notes || 'Phase 6 package intake browser e2e');
+
+  const createResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/v1/packages') &&
+    response.request().method() === 'POST' &&
+    response.status() === 201,
+  );
+  await createForm.getByRole('button', { name: 'Принять посылку' }).click();
+  const created = await (await createResponse).json();
+  expect(created.package.status).toBe('awaiting_pickup');
+
+  const awaitingRow = packageRow(page, input.tracking);
+  await expect(awaitingRow).toBeVisible();
+  await expect(awaitingRow).toHaveAttribute('data-package-status', 'awaiting_pickup');
+  await expect(awaitingRow).toContainText(input.storage);
+  return { created, awaitingRow };
 }
 
 async function openResidentPackagesViaRoleNavigation(page) {
@@ -160,35 +201,16 @@ test.describe('platform-v1 packages production e2e', () => {
       await openStaffPackagesViaRoleNavigation(security.page);
       await expect(security.page.getByRole('link', { name: 'КПП' })).toHaveAttribute('href', '/v1/guard');
 
-      await security.page.getByRole('button', { name: '+ Принять посылку' }).click();
-      const createForm = security.page.getByTestId('package-create-form');
-      await expect(createForm).toBeVisible();
-
-      const unitSelect = createForm.locator('#pkg-unit');
-      await expect(unitSelect.locator('option', { hasText: '101' }).first()).toHaveCount(1);
-      const unitValue = await unitSelect.locator('option', { hasText: '101' }).first().getAttribute('value');
-      expect(unitValue).toMatch(/^[0-9a-f-]{36}$/i);
-      await unitSelect.selectOption(unitValue);
-      await createForm.locator('#pkg-recipient').fill('E2E Resident');
-      await createForm.locator('#pkg-sender').fill(sender);
-      await createForm.locator('#pkg-carrier').fill(carrier);
-      await createForm.locator('#pkg-tracking').fill(tracking);
-      await createForm.locator('#pkg-storage').fill(storage);
-      await createForm.locator('#pkg-notes').fill('Phase 6 package intake browser e2e');
-
-      const createResponse = security.page.waitForResponse((response) =>
-        response.url().includes('/api/v1/packages') &&
-        response.request().method() === 'POST' &&
-        response.status() === 201,
-      );
-      await createForm.getByRole('button', { name: 'Принять посылку' }).click();
-      const created = await (await createResponse).json();
-      expect(created.package.status).toBe('awaiting_pickup');
-
-      const awaitingRow = packageRow(security.page, tracking);
-      await expect(awaitingRow).toBeVisible();
-      await expect(awaitingRow).toHaveAttribute('data-package-status', 'awaiting_pickup');
-      await expect(awaitingRow).toContainText(storage);
+      const { created, awaitingRow } = await receivePackageFromOpenStaffPage(security.page, {
+        tracking,
+        sender,
+        carrier,
+        storage,
+      });
+      await expect(awaitingRow.getByRole('button', { name: 'Выдать' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Возврат' })).toHaveCount(0);
+      await expect(awaitingRow.getByRole('button', { name: 'Напомнить' })).toHaveCount(0);
+      await expect(awaitingRow.getByRole('button', { name: 'Утеряна' })).toHaveCount(0);
 
       await openResidentPackagesViaRoleNavigation(resident.page);
       const residentAwaitingRow = residentPackageRow(resident.page, tracking);
@@ -222,6 +244,132 @@ test.describe('platform-v1 packages production e2e', () => {
       await expect(residentPickedUpRow).toHaveAttribute('data-package-status', 'picked_up');
       await expect(residentPickedUpRow).toContainText('Получено');
       await expect(residentPickedUpRow).toContainText(pickupName);
+
+      expect(runtimeErrors).toEqual([]);
+    } finally {
+      await Promise.all(contexts.map((context) => context.close().catch(() => {})));
+    }
+  });
+
+  test('concierge can remind and return a package but cannot mark it lost', async ({ browser, baseURL }) => {
+    const contexts = [];
+    const runtimeErrors = [];
+    const stamp = Date.now();
+    const tracking = `PW-PKG-CON-${stamp}`;
+    const sender = `Concierge sender ${stamp}`;
+    const storage = `C-${String(stamp).slice(-4)}`;
+    const reason = `E2E concierge return ${stamp}`;
+
+    try {
+      const concierge = await newAuthedPage(browser, baseURL, USERS.concierge);
+      contexts.push(concierge.context);
+      attachRuntimeGuards(concierge.page, runtimeErrors);
+
+      await openStaffPackagesViaRoleNavigation(concierge.page);
+      await expect(concierge.page).toHaveURL(/\/v1\/packages$/);
+
+      const { created, awaitingRow } = await receivePackageFromOpenStaffPage(concierge.page, {
+        tracking,
+        sender,
+        carrier: 'Concierge courier',
+        storage,
+        notes: 'Concierge return/remind browser e2e',
+      });
+      await expect(awaitingRow.getByRole('button', { name: 'Выдать' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Возврат' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Напомнить' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Утеряна' })).toHaveCount(0);
+
+      const remindResponse = concierge.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/remind`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+      );
+      await awaitingRow.getByRole('button', { name: 'Напомнить' }).click();
+      const reminded = await (await remindResponse).json();
+      expect(reminded.package.status).toBe('awaiting_pickup');
+      await expect(awaitingRow.getByText(/Напоминание отправлено/)).toBeVisible();
+
+      await awaitingRow.getByRole('button', { name: 'Возврат' }).click();
+      const returnReason = awaitingRow.locator('#return-reason');
+      await expect(returnReason).toBeVisible();
+      await returnReason.fill(reason);
+      const returnResponse = concierge.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/return`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+      );
+      await awaitingRow.getByRole('button', { name: 'Оформить возврат' }).click();
+      const returned = await (await returnResponse).json();
+      expect(returned.package.status).toBe('returned');
+      expect(returned.package.returned_reason).toBe(reason);
+
+      await concierge.page.locator('#pkg-status').selectOption('returned');
+      const returnedRow = packageRow(concierge.page, tracking);
+      await expect(returnedRow).toBeVisible();
+      await expect(returnedRow).toHaveAttribute('data-package-status', 'returned');
+      await expect(returnedRow).toContainText('возвращена');
+
+      expect(runtimeErrors).toEqual([]);
+    } finally {
+      await Promise.all(contexts.map((context) => context.close().catch(() => {})));
+    }
+  });
+
+  test('admin can use full package operations including mark-lost', async ({ browser, baseURL }) => {
+    const contexts = [];
+    const runtimeErrors = [];
+    const stamp = Date.now();
+    const tracking = `PW-PKG-ADM-${stamp}`;
+    const sender = `Admin sender ${stamp}`;
+    const storage = `L-${String(stamp).slice(-4)}`;
+    const reason = `E2E admin lost ${stamp}`;
+
+    try {
+      const admin = await newAuthedPage(browser, baseURL, USERS.admin);
+      contexts.push(admin.context);
+      attachRuntimeGuards(admin.page, runtimeErrors);
+
+      await openStaffPackagesViaRoleNavigation(admin.page);
+      await expect(admin.page).toHaveURL(/\/v1\/packages$/);
+
+      const { created, awaitingRow } = await receivePackageFromOpenStaffPage(admin.page, {
+        tracking,
+        sender,
+        carrier: 'Admin courier',
+        storage,
+        notes: 'Admin mark-lost browser e2e',
+      });
+      await expect(awaitingRow.getByRole('button', { name: 'Выдать' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Возврат' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Напомнить' })).toBeVisible();
+      await expect(awaitingRow.getByRole('button', { name: 'Утеряна' })).toBeVisible();
+
+      await awaitingRow.getByRole('button', { name: 'Утеряна' }).click();
+      const lostReason = awaitingRow.locator('#lost-reason');
+      await expect(lostReason).toBeVisible();
+      await lostReason.fill(reason);
+      const markLostResponse = admin.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/mark-lost`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+      );
+      let dialogMessage = '';
+      admin.page.once('dialog', async (dialog) => {
+        dialogMessage = dialog.message();
+        await dialog.accept();
+      });
+      await awaitingRow.getByRole('button', { name: 'Подтвердить утерю' }).click();
+      const lost = await (await markLostResponse).json();
+      expect(dialogMessage).toContain('утерянную');
+      expect(lost.package.status).toBe('lost');
+      expect(lost.package.returned_reason).toBe(reason);
+
+      await admin.page.locator('#pkg-status').selectOption('lost');
+      const lostRow = packageRow(admin.page, tracking);
+      await expect(lostRow).toBeVisible();
+      await expect(lostRow).toHaveAttribute('data-package-status', 'lost');
+      await expect(lostRow).toContainText('утеряна');
 
       expect(runtimeErrors).toEqual([]);
     } finally {
