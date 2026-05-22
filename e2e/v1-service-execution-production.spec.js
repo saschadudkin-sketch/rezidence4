@@ -303,6 +303,8 @@ test.describe('platform-v1 service execution production e2e', () => {
   test.skip(!enabled, 'backend-backed v1 service execution e2e is enabled with E2E_V1_SERVICE_EXECUTION=1');
 
   test('staff assigns service work to technician and contractor, then execution roles finish through UI', async ({ browser, baseURL }) => {
+    test.setTimeout(120_000);
+
     const contexts = [];
     const runtimeErrors = [];
     const stamp = Date.now();

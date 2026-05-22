@@ -146,6 +146,11 @@ const broadTypeAllowlist = Object.freeze([
     reason: 'v1Client error body may be plain text before JSON parsing succeeds',
   },
   {
+    relPath: 'frontend/src/v1/api/client.ts',
+    pattern: /V1ApiErrorPayload \| string \| null, status: number/,
+    reason: 'v1Client error message extraction consumes the same parsed plain-text error body',
+  },
+  {
     relPath: 'frontend/src/v1/api/staff.ts',
     pattern: /role\?: StaffRole \| string;/,
     reason: 'staff CSV import accepts raw role strings before preview validation',

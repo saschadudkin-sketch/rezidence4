@@ -296,6 +296,24 @@ describe('v1 access incidents/overrides route — Phase 1.4 audit', () => {
     expect(overridesReadCall[1]).toEqual([UUID_INCIDENT, UUID_PROPERTY]);
   });
 
+  test('status contract endpoint refuses transition back to open after scope check', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
+    db.query.mockImplementation((sql) => {
+      if (String(sql).includes('SELECT property_id FROM access_incidents')) {
+        return Promise.resolve({ rows: [{ property_id: UUID_PROPERTY }] });
+      }
+      throw new Error(`unexpected SQL: ${sql}`);
+    });
+
+    const res = await supertest(buildApp())
+      .post(`/api/v1/access-incidents/${UUID_INCIDENT}/status`)
+      .send({ status: 'open' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('Cannot transition incident to open');
+    expect(db.pool.connect).not.toHaveBeenCalled();
+  });
+
   test('override detail reads override within owned property scope', async () => {
     mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_PROPERTY };
     db.query.mockImplementation((sql) => {

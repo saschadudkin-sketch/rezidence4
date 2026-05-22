@@ -542,6 +542,26 @@ describe('v1 accessRequests route — Phase 1.1 request lifecycle', () => {
     expect(passCall[1]).toEqual([UUID_REQUEST, UUID_PROPERTY]);
   });
 
+  test('GET / lists staff-visible requests inside property scope with filters and pagination', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY };
+    db.query.mockResolvedValueOnce({
+      rows: [accessRequestRow({ status: 'pending_approval' })],
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/access-requests?property_id=${UUID_PROPERTY}&status=pending_approval&limit=25&offset=5`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.access_requests).toHaveLength(1);
+    expect(res.body.page.limit).toBe(25);
+    expect(res.body.page.offset).toBe(5);
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toContain('FROM access_requests');
+    expect(sql).toContain('property_id = $1');
+    expect(sql).toContain('status = $2');
+    expect(params).toEqual([UUID_PROPERTY, 'pending_approval', 25, 5]);
+  });
+
   test('manual approval setting keeps non-contractor request pending and does not issue pass', async () => {
     mockCurrentUser = { uid: 'legacy-resident-1', role: 'owner' };
     const row = accessRequestRow({ status: 'pending_approval', approval_required: true });

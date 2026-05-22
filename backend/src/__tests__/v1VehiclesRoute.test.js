@@ -162,6 +162,27 @@ describe('v1 vehicles route resource-scope checks', () => {
     expect(db.query.mock.calls[1][1]).toEqual([UUID_VEHICLE, UUID_PROPERTY_A]);
   });
 
+  test('GET /vehicles/by-plate/:plate normalizes plate and keeps lookup in property scope', async () => {
+    mockCurrentUser = { uid: 'security-1', role: 'security', property_id: UUID_PROPERTY_A };
+    db.query.mockResolvedValueOnce({
+      rows: [{
+        id: UUID_VEHICLE,
+        property_id: UUID_PROPERTY_A,
+        owner_type: 'resident',
+        plate_number: 'A001AA77',
+      }],
+    });
+
+    const res = await supertest(buildApp())
+      .get(`/api/v1/vehicles/by-plate/a-001-aa77?property_id=${UUID_PROPERTY_A}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.vehicle.plate_number).toBe('A001AA77');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toContain('WHERE property_id = $1 AND plate_number = $2');
+    expect(params).toEqual([UUID_PROPERTY_A, 'A001AA77']);
+  });
+
   test('resident GET /vehicles/:id resolves ownership inside the id lookup', async () => {
     mockCurrentUser = { uid: 'resident-1', role: 'owner', property_id: UUID_PROPERTY_A };
     db.query.mockImplementation((sql) => {

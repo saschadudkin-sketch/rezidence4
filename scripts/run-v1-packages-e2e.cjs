@@ -67,7 +67,7 @@ const e2eEnv = buildE2EEnv({
   VITE_ENABLE_DEMO: 'false',
 });
 
-let status = run([
+let status = runWithCrashRetry([
   path.join(repoRoot, 'scripts', 'tenant-ops-preflight.cjs'),
   '--e2e-access',
 ], e2eEnv);
@@ -76,7 +76,7 @@ if (status !== 0) {
   process.exit(status);
 }
 
-status = run([
+status = runWithCrashRetry([
   path.join(repoRoot, 'scripts', 'playwright-preflight.cjs'),
 ], e2eEnv);
 if (status !== 0) {

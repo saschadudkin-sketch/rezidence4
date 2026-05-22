@@ -167,4 +167,21 @@ describe('access topology routes', () => {
     expect(db.query.mock.calls[0][0]).toContain('SELECT property_id FROM access_points');
     expect(db.query.mock.calls[1][0]).toContain('UPDATE access_points');
   });
+
+  test('PATCH /api/v1/access-zones/:id rejects building_id from another property before update', async () => {
+    mockCurrentUser = { uid: 'admin-1', role: 'admin', property_id: UUID_A };
+    db.query
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_A }] })
+      .mockResolvedValueOnce({ rows: [{ property_id: UUID_B }] });
+
+    const res = await supertest(buildApp())
+      .patch(`/api/v1/access-zones/${UUID_C}`)
+      .send({ building_id: UUID_B });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('building_id does not belong to this property');
+    expect(db.query.mock.calls[0][0]).toContain('SELECT property_id FROM access_zones');
+    expect(db.query.mock.calls[1][0]).toContain('SELECT property_id FROM buildings');
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE access_zones'))).toBe(false);
+  });
 });
