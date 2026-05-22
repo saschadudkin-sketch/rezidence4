@@ -139,6 +139,18 @@ npm run russia:readiness:live-evidence -- \
   --manifest artifacts/russia-readiness/live-evidence-manifest.json
 ```
 
+If the dry-run fails, generate a focused gap report before collecting more
+evidence:
+
+```bash
+npm run russia:readiness:live-gap -- --write
+```
+
+The report is written to `artifacts/russia-readiness/live-gap-report.md` and
+lists each missing DH-55 through DH-61 field plus the matching helper command.
+It does not create or promote evidence; it only explains why the strict package
+is still blocked.
+
 Then write the strict root files:
 
 ```bash

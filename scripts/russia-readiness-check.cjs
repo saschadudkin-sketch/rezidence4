@@ -14,6 +14,7 @@ const REQUIRED_ROOT_SCRIPTS = [
   'pilot:training-pack',
   'russia:readiness:evidence',
   'russia:readiness:live-evidence',
+  'russia:readiness:live-gap',
 ];
 
 const READINESS_GROUPS = [
@@ -161,6 +162,8 @@ const SHARED_EVIDENCE = [
   'docs/runbooks/russia-readiness-evidence-capture.md',
   'scripts/pilot-training-pack-check.cjs',
   'scripts/russia-readiness-evidence.cjs',
+  'scripts/russia-live-evidence-capture.cjs',
+  'scripts/russia-readiness-live-gap.cjs',
   'scripts/release-gate-matrix.cjs',
   'scripts/pilot-readiness-check.cjs',
   'e2e/v1-access-production.spec.js',
