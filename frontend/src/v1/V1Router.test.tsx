@@ -472,6 +472,13 @@ describe('V1Router direct deep-links gate by role', () => {
     ).toBeInTheDocument();
   });
 
+  test('resident deep-linked to /v1/packages gets kicked home', async () => {
+    sessionMeMock.mockResolvedValue(baseUser('owner'));
+    renderAt('/v1/packages');
+    expect(await screen.findByTestId('legacy-home')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /посылки/i })).toBeNull();
+  });
+
   test('technician deep-linked to /v1/technician-workspace reaches technician workspace', async () => {
     sessionMeMock.mockResolvedValue(baseUser('technician'));
     renderAt('/v1/technician-workspace');

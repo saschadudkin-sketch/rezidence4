@@ -1322,6 +1322,8 @@ describe('PackagesAdminPage', () => {
 
     const pickupBtn = await screen.findByRole('button', { name: 'Выдать' });
     expect(pickupBtn).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Возврат' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Напомнить' })).toBeInTheDocument();
     // Admin-only destructive action — не показывать для concierge.
     expect(screen.queryByRole('button', { name: 'Утеряна' })).not.toBeInTheDocument();
   });

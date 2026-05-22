@@ -128,6 +128,18 @@ async function openResidentPackagesViaRoleNavigation(page) {
 test.describe('platform-v1 packages production e2e', () => {
   test.skip(!enabled, 'backend-backed v1 packages e2e is enabled with E2E_V1_PACKAGES=1');
 
+  test('resident cannot deep-link into staff package intake', async ({ browser, baseURL }) => {
+    const resident = await newAuthedPage(browser, baseURL, USERS.resident);
+    try {
+      await resident.page.goto('/v1/packages');
+      await expect(resident.page).not.toHaveURL(/\/v1\/packages$/);
+      await expect(resident.page.getByTestId('packages-admin-page')).toHaveCount(0);
+      await expect(resident.page.getByRole('button', { name: '+ Принять посылку' })).toHaveCount(0);
+    } finally {
+      await resident.context.close().catch(() => {});
+    }
+  });
+
   test('security receives a package through role nav, resident sees it, security picks it up, resident sees completion', async ({ browser, baseURL }) => {
     const contexts = [];
     const runtimeErrors = [];
