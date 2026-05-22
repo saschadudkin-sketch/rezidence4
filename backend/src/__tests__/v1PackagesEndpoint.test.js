@@ -182,17 +182,19 @@ describe('GET /api/v1/packages/mine', () => {
   });
 
   test('happy path — resolves residentId + units, returns rows', async () => {
+    let packagesArgs = null;
     dispatch([
       [/FROM residents WHERE external_uid/, () => ({ rows: [{ id: UUID }] })],
       [/FROM resident_unit_links[\s\S]*WHERE resident_id/, () => ({ rows: [{ unit_id: UUID2 }] })],
-      [/FROM packages_v2/, () => ({ rows: [
+      [/FROM packages_v2/, (_sql, args) => { packagesArgs = args; return { rows: [
         { id: UUID3, status: 'awaiting_pickup', recipient_resident_id: UUID },
-      ] })],
+      ] }; }],
     ]);
     const res = await supertest(buildApp()).get('/api/v1/packages/mine');
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(1);
     expect(res.body.packages[0].id).toBe(UUID3);
+    expect(packagesArgs[1]).toBe(UUID);
   });
 
   test('503 when DB rejects', async () => {
@@ -217,11 +219,12 @@ describe('GET /api/v1/packages/metrics', () => {
   });
 
   test('happy with 7d default', async () => {
+    const metricArgs = [];
     dispatch([
-      [/status = 'awaiting_pickup'/, () => ({ rows: [{ open_count: 5 }] })],
-      [/AVG\(EXTRACT/, () => ({ rows: [{ avg_hours: 12.5 }] })],
-      [/FILTER \(WHERE status = 'returned'\)/, () => ({ rows: [{ returned: 1, closed: 4 }] })],
-      [/GROUP BY carrier/, () => ({ rows: [{ carrier: 'CDEK', total: 3 }] })],
+      [/status = 'awaiting_pickup'/, (_sql, args) => { metricArgs.push(args); return { rows: [{ open_count: 5 }] }; }],
+      [/AVG\(EXTRACT/, (_sql, args) => { metricArgs.push(args); return { rows: [{ avg_hours: 12.5 }] }; }],
+      [/FILTER \(WHERE status = 'returned'\)/, (_sql, args) => { metricArgs.push(args); return { rows: [{ returned: 1, closed: 4 }] }; }],
+      [/GROUP BY carrier/, (_sql, args) => { metricArgs.push(args); return { rows: [{ carrier: 'CDEK', total: 3 }] }; }],
     ]);
     const res = await supertest(buildApp()).get('/api/v1/packages/metrics?period=7d');
     expect(res.status).toBe(200);
@@ -230,6 +233,7 @@ describe('GET /api/v1/packages/metrics', () => {
     expect(res.body.open_count).toBe(5);
     expect(res.body.returned_rate).toBeCloseTo(0.25, 3);
     expect(res.body.top_carriers[0].carrier).toBe('CDEK');
+    expect(metricArgs.every((args) => args[0] === UUID)).toBe(true);
   });
 
   test('route order: /metrics не поглощается /:id', async () => {
@@ -273,8 +277,16 @@ describe('GET /api/v1/packages (list)', () => {
     const res = await supertest(buildApp())
       .get('/api/v1/packages?status=awaiting_pickup&since=2026-01-01T00:00:00Z');
     expect(res.status).toBe(200);
-    expect(lastArgs[0]).toBe('awaiting_pickup');
-    expect(lastArgs[1]).toBe('2026-01-01T00:00:00Z');
+    expect(lastArgs[0]).toBe(UUID);
+    expect(lastArgs[1]).toBe('awaiting_pickup');
+    expect(lastArgs[2]).toBe('2026-01-01T00:00:00Z');
+  });
+
+  test('403 on cross-property list scope', async () => {
+    mockCurrentUser = { uid: 's1', role: 'concierge', property_id: UUID2 };
+    const res = await supertest(buildApp()).get(`/api/v1/packages?property_id=${UUID}`);
+    expect(res.status).toBe(403);
+    expect(mockPool.query).not.toHaveBeenCalled();
   });
 });
 

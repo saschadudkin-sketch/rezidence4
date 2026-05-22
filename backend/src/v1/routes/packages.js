@@ -171,12 +171,17 @@ function audit(req, action, resourceId, changes) {
 // ВАЖНО: должен быть ПЕРЕД /:id.
 router.get('/mine', async (req, res) => {
   if (!isResident(req)) return res.status(403).json({ error: 'Residents only' });
+  const propertyId = resolvePropertyId(req);
+  if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
   const pool = req.db || db.pool;
   try {
     const residentId = await resolveResidentByUid(pool, req.user.uid);
     if (!residentId) return res.json({ ok: true, packages: [], count: 0 });
     const unitIds = await resolveUnitIdsForResident(pool, residentId);
-    const rows = await listForResident(pool, residentId, unitIds, { limit: req.query.limit });
+    const rows = await listForResident(pool, residentId, unitIds, {
+      propertyId,
+      limit: req.query.limit,
+    });
     return res.json({ ok: true, packages: rows, count: rows.length });
   } catch (err) {
     logger.error({ err }, '[v1/packages] mine query failed');
@@ -192,10 +197,13 @@ router.get('/metrics',
   const period = String(req.query.period || '7d');
   const hours = periods[period];
   if (!hours) return res.status(400).json({ error: `Invalid period. Allowed: ${Object.keys(periods).join(', ')}` });
+  const propertyId = resolvePropertyId(req);
+  if (!isValidUuid(propertyId)) return res.status(400).json({ error: 'property_id must be resolved' });
+  if (!canManagePackageProperty(req, propertyId)) return res.status(403).json({ error: 'Forbidden' });
 
   const pool = req.db || db.pool;
   try {
-    const snapshot = await getMetrics(pool, hours);
+    const snapshot = await getMetrics(pool, hours, { propertyId });
     return res.json({ ok: true, period, ...snapshot });
   } catch (err) {
     logger.error({ err }, '[v1/packages] metrics query failed');
@@ -212,6 +220,7 @@ router.get('/', async (req, res) => {
   const pool = req.db || db.pool;
   try {
     const result = await listForTenant(pool, {
+      propertyId,
       status: req.query.status,
       unit_id: req.query.unit_id,
       recipient_resident_id: req.query.recipient_resident_id,

@@ -192,6 +192,15 @@ describe('listForTenant', () => {
     await expect(listForTenant(db, { recipient_resident_id: 'nope' })).rejects.toThrow(/UUID/);
   });
 
+  test('scopes staff list by propertyId when provided', async () => {
+    const db = makeDb([[/FROM packages_v2/, () => ({ rows: [] })]]);
+    await listForTenant(db, { propertyId: UUID4, status: 'awaiting_pickup' });
+    const { sql, args } = db.calls[0];
+    expect(sql).toContain('property_id = $1');
+    expect(sql).toContain('status = $2');
+    expect(args.slice(0, 2)).toEqual([UUID4, 'awaiting_pickup']);
+  });
+
   test('rejects invalid ISO for since/until', async () => {
     const db = makeDb();
     await expect(listForTenant(db, { since: 'yesterday' })).rejects.toThrow(/ISO-8601/);
@@ -264,6 +273,15 @@ describe('listForResident', () => {
     expect(args[0]).toBe(UUID);
     expect(args[1]).toEqual([UUID2, UUID3]);
     expect(args[2]).toBe(7);
+  });
+
+  test('scopes resident list by propertyId before unit fan-out', async () => {
+    const db = makeDb([[/FROM packages_v2/, () => ({ rows: [] })]]);
+    await listForResident(db, UUID, [UUID2, UUID3], { propertyId: UUID4, limit: 7 });
+    const { sql, args } = db.calls[0];
+    expect(sql).toContain('property_id = $2');
+    expect(sql).toContain('recipient_resident_id IS NULL AND unit_id = ANY($3::uuid[])');
+    expect(args).toEqual([UUID, UUID4, [UUID2, UUID3], 7]);
   });
 });
 
@@ -681,7 +699,7 @@ describe('getMetrics', () => {
 
   test('emits open-count + avg + returned-rate + top_carriers', async () => {
     const db = makeDb([
-      [/FROM packages_v2 WHERE status = 'awaiting_pickup'/, () => ({ rows: [{ open_count: 3 }] })],
+      [/status = 'awaiting_pickup'/, () => ({ rows: [{ open_count: 3 }] })],
       [/AVG\(EXTRACT/, () => ({ rows: [{ avg_hours: 26.5 }] })],
       [/FILTER \(WHERE status = 'returned'\)/, () => ({ rows: [{ returned: 2, closed: 10 }] })],
       [/GROUP BY carrier/, () => ({ rows: [
@@ -697,6 +715,20 @@ describe('getMetrics', () => {
     ]);
     expect(m.period_hours).toBe(168);
     expect(typeof m.generated_at).toBe('string');
+  });
+
+  test('scopes all metrics queries by propertyId', async () => {
+    const db = makeDb([
+      [/status = 'awaiting_pickup'/, () => ({ rows: [{ open_count: 1 }] })],
+      [/AVG\(EXTRACT/, () => ({ rows: [{ avg_hours: null }] })],
+      [/FILTER \(WHERE status = 'returned'\)/, () => ({ rows: [{ returned: 0, closed: 0 }] })],
+      [/GROUP BY carrier/, () => ({ rows: [] })],
+    ]);
+    await getMetrics(db, 24, { propertyId: UUID4 });
+    for (const { sql, args } of db.calls) {
+      expect(sql).toContain('property_id = $1');
+      expect(args[0]).toBe(UUID4);
+    }
   });
 
   test('returned_rate null when no closed packages', async () => {

@@ -121,6 +121,11 @@ async function listForTenant(db, filters = {}) {
   const clauses = [];
   const args = [];
 
+  if (filters.propertyId) {
+    if (!isValidUuid(filters.propertyId)) throw new Error('propertyId must be UUID');
+    args.push(filters.propertyId);
+    clauses.push(`property_id = $${args.length}`);
+  }
   if (filters.status) {
     if (!ALLOWED_STATUSES.has(filters.status)) {
       throw new Error(`invalid status filter: ${filters.status}`);
@@ -184,6 +189,12 @@ async function listForResident(db, residentId, unitIds = [], opts = {}) {
   if (!residentId) return [];
   const limit = clampLimit(opts.limit, 50, 200);
   const args = [residentId];
+  const filters = [];
+  if (opts.propertyId) {
+    if (!isValidUuid(opts.propertyId)) throw new Error('propertyId must be UUID');
+    args.push(opts.propertyId);
+    filters.push(`property_id = $${args.length}`);
+  }
   let unitFilter = '';
   if (unitIds.length > 0) {
     // Безопасность: все входящие uuid'ы уже проверены вызывающей стороной.
@@ -194,7 +205,8 @@ async function listForResident(db, residentId, unitIds = [], opts = {}) {
   const { rows } = await db.query(
     `SELECT ${FULL_COLS}
        FROM packages_v2
-      WHERE (recipient_resident_id = $1 ${unitFilter})
+     WHERE (recipient_resident_id = $1 ${unitFilter})
+        ${filters.length ? `AND ${filters.join(' AND ')}` : ''}
         AND status <> 'lost'
         AND received_at >= NOW() - INTERVAL '90 days'
       ORDER BY received_at DESC
@@ -648,16 +660,34 @@ async function remindPackage(pool, id, opts = {}) {
 
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 
-async function getMetrics(db, hoursBack = 24 * 7) {
+async function getMetrics(db, hoursBack = 24 * 7, opts = {}) {
   const hours = Number(hoursBack);
   if (!Number.isFinite(hours) || hours <= 0) {
     throw new TypeError('hoursBack must be positive number');
   }
   const intervalArg = `${Math.floor(hours)} hours`;
+  const scoped = {};
+  if (opts.propertyId) {
+    if (!isValidUuid(opts.propertyId)) throw new Error('propertyId must be UUID');
+    scoped.where = 'property_id = $1';
+    scoped.args = [opts.propertyId];
+    scoped.intervalArgs = [opts.propertyId, intervalArg];
+    scoped.intervalPredicate = 'property_id = $1 AND';
+    scoped.intervalPlaceholder = '$2';
+  } else {
+    scoped.where = '';
+    scoped.args = [];
+    scoped.intervalArgs = [intervalArg];
+    scoped.intervalPredicate = '';
+    scoped.intervalPlaceholder = '$1';
+  }
 
   // Open count (текущее состояние, независимо от hoursBack).
   const { rows: openRows } = await db.query(
-    `SELECT COUNT(*)::int AS open_count FROM packages_v2 WHERE status = 'awaiting_pickup'`,
+    `SELECT COUNT(*)::int AS open_count
+       FROM packages_v2
+      WHERE ${scoped.intervalPredicate} status = 'awaiting_pickup'`,
+    scoped.args,
   );
 
   // Средний pickup-time (часы) за окно: диф picked_up_at − received_at.
@@ -665,9 +695,10 @@ async function getMetrics(db, hoursBack = 24 * 7) {
     `SELECT AVG(EXTRACT(EPOCH FROM (picked_up_at - received_at)) / 3600.0) AS avg_hours
        FROM packages_v2
       WHERE status = 'picked_up'
+        ${scoped.where ? `AND ${scoped.where}` : ''}
         AND picked_up_at IS NOT NULL
-        AND picked_up_at >= NOW() - $1::interval`,
-    [intervalArg],
+        AND picked_up_at >= NOW() - ${scoped.intervalPlaceholder}::interval`,
+    scoped.intervalArgs,
   );
 
   // Процент returned за окно.
@@ -676,20 +707,20 @@ async function getMetrics(db, hoursBack = 24 * 7) {
         COUNT(*) FILTER (WHERE status = 'returned')::int AS returned,
         COUNT(*) FILTER (WHERE status IN ('returned','picked_up','lost'))::int AS closed
        FROM packages_v2
-      WHERE created_at >= NOW() - $1::interval`,
-    [intervalArg],
+      WHERE ${scoped.intervalPredicate} created_at >= NOW() - ${scoped.intervalPlaceholder}::interval`,
+    scoped.intervalArgs,
   );
 
   // Top carriers (по volume за окно).
   const { rows: carRows } = await db.query(
     `SELECT carrier, COUNT(*)::int AS total
        FROM packages_v2
-      WHERE created_at >= NOW() - $1::interval
+      WHERE ${scoped.intervalPredicate} created_at >= NOW() - ${scoped.intervalPlaceholder}::interval
         AND carrier IS NOT NULL
       GROUP BY carrier
       ORDER BY total DESC
       LIMIT 10`,
-    [intervalArg],
+    scoped.intervalArgs,
   );
 
   const closed = retRows[0]?.closed || 0;
