@@ -25,6 +25,7 @@
     "verify:strict": "node scripts/run-strict-verify.cjs",
     "release:gate:matrix": "node scripts/release-gate-matrix.cjs --list",
     "release:gate:metadata": "node scripts/release-gate-matrix.cjs --metadata",
+    "release:gate:refresh": "node scripts/release-gate-runtime-evidence.cjs --stale-only",
     "release:gate:check": "node scripts/release-gate-matrix.cjs --require-runtime-evidence",
     "pilot:training-pack": "node scripts/pilot-training-pack-check.cjs",
     "pilot:readiness": "node scripts/pilot-readiness-check.cjs",
