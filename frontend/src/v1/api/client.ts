@@ -99,6 +99,23 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function extractErrorMessage(parsed: V1ApiErrorPayload | string | null, status: number): string {
+  if (typeof parsed === 'string' && parsed) return parsed;
+  if (parsed && typeof parsed === 'object') {
+    if (typeof parsed.error === 'string' && parsed.error) return parsed.error;
+    if (
+      parsed.error &&
+      typeof parsed.error === 'object' &&
+      typeof parsed.error.message === 'string' &&
+      parsed.error.message
+    ) {
+      return parsed.error.message;
+    }
+    if (typeof parsed.message === 'string' && parsed.message) return parsed.message;
+  }
+  return `HTTP ${status}`;
+}
+
 // ─── Core ───────────────────────────────────────────────────────────────────
 
 async function performRequest<T>(
@@ -167,10 +184,7 @@ async function performRequest<T>(
 
   const parsed = await parseBody(res);
   const kind = classifyByStatus(res.status);
-  const message =
-    (parsed && typeof parsed === 'object' && typeof parsed.error === 'string' && parsed.error) ||
-    (typeof parsed === 'string' && parsed) ||
-    `HTTP ${res.status}`;
+  const message = extractErrorMessage(parsed, res.status);
   throw new V1ApiError(kind, message, {
     status: res.status,
     payload: parsed && typeof parsed === 'object' ? parsed : null,

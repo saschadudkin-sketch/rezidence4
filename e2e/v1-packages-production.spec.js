@@ -93,6 +93,17 @@ function residentPackageRow(page, trackingNumber) {
   return page.locator(`[data-testid="resident-package-row"][data-tracking-number="${trackingNumber}"]`);
 }
 
+async function postPackageAction(page, packageId, action, data = {}) {
+  const origin = new URL(page.url()).origin;
+  return page.request.post(`/api/v1/packages/${packageId}/${action}`, {
+    headers: {
+      Origin: origin,
+      'X-CSRF-Token': csrfToken,
+    },
+    data,
+  });
+}
+
 function attachRuntimeGuards(page, errors) {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(`console: ${message.text()}`);
@@ -212,6 +223,18 @@ test.describe('platform-v1 packages production e2e', () => {
       await expect(awaitingRow.getByRole('button', { name: 'Напомнить' })).toHaveCount(0);
       await expect(awaitingRow.getByRole('button', { name: 'Утеряна' })).toHaveCount(0);
 
+      const forbiddenReturn = await postPackageAction(security.page, created.package.id, 'return', {
+        reason: 'security should not return',
+      });
+      expect(forbiddenReturn.status()).toBe(403);
+      const forbiddenRemind = await postPackageAction(security.page, created.package.id, 'remind');
+      expect(forbiddenRemind.status()).toBe(403);
+      const forbiddenLost = await postPackageAction(security.page, created.package.id, 'mark-lost', {
+        confirm: true,
+        reason: 'security should not mark lost',
+      });
+      expect(forbiddenLost.status()).toBe(403);
+
       await openResidentPackagesViaRoleNavigation(resident.page);
       const residentAwaitingRow = residentPackageRow(resident.page, tracking);
       await expect(residentAwaitingRow).toBeVisible();
@@ -246,6 +269,72 @@ test.describe('platform-v1 packages production e2e', () => {
       await expect(residentPickedUpRow).toContainText(pickupName);
 
       expect(runtimeErrors).toEqual([]);
+    } finally {
+      await Promise.all(contexts.map((context) => context.close().catch(() => {})));
+    }
+  });
+
+  test('package edge errors stay understandable in the UI', async ({ browser, baseURL }) => {
+    const contexts = [];
+    const stamp = Date.now();
+    const tracking = `PW-PKG-EDGE-${stamp}`;
+    const sender = `Edge sender ${stamp}`;
+    const storage = `E-${String(stamp).slice(-4)}`;
+
+    try {
+      const concierge = await newAuthedPage(browser, baseURL, USERS.concierge);
+      contexts.push(concierge.context);
+
+      await openStaffPackagesViaRoleNavigation(concierge.page);
+      const { created, awaitingRow } = await receivePackageFromOpenStaffPage(concierge.page, {
+        tracking,
+        sender,
+        carrier: 'Edge courier',
+        storage,
+        notes: 'Negative package browser e2e',
+      });
+
+      const firstRemindResponse = concierge.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/remind`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+      );
+      await awaitingRow.getByRole('button', { name: 'Напомнить' }).click();
+      await firstRemindResponse;
+      await expect(awaitingRow.getByText(/Напоминание отправлено/)).toBeVisible();
+
+      const rateLimitResponse = concierge.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/remind`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 429,
+      );
+      await awaitingRow.getByRole('button', { name: 'Напомнить' }).click();
+      const rateLimited = await (await rateLimitResponse).json();
+      expect(rateLimited.error.message).toBe('Напоминание уже отправлено. Подождите час.');
+      await expect(awaitingRow.getByText('Напоминание уже отправлено. Подождите час.')).toBeVisible();
+      await expect(awaitingRow.getByText('HTTP 429')).toHaveCount(0);
+
+      const stalePickup = await postPackageAction(concierge.page, created.package.id, 'pickup', {
+        picked_up_by_name: `Stale pickup ${stamp}`,
+      });
+      expect(stalePickup.status()).toBe(200);
+
+      await awaitingRow.getByRole('button', { name: 'Возврат' }).click();
+      const returnReason = awaitingRow.locator('#return-reason');
+      await expect(returnReason).toBeVisible();
+      await returnReason.fill(`Late return ${stamp}`);
+      const conflictResponse = concierge.page.waitForResponse((response) =>
+        response.url().includes(`/api/v1/packages/${created.package.id}/return`) &&
+        response.request().method() === 'POST' &&
+        response.status() === 409,
+      );
+      await awaitingRow.getByRole('button', { name: 'Оформить возврат' }).click();
+      const conflict = await (await conflictResponse).json();
+      expect(conflict.error).toContain('Cannot return from status');
+      await expect(
+        awaitingRow.getByText('Посылка уже обработана. Обновите список и проверьте текущий статус.'),
+      ).toBeVisible();
+      await expect(awaitingRow.getByText(/Cannot return from status/)).toHaveCount(0);
     } finally {
       await Promise.all(contexts.map((context) => context.close().catch(() => {})));
     }

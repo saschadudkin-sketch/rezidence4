@@ -20,7 +20,7 @@ export type V1ErrorKind =
 
 export interface V1ApiErrorPayload {
   /** Server-provided error message, if JSON body carried one. */
-  error?: string;
+  error?: string | { code?: string; message?: string };
   [key: string]: unknown;
 }
 

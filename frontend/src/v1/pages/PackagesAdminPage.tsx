@@ -246,7 +246,7 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
       setMode('none');
       void invalidatePackage(qc, row.id);
     },
-    onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка выдачи'),
+    onError: (err) => setActionError(packageActionError(err, 'Ошибка выдачи')),
   });
 
   const ret = useMutation({
@@ -257,7 +257,7 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
       setMode('none');
       void invalidatePackage(qc, row.id);
     },
-    onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка возврата'),
+    onError: (err) => setActionError(packageActionError(err, 'Ошибка возврата')),
   });
 
   const markLost = useMutation({
@@ -269,7 +269,7 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
       setMode('none');
       void invalidatePackage(qc, row.id);
     },
-    onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка mark-lost'),
+    onError: (err) => setActionError(packageActionError(err, 'Ошибка отметки об утере')),
   });
 
   const remind = useMutation({
@@ -279,7 +279,7 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
       setActionOk(`Напоминание отправлено (${r.outbox_fanout} канал(ов))`);
       void invalidatePackage(qc, row.id);
     },
-    onError: (err) => setActionError(isV1ApiError(err) ? err.message : 'Ошибка напоминания'),
+    onError: (err) => setActionError(packageActionError(err, 'Ошибка напоминания')),
   });
 
   const busy =
@@ -408,6 +408,20 @@ function PackageRow({ row, isAdmin, canReturnOrRemind }: PackageRowProps) {
       </Card>
     </div>
   );
+}
+
+function packageActionError(err: unknown, fallback: string): string {
+  if (!isV1ApiError(err)) return fallback;
+  if (err.kind === 'conflict') {
+    return 'Посылка уже обработана. Обновите список и проверьте текущий статус.';
+  }
+  if (err.kind === 'forbidden') {
+    return 'У вашей роли нет прав на это действие.';
+  }
+  if (err.kind === 'rate_limited') {
+    return err.message || 'Напоминание уже отправлено. Подождите час.';
+  }
+  return err.message || fallback;
 }
 
 // ─── Sub-forms for state transitions ───────────────────────────────────────
