@@ -15,7 +15,7 @@
     "test:integration:pg": "jest --runInBand src/__tests__/postgres.integration.test.js"
   },
   "dependencies": {
-    "@sentry/node": "^10.48.0",
+    "@sentry/node": "^10.53.1",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
