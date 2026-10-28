@@ -7,7 +7,7 @@ A first native-client scaffold for Android and iOS, built with React Native, Exp
 Implemented in this branch:
 - Expo application configuration and resident-facing home-screen shell.
 - Restrained, light visual system aligned with the product's resident-first design principles.
-- Typed API request helper restricted to versioned `/api/v1/*` paths and HTTPS outside local development.
+- Typed API request helper restricted to normalized versioned `/api/v1/*` paths and HTTPS outside local development.
 - Safe, user-readable API error messages that do not expose response bodies.
 - Explicit setup status on the home screen so placeholder UI is not mistaken for live access data.
 
@@ -46,6 +46,7 @@ The root repository's current lockfile does not include this standalone mobile p
 
 ## Documentation
 
+- [Full static audit — 2026-10-28](../../docs/mobile/MOBILE_APP_FULL_AUDIT_2026-10-28.md)
 - [Readiness audit](../../docs/mobile/MOBILE_APP_READINESS_2026-10-27.md)
 - [Implementation plan](../../docs/mobile/MOBILE_APP_IMPLEMENTATION_PLAN.md)
 - [Access API contract](../../docs/product/specs/domhub-access-api-contract-spec.md)
