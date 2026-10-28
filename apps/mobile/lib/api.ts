@@ -8,17 +8,32 @@ export class ApiError extends Error {
   }
 }
 
-function getApiBaseUrl(): string {
+function getApiBaseUrl(): URL {
   const value = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (!value) {
     throw new Error("Не задан EXPO_PUBLIC_API_BASE_URL. Настройте адрес тестового API.");
   }
 
-  const url = new URL(value);
-  if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("EXPO_PUBLIC_API_BASE_URL должен быть корректным URL API.");
+  }
+
+  if (
+    url.protocol !== "https:" &&
+    url.hostname !== "localhost" &&
+    url.hostname !== "127.0.0.1"
+  ) {
     throw new Error("Мобильное приложение допускает только HTTPS API вне локальной разработки.");
   }
-  return url.toString().replace(/\/$/, "");
+
+  if (url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+    throw new Error("Укажите только origin API без логина, пароля, пути, query-параметров или hash.");
+  }
+
+  return url;
 }
 
 export async function apiRequest<T>(
@@ -30,7 +45,18 @@ export async function apiRequest<T>(
   }
 
   const baseUrl = getApiBaseUrl();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const requestUrl = new URL(path, baseUrl);
+
+  // Проверяем уже нормализованный URL: строки вроде /api/v1/../auth
+  // после нормализации выходят из /api/v1/ и не должны попасть в legacy API.
+  if (
+    requestUrl.origin !== baseUrl.origin ||
+    !requestUrl.pathname.startsWith("/api/v1/")
+  ) {
+    throw new Error("Запрос должен оставаться в пределах versioned API /api/v1/.");
+  }
+
+  const response = await fetch(requestUrl.toString(), {
     ...init,
     headers: {
       Accept: "application/json",
