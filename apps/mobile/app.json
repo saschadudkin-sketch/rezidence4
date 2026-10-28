@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Резиденции Замоскворечья",
+    "slug": "rezidence-resident",
+    "scheme": "rezidence",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ru.rezidence.resident"
+    },
+    "android": {
+      "package": "ru.rezidence.resident",
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F1E8"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
