@@ -42,7 +42,7 @@ The unused AsyncStorage dependency and the `expo lint` script (without a local E
 
 ### P1 — Current CI status is not evidence of a pass
 
-The latest workflow runs returned by GitHub were on the default branch in July 2026 and were marked failed. No run for the current PR head was present in the retrieved run list, and the current head had no commit statuses. This does not prove every current source file fails; it means there is no current passing CI evidence. The old failures need to be inspected and a fresh run must be obtained before merge/release.
+The latest workflow runs returned by GitHub were on the default branch in July 2026 and were marked failed. In the most recent retrieved CI run, the backend tests and frontend test/build/verification jobs completed successfully, but the Docker Compose smoke job and governance security-scan job failed; dependent jobs were skipped. The nightly Playwright smoke run also failed. The logs for those historical failures are no longer downloadable (GitHub returned HTTP 410), so the exact causes remain unverified. No run for the current PR head was present in the retrieved run list, and the current head had no commit statuses. This does not prove every current source file fails; it means there is no current passing CI evidence. A fresh run and investigation of the old failures are required before merge/release.
 
 ### P1 — QR, manual check, and SKUD integration are not connected to the native app
 
