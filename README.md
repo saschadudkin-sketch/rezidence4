@@ -42,75 +42,79 @@ exist only as compatibility shims.
 
 ## Quick Start (Development)
 
+The repository's current local baseline is the full Docker Compose stack. The old instructions naming `postgres-registry`, `postgres-object-demo`, and `backend/src/db/migrate.js` do not match the current Compose services and migration entrypoint.
+
 ### Prerequisites
-- Node.js 20+
-- Docker & Docker Compose
+- Git
+- Node.js 20 LTS or compatible with the lockfiles
+- Docker Desktop with Docker Compose v2
 
-### 1. Clone and configure
+### 1. Clone and create local configuration
 
 ```bash
+git clone https://github.com/saschadudkin-sketch/rezidence4.git
+cd rezidence4
+git switch codex/mobile-app-foundation
 cp .env.example .env
-# Edit .env — set JWT_SECRET and UPLOAD_SIGNING_SECRET
 ```
 
-### 2. Start databases
+Open `.env` and replace the placeholder values for `DB_PASSWORD`, `JWT_SECRET`, `PLATFORM_JWT_SECRET`, `REDIS_PASSWORD`, and `UPLOAD_SIGNING_SECRET` with unique random values. Keep `JWT_SECRET` and `PLATFORM_JWT_SECRET` different. For a local browser session, set:
+
+```dotenv
+BACKEND_URL=http://localhost
+FRONTEND_URL=http://localhost
+YOUR_DOMAIN=localhost
+```
+
+Leave `PLATFORM_DB_URL` and `ZAMOSKV_DB_URL` empty for the standard Compose setup; Compose derives their container-network URLs using the `db` service and `DB_PASSWORD`. The checked-in `ops/ci-dummy.env` is for CI only, not a replacement for your local `.env`.
+
+### 2. Validate configuration and start the stack
 
 ```bash
-docker compose up postgres-registry postgres-object-demo redis -d
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
 ```
 
-### 3. Run migrations
+The current Compose service names are `db`, `redis`, `backend`, `frontend`, and `backup`. The backend container runs `node src/migrate.js` before starting the API; do not use the obsolete `node src/db/migrate.js` command. Database initialization scripts under `ops/db-init/` run only when PostgreSQL's data volume is first created.
+
+Open [http://localhost](http://localhost). If startup fails, inspect the relevant service logs:
 
 ```bash
-cd backend
-npm install
-node src/db/migrate.js registry
-node src/db/migrate.js object demo
+docker compose logs --tail=200 db backend frontend
 ```
 
-### 4. Register the demo complex in Registry
+To stop the services without deleting the local database volume:
 
 ```bash
-psql postgresql://rezidence:rezidence_dev@localhost:5432/rezidence_registry -c "
-  INSERT INTO complexes (slug, name, dsn, city, plan) VALUES
-  ('demo', 'Demo Complex', 'postgresql://rezidence:object_dev@localhost:5433/rezidence_demo', 'Moscow', 'comfort');
-"
+docker compose down
 ```
 
-### 5. Start backend
+**Warning:** do not use `docker compose down -v` unless you intentionally want to delete the local database and other Compose volumes. Use only synthetic test data.
+
+### 3. Install dependencies for repository checks
+
+From the repository root:
 
 ```bash
-cd backend
-npm run dev
+npm run bootstrap
 ```
 
-### 6. Start frontend
+This runs the root, backend, and frontend lockfile-based installs. Then run targeted checks from the root as appropriate:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+npm run backend:test
+npm run frontend:lint
+npm run frontend:test
+npm run frontend:typecheck
+npm run frontend:build
 ```
 
-Open http://localhost:5173. The frontend reads `VITE_COMPLEX_SLUG=demo` from `.env` to route all API calls to the demo complex.
+These commands have not been certified as passing by this documentation change; record each actual result and its logs before marking the baseline complete. Some integration and E2E checks require the Compose stack and explicit test configuration. Do not run destructive restore or release-gate commands against an environment containing anything other than disposable synthetic data.
 
----
+### Production
 
-## Production (Docker Compose)
-
-```bash
-cp .env.example .env
-# Fill in all production secrets
-
-docker compose up -d
-```
-
-Then run migrations inside the backend container:
-
-```bash
-docker compose exec backend node src/db/migrate.js registry
-docker compose exec backend node src/db/migrate.js object demo
-```
+Do not use this development quick start as a production deployment guide. Production requires a separate reviewed environment, real secrets from an approved secret manager, HTTPS, backup/restore evidence, monitoring, security/privacy review, and an explicit release go/no-go approval. No production server or deployment is authorized by this repository plan.
 
 ---
 
