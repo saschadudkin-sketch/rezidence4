@@ -75,6 +75,7 @@ import './styles/ds-tokens.css';
 import './styles/tokens.css';
 import './styles/foundations.css';
 import './styles/theme.css';
+import './styles/residence-shell.css';
 
 // ─── Splash ───────────────────────────────────────────────────────────────────
 
