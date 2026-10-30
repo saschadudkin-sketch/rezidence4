@@ -145,6 +145,7 @@ const AppShell = memo(function AppShell({
           {!hideChatTitleOnCompact && (
             <div className={`page-top${isChatTab ? ' page-top--chat' : ''}`}>
               <div className="page-top-copy">
+                <div className="shell-page-eyebrow">Резиденции <span aria-hidden="true">/</span> Личный кабинет</div>
                 <h1 className="page-title">{pageTitle}</h1>
                 {activeTab !== 'chat' && <p className="page-sub">{pageSubtitle}</p>}
                 {actionRail}

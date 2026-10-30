@@ -179,6 +179,7 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
         aria-label="Основная навигация"
         ref={topNavRef}
       >
+        <div className="shell-nav-heading" aria-hidden="true">Личный кабинет</div>
         {topNavItems.map(([key, icon, label, badge]) => (
           <button
             key={key}
@@ -191,6 +192,10 @@ const NavigationShell = memo(function NavigationShell({ nav, navClassMap, goTab,
             {badge > 0 && shouldShowNavBadge(key) && <span className="tn-badge">{formatBadgeCount(badge)}</span>}
           </button>
         ))}
+        <div className="shell-nav-footer" aria-hidden="true">
+          <span className="shell-nav-monogram">РЗ</span>
+          <span>Резиденции Замоскворечья<small>Пространство вашего дома</small></span>
+        </div>
       </nav>
 
       <nav className="mobile-nav" aria-label="Мобильная навигация" aria-hidden={!isMobile || isTablet || undefined} ref={mobileNavRef}>
