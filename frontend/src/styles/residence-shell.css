@@ -169,3 +169,10 @@ html:root .content .resident-quick-card:hover { background: var(--g-bg); border-
   html .resident-quick-card { padding: var(--space-md); min-height: 80px; }
   html .resident-quick-copy strong, html .resident-quick-copy small { overflow-wrap: normal; }
 }
+html .login-mobile-top div > div:first-child { color: var(--t1); }
+html .login-mobile-tagline { color: var(--t3); }
+@media (--bp-lg-above) {
+  html .login-art { display: flex; }
+  html .login-panel { min-width: 0; }
+  html .login-mobile-top { display: none; }
+}
